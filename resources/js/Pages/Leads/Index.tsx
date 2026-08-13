@@ -23,6 +23,7 @@ import {
     FilterOutlined,
     ReloadOutlined,
     MergeCellsOutlined,
+    SettingOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps } from "antd";
@@ -179,6 +180,9 @@ const Index = ({
     }, [leads.total]);
 
     const canMergeLeads = useLeadMergeAccess();
+    // Mirrors QualificationFieldMappingController::assertCanManage.
+    const canManageQualificationMapping =
+        pageProps.auth?.permissions?.manage_qualification_mapping === "all";
     const [findDuplicatesLead, setFindDuplicatesLead] = useState<Lead | null>(
         null,
     );
@@ -326,6 +330,26 @@ const Index = ({
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {canManageQualificationMapping && (
+                                <Link
+                                    href={route(
+                                        "qualification-field-mapping.index",
+                                    )}
+                                >
+                                    <Button
+                                        type="text"
+                                        icon={<SettingOutlined />}
+                                        title={td(
+                                            "Qualification script field mapping",
+                                            { source: "en" },
+                                        )}
+                                        aria-label={td(
+                                            "Qualification script field mapping",
+                                            { source: "en" },
+                                        )}
+                                    />
+                                </Link>
+                            )}
                             <Button
                                 icon={<ReloadOutlined spin={isRefreshing} />}
                                 onClick={refresh}

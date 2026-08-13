@@ -15,6 +15,7 @@ import {
     LeadQualificationsResponse,
     LeadQualification,
     QualificationActionRun,
+    QualificationLeadPatch,
     StartQualificationPayload,
     UpdateNavigationPayload,
     UpsertAnswerPayload,
@@ -28,6 +29,7 @@ interface CrmMutationResponse<T> {
     status?: string;
     message?: string;
     qualification?: T;
+    lead?: QualificationLeadPatch | null;
 }
 
 const crmRequest = async <T>(
@@ -117,7 +119,7 @@ export class LeadQualificationService {
     async completeQualification(
         qualificationId: number,
         payload: CompleteQualificationPayload,
-    ): Promise<LeadQualification> {
+    ): Promise<{ qualification: LeadQualification; lead: QualificationLeadPatch | null }> {
         const response = await crmRequest<CrmMutationResponse<LeadQualification>>(
             {
                 method: "POST",
@@ -131,7 +133,7 @@ export class LeadQualificationService {
             throw new Error("Completed qualification was not returned by the server");
         }
 
-        return response.qualification;
+        return { qualification: response.qualification, lead: response.lead ?? null };
     }
 
     async executeAction(
@@ -171,6 +173,24 @@ export class LeadQualificationService {
                 url: `/account/lead-qualifications/${qualificationId}/abandon`,
             },
             this.auth,
+        );
+    }
+
+    async deleteQualification(
+        qualificationId: number,
+    ): Promise<LeadQualificationsResponse> {
+        const response = await crmRequest<{
+            workspace?: LeadQualificationsResponse;
+        }>(
+            {
+                method: "DELETE",
+                url: `/account/lead-qualifications/${qualificationId}`,
+            },
+            this.auth,
+        );
+
+        return normalizeQualificationsIndexResponse(
+            (response.workspace ?? response) as Record<string, unknown>,
         );
     }
 

@@ -123,10 +123,11 @@ class LeadQualificationController extends AccountBaseController
             $validated['outcomes'] = [$validated['outcome']];
         }
 
-        $completed = $this->qualificationService->complete($qualification, $validated);
+        $result = $this->qualificationService->complete($qualification, $validated);
 
         return Reply::successWithData(__('messages.recordSaved'), [
-            'qualification' => $completed,
+            'qualification' => $result['qualification'],
+            'lead' => $result['lead'],
         ]);
     }
 
@@ -168,6 +169,18 @@ class LeadQualificationController extends AccountBaseController
 
         return Reply::successWithData(__('messages.updateSuccess'), [
             'qualification' => $abandoned,
+        ]);
+    }
+
+    public function destroy(LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $lead = $qualification->lead()->firstOrFail();
+        $this->qualificationService->delete($qualification);
+
+        return Reply::successWithData(__('messages.deleteSuccess'), [
+            'workspace' => $this->qualificationService->resolveWorkspaceForLead($lead),
         ]);
     }
 

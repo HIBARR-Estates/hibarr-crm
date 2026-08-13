@@ -1,18 +1,14 @@
 import React from "react";
 import { Tag, Radio, Checkbox, Input, Switch, Space } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import {
-    QualificationToken,
-    Segment,
-    SegmentAnswerState,
-} from "@/Types/qualification";
+import { Segment, SegmentAnswerState } from "@/Types/qualification";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
-import TokenHighlight from "../TokenHighlight";
+import QualificationScriptHtml from "../QualificationScriptHtml";
+import { stripHtmlTags } from "../qualificationUtils";
 
 interface QuestionSegmentProps {
     segment: Segment;
     answer?: SegmentAnswerState;
-    tokenMap: Record<QualificationToken, string>;
     translateScript: (text: string) => string;
     onChange: (values: string[], text?: string | null) => void;
     disabled?: boolean;
@@ -21,12 +17,13 @@ interface QuestionSegmentProps {
 const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     segment,
     answer,
-    tokenMap,
     translateScript,
     onChange,
     disabled = false,
 }) => {
-    const translated = translateScript(useDynamicTranslation(segment.label, { source: "en" }));
+    const translated = translateScript(
+        useDynamicTranslation(segment.label, { source: "en" }),
+    );
     const answerType = segment.answerType ?? "singleSelect";
 
     return (
@@ -38,12 +35,16 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
             >
                 Ask
             </Tag>
-            <p className="text-xl leading-relaxed text-gray-900 font-medium">
-                <TokenHighlight text={translated} tokenMap={tokenMap} />
-                {segment.required && (
-                    <span className="text-red-500 ml-1">*</span>
-                )}
-            </p>
+            <div className="flex items-start gap-1">
+                <QualificationScriptHtml
+                    html={translated}
+                    className="text-xl leading-relaxed text-gray-900 font-medium flex-1"
+                    quoted
+                />
+                {segment.required ? (
+                    <span className="text-red-500 ml-1 mt-1">*</span>
+                ) : null}
+            </div>
 
             {answerType === "singleSelect" && (
                 <Radio.Group
@@ -90,16 +91,15 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
             )}
 
             {answerType === "boolean" && (
-                <div className="flex items-center gap-3">
-                    <Switch
-                        checked={answer?.answer_values[0] === "true"}
-                        onChange={(checked) =>
-                            onChange([checked ? "true" : "false"])
-                        }
-                        disabled={disabled}
-                    />
-                    <span className="text-gray-600">Yes / No</span>
-                </div>
+                <Switch
+                    checked={answer?.answer_values[0] === "true"}
+                    onChange={(checked) =>
+                        onChange([checked ? "true" : "false"])
+                    }
+                    disabled={disabled}
+                    checkedChildren="Yes"
+                    unCheckedChildren="No"
+                />
             )}
         </div>
     );
@@ -107,7 +107,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
 
 const OptionLabel: React.FC<{ label: string }> = ({ label }) => {
     const translated = useDynamicTranslation(label, { source: "en" });
-    return <span>{translated}</span>;
+    return <>{stripHtmlTags(translated) || translated}</>;
 };
 
 export default QuestionSegment;

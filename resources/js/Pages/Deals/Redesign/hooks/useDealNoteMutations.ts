@@ -8,8 +8,45 @@ import type { Note } from "@/Types/api/note";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface UpdateNotePayload {
-    title: string;
+    title?: string | null;
     details: string;
+}
+
+function noteFromUpdateResponse(
+    response: ApiResponse<Note>,
+    noteId: number,
+    payload: UpdateNotePayload,
+    previous?: Note,
+): Note {
+    const raw = response.data as Note | { data?: Note } | undefined;
+    const fromApi =
+        raw && typeof raw === "object" && "id" in raw
+            ? (raw as Note)
+            : raw && typeof raw === "object" && "data" in raw && raw.data?.id
+              ? raw.data
+              : null;
+
+    const nextTitle =
+        fromApi && "title" in fromApi
+            ? (fromApi.title ?? "")
+            : (payload.title ?? previous?.title ?? "");
+
+    if (fromApi) {
+        return {
+            ...previous,
+            ...fromApi,
+            title: nextTitle,
+            details: fromApi.details ?? payload.details,
+        };
+    }
+
+    return {
+        ...(previous ?? ({ id: noteId } as Note)),
+        id: noteId,
+        title: payload.title ?? "",
+        details: payload.details,
+        updated_at: new Date().toISOString(),
+    };
 }
 
 export default function useDealNoteMutations(noteId: number) {
@@ -29,18 +66,26 @@ export default function useDealNoteMutations(noteId: number) {
 
     const updateNote = useCallback(
         (payload: UpdateNotePayload, onSuccess?: () => void) => {
+            if (!noteId) return;
             updateMutate(payload, {
+                suppressSuccessToast: true,
                 onSuccess: (response) => {
                     if (response?.status === "success") {
-                        message.success(t("pages.deals.workspace.notes.messages.updated"));
-                        if (response.data) {
-                            const updated = response.data;
-                            setNotes((prev) =>
-                                prev.map((note) =>
-                                    note.id === noteId ? updated : note,
-                                ),
-                            );
-                        }
+                        message.success(
+                            t("pages.deals.workspace.notes.messages.updated"),
+                        );
+                        setNotes((prev) =>
+                            prev.map((note) =>
+                                note.id === noteId
+                                    ? noteFromUpdateResponse(
+                                          response,
+                                          noteId,
+                                          payload,
+                                          note,
+                                      )
+                                    : note,
+                            ),
+                        );
                         onSuccess?.();
                     }
                 },
@@ -51,9 +96,13 @@ export default function useDealNoteMutations(noteId: number) {
 
     const deleteNote = useCallback(
         (onSuccess?: () => void) => {
+            if (!noteId) return;
             deleteMutate(null, {
+                suppressSuccessToast: true,
                 onSuccess: () => {
-                    message.success(t("pages.deals.workspace.notes.messages.deleted"));
+                    message.success(
+                        t("pages.deals.workspace.notes.messages.deleted"),
+                    );
                     setNotes((prev) => prev.filter((note) => note.id !== noteId));
                     onSuccess?.();
                 },

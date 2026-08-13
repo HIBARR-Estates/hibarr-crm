@@ -136,7 +136,7 @@ class DealNoteController extends AccountBaseController
         }
 
         $note = new DealNote();
-        $note->title = $request->title;
+        $note->title = $request->filled('title') ? $request->title : null;
         $note->deal_id = $request->lead_id;
         $note->details = trim_editor($request->details);
         if ($request->filled('remind_at')) {
@@ -196,7 +196,7 @@ class DealNoteController extends AccountBaseController
     public function update(StoreDealNote $request, $id)
     {
         $note = DealNote::findOrFail($id);
-        $note->title = $request->title;
+        $note->title = $request->filled('title') ? $request->title : null;
         $note->details = trim_editor($request->details);
         if ($request->exists('remind_at')) {
             $note->remind_at = $request->filled('remind_at') ? $request->remind_at : null;

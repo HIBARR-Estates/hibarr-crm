@@ -1,23 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface Props {
     leadName: string;
+    /** Defaults to "Deal Analysis". */
+    title?: string;
     isCompleted: boolean;
     totalFilled: number;
     totalFields: number;
     subscribeSaving?: (cb: (saving: boolean) => void) => () => void;
     onMinimize: () => void;
+    /** Extra controls on the right (e.g. language select for qualification). */
+    trailingActions?: ReactNode;
 }
 
 export default function AnalysisHeaderBar({
     leadName,
+    title,
     isCompleted,
     totalFilled,
     totalFields,
     subscribeSaving,
     onMinimize,
+    trailingActions,
 }: Props) {
     const { td } = useTd();
 
@@ -25,6 +31,7 @@ export default function AnalysisHeaderBar({
     const [isSaving, setIsSaving] = useState(false);
     useEffect(() => subscribeSaving?.(setIsSaving), [subscribeSaving]);
     const pct = totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
+    const heading = title ?? td("Deal Analysis", { source: "en" });
 
     return (
         <div
@@ -55,7 +62,7 @@ export default function AnalysisHeaderBar({
 
                 <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-semibold text-white shrink-0">
-                        {td("Deal Analysis", { source: "en" })}
+                        {heading}
                     </span>
                     {leadName && (
                         <>
@@ -86,7 +93,7 @@ export default function AnalysisHeaderBar({
                 </span>
             </div>
 
-            {/* Right — progress + close */}
+            {/* Right — progress + optional actions + close */}
             <div className="flex items-center gap-5 shrink-0">
                 {totalFields > 0 && (
                     <div className="hidden sm:flex items-center gap-3">
@@ -129,9 +136,11 @@ export default function AnalysisHeaderBar({
                     </div>
                 )}
 
+                {trailingActions}
+
                 <button
                     type="button"
-                    aria-label={td("Minimize analysis", { source: "en" })}
+                    aria-label={td("Close", { source: "en" })}
                     onClick={onMinimize}
                     className="w-8 h-8 rounded-md flex items-center justify-center transition-colors"
                     style={{ color: "rgba(255,255,255,0.5)" }}

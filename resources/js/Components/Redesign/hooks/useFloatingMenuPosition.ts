@@ -59,7 +59,13 @@ export default function useFloatingMenuPosition(
             const next: FloatingMenuStyle = {
                 position: "fixed",
                 zIndex,
-                maxHeight: Math.max(120, openUp ? spaceAbove : spaceBelow),
+                // Cap at the caller's requested height — without the Math.min
+                // the menu grows to fill all available viewport space, which
+                // makes long option lists (e.g. lead fields) run the full page.
+                maxHeight: Math.min(
+                    maxHeight,
+                    Math.max(120, openUp ? spaceAbove : spaceBelow),
+                ),
                 top: "auto",
                 bottom: "auto",
                 left: "auto",

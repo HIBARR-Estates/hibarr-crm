@@ -566,10 +566,54 @@
     margin: 0 0 16px;
     line-height: 1.45;
 }
-.lead-redesign .v2-answers-group {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+
+.lead-redesign .qualification-script-html,
+.qualification-script-html {
+    line-height: 1.45;
+    word-break: break-word;
+    color: #0f172a;
+}
+.qualification-script-html.qualify-segment-prompt {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 400;
+    line-height: 1.45;
+}
+.qualification-script-html.qualify-segment-prompt b,
+.qualification-script-html.qualify-segment-prompt strong {
+    font-weight: 700;
+}
+.qualification-script-html.qualify-segment-prompt em,
+.qualification-script-html.qualify-segment-prompt i {
+    font-style: italic;
+}
+.qualification-script-html.qualify-segment-prompt u {
+    text-decoration: underline;
+}
+.lead-redesign .qualification-script-html p,
+.qualification-script-html p {
+    margin: 0 0 0.65em;
+}
+.lead-redesign .qualification-script-html p:last-child,
+.qualification-script-html p:last-child {
+    margin-bottom: 0;
+}
+.lead-redesign .qualification-script-html ul,
+.lead-redesign .qualification-script-html ol,
+.qualification-script-html ul,
+.qualification-script-html ol {
+    margin: 0.4em 0 0.65em;
+    padding-left: 1.25em;
+}
+.lead-redesign .qualification-script-html.is-quoted,
+.qualification-script-html.is-quoted {
+    position: relative;
+}
+.lead-redesign .v2-qualify-prompt.qualification-script-html,
+.lead-redesign .qualify-outcome-body.qualification-script-html {
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
 }
 .lead-redesign .v2-answers-run {
     border: 1px solid var(--lr-border);
@@ -628,6 +672,31 @@
     font-weight: 500;
     outline: none;
     box-shadow: 0 0 0 2px var(--lr-blue-light);
+}
+
+.lead-redesign .v2-dossier-row {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+    align-items: center;
+}
+
+/* Inline editors in the dossier: the shared EditableField carries a
+   min-w-[200px] sized for the Lead info grid, which overflows this rail. */
+.lead-redesign .v2-dossier .ant-select {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Only while an editor is open, drop the label column so the select gets the
+   full rail width instead of ~130px. Rows realign the moment it closes.
+   ponytail: :has() — without it the row just stays narrow, still usable. */
+.lead-redesign .v2-dossier-row:has(.ant-select) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    align-items: stretch;
 }
 
 .lead-redesign .v2-dossier-value {
@@ -1330,5 +1399,301 @@
     }
     .lead-redesign .v2-quick-stat:last-child {
         border-bottom: none;
+    }
+}
+
+/* ── Qualify modal (full-viewport 3-col workspace) ───────────────────── */
+
+.lead-redesign.qualify-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(22, 41, 77, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5vh 2.5vw;
+    font-family: var(--lr-font);
+}
+
+.lead-redesign .qualify-modal-panel {
+    background: var(--lr-white);
+    border: 1px solid var(--lr-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
+    width: 90vw;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--lr-text);
+}
+
+.lead-redesign .qualify-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--lr-border);
+    background: var(--lr-surface-2);
+    flex-shrink: 0;
+}
+
+.lead-redesign .qualify-modal-header-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.lead-redesign .qualify-modal-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--lr-text);
+    line-height: 1.25;
+}
+
+.lead-redesign .qualify-saving {
+    font-size: 12px;
+    color: var(--lr-text-muted);
+}
+
+.lead-redesign .qualify-modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.lead-redesign .qualify-modal-progress {
+    padding: 10px 18px 8px;
+    border-bottom: 1px solid var(--lr-border);
+    flex-shrink: 0;
+}
+
+.lead-redesign .qualify-modal-step-meta {
+    font-size: 12px;
+    color: var(--lr-text-dim);
+}
+
+.lead-redesign .qualify-3col-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.lead-redesign .qualify-3col-left {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--lr-border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--lr-surface-2);
+}
+
+@media (min-width: 1100px) {
+    .lead-redesign .qualify-3col-left {
+        width: 340px;
+    }
+}
+
+.lead-redesign .qualify-3col-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--lr-white);
+}
+
+.lead-redesign .qualify-3col-right {
+    width: 360px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--lr-border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background: #0A2E5D;
+}
+
+@media (min-width: 1280px) {
+    .lead-redesign .qualify-3col-right {
+        width: 400px;
+    }
+}
+
+.lead-redesign .qualify-nav-section,
+.lead-redesign .qualify-answers-section {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.lead-redesign .qualify-center-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px 24px 12px;
+}
+
+.lead-redesign .qualify-center-footer {
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+.lead-redesign .qualify-context-profile {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--lr-border);
+}
+
+.lead-redesign .qualify-context-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--lr-text);
+    margin-bottom: 4px;
+}
+
+.lead-redesign .qualify-context-meta {
+    font-size: 12px;
+    color: var(--lr-text-muted);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.lead-redesign .qualify-context-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--lr-border);
+    flex-shrink: 0;
+}
+
+.lead-redesign .qualify-context-tab {
+    flex: 1;
+    font-family: inherit;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lr-text-muted);
+    cursor: pointer;
+}
+
+.lead-redesign .qualify-context-tab.is-active {
+    color: var(--lr-blue);
+    border-bottom-color: var(--lr-blue);
+    font-weight: 600;
+}
+
+.lead-redesign .qualify-context-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 14px 16px;
+}
+
+.lead-redesign .qualify-context-field {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--lr-border);
+}
+
+.lead-redesign .qualify-context-field-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--lr-text-dim);
+    margin-bottom: 2px;
+}
+
+.lead-redesign .qualify-context-field-value {
+    font-size: 13px;
+    color: var(--lr-text);
+    word-break: break-word;
+}
+
+.lead-redesign .qualify-context-notes-list {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lead-redesign .qualify-context-note {
+    border: 1px solid var(--lr-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--lr-white);
+}
+
+.lead-redesign .qualify-context-note-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lr-text);
+    margin-bottom: 4px;
+}
+
+.lead-redesign .qualify-context-note-body {
+    font-size: 12px;
+    color: var(--lr-text-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lead-redesign .qualify-context-empty {
+    margin: 0;
+    font-size: 12px;
+    color: var(--lr-text-dim);
+    line-height: 1.4;
+}
+
+.lead-redesign .qualify-rail-heading {
+    margin: 0 0 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--lr-text-dim);
+}
+
+.lead-redesign .qualify-outcome-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.lead-redesign .qualify-outcome-body {
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--lr-text);
+    margin: 0 0 8px;
+}
+
+.lead-redesign .qualify-outcome-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.lead-redesign .qualify-outcome-footer-nav {
+    margin-top: 8px;
+}
+
+@media (max-width: 960px) {
+    .lead-redesign .qualify-3col-left,
+    .lead-redesign .qualify-3col-right {
+        display: none;
     }
 }

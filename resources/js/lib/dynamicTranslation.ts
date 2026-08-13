@@ -58,11 +58,32 @@ export const shouldRequestDynamicTranslation = (
     return options?.source === "en";
 };
 
+/**
+ * A miss queues a background translation job. Those take a queue hop plus one
+ * API call per target locale — measured at 1-2 minutes under load — so poll
+ * with backoff for ~5 minutes before giving up on the source text.
+ */
+/** Server-side cap on `items` per batch call. */
+const MAX_BATCH_ITEMS = 500;
+
+const RETRY_BASE_DELAY_MS = 2000;
+const RETRY_MAX_DELAY_MS = 15000;
+const MAX_RETRIES = 25;
+
+const retryDelayMs = (attempt: number): number =>
+    Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+
+type ActivityListener = (active: boolean) => void;
+
 class DynamicTranslationBatcher {
     private flushDelayMs: number;
     private timer: ReturnType<typeof setTimeout> | null = null;
     private pending: Map<string, PendingLocaleMap> = new Map();
     private listeners: Map<string, Set<Listener>> = new Map();
+    private inFlight: Map<string, number> = new Map();
+    private retryTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    private retryCounts: Map<string, number> = new Map();
+    private activityListeners: Map<string, Set<ActivityListener>> = new Map();
 
     constructor(flushDelayMs = 50) {
         this.flushDelayMs = flushDelayMs;
@@ -78,6 +99,10 @@ class DynamicTranslationBatcher {
         const key = this.toListenerKey(locale, hash);
 
         const listeners = this.listeners.get(key) ?? new Set<Listener>();
+        // Fresh interest in a hash nobody is polling for — allow a new retry run.
+        if (listeners.size === 0 && !this.retryTimers.has(key)) {
+            this.retryCounts.delete(key);
+        }
         listeners.add(listener);
         this.listeners.set(key, listeners);
 
@@ -89,6 +114,7 @@ class DynamicTranslationBatcher {
         }
 
         this.scheduleFlush();
+        this.notifyActivity(locale);
 
         return () => {
             const current = this.listeners.get(key);
@@ -101,6 +127,122 @@ class DynamicTranslationBatcher {
                 this.listeners.delete(key);
             }
         };
+    }
+
+    /**
+     * Queue translation of text nobody is displaying yet, so the jobs are done
+     * by the time it renders. No listeners, so misses are not retried — the
+     * component that eventually shows the text does that.
+     */
+    warm(locale: string, texts: Array<string | null | undefined>): void {
+        if (!locale || locale === "en") {
+            return;
+        }
+
+        const localePending =
+            this.pending.get(locale) ?? new Map<string, string>();
+
+        for (const text of texts) {
+            if (!text || normalizeDynamicText(text) === "") {
+                continue;
+            }
+
+            const hash = hashDynamicText(text);
+            if (!localePending.has(hash)) {
+                localePending.set(hash, text);
+            }
+        }
+
+        if (localePending.size === 0) {
+            return;
+        }
+
+        this.pending.set(locale, localePending);
+        this.scheduleFlush();
+        this.notifyActivity(locale);
+    }
+
+    /** Notifies whether any text for `locale` is still being fetched or queued. */
+    subscribeActivity(locale: string, listener: ActivityListener): () => void {
+        const listeners =
+            this.activityListeners.get(locale) ?? new Set<ActivityListener>();
+        listeners.add(listener);
+        this.activityListeners.set(locale, listeners);
+        listener(this.isActive(locale));
+
+        return () => {
+            const current = this.activityListeners.get(locale);
+            if (!current) {
+                return;
+            }
+
+            current.delete(listener);
+            if (current.size === 0) {
+                this.activityListeners.delete(locale);
+            }
+        };
+    }
+
+    private isActive(locale: string): boolean {
+        if ((this.pending.get(locale)?.size ?? 0) > 0) {
+            return true;
+        }
+
+        if ((this.inFlight.get(locale) ?? 0) > 0) {
+            return true;
+        }
+
+        const prefix = `${locale}:`;
+        for (const key of this.retryTimers.keys()) {
+            if (key.startsWith(prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private notifyActivity(locale: string): void {
+        const listeners = this.activityListeners.get(locale);
+
+        if (!listeners || listeners.size === 0) {
+            return;
+        }
+
+        const active = this.isActive(locale);
+        listeners.forEach((listener) => listener(active));
+    }
+
+    private scheduleRetry(locale: string, hash: string, text: string): void {
+        const key = this.toListenerKey(locale, hash);
+
+        if (!this.listeners.get(key)?.size || this.retryTimers.has(key)) {
+            return;
+        }
+
+        const attempt = (this.retryCounts.get(key) ?? 0) + 1;
+        if (attempt > MAX_RETRIES) {
+            return;
+        }
+        this.retryCounts.set(key, attempt);
+
+        this.retryTimers.set(
+            key,
+            setTimeout(() => {
+                this.retryTimers.delete(key);
+
+                if (!this.listeners.get(key)?.size) {
+                    this.notifyActivity(locale);
+                    return;
+                }
+
+                const localePending =
+                    this.pending.get(locale) ?? new Map<string, string>();
+                localePending.set(hash, text);
+                this.pending.set(locale, localePending);
+                this.scheduleFlush();
+            }, retryDelayMs(attempt)),
+        );
     }
 
     private scheduleFlush(): void {
@@ -122,12 +264,24 @@ class DynamicTranslationBatcher {
         const pendingSnapshot = this.pending;
         this.pending = new Map();
 
+        const chunks: Array<[string, PendingLocaleMap]> = [];
+        for (const [locale, items] of pendingSnapshot.entries()) {
+            // The endpoint rejects more than 500 items per call.
+            const entries = Array.from(items.entries());
+            for (let i = 0; i < entries.length; i += MAX_BATCH_ITEMS) {
+                chunks.push([locale, new Map(entries.slice(i, i + MAX_BATCH_ITEMS))]);
+            }
+        }
+
         await Promise.all(
-            Array.from(pendingSnapshot.entries()).map(async ([locale, items]) => {
+            chunks.map(async ([locale, items]) => {
                 const payloadItems = Array.from(items.entries()).map(([hash, text]) => ({
                     hash,
                     text,
                 }));
+
+                this.inFlight.set(locale, (this.inFlight.get(locale) ?? 0) + 1);
+                this.notifyActivity(locale);
 
                 try {
                     const response = await axios.post<BatchResponse>(
@@ -145,17 +299,30 @@ class DynamicTranslationBatcher {
 
                     const translations = response.data?.data?.translations ?? {};
 
-                    for (const [hash] of items) {
+                    for (const [hash, text] of items) {
                         const value =
                             typeof translations[hash] === "string"
                                 ? (translations[hash] as string)
                                 : null;
+
+                        if (value === null) {
+                            this.scheduleRetry(locale, hash, text);
+                            continue;
+                        }
+
+                        this.retryCounts.delete(this.toListenerKey(locale, hash));
                         this.emit(locale, hash, value);
                     }
                 } catch (_error) {
                     for (const [hash] of items) {
                         this.emit(locale, hash, null);
                     }
+                } finally {
+                    this.inFlight.set(
+                        locale,
+                        Math.max(0, (this.inFlight.get(locale) ?? 1) - 1),
+                    );
+                    this.notifyActivity(locale);
                 }
             }),
         );

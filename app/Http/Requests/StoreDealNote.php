@@ -32,7 +32,9 @@ class StoreDealNote extends CoreRequest
                         $fail(__('validation.required'));
                     }
                 }
-            ]
+            ],
+            // Optional — notes may be saved/updated with no title.
+            'title' => 'nullable|string|max:191',
         ];
     }
 

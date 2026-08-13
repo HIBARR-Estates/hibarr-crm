@@ -4,6 +4,9 @@
  * Never invent a new storage format — these must match CustomFieldDisplay / EditableField / RangeInput.
  */
 
+import { formatMobileForDisplay } from "@/lib/utils";
+import { ANALYSIS_COUNTRIES } from "../data/countries";
+
 export interface FieldOption { value: string; label: string; }
 
 export function parseOptions(rawValues: any): FieldOption[] {
@@ -124,18 +127,35 @@ export function crmToDateString(rawValue: any): string {
 }
 
 // ── Phone (plain string ↔ "dial|number") ────────────────────────────────────
-// CRM stores a plain string. PhoneInput works with "dial|number" internally.
-// Convert at the boundary; persist plain number (no pipe) back to storage.
+// CRM stores a plain string (E.164, or legacy antd-phone-input JSON on leads).
+// PhoneInput works with "dial|number" internally. Convert at the boundary;
+// persist plain number (no pipe) back to storage.
 
 export function pipePhoneToPlain(val: string): string {
     if (!val.includes("|")) return val;
     const [dial = "", number = ""] = val.split("|");
-    return `${dial}${number}`.trim();
+    // A dial code with no number is an empty field, not "+44".
+    if (!number.trim()) return "";
+    // Digits only once a dial code is set, so storage stays E.164.
+    return dial ? `${dial}${number.replace(/\D/g, "")}` : number.trim();
 }
 
-export function plainPhoneToPipe(val: string, defaultDial = "+44"): string {
-    if (val.includes("|")) return val;
-    return `${defaultDial}|${val}`;
+export function plainPhoneToPipe(val: unknown, defaultDial = "+44"): string {
+    if (typeof val === "string" && val.includes("|")) return val;
+    const display = formatMobileForDisplay(val);
+    if (!display) return `${defaultDial}|`;
+
+    if (display.startsWith("+")) {
+        const digits = display.replace(/\D/g, "");
+        const dial = ANALYSIS_COUNTRIES.map((c) => c.dial)
+            .filter((d) => digits.startsWith(d.slice(1)))
+            .sort((a, b) => b.length - a.length)[0];
+        if (dial) return `${dial}|${digits.slice(dial.length - 1)}`;
+    }
+
+    // Unlisted country code or local formatting — keep the number verbatim with
+    // no dial rather than inventing one, so a save round-trip can't mangle it.
+    return `|${display}`;
 }
 
 // ── Generic toInputValue ─────────────────────────────────────────────────────
@@ -149,7 +169,7 @@ export function toInputValue(type: string, rawValue: any): string | string[] {
         case "multiselect":
         case "multiSelectCountry": return crmToMultiArray(rawValue);
         case "date": return crmToDateString(rawValue);
-        case "phone": return plainPhoneToPipe(String(rawValue || ""));
+        case "phone": return plainPhoneToPipe(rawValue);
         default:
             if (rawValue === null || rawValue === undefined) return "";
             return String(rawValue);
