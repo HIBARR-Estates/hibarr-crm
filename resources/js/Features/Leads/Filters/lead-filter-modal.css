@@ -329,7 +329,7 @@
 }
 .lfm-field__head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
 }
 .lfm-field__label {
@@ -340,6 +340,30 @@
 .lfm-field__hint {
     font-size: 11.5px;
     color: var(--lfm-faint);
+}
+.lfm-field__action {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.lfm-btn--clear {
+    font-size: 11.5px;
+    padding: 2px 8px;
+    height: auto;
+    border-radius: 999px;
+    color: var(--lfm-faint);
+    border-color: transparent;
+    background: transparent;
+}
+.lfm-btn--clear:hover:not(:disabled) {
+    color: var(--lfm-body);
+    background: var(--lfm-soft, #f3f4f6);
+    border-color: var(--lfm-border);
+}
+.lfm-btn--clear.is-on {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+    font-weight: 600;
 }
 .lfm-empty {
     font-size: 12.5px;

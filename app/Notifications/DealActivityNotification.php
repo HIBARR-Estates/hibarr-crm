@@ -98,13 +98,14 @@ class DealActivityNotification extends BaseNotification
         $content = $this->getEmailContent($notifiable);
         $actionText = $this->getActionText();
 
-        $introText = $this->getNotificationText($notifiable);
+        $introText = $this->safeMailText($this->getNotificationText($notifiable), 500);
 
         $build
             ->subject($subject.' - '.config('app.name'))
             ->view('mail.deal.activity', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => $this->safePreheader($subject),
                 'subject' => $subject,
                 'actionText' => $actionText,
                 'introText' => $introText,
@@ -273,8 +274,8 @@ class DealActivityNotification extends BaseNotification
      */
     protected function getEmailSubject(): string
     {
-        $dealName = $this->deal->name;
-        $contactName = $this->deal->contact?->client_name ?? '';
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+        $contactName = $this->safeMailText($this->deal->contact?->client_name ?? '', 200);
 
         $prefix = $contactName ? "[{$contactName}] " : '';
 
@@ -314,8 +315,8 @@ class DealActivityNotification extends BaseNotification
     {
         $lines = [];
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
-        $dealName = $this->deal->name;
-        $contactName = $this->deal->contact?->client_name ?? 'N/A';
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+        $contactName = $this->safeMailText($this->deal->contact?->client_name ?? 'N/A', 200);
 
         // Common deal info
         $lines[] = '<strong>'.__('modules.lead.clientName').":</strong> {$contactName}";
@@ -327,35 +328,35 @@ class DealActivityNotification extends BaseNotification
         switch ($this->activityType) {
             case DealActivityType::NOTE_ADDED:
             case DealActivityType::NOTE_UPDATED:
-                $lines[] = '<strong>Note Title:</strong> '.($this->data['note_title'] ?? 'Untitled');
+                $lines[] = '<strong>Note Title:</strong> '.$this->safeMailText($this->data['note_title'] ?? 'Untitled', 200);
                 break;
 
             case DealActivityType::STAGE_CHANGED:
-                $lines[] = '<strong>Previous Stage:</strong> '.($this->data['from_stage'] ?? 'Unknown');
-                $lines[] = '<strong>New Stage:</strong> '.($this->data['to_stage'] ?? 'Unknown');
+                $lines[] = '<strong>Previous Stage:</strong> '.$this->safeMailText($this->data['from_stage'] ?? 'Unknown', 200);
+                $lines[] = '<strong>New Stage:</strong> '.$this->safeMailText($this->data['to_stage'] ?? 'Unknown', 200);
                 break;
 
             case DealActivityType::PIPELINE_CHANGED:
-                $lines[] = '<strong>Previous Pipeline:</strong> '.($this->data['from_pipeline'] ?? 'Unknown');
-                $lines[] = '<strong>New Pipeline:</strong> '.($this->data['to_pipeline'] ?? 'Unknown');
+                $lines[] = '<strong>Previous Pipeline:</strong> '.$this->safeMailText($this->data['from_pipeline'] ?? 'Unknown', 200);
+                $lines[] = '<strong>New Pipeline:</strong> '.$this->safeMailText($this->data['to_pipeline'] ?? 'Unknown', 200);
                 break;
 
             case DealActivityType::DEAL_WON:
             case DealActivityType::DEAL_LOST:
-                $lines[] = '<strong>Outcome:</strong> '.ucfirst($this->data['outcome'] ?? $this->activityType->value);
+                $lines[] = '<strong>Outcome:</strong> '.ucfirst($this->safeMailText($this->data['outcome'] ?? $this->activityType->value, 200));
                 break;
 
             case DealActivityType::TASK_ADDED:
             case DealActivityType::TASK_UPDATED:
             case DealActivityType::TASK_COMPLETED:
             case DealActivityType::TASK_DELETED:
-                $lines[] = '<strong>Task:</strong> '.($this->data['task_heading'] ?? 'Untitled');
+                $lines[] = '<strong>Task:</strong> '.$this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200);
                 break;
 
             case DealActivityType::MEETING_SCHEDULED:
             case DealActivityType::MEETING_UPDATED:
             case DealActivityType::MEETING_CANCELLED:
-                $lines[] = '<strong>Meeting:</strong> '.($this->data['meeting_remark'] ?? 'N/A');
+                $lines[] = '<strong>Meeting:</strong> '.$this->safeMailText($this->data['meeting_remark'] ?? 'N/A', 500);
                 $meetingDate = $this->formatMeetingDateFor($notifiable);
                 if ($meetingDate) {
                     $lines[] = '<strong>Date:</strong> '.$meetingDate;
@@ -364,12 +365,12 @@ class DealActivityNotification extends BaseNotification
 
             case DealActivityType::FILE_UPLOADED:
             case DealActivityType::FILE_DELETED:
-                $lines[] = '<strong>File:</strong> '.($this->data['file_name'] ?? 'Unknown');
+                $lines[] = '<strong>File:</strong> '.$this->safeMailText($this->data['file_name'] ?? 'Unknown', 200);
                 break;
 
             case DealActivityType::PROPERTY_LINKED:
             case DealActivityType::PROPERTY_UNLINKED:
-                $lines[] = '<strong>Property:</strong> '.($this->data['property_title'] ?? 'Unknown');
+                $lines[] = '<strong>Property:</strong> '.$this->safeMailText($this->data['property_title'] ?? 'Unknown', 200);
                 break;
 
             case DealActivityType::PACKAGE_ASSIGNED:

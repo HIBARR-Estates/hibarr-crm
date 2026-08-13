@@ -370,15 +370,15 @@ class ReminderNotification extends BaseNotification
         $dueAt = $task?->remind_at
             ? $task->remind_at->copy()->timezone($timezone)
             : null;
-        $heading = $task?->heading ?? ($this->reminder->message ?? 'Task');
-        $shortCode = (string) ($task?->task_short_code ?? '');
+        $heading = $this->safeMailText($task?->heading ?? ($this->reminder->message ?? 'Task'), 200);
+        $shortCode = $this->safeMailText((string) ($task?->task_short_code ?? ''), 64);
         $dueDate = $dueAt?->format($dateFormat) ?? '';
         $dueTime = $dueAt?->format($timeFormat) ?? '';
         $countdown = $dueAt ? $this->countdownUntil($dueAt) : '';
-        $taskMessage = $this->resolveTaskMessage($heading, $dueAt, $countdown);
+        $taskMessage = $this->safeMailText($this->resolveTaskMessage($heading, $dueAt, $countdown), 500);
         $actionText = __('app.viewTask');
         $footerNote = __('email.taskReminder.footerNote');
-        $preheader = $taskMessage !== '' ? $taskMessage : $footerNote;
+        $preheader = $this->safePreheader($taskMessage !== '' ? $taskMessage : $footerNote);
 
         $build
             ->subject($this->titledSubject('email.taskReminder.subject', 'Task Reminder', $heading).' - '.config('app.name'))
@@ -425,15 +425,15 @@ class ReminderNotification extends BaseNotification
         $remindAt = $note?->remind_at
             ? $note->remind_at->copy()->timezone($timezone)
             : ($this->reminder->remind_at?->copy()->timezone($timezone));
-        $title = $note?->title ?? ($this->reminder->message ?? 'Note');
-        $excerpt = $this->noteExcerpt($note?->details ?? '');
+        $title = $this->safeMailText($note?->title ?? ($this->reminder->message ?? 'Note'), 200);
+        $excerpt = $this->safeMailText($this->noteExcerpt($note?->details ?? ''), 500);
         $remindDate = $remindAt?->format($dateFormat) ?? '';
         $remindTime = $remindAt?->format($timeFormat) ?? '';
         $countdown = $remindAt ? $this->countdownUntil($remindAt) : '';
-        $noteMessage = $this->resolveNoteMessage($title, $remindAt, $countdown);
+        $noteMessage = $this->safeMailText($this->resolveNoteMessage($title, $remindAt, $countdown), 500);
         $actionText = 'View Note';
         $footerNote = __('email.noteReminder.footerNote');
-        $preheader = $noteMessage !== '' ? $noteMessage : $footerNote;
+        $preheader = $this->safePreheader($noteMessage !== '' ? $noteMessage : $footerNote);
 
         $build
             ->subject($this->titledSubject('email.noteReminder.subject', 'Note Reminder', $title).' - '.config('app.name'))
@@ -483,14 +483,14 @@ class ReminderNotification extends BaseNotification
 
         $meta = $this->typedEntityMailMeta($kind);
         $eventAt = $this->reminder->remind_at?->copy()->timezone($timezone);
-        $title = $this->reminder->message ?: $meta['label'];
+        $title = $this->safeMailText($this->reminder->message ?: $meta['label'], 200);
         $eventDate = $eventAt?->format($dateFormat) ?? '';
         $eventTime = $eventAt?->format($timeFormat) ?? '';
         $countdown = $eventAt ? $this->countdownUntil($eventAt) : '';
-        $message = $this->resolveGenericEntityMessage($title, $eventAt, $countdown);
+        $message = $this->safeMailText($this->resolveGenericEntityMessage($title, $eventAt, $countdown), 500);
         $actionText = 'View '.$meta['label'];
         $footerNote = __($meta['footerNoteKey']);
-        $preheader = $message !== '' ? $message : $footerNote;
+        $preheader = $this->safePreheader($message !== '' ? $message : $footerNote);
 
         $messageKey = $meta['prefix'].'Message';
         $titleKey = $meta['prefix'].'Title';

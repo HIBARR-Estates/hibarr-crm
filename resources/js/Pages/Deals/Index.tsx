@@ -484,7 +484,7 @@ const Index = ({
                 }
                 filterSection={<ContextualActiveFilters />}
             >
-                <div className="max-w-7xl mx-auto space-y-6">
+                <div className="max-w-[1440px] mx-auto space-y-4">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <PipelineSelector
@@ -577,7 +577,23 @@ const Index = ({
                                     },
                                 );
                             }}
-                            scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                            onPageSizeChange={(pageSize) => {
+                                router.get(
+                                    route("deals.index"),
+                                    mergeQueryParams({
+                                        lead_pipeline_id: valueLeadPipelineId,
+                                        page: 1,
+                                        per_page: pageSize,
+                                        view,
+                                    }),
+                                    {
+                                        only: ["deals"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
                             size="small"
                         />
                     )}

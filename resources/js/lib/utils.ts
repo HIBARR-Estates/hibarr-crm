@@ -618,6 +618,13 @@ export function formatMobileForDisplay(value: unknown): string {
     if (value == null || value === "") return "";
     if (typeof value === "string") {
         const trimmed = value.trim();
+        if (
+            !trimmed ||
+            trimmed === "--" ||
+            trimmed.toLowerCase() === "[object object]"
+        ) {
+            return "";
+        }
         if (trimmed.startsWith("+") || /^\d[\d\s().-]*$/.test(trimmed))
             return trimmed;
         try {
@@ -654,6 +661,22 @@ export function formatMobileForDisplay(value: unknown): string {
         return "";
     }
     return String(value);
+}
+
+/**
+ * Prefer accessor-formatted phone (`mobile_with_phonecode` / `office_phone_formatted`),
+ * then fall back to formatting the raw column (JSON or plain E.164).
+ * Use this for Lead Info / dossier / merge so all surfaces show the full number.
+ */
+export function resolveLeadPhoneDisplay(
+    raw: unknown,
+    formatted?: unknown,
+): string {
+    return (
+        formatMobileForDisplay(formatted) ||
+        formatMobileForDisplay(raw) ||
+        ""
+    );
 }
 
 type PhoneInputParts = {

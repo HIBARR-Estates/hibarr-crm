@@ -128,6 +128,16 @@ class CreateDealRequest extends CoreRequest
             'postal_code' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
 
+            // Optional lead classification / engagement (applied to the contact)
+            'temperature' => 'nullable|string|in:cold,warm,hot',
+            'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
+            'has_joined_the_whatsapp_group' => 'nullable|boolean',
+
+            // Optional lead custom fields (separate from deal custom_fields below)
+            // Format: {"131": "value", "132": ["a","b"]}
+            'lead_custom_fields' => 'nullable|array',
+            'lead_custom_fields.*' => 'nullable',
+
             // Optional deal fields
             'package_id' => 'nullable|array',
             'package_id.*' => $packageRule,

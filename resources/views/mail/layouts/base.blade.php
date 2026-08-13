@@ -211,15 +211,26 @@
 </head>
 <body style="margin:0;padding:0;background-color:#eef2f8;">
 @php
-    $layoutPreheader = trim((string) ($preheader ?? ''));
+    $layoutPreheader = is_string($preheader ?? null) ? $preheader : (string) ($preheader ?? '');
+    // Cap before trim/yield — huge strings OOM during preheader sanitize.
+    if ($layoutPreheader !== '' && strlen($layoutPreheader) > 2000) {
+        $layoutPreheader = substr($layoutPreheader, 0, 2000);
+    }
+    $layoutPreheader = trim($layoutPreheader);
     if ($layoutPreheader === '') {
-        $layoutPreheader = trim((string) $__env->yieldContent('preheader'));
+        $yielded = (string) $__env->yieldContent('preheader');
+        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
+        $layoutPreheader = trim($layoutPreheader);
     }
     if ($layoutPreheader === '') {
-        $layoutPreheader = trim((string) $__env->yieldContent('intro'));
+        $yielded = (string) $__env->yieldContent('intro');
+        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
+        $layoutPreheader = trim($layoutPreheader);
     }
     if ($layoutPreheader === '') {
-        $layoutPreheader = trim((string) $__env->yieldContent('title'));
+        $yielded = (string) $__env->yieldContent('title');
+        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
+        $layoutPreheader = trim($layoutPreheader);
     }
     if ($layoutPreheader === '') {
         $layoutPreheader = 'Just a quick heads up';

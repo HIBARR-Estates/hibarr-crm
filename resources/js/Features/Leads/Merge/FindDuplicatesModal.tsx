@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, List, Button, Empty, Skeleton } from "antd";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatMobileForDisplay } from "@/lib/utils";
 import type { IModalProps } from "@/Types/common";
 import type { LeadDuplicateCandidate } from "@/Types/api/lead-merge";
 import LeadMergeReviewModal from "./LeadMergeReviewModal";
@@ -78,7 +79,7 @@ export default function FindDuplicatesModal({
                                     title={candidate.client_name}
                                     description={[
                                         candidate.client_email,
-                                        candidate.mobile,
+                                        formatMobileForDisplay(candidate.mobile),
                                         candidate.company_name,
                                     ]
                                         .filter(Boolean)

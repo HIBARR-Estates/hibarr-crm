@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useState, type ReactNode } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
@@ -27,8 +27,6 @@ import {
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
-import type { LaravelPaginationMeta } from "@/Components/DataTable";
-import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -97,6 +95,7 @@ const Index = ({
             "lead-utm-contents",
             "lead-utm-terms",
             "lead-utm-audiences",
+            "lead-custom-fields",
         ],
         [],
     );
@@ -123,6 +122,7 @@ const Index = ({
                 utmContents: formData["lead-utm-contents"] || [],
                 utmTerms: formData["lead-utm-terms"] || [],
                 utmAudiences: formData["lead-utm-audiences"] || [],
+                customFields: formData["lead-custom-fields"] || [],
                 leadLifecycleStatuses:
                     leadLifecycleStatuses.length > 0
                         ? leadLifecycleStatuses
@@ -148,9 +148,35 @@ const Index = ({
         [filter.config, filter.filters],
     );
 
-    // Table row selection
-    const { selectedEntities, rowSelection, clearSelected } =
-        useGenericTableRowSelection<Lead>();
+    // Table row selection (pageData keeps selections when paging)
+    const [selectAllMatching, setSelectAllMatching] = useState(false);
+    const exitSelectAllMatching = useCallback(
+        () => setSelectAllMatching(false),
+        [],
+    );
+    const {
+        selectedEntities,
+        rowSelection,
+        clearSelected: clearRowSelection,
+    } = useGenericTableRowSelection<Lead>({
+        pageData: leads.data,
+        selectAllMatching,
+        onExitSelectAllMatching: exitSelectAllMatching,
+    });
+
+    const clearSelected = useCallback(() => {
+        setSelectAllMatching(false);
+        clearRowSelection();
+    }, [clearRowSelection]);
+
+    const handleSelectAllMatching = useCallback(() => {
+        setSelectAllMatching(true);
+    }, []);
+
+    // Result set size changed (new filters/search) — drop "all matching".
+    useEffect(() => {
+        setSelectAllMatching(false);
+    }, [leads.total]);
 
     const canMergeLeads = useLeadMergeAccess();
     const [findDuplicatesLead, setFindDuplicatesLead] = useState<Lead | null>(
@@ -280,8 +306,8 @@ const Index = ({
                     useFilterV2 ? undefined : <ContextualActiveFilters />
                 }
             >
-                <div className="max-w-7xl mx-auto space-y-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="max-w-[1440px] mx-auto space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <Button
                                 type="primary"
@@ -321,13 +347,29 @@ const Index = ({
                                 )}
                             </Button>
 
-                            {/* Bulk Actions - Only show when items are selected */}
-                            {selectedEntities.length > 0 && (
+                            {/* Bulk actions — appear once a row is selected.
+                                "Select all matching" lives inside that card. */}
+                            {(selectAllMatching ||
+                                selectedEntities.length > 0) && (
                                 <BulkLeadActionSelector
-                                    selectedEntityIds={selectedEntities?.map(
+                                    selectedEntityIds={selectedEntities.map(
                                         ({ id }) => id,
                                     )}
+                                    matchingTotal={leads.total}
+                                    selectAllMatching={selectAllMatching}
+                                    onSelectAllMatching={
+                                        handleSelectAllMatching
+                                    }
                                     clearSelected={clearSelected}
+                                    optionsLoading={formDataLoading}
+                                    updateOptions={{
+                                        categories: formData.categories || [],
+                                        sources: formData.sources || [],
+                                        employees: formData.employees || [],
+                                        temperatures:
+                                            formData.temperatures || [],
+                                        leadLifecycleStatuses,
+                                    }}
                                 />
                             )}
                         </div>
@@ -370,7 +412,21 @@ const Index = ({
                                 },
                             );
                         }}
-                        scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                        onPageSizeChange={(pageSize) => {
+                            router.get(
+                                route("lead-contact.index"),
+                                mergeQueryParams({
+                                    page: 1,
+                                    per_page: pageSize,
+                                }),
+                                {
+                                    only: ["leads"],
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                },
+                            );
+                        }}
+                        scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
                         size="small"
                     />
                 </div>
@@ -431,7 +487,7 @@ const Index = ({
     );
 };
 
-Index.layout = (page: React.ReactNode) => (
+Index.layout = (page: ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
 
