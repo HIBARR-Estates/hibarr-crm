@@ -38,6 +38,7 @@ use App\Events\TaskEvent;
 use App\Helper\UserService;
 use App\Models\ClientContact;
 use App\Services\PermissionService;
+use App\Services\Reminders\TaskReminderSync;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Property;
@@ -1404,22 +1405,66 @@ class TaskController extends AccountBaseController
 
     }
 
-    public function update(UpdateTask $request, $id)
+    /**
+     * Whether the current user may edit this task.
+     *
+     * Extracted so update() and reschedule() cannot drift apart — a narrower
+     * endpoint with a laxer check is worse than no narrow endpoint.
+     */
+    private function canEditTask(Task $task): bool
     {
-        $task = Task::with('users', 'label', 'project')->findOrFail($id);
-
-        // Permission Check
         $taskUsers = $task->users->pluck('id')->toArray();
         $editTaskPermission = user()->permission('edit_tasks');
 
-        if (!($editTaskPermission == 'all'
+        return $editTaskPermission == 'all'
             || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
             || ($editTaskPermission == 'added' && $task->added_by == user()->id)
             || ($task->project && ($task->project->project_admin == user()->id))
             || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
             || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
-            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
-        )) {
+            || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id));
+    }
+
+    /**
+     * Move a task's due date and nothing else.
+     *
+     * The dashboard queue reschedules from a row, not a form. Routing that
+     * through update() would resend heading, description, priority and the
+     * assignee list from a snapshot that may be minutes stale, so rescheduling
+     * could silently revert a concurrent edit made on the task page. This
+     * touches one column.
+     */
+    public function reschedule(Request $request, $id)
+    {
+        $request->validate([
+            'due_date' => 'required|date_format:Y-m-d',
+            'due_time' => 'nullable|date_format:H:i',
+        ]);
+
+        $task = Task::with('users', 'project')->findOrFail($id);
+
+        if (!$this->canEditTask($task) || $this->isWatcherOnlyOnTaskDeals($task)) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
+
+        $task->due_date = Carbon::parse($request->due_date . ' ' . ($request->due_time ?: '17:00'));
+        $task->save();
+
+        // A moved due date with unmoved reminders fires at the old time.
+        app(TaskReminderSync::class)->syncFromTask(
+            $task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser'])
+        );
+
+        return Reply::successWithData(__('messages.taskUpdateSuccess'), [
+            'data' => $task->load(['users', 'boardColumn'])->toFrontendArray(),
+        ]);
+    }
+
+    public function update(UpdateTask $request, $id)
+    {
+        $task = Task::with('users', 'label', 'project')->findOrFail($id);
+
+        if (!$this->canEditTask($task)) {
             return Reply::error(__('messages.permissionDenied'));
         }
 

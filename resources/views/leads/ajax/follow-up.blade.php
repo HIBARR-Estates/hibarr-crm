@@ -101,9 +101,13 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                 @endif
                             </td>
                             <td>
-                                @if ($folllowUp->status == 'pending')
+                                {{-- Values are the lead_follow_up.status enum
+                                     (scheduled|completed|cancelled). This read
+                                     'pending'/'canceled', neither of which is in
+                                     it, so every row rendered with no dot. --}}
+                                @if ($folllowUp->status == 'scheduled')
                                     <i class="fa fa-circle mr-1 text-yellow f-10"></i>
-                                @elseif ($folllowUp->status == 'canceled')
+                                @elseif ($folllowUp->status == 'cancelled')
                                     <i class="fa fa-circle mr-1 text-red f-10"></i>
                                 @elseif ($folllowUp->status == 'completed')
                                     <i class="fa fa-circle mr-1 text-dark-green f-10"></i>

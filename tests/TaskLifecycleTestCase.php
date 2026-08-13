@@ -12,6 +12,7 @@ use Tests\Concerns\SetsFeatureFlags;
 abstract class TaskLifecycleTestCase extends TestCase
 {
     use SetsFeatureFlags;
+
     protected int $companyId = 1;
 
     protected int $assignerId = 1;
@@ -99,6 +100,9 @@ abstract class TaskLifecycleTestCase extends TestCase
 
         Schema::create('client_contacts', function (Blueprint $table) {
             $table->increments('id');
+            // ClientContact is company-scoped; User eager-loads it, so any
+            // query for a user applies CompanyScope to this table.
+            $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('user_id')->nullable();
             $table->unsignedInteger('client_id')->nullable();
             $table->timestamps();
@@ -124,6 +128,9 @@ abstract class TaskLifecycleTestCase extends TestCase
             $table->dateTime('due_date')->nullable();
             $table->string('priority')->default('medium');
             $table->string('task_short_code')->nullable();
+            // Task uses SoftDeletes, so any query that goes through the model
+            // (rather than saveTaskWithoutObservers) filters on this.
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -167,7 +174,7 @@ abstract class TaskLifecycleTestCase extends TestCase
                 'id' => $id,
                 'company_id' => $this->companyId,
                 'name' => $name,
-                'email' => strtolower(str_replace(' ', '.', $name)) . '@test.local',
+                'email' => strtolower(str_replace(' ', '.', $name)).'@test.local',
                 'email_notifications' => true,
                 'status' => 'active',
                 'created_at' => now(),

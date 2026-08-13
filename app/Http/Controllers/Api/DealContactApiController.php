@@ -84,10 +84,22 @@ class DealContactApiController extends Controller
             }
 
             // Use the same approach as the existing changeStage method
-            // Update the deal stage directly without triggering observers
+            // Update the deal stage directly without triggering observers.
+            //
+            // stage_entered_at is normally stamped by DealObserver; set it here
+            // because the bypass skips it, and without it the deal reports the
+            // dwell time of whatever stage it was in before this one.
+            //
+            // ponytail: this path still emits no deal_stage_changed crm_event,
+            // so its transitions are invisible to the funnel's closed-dwell
+            // half (the DealHistory row below is a separate, barely-read
+            // trail). Add the event here if this endpoint sees real traffic.
             DB::table('deals')
                 ->where('id', $dealId)
-                ->update(['pipeline_stage_id' => $newStageId]);
+                ->update([
+                    'pipeline_stage_id' => $newStageId,
+                    'stage_entered_at' => now(),
+                ]);
 
             // Create deal history manually with the responsible agent's user ID (if available)
             \App\Models\DealHistory::create([

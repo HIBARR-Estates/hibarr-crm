@@ -454,6 +454,49 @@ return [
             'sync_processing' => true,
         ],
         [
+            'slug' => 'lead_lifecycle_status_changed',
+            'name' => 'Lead Lifecycle Status Changed',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'Lead moved between lifecycle statuses (new, contacted, qualified, ...).',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'from_status_id' => ['type' => 'number', 'label' => 'From Status ID'],
+                'to_status_id' => ['type' => 'number', 'label' => 'To Status ID'],
+                'from_status_key' => ['type' => 'string', 'label' => 'From Status Key'],
+                'to_status_key' => ['type' => 'string', 'label' => 'To Status Key'],
+            ],
+        ],
+        [
+            'slug' => 'lead_owner_changed',
+            'name' => 'Lead Owner Changed',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'Lead was reassigned to a different owner.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'from_owner_id' => ['type' => 'number', 'label' => 'From Owner ID'],
+                'to_owner_id' => ['type' => 'number', 'label' => 'To Owner ID'],
+                'new_owner_name' => ['type' => 'string', 'label' => 'New Owner Name'],
+            ],
+        ],
+        [
+            'slug' => 'lead_note_added',
+            'name' => 'Lead Note Added',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'A note was added to a lead.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'note_id' => ['type' => 'number', 'label' => 'Note ID'],
+                'note_title' => ['type' => 'string', 'label' => 'Note Title'],
+                'note_type' => ['type' => 'string', 'label' => 'Note Visibility'],
+            ],
+        ],
+        [
             'slug' => 'lead_merged',
             'name' => 'Lead Merged',
             'category' => 'lead',
@@ -804,6 +847,32 @@ return [
             'lead_updated',
             'deal_created',
             'deal_updated',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | First Contact Detection
+    |--------------------------------------------------------------------------
+    |
+    | The CRM cannot observe outbound messages directly (communication_activities
+    | carries no direction, and no inbound email/WhatsApp ingestion exists yet).
+    | Until it can, "first contact" is proxied by the first agent-originated
+    | activity recorded against a lead. Recording any of these slugs stamps
+    | leads.first_contacted_at — see CrmEventService::stampLeadFirstContact().
+    |
+    | Slugs are matched by name, so custom per-company types (e.g. 'phone_call')
+    | can be added here without a code change. When real comms ingestion lands,
+    | add its slugs here and the metric sharpens with no schema change.
+    |
+    */
+    'first_contact' => [
+        'slugs' => [
+            'lead_note_added',
+            'deal_note_added',
+            'deal_followup_created',
+            'qualification_completed',
+            'phone_call',
         ],
     ],
 

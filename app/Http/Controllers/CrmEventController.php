@@ -142,6 +142,10 @@ class CrmEventController extends Controller
 
         $companyId = $this->resolveCompanyId($request);
         $events = collect($validator->validated()['events'])->map(function ($event) use ($companyId, $request) {
+            if (!empty($event['model_type'])) {
+                $event['model_type'] = $this->normalizeModelType($event['model_type']);
+            }
+
             return array_merge($event, [
                 'company_id' => $companyId,
                 'source' => CrmEventSource::API->value,
@@ -473,7 +477,20 @@ class CrmEventController extends Controller
      */
     protected function normalizeModelType(string $modelType): string
     {
-        return preg_replace('/\\\\+/', '\\', $modelType) ?? $modelType;
+        $normalized = preg_replace('/\\\\+/', '\\', $modelType) ?? $modelType;
+
+        // Recover the fully-stripped form the old stripslashes() left behind (and
+        // that clients still occasionally send). Left unrecovered, these events
+        // resolve to no model at all, which silently breaks first-contact stamping.
+        if (!str_contains($normalized, '\\')) {
+            foreach ([\App\Models\Lead::class, \App\Models\Deal::class] as $candidate) {
+                if (str_replace('\\', '', $candidate) === $normalized) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return $normalized;
     }
 
     /**
