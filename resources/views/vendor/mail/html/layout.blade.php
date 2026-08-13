@@ -23,6 +23,31 @@
         }
     </style>
 
+    @php
+        $layoutPreheader = is_string($preheader ?? null) ? $preheader : (string) ($preheader ?? '');
+        if ($layoutPreheader !== '' && strlen($layoutPreheader) > 2000) {
+            $layoutPreheader = substr($layoutPreheader, 0, 2000);
+        }
+        $layoutPreheader = trim($layoutPreheader);
+        // Never feed the full HTML body into preheader sanitization — that OOMs.
+        // Substr BEFORE strip_tags so a huge $content cannot allocate unbounded memory.
+        if ($layoutPreheader === '' && !empty($content)) {
+            $raw = (string) $content;
+            if (strlen($raw) > 2000) {
+                $raw = substr($raw, 0, 2000);
+            }
+            $layoutPreheader = \Illuminate\Support\Str::limit(strip_tags($raw), 200);
+        }
+        if ($layoutPreheader === '' && isset($slot)) {
+            $raw = (string) $slot;
+            if (strlen($raw) > 2000) {
+                $raw = substr($raw, 0, 2000);
+            }
+            $layoutPreheader = \Illuminate\Support\Str::limit(strip_tags($raw), 200);
+        }
+    @endphp
+    @include('mail.partials.preheader', ['preheader' => $layoutPreheader])
+
     <table class="wrapper" width="100%" cellpadding="0" cellspacing="0">
         <tr>
             <td align="center">

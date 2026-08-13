@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\IntegrationOrigin;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasCompany;
@@ -164,6 +165,7 @@ class Task extends BaseModel
         'remind_at' => 'datetime',
         'reminders' => 'array',
         'is_next_step' => 'boolean',
+        'integration_origin' => IntegrationOrigin::class,
     ];
     protected $appends = ['due_on', 'create_on'];
     protected $guarded = ['id'];

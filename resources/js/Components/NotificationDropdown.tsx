@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
     Badge,
     Dropdown,
@@ -7,10 +7,8 @@ import {
     Typography,
     Skeleton,
     Empty,
-    Space,
     Tooltip,
-    Divider,
-    App,
+    Popover,
 } from "antd";
 import {
     BellOutlined,
@@ -19,12 +17,10 @@ import {
     ClockCircleOutlined,
     MessageOutlined,
     FileTextOutlined,
-    TeamOutlined,
     DollarOutlined,
     CalendarOutlined,
     UserOutlined,
     ProjectOutlined,
-    SettingOutlined,
     ExclamationCircleOutlined,
     GiftOutlined,
     FileProtectOutlined,
@@ -32,16 +28,31 @@ import {
     ScheduleOutlined,
     RiseOutlined,
     RightOutlined,
+    SoundOutlined,
+    SoundFilled,
+    SettingOutlined,
+    CloseOutlined,
 } from "@ant-design/icons";
-import { router } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     useNotificationSummary,
     useNotificationMutations,
 } from "@/Hooks/useNotifications";
-import { Notification, NotificationIcon } from "@/Types/api/notification";
+import type { Notification, NotificationIcon } from "@/Types/api/notification";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import {
+    isAlertsMuted,
+    setAlertsMuted,
+    isDesktopNotificationSupported,
+    getDesktopPermission,
+    requestDesktopPermission,
+    acknowledgeDropdownNotifications,
+    countUnacknowledgedNotifications,
+} from "@/lib/notificationAlerts";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
+import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 dayjs.extend(relativeTime);
 
@@ -75,6 +86,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         discussion: <CommentOutlined style={{ color: "#13c2c2" }} />,
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
+        reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -86,49 +98,56 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
  */
 interface NotificationItemProps {
     notification: Notification;
-    onMarkRead: (id: string) => void;
+    onDismiss: (id: string) => void;
     onClick: (notification: Notification) => void;
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({
     notification,
-    onMarkRead,
+    onDismiss,
     onClick,
 }) => {
     const handleClick = useCallback(() => {
-        if (!notification.is_read) {
-            onMarkRead(notification.id);
-        }
         onClick(notification);
-    }, [notification, onMarkRead, onClick]);
+    }, [notification, onClick]);
 
-    const handleMarkRead = useCallback(
+    const handleDismiss = useCallback(
         (e: React.MouseEvent) => {
             e.stopPropagation();
-            onMarkRead(notification.id);
+            onDismiss(notification.id);
         },
-        [notification.id, onMarkRead],
+        [notification.id, onDismiss],
     );
+
+    const title = notification.title?.trim() ?? "";
+    const body = notification.text?.trim() ?? "";
+    const showBody =
+        body !== "" && body.localeCompare(title, undefined, { sensitivity: "accent" }) !== 0;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, x: 24 }}
             transition={{ duration: 0.2 }}
+            layout
         >
             <List.Item
                 onClick={handleClick}
-                className={`cursor-pointer transition-all hover:bg-gray-50 ${
+                className={`group cursor-pointer transition-all hover:bg-gray-50 ${
                     !notification.is_read ? "bg-blue-50/50" : ""
                 }`}
-                style={{ padding: "12px 16px", alignItems: "center" }}
+                style={{
+                    padding: "8px 12px",
+                    alignItems: "flex-start",
+                    gap: 8,
+                }}
             >
                 <List.Item.Meta
-                    style={{ alignItems: "center" }}
+                    style={{ alignItems: "flex-start", margin: 0 }}
                     avatar={
                         <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            className={`w-8 h-8 rounded-full flex items-center justify-center mt-0.5 ${
                                 !notification.is_read
                                     ? "bg-blue-100"
                                     : "bg-gray-100"
@@ -138,37 +157,40 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                         </div>
                     }
                     title={
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between gap-2">
                             <Text
                                 strong={!notification.is_read}
-                                className="text-sm max-w-[240px] mb-0"
+                                className="text-sm max-w-[220px] !mb-0 leading-snug"
                             >
                                 {notification.title}
                             </Text>
-                            {/* {!notification.is_read && (
-                                <Tooltip title="Mark as read">
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<CheckOutlined />}
-                                        onClick={handleMarkRead}
-                                        className="hidden opacity-0 group-hover:opacity-100 transition-opacity"
-                                    />
-                                </Tooltip>
-                            )} */}
+                            <Tooltip title="Clear">
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={
+                                        <CloseOutlined className="text-gray-400 text-xs" />
+                                    }
+                                    onClick={handleDismiss}
+                                    className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0 -mt-0.5"
+                                    aria-label="Clear notification"
+                                />
+                            </Tooltip>
                         </div>
                     }
                     description={
-                        <div className="space-y-1">
-                            <Paragraph
-                                ellipsis={{ rows: 2 }}
-                                className="!mb-0 text-xs text-gray-500"
-                            >
-                                {notification.text}
-                            </Paragraph>
+                        <div className="!mt-0.5 space-y-0.5">
+                            {showBody ? (
+                                <Paragraph
+                                    ellipsis={{ rows: 2 }}
+                                    className="!mb-0 text-xs text-gray-500 leading-snug"
+                                >
+                                    {notification.text}
+                                </Paragraph>
+                            ) : null}
                             <div className="flex items-center gap-1">
-                                <ClockCircleOutlined className="text-gray-400 text-xs" />
-                                <Text className="text-xs text-gray-400">
+                                <ClockCircleOutlined className="text-gray-400 text-[10px]" />
+                                <Text className="text-[11px] text-gray-400 leading-none">
                                     {notification.time_ago}
                                 </Text>
                             </div>
@@ -176,7 +198,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     }
                 />
                 {!notification.is_read && (
-                    <div className="w-2 h-2 rounded-full bg-[#1890ff] ml-2 flex-shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1890ff] mt-2 flex-shrink-0" />
                 )}
             </List.Item>
         </motion.div>
@@ -194,49 +216,102 @@ interface NotificationDropdownProps {
 /**
  * Notification dropdown component with bell icon and unread badge.
  * Shows a preview of recent notifications with polling for updates.
+ *
+ * Bell badge = notifications arrived since the dropdown was last opened.
+ * Opening the dropdown clears the badge but keeps the full unread list visible.
  */
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     className = "",
     pollingInterval = 30000,
 }) => {
     const [open, setOpen] = useState(false);
-    const { message } = App.useApp();
+    // Bump when acknowledgment changes so badge recalculates without a refetch.
+    const [ackVersion, setAckVersion] = useState(0);
+    const [alertsMuted, setAlertsMutedState] = useState(() => isAlertsMuted());
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
-    const { notifications, unreadCount, isLoading, refetch } =
+    const { notifications, isLoading, refetch } =
         useNotificationSummary(pollingInterval);
 
-    const { markAsRead, markAllAsRead, isMarkingRead } =
+    const badgeCount = useMemo(() => {
+        void ackVersion;
+        return countUnacknowledgedNotifications(notifications);
+    }, [notifications, ackVersion]);
+
+    // Toggling sound/popup alerts on requires a user gesture to request
+    // desktop notification permission — browsers silently auto-deny requests
+    // fired without one, so this must happen inside the click handler.
+    const handleToggleAlerts = useCallback(() => {
+        const nextMuted = !alertsMuted;
+        setAlertsMuted(nextMuted);
+        setAlertsMutedState(nextMuted);
+
+        if (
+            !nextMuted &&
+            isDesktopNotificationSupported() &&
+            getDesktopPermission() === "default"
+        ) {
+            requestDesktopPermission();
+        }
+    }, [alertsMuted]);
+
+    const { markAsReadQuiet, markAllAsRead, isMarkingRead } =
         useNotificationMutations();
 
-    // Handle notification click
+    const handleOpenChange = useCallback(
+        (nextOpen: boolean) => {
+            setOpen(nextOpen);
+            if (nextOpen) {
+                acknowledgeDropdownNotifications(notifications);
+                setAckVersion((v) => v + 1);
+                void refetch();
+            }
+        },
+        [notifications, refetch],
+    );
+
+    // While the panel is open, keep acknowledging so the bell stays clear and
+    // newly polled items still appear in the list without bumping the badge.
+    useEffect(() => {
+        if (!open || notifications.length === 0) return;
+        acknowledgeDropdownNotifications(notifications);
+        setAckVersion((v) => v + 1);
+    }, [open, notifications]);
+
+    // Handle notification click — mark read then navigate
     const handleNotificationClick = useCallback(
         (notification: Notification) => {
             setOpen(false);
-            if (notification.link) {
-                // Use standard navigation to support both Inertia and non-Inertia pages
+            if (!notification.is_read) {
+                markAsReadQuiet(notification.id);
+            }
+            if (notification.link && isSafeHttpUrl(notification.link)) {
                 window.location.href = notification.link;
             }
         },
-        [],
+        [markAsReadQuiet],
     );
 
-    // Handle mark as read
-    const handleMarkRead = useCallback(
+    // Clear (X) — remove from dropdown list by marking read
+    const handleDismiss = useCallback(
         (id: string) => {
-            markAsRead({ id });
+            markAsReadQuiet(id);
+            acknowledgeDropdownNotifications([{ id }]);
+            setAckVersion((v) => v + 1);
         },
-        [markAsRead],
+        [markAsReadQuiet],
     );
 
     // Handle mark all as read
     const handleMarkAllRead = useCallback(() => {
+        acknowledgeDropdownNotifications(notifications);
+        setAckVersion((v) => v + 1);
         markAllAsRead({});
-    }, [markAllAsRead]);
+    }, [markAllAsRead, notifications]);
 
     // Handle view all click
     const handleViewAll = useCallback(() => {
         setOpen(false);
-        // Use standard navigation to support both Inertia and non-Inertia pages
         window.location.href = route("notifications.index");
     }, []);
 
@@ -245,31 +320,80 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         <div
             className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
             style={{ width: 380, maxHeight: "80vh" }}
+            onClick={(e) => e.stopPropagation()}
         >
             {/* Header */}
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <BellOutlined className="text-lg" />
                     <Text strong>Notifications</Text>
-                    {unreadCount > 0 && (
+                    {notifications.length > 0 && (
                         <Badge
-                            count={unreadCount}
+                            count={notifications.length}
                             className="ml-1"
                             style={{ backgroundColor: "#1890ff" }}
                         />
                     )}
                 </div>
-                {unreadCount > 0 && (
-                    <Button
-                        type="link"
-                        size="small"
-                        onClick={handleMarkAllRead}
-                        loading={isMarkingRead}
-                        className="text-xs"
-                    >
-                        Mark all as read
-                    </Button>
-                )}
+                <div className="flex items-center gap-1">
+                    {islandAlertsEnabled && (
+                        <Popover
+                            content={<NotificationAlertSettings />}
+                            trigger="click"
+                            placement="bottomRight"
+                            // Theme raises zIndexPopupBase to 1300 (see
+                            // providers/antd/utils.ts), which puts this
+                            // Dropdown's own popup at 1350. Popover's default
+                            // offset is always 20 below Dropdown's, so it needs
+                            // an explicit bump to actually render on top.
+                            zIndex={1400}
+                        >
+                            <Tooltip title="Alert settings">
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={
+                                        <SettingOutlined className="text-gray-400" />
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </Tooltip>
+                        </Popover>
+                    )}
+                    {islandAlertsEnabled && (
+                        <Tooltip
+                            title={
+                                alertsMuted
+                                    ? "Turn on sound + desktop alerts"
+                                    : "Mute sound + desktop alerts"
+                            }
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={
+                                    alertsMuted ? (
+                                        <SoundOutlined className="text-gray-400" />
+                                    ) : (
+                                        <SoundFilled className="text-[#1890ff]" />
+                                    )
+                                }
+                                onClick={handleToggleAlerts}
+                            />
+                        </Tooltip>
+                    )}
+                    {notifications.length > 0 && (
+                        <Button
+                            type="link"
+                            size="small"
+                            onClick={handleMarkAllRead}
+                            loading={isMarkingRead}
+                            className="text-xs"
+                        >
+                            Mark all as read
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Notification list */}
@@ -290,7 +414,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             <NotificationItem
                                 key={notification.id}
                                 notification={notification}
-                                onMarkRead={handleMarkRead}
+                                onDismiss={handleDismiss}
                                 onClick={handleNotificationClick}
                             />
                         )}
@@ -325,12 +449,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             popupRender={() => dropdownContent}
             trigger={["click"]}
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={handleOpenChange}
             placement="bottomRight"
         >
             <div className={`cursor-pointer relative ${className}`}>
                 <Badge
-                    count={unreadCount}
+                    count={badgeCount}
                     overflowCount={99}
                     offset={[-2, 2]}
                     size="small"
@@ -344,7 +468,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             icon={
                                 <BellOutlined
                                     className={`text-xl ${
-                                        unreadCount > 0
+                                        badgeCount > 0
                                             ? "text-blue-500"
                                             : "text-gray-500"
                                     }`}
@@ -354,9 +478,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         />
                     </motion.div>
                 </Badge>
-                {/* Pulse animation for new notifications */}
+                {/* Pulse animation for new (unacknowledged) notifications */}
                 <AnimatePresence>
-                    {unreadCount > 0 && (
+                    {badgeCount > 0 && (
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1.5, opacity: 0 }}

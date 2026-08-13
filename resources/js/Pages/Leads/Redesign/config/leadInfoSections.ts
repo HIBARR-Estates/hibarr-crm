@@ -7,6 +7,7 @@ export type LeadNativeFieldKey =
     | "office"
     | "email"
     | "whatsapp"
+    | "hasJoinedWhatsappGroup"
     | "telegram"
     | "instagram"
     | "dateOfBirthAndAge"
@@ -75,6 +76,11 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
             { key: "source", label: "Source", leadField: "source_id" },
             { key: "category", label: "Category", leadField: "category_ids" },
             { key: "temperature", label: "Temperature", leadField: "temperature" },
+            {
+                key: "hasJoinedWhatsappGroup",
+                label: "Joined WhatsApp group",
+                leadField: "has_joined_the_whatsapp_group",
+            },
             { key: "addedBy", label: "Added by", readOnly: true },
         ],
     },

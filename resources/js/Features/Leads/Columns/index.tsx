@@ -127,7 +127,7 @@ export const LEAD_TABLE_COLUMNS = (
             ),
             dataIndex: "name",
             key: "name",
-            width: 250,
+            width: 220,
             render: (_, record) => (
                 <div className="flex flex-col gap-y-1">
                     <div>
@@ -156,7 +156,7 @@ export const LEAD_TABLE_COLUMNS = (
             ),
             dataIndex: "contact_details",
             key: "contact_details",
-            width: 200,
+            width: 180,
             render: (_, record) => {
                 const email = record.client_email;
                 const mobile = formatMobileForDisplay(record.mobile);

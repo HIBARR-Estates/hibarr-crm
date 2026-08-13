@@ -21,10 +21,12 @@ class LeadAgentAssigned extends BaseNotification
     public function __construct(Deal $deal)
     {
         $this->deal = $deal;
+        $this->deal->loadMissing(['leadAgent', 'dealWatchers', 'contact', 'company', 'leadSource']);
         $this->company = $this->deal->company;
         $this->assignedByName = user()?->name ?? '';
         $this->assignedAt = now()->format($this->company->date_format);
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'lead-notification')->first();
+        $this->captureTriggeredByUser();
         $this->initUnsRouting();
     }
 
@@ -36,6 +38,11 @@ class LeadAgentAssigned extends BaseNotification
      */
     public function via($notifiable)
     {
+        // Never notify the person who created/assigned (including admins in allAdmins).
+        if ($this->isTriggeredByNotifiable($notifiable)) {
+            return [];
+        }
+
         $via = array('database');
 
         // During bulk updates, suppress individual transactional emails.
@@ -63,27 +70,41 @@ class LeadAgentAssigned extends BaseNotification
         $url = route('deals.show', $this->deal->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
-        $leadEmail = __('modules.lead.clientEmail') . ': ';
-        $clientEmail = !is_null($this->deal->contact->client_email) ? $leadEmail : '';
-        $content = __('email.leadAgent.subject') . '<br>' .__('modules.deal.dealName') . ': '  . $this->deal->name . '<br>' .  __('modules.lead.clientName') . ': '  . $this->deal->contact->client_name_salutation . '<br>' . $clientEmail . $this->deal->contact->client_email;
+        $role = $this->resolveAssignmentRole($notifiable);
+        $subject = $this->assignmentTitle($role);
+        $preheader = $this->safePreheader($this->assignmentText($role));
+        $actionText = $this->assignmentAction($role);
+
+        $contact = $this->deal->contact;
+        $leadName = $this->safeMailText($contact?->client_name ?? $contact?->client_name_salutation ?? '', 200);
+        $leadEmail = $this->safeMailText($contact?->client_email ?? '', 320);
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+
+        $leadEmailLabel = __('modules.lead.clientEmail') . ': ';
+        $clientEmail = $leadEmail !== '' ? $leadEmailLabel : '';
+        $content = $subject . '<br>' .__('modules.deal.dealName') . ': '  . $dealName . '<br>' .  __('modules.lead.clientName') . ': '  . $leadName . '<br>' . $clientEmail . $leadEmail;
 
         $build
-            ->subject(__('email.leadAgent.subject') . ' - ' . config('app.name'))
+            ->subject($subject . ' - ' . config('app.name'))
             ->view('mail.deal-assigned', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => $preheader,
+                'intro' => $preheader,
                 'themeColor' => $this->company->header_color,
-                'actionText' => __('email.leadAgent.action'),
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name
             ]);
 
         $this->attachPlunkTemplate($build, '336e4f34-69bf-4a4f-92af-96e318a80548', [
+            'preheader'      => $preheader,
             'assignedByName' => $this->assignedByName,
-            'leadName'       => $this->deal->contact->client_name,
-            'leadEmail'      => $this->deal->contact->client_email ?? '',
-            'dealName'       => $this->deal->name,
+            'leadName'       => $leadName,
+            'leadEmail'      => $leadEmail,
+            'dealName'       => $dealName,
             'assignedAt'     => $this->assignedAt,
             'leadUrl'        => $url,
+            'assignmentRole' => $role,
         ]);
 
         parent::resetLocale();
@@ -100,12 +121,69 @@ class LeadAgentAssigned extends BaseNotification
     //phpcs:ignore
     public function toArray($notifiable)
     {
+        $assignmentRole = $this->resolveAssignmentRole($notifiable);
+
         return [
             'id' => $this->deal->id,
-            'name' => $this->deal->name,
+            'deal_id' => $this->deal->id,
+            'name' => $this->safeMailText($this->deal->name ?? '', 200),
+            'source' => $this->deal->leadSource?->name,
             'agent_id' => $notifiable->id,
-            'added_by' => $this->deal->added_by
+            'added_by' => $this->deal->added_by,
+            'assignment_role' => $assignmentRole,
+            'title' => $this->assignmentTitle($assignmentRole),
+            'text' => $this->safeMailText($this->assignmentText($assignmentRole), 240),
         ];
+    }
+
+    private function resolveAssignmentRole($notifiable): string
+    {
+        if ($this->deal->leadAgent && (int) $this->deal->leadAgent->user_id === (int) $notifiable->id) {
+            return 'deal_agent';
+        }
+
+        if ($this->deal->dealWatchers->contains('id', $notifiable->id)) {
+            return 'deal_watcher';
+        }
+
+        return 'new_deal';
+    }
+
+    private function assignmentTitle(string $assignmentRole): string
+    {
+        return match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.subject'),
+            'new_deal' => __('email.newDealAwaitingAgent.subject'),
+            default => __('email.dealAgentAssigned.subject'),
+        };
+    }
+
+    private function assignmentText(string $assignmentRole): string
+    {
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+
+        $base = match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.text', ['dealName' => $dealName]),
+            'new_deal' => __('email.newDealAwaitingAgent.text', ['dealName' => $dealName]),
+            default => __('email.dealAgentAssigned.text', ['dealName' => $dealName]),
+        };
+
+        // Title + the notification's compact subject line already say "assigned
+        // as deal agent" + the deal name, so once an AI summary exists, the
+        // detail text is the summary alone — repeating the base sentence there
+        // too would just be the same redundant boilerplate again.
+        $snippet = $this->aiSummarySnippet($this->deal);
+
+        return $snippet ?: $base;
+    }
+
+    private function assignmentAction(string $assignmentRole): string
+    {
+        return match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.action'),
+            'new_deal' => __('email.newDealAwaitingAgent.action'),
+            default => __('email.dealAgentAssigned.action'),
+        };
     }
 
 }

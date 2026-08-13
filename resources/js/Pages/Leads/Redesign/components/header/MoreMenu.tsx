@@ -13,7 +13,6 @@ interface MoreMenuProps {
     onAction: (id: MoreMenuActionId) => void;
     canDelete?: boolean;
     canFindDuplicates?: boolean;
-    showQualification?: boolean;
     /** Omitted (not just a no-op) when the product-tour flag is off. */
     onReplayGuide?: () => void;
 }
@@ -26,7 +25,6 @@ export default function MoreMenu({
     onAction,
     canDelete = true,
     canFindDuplicates = false,
-    showQualification = true,
     onReplayGuide,
 }: MoreMenuProps) {
     const { td } = useTd();
@@ -62,7 +60,6 @@ export default function MoreMenu({
         if (item.id === "replay_guide") return onReplayGuide !== undefined;
         if (item.id === "delete") return canDelete;
         if (item.id === "find_duplicates") return canFindDuplicates;
-        if (item.id === "answers") return showQualification;
         return true;
     });
 

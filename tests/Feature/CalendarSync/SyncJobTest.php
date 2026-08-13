@@ -3,7 +3,9 @@
 namespace Tests\Feature\CalendarSync;
 
 use App\Jobs\SyncCalendarEventJob;
+use App\Models\Deal;
 use App\Models\DealFollowUp;
+use App\Models\Lead;
 use App\Models\User;
 use App\Services\CalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,12 +22,19 @@ class SyncJobTest extends TestCase
         config()->set('services.ol.api_key', 'ol-test-key');
         config()->set('services.ol.timeout', 5);
 
-        Http::fake(function ($request) {
+        $capturedPayload = [];
+
+        $creator = User::factory()->create();
+        $attendee = User::factory()->create(['email' => 'attendee@hibarr.de']);
+
+        Http::fake(function ($request) use (&$capturedPayload) {
             if (
                 $request->url() ===
                 'https://ol.test/v1/crm/events/zoho' &&
                 $request->method() === 'POST'
             ) {
+                $capturedPayload = $request->data();
+
                 return Http::response(
                     [
                         'success' => true,
@@ -38,9 +47,6 @@ class SyncJobTest extends TestCase
 
             return Http::response([], 404);
         });
-
-        $creator = User::factory()->create();
-        $attendee = User::factory()->create();
 
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
@@ -58,6 +64,9 @@ class SyncJobTest extends TestCase
 
         $followUp->refresh();
 
+        $this->assertContains('attendee@hibarr.de', $capturedPayload['attendeeEmails'] ?? []);
+        $this->assertArrayNotHasKey('participantUserIds', $capturedPayload);
+        $this->assertArrayNotHasKey('contact', $capturedPayload);
         $this->assertEquals('job-123', $followUp->zoho_calendar_job_id);
         $this->assertEquals(
             DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
@@ -157,5 +166,68 @@ class SyncJobTest extends TestCase
             DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             $followUp->zoho_calendar_sync_status,
         );
+    }
+
+    public function test_it_includes_lead_email_in_attendee_emails_for_deal_meeting(): void
+    {
+        config()->set('services.ol.base_url', 'https://ol.test/v1');
+        config()->set('services.ol.api_key', 'ol-test-key');
+        config()->set('services.ol.timeout', 5);
+
+        $capturedPayload = [];
+
+        Http::fake(function ($request) use (&$capturedPayload) {
+            if (
+                $request->url() ===
+                'https://ol.test/v1/crm/events/zoho' &&
+                $request->method() === 'POST'
+            ) {
+                $capturedPayload = $request->data();
+
+                return Http::response(
+                    [
+                        'success' => true,
+                        'message' => 'Calendar event job enqueued',
+                        'data' => ['jobId' => 'job-lead-123'],
+                    ],
+                    202,
+                );
+            }
+
+            return Http::response([], 404);
+        });
+
+        $companyId = 1;
+        $creator = User::factory()->create(['company_id' => $companyId]);
+        $lead = Lead::factory()->create([
+            'company_id' => $companyId,
+            'client_email' => 'lead@example.com',
+            'client_name' => 'Lead Person',
+        ]);
+        $deal = Deal::factory()->create([
+            'company_id' => $companyId,
+            'lead_id' => $lead->id,
+            'client_email' => 'lead@example.com',
+            'client_name' => 'Lead Person',
+        ]);
+
+        $followUp = new DealFollowUp();
+        $followUp->added_by = $creator->id;
+        $followUp->deal_id = $deal->id;
+        $followUp->next_follow_up_date = now();
+        $followUp->duration = 30;
+        $followUp->remark = 'Test description';
+        $followUp->location = 'zoom';
+        $followUp->meeting_link = 'https://example.com/meet';
+        $followUp->status = 'scheduled';
+        $followUp->participants = [$creator->id];
+        $followUp->save();
+
+        $job = new SyncCalendarEventJob($followUp->id);
+        $job->handle(app(CalendarSyncService::class));
+
+        $this->assertContains('lead@example.com', $capturedPayload['attendeeEmails'] ?? []);
+        $this->assertArrayNotHasKey('guestEmails', $capturedPayload);
+        $this->assertArrayNotHasKey('contactEmail', $capturedPayload);
     }
 }

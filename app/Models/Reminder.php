@@ -113,4 +113,23 @@ class Reminder extends BaseModel
             'last_error' => mb_substr($error, 0, 2000),
         ])->save();
     }
+
+    /**
+     * Cancel a not-yet-claimed reminder. Returns true if this caller cancelled it.
+     */
+    public function cancel(): bool
+    {
+        $updated = self::query()
+            ->where('id', $this->id)
+            ->whereIn('status', [self::STATUS_PENDING, self::STATUS_SCHEDULED])
+            ->update(['status' => self::STATUS_CANCELLED, 'updated_at' => now()]);
+
+        if ($updated === 1) {
+            $this->status = self::STATUS_CANCELLED;
+
+            return true;
+        }
+
+        return false;
+    }
 }

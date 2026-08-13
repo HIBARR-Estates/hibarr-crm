@@ -498,8 +498,14 @@ class DealObserver
 
                     }
                     else {
-
-                        Notification::send(User::allAdmins($deal->company->id), new LeadAgentAssigned($deal));
+                        $admins = User::allAdmins($deal->company->id);
+                        $actorId = user()?->id;
+                        if ($actorId !== null) {
+                            $admins = $admins->reject(fn (User $admin) => (int) $admin->id === (int) $actorId);
+                        }
+                        if ($admins->isNotEmpty()) {
+                            Notification::send($admins, new LeadAgentAssigned($deal));
+                        }
                     }
                 }else if(session()->has('is_imported')){
 

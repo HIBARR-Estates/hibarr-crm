@@ -60,6 +60,7 @@ import {
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 
 dayjs.extend(relativeTime);
 
@@ -94,6 +95,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         discussion: <CommentOutlined style={{ color: "#13c2c2" }} />,
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
+        reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -128,6 +130,7 @@ const getIconBackground = (icon: NotificationIcon, isRead: boolean): string => {
         discussion: "bg-cyan-100",
         shift: "bg-orange-100",
         promotion: "bg-green-100",
+        reminder: "bg-blue-100",
         bell: "bg-gray-100",
     };
 
@@ -607,7 +610,7 @@ const NotificationsPage: React.FC = () => {
             if (!notification.is_read) {
                 markAsRead(notification.id);
             }
-            if (notification.link) {
+            if (notification.link && isSafeHttpUrl(notification.link)) {
                 // Use standard navigation to support both Inertia and non-Inertia pages
                 window.location.href = notification.link;
             }

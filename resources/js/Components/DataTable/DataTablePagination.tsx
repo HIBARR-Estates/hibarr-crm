@@ -3,7 +3,8 @@ import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import type { LaravelPaginationMeta } from "./types";
 import { buildPageRange } from "./utils";
 
-const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+/** Includes 15 to match Laravel's common paginate() default. */
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 15, 25, 50, 100] as const;
 
 interface DataTablePaginationProps {
     meta: LaravelPaginationMeta;
@@ -29,6 +30,12 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
 
     const displayFrom = from ?? (total > 0 ? (current_page - 1) * per_page + 1 : 0);
     const displayTo = to ?? Math.min(current_page * per_page, total);
+
+    // Keep the current size selectable even if it isn't in the defaults.
+    const resolvedPageSizeOptions = useMemo(() => {
+        if (pageSizeOptions.includes(per_page)) return pageSizeOptions;
+        return [...pageSizeOptions, per_page].sort((a, b) => a - b);
+    }, [pageSizeOptions, per_page]);
 
     // Memoize page range so it only recalculates when the current page or total changes
     const pages = useMemo(
@@ -74,7 +81,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                        hover:border-gray-300 transition-colors"
                         >
-                            {pageSizeOptions.map((n) => (
+                            {resolvedPageSizeOptions.map((n) => (
                                 <option key={n} value={n}>
                                     {n}
                                 </option>

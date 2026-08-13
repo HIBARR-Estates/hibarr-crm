@@ -62,6 +62,28 @@ class UnsRoutingTransportTest extends TestCase
         $transport->send($this->buildMessage(withUnsRoute: true));
     }
 
+    public function test_it_uses_fallback_transport_when_message_has_attachments(): void
+    {
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $client = new FakeUnsClient(true);
+        $transport = new UnsRoutingTransport(
+            $client,
+            new FakeMapper(),
+            $fallback
+        );
+
+        $email = $this->buildMessage(withUnsRoute: true);
+        if ($email instanceof Email) {
+            $email->attach('BEGIN:VCALENDAR', 'meeting.ics', 'text/calendar');
+        }
+
+        $result = $transport->send($email);
+
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(1, $fallback->sendCount);
+        $this->assertSame(0, $client->sendCount);
+    }
+
     private function buildMessage(bool $withUnsRoute = false): RawMessage
     {
         $email = (new Email())

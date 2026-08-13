@@ -60,7 +60,7 @@
 </td>
 </tr>
 </table>
-<p>Review this property and take the appropriate next steps.</p>
+<p>{{ $footerNote }}</p>
 </td>
 </tr>
 <tr>

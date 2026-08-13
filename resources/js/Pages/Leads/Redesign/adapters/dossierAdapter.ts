@@ -6,7 +6,8 @@ import {
     formatLeadAgeDisplay,
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import {
     resolveCurrencyDisplay,
     type CurrencyDisplay,
@@ -102,12 +103,8 @@ function asString(value: unknown): string {
     return raw;
 }
 
-function asPhone(value: unknown, fallback?: unknown): string {
-    return (
-        formatMobileForDisplay(value) ||
-        formatMobileForDisplay(fallback) ||
-        ""
-    ).trim();
+function asPhone(raw: unknown, formatted?: unknown): string {
+    return resolveLeadPhoneDisplay(raw, formatted);
 }
 
 function marketingOf(lead: Lead): Record<string, unknown> {
@@ -140,15 +137,13 @@ export function getDossierFieldValue(
         case "salutation":
             return asString(l.salutation_value ?? l.salutation);
         case "mobile":
-            return asPhone(l.mobile_with_phonecode, l.mobile) || asPhone(l.mobile);
+            return asPhone(l.mobile, l.mobile_with_phonecode);
         case "office":
-            return (
-                asPhone(l.office_phone_formatted, l.office) || asPhone(l.office)
-            );
+            return asPhone(l.office, l.office_phone_formatted);
         case "email":
             return asString(l.client_email ?? l.email);
         case "whatsapp":
-            return asPhone(l.client_whatsapp, l.whatsapp) || asPhone(l.whatsapp);
+            return asPhone(l.client_whatsapp ?? l.whatsapp);
         case "telegram":
             return asString(l.client_telegram ?? l.telegram);
         case "instagram":
@@ -166,10 +161,13 @@ export function getDossierFieldValue(
                     l.has_attended_webinar ??
                     l.webinar_attended,
             );
-        case "lastWebinarDate":
-            return asString(
+        case "lastWebinarDate": {
+            const raw = asString(
                 m.last_webinar_date ?? l.last_webinar_date ?? l.last_webinar_at,
             );
+            // Company App Settings date format, same as the Marketing tab.
+            return raw ? formatCompanyDate(raw, "") : "";
+        }
         case "hasDownloadedEbook":
             return yesNo(
                 m.has_downloaded_the_ebook ??
@@ -309,6 +307,12 @@ export function getLeadNativeEditValue(
 
     if (key === "clientName") return String(record.client_name ?? "");
     if (key === "email") return String(record.client_email ?? "");
+    if (key === "hasJoinedWhatsappGroup") {
+        const joined =
+            lead.marketing?.has_joined_the_whatsapp_group ??
+            record.has_joined_the_whatsapp_group;
+        return joined ? "1" : "0";
+    }
     if (key === "dateOfBirthAndAge") {
         return String(record.date_of_birth ?? record.age ?? "");
     }

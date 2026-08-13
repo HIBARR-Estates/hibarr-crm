@@ -12,7 +12,7 @@ export type NotesView = "list" | "add" | "edit" | "view";
 
 interface NotesBreadcrumbProps {
     currentView: NotesView;
-    noteTitle?: string;
+    noteTitle?: string | null;
     onNavigate: (view: NotesView) => void;
 }
 

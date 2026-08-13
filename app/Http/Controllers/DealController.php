@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Scopes\ActiveScope;
 use App\Notifications\MeetingLinkGenerationFailed;
@@ -203,7 +204,7 @@ class DealController extends AccountBaseController
     {
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
-            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
+            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id,image',
             'contact.leadSource',
             'leadStage:id,name,label_color,slug',
             'currency:id,currency_symbol,currency_code',
@@ -2414,7 +2415,9 @@ class DealController extends AccountBaseController
             $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
         }
 
-        event(new AutoFollowUpReminderEvent($followUp, true));
+        app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
+
+        event(new AutoFollowUpReminderEvent($followUp->fresh(), true));
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
@@ -2547,6 +2550,8 @@ class DealController extends AccountBaseController
             
             // Continue without throwing exception - follow-up is already updated
         }
+
+        app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
@@ -3112,6 +3117,9 @@ class DealController extends AccountBaseController
             ]);
 
             $meetingLink = $meetingResponse['meeting_link'] ?? null;
+
+            app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
+
             return Reply::successWithData('Meeting link generated successfully', ['meeting_link' => $meetingLink]);
         } catch (\Exception $e) {
             Log::error('Error in generateMeetingLink', [

@@ -193,8 +193,16 @@ const DealCard: React.FC<DealCardProps> = ({
                 {/* Lead/Contact Name — icon-prefixed and labeled so it doesn't
                     read as a second deal title under deal.name above */}
                 {deal.contact?.client_name && (
-                    <div className="mb-2 flex items-center gap-1 min-w-0">
-                        <UserOutlined className="text-gray-400 text-[11px] flex-shrink-0" />
+                    <div className="mb-2 flex items-center gap-1.5 min-w-0">
+                        {deal.contact.image && deal.contact.image_url ? (
+                            <Avatar
+                                size={18}
+                                src={deal.contact.image_url}
+                                className="flex-shrink-0"
+                            />
+                        ) : (
+                            <UserOutlined className="text-gray-400 text-[11px] flex-shrink-0" />
+                        )}
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{

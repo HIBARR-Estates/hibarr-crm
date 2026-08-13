@@ -143,6 +143,14 @@ function ClampedText({
             setCanExpand(expanded);
             return;
         }
+        // Analysis/Qualify modals disable line-clamp via CSS; skip the
+        // expand control so ResizeObserver false-positives don't flash
+        // a "Show more" on short values.
+        const clamp = getComputedStyle(el).webkitLineClamp;
+        if (!clamp || clamp === "none") {
+            setCanExpand(false);
+            return;
+        }
         setCanExpand(el.scrollHeight > el.clientHeight + 1);
     }, [expanded]);
 
@@ -912,7 +920,8 @@ export default function EditableField({
                     })()
                   : formatValue
                 ? formatValue(normalizedValue)
-                : normalizedValue?.toString() || "--";
+                : normalizedValue?.toString() ||
+                  (activateOnSingleClick ? placeholder : "--");
 
     // v2.2 renders the empty placeholder in muted italics so it reads as a
     // placeholder, not a real value. Only applies when this component

@@ -63,7 +63,7 @@
 </td>
 </tr>
 </table>
-<p>Review this task and take the appropriate next steps.</p>
+<p>{{ $footerNote }}</p>
 </td>
 </tr>
 <tr>
