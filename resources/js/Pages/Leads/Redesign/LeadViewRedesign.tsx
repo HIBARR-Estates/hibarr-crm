@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
@@ -37,6 +37,9 @@ import {
 } from "./adapters/currencyAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
 import { itineraryCount } from "./adapters/itineraryAdapter";
+import { formatMobileForDisplay } from "@/lib/utils";
+import type { Lead } from "@/Types/api/leads";
+import type { QualificationLeadPatch } from "@/Types/qualification";
 import {
     LeadWorkspaceProvider,
     useLeadWorkspace,
@@ -72,13 +75,18 @@ import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
+import QualificationTab from "./components/workspace/tabs/QualificationTab";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
 import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
 import QualifyModal from "./components/qualification/QualifyModal";
-import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
 import CreateDealModal from "./components/dealCreate/CreateDealModal";
+import {
+    answersFromQualification,
+    computeWalkSegments,
+    hasAnswerContent,
+} from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
@@ -109,6 +117,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const {
         lead,
+        setLead,
         deals,
         notesLoading,
         tasksLoading,
@@ -128,6 +137,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const nav = useLeadViewNavigation(props.customFieldCategories);
     const tourRef = useRef<ProductTourHandle>(null);
+
+    useEffect(() => {
+        if (!showQualification && nav.tab === "qualification") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification]);
+
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
         [nav.setTab],
@@ -201,24 +217,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         return currency.code ? `${currency.code} ${value}` : value;
     }, [companyCurrency, lead]);
 
-    const answerCount = useMemo(() => {
-        const runs = [...qualification.history];
-        if (qualification.current) runs.push(qualification.current);
-        return runs.reduce(
-            (sum, run) => sum + (run.answers?.length ?? 0),
-            0,
-        );
-    }, [qualification.current, qualification.history]);
-
     const qualificationProgress = useMemo(() => {
         const tree = qualification.templateTree;
         const current = qualification.current;
         if (!tree || !current) {
             return { answered: 0, total: 0 };
         }
-        const total = tree.segments.filter((s) => s.type === "question").length;
-        const answered = current.answers?.length ?? 0;
-        return { answered, total };
+        // Match QualifyModal: only currently walkable questions (soft-hidden
+        // branches / outcomes are excluded), counted via hasAnswerContent.
+        const answers = answersFromQualification(current.answers ?? [], tree);
+        const questions = computeWalkSegments(tree, answers).filter(
+            (segment) => segment.type === "question",
+        );
+        const answered = questions.filter((segment) =>
+            hasAnswerContent(answers[segment.key]),
+        ).length;
+        return { answered, total: questions.length };
     }, [qualification.current, qualification.templateTree]);
 
     const { uploadedCount: documentsUploaded } = useLeadDocuments(
@@ -243,6 +257,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             files: filesLoading
                 ? undefined
                 : files.length + documentsUploaded,
+            qualification: showQualification
+                ? qualification.history.length +
+                  (qualification.current ? 1 : 0) || undefined
+                : undefined,
         };
     }, [
         deals,
@@ -253,6 +271,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         leadFollowUpsLoading,
         notes.length,
         notesLoading,
+        qualification.current,
+        qualification.history.length,
+        showQualification,
         tasks,
         tasksLoading,
     ]);
@@ -288,15 +309,47 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         return [...deals].sort((a, b) => b.id - a.id)[0] ?? null;
     }, [deals]);
 
+    const handleTemplateSelect = useCallback(
+        async (templateId: string) => {
+            const started =
+                await qualification.startQualificationScript(templateId);
+            if (started) {
+                setTemplatePickerOpen(false);
+                nav.setQualificationOpen(true);
+            }
+        },
+        [nav, qualification],
+    );
+
+    const openTemplatePicker = useCallback(() => {
+        if (qualification.templates.length === 1) {
+            void handleTemplateSelect(qualification.templates[0].id);
+            return;
+        }
+        setTemplatePickerOpen(true);
+    }, [handleTemplateSelect, qualification.templates]);
+
     const handleMissionAction = useCallback(
         (action: LeadMissionCtaAction) => {
             switch (action) {
                 case "qualify_start":
-                    setTemplatePickerOpen(true);
+                    openTemplatePicker();
                     break;
-                case "qualify_resume":
-                    nav.setQualificationOpen(true);
+                case "qualify_resume": {
+                    const active =
+                        qualification.current?.status === "inProgress"
+                            ? qualification.current
+                            : qualification.history.find(
+                                  (run) => run.status === "inProgress",
+                              ) ?? null;
+                    if (!active) break;
+                    void (async () => {
+                        const ok =
+                            await qualification.resumeQualification(active);
+                        if (ok) nav.setQualificationOpen(true);
+                    })();
                     break;
+                }
                 case "create_deal":
                     setCreateDealOpen(true);
                     break;
@@ -313,13 +366,20 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     void changeStatus("new");
                     break;
                 case "view_answers":
-                    nav.setAnswersOpen(true);
+                    nav.setTab("qualification");
                     break;
                 default:
                     break;
             }
         },
-        [changeStatus, deals.length, nav, primaryDeal],
+        [
+            changeStatus,
+            deals.length,
+            nav,
+            openTemplatePicker,
+            primaryDeal,
+            qualification,
+        ],
     );
 
     const handleBannerPrimary = useCallback(() => {
@@ -340,9 +400,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const handleMoreAction = useCallback(
         (id: MoreMenuActionId) => {
             switch (id) {
-                case "answers":
-                    nav.setAnswersOpen(true);
-                    break;
                 case "task":
                     setAddTaskOpen(true);
                     break;
@@ -362,19 +419,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     break;
             }
         },
-        [deleteLead, duplicates, nav],
-    );
-
-    const handleTemplateSelect = useCallback(
-        async (templateId: string) => {
-            const started =
-                await qualification.startQualificationScript(templateId);
-            if (started) {
-                setTemplatePickerOpen(false);
-                nav.setQualificationOpen(true);
-            }
-        },
-        [nav, qualification],
+        [deleteLead, duplicates],
     );
 
     const renderTabBody = () => {
@@ -407,7 +452,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 return notesLoading && notes.length === 0 ? (
                     <TabDeferredSkeleton />
                 ) : (
-                    <NotesTab permissions={props.notePermissions} />
+                    <NotesTab
+                        permissions={props.notePermissions}
+                        onAddNote={() => setAddNoteOpen(true)}
+                    />
                 );
             case "tasks":
                 return tasksLoading && tasks.length === 0 ? (
@@ -474,6 +522,44 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 );
             case "marketing":
                 return <MarketingTab />;
+            case "qualification":
+                return showQualification ? (
+                    <QualificationTab
+                        current={qualification.current}
+                        history={qualification.history}
+                        canStart={
+                            qualification.current?.status !== "inProgress" &&
+                            !qualification.history.some(
+                                (run) => run.status === "inProgress",
+                            )
+                        }
+                        onResumeQualify={(run) => {
+                            void (async () => {
+                                const ok =
+                                    await qualification.resumeQualification(
+                                        run,
+                                    );
+                                if (ok) nav.setQualificationOpen(true);
+                            })();
+                        }}
+                        onDeleteQualify={async (run) => {
+                            const wasOpenCurrent =
+                                nav.qualificationOpen &&
+                                qualification.current?.id === run.id;
+                            const ok =
+                                await qualification.deleteQualification(run.id);
+                            if (ok && wasOpenCurrent) {
+                                nav.setQualificationOpen(false);
+                            }
+                            return ok;
+                        }}
+                        onStartQualify={openTemplatePicker}
+                    />
+                ) : (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("This tab is coming soon.", { source: "en" })}
+                    </p>
+                );
             default:
                 return (
                     <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
@@ -511,7 +597,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         lifecycle={lifecycle}
                         statuses={lifecycleStatuses}
                         valueLabel={valueLabel}
-                        answerCount={answerCount}
                         firstName={firstName}
                         templateName={
                             qualification.current?.template_name ??
@@ -530,7 +615,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         showQualification={showQualification}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
-                        onOpenAnswers={() => nav.setAnswersOpen(true)}
                         onMoreAction={handleMoreAction}
                         onReplayGuide={
                             showProductTour
@@ -574,8 +658,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             undefined
                                         }
                                         onCta={{
-                                            onQualifyLead: () =>
-                                                setTemplatePickerOpen(true),
+                                            onQualifyLead: openTemplatePicker,
                                             onCreateTask: () =>
                                                 setAddTaskOpen(true),
                                             onScheduleCall: () =>
@@ -615,6 +698,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 activeTab={nav.tab}
                                 onTabChange={nav.setTab}
                                 tabCounts={tabCounts}
+                                showQualification={showQualification}
                             >
                                 {renderTabBody()}
                             </WorkspaceCard>
@@ -628,6 +712,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             />
                             <LeadDossier
                                 lead={lead}
+                                canEdit={canEditLead(
+                                    props.editLeadPermission,
+                                    lead,
+                                    page.props.auth?.user?.id,
+                                )}
                                 onOpenLeadInfo={() => {
                                     nav.setInfoSection("personal");
                                     nav.setTab("leadinfo");
@@ -649,14 +738,19 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onSelect={(id) => void handleTemplateSelect(id)}
                     />
 
-                    {qualification.current &&
-                        qualification.templateTree &&
-                        nav.qualificationOpen && (
+                    {qualification.current && nav.qualificationOpen && (
                             <QualifyModal
                                 open={nav.qualificationOpen}
                                 lead={lead}
                                 qualification={qualification.current}
                                 templateTree={qualification.templateTree}
+                                treeLoading={qualification.treeLoading}
+                                fields={props.fields}
+                                customFieldCategories={
+                                    props.customFieldCategories
+                                }
+                                editLeadPermission={props.editLeadPermission}
+                                meetingTypes={props.meetingTypes ?? []}
                                 onClose={() => nav.setQualificationOpen(false)}
                                 onCompleted={(updated) => {
                                     qualification.handleQualificationUpdated(
@@ -668,16 +762,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         updated,
                                     );
                                 }}
+                                onLeadUpdated={(patch) => {
+                                    setLead((prev) =>
+                                        mergeQualificationLeadPatch(prev, patch),
+                                    );
+                                }}
                             />
                         )}
-
-                    <AnswersReviewModal
-                        open={nav.answersOpen}
-                        leadName={lead.client_name ?? td("Lead", { source: "en" })}
-                        history={qualification.history}
-                        current={qualification.current}
-                        onClose={() => nav.setAnswersOpen(false)}
-                    />
                 </>
             )}
 
@@ -845,4 +936,54 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             <ConfirmDialog {...deleteLead.dialogProps} />
         </PageLayout>
     );
+}
+
+/** Apply the qualification-complete lead patch into workspace state (no reload). */
+function mergeQualificationLeadPatch(
+    prev: Lead,
+    patch: QualificationLeadPatch,
+): Lead {
+    const next = { ...prev } as Record<string, unknown>;
+
+    Object.entries(patch).forEach(([key, val]) => {
+        if (val === undefined) return;
+        next[key] =
+            (key === "languages" ||
+                key === "categories" ||
+                key === "category_ids") &&
+            !Array.isArray(val)
+                ? []
+                : val;
+    });
+
+    const lifecycle =
+        patch.lead_lifecycle_status ?? patch.lifecycleStatus;
+    if (lifecycle != null) {
+        next.lead_lifecycle_status = lifecycle;
+        next.lifecycleStatus = lifecycle;
+    }
+
+    if (patch.custom_fields_data && typeof patch.custom_fields_data === "object") {
+        next.custom_fields_data = patch.custom_fields_data;
+    }
+
+    if (patch.mobile !== undefined) {
+        const formatted = formatMobileForDisplay(String(patch.mobile ?? ""));
+        next.mobile_with_phonecode =
+            formatted && formatted !== "--"
+                ? formatted
+                : (patch.mobile_with_phonecode as string | undefined) ?? "--";
+    }
+
+    if (patch.office !== undefined) {
+        const formatted = formatMobileForDisplay(String(patch.office ?? ""));
+        next.office_phone_formatted =
+            formatted && formatted !== "--"
+                ? formatted
+                : (patch.office_phone_formatted as string | undefined) ||
+                  String(patch.office ?? "") ||
+                  "--";
+    }
+
+    return next as unknown as Lead;
 }

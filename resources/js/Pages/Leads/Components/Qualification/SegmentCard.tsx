@@ -44,7 +44,6 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
         {segment.type === "say" && (
             <SaySegment
                 label={segment.label}
-                tokenMap={tokenMap}
                 translateScript={translateScript}
             />
         )}
@@ -52,7 +51,6 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
             <QuestionSegment
                 segment={segment}
                 answer={answer}
-                tokenMap={tokenMap}
                 translateScript={translateScript}
                 onChange={onAnswerChange}
                 disabled={saving}
@@ -61,14 +59,12 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
         {segment.type === "instruction" && (
             <InstructionSegment
                 label={segment.label}
-                tokenMap={tokenMap}
                 translateScript={translateScript}
             />
         )}
         {segment.type === "outcome" && (
             <OutcomeSegment
                 label={segment.label}
-                tokenMap={tokenMap}
                 translateScript={translateScript}
                 templateTree={templateTree}
                 onComplete={onCompleteOutcomes}

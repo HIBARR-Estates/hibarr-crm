@@ -60,6 +60,12 @@ class DealActivityNotification extends BaseNotification
      */
     public function via($notifiable): array
     {
+        // Never notify the person who triggered the activity (including admins).
+        $triggeredById = $this->data['triggered_by_id'] ?? null;
+        if ($triggeredById !== null && (int) $notifiable->id === (int) $triggeredById) {
+            return [];
+        }
+
         $via = ['database'];
 
         // During bulk updates, suppress individual transactional emails.

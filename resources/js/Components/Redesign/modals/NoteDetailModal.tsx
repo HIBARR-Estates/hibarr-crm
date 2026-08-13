@@ -34,8 +34,10 @@ interface NoteDetailModalProps {
     canDelete: boolean;
     isUpdating: boolean;
     isDeleting: boolean;
+    /** Open directly in edit mode (e.g. card edit button). */
+    initialEditing?: boolean;
     onUpdate: (
-        payload: { title: string; details: string },
+        payload: { title?: string | null; details: string },
         onSuccess?: () => void,
     ) => void;
     onDelete: (onSuccess?: () => void) => void;
@@ -53,6 +55,7 @@ export default function NoteDetailModal({
     canDelete,
     isUpdating,
     isDeleting,
+    initialEditing = false,
     onUpdate,
     onDelete,
     labels,
@@ -62,15 +65,19 @@ export default function NoteDetailModal({
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const noteId = note?.id ?? null;
 
+    // Re-init only when opening a different note or changing view/edit intent —
+    // not when the same note's object identity/content changes after save
+    // (that was resetting the form and forcing edit mode back on).
     useEffect(() => {
-        if (note) {
-            setEditing(false);
-            setTitle(note.title);
-            setText(note.details || "");
-            setConfirmDelete(false);
-        }
-    }, [note]);
+        if (!note || noteId == null) return;
+        setEditing(Boolean(initialEditing) && canEdit);
+        setTitle(note.title == null ? "" : String(note.title));
+        setText(note.details || "");
+        setConfirmDelete(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally ignore note object identity
+    }, [noteId, initialEditing, canEdit]);
 
     if (!note) return null;
 
@@ -92,7 +99,8 @@ export default function NoteDetailModal({
         if (!hasText(text)) return;
         onUpdate(
             {
-                title: title.trim(),
+                // Title is optional — empty/null must not block the update.
+                title: (title ?? "").trim(),
                 details: text,
             },
             () => setEditing(false),
@@ -161,7 +169,7 @@ export default function NoteDetailModal({
                     <ModalField label={labels.titleField}>
                         <input
                             className="dr-input"
-                            value={title}
+                            value={title ?? ""}
                             onChange={(e) => setTitle(e.target.value)}
                             autoFocus
                         />
@@ -234,7 +242,7 @@ export default function NoteDetailModal({
                         ) : null}
                     </div>
                     <div
-                        className="min-w-0 text-[14px] leading-[1.7]"
+                        className="min-w-0 text-[15px] leading-[1.55]"
                         style={{
                             color: T.TEXT,
                             overflowWrap: "anywhere",
@@ -242,7 +250,10 @@ export default function NoteDetailModal({
                             maxWidth: "100%",
                         }}
                     >
-                        <HtmlRenderer content={note.details || ""} />
+                        <HtmlRenderer
+                            content={note.details || ""}
+                            className="workspace-note-html text-[15px]"
+                        />
                     </div>
                 </>
             )}

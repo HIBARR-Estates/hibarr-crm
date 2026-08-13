@@ -236,6 +236,7 @@ export const permissions = {
     "manage_increment_promotion": "all",
     "manage_language_setting": "all",
     "manage_lead_custom_forms": "all",
+    "manage_qualification_mapping": "all",
     "manage_lead_setting": "all",
     "manage_leave_setting": "all",
     "manage_message_setting": "all",

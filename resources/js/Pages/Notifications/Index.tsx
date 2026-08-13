@@ -60,6 +60,7 @@ import {
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 
 dayjs.extend(relativeTime);
 
@@ -609,7 +610,7 @@ const NotificationsPage: React.FC = () => {
             if (!notification.is_read) {
                 markAsRead(notification.id);
             }
-            if (notification.link) {
+            if (notification.link && isSafeHttpUrl(notification.link)) {
                 // Use standard navigation to support both Inertia and non-Inertia pages
                 window.location.href = notification.link;
             }

@@ -166,8 +166,14 @@ class LeadObserver
             return;
         }
 
-        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId) {
+        $actorId = user()?->id;
+        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId) {
             try {
+                // Skip when the assignee is the one who made the change (incl. admins).
+                if ($actorId !== null && (int) $actorId === (int) $newOwner->id) {
+                    return;
+                }
+
                 Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
             } catch (\Throwable $e) {
                 \Log::error('Failed to notify lead owner after assignment', [

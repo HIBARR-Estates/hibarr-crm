@@ -22,6 +22,7 @@ class NewLeadCreated extends BaseNotification
         $this->leadContact = $leadContact;
         $this->company = $this->leadContact->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'lead-notification')->first();
+        $this->captureTriggeredByUser();
         $this->initUnsRouting();
     }
 
@@ -33,6 +34,11 @@ class NewLeadCreated extends BaseNotification
      */
     public function via($notifiable)
     {
+        // Never notify the person who created the lead (including admins).
+        if ($this->isTriggeredByNotifiable($notifiable)) {
+            return [];
+        }
+
         $via = array('database');
 
         if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
