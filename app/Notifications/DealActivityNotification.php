@@ -98,6 +98,8 @@ class DealActivityNotification extends BaseNotification
         $content = $this->getEmailContent($notifiable);
         $actionText = $this->getActionText();
 
+        $introText = $this->getNotificationText($notifiable);
+
         $build
             ->subject($subject.' - '.config('app.name'))
             ->view('mail.deal.activity', [
@@ -105,9 +107,22 @@ class DealActivityNotification extends BaseNotification
                 'content' => $content,
                 'subject' => $subject,
                 'actionText' => $actionText,
-                'introText' => $this->getNotificationText($notifiable),
+                'introText' => $introText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachPlunkTemplate($build, '0b42fd37-19ec-465d-b244-0dec0bbab80f', [
+            'mailSubject' => $subject,
+            'appName' => config('app.name'),
+            'preheader' => $introText,
+            'badgeLabel' => 'Deal Activity',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $content,
+            'actionDescription' => __('Click the button below to view the deal details.'),
+            'actionText' => $actionText,
+            'dealUrl' => $url,
+        ]);
 
         parent::resetLocale();
 

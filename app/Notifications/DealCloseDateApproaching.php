@@ -47,16 +47,36 @@ class DealCloseDateApproaching extends BaseNotification
         $build = parent::build($notifiable);
         $closeDate = $this->formattedCloseDate();
 
+        $mailSubject = __('email.dealCloseDateApproaching.subject');
+        $bodyText = $this->bodyText();
+        $dealName = $this->dealName();
+        $dealUrl = $this->actionUrl();
+        $actionText = __('email.dealCloseDateApproaching.action');
+
         $build
-            ->subject(__('email.dealCloseDateApproaching.subject').' - '.config('app.name'))
+            ->subject($mailSubject.' - '.config('app.name'))
             ->view('mail.deal.deal-close-date-approaching', [
-                'url' => $this->actionUrl(),
-                'dealName' => $this->dealName(),
+                'url' => $dealUrl,
+                'dealName' => $dealName,
                 'closeDate' => $closeDate,
-                'preheader' => $this->bodyText(),
-                'actionText' => __('email.dealCloseDateApproaching.action'),
+                'preheader' => $bodyText,
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachPlunkTemplate($build, 'f1da65e3-4b42-40c5-b5ae-1ba82fe3d94d', [
+            'mailSubject' => $mailSubject,
+            'appName' => config('app.name'),
+            'preheader' => $bodyText,
+            'badgeLabel' => $mailSubject,
+            'notifiableName' => $notifiable->name,
+            'bodyText' => $bodyText,
+            'closeDate' => $closeDate,
+            'dealName' => $dealName,
+            'actionDescription' => __('Review the deal and update the close date if plans have changed.'),
+            'actionText' => $actionText,
+            'dealUrl' => $dealUrl,
+        ]);
 
         parent::resetLocale();
 

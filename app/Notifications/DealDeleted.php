@@ -56,16 +56,34 @@ class DealDeleted extends BaseNotification
         $build = parent::build($notifiable);
         $url = getDomainSpecificUrl(route('deals.index'), $this->company);
 
+        $mailSubject = __('email.dealDeleted.subject');
+        $bodyText = $this->bodyText();
+        $actionText = __('email.dealDeleted.action');
+
         $build
-            ->subject(__('email.dealDeleted.subject').' - '.config('app.name'))
+            ->subject($mailSubject.' - '.config('app.name'))
             ->view('mail.deal.deal-deleted', [
                 'url' => $url,
                 'dealName' => $this->dealName,
                 'deletedByName' => $this->deletedByName,
-                'preheader' => $this->bodyText(),
-                'actionText' => __('email.dealDeleted.action'),
+                'preheader' => $bodyText,
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachPlunkTemplate($build, '45171f58-24cf-468e-8a8b-0edaf9023142', [
+            'mailSubject' => $mailSubject,
+            'appName' => config('app.name'),
+            'preheader' => $bodyText,
+            'badgeLabel' => $mailSubject,
+            'notifiableName' => $notifiable->name,
+            'bodyText' => $bodyText,
+            'dealName' => $this->dealName,
+            'deletedByName' => $this->deletedByName,
+            'actionDescription' => __('You can review your remaining deals in the CRM.'),
+            'actionText' => $actionText,
+            'dealUrl' => $url,
+        ]);
 
         parent::resetLocale();
 

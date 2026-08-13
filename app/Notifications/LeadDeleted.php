@@ -59,17 +59,36 @@ class LeadDeleted extends BaseNotification
         $build = parent::build($notifiable);
         $url = getDomainSpecificUrl(route('lead-contact.index'), $this->company);
 
+        $mailSubject = __('email.leadDeleted.subject');
+        $bodyText = $this->bodyText();
+        $actionText = __('email.leadDeleted.action');
+
         $build
-            ->subject(__('email.leadDeleted.subject').' - '.config('app.name'))
+            ->subject($mailSubject.' - '.config('app.name'))
             ->view('mail.lead.lead-deleted', [
                 'url' => $url,
                 'leadName' => $this->leadName,
                 'leadEmail' => $this->leadEmail,
                 'deletedByName' => $this->deletedByName,
-                'preheader' => $this->bodyText(),
-                'actionText' => __('email.leadDeleted.action'),
+                'preheader' => $bodyText,
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachPlunkTemplate($build, '727f5903-5332-4ec3-992d-ad289264a10a', [
+            'mailSubject' => $mailSubject,
+            'appName' => config('app.name'),
+            'preheader' => $bodyText,
+            'badgeLabel' => $mailSubject,
+            'notifiableName' => $notifiable->name,
+            'bodyText' => $bodyText,
+            'leadName' => $this->leadName,
+            'leadEmail' => $this->leadEmail ?? '',
+            'deletedByName' => $this->deletedByName,
+            'actionDescription' => __('You can review your remaining leads in the CRM.'),
+            'actionText' => $actionText,
+            'leadUrl' => $url,
+        ]);
 
         parent::resetLocale();
 

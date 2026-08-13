@@ -10,6 +10,7 @@ use App\Notifications\LeadFollowUpOverdue;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class LeadNotificationService
@@ -75,6 +76,23 @@ class LeadNotificationService
 
         if ($recipients->isEmpty()) {
             return;
+        }
+
+        if (! config('app.automations.followups.overdue_email_enabled', false)) {
+            Log::info('[LeadFollowUpOverdue] Email disabled; sending in-app notification only.', [
+                'follow_up_id' => $followUp->id,
+                'deal_id' => $followUp->deal_id,
+                'lead_id' => $followUp->lead_id,
+                'entity_name' => trim((string) (
+                    $followUp->deal?->name
+                    ?? $followUp->deal?->contact?->client_name
+                    ?? $followUp->lead?->client_name
+                    ?? ''
+                )),
+                'scheduled_at' => $followUp->next_follow_up_date?->toIso8601String(),
+                'recipient_ids' => $recipients->pluck('id')->values()->all(),
+                'recipient_emails' => $recipients->pluck('email')->values()->all(),
+            ]);
         }
 
         Notification::send($recipients, new LeadFollowUpOverdue($followUp));

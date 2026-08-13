@@ -1,0 +1,11 @@
+<!--
+  Plunk subject line for deal close date approaching.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — "Deal close date approaching"
+    appName     — application name (e.g. Hibarr)
+
+  Keep in sync with App\Notifications\DealCloseDateApproaching
+-->
+{{mailSubject}} - {{appName}}

@@ -34,7 +34,8 @@ class LeadFollowUpOverdue extends BaseNotification
         $via = ['database'];
 
         if (
-            $notifiable->status === 'active'
+            config('app.automations.followups.overdue_email_enabled', false)
+            && $notifiable->status === 'active'
             && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
