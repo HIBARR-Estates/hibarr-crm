@@ -32,6 +32,13 @@ class MailPreheaderTest extends TestCase
         $this->assertSame(90, strlen(MailPreheader::sanitize($long)));
     }
 
+    public function test_sanitize_counts_multibyte_characters_for_max_length(): void
+    {
+        $multibyte = str_repeat('ü', 120);
+
+        $this->assertSame(90, mb_strlen(MailPreheader::sanitize($multibyte), 'UTF-8'));
+    }
+
     public function test_empty_input_yields_empty_html(): void
     {
         $this->assertSame('', MailPreheader::hiddenHtml(''));

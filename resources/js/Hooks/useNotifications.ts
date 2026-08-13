@@ -18,6 +18,7 @@ import {
     seedIslandSeenNotifications,
     takeUnseenNotifications,
 } from "@/lib/notificationAlerts";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
@@ -64,7 +65,7 @@ export const useNotificationSummary = (
     // island from showing again for the same notification; multiple hook
     // consumers share one takeUnseenNotifications pass so alerts fire once.
     useEffect(() => {
-        if (!enabled || isLoading) return;
+        if (!enabled || isLoading || !response?.data) return;
 
         if (!hasSeededIslandSeenIds) {
             seedIslandSeenNotifications(notifications);
@@ -78,7 +79,11 @@ export const useNotificationSummary = (
         if (islandAlertsEnabled) {
             playNotificationSound();
             newOnes.slice(0, 3).forEach((n) => {
-                showDesktopNotification(n.title, n.text, n.link);
+                showDesktopNotification(
+                    n.title,
+                    n.text,
+                    n.link && isSafeHttpUrl(n.link) ? n.link : undefined,
+                );
             });
         }
         onNewNotifications?.(newOnes);
@@ -88,6 +93,7 @@ export const useNotificationSummary = (
         isLoading,
         islandAlertsEnabled,
         onNewNotifications,
+        response?.data,
     ]);
 
     // Invalidate cache to force refresh

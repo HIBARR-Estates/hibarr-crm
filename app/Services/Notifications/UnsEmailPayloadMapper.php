@@ -17,11 +17,11 @@ class UnsEmailPayloadMapper
      */
     public function map(RawMessage $message, ?Envelope $envelope = null): array
     {
-        if (!$message instanceof Email) {
+        if (! $message instanceof Email) {
             throw new \InvalidArgumentException('UNS routing only supports Symfony Email messages.');
         }
 
-        $templateId   = $this->extractHeader($message, 'X-Plunk-Template-Id');
+        $templateId = $this->extractHeader($message, 'X-Plunk-Template-Id');
         $templateVars = null;
         if ($templateId !== null) {
             $encoded = $this->extractHeader($message, 'X-Plunk-Template-Variables');
@@ -43,34 +43,34 @@ class UnsEmailPayloadMapper
 
         $data = [
             'emailAddress' => $recipient,
-            'subject'      => $subject,
-            'metadata'     => [
+            'subject' => $subject,
+            'metadata' => [
                 'source' => 'crm',
-                'actor'  => $senderUser?->id ? 'sender' : 'crm_system',
+                'actor' => $senderUser?->id ? 'sender' : 'crm_system',
             ],
         ];
 
         if ($templateId !== null) {
-            $data['templateSlug']      = $templateId;
+            $data['templateSlug'] = $templateId;
             $data['templateVariables'] = $templateVars;
         } else {
             $data['body'] = $body;
         }
 
         return [
-            'event'          => 'CRM_EMAIL',
-            'userId'         => $resolvedUserId,
-            'channels'       => ['email'],
-            'priority'       => 'DEFAULT',
+            'event' => 'CRM_EMAIL',
+            'userId' => $resolvedUserId,
+            'channels' => ['email'],
+            'priority' => 'DEFAULT',
             'idempotencyKey' => $customIdempotencyKey
                 ?? $this->buildIdempotencyKey($recipient, $subject, $templateId ?? $body),
-            'data'           => $data,
+            'data' => $data,
         ];
     }
 
     private function extractHeader(Email $message, string $name): ?string
     {
-        if (!$message->getHeaders()->has($name)) {
+        if (! $message->getHeaders()->has($name)) {
             return null;
         }
 
@@ -141,11 +141,7 @@ class UnsEmailPayloadMapper
 
     private function buildIdempotencyKey(string $recipient, string $subject, string $templateIdOrBody): string
     {
-        // recipient|subject|templateId(or body)|unix-time — time so legitimate
-        // resends (same assignee/template) are not suppressed by UNS.
-        return 'crm-email-' . sha1(
-            $recipient . '|' . $subject . '|' . $templateIdOrBody . '|' . now()->timestamp
-        );
+        return 'crm-email-'.sha1($recipient.'|'.$subject.'|'.$templateIdOrBody);
     }
 
     protected function findUserByEmail(string $email): ?User

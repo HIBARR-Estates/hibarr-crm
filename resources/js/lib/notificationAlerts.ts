@@ -3,6 +3,8 @@
  * Pure browser-API helpers — no React, no hook state.
  */
 
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
+
 const MUTE_STORAGE_KEY = "notification_alerts_muted";
 const NOTCH_POSITION_STORAGE_KEY = "notification_notch_position";
 const NOTCH_DURATION_STORAGE_KEY = "notification_notch_duration";
@@ -128,18 +130,24 @@ function readIslandSeenIds(): Set<string> {
     return islandSeenIdsMemory;
 }
 
+function trimIslandSeenIds(ids: Set<string>): Set<string> {
+    if (ids.size <= ISLAND_SEEN_IDS_MAX) {
+        return ids;
+    }
+
+    const values = Array.from(ids);
+
+    return new Set(values.slice(values.length - ISLAND_SEEN_IDS_MAX));
+}
+
 function writeIslandSeenIds(ids: Set<string>): void {
-    islandSeenIdsMemory = ids;
+    const trimmed = trimIslandSeenIds(ids);
+    islandSeenIdsMemory = trimmed;
     if (typeof window === "undefined") return;
     try {
-        const values = Array.from(ids);
-        const trimmed =
-            values.length > ISLAND_SEEN_IDS_MAX
-                ? values.slice(values.length - ISLAND_SEEN_IDS_MAX)
-                : values;
         window.sessionStorage.setItem(
             ISLAND_SEEN_IDS_KEY,
-            JSON.stringify(trimmed),
+            JSON.stringify(Array.from(trimmed)),
         );
     } catch {
         // sessionStorage full/blocked — memory set still prevents duplicates.
@@ -324,7 +332,7 @@ export function showDesktopNotification(
 
         popup.onclick = () => {
             window.focus();
-            if (link) {
+            if (link && isSafeHttpUrl(link)) {
                 window.location.href = link;
             }
             popup.close();

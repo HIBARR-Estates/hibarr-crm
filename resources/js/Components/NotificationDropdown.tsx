@@ -50,6 +50,7 @@ import {
     acknowledgeDropdownNotifications,
     countUnacknowledgedNotifications,
 } from "@/lib/notificationAlerts";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
@@ -118,6 +119,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
         [notification.id, onDismiss],
     );
 
+    const title = notification.title?.trim() ?? "";
+    const body = notification.text?.trim() ?? "";
+    const showBody =
+        body !== "" && body.localeCompare(title, undefined, { sensitivity: "accent" }) !== 0;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -174,7 +180,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     }
                     description={
                         <div className="!mt-0.5 space-y-0.5">
-                            {notification.text ? (
+                            {showBody ? (
                                 <Paragraph
                                     ellipsis={{ rows: 2 }}
                                     className="!mb-0 text-xs text-gray-500 leading-snug"
@@ -279,7 +285,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             if (!notification.is_read) {
                 markAsReadQuiet(notification.id);
             }
-            if (notification.link) {
+            if (notification.link && isSafeHttpUrl(notification.link)) {
                 window.location.href = notification.link;
             }
         },

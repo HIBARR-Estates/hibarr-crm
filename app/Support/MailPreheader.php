@@ -25,8 +25,8 @@ final class MailPreheader
         }
 
         $text = $value;
-        if (strlen($text) > 500) {
-            $text = substr($text, 0, 500);
+        if (mb_strlen($text, 'UTF-8') > 500) {
+            $text = mb_substr($text, 0, 500, 'UTF-8');
         }
 
         $text = html_entity_decode(
@@ -37,8 +37,8 @@ final class MailPreheader
         $text = preg_replace('/^#+\s*/m', '', $text) ?? $text;
         $text = trim(preg_replace('/\s+/', ' ', $text) ?? $text);
 
-        if ($text !== '' && strlen($text) > $maxChars) {
-            $text = substr($text, 0, $maxChars);
+        if ($text !== '' && mb_strlen($text, 'UTF-8') > $maxChars) {
+            $text = mb_substr($text, 0, $maxChars, 'UTF-8');
         }
 
         return $text;
@@ -58,9 +58,9 @@ final class MailPreheader
         $pad = str_repeat('&nbsp;&zwnj;', self::PAD_UNITS);
 
         return '<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">'
-            . htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            . $pad
-            . '</div>';
+            .htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+            .$pad
+            .'</div>';
     }
 
     /** Raw padding string for static Plunk HTML templates. */

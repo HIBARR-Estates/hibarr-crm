@@ -99,11 +99,11 @@ class LeadOwnerAssigned extends BaseNotification
 
         $contentParts = [
             'A lead has been assigned to you.',
-            __('modules.lead.clientName') . ': ' . $this->leadName,
+            __('modules.lead.clientName').': '.e($this->leadName),
         ];
 
         if ($this->leadEmail !== '') {
-            $contentParts[] = __('modules.lead.clientEmail') . ': ' . $this->leadEmail;
+            $contentParts[] = __('modules.lead.clientEmail').': '.e($this->leadEmail);
         }
 
         // Inbox preview only — keep short and complementary to the Plunk subject
@@ -111,7 +111,7 @@ class LeadOwnerAssigned extends BaseNotification
         $preheader = $this->inboxPreheader();
 
         $build
-            ->subject('Lead owner assigned - ' . config('app.name'))
+            ->subject('Lead owner assigned - '.config('app.name'))
             ->view('mail.lead-assigned', [
                 'url' => $url,
                 'content' => implode('<br>', $contentParts),
@@ -123,12 +123,12 @@ class LeadOwnerAssigned extends BaseNotification
             ]);
 
         $this->attachPlunkTemplate($build, 'cde4d601-d358-45e5-9782-1e79d5c4f9f7', [
-            'preheader'         => $preheader,
-            'leadName'          => $this->leadName,
-            'leadEmail'         => $this->leadEmail,
+            'preheader' => $preheader,
+            'leadName' => $this->leadName,
+            'leadEmail' => $this->leadEmail,
             'previousOwnerName' => $this->previousOwnerName,
-            'assignedAt'        => $this->assignedAt,
-            'leadUrl'           => $url,
+            'assignedAt' => $this->assignedAt,
+            'leadUrl' => $url,
         ]);
 
         parent::resetLocale();

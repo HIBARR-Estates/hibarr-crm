@@ -273,7 +273,9 @@ export default function NotificationAlertProvider({
         (e: MouseEvent) => {
             e.stopPropagation();
             if (current?.id) markAsRead({ id: current.id });
-            if (current?.link) window.location.href = current.link;
+            if (current?.link && isSafeHttpUrl(current.link)) {
+                window.location.href = current.link;
+            }
             dismiss();
         },
         [current, dismiss, markAsRead],
@@ -335,9 +337,10 @@ export default function NotificationAlertProvider({
               (current?.dest ? (current?.body ? 16 : 14) : 0)
             : 0;
         const base = COMPACT_H + detailH;
-        const hasActions = actions.length > 0 || !!current?.link;
+        const hasActionRow =
+            actions.length > 0 || !!current?.link || hasDetail;
         // button ~30 + marginTop + paddingBottom
-        const actionRow = hasActions ? (hasDetail ? 50 : 52) : 0;
+        const actionRow = hasActionRow ? (hasDetail ? 50 : 52) : 0;
         return base + actionRow;
     }, [current, hasDetail, shortBody, actions.length]);
     const width = open ? (expanded ? EXPANDED_W : COMPACT_W) : REST_W;
