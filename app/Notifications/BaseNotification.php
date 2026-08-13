@@ -25,10 +25,35 @@ class BaseNotification extends Notification implements ShouldQueue
     protected bool $suppressBulkTransactionalEmails = false;
     // Resolved at HTTP dispatch time so queue workers don't call the flag service.
     protected bool $unsRoutingEnabled = false;
+    /** Captured at construct time — queue workers have no auth user. */
+    protected ?int $triggeredByUserId = null;
 
     protected function initUnsRouting(): void
     {
         $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
+    }
+
+    /**
+     * Remember who triggered this notification (current user by default).
+     * Call from constructors so queued via() can still skip the actor.
+     */
+    protected function captureTriggeredByUser(?int $userId = null): void
+    {
+        $id = $userId ?? user()?->id;
+        $this->triggeredByUserId = $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * True when the notifiable is the same user who triggered the action.
+     * Applies to admins too — actors should not notify themselves.
+     */
+    protected function isTriggeredByNotifiable(mixed $notifiable): bool
+    {
+        if ($this->triggeredByUserId === null || ! is_object($notifiable) || ! isset($notifiable->id)) {
+            return false;
+        }
+
+        return (int) $notifiable->id === $this->triggeredByUserId;
     }
 
     /**

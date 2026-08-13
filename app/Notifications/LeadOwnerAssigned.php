@@ -60,11 +60,17 @@ class LeadOwnerAssigned extends BaseNotification
             : null;
         $this->shouldSendEmail = $emailSetting?->send_email === 'yes';
 
+        $this->captureTriggeredByUser();
         $this->initUnsRouting();
     }
 
     public function via($notifiable)
     {
+        // Never notify the person who made the assignment (including admins).
+        if ($this->isTriggeredByNotifiable($notifiable)) {
+            return [];
+        }
+
         $via = ['database'];
 
         if (

@@ -1275,16 +1275,27 @@ class DealCreationService
             // Notify the assigned agent
             event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
         } else {
-            // Notify all admins if no agent is assigned
+            // Notify all admins if no agent is assigned (except the actor)
             $admins = User::allAdmins($deal->company_id);
+            $actorId = user()?->id;
+            if ($actorId !== null) {
+                $admins = $admins->reject(fn (User $admin) => (int) $admin->id === (int) $actorId);
+            }
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new LeadAgentAssigned($deal));
             }
         }
 
-        // Always notify deal watchers if they exist
+        // Always notify deal watchers if they exist (except the actor)
         if ($deal->dealWatchers->isNotEmpty()) {
-            Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
+            $watchers = $deal->dealWatchers;
+            $actorId = user()?->id;
+            if ($actorId !== null) {
+                $watchers = $watchers->reject(fn (User $watcher) => (int) $watcher->id === (int) $actorId);
+            }
+            if ($watchers->isNotEmpty()) {
+                Notification::send($watchers, new LeadAgentAssigned($deal));
+            }
         }
     }
 
