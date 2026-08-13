@@ -21,9 +21,12 @@ function isValidLeadInfoSection(
 
 function getInitialTab(): WorkspaceTabId {
     if (typeof window === "undefined") return "overview";
-    const normalized = normalizeTabId(
-        new URLSearchParams(window.location.search).get("tab"),
-    );
+    const params = new URLSearchParams(window.location.search);
+    // Legacy ?answers=open now opens the Qualification workspace tab.
+    if (params.get("answers") === "open") {
+        return "qualification";
+    }
+    const normalized = normalizeTabId(params.get("tab"));
     return normalized && VALID_TABS.includes(normalized)
         ? normalized
         : "overview";
@@ -94,9 +97,20 @@ export default function useLeadViewNavigation(
     const [qualificationOpen, setQualificationOpenState] = useState(() =>
         getInitialFlag("qualification"),
     );
-    const [answersOpen, setAnswersOpenState] = useState(() =>
-        getInitialFlag("answers"),
-    );
+    const [answersOpen, setAnswersOpenState] = useState(false);
+
+    // Legacy deep-link: ?answers=open → Qualification tab (strip the old flag).
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("answers") !== "open") return;
+        setTabState("qualification");
+        params.delete("answers");
+        params.set("tab", "qualification");
+        const url = new URL(window.location.href);
+        url.search = params.toString();
+        window.history.replaceState({}, "", url.toString());
+    }, []);
 
     const tabRef = useRef(tab);
     tabRef.current = tab;

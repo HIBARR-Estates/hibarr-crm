@@ -4,17 +4,15 @@ import { FlagOutlined } from "@ant-design/icons";
 import {
     LeadQualification,
     QualificationOutcome,
-    QualificationToken,
     TemplateTree,
 } from "@/Types/qualification";
 import { useDynamicTranslation, useTd } from "@/Hooks/useDynamicTranslation";
-import TokenHighlight from "../TokenHighlight";
+import QualificationScriptHtml from "../QualificationScriptHtml";
 import OutcomeMultiSelect from "../OutcomeMultiSelect";
 import { getScriptOutcomes } from "../qualificationUtils";
 
 interface OutcomeSegmentProps {
     label: string;
-    tokenMap: Record<QualificationToken, string>;
     translateScript: (text: string) => string;
     templateTree: TemplateTree;
     onComplete: (
@@ -28,13 +26,14 @@ interface OutcomeSegmentProps {
 
 const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     label,
-    tokenMap,
     translateScript,
     templateTree,
     onComplete,
     loading = false,
 }) => {
-    const translated = translateScript(useDynamicTranslation(label, { source: "en" }));
+    const translated = translateScript(
+        useDynamicTranslation(label, { source: "en" }),
+    );
     const { td } = useTd();
     const [error, setError] = useState<string | null>(null);
     const scriptOutcomes = useMemo(
@@ -67,11 +66,15 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
             >
                 Close
             </Tag>
-            <p className="text-xl leading-relaxed text-gray-900 font-medium">
-                <TokenHighlight text={translated} tokenMap={tokenMap} />
-            </p>
+            <QualificationScriptHtml
+                html={translated}
+                className="text-xl leading-relaxed text-gray-900 font-medium"
+                quoted
+            />
             <p className="text-sm text-gray-500">
-                {td("Select one or more outcomes for this lead.", { source: "en" })}
+                {td("Select one or more outcomes for this lead.", {
+                    source: "en",
+                })}
             </p>
             {error && (
                 <Alert type="error" message={error} showIcon className="mb-2" />

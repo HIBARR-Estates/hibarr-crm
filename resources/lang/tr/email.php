@@ -7,6 +7,11 @@ return [
         'action' => 'Lead\'i görüntüle',
         'text' => 'Pipeline\'ınıza yeni bir lead eklendi. Ayrıntılar aşağıda.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Lead ajanı olarak atandınız',
+        'text' => ':leadName için lead ajanı olarak atandınız.',
+        'action' => 'Lead\'i görüntüle',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Deal ajanı olarak atandınız',
         'text' => ':dealName için deal ajanı olarak atandınız.',
@@ -80,6 +85,7 @@ return [
         'agentCountdown' => ':lead ile toplantıya :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownWithType' => ':lead ile :type randevusuna :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownWithDeal' => ':lead ile toplantıya (:deal) :minutesLabel kaldı — planlanan :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':lead ile :type randevusuna (:deal) :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownNoSchedule' => ':lead ile toplantıya :minutesLabel kaldı.',
         'agentCountdownNoLead' => 'Toplantınıza :minutesLabel kaldı.',
         'agentCountdownNoLeadWithSchedule' => 'Toplantınıza :minutesLabel kaldı — planlanan :schedule.',
@@ -123,6 +129,12 @@ return [
         'dueCountdown' => '\":title\" :countdown içinde.',
         'dueNow' => '\":title\" şimdi.',
         'footerNote' => 'Bu uçuş segmentinden önce rota detaylarını kontrol edin.',
+    ],
+    'aiSummary' => [
+        'prefix' => 'Yapay Zeka Özeti: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => '{1} :count proje daha|[2,*] :count proje daha',
     ],
 
 ];

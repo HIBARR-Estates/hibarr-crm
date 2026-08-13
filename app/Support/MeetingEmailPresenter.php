@@ -208,6 +208,23 @@ class MeetingEmailPresenter
         return $date !== '' ? $date : $time;
     }
 
+    /**
+     * Plain-text equivalent of scheduleLine() — for embedding in sentence-style
+     * copy (in-app notifications, push, SMS-like previews) where HTML entities
+     * like &ensp;/&middot; would render as literal text instead of a middot.
+     */
+    public function scheduleLinePlain(): string
+    {
+        $date = $this->meetingDate();
+        $time = $this->meetingTime();
+
+        if ($date !== '' && $time !== '') {
+            return $date.' · '.$time;
+        }
+
+        return $date !== '' ? $date : $time;
+    }
+
     public function crmButtonHtml(bool $isLeadRecipient): string
     {
         if ($isLeadRecipient) {
@@ -296,15 +313,22 @@ class MeetingEmailPresenter
     {
         $meetingAt = $this->meetingAt();
         $meetingMessage = $this->message($isLeadRecipient, $isCreatedNotice);
+        // Cap before mail/preheader — unbounded remark/message text can OOM Blade sanitize.
+        if (is_string($meetingMessage) && strlen($meetingMessage) > 2000) {
+            $meetingMessage = substr($meetingMessage, 0, 2000);
+        }
         $url = $isLeadRecipient ? '' : $this->entityUrl();
         $actionText = $this->actionText($isLeadRecipient);
         $detailRemark = $meetingAt !== null ? $this->meetingRemark() : '';
+        if (is_string($detailRemark) && strlen($detailRemark) > 2000) {
+            $detailRemark = substr($detailRemark, 0, 2000);
+        }
         $scheduleLine = $this->scheduleLine();
         $mailSubject = $this->subject($isLeadRecipient, $isCreatedNotice);
 
         return [
             'url' => $url,
-            'preheader' => $meetingMessage,
+            'preheader' => \Illuminate\Support\Str::limit((string) $meetingMessage, 140),
             'mailSubject' => $mailSubject,
             'appName' => (string) config('app.name'),
             'badgeLabel' => $this->badgeLabel($isCreatedNotice),
@@ -332,7 +356,10 @@ class MeetingEmailPresenter
     public static function plunkVariables(array $variables): array
     {
         return [
-            'preheader' => $variables['preheader'] ?? $variables['meetingMessage'],
+            'preheader' => \Illuminate\Support\Str::limit(
+                (string) ($variables['preheader'] ?? $variables['meetingMessage'] ?? ''),
+                140
+            ),
             'mailSubject' => $variables['mailSubject'],
             'appName' => $variables['appName'],
             'badgeLabel' => $variables['badgeLabel'],
@@ -529,7 +556,7 @@ class MeetingEmailPresenter
     private function leadReminderMessage(int $secondsUntil, string $countdown): string
     {
         $agent = $this->agentName();
-        $schedule = $this->scheduleLine();
+        $schedule = $this->scheduleLinePlain();
         $minutesLabel = $this->minutesLabel();
 
         if ($secondsUntil <= 0) {
@@ -565,7 +592,7 @@ class MeetingEmailPresenter
     {
         $lead = $this->leadName();
         $type = $this->meetingTypeName();
-        $schedule = $this->scheduleLine();
+        $schedule = $this->scheduleLinePlain();
         $deal = $this->dealName();
         $minutesLabel = $this->minutesLabel();
 
@@ -595,6 +622,10 @@ class MeetingEmailPresenter
             return $schedule !== ''
                 ? __('email.meetingReminder.agentCountdownNoLeadWithSchedule', $params)
                 : __('email.meetingReminder.agentCountdownNoLead', $params);
+        }
+
+        if ($type !== '' && $deal !== '' && $schedule !== '') {
+            return __('email.meetingReminder.agentCountdownWithTypeAndDeal', $params);
         }
 
         if ($deal !== '' && $schedule !== '') {

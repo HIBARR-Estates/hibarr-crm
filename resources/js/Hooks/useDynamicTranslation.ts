@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDynamicTranslationContext } from "@/contexts/DynamicTranslationContext";
 import {
@@ -181,6 +188,27 @@ export const useDynamicTranslations = (
             ? value
             : entry.sourceText;
     });
+};
+
+/**
+ * True while any `td`/`useDynamicTranslation` text for the surrounding
+ * provider's locale is still being fetched or waiting on a queued translation.
+ * Always false for English (nothing is ever requested).
+ */
+export const useDynamicTranslationPending = (): boolean => {
+    const { locale, batcher } = useDynamicTranslationContext();
+    const [pending, setPending] = useState(false);
+
+    useEffect(() => {
+        if (locale === "en") {
+            setPending(false);
+            return;
+        }
+
+        return batcher.subscribeActivity(locale, setPending);
+    }, [batcher, locale]);
+
+    return pending;
 };
 
 /**

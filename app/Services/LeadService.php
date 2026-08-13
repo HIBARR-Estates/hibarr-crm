@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Lead;
 use App\Models\User;
 use App\Models\PipelineStage;
+use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
 use App\Services\LeadCoreFieldsService;
@@ -52,6 +53,17 @@ class LeadService
         'utm_term',
         'utm_audience',
     ];
+
+    /** Option-valued custom field types that can appear in the Leads filter modal. */
+    public const OPTION_CUSTOM_FIELD_TYPES = [
+        'select',
+        'radio',
+        'checkbox',
+        'multiselect',
+    ];
+
+    /** URL / saved-view key prefix for custom field filters (`cf_{id}`). */
+    public const CUSTOM_FIELD_FILTER_PREFIX = 'cf_';
 
     public function __construct(
         private readonly LeadCoreFieldsService $coreFieldsService,
@@ -111,6 +123,23 @@ class LeadService
         });
 
         return $leads;
+    }
+
+    /**
+     * Lead IDs matching the current index filters + view_lead scope.
+     * Used by bulk "select all matching" so actions hit the filtered set, not one page.
+     *
+     * @return list<int>
+     */
+    public function getMatchingLeadIds(Request $request): array
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+
+        return $query->pluck('leads.id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
     /**
@@ -327,6 +356,152 @@ class LeadService
                 }
             });
         }
+
+        $this->applyCustomFieldFilters($query, $request);
+    }
+
+    /**
+     * Pull core FILTER_KEYS plus any `cf_{id}` custom-field params from a request.
+     *
+     * @return array<string, mixed>
+     */
+    public static function filtersFromRequest(Request $request): array
+    {
+        $filters = $request->only(self::FILTER_KEYS);
+
+        foreach ($request->all() as $key => $value) {
+            if (! is_string($key) || ! self::isCustomFieldFilterKey($key)) {
+                continue;
+            }
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+            $filters[$key] = $value;
+        }
+
+        return $filters;
+    }
+
+    public static function isCustomFieldFilterKey(string $key): bool
+    {
+        return (bool) preg_match('/^'.preg_quote(self::CUSTOM_FIELD_FILTER_PREFIX, '/').'\d+$/', $key);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    public static function sanitizeFilterPayload(array $filters): array
+    {
+        $allowed = array_flip(self::FILTER_KEYS);
+        $cleaned = [];
+
+        foreach ($filters as $key => $value) {
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+            if (isset($allowed[$key]) || (is_string($key) && self::isCustomFieldFilterKey($key))) {
+                $cleaned[$key] = $value;
+            }
+        }
+
+        return $cleaned;
+    }
+
+    /**
+     * Filter by option-valued lead custom fields (`cf_{id}=a,b` = match any).
+     */
+    private function applyCustomFieldFilters(Builder $query, Request $request): void
+    {
+        /** @var array<int, list<string>> $byFieldId */
+        $byFieldId = [];
+
+        foreach ($request->all() as $key => $raw) {
+            if (! is_string($key) || ! self::isCustomFieldFilterKey($key)) {
+                continue;
+            }
+
+            $fieldId = (int) substr($key, strlen(self::CUSTOM_FIELD_FILTER_PREFIX));
+            $values = $this->toValueArray($raw);
+            if ($fieldId < 1 || $values === []) {
+                continue;
+            }
+
+            $byFieldId[$fieldId] = $values;
+        }
+
+        if ($byFieldId === []) {
+            return;
+        }
+
+        $fields = CustomField::query()
+            ->whereIn('id', array_keys($byFieldId))
+            ->whereIn('type', self::OPTION_CUSTOM_FIELD_TYPES)
+            ->whereHas('fieldGroup', function (Builder $groupQuery) {
+                $groupQuery->where('model', Lead::CUSTOM_FIELD_MODEL);
+            })
+            ->get(['id', 'type', 'values'])
+            ->keyBy('id');
+
+        foreach ($byFieldId as $fieldId => $values) {
+            $field = $fields->get($fieldId);
+            if (! $field) {
+                continue;
+            }
+
+            $matchValues = $this->expandCustomFieldMatchValues($field, $values);
+            $isMultiStored = in_array($field->type, ['checkbox', 'multiselect'], true);
+
+            $query->whereExists(function ($sub) use ($fieldId, $matchValues, $isMultiStored) {
+                $sub->select(DB::raw(1))
+                    ->from('custom_fields_data')
+                    ->whereColumn('custom_fields_data.model_id', 'leads.id')
+                    ->where('custom_fields_data.model', Lead::CUSTOM_FIELD_MODEL)
+                    ->where('custom_fields_data.custom_field_id', $fieldId)
+                    ->where(function ($valueQuery) use ($matchValues, $isMultiStored) {
+                        foreach ($matchValues as $value) {
+                            $valueQuery->orWhere(function ($or) use ($value, $isMultiStored) {
+                                $or->where('custom_fields_data.value', $value);
+                                if ($isMultiStored) {
+                                    $or->orWhereJsonContains('custom_fields_data.value', $value);
+                                }
+                            });
+                        }
+                    });
+            });
+        }
+    }
+
+    /**
+     * Match stored option labels and legacy 0-based indices.
+     *
+     * @param  list<string>  $values
+     * @return list<string>
+     */
+    private function expandCustomFieldMatchValues(CustomField $field, array $values): array
+    {
+        $options = $field->values;
+        if (is_string($options)) {
+            $decoded = json_decode($options, true);
+            $options = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($options)) {
+            $options = [];
+        }
+        $options = array_values(array_map('strval', $options));
+
+        $expanded = [];
+        foreach ($values as $value) {
+            $value = (string) $value;
+            $expanded[] = $value;
+
+            $index = array_search($value, $options, true);
+            if ($index !== false) {
+                $expanded[] = (string) $index;
+            }
+        }
+
+        return array_values(array_unique($expanded));
     }
 
     /**

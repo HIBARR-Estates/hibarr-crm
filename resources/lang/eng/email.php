@@ -36,7 +36,7 @@ return [
     ],
     'leadAgentAssigned' => [
         'subject' => 'You have been assigned as lead agent',
-        'text' => 'You have been assigned as lead agent for the lead',
+        'text' => 'You have been assigned as lead agent for :leadName.',
         'action' => 'View Lead',
     ],
     'dealAgentAssigned' => [
@@ -287,11 +287,15 @@ return [
         'text' => 'This is to remind you about the due date of the following projects which is',
         'subject' => 'Project Reminder',
         'action' => 'View Projects',
+        'additionalProjects' => '{1} :count more project|[2,*] :count more projects',
     ],
     'messages' => [
         'loginForMoreDetails' => 'Log in for more details.',
         'referenceMessage' => 'I have attached a copy of the invoice for your reference.',
         'confirmMessage' => 'I would be grateful if you could confirm that everything is on track for payment.',
+    ],
+    'aiSummary' => [
+        'prefix' => 'AI Summary: ',
     ],
     'taskComment' => [
         'subject' => 'New comment on task',
@@ -618,6 +622,7 @@ return [
         'agentCountdown' => 'Meeting with :lead in :minutesLabel — scheduled :schedule.',
         'agentCountdownWithType' => ':type with :lead in :minutesLabel — scheduled :schedule.',
         'agentCountdownWithDeal' => 'Meeting with :lead (:deal) in :minutesLabel — scheduled :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':type with :lead (:deal) in :minutesLabel — scheduled :schedule.',
         'agentCountdownNoSchedule' => 'Meeting with :lead in :minutesLabel.',
         'agentCountdownNoLead' => 'Your meeting starts in :minutesLabel.',
         'agentCountdownNoLeadWithSchedule' => 'Your meeting starts in :minutesLabel — scheduled :schedule.',

@@ -44,16 +44,14 @@
 </head>
 <body style="margin:0; padding:0; background:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
     @php
-        $layoutPreheader = trim((string) ($preheader ?? ''));
-        if ($layoutPreheader === '') {
-            $layoutPreheader = trim((string) $__env->yieldContent('preheader'));
+        $layoutPreheader = is_string($preheader ?? null) ? $preheader : '';
+        // Cap before trim/yield — huge strings OOM during preheader sanitize.
+        if ($layoutPreheader !== '' && strlen($layoutPreheader) > 500) {
+            $layoutPreheader = substr($layoutPreheader, 0, 500);
         }
-        if ($layoutPreheader === '') {
-            $layoutPreheader = trim((string) $__env->yieldContent('intro'));
-        }
-        if ($layoutPreheader === '') {
-            $layoutPreheader = trim((string) $__env->yieldContent('title'));
-        }
+        $layoutPreheader = trim($layoutPreheader);
+        // Prefer the explicit preheader; do not materialize huge @section yields
+        // just to invent a preview string (yieldContent copies the full section).
         if ($layoutPreheader === '') {
             $layoutPreheader = 'Just a quick heads up';
         }

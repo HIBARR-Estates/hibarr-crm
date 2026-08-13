@@ -92,7 +92,9 @@ class NewDiscussionMention extends BaseNotification
     {
         return [
             'id' => $this->discussion->id,
-            'title' => $this->discussion->title,
+            'title' => __('email.discussion.mentionSubject'),
+            'text' => __('email.discussion.mentionContent') . ' ' . $this->discussion->title,
+            'discussion_title' => $this->discussion->title,
             'project_id' => $this->discussion->project_id,
             'user' => $this->discussion->user->name
         ];

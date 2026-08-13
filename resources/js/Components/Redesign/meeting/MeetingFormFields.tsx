@@ -20,6 +20,7 @@ import {
     PhysicalVenue,
     VideoProvider,
     addMinutesToTime,
+    buildExternalMeetingCreateUrl,
     canUseZohoMeeting,
     defaultPlatformForMode,
     defaultVideoProvider,
@@ -29,6 +30,7 @@ import {
     modeFromPlatform,
     reminderLabel,
     requiresManualMeetingLink,
+    supportsExternalMeetingCreate,
     usesAutoMeetingLink,
 } from "./meetingFormUtils";
 
@@ -74,8 +76,34 @@ export default function MeetingFormFields({
     const isPhysicalMeeting = isPhysicalPlatform(form.platform);
     const autoLink = usesAutoMeetingLink(form.platform);
     const needsManualLink = requiresManualMeetingLink(form.platform);
+    const canOpenExternalCreate = supportsExternalMeetingCreate(form.platform);
     const physicalVenue: PhysicalVenue =
         form.platform === "physical" ? "physical" : "office";
+
+    const meetingTypeTitle =
+        meetingTypes.find((type) => type.id === form.meetingTypeId)?.name?.trim() ||
+        "";
+
+    const resolvedEndTime =
+        form.endTime ||
+        (form.startTime
+            ? addMinutesToTime(form.startTime, form.duration ?? 30)
+            : "");
+
+    const externalCreateUrl = canOpenExternalCreate
+        ? buildExternalMeetingCreateUrl(form.platform, {
+              title: meetingTypeTitle || form.remark.trim() || "Meeting",
+              date: form.date,
+              startTime: form.startTime,
+              endTime: resolvedEndTime,
+              details: form.remark,
+          })
+        : null;
+
+    const openExternalMeetingCreate = () => {
+        if (!externalCreateUrl) return;
+        window.open(externalCreateUrl, "_blank", "noopener,noreferrer");
+    };
 
     const updateForm = (patch: Partial<MeetingFormState>) => {
         onChange(patch);
@@ -184,7 +212,7 @@ export default function MeetingFormFields({
     };
 
     return (
-        <>
+        <div className="meeting-form-fields">
             <ModalField label={t("pages.deals.workspace.meetings.meeting_type")}>
                 <MenuSelect
                     fullWidth
@@ -262,7 +290,7 @@ export default function MeetingFormFields({
                     <button
                         type="button"
                         onClick={() => setShowDuration((current) => !current)}
-                        className="border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                        className="meeting-form-link"
                     >
                         {showDuration
                             ? t("pages.deals.workspace.meetings.hide_duration")
@@ -283,6 +311,7 @@ export default function MeetingFormFields({
                                         }
                                         className="rounded-lg border px-4 py-2 text-[13px] font-semibold transition-colors"
                                         style={{
+                                            fontFamily: "inherit",
                                             borderColor: active
                                                 ? T.NAVY
                                                 : T.BORDER,
@@ -316,6 +345,7 @@ export default function MeetingFormFields({
                                 onClick={() => handleModeChange(option.value)}
                                 className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
                                 style={{
+                                    fontFamily: "inherit",
                                     borderColor: selected
                                         ? T.BLUE_MID
                                         : T.BORDER,
@@ -356,6 +386,7 @@ export default function MeetingFormFields({
                                     }
                                     className="flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors"
                                     style={{
+                                        fontFamily: "inherit",
                                         borderColor: selected
                                             ? T.BLUE_MID
                                             : T.BORDER,
@@ -383,6 +414,7 @@ export default function MeetingFormFields({
                                     <span
                                         className="text-[13px] font-semibold"
                                         style={{
+                                            fontFamily: "inherit",
                                             color: selected
                                                 ? T.BLUE_DARK
                                                 : T.TEXT,
@@ -423,20 +455,21 @@ export default function MeetingFormFields({
                                     onClick={() =>
                                         handlePhysicalVenueChange(option.value)
                                     }
-                                    className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
-                                    style={{
-                                        borderColor: selected
-                                            ? T.BLUE_MID
-                                            : T.BORDER,
-                                        background: selected
-                                            ? T.BLUE_LIGHT
-                                            : T.WHITE,
-                                        color: selected ? T.BLUE_DARK : T.TEXT,
-                                        cursor: disabled
-                                            ? "default"
-                                            : "pointer",
-                                    }}
-                                >
+                                className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
+                                style={{
+                                    fontFamily: "inherit",
+                                    borderColor: selected
+                                        ? T.BLUE_MID
+                                        : T.BORDER,
+                                    background: selected
+                                        ? T.BLUE_LIGHT
+                                        : T.WHITE,
+                                    color: selected ? T.BLUE_DARK : T.TEXT,
+                                    cursor: disabled
+                                        ? "default"
+                                        : "pointer",
+                                }}
+                            >
                                     {td(option.label, { source: "en" })}
                                 </button>
                             );
@@ -530,14 +563,17 @@ export default function MeetingFormFields({
                             />
                             <p
                                 className="text-[12px] leading-relaxed"
-                                style={{ color: T.TEXT_MUTED }}
+                                style={{
+                                    fontFamily: "inherit",
+                                    color: T.TEXT_MUTED,
+                                }}
                             >
                                 {td("A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.", { source: "en" })}
                             </p>
                         </div>
                     )}
                     {form.meetingLink && (
-                        <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
+                        <p className="meeting-form-hint">
                             {showExistingMeetingLinkHint
                                 ? t(
                                       "pages.deals.workspace.meetings.existing_link_hint",
@@ -550,18 +586,94 @@ export default function MeetingFormFields({
 
             {isVideoMeeting && needsManualLink && (
                 <ModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
-                    <input
-                        type="url"
-                        inputMode="url"
-                        placeholder={td("Paste your meeting link", { source: "en" })}
-                        value={form.meetingLink}
-                        disabled={disabled}
-                        onChange={(event) =>
-                            updateForm({ meetingLink: event.target.value })
-                        }
-                    />
-                    <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
-                        {td("Copy the join link from your video provider and paste it here.", { source: "en" })}
+                    <div className="flex items-stretch gap-2">
+                        <input
+                            type="url"
+                            inputMode="url"
+                            placeholder={td("Paste your meeting link", { source: "en" })}
+                            value={form.meetingLink}
+                            disabled={disabled}
+                            onChange={(event) =>
+                                updateForm({ meetingLink: event.target.value })
+                            }
+                            className="min-w-0 flex-1"
+                        />
+                        {canOpenExternalCreate ? (
+                            <button
+                                type="button"
+                                disabled={disabled || !externalCreateUrl}
+                                title={
+                                    externalCreateUrl
+                                        ? td(
+                                              form.platform === "zoom"
+                                                  ? "Open Zoom to create the meeting"
+                                                  : "Open calendar to create the meeting with these details",
+                                              { source: "en" },
+                                          )
+                                        : td(
+                                              "Select a date and start time first",
+                                              { source: "en" },
+                                          )
+                                }
+                                aria-label={td("Create on provider", {
+                                    source: "en",
+                                })}
+                                onClick={openExternalMeetingCreate}
+                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[12px] font-bold transition-opacity hover:opacity-90"
+                                style={{
+                                    fontFamily: "inherit",
+                                    background: externalCreateUrl
+                                        ? T.NAVY
+                                        : T.SURFACE_2,
+                                    color: externalCreateUrl
+                                        ? T.WHITE
+                                        : T.TEXT_HINT,
+                                    border: `1px solid ${
+                                        externalCreateUrl
+                                            ? T.NAVY
+                                            : T.BORDER
+                                    }`,
+                                    cursor:
+                                        disabled || !externalCreateUrl
+                                            ? "not-allowed"
+                                            : "pointer",
+                                    opacity:
+                                        disabled || !externalCreateUrl
+                                            ? 0.6
+                                            : 1,
+                                    minHeight: 40,
+                                    boxShadow: externalCreateUrl
+                                        ? "0 1px 3px rgba(10, 46, 93, 0.25)"
+                                        : "none",
+                                }}
+                            >
+                                <Icon
+                                    name="external-link"
+                                    size={15}
+                                    color={
+                                        externalCreateUrl
+                                            ? T.WHITE
+                                            : T.TEXT_HINT
+                                    }
+                                />
+                                <span>
+                                    {td("Open", { source: "en" })}
+                                </span>
+                            </button>
+                        ) : null}
+                    </div>
+                    <p className="meeting-form-hint">
+                        {canOpenExternalCreate
+                            ? td(
+                                  form.platform === "zoom"
+                                      ? "Copy the join link from Zoom and paste it here. Zoom cannot prefill schedule details from CRM."
+                                      : "Use the button to open a prefilled calendar event, then paste the join link here.",
+                                  { source: "en" },
+                              )
+                            : td(
+                                  "Copy the join link from your video provider and paste it here.",
+                                  { source: "en" },
+                              )}
                     </p>
                 </ModalField>
             )}
@@ -578,7 +690,7 @@ export default function MeetingFormFields({
                 <button
                     type="button"
                     onClick={() => setShowMore((current) => !current)}
-                    className="flex items-center gap-1.5 border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="meeting-form-link inline-flex items-center gap-1.5"
                 >
                     <Icon
                         name={showMore ? "chevron-up" : "chevron-down"}
@@ -590,11 +702,10 @@ export default function MeetingFormFields({
             </div>
 
             {showMore && (
-                <div className="space-y-3 border-t border-[#e2e5ea] pt-3">
-                    {/* v2.2 Reminders field (deal-v2-2.jsx:2660-2682) — default
-                       (non-removable) pills + custom (removable) pills, plus a
-                       customizable adder (choose amount + minutes/hours/days)
-                       replacing the old fixed "+ 1 day before" button. */}
+                <div
+                    className="space-y-3 pt-3"
+                    style={{ borderTop: `1px solid ${T.BORDER}` }}
+                >
                     <ModalField label={t("pages.deals.workspace.meetings.reminders")}>
                         <div className="flex flex-wrap items-center gap-2">
                             {DEFAULT_MEETING_REMINDERS.map((reminder) => (
@@ -631,7 +742,7 @@ export default function MeetingFormFields({
                                             background: "rgba(20,83,140,0.12)",
                                             border: "none",
                                             cursor: "pointer",
-                                            color: "#14538c",
+                                            color: T.BLUE_DARK,
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
@@ -658,6 +769,7 @@ export default function MeetingFormFields({
                             <div
                                 className="mb-2 text-[12px] font-semibold uppercase"
                                 style={{
+                                    fontFamily: "inherit",
                                     color: T.TEXT_HINT,
                                     letterSpacing: "0.05em",
                                 }}
@@ -713,6 +825,7 @@ export default function MeetingFormFields({
                                 <span
                                     className="text-[12px]"
                                     style={{
+                                        fontFamily: "inherit",
                                         color: T.TEXT_MUTED,
                                         whiteSpace: "nowrap",
                                     }}
@@ -737,21 +850,18 @@ export default function MeetingFormFields({
                                 </Button>
                             </div>
                             {!canAddReminder && reminderTime >= 1 ? (
-                                <p
-                                    className="mt-1.5 text-[11px]"
-                                    style={{ color: T.TEXT_HINT }}
-                                >
+                                <p className="meeting-form-hint">
                                     {td("A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).", { source: "en" })}
                                 </p>
                             ) : null}
                         </div>
 
-                        <p className="mt-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
+                        <p className="meeting-form-hint">
                             {t("pages.deals.workspace.meetings.default_reminders_hint")}
                         </p>
                     </ModalField>
                 </div>
             )}
-        </>
+        </div>
     );
 }

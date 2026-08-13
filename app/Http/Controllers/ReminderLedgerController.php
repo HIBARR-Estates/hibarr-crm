@@ -70,6 +70,11 @@ class ReminderLedgerController extends AccountBaseController
             'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
         ]);
 
+        // Blade settings page — force a full document load if reached via Inertia SPA nav.
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('reminder-ledger.index', $request->query()));
+        }
+
         $tab = $validated['tab'] ?? 'all';
         $entityType = $validated['entity_type'] ?? 'all';
         $search = isset($validated['search']) ? trim((string) $validated['search']) : '';
@@ -187,28 +192,7 @@ class ReminderLedgerController extends AccountBaseController
             || ($dateRange !== 'all' && $dateRange !== '');
         $this->isEmpty = count($groups) === 0;
 
-        $pagination = [
-            'current_page' => $reminders->currentPage(),
-            'last_page' => $reminders->lastPage(),
-            'per_page' => $reminders->perPage(),
-            'total' => $reminders->total(),
-            'from' => $reminders->firstItem(),
-            'to' => $reminders->lastItem(),
-        ];
-
-        return Inertia::render('Reminders/Index', [
-            'filters' => $this->filters,
-            'entityTypes' => $this->entityTypes,
-            'showDelayBanner' => $this->showDelayBanner,
-            'delayBannerText' => $this->delayBannerText,
-            'worstDelay' => $this->worstDelay,
-            'hasFilters' => $this->hasFilters,
-            'isEmpty' => $this->isEmpty,
-            'pagination' => $pagination,
-            'groups' => Inertia::defer(fn () => $groups),
-            'stats' => Inertia::defer(fn () => $stats),
-            'tabCounts' => Inertia::defer(fn () => $this->tabCounts),
-        ]);
+        return view('reminder-ledger.index', $this->data);
     }
 
     /**

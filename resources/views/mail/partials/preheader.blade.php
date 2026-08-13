@@ -1,23 +1,18 @@
 {{--
-  Inbox preview text (preheader). Pass $preheader explicitly, or fall back via $fallback.
-  Keep styling in sync with Hibarr reminder templates.
+  Brevo-style inbox preheader (preview text hack).
+
+  Place as the FIRST child inside the email body wrapper — before logo/tables.
+  Pass $preheader (or $fallback). Keep copy short and complementary to subject.
+
+  Cap length BEFORE sanitize — unbounded strings OOM during strip_tags/preg.
 --}}
 @php
-    $resolvedPreheader = trim((string) ($preheader ?? ''));
-    if ($resolvedPreheader === '' && isset($fallback)) {
-        $resolvedPreheader = trim((string) $fallback);
-    }
-    if ($resolvedPreheader !== '') {
-        $resolvedPreheader = html_entity_decode(
-            strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], ' ', $resolvedPreheader)),
-            ENT_QUOTES,
-            'UTF-8'
-        );
-        $resolvedPreheader = preg_replace('/^#+\s*/m', '', $resolvedPreheader) ?? $resolvedPreheader;
-        $resolvedPreheader = trim(preg_replace('/\s+/u', ' ', $resolvedPreheader) ?? $resolvedPreheader);
-        $resolvedPreheader = \Illuminate\Support\Str::limit($resolvedPreheader, 140);
-    }
+    $resolvedPreheader = \App\Support\MailPreheader::sanitize(
+        is_string($preheader ?? null) ? $preheader : (
+            (isset($fallback) && is_string($fallback)) ? $fallback : ''
+        )
+    );
 @endphp
 @if($resolvedPreheader !== '')
-<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{ $resolvedPreheader }}@for($i = 0; $i < 40; $i)&nbsp;&zwnj;@endfor</div>
+{!! \App\Support\MailPreheader::hiddenHtml($resolvedPreheader) !!}
 @endif

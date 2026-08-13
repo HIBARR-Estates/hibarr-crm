@@ -103,6 +103,13 @@ function processStandardField(
         return { client_email: value || null };
     }
 
+    if (fieldName === "has_joined_the_whatsapp_group") {
+        return {
+            has_joined_the_whatsapp_group:
+                value === true || value === 1 || value === "1",
+        };
+    }
+
     return { [fieldName]: value ?? null };
 }
 

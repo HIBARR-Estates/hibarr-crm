@@ -63,11 +63,6 @@ class LeadSavedView extends BaseModel
      */
     public static function sanitizeFilters(array $filters): array
     {
-        $allowed = array_flip(\App\Services\LeadService::FILTER_KEYS);
-
-        return array_filter(
-            array_intersect_key($filters, $allowed),
-            static fn ($value) => $value !== null && $value !== '' && $value !== []
-        );
+        return \App\Services\LeadService::sanitizeFilterPayload($filters);
     }
 }

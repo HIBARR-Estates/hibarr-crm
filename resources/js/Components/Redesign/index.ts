@@ -54,6 +54,12 @@ export { default as EditMeetingModal } from "./modals/EditMeetingModal";
 export { default as RescheduleMeetingModal } from "./modals/RescheduleMeetingModal";
 export { default as TaskDetailModal } from "./modals/TaskDetailModal";
 export { default as NoteDetailModal } from "./modals/NoteDetailModal";
+export { default as WorkspaceNotesTab } from "./workspace/WorkspaceNotesTab";
+export {
+    toWorkspaceNotePreview,
+    hasNoteScopeAccess,
+} from "./adapters/noteAdapter";
+export type { WorkspaceNotePreview } from "./adapters/noteAdapter";
 export { default as MeetingDetailModal } from "./modals/MeetingDetailModal";
 export { default as ItineraryModal } from "./modals/ItineraryModal";
 export type {

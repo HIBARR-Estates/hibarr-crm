@@ -10,7 +10,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import {
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
@@ -22,9 +22,10 @@ import {
     isLeadInfoCoreSection,
 } from "../../config/leadInfoSections";
 import {
-    formatLeadTemperature,
-    LEAD_TEMPERATURE_TONE,
-} from "../../config/leadTemperature";
+    LeadCategoryField,
+    LeadSourceField,
+    LeadTemperatureField,
+} from "./LeadAttributionFields";
 import type { LeadFieldChange } from "../../hooks/useLeadInfoFieldUpdate";
 import type { LeadInfoSectionId } from "../../types";
 
@@ -55,33 +56,6 @@ function FieldGrid({ children }: { children: ReactNode }) {
             {children}
         </div>
     );
-}
-
-function resolvePhoneValue(
-    raw: string | null | undefined,
-    formattedFallback?: string | null,
-): string {
-    if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
-        try {
-            const parsed = JSON.parse(raw.trim());
-            if (typeof parsed?.phone === "string" && parsed.phone.trim()) {
-                return parsed.phone.trim();
-            }
-            if (
-                typeof parsed?.phoneNumber === "string" &&
-                parsed.phoneNumber.trim()
-            ) {
-                return parsed.phoneNumber.trim();
-            }
-        } catch {
-            /* fall through */
-        }
-        const formatted = formatMobileForDisplay(raw);
-        if (formatted && formatted !== "--") return formatted;
-    }
-    if (raw) return String(raw);
-    if (formattedFallback && formattedFallback !== "--") return formattedFallback;
-    return "";
 }
 
 export default function LeadInfoSectionPanel({
@@ -184,6 +158,15 @@ export default function LeadInfoSectionPanel({
             ...previous,
             [fieldName]: { value, type },
         }));
+    };
+
+    const attributionFieldProps = {
+        lead,
+        onFieldUpdate,
+        isFieldLoading,
+        disabled: !canEdit,
+        alwaysEditing: editing,
+        onChange: handleFieldChange,
     };
 
     const handleEnterEdit = () => {
@@ -427,14 +410,14 @@ export default function LeadInfoSectionPanel({
                 <DetailField
                     label={t("pages.leads.info.fields.mobile")}
                     copyValue={
-                        resolvePhoneValue(
+                        resolveLeadPhoneDisplay(
                             lead.mobile,
                             lead.mobile_with_phonecode,
                         ) || undefined
                     }
                 >
                     <DealEditableField
-                        value={resolvePhoneValue(
+                        value={resolveLeadPhoneDisplay(
                             lead.mobile,
                             lead.mobile_with_phonecode,
                         )}
@@ -451,14 +434,14 @@ export default function LeadInfoSectionPanel({
                 <DetailField
                     label={t("pages.leads.info.fields.office_phone")}
                     copyValue={
-                        resolvePhoneValue(
+                        resolveLeadPhoneDisplay(
                             lead.office,
                             lead.office_phone_formatted,
                         ) || undefined
                     }
                 >
                     <DealEditableField
-                        value={resolvePhoneValue(
+                        value={resolveLeadPhoneDisplay(
                             lead.office,
                             lead.office_phone_formatted,
                         )}
@@ -476,7 +459,7 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
                 <DetailField label={td("WhatsApp", { source: "en" })}>
                     <DealEditableField
-                        value={resolvePhoneValue(lead.client_whatsapp)}
+                        value={resolveLeadPhoneDisplay(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
                         fieldType="phone"
                         onSave={(value) =>
@@ -524,107 +507,47 @@ export default function LeadInfoSectionPanel({
             <DealInfoGroupTitle>{td("Attribution", { source: "en" })}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField label={t("pages.leads.info.fields.lead_source")}>
-                    <DealEditableField
-                        value={lead.source_id || null}
-                        fieldName="source_id"
-                        selectorType="sources"
-                        displayValue={
-                            getDossierFieldValue(lead, "source") ? (
-                                <span className="text-gray-700">
-                                    {getDossierFieldValue(lead, "source")}
-                                </span>
-                            ) : (
-                                <span className="italic text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) => onFieldUpdate("source_id", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("source_id")}
-                        disabled={!canEdit}
-                    />
+                    <LeadSourceField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.category")}>
-                    <DealEditableField
-                        value={
-                            Array.isArray(lead.categories) && lead.categories.length
-                                ? lead.categories.map((c) => c.id)
-                                : Array.isArray(lead.category_ids) && lead.category_ids.length
-                                  ? lead.category_ids
-                                  : lead.category_id
-                                    ? [lead.category_id]
-                                    : []
-                        }
-                        fieldName="category_ids"
-                        selectorType="categories"
-                        mode="multiple"
-                        displayValue={
-                            (() => {
-                                const names =
-                                    Array.isArray(lead.categories) && lead.categories.length
-                                        ? lead.categories.map((c) => c.category_name).filter(Boolean)
-                                        : lead.category?.category_name
-                                          ? [lead.category.category_name]
-                                          : [];
-                                return names.length ? (
-                                    <span className="text-gray-700">{names.join(", ")}</span>
-                                ) : (
-                                    <span className="italic text-gray-400">--</span>
-                                );
-                            })()
-                        }
-                        onSave={(value) => onFieldUpdate("category_ids", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("category_ids")}
-                        disabled={!canEdit}
-                    />
+                    <LeadCategoryField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField
                     label={t("pages.leads.info.fields.temperature", {
                         defaultValue: "Temperature",
                     })}
                 >
+                    <LeadTemperatureField {...attributionFieldProps} />
+                </DetailField>
+                <DetailField
+                    label={t("pages.leads.info.fields.joined_whatsapp_group")}
+                >
                     <DealEditableField
-                        value={lead.temperature || ""}
-                        fieldName="temperature"
-                        fieldType="select"
-                        options={[
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_cold",
-                                    { defaultValue: "Cold" },
-                                ),
-                                value: "cold",
-                            },
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_warm",
-                                    { defaultValue: "Warm" },
-                                ),
-                                value: "warm",
-                            },
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_hot",
-                                    { defaultValue: "Hot" },
-                                ),
-                                value: "hot",
-                            },
-                        ]}
-                        displayValue={
-                            lead.temperature ? (
-                                <span
-                                    className={`v2-pill v2-pill-${LEAD_TEMPERATURE_TONE[lead.temperature]}`}
-                                >
-                                    {formatLeadTemperature(lead.temperature)}
-                                </span>
-                            ) : undefined
+                        value={
+                            lead.marketing?.has_joined_the_whatsapp_group
+                                ? 1
+                                : 0
                         }
-                        onSave={(value) => onFieldUpdate("temperature", value)}
+                        fieldName="has_joined_the_whatsapp_group"
+                        fieldType="boolean"
+                        onSave={(value) =>
+                            onFieldUpdate(
+                                "has_joined_the_whatsapp_group",
+                                value,
+                            )
+                        }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        loading={isFieldLoading("temperature")}
+                        displayValue={
+                            <span className="text-gray-700">
+                                {lead.marketing?.has_joined_the_whatsapp_group
+                                    ? t("pages.leads.marketing.yes")
+                                    : t("pages.leads.marketing.no")}
+                            </span>
+                        }
+                        loading={isFieldLoading(
+                            "has_joined_the_whatsapp_group",
+                        )}
                         disabled={!canEdit}
                     />
                 </DetailField>

@@ -93,9 +93,16 @@ class DealNotificationService
             $userIds = $userIds->merge($watcherIds);
         }
 
-        // Remove duplicates and the excluded user
+        // Remove duplicates and the excluded user (int-cast: pluck may return strings)
         $userIds = $userIds->unique()->filter(function ($userId) use ($excludeUserId) {
-            return $userId !== $excludeUserId && $userId !== null;
+            if ($userId === null) {
+                return false;
+            }
+            if ($excludeUserId === null) {
+                return true;
+            }
+
+            return (int) $userId !== (int) $excludeUserId;
         });
 
         if ($userIds->isEmpty()) {

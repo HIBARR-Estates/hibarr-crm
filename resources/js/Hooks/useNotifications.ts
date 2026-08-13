@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery, useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import {
     Notification,
     NotificationFilters,
@@ -15,12 +15,16 @@ import {
 import {
     playNotificationSound,
     showDesktopNotification,
+    seedIslandSeenNotifications,
+    takeUnseenNotifications,
 } from "@/lib/notificationAlerts";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
-/** Shared across all useNotificationSummary instances so sound/desktop alerts fire once. */
-let sharedSeenNotificationIds: Set<string> | null = null;
+/** First summary observation in this JS realm — seed without alerting. */
+let hasSeededIslandSeenIds = false;
 
 /**
  * Hook for fetching and polling unread notification summary.
@@ -35,6 +39,7 @@ export const useNotificationSummary = (
     onNewNotifications?: (notifications: Notification[]) => void
 ) => {
     const queryClient = useQueryClient();
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const {
         data: response,
@@ -55,33 +60,41 @@ export const useNotificationSummary = (
     const notifications = response?.data?.notifications ?? EMPTY_NOTIFICATIONS;
 
     // Sound + desktop popup (and any extra subscriber, e.g. the notch) for
-    // notifications that weren't present on the previous poll. Skipped on
-    // the very first load so opening the app doesn't alert for every
-    // pre-existing unread item. Module-level seen-IDs prevent duplicate
-    // alerts when dropdown + bridge both mount this hook.
+    // notifications that weren't alerted yet this session. First successful
+    // load only seeds seen IDs. Accumulated session-scoped IDs prevent an
+    // island from showing again for the same notification; multiple hook
+    // consumers share one takeUnseenNotifications pass so alerts fire once.
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled || isLoading || !response?.data) return;
 
-        const currentIds = new Set(notifications.map((n) => n.id));
-
-        if (sharedSeenNotificationIds === null) {
-            sharedSeenNotificationIds = currentIds;
+        if (!hasSeededIslandSeenIds) {
+            seedIslandSeenNotifications(notifications);
+            hasSeededIslandSeenIds = true;
             return;
         }
 
-        const newOnes = notifications.filter(
-            (n) => !sharedSeenNotificationIds!.has(n.id),
-        );
-        sharedSeenNotificationIds = currentIds;
-
+        const newOnes = takeUnseenNotifications(notifications);
         if (newOnes.length === 0) return;
 
-        playNotificationSound();
-        newOnes.slice(0, 3).forEach((n) => {
-            showDesktopNotification(n.title, n.text, n.link);
-        });
+        if (islandAlertsEnabled) {
+            playNotificationSound();
+            newOnes.slice(0, 3).forEach((n) => {
+                showDesktopNotification(
+                    n.title,
+                    n.text,
+                    n.link && isSafeHttpUrl(n.link) ? n.link : undefined,
+                );
+            });
+        }
         onNewNotifications?.(newOnes);
-    }, [notifications, enabled, onNewNotifications]);
+    }, [
+        notifications,
+        enabled,
+        isLoading,
+        islandAlertsEnabled,
+        onNewNotifications,
+        response?.data,
+    ]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {
@@ -209,6 +222,58 @@ export const useNotificationMutations = () => {
         invalidateNotifications();
     });
 
+    /** Same endpoint, but patches the unread summary cache instead of invalidating (no refetch storm). */
+    const markReadQuietMutation = useApiMutate<
+        { id: string },
+        NotificationMarkReadResponse["data"],
+        ApiResponse<NotificationMarkReadResponse["data"]>
+    >(route("notifications.api.mark_read"), "POST");
+
+    const patchUnreadSummaryAfterMark = useCallback(
+        (notificationId: string, unreadCount?: number) => {
+            const summaryKey = [route("notifications.api.unread_summary")];
+            queryClient.setQueryData<NotificationUnreadSummaryResponse>(
+                summaryKey,
+                (old) => {
+                    if (!old?.data) return old;
+                    const notifications = old.data.notifications.filter(
+                        (n) => n.id !== notificationId,
+                    );
+                    return {
+                        ...old,
+                        data: {
+                            ...old.data,
+                            unread_count:
+                                unreadCount ??
+                                Math.max(0, old.data.unread_count - 1),
+                            notifications,
+                        },
+                    };
+                },
+            );
+        },
+        [queryClient],
+    );
+
+    const markAsReadQuiet = useCallback(
+        (id: string) => {
+            markReadQuietMutation.mutate(
+                { id },
+                {
+                    suppressSuccessToast: true,
+                    onSuccess: (response) => {
+                        if (!isSuccessResponse(response)) return;
+                        patchUnreadSummaryAfterMark(
+                            id,
+                            response.data?.unread_count,
+                        );
+                    },
+                },
+            );
+        },
+        [markReadQuietMutation, patchUnreadSummaryAfterMark],
+    );
+
     // Mark multiple notifications as read
     const markMultipleReadMutation = useApiMutate<
         { ids: string[] },
@@ -257,6 +322,7 @@ export const useNotificationMutations = () => {
     return {
         // Mark read
         markAsRead: markReadMutation.mutate,
+        markAsReadQuiet,
         markMultipleAsRead: markMultipleReadMutation.mutate,
         markAllAsRead: markAllReadMutation.mutate,
         isMarkingRead:

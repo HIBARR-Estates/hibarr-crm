@@ -201,7 +201,7 @@ class DealController extends AccountBaseController
     {
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
-            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
+            'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id,image',
             'contact.leadSource',
             'leadStage:id,name,label_color,slug',
             'currency:id,currency_symbol,currency_code',

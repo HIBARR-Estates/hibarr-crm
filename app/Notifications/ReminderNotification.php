@@ -13,6 +13,7 @@ use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Models\Lead;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
+use App\Support\SafeHttpUrl;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -144,7 +145,7 @@ class ReminderNotification extends BaseNotification
 
     public function toArray($notifiable): array
     {
-        return [
+        $payload = [
             'reminder_id' => $this->reminder->id,
             'entity_type' => $this->reminder->entity_type,
             'entity_id' => $this->reminder->entity_id,
@@ -154,6 +155,68 @@ class ReminderNotification extends BaseNotification
             'text' => $this->resolveInAppMessage(),
             'action_url' => $this->resolveActionUrl(),
         ];
+
+        if ($this->reminder->entity_type === Reminder::ENTITY_MEETING) {
+            $payload = array_merge($payload, $this->meetingContextPayload());
+        }
+
+        if ($this->reminder->entity_type === Reminder::ENTITY_TASK) {
+            $payload = array_merge($payload, $this->taskContextPayload());
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Task + linked deal/lead for in-app task reminder actions.
+     *
+     * @return array<string, mixed>
+     */
+    private function taskContextPayload(): array
+    {
+        $task = $this->resolveTask();
+        if ($task === null) {
+            return [];
+        }
+
+        return [
+            'task_id' => $task->id,
+        ];
+    }
+
+    /**
+     * Deal/lead + join link for in-app meeting reminder actions.
+     *
+     * @return array<string, mixed>
+     */
+    private function meetingContextPayload(): array
+    {
+        $followUp = $this->resolveFollowUp();
+        if ($followUp === null) {
+            return [];
+        }
+
+        $presenter = new MeetingEmailPresenter($followUp, $this->company, $this->reminder->message);
+        $meetingAt = $presenter->meetingAt();
+        $startsNow = $meetingAt !== null
+            && $meetingAt->getTimestamp() - now()->getTimestamp() <= 0;
+
+        $payload = [
+            'follow_up_id' => $followUp->id,
+            'deal_id' => $followUp->deal_id,
+            'lead_id' => $followUp->lead_id,
+            'starts_now' => $startsNow,
+        ];
+
+        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+        if ($meetingLink !== null) {
+            $payload['meeting_link'] = $meetingLink;
+        }
+
+        return array_filter(
+            $payload,
+            static fn ($value) => $value !== null && $value !== '' && $value !== false,
+        );
     }
 
     /**
@@ -307,15 +370,15 @@ class ReminderNotification extends BaseNotification
         $dueAt = $task?->remind_at
             ? $task->remind_at->copy()->timezone($timezone)
             : null;
-        $heading = $task?->heading ?? ($this->reminder->message ?? 'Task');
-        $shortCode = (string) ($task?->task_short_code ?? '');
+        $heading = $this->safeMailText($task?->heading ?? ($this->reminder->message ?? 'Task'), 200);
+        $shortCode = $this->safeMailText((string) ($task?->task_short_code ?? ''), 64);
         $dueDate = $dueAt?->format($dateFormat) ?? '';
         $dueTime = $dueAt?->format($timeFormat) ?? '';
         $countdown = $dueAt ? $this->countdownUntil($dueAt) : '';
-        $taskMessage = $this->resolveTaskMessage($heading, $dueAt, $countdown);
+        $taskMessage = $this->safeMailText($this->resolveTaskMessage($heading, $dueAt, $countdown), 500);
         $actionText = __('app.viewTask');
         $footerNote = __('email.taskReminder.footerNote');
-        $preheader = $taskMessage !== '' ? $taskMessage : $footerNote;
+        $preheader = $this->safePreheader($taskMessage !== '' ? $taskMessage : $footerNote);
 
         $build
             ->subject($this->titledSubject('email.taskReminder.subject', 'Task Reminder', $heading).' - '.config('app.name'))
@@ -362,15 +425,15 @@ class ReminderNotification extends BaseNotification
         $remindAt = $note?->remind_at
             ? $note->remind_at->copy()->timezone($timezone)
             : ($this->reminder->remind_at?->copy()->timezone($timezone));
-        $title = $note?->title ?? ($this->reminder->message ?? 'Note');
-        $excerpt = $this->noteExcerpt($note?->details ?? '');
+        $title = $this->safeMailText($note?->title ?? ($this->reminder->message ?? 'Note'), 200);
+        $excerpt = $this->safeMailText($this->noteExcerpt($note?->details ?? ''), 500);
         $remindDate = $remindAt?->format($dateFormat) ?? '';
         $remindTime = $remindAt?->format($timeFormat) ?? '';
         $countdown = $remindAt ? $this->countdownUntil($remindAt) : '';
-        $noteMessage = $this->resolveNoteMessage($title, $remindAt, $countdown);
+        $noteMessage = $this->safeMailText($this->resolveNoteMessage($title, $remindAt, $countdown), 500);
         $actionText = 'View Note';
         $footerNote = __('email.noteReminder.footerNote');
-        $preheader = $noteMessage !== '' ? $noteMessage : $footerNote;
+        $preheader = $this->safePreheader($noteMessage !== '' ? $noteMessage : $footerNote);
 
         $build
             ->subject($this->titledSubject('email.noteReminder.subject', 'Note Reminder', $title).' - '.config('app.name'))
@@ -420,14 +483,14 @@ class ReminderNotification extends BaseNotification
 
         $meta = $this->typedEntityMailMeta($kind);
         $eventAt = $this->reminder->remind_at?->copy()->timezone($timezone);
-        $title = $this->reminder->message ?: $meta['label'];
+        $title = $this->safeMailText($this->reminder->message ?: $meta['label'], 200);
         $eventDate = $eventAt?->format($dateFormat) ?? '';
         $eventTime = $eventAt?->format($timeFormat) ?? '';
         $countdown = $eventAt ? $this->countdownUntil($eventAt) : '';
-        $message = $this->resolveGenericEntityMessage($title, $eventAt, $countdown);
+        $message = $this->safeMailText($this->resolveGenericEntityMessage($title, $eventAt, $countdown), 500);
         $actionText = 'View '.$meta['label'];
         $footerNote = __($meta['footerNoteKey']);
-        $preheader = $message !== '' ? $message : $footerNote;
+        $preheader = $this->safePreheader($message !== '' ? $message : $footerNote);
 
         $messageKey = $meta['prefix'].'Message';
         $titleKey = $meta['prefix'].'Title';
