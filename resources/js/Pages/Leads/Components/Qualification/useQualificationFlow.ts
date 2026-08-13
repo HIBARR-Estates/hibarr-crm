@@ -81,6 +81,9 @@ export const useQualificationFlow = ({
     const pendingTimers = useRef(
         new Map<string, ReturnType<typeof setTimeout>>(),
     );
+    /** Per-segment save chain — serializes upserts so out-of-order network
+     * responses can't clobber a newer answer with a stale one. */
+    const saveChains = useRef(new Map<string, Promise<unknown>>());
     const inFlight = useRef(new Set<Promise<unknown>>());
     const savingListeners = useRef(new Set<(saving: boolean) => void>());
 
@@ -114,17 +117,23 @@ export const useQualificationFlow = ({
     const persistAnswer = useCallback(
         (segment: Segment, values: string[], text?: string | null) => {
             const storedValues = mapOptionIdsToStoredValues(segment, values);
-            return trackInFlight(
-                service
-                    .upsertAnswer(qualification.id, {
-                        segment_key: segment.key,
-                        answer_values: storedValues,
-                        answer_text: text ?? null,
-                    })
-                    .catch(() => {
-                        message.error("Failed to save answer");
-                    }),
-            );
+            const previous =
+                saveChains.current.get(segment.key) ?? Promise.resolve();
+            const chained = previous
+                .catch(() => {})
+                .then(() =>
+                    service
+                        .upsertAnswer(qualification.id, {
+                            segment_key: segment.key,
+                            answer_values: storedValues,
+                            answer_text: text ?? null,
+                        })
+                        .catch(() => {
+                            message.error("Failed to save answer");
+                        }),
+                );
+            saveChains.current.set(segment.key, chained);
+            return trackInFlight(chained);
         },
         [qualification.id, service, trackInFlight],
     );

@@ -190,9 +190,16 @@ export function buildExternalMeetingCreateUrl(
               })()
             : "");
 
+    // Resolved end time can land at/before the start time (midnight wrap from
+    // the +30min fallback, or an explicit overnight end) — roll to next day.
+    const endDate =
+        input.startTime && endTime && endTime <= input.startTime
+            ? dayjs(input.date).add(1, "day").format("YYYY-MM-DD")
+            : input.date;
+
     if (platform === "google_meet" || platform === "meet") {
         const start = toGoogleUtcStamp(input.date, input.startTime);
-        const end = toGoogleUtcStamp(input.date, endTime);
+        const end = toGoogleUtcStamp(endDate, endTime);
         if (!start || !end) return null;
 
         const url = new URL("https://calendar.google.com/calendar/render");
@@ -206,7 +213,7 @@ export function buildExternalMeetingCreateUrl(
 
     if (platform === "teams") {
         const start = toOutlookUtcIso(input.date, input.startTime);
-        const end = toOutlookUtcIso(input.date, endTime);
+        const end = toOutlookUtcIso(endDate, endTime);
         if (!start || !end) return null;
 
         const url = new URL(

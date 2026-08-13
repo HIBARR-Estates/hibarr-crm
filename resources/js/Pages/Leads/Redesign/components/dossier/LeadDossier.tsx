@@ -29,19 +29,16 @@ const EDITABLE_FIELDS: Partial<
 interface LeadDossierProps {
     lead: Lead;
     onOpenLeadInfo?: () => void;
-    /** Same permission string the Lead info tab gates editing on. */
-    editLeadPermission?: string;
+    /** Record-scoped edit permission, from the parent's `canEditLead` check. */
+    canEdit?: boolean;
 }
 
 export default function LeadDossier({
     lead,
     onOpenLeadInfo,
-    editLeadPermission = "all",
+    canEdit = false,
 }: LeadDossierProps) {
     const { td } = useTd();
-    const canEdit = ["all", "added", "owned", "both"].includes(
-        editLeadPermission,
-    );
     const { isFieldLoading, handleFieldUpdate } =
         useLeadInfoFieldUpdate(canEdit);
     const [openSections, setOpenSections] = useState<Set<string>>(

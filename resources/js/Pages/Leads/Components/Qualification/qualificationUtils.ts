@@ -562,8 +562,15 @@ export const getActionsForSelectedOutcomes = (
     });
 
     selectedOutcomeKeys.forEach((outcomeKey) => {
-        const segment = findOutcomeSegment(tree, outcomeKey);
-        if (segment?.actions?.length) return;
+        const matchingSegments = sortSegments(tree.segments).filter(
+            (segment) =>
+                segment.type === "outcome" &&
+                segment.outcomeMetadata?.type === outcomeKey,
+        );
+        const hasConfiguredActions = matchingSegments.some(
+            (segment) => segment.actions?.length,
+        );
+        if (hasConfiguredActions) return;
         LEGACY_ACTIONS_FOR_OUTCOME[outcomeKey].forEach((action) => {
             if (!byType.has(action.type)) {
                 byType.set(action.type, { ...action });

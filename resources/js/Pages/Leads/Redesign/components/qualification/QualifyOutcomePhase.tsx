@@ -130,13 +130,6 @@ const buildCeoCalendlyUrl = (
 const statusChipBackground = (color: string): string =>
     /^#[0-9a-fA-F]{6}$/.test(color) ? `${color}1f` : `${T.NAVY}1f`;
 
-/**
- * Webinar used when the OL template segment carries no `webinarId`.
- * ponytail: hardcoded test webinar — swap for the real id (or make the
- * template always carry one) once OL publishes production webinars.
- */
-const FALLBACK_WEBINAR_ID = "test-updated-webinar";
-
 interface WebinarRegistrationForm {
     firstName: string;
     lastName: string;
@@ -728,8 +721,7 @@ function OutcomeDetail({
         };
     }, [lead.marketing]);
 
-    const webinarId =
-        treeSegment?.outcomeMetadata?.webinarId || FALLBACK_WEBINAR_ID;
+    const webinarId = treeSegment?.outcomeMetadata?.webinarId;
 
     /** `/sessions/next` yields a single upcoming session. */
     const nextSession = webinarSessions[0] ?? null;

@@ -191,26 +191,28 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                     />
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (selectMode) {
-                                        toggleSelect(note.id);
-                                        return;
-                                    }
-                                    setOpenInEdit(false);
-                                    setSelectedNoteId(note.id);
-                                }}
-                                aria-label={
-                                    selectMode
-                                        ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
-                                        : `${t("pages.deals.common.open_note")}: ${note.title || note.authorName}`
-                                }
-                                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+                            <div
+                                className="min-w-0 flex-1"
                                 style={{ color: T.TEXT }}
                             >
                                 <div className="mb-[7px] flex items-center justify-between gap-2">
-                                    <span className="flex min-w-0 items-center gap-[7px]">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (selectMode) {
+                                                toggleSelect(note.id);
+                                                return;
+                                            }
+                                            setOpenInEdit(false);
+                                            setSelectedNoteId(note.id);
+                                        }}
+                                        aria-label={
+                                            selectMode
+                                                ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
+                                                : `${t("pages.deals.common.open_note")}: ${note.title || note.authorName}`
+                                        }
+                                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-[7px] border-none bg-transparent p-0 text-left"
+                                    >
                                         <Avatar
                                             size={24}
                                             initials={note.authorInitials}
@@ -266,7 +268,7 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                                 </span>
                                             )}
                                         </span>
-                                    </span>
+                                    </button>
                                     <div className="flex items-center gap-2">
                                         <span
                                             className="shrink-0 text-[12px]"
@@ -326,7 +328,7 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                         )}
                                     </div>
                                 </div>
-                            </button>
+                            </div>
                         </div>
                     );
                 })

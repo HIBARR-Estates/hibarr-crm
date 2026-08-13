@@ -715,7 +715,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             />
                             <LeadDossier
                                 lead={lead}
-                                editLeadPermission={props.editLeadPermission}
+                                canEdit={canEditLead(
+                                    props.editLeadPermission,
+                                    lead,
+                                    page.props.auth?.user?.id,
+                                )}
                                 onOpenLeadInfo={() => {
                                     nav.setInfoSection("personal");
                                     nav.setTab("leadinfo");

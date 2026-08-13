@@ -207,11 +207,16 @@ export default function QualifySegmentBody({
 
                         {currentSegment.answerType === "boolean" ? (
                             <DealSwitch
-                                checked={selectedValues[0] === "yes"}
+                                checked={
+                                    selectedValues[0] === "true" ||
+                                    selectedValues[0] === "yes"
+                                }
                                 label={
+                                    selectedValues[0] === "true" ||
                                     selectedValues[0] === "yes"
                                         ? td("Yes", { source: "en" })
-                                        : selectedValues[0] === "no"
+                                        : selectedValues[0] === "false" ||
+                                            selectedValues[0] === "no"
                                           ? td("No", { source: "en" })
                                           : td("Toggle answer", {
                                                 source: "en",
@@ -219,9 +224,10 @@ export default function QualifySegmentBody({
                                 }
                                 onChange={() => {
                                     const next =
+                                        selectedValues[0] === "true" ||
                                         selectedValues[0] === "yes"
-                                            ? "no"
-                                            : "yes";
+                                            ? "false"
+                                            : "true";
                                     patch([next], contextText || null);
                                 }}
                             />
