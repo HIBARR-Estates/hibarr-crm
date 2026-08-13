@@ -53,8 +53,12 @@
                         <div class="row">
                             <div class="col-md-6 mb-2">
                                 <x-forms.select fieldId="status" :fieldLabel="__('modules.employees.status')" fieldName="status" search="true">
-                                        <option value="pending"  @selected($follow->status == 'pending')  data-content="<i class='fa fa-circle mr-2 text-warning'></i> @lang('app.pending') " >@lang('app.pending')</option>
-                                        <option value="canceled" @selected($follow->status == 'canceled') data-content="<i class='fa fa-circle mr-2 text-red'></i> @lang('app.canceled') " >@lang('app.canceled')</option>
+                                        {{-- Values must match the lead_follow_up.status enum
+                                             (scheduled|completed|cancelled). They read
+                                             'pending'/'canceled' before, so saving this form
+                                             wrote a value the column rejects. --}}
+                                        <option value="scheduled"  @selected($follow->status == 'scheduled')  data-content="<i class='fa fa-circle mr-2 text-warning'></i> @lang('app.scheduled') " >@lang('app.scheduled')</option>
+                                        <option value="cancelled" @selected($follow->status == 'cancelled') data-content="<i class='fa fa-circle mr-2 text-red'></i> @lang('app.cancelled') " >@lang('app.cancelled')</option>
                                         <option value="completed" @selected($follow->status == 'completed') data-content="<i class='fa fa-circle mr-2 text-dark-green'></i> @lang('app.completed') " >@lang('app.completed')</option>
                                     </x-forms.select>
                             </div>

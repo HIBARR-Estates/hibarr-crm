@@ -564,6 +564,18 @@ return [
             'view_team'         => 'View team',
             'delete_deal'       => 'Delete deal',
             'actions_aria'      => 'Deal actions',
+            'outcome' => [
+                'mark_won'   => 'Mark as won',
+                'mark_lost'  => 'Mark as lost',
+                'clear'      => 'Clear outcome',
+                'confirm_won_title'   => 'Mark this deal as won?',
+                'confirm_lost_title'  => 'Mark this deal as lost?',
+                'confirm_clear_title' => 'Clear this deal\'s outcome?',
+                'confirm_won'   => 'This locks the deal and queues commission payouts to the agent and their upline. Reversing it later cannot claw back commissions that have already been paid.',
+                'confirm_revert' => 'This unlocks the deal and reverts its pending commissions, and the agent\'s sales metrics will be decremented. Commissions already marked paid are not reversed and must be settled manually.',
+                'confirm_simple' => 'This records the outcome on the deal. No commissions are affected.',
+                'confirm_button' => 'Yes, continue',
+            ],
             'pipeline' => [
                 'scroll_left'  => 'Scroll pipeline stages left',
                 'scroll_right' => 'Scroll pipeline stages right',
