@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     getNotchDurationMs,
     getNotchPosition,
+    markIslandAlreadyShown,
     type NotchPosition,
 } from "@/lib/notificationAlerts";
 import { useNotificationMutations } from "@/Hooks/useNotifications";
@@ -105,7 +106,7 @@ function accentTintBackground(accent: string): string {
 const REST_W = 132;
 const REST_H = 26;
 const COMPACT_W = 356;
-const COMPACT_H = 60;
+const COMPACT_H = 52;
 const EXPANDED_W = 404;
 
 function usePrefersReducedMotion(): boolean {
@@ -206,6 +207,13 @@ export default function NotificationAlertProvider({
 
     const push = useCallback(
         (notification: NotificationAlertPayload) => {
+            // Record that this id was displayed so a later poll/session seed
+            // will not treat it as new again (ids are also marked when the
+            // summary hook claims them for alerting).
+            if (notification.id) {
+                markIslandAlreadyShown(notification.id);
+            }
+
             clearTimer(exitTimer);
             clearTimer(enterTimer);
             clearTimer(dismissTimer);
@@ -265,7 +273,9 @@ export default function NotificationAlertProvider({
         (e: MouseEvent) => {
             e.stopPropagation();
             if (current?.id) markAsRead({ id: current.id });
-            if (current?.link) window.location.href = current.link;
+            if (current?.link && isSafeHttpUrl(current.link)) {
+                window.location.href = current.link;
+            }
             dismiss();
         },
         [current, dismiss, markAsRead],
@@ -307,25 +317,32 @@ export default function NotificationAlertProvider({
     const position = getNotchPosition();
 
     const hasDetail = !!current && (!!current.body || !!current.dest);
+    const shortBody =
+        !!current?.body && current.body.trim().length > 0 && current.body.length <= 90;
     const expanded =
         open &&
         hover &&
         !!current &&
-        (hasDetail || (current.actions?.length ?? 0) > 0);
+        (hasDetail || (current.actions?.length ?? 0) > 0 || !!current.link);
 
     const actions = current?.actions ?? [];
 
     const expandedHeight = useMemo(() => {
+        // Short assignment text (no AI summary): one body line. Keep extra
+        // bottom padding under the action buttons so they aren't flush.
+        const bodyH = current?.body ? (shortBody ? 20 : 34) : 0;
         const detailH = hasDetail
-            ? 10 + // divider padding-top
-              (current?.body ? 38 : 0) +
-              (current?.dest ? (current?.body ? 22 : 18) : 0)
+            ? 8 + // divider padding-top
+              bodyH +
+              (current?.dest ? (current?.body ? 16 : 14) : 0)
             : 0;
         const base = COMPACT_H + detailH;
-        const actionRow = actions.length > 0 || current?.link ? 58 : 0;
+        const hasActionRow =
+            actions.length > 0 || !!current?.link || hasDetail;
+        // button ~30 + marginTop + paddingBottom
+        const actionRow = hasActionRow ? (hasDetail ? 50 : 52) : 0;
         return base + actionRow;
-    }, [current, hasDetail, actions.length]);
-
+    }, [current, hasDetail, shortBody, actions.length]);
     const width = open ? (expanded ? EXPANDED_W : COMPACT_W) : REST_W;
     const height = open ? (expanded ? expandedHeight : COMPACT_H) : REST_H;
     const radius = open ? "14px" : "999px";
@@ -410,21 +427,21 @@ export default function NotificationAlertProvider({
                                         duration: reducedMotion ? 0.12 : 0.2,
                                         delay: reducedMotion ? 0 : 0.06,
                                     }}
-                                    style={{ padding: "0 14px" }}
+                                    style={{ padding: "0 12px" }}
                                 >
                                     <div
                                         style={{
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: 11,
-                                            height: 60,
+                                            gap: 10,
+                                            height: COMPACT_H,
                                         }}
                                     >
                                         <span
                                             style={{
-                                                width: 30,
-                                                height: 30,
-                                                borderRadius: 8,
+                                                width: 26,
+                                                height: 26,
+                                                borderRadius: 7,
                                                 background: accentTintBackground(accent),
                                                 display: "inline-flex",
                                                 alignItems: "center",
@@ -434,8 +451,8 @@ export default function NotificationAlertProvider({
                                         >
                                             <svg
                                                 aria-hidden="true"
-                                                width={14}
-                                                height={14}
+                                                width={13}
+                                                height={13}
                                                 viewBox="0 0 24 24"
                                                 fill="none"
                                                 stroke={accent}
@@ -451,8 +468,9 @@ export default function NotificationAlertProvider({
                                             <span
                                                 style={{
                                                     display: "block",
-                                                    fontSize: 14,
+                                                    fontSize: 13,
                                                     fontWeight: 600,
+                                                    lineHeight: 1.25,
                                                     whiteSpace: "nowrap",
                                                     overflow: "hidden",
                                                     textOverflow: "ellipsis",
@@ -460,25 +478,28 @@ export default function NotificationAlertProvider({
                                             >
                                                 {current.title}
                                             </span>
-                                            <span
-                                                style={{
-                                                    display: "block",
-                                                    fontSize: 12,
-                                                    color: "rgba(255,255,255,0.6)",
-                                                    marginTop: 1,
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                }}
-                                            >
-                                                {current.meta}
-                                            </span>
+                                            {current.meta ? (
+                                                <span
+                                                    style={{
+                                                        display: "block",
+                                                        fontSize: 11.5,
+                                                        lineHeight: 1.25,
+                                                        color: "rgba(255,255,255,0.6)",
+                                                        marginTop: 1,
+                                                        whiteSpace: "nowrap",
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                    }}
+                                                >
+                                                    {current.meta}
+                                                </span>
+                                            ) : null}
                                         </span>
                                         <span
                                             style={{
                                                 fontFamily:
                                                     "'IBM Plex Mono', monospace",
-                                                fontSize: 11,
+                                                fontSize: 10.5,
                                                 color: "rgba(255,255,255,0.4)",
                                                 flexShrink: 0,
                                             }}
@@ -498,18 +519,21 @@ export default function NotificationAlertProvider({
                                                 style={{
                                                     borderTop:
                                                         "1px solid rgba(255,255,255,0.1)",
-                                                    paddingTop: 10,
+                                                    paddingTop: 8,
                                                 }}
                                             >
                                                 {current.body && (
                                                     <div
                                                         style={{
-                                                            fontSize: 12.5,
-                                                            lineHeight: 1.45,
+                                                            fontSize: 12,
+                                                            lineHeight: shortBody
+                                                                ? 1.35
+                                                                : 1.4,
                                                             color: "rgba(255,255,255,0.66)",
                                                             display:
                                                                 "-webkit-box",
-                                                            WebkitLineClamp: 2,
+                                                            WebkitLineClamp:
+                                                                shortBody ? 1 : 2,
                                                             WebkitBoxOrient:
                                                                 "vertical",
                                                             overflow: "hidden",
@@ -527,7 +551,7 @@ export default function NotificationAlertProvider({
                                                             color: "rgba(255,255,255,0.42)",
                                                             marginTop:
                                                                 current.body
-                                                                    ? 4
+                                                                    ? 3
                                                                     : 0,
                                                         }}
                                                     >
@@ -536,17 +560,21 @@ export default function NotificationAlertProvider({
                                                 )}
                                             </div>
                                         )}
-                                        {(actions.length > 0 || expanded) && (
+                                        {(actions.length > 0 ||
+                                            !!current.link ||
+                                            expanded) && (
                                             <div
                                                 aria-hidden={!expanded}
                                                 style={{
                                                     opacity: expanded ? 1 : 0,
                                                     transition: `opacity 200ms ease ${expanded ? "120ms" : "0ms"}`,
                                                     display: "flex",
-                                                    gap: 8,
+                                                    gap: 6,
                                                     alignItems: "center",
-                                                    marginTop: 10,
-                                                    paddingBottom: 14,
+                                                    marginTop: hasDetail ? 8 : 6,
+                                                    paddingBottom: hasDetail
+                                                        ? 12
+                                                        : 14,
                                                 }}
                                             >
                                                 {actions.map((action) => (
@@ -562,7 +590,7 @@ export default function NotificationAlertProvider({
                                                         style={{
                                                             appearance: "none",
                                                             fontFamily: "inherit",
-                                                            fontSize: 13,
+                                                            fontSize: 12,
                                                             fontWeight: 600,
                                                             whiteSpace: "nowrap",
                                                             color: action.primary
@@ -572,9 +600,9 @@ export default function NotificationAlertProvider({
                                                                 ? T.WHITE
                                                                 : "rgba(255,255,255,0.14)",
                                                             border: "none",
-                                                            borderRadius: 8,
-                                                            padding: "0 16px",
-                                                            height: 34,
+                                                            borderRadius: 7,
+                                                            padding: "0 12px",
+                                                            height: 30,
                                                             cursor: "pointer",
                                                             flexShrink: 0,
                                                         }}
@@ -597,7 +625,7 @@ export default function NotificationAlertProvider({
                                                                     "none",
                                                                 fontFamily:
                                                                     "inherit",
-                                                                fontSize: 13,
+                                                                fontSize: 12,
                                                                 fontWeight: 600,
                                                                 whiteSpace:
                                                                     "nowrap",
@@ -605,10 +633,10 @@ export default function NotificationAlertProvider({
                                                                 background:
                                                                     T.WHITE,
                                                                 border: "none",
-                                                                borderRadius: 8,
+                                                                borderRadius: 7,
                                                                 padding:
-                                                                    "0 16px",
-                                                                height: 34,
+                                                                    "0 12px",
+                                                                height: 30,
                                                                 cursor: "pointer",
                                                             }}
                                                         >
@@ -624,7 +652,7 @@ export default function NotificationAlertProvider({
                                                     style={{
                                                         appearance: "none",
                                                         fontFamily: "inherit",
-                                                        fontSize: 13,
+                                                        fontSize: 12,
                                                         fontWeight: 600,
                                                         whiteSpace: "nowrap",
                                                         flexShrink: 0,
@@ -632,9 +660,9 @@ export default function NotificationAlertProvider({
                                                         color: T.TEXT_MUTED,
                                                         background: T.WHITE,
                                                         border: `1px solid ${T.BORDER}`,
-                                                        borderRadius: 8,
-                                                        padding: "9px 16px",
-                                                        minHeight: 32,
+                                                        borderRadius: 7,
+                                                        padding: "6px 12px",
+                                                        minHeight: 28,
                                                         cursor: "pointer",
                                                     }}
                                                 >

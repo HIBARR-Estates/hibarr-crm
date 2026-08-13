@@ -15,13 +15,16 @@ import {
 import {
     playNotificationSound,
     showDesktopNotification,
+    seedIslandSeenNotifications,
+    takeUnseenNotifications,
 } from "@/lib/notificationAlerts";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
-/** Shared across all useNotificationSummary instances so sound/desktop alerts fire once. */
-let sharedSeenNotificationIds: Set<string> | null = null;
+/** First summary observation in this JS realm — seed without alerting. */
+let hasSeededIslandSeenIds = false;
 
 /**
  * Hook for fetching and polling unread notification summary.
@@ -57,35 +60,41 @@ export const useNotificationSummary = (
     const notifications = response?.data?.notifications ?? EMPTY_NOTIFICATIONS;
 
     // Sound + desktop popup (and any extra subscriber, e.g. the notch) for
-    // notifications that weren't present on the previous poll. Skipped on
-    // the very first load so opening the app doesn't alert for every
-    // pre-existing unread item. Module-level seen-IDs prevent duplicate
-    // alerts when dropdown + bridge both mount this hook.
+    // notifications that weren't alerted yet this session. First successful
+    // load only seeds seen IDs. Accumulated session-scoped IDs prevent an
+    // island from showing again for the same notification; multiple hook
+    // consumers share one takeUnseenNotifications pass so alerts fire once.
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled || isLoading || !response?.data) return;
 
-        const currentIds = new Set(notifications.map((n) => n.id));
-
-        if (sharedSeenNotificationIds === null) {
-            sharedSeenNotificationIds = currentIds;
+        if (!hasSeededIslandSeenIds) {
+            seedIslandSeenNotifications(notifications);
+            hasSeededIslandSeenIds = true;
             return;
         }
 
-        const newOnes = notifications.filter(
-            (n) => !sharedSeenNotificationIds!.has(n.id),
-        );
-        sharedSeenNotificationIds = currentIds;
-
+        const newOnes = takeUnseenNotifications(notifications);
         if (newOnes.length === 0) return;
 
         if (islandAlertsEnabled) {
             playNotificationSound();
             newOnes.slice(0, 3).forEach((n) => {
-                showDesktopNotification(n.title, n.text, n.link);
+                showDesktopNotification(
+                    n.title,
+                    n.text,
+                    n.link && isSafeHttpUrl(n.link) ? n.link : undefined,
+                );
             });
         }
         onNewNotifications?.(newOnes);
-    }, [notifications, enabled, islandAlertsEnabled, onNewNotifications]);
+    }, [
+        notifications,
+        enabled,
+        isLoading,
+        islandAlertsEnabled,
+        onNewNotifications,
+        response?.data,
+    ]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {

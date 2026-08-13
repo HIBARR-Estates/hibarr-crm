@@ -47,30 +47,37 @@ class DealListener
     private function notifyFor($notifyUser, Deal $deal, NotificationInstance $notification): void
     {
         $notification = BaseNotification::applySuppressionFromContainer($notification);
+        $actorId = user()?->id;
 
         if ($notifyUser instanceof LeadAgent) {
             // Notify the lead agent's user
-            if ($notifyUser->user) {
+            if ($notifyUser->user && ! $this->isActor($notifyUser->user, $actorId)) {
                 Notification::send($notifyUser->user, $notification);
             }
         } elseif ($notifyUser instanceof Collection) {
-            // Notify a collection of users (watchers)
-            $users = $notifyUser->filter(function ($item) {
-                return $item instanceof User;
+            // Notify a collection of users (watchers), excluding the actor
+            $users = $notifyUser->filter(function ($item) use ($actorId) {
+                return $item instanceof User && ! $this->isActor($item, $actorId);
             });
-            
+
             if ($users->isNotEmpty()) {
                 Notification::send($users, $notification);
             }
         } elseif ($notifyUser instanceof User) {
-            // Notify a single user
-            Notification::send($notifyUser, $notification);
+            if (! $this->isActor($notifyUser, $actorId)) {
+                Notification::send($notifyUser, $notification);
+            }
         } else {
             // Fallback: try to notify the deal's lead agent if available
-            if ($deal->leadAgent && $deal->leadAgent->user) {
+            if ($deal->leadAgent && $deal->leadAgent->user && ! $this->isActor($deal->leadAgent->user, $actorId)) {
                 Notification::send($deal->leadAgent->user, $notification);
             }
         }
+    }
+
+    private function isActor(User $user, ?int $actorId): bool
+    {
+        return $actorId !== null && (int) $user->id === (int) $actorId;
     }
 
 }

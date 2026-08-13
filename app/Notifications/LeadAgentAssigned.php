@@ -26,6 +26,7 @@ class LeadAgentAssigned extends BaseNotification
         $this->assignedByName = user()?->name ?? '';
         $this->assignedAt = now()->format($this->company->date_format);
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'lead-notification')->first();
+        $this->captureTriggeredByUser();
         $this->initUnsRouting();
     }
 
@@ -37,6 +38,11 @@ class LeadAgentAssigned extends BaseNotification
      */
     public function via($notifiable)
     {
+        // Never notify the person who created/assigned (including admins in allAdmins).
+        if ($this->isTriggeredByNotifiable($notifiable)) {
+            return [];
+        }
+
         $via = array('database');
 
         // During bulk updates, suppress individual transactional emails.

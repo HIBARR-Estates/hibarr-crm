@@ -6,7 +6,10 @@
 @section('actionText', __($actionText))
 @section('actionUrl', $url)
 @section('actionDescription', __('You can view the full details and take action on this lead by clicking the button below:'))
-@section('intro', __('email.leadAgentAssigned.text'))
+
+@section('intro')
+{{ $intro ?? $preheader ?? __('email.leadAgentAssigned.subject') }}
+@endsection
 
 @section('content')
     {!! $content !!}
