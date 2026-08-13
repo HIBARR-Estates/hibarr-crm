@@ -219,7 +219,9 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
         JSON.stringify(draft) !== JSON.stringify(saved.draft);
 
     const handleSave = async () => {
-        if (!templateId || saving) return;
+        // Saving mid-load would post an empty question list and wipe the
+        // mapping rows that haven't arrived yet.
+        if (!templateId || saving || loading) return;
         setSaving(true);
         try {
             const mappings = questions.map((segment) => rowFor(segment.key));
@@ -318,7 +320,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                             variant="primary"
                             icon={<Icon name="check" size={13} />}
                             loading={saving}
-                            disabled={!templateId || !dirty}
+                            disabled={!templateId || !dirty || loading}
                             onClick={() => void handleSave()}
                         >
                             {td("Save mapping", { source: "en" })}
@@ -403,6 +405,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                         placeholder={td("e.g. test-updated-webinar", {
                             source: "en",
                         })}
+                        maxLength={255}
                         disabled={!templateId || loading}
                         style={{
                             ...SELECT_TRIGGER,

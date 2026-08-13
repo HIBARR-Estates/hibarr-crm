@@ -82,7 +82,7 @@ class QualificationFieldMappingController extends AccountBaseController
         $validated = $request->validate([
             'template_name' => ['nullable', 'string', 'max:255'],
             'auto_write' => ['required', 'boolean'],
-            'webinar_id' => ['nullable', 'string', 'max:191'],
+            'webinar_id' => ['nullable', 'string', 'max:255'],
             'mappings' => ['present', 'array'],
             'mappings.*.segment_key' => ['required', 'string', 'max:191'],
             'mappings.*.lead_field' => ['nullable', 'string', Rule::in($allowedFields)],

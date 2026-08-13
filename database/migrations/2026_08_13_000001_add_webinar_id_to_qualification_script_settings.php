@@ -19,7 +19,9 @@ return new class extends Migration
         Schema::table('qualification_script_settings', function (Blueprint $table) {
             // OL webinar used by the inviteWebinar outcome when the script segment
             // carries no webinarId of its own.
-            $table->string('webinar_id', 191)->nullable()->after('auto_write');
+            // Explicit length: the app's global defaultStringLength is 191, and OL
+            // ids are opaque. Not indexed, so the utf8mb4 key limit doesn't apply.
+            $table->string('webinar_id', 255)->nullable()->after('auto_write');
         });
     }
 
