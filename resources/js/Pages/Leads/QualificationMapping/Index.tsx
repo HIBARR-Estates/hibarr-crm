@@ -81,9 +81,15 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
     const [saving, setSaving] = useState(false);
 
     const [autoWrite, setAutoWrite] = useState(true);
+    const [webinarId, setWebinarId] = useState("");
     const [draft, setDraft] = useState<Draft>({});
-    const [saved, setSaved] = useState<{ autoWrite: boolean; draft: Draft }>({
+    const [saved, setSaved] = useState<{
+        autoWrite: boolean;
+        webinarId: string;
+        draft: Draft;
+    }>({
         autoWrite: true,
+        webinarId: "",
         draft: {},
     });
     const [optionsFor, setOptionsFor] = useState<Segment | null>(null);
@@ -132,7 +138,12 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                 }
                 setDraft(next);
                 setAutoWrite(mapping.auto_write);
-                setSaved({ autoWrite: mapping.auto_write, draft: next });
+                setWebinarId(mapping.webinar_id ?? "");
+                setSaved({
+                    autoWrite: mapping.auto_write,
+                    webinarId: mapping.webinar_id ?? "",
+                    draft: next,
+                });
             })
             .catch(() => {
                 if (!cancelled) message.error("Failed to load the script mapping");
@@ -204,6 +215,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
 
     const dirty =
         autoWrite !== saved.autoWrite ||
+        webinarId.trim() !== saved.webinarId ||
         JSON.stringify(draft) !== JSON.stringify(saved.draft);
 
     const handleSave = async () => {
@@ -211,9 +223,11 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
         setSaving(true);
         try {
             const mappings = questions.map((segment) => rowFor(segment.key));
+            const trimmedWebinarId = webinarId.trim();
             await saveScriptMapping(templateId, {
                 template_name: template?.name ?? null,
                 auto_write: autoWrite,
+                webinar_id: trimmedWebinarId || null,
                 mappings,
             });
             const next: Draft = {};
@@ -221,7 +235,8 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                 if (row.lead_field) next[row.segment_key] = row;
             }
             setDraft(next);
-            setSaved({ autoWrite, draft: next });
+            setWebinarId(trimmedWebinarId);
+            setSaved({ autoWrite, webinarId: trimmedWebinarId, draft: next });
             message.success(td("Mapping saved", { source: "en" }));
         } catch {
             message.error(td("Failed to save the mapping", { source: "en" }));
@@ -233,6 +248,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
     const handleDiscard = () => {
         setDraft(saved.draft);
         setAutoWrite(saved.autoWrite);
+        setWebinarId(saved.webinarId);
     };
 
     return (
@@ -354,6 +370,49 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                 : td("questions need options", { source: "en" })}
                         </Badge>
                     ) : null}
+                </div>
+
+                <div
+                    className="flex items-center gap-3.5 rounded-xl flex-wrap"
+                    style={{
+                        background: T.SURFACE,
+                        border: `1px solid ${T.BORDER}`,
+                        padding: "14px 18px",
+                    }}
+                >
+                    <div className="min-w-0 flex-1">
+                        <div
+                            className="text-[14px] font-semibold"
+                            style={{ color: T.TEXT }}
+                        >
+                            {td("Webinar for this script", { source: "en" })}
+                        </div>
+                        <div
+                            className="text-[12px]"
+                            style={{ color: T.TEXT_MUTED }}
+                        >
+                            {td(
+                                "OL webinar id used when the agent picks the webinar invite outcome. Leave empty if the script already carries its own webinar.",
+                                { source: "en" },
+                            )}
+                        </div>
+                    </div>
+                    <input
+                        value={webinarId}
+                        onChange={(event) => setWebinarId(event.target.value)}
+                        placeholder={td("e.g. test-updated-webinar", {
+                            source: "en",
+                        })}
+                        disabled={!templateId || loading}
+                        style={{
+                            ...SELECT_TRIGGER,
+                            width: 260,
+                            borderRadius: 8,
+                            border: `1px solid ${T.BORDER}`,
+                            color: T.TEXT,
+                            background: "#fff",
+                        }}
+                    />
                 </div>
 
                 <div

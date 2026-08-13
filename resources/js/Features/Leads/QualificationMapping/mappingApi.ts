@@ -16,6 +16,8 @@ export interface FieldMappingRow {
 export interface ScriptMapping {
     template_id: string;
     auto_write: boolean;
+    /** OL webinar used by the inviteWebinar outcome when the script carries none. */
+    webinar_id: string | null;
     mappings: FieldMappingRow[];
 }
 
@@ -32,6 +34,7 @@ const normalize = (raw: unknown, templateId: string): ScriptMapping => {
     return {
         template_id: templateId,
         auto_write: data.auto_write !== false,
+        webinar_id: data.webinar_id || null,
         mappings: (data.mappings ?? []).map((row) => ({
             segment_key: row.segment_key,
             lead_field: row.lead_field ?? null,

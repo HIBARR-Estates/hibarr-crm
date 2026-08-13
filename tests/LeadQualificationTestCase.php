@@ -153,6 +153,7 @@ abstract class LeadQualificationTestCase extends TestCase
             $table->string('template_id');
             $table->string('template_name')->nullable();
             $table->boolean('auto_write')->default(true);
+            $table->string('webinar_id')->nullable();
             $table->timestamps();
         });
 

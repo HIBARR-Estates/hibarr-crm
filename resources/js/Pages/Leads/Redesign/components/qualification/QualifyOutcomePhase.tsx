@@ -49,6 +49,7 @@ import useLeadMeetingCreate, {
     type LeadMeetingCreateInput,
 } from "../../hooks/useLeadMeetingCreate";
 import useLeadFieldUpdate from "../../hooks/useLeadFieldUpdate";
+import { useScriptMapping } from "@/Features/Leads/QualificationMapping/mappingApi";
 import { Empty, Spin, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
@@ -721,7 +722,15 @@ function OutcomeDetail({
         };
     }, [lead.marketing]);
 
-    const webinarId = treeSegment?.outcomeMetadata?.webinarId;
+    // Falls back to the webinar an admin set for this script on the
+    // qualification field mapping settings page.
+    const scriptMapping = useScriptMapping(
+        outcome === "inviteWebinar" ? flow.templateTree?.templateId : null,
+    );
+    const webinarId =
+        treeSegment?.outcomeMetadata?.webinarId ||
+        scriptMapping?.webinar_id ||
+        undefined;
 
     /** `/sessions/next` yields a single upcoming session. */
     const nextSession = webinarSessions[0] ?? null;

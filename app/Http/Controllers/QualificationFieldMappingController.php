@@ -59,6 +59,7 @@ class QualificationFieldMappingController extends AccountBaseController
         return Reply::dataOnly([
             'template_id' => $templateId,
             'auto_write' => $setting?->auto_write ?? true,
+            'webinar_id' => $setting?->webinar_id,
             'mappings' => $setting
                 ? $setting->mappings->map(fn (QualificationFieldMapping $mapping) => [
                     'segment_key' => $mapping->segment_key,
@@ -81,6 +82,7 @@ class QualificationFieldMappingController extends AccountBaseController
         $validated = $request->validate([
             'template_name' => ['nullable', 'string', 'max:255'],
             'auto_write' => ['required', 'boolean'],
+            'webinar_id' => ['nullable', 'string', 'max:191'],
             'mappings' => ['present', 'array'],
             'mappings.*.segment_key' => ['required', 'string', 'max:191'],
             'mappings.*.lead_field' => ['nullable', 'string', Rule::in($allowedFields)],
@@ -95,6 +97,7 @@ class QualificationFieldMappingController extends AccountBaseController
                 [
                     'template_name' => $validated['template_name'] ?? null,
                     'auto_write' => $validated['auto_write'],
+                    'webinar_id' => filled($validated['webinar_id'] ?? null) ? trim($validated['webinar_id']) : null,
                 ]
             );
 
