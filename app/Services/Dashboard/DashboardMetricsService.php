@@ -61,6 +61,25 @@ class DashboardMetricsService
     private const FORECAST_MIN_DEALS = 3;
 
     /**
+     * Bounds on the configurable first-contact SLA, in hours. One hour is the
+     * tightest that means anything for a human callback; 720 (30 days) is well
+     * past the point the metric stops being an SLA. Anything outside falls back
+     * to the default rather than being clamped to an edge — an out-of-range
+     * value is a mistake, and silently reading it as "1 hour" would flip the
+     * whole team red.
+     */
+    public const SLA_HOURS_MIN = 1;
+
+    public const SLA_HOURS_MAX = 720;
+
+    public const SLA_HOURS_DEFAULT = 24;
+
+    /** Memoised firstContactTrackingSince(); null is a real answer, hence the flag. */
+    private ?Carbon $trackingSince = null;
+
+    private bool $trackingSinceResolved = false;
+
+    /**
      * Lead agent ids a manager's view covers: themselves plus their direct reports.
      *
      * ponytail: one level deep via lead_agents.parent_agent_id. The agent_hierarchy
@@ -598,12 +617,24 @@ class DashboardMetricsService
             $prevStart
         );
 
+        // Leads created before first-contact tracking began could never have been
+        // stamped, so counting them as misses reports a team failure that never
+        // happened — visible the moment a 365-day window reaches past the
+        // cutover. They come out of both halves of the rate, but deliberately
+        // not out of newLeads above, which is a plain total.
+        $trackingSince = $this->firstContactTrackingSince();
+
+        $slaCohort = fn () => Lead::query()
+            ->whereIn('lead_owner', $ownerIds ?: [0])
+            ->when($trackingSince, fn ($query, $since) => $query->where('leads.created_at', '>=', $since));
+
+        $slaEligibleByDay = $this->countByDay($slaCohort(), 'leads.created_at', $prevStart);
+
         // Contacted-within-SLA is measured on the lead's own creation day, so a
         // lead created on day 1 and answered on day 3 counts as a day-1 miss —
         // that is what makes the rate comparable between windows.
         $contactedByDay = $this->countByDay(
-            Lead::query()
-                ->whereIn('lead_owner', $ownerIds ?: [0])
+            $slaCohort()
                 ->whereNotNull('first_contacted_at')
                 ->whereRaw("first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)"),
             'leads.created_at',
@@ -631,6 +662,7 @@ class DashboardMetricsService
         );
 
         $leads = $this->series($leadsByDay, $start, $prevStart, $days);
+        $slaEligible = $this->series($slaEligibleByDay, $start, $prevStart, $days);
         $contacted = $this->series($contactedByDay, $start, $prevStart, $days);
 
         $rate = fn (float $part, float $whole) => $whole > 0 ? round($part / $whole * 100, 1) : null;
@@ -638,15 +670,15 @@ class DashboardMetricsService
         return [
             'newLeads' => $leads + ['note' => null],
             'contactedInSla' => [
-                'value' => $rate($contacted['value'], $leads['value']),
-                'previous' => $rate($contacted['previous'], $leads['previous']),
+                'value' => $rate($contacted['value'], $slaEligible['value']),
+                'previous' => $rate($contacted['previous'], $slaEligible['previous']),
                 'spark' => array_map(
                     fn ($part, $whole) => $whole > 0 ? round($part / $whole * 100) : 0,
                     $contacted['spark'],
-                    $leads['spark']
+                    $slaEligible['spark']
                 ),
                 'unit' => '%',
-                'note' => (int) ($leads['value'] - $contacted['value'])." missed the {$slaHours}h SLA",
+                'note' => (int) ($slaEligible['value'] - $contacted['value'])." missed the {$slaHours}h SLA",
             ],
             'meetings' => $this->series($meetingsByDay, $start, $prevStart, $days)
                 + ['note' => $this->meetingsHeldNote()],
@@ -955,6 +987,15 @@ class DashboardMetricsService
         $since = now()->subDays($days)->startOfDay();
         $ownerIds = $agents->pluck('user_id')->filter()->all() ?: [0];
 
+        // Same exclusion as teamKpis, but as a second counter rather than a
+        // filter: `total` is displayed as the agent's lead count, so narrowing
+        // the query would quietly under-report their workload. Only the rate's
+        // denominator drops the leads that predate tracking.
+        $trackingSince = $this->firstContactTrackingSince();
+        $eligible = $trackingSince
+            ? "leads.created_at >= '{$trackingSince->toDateTimeString()}'"
+            : '1';
+
         $leadStats = Lead::query()
             ->whereIn('lead_owner', $ownerIds)
             ->where('leads.created_at', '>=', $since)
@@ -963,7 +1004,8 @@ class DashboardMetricsService
             ->get([
                 'lead_owner',
                 DB::raw('COUNT(*) as total'),
-                DB::raw("SUM(first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)) as in_sla"),
+                DB::raw("SUM({$eligible}) as sla_eligible"),
+                DB::raw("SUM({$eligible} AND first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)) as in_sla"),
             ])
             ->keyBy('lead_owner');
 
@@ -1008,6 +1050,8 @@ class DashboardMetricsService
             $leads = $leadStats->get($agent->user_id);
             $deals = $dealStats->get($agent->id);
             $total = (int) ($leads->total ?? 0);
+            // Judgeable leads only — see the sla_eligible note above.
+            $judgeable = (int) ($leads->sla_eligible ?? 0);
             $breaches = (int) ($openBreaches->get($agent->user_id)->total ?? 0);
             $agentStalled = (int) ($stalledByAgent[$agent->id] ?? 0);
 
@@ -1018,9 +1062,10 @@ class DashboardMetricsService
                 'image' => $agent->user?->image_url,
                 'open_deals' => (int) ($deals->open_deals ?? 0),
                 'leads' => $total,
-                // NULL, not 0 — an agent with no new leads has no contact rate.
-                'contact_rate' => $total > 0
-                    ? round((int) ($leads->in_sla ?? 0) / $total * 100)
+                // NULL, not 0 — an agent with no judgeable leads has no contact
+                // rate, which is different from having a rate of zero.
+                'contact_rate' => $judgeable > 0
+                    ? round((int) ($leads->in_sla ?? 0) / $judgeable * 100)
                     : null,
                 'meetings' => (int) ($meetings->get($agent->user_id)->total ?? 0),
                 'deals' => (int) ($deals->created_in_window ?? 0),
@@ -1508,14 +1553,37 @@ class DashboardMetricsService
      */
     private function firstContactTrackingSince(): ?Carbon
     {
-        $earliest = Lead::whereNotNull('first_contacted_at')->min('first_contacted_at');
+        // Memoised: three panels ask for this in one request and it is a MIN
+        // over the whole leads table each time.
+        if (! $this->trackingSinceResolved) {
+            $earliest = Lead::whereNotNull('first_contacted_at')->min('first_contacted_at');
+            $this->trackingSince = $earliest ? Carbon::parse($earliest) : null;
+            $this->trackingSinceResolved = true;
+        }
 
-        return $earliest ? Carbon::parse($earliest) : null;
+        return $this->trackingSince;
     }
 
+    /**
+     * Hours an agent has to make first contact. Configurable per company on the
+     * lead settings screen; 24 is the fallback when nothing is set.
+     */
     private function slaHours(): int
     {
-        return (int) (LeadSetting::value('first_contact_sla_hours') ?: 24);
+        return self::clampSlaHours(LeadSetting::value('first_contact_sla_hours'));
+    }
+
+    /**
+     * Kept next to the only reader so the bound and the default cannot drift
+     * from what the settings form validates against.
+     */
+    public static function clampSlaHours($hours): int
+    {
+        $hours = (int) $hours;
+
+        return $hours >= self::SLA_HOURS_MIN && $hours <= self::SLA_HOURS_MAX
+            ? $hours
+            : self::SLA_HOURS_DEFAULT;
     }
 
     /** The user ids behind a set of lead_agent ids — leads are owned by users. */

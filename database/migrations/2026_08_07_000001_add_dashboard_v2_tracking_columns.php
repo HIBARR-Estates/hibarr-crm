@@ -40,7 +40,8 @@ return new class extends Migration
         });
 
         if (
-            Schema::hasColumn('leads', 'referred_by_agent_id')
+            $this->isMySql()
+            && Schema::hasColumn('leads', 'referred_by_agent_id')
             && ! $this->foreignKeyExists('leads', 'leads_referred_by_agent_id_foreign')
         ) {
             Schema::table('leads', function (Blueprint $table) {
@@ -81,39 +82,50 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('leads', function (Blueprint $table) {
-            if ($this->foreignKeyExists('leads', 'leads_referred_by_agent_id_foreign')) {
+        if ($this->isMySql() && $this->foreignKeyExists('leads', 'leads_referred_by_agent_id_foreign')) {
+            Schema::table('leads', function (Blueprint $table) {
                 $table->dropForeign('leads_referred_by_agent_id_foreign');
-            }
-        });
+            });
+        }
 
-        Schema::table('leads', function (Blueprint $table) {
-            foreach (['primary_language', 'assigned_at', 'first_contacted_at', 'referred_by_agent_id'] as $column) {
-                if (Schema::hasColumn('leads', $column)) {
-                    $table->dropColumn($column);
-                }
-            }
-        });
+        $this->dropColumns('leads', ['primary_language', 'assigned_at', 'first_contacted_at', 'referred_by_agent_id']);
+        $this->dropColumns('deals', ['stage_entered_at', 'exchange_rate']);
+        $this->dropColumns('pipeline_stages', ['target_duration_days']);
+        $this->dropColumns('lead_setting', ['first_contact_sla_hours']);
+    }
 
-        Schema::table('deals', function (Blueprint $table) {
-            foreach (['stage_entered_at', 'exchange_rate'] as $column) {
-                if (Schema::hasColumn('deals', $column)) {
-                    $table->dropColumn($column);
-                }
+    /**
+     * One column per Schema::table call.
+     *
+     * Batching them into a single closure works on MySQL but SQLite refuses
+     * ("doesn't support multiple calls to dropColumn in a single
+     * modification"), which made this migration irreversible anywhere the app
+     * is not on MySQL — including the test database.
+     *
+     * @param  array<int, string>  $columns
+     */
+    private function dropColumns(string $table, array $columns): void
+    {
+        foreach ($columns as $column) {
+            if (! Schema::hasColumn($table, $column)) {
+                continue;
             }
-        });
 
-        Schema::table('pipeline_stages', function (Blueprint $table) {
-            if (Schema::hasColumn('pipeline_stages', 'target_duration_days')) {
-                $table->dropColumn('target_duration_days');
-            }
-        });
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->dropColumn($column);
+            });
+        }
+    }
 
-        Schema::table('lead_setting', function (Blueprint $table) {
-            if (Schema::hasColumn('lead_setting', 'first_contact_sla_hours')) {
-                $table->dropColumn('first_contact_sla_hours');
-            }
-        });
+    /**
+     * The foreign key is MySQL-only. SQLite (the test database) cannot add one
+     * to an existing table at all, and has no information_schema to check with,
+     * so both the add and the drop are skipped there. The column itself — which
+     * is what every query actually reads — is created on every driver.
+     */
+    private function isMySql(): bool
+    {
+        return Schema::getConnection()->getDriverName() === 'mysql';
     }
 
     private function foreignKeyExists(string $table, string $foreignKey): bool

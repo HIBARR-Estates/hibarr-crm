@@ -237,6 +237,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Lead Settings */
     Route::put('lead-settings/deal-package-settings', [LeadSettingController::class, 'updateDealPackageSettings'])->name('lead-settings.deal-package-settings');
+    // Both of these must stay above the resource, or lead-settings/{lead_setting}
+    // swallows them.
+    Route::put('lead-settings/first-contact-sla', [LeadSettingController::class, 'updateFirstContactSla'])->name('lead-settings.first-contact-sla');
     Route::resource('lead-settings', LeadSettingController::class);
     Route::post('lead-settings-status/update-status/{companyId}', [LeadSettingController::class, 'updateLeadSettingStatus'])->name('lead-setting.update_status');
     Route::post('lead-sources/reorder', [LeadSourceSettingController::class, 'reorder'])->name('lead-sources.reorder');

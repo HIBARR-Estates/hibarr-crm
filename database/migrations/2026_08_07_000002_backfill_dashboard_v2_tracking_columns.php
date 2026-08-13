@@ -15,6 +15,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Every statement below is a multi-table `UPDATE ... JOIN` or a JSON_*
+        // call, neither of which SQLite has. Skipping on other drivers is
+        // correct rather than merely convenient: this seeds history, and a test
+        // database built from scratch has none to seed.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         $this->repairStrippedModelTypes();
         $this->backfillFirstContactedAt();
         $this->backfillAssignedAt();
