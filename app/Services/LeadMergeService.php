@@ -85,11 +85,16 @@ class LeadMergeService
             );
 
             $this->applyOwnershipPicks($primary, $ownershipFieldPicks, $actorUserId);
+
+            // Free unique channel values on the duplicate before saving the primary.
+            // Otherwise copying an empty primary field from the duplicate hits
+            // leads_client_email_unique (and similar indexes) while the duplicate still holds the value.
+            $this->invalidateUniqueChannelFields($duplicate);
+
             $primary->save();
 
             $this->reassignRelatedRecords($primary, $duplicate);
             $this->mergeMarketing($primary, $duplicate);
-            $this->invalidateUniqueChannelFields($duplicate);
 
             $duplicate->merged_into_lead_id = $primary->id;
             $duplicate->save();
