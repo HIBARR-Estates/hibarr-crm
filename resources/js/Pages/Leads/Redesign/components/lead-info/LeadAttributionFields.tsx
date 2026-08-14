@@ -184,8 +184,11 @@ export function LeadPreferredContactTimeField({
             displayValue={
                 lead.preferred_contact_time ? (
                     <span className="text-gray-700">
-                        {formatPreferredContactTime(
-                            lead.preferred_contact_time,
+                        {td(
+                            formatPreferredContactTime(
+                                lead.preferred_contact_time,
+                            ),
+                            { source: "en" },
                         )}
                     </span>
                 ) : undefined

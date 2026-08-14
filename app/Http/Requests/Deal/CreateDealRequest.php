@@ -47,6 +47,12 @@ class CreateDealRequest extends CoreRequest
                 $this->merge([$field => [(int) $this->input($field)]]);
             }
         }
+
+        if (! $this->exists('referral_agent_id') && $this->exists('referal_agent_id')) {
+            $this->merge([
+                'referral_agent_id' => $this->input('referal_agent_id'),
+            ]);
+        }
     }
 
     /**
@@ -122,7 +128,8 @@ class CreateDealRequest extends CoreRequest
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
-            'referral_agent_id' => 'nullable|integer',
+            'referral_agent_id' => $this->referralAgentRules($companyId),
+            'referal_agent_id' => $this->referralAgentRules($companyId),
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -232,6 +239,22 @@ class CreateDealRequest extends CoreRequest
             'custom_fields_data' => 'nullable|array',
             'custom_fields_data.*' => 'nullable',
         ];
+    }
+
+    /**
+     * @return list<string|\Illuminate\Validation\Rules\Exists>
+     */
+    private function referralAgentRules(?int $companyId): array
+    {
+        $rules = ['nullable', 'integer'];
+        $exists = Rule::exists('lead_agents', 'id');
+        if ($companyId) {
+            $exists = $exists->where(fn ($query) => $query->where('company_id', $companyId));
+        }
+
+        $rules[] = $exists;
+
+        return $rules;
     }
 
     /**

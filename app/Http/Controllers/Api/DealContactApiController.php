@@ -598,7 +598,7 @@ class DealContactApiController extends Controller
             }
         }
 
-        if ($request->filled('preferred_contact_time')) {
+        if ($request->has('preferred_contact_time')) {
             $preferredContactTime = $request->input('preferred_contact_time');
             $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
             if ((string) $current !== (string) $preferredContactTime) {
@@ -619,8 +619,8 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Set referred_by_agent_id on a newly created lead (Lead::referredByAgent()).
-     * Invalid input is ignored so the endpoint still succeeds.
+     * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
+     * Invalid, missing, or cross-company IDs are ignored.
      */
     private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
     {
@@ -629,11 +629,20 @@ class DealContactApiController extends Controller
             return;
         }
 
-        if (! is_numeric($referralAgentId)) {
+        if (! is_numeric($referralAgentId) || ! $lead->company_id) {
             return;
         }
 
-        $lead->referred_by_agent_id = (int) $referralAgentId;
+        $agent = LeadAgent::query()
+            ->where('company_id', $lead->company_id)
+            ->whereKey((int) $referralAgentId)
+            ->first();
+
+        if ($agent === null) {
+            return;
+        }
+
+        $lead->referred_by_agent_id = $agent->id;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\PreferredContactTime;
+use App\Http\Requests\Lead\PatchRequest;
 use App\Models\Lead;
 use App\Services\LeadService;
 use Illuminate\Database\Schema\Blueprint;
@@ -10,7 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class LeadPreferredContactTimeTest extends TestCase
@@ -64,22 +65,28 @@ class LeadPreferredContactTimeTest extends TestCase
 
     public function test_validation_rejects_preferred_contact_time_outside_allowed_values(): void
     {
-        $validator = Validator::make(
-            ['preferred_contact_time' => 'midnight'],
-            ['preferred_contact_time' => ['nullable', 'in:'.implode(',', PreferredContactTime::values())]]
-        );
-
-        $this->assertTrue($validator->fails());
+        try {
+            $this->validatePreferredContactTimeOnPatchRequest('midnight');
+            $this->fail('Expected preferred_contact_time validation to fail.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('preferred_contact_time', $e->errors());
+        }
     }
 
     public function test_validation_allows_null_preferred_contact_time(): void
     {
-        $validator = Validator::make(
-            ['preferred_contact_time' => null],
-            ['preferred_contact_time' => ['nullable', 'in:'.implode(',', PreferredContactTime::values())]]
-        );
+        $this->validatePreferredContactTimeOnPatchRequest(null);
 
-        $this->assertFalse($validator->fails());
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_validation_allows_each_preferred_contact_time_value(): void
+    {
+        foreach (PreferredContactTime::cases() as $case) {
+            $this->validatePreferredContactTimeOnPatchRequest($case->value);
+        }
+
+        $this->addToAssertionCount(count(PreferredContactTime::cases()));
     }
 
     public function test_filter_by_preferred_contact_time_returns_only_matching_leads(): void
@@ -144,6 +151,16 @@ class LeadPreferredContactTimeTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function validatePreferredContactTimeOnPatchRequest(mixed $value): void
+    {
+        $request = PatchRequest::create('/lead-contact/1', 'PATCH', [
+            'preferred_contact_time' => $value,
+        ]);
+        $request->setContainer($this->app);
+        $request->setRedirector($this->app->make('redirect'));
+        $request->validateResolved();
     }
 
     /**
