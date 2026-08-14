@@ -1,16 +1,22 @@
 import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Lead } from "@/Types/api/leads";
 import { getDossierFieldValue } from "../../adapters/dossierAdapter";
+import {
+    formatPreferredContactTime,
+    PREFERRED_CONTACT_TIME_LABELS,
+    PREFERRED_CONTACT_TIME_VALUES,
+} from "../../config/leadPreferredContactTime";
 import {
     formatLeadTemperature,
     LEAD_TEMPERATURE_TONE,
 } from "../../config/leadTemperature";
 
 /**
- * Source / category / temperature editors, shared by the Lead info tab and the
- * dossier rail so both write the same payload shape and read the same value
- * fallbacks (`categories` -> `category_ids` -> `category_id`).
+ * Shared lead field editors for the Lead info tab and the dossier rail so both
+ * write the same payload shape and read the same value fallbacks
+ * (`categories` -> `category_ids` -> `category_id`).
  */
 interface LeadAttributionFieldProps {
     lead: Lead;
@@ -149,6 +155,47 @@ export function LeadTemperatureField({
             alwaysEditing={alwaysEditing}
             onChange={onChange}
             loading={isFieldLoading("temperature")}
+            disabled={disabled}
+        />
+    );
+}
+
+export function LeadPreferredContactTimeField({
+    lead,
+    onFieldUpdate,
+    isFieldLoading,
+    disabled,
+    alwaysEditing,
+    onChange,
+}: LeadAttributionFieldProps) {
+    const { td } = useTd();
+
+    return (
+        <DealEditableField
+            value={lead.preferred_contact_time || ""}
+            fieldName="preferred_contact_time"
+            fieldType="select"
+            options={PREFERRED_CONTACT_TIME_VALUES.map((value) => ({
+                label: td(PREFERRED_CONTACT_TIME_LABELS[value], {
+                    source: "en",
+                }),
+                value,
+            }))}
+            displayValue={
+                lead.preferred_contact_time ? (
+                    <span className="text-gray-700">
+                        {formatPreferredContactTime(
+                            lead.preferred_contact_time,
+                        )}
+                    </span>
+                ) : undefined
+            }
+            onSave={(value) =>
+                onFieldUpdate("preferred_contact_time", value)
+            }
+            alwaysEditing={alwaysEditing}
+            onChange={onChange}
+            loading={isFieldLoading("preferred_contact_time")}
             disabled={disabled}
         />
     );

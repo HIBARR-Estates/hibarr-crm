@@ -11,6 +11,7 @@ import {
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
 import {
     LeadCategoryField,
+    LeadPreferredContactTimeField,
     LeadSourceField,
     LeadTemperatureField,
 } from "../lead-info/LeadAttributionFields";
@@ -24,6 +25,7 @@ const EDITABLE_FIELDS: Partial<
     source: LeadSourceField,
     category: LeadCategoryField,
     temperature: LeadTemperatureField,
+    preferredContactTime: LeadPreferredContactTimeField,
 };
 
 interface LeadDossierProps {

@@ -23,6 +23,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 
 
 class DealContactApiController extends Controller
@@ -287,6 +288,7 @@ class DealContactApiController extends Controller
                     }
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
+                    $this->applyReferralAgentToNewLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
@@ -462,6 +464,7 @@ class DealContactApiController extends Controller
         }
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
+        $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -579,7 +582,7 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Apply optional lead classification fields (temperature, lifecycle status).
+     * Apply optional lead classification fields (temperature, preferred contact time, lifecycle status).
      * Returns true if any attribute was changed.
      * WhatsApp group membership is applied via saveUtmInfo (marketing record).
      */
@@ -596,6 +599,15 @@ class DealContactApiController extends Controller
             }
         }
 
+        if ($request->filled('preferred_contact_time')) {
+            $preferredContactTime = $request->input('preferred_contact_time');
+            $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
+            if ((string) $current !== (string) $preferredContactTime) {
+                $lead->preferred_contact_time = $preferredContactTime;
+                $updated = true;
+            }
+        }
+
         if ($request->filled('lead_lifecycle_status_id')) {
             $statusId = (int) $request->input('lead_lifecycle_status_id');
             if ((int) $lead->lead_lifecycle_status_id !== $statusId) {
@@ -605,6 +617,47 @@ class DealContactApiController extends Controller
         }
 
         return $updated;
+    }
+
+    /**
+     * Set referral_agent_id on a newly created lead when that column exists.
+     * Missing column or invalid input is ignored so the endpoint still succeeds.
+     */
+    private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
+    {
+        $referralAgentId = $request->input('referral_agent_id', $request->input('referal_agent_id'));
+        if ($referralAgentId === null || $referralAgentId === '') {
+            return;
+        }
+
+        if (! is_numeric($referralAgentId)) {
+            return;
+        }
+
+        $column = $this->referralAgentColumnName();
+        if ($column === null) {
+            return;
+        }
+
+        $lead->setAttribute($column, (int) $referralAgentId);
+    }
+
+    private function referralAgentColumnName(): ?string
+    {
+        foreach (['referral_agent_id', 'referal_agent_id'] as $candidate) {
+            try {
+                if (Schema::hasColumn('leads', $candidate)) {
+                    return $candidate;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Could not inspect leads column for referral agent', [
+                    'column' => $candidate,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return null;
     }
 
     /**

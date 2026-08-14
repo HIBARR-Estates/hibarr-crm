@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Contact;
 
+use App\Enums\PreferredContactTime;
 use App\Http\Requests\CoreRequest;
+use Illuminate\Validation\Rule;
 
 class CreateOrUpdateContactRequest extends CoreRequest
 {
@@ -33,6 +35,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
             'lead_owner_id' => 'nullable|integer|exists:users,id',
+            'referral_agent_id' => 'nullable|integer',
             'lead_category_id' => 'nullable|integer|exists:lead_category,id',
             'update_agent_if_exists' => 'nullable|boolean',
             'notify' => 'nullable|boolean',
@@ -69,6 +72,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
 
             // Optional classification / engagement (CRM lead fields)
             'temperature' => 'nullable|string|in:cold,warm,hot',
+            'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 

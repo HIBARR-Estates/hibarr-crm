@@ -14,6 +14,7 @@ export type LeadNativeFieldKey =
     | "nationality"
     | "gender"
     | "temperature"
+    | "preferredContactTime"
     | "languages"
     | "occupation"
     | "companyName"
@@ -63,6 +64,11 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
             { key: "whatsapp", label: "WhatsApp", leadField: "client_whatsapp" },
             { key: "telegram", label: "Telegram", leadField: "client_telegram" },
             { key: "instagram", label: "Instagram", leadField: "client_instagram" },
+            {
+                key: "preferredContactTime",
+                label: "Preferred contact time",
+                leadField: "preferred_contact_time",
+            },
             {
                 key: "dateOfBirthAndAge",
                 label: "Date of Birth & Age",

@@ -7,6 +7,7 @@ use App\Enums\Salutation;
 use App\Enums\Gender;
 use App\Enums\AgeRange;
 use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
@@ -55,6 +56,7 @@ use Illuminate\Notifications\Notifiable;
  * @property \Illuminate\Support\Carbon|null $date_of_birth
  * @property int|null $age
  * @property string|null $age_range
+ * @property string|null $preferred_contact_time
  * @property string|null $note
  * @property string $next_follow_up
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -166,6 +168,7 @@ class Lead extends BaseModel
         'age' => 'integer',
         'age_range' => AgeRange::class,
         'temperature' => LeadTemperature::class,
+        'preferred_contact_time' => PreferredContactTime::class,
         'languages' => 'array',
         'assigned_at' => 'datetime',
         'first_contacted_at' => 'datetime',

@@ -394,6 +394,18 @@ export default function EditLeadDetailsModal({
                                     ],
                                 );
                             }
+                            if (field.leadField === "preferred_contact_time") {
+                                return renderFieldInput(
+                                    "preferred_contact_time",
+                                    field.label,
+                                    "select",
+                                    [
+                                        { value: "morning", label: td("Morning", { source: "en" }) },
+                                        { value: "afternoon", label: td("Afternoon", { source: "en" }) },
+                                        { value: "evening", label: td("Evening", { source: "en" }) },
+                                    ],
+                                );
+                            }
                             if (
                                 field.leadField ===
                                 "has_joined_the_whatsapp_group"

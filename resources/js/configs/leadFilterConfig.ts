@@ -209,6 +209,16 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             options: props.genders || [],
         },
         {
+            key: "preferred_contact_time",
+            label: "Preferred contact time",
+            type: "multiselect",
+            control: "pills",
+            facetKey: "preferred_contact_time",
+            sentence: "preferred contact time",
+            section: "Profile",
+            options: props.preferredContactTimes || [],
+        },
+        {
             key: "age_range",
             label: "Age range",
             type: "multiselect",

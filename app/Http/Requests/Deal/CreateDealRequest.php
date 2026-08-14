@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deal;
 
+use App\Enums\PreferredContactTime;
 use App\Http\Requests\CoreRequest;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
@@ -121,6 +122,7 @@ class CreateDealRequest extends CoreRequest
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
+            'referral_agent_id' => 'nullable|integer',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -130,6 +132,7 @@ class CreateDealRequest extends CoreRequest
 
             // Optional lead classification / engagement (applied to the contact)
             'temperature' => 'nullable|string|in:cold,warm,hot',
+            'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
