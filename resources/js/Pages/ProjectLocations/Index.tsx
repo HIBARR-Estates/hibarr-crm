@@ -306,6 +306,7 @@ const FIELD_TO_TAB: Record<string, string> = {
     address_street: "basic",
     address_country: "basic",
     address_postalCode: "basic",
+    location_image: "basic",
     map_image: "basic",
     attractions: "attractions",
     infrastructure: "infrastructure",
@@ -1142,24 +1143,26 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     <Divider orientation="left" plain>
                         <Text type="secondary">
                             <PictureOutlined className="mr-2" />
-                            Map Image
+                            Location Image
                         </Text>
                     </Divider>
 
-                    {/* <Form.Item
-                        name="map_image"
-                        label="Location Map"
+                    <Form.Item
+                        name="location_image"
+                        label={td("Location Image", { source: "en" })}
                         valuePropName="value"
                         getValueFromEvent={(e) =>
                             Array.isArray(e) ? e : e?.fileList
                         }
-                        extra="Upload an image showing the location on a map"
+                        extra={td("Shown on the expose location page", { source: "en" })}
                     >
                         <ImageUploader
-                            existingUrl={location?.map_url || undefined}
-                            placeholder="Upload Map Image"
+                            existingUrl={
+                                referenceLocation?.image_url || undefined
+                            }
+                            placeholder={td("Upload Location Image", { source: "en" })}
                         />
-                    </Form.Item> */}
+                    </Form.Item>
                 </div>
             ),
         },
