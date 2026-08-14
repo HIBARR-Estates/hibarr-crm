@@ -6,16 +6,19 @@ import "./active-filter-sentence.css";
 interface ActiveFilterSentenceProps {
     /** Result count for the currently applied filters. */
     count?: number;
+    /** Plural noun for the copy, e.g. "leads" / "deals". */
+    entityLabel?: string;
     onOpenFilters: () => void;
     onSaveAsView?: () => void;
 }
 
 /**
- * Mockup 3c — the quiet filter bar above the leads table. One readable
+ * Mockup 3c — the quiet filter bar above the list table. One readable
  * sentence, each clause clickable straight into the filter modal.
  */
 export default function ActiveFilterSentence({
     count,
+    entityLabel = "leads",
     onOpenFilters,
     onSaveAsView,
 }: ActiveFilterSentenceProps) {
@@ -28,7 +31,7 @@ export default function ActiveFilterSentence({
         <div className="lfs">
             <span className="lfs__dot" />
             <span className="lfs__text">
-                Showing leads where{" "}
+                Showing {entityLabel} where{" "}
                 {parts.map((part, index) => (
                     <React.Fragment key={part.keys.join("|")}>
                         {index > 0 &&
@@ -49,7 +52,7 @@ export default function ActiveFilterSentence({
                 <>
                     <span className="lfs__sep">—</span>
                     <span className="lfs__count">
-                        <b>{count.toLocaleString()}</b> leads
+                        <b>{count.toLocaleString()}</b> {entityLabel}
                     </span>
                 </>
             )}

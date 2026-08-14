@@ -47,7 +47,12 @@ export default function DealActionsMenu({
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
+    // Up to 9 entries (3 quick actions + guide + 3 outcome transitions +
+    // delete) — the 260px default cut the list off before Delete deal.
+    const floatStyle = useFloatingMenuPosition(open, btnRef, {
+        align: "right",
+        maxHeight: 420,
+    });
 
     useEffect(() => {
         if (!open) return undefined;

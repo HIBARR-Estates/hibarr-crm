@@ -1,14 +1,14 @@
 /**
- * How a bulk action should resolve its target leads.
+ * How a bulk action should resolve its target rows.
  * - ids: explicit checkbox selection
- * - all_matching: every lead in the current filtered index list
+ * - all_matching: every row in the current filtered index list
  */
-export type LeadBulkTarget =
+export type BulkTarget =
     | { mode: "ids"; ids: number[]; count: number }
     | { mode: "all_matching"; count: number };
 
 export function buildBulkTargetPayload(
-    target: LeadBulkTarget,
+    target: BulkTarget,
 ): Record<string, unknown> {
     if (target.mode === "all_matching") {
         return { select_all_matching: true };
