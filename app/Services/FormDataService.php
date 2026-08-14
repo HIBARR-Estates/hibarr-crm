@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Salutation;
 use App\Enums\AgeRange;
 use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -43,6 +44,8 @@ class FormDataService
                 return $this->getAgeRanges();
             case 'temperatures':
                 return $this->getTemperatures();
+            case 'preferred-contact-times':
+                return $this->getPreferredContactTimes();
             case 'categories':
                 return $this->getCategories($request);
             case 'sources':
@@ -140,6 +143,18 @@ class FormDataService
                 return [
                     'value' => $temperature->value,
                     'label' => $temperature->label(),
+                ];
+            });
+        });
+    }
+
+    private function getPreferredContactTimes(): Collection
+    {
+        return Cache::remember('lead_preferred_contact_times', self::CACHE_TTL, function () {
+            return collect(PreferredContactTime::cases())->map(function (PreferredContactTime $time) {
+                return [
+                    'value' => $time->value,
+                    'label' => $time->label(),
                 ];
             });
         });

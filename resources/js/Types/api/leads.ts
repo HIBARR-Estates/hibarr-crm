@@ -37,6 +37,7 @@ export interface Lead {
     gender?: "male" | "female" | null;
     gender_value?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
+    preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
     category_id?: number | null;
     category_ids?: number[];
     source_id?: number | null;
@@ -152,6 +153,7 @@ export interface CreateLeadFormData {
     salutation?: string;
     gender?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
+    preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
     client_name: string;
     client_email: string;
     mobile?: string;

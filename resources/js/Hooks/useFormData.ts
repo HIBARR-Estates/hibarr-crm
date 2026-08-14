@@ -36,6 +36,7 @@ export type FormDataType =
     | "genders"
     | "age-ranges"
     | "temperatures"
+    | "preferred-contact-times"
     | "lead-utm-sources"
     | "lead-utm-mediums"
     | "lead-utm-campaigns"

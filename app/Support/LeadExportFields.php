@@ -43,6 +43,7 @@ class LeadExportFields
             'occupation' => ['label' => 'Occupation', 'group' => 'Profile'],
             'languages' => ['label' => 'Languages', 'group' => 'Profile'],
             'temperature' => ['label' => 'Temperature', 'group' => 'Profile'],
+            'preferred_contact_time' => ['label' => 'Preferred contact time', 'group' => 'Profile'],
             'value' => ['label' => 'Lead value', 'group' => 'Profile'],
             'currency' => ['label' => 'Currency', 'group' => 'Profile', 'relations' => ['currency']],
 
@@ -201,6 +202,7 @@ class LeadExportFields
             'occupation' => $lead->occupation,
             'languages' => self::formatList($lead->languages),
             'temperature' => self::enumLabel($lead->temperature),
+            'preferred_contact_time' => self::enumLabel($lead->preferred_contact_time),
             'value' => $lead->value,
             'currency' => $lead->currency?->currency_code ?? $lead->currency?->currency_name,
             'address' => $lead->address,

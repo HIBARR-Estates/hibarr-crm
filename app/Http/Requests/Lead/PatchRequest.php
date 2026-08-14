@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
@@ -54,6 +55,7 @@ class PatchRequest extends CoreRequest
             'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
+            'preferred_contact_time' => ['sometimes', 'nullable', 'string', Rule::in(PreferredContactTime::values())],
 
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',

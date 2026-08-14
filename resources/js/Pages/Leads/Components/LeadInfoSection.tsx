@@ -1017,6 +1017,34 @@ const ageRangeOptions = useMemo(
                             />
                         </DetailField>
 
+                        <DetailField label={t("pages.leads.info.fields.preferred_contact_time", { defaultValue: "Preferred contact time" })}>
+                            <EditableField
+                                value={currentLeadState.preferred_contact_time || ""}
+                                fieldName="preferred_contact_time"
+                                fieldType="select"
+                                options={[
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_morning", { defaultValue: "Morning" }), value: "morning" },
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_afternoon", { defaultValue: "Afternoon" }), value: "afternoon" },
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_evening", { defaultValue: "Evening" }), value: "evening" },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("preferred_contact_time", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.preferred_contact_time ? (
+                                        <span className="capitalize">
+                                            {currentLeadState.preferred_contact_time}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("preferred_contact_time")}
+                            />
+                        </DetailField>
+
                         {useLeadCoreFields && (
                             <>
                                 <DetailField label={t("pages.leads.info.fields.languages", { defaultValue: "Languages" })}>
