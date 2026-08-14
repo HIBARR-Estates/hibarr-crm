@@ -31,7 +31,6 @@ interface WorkspaceContextRailProps {
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
-    onManagePackagesProperties?: () => void;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
@@ -53,7 +52,6 @@ export default function WorkspaceContextRail({
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
-    onManagePackagesProperties,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState<Set<string>>(
@@ -207,21 +205,10 @@ export default function WorkspaceContextRail({
                 title: "Deal details",
                 summary: packageSummary,
                 body: (
-                    <>
-                        <PackagePropertyManager
-                            deal={deal}
-                            restrictPackageOrProperty={restrictPackageOrProperty}
-                        />
-                        <div className="mt-1 border-t border-[#eef0f3] pt-2">
-                            <button
-                                type="button"
-                                onClick={onManagePackagesProperties ?? onSwitchToDealInfo}
-                                className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
-                            >
-                                {t("pages.deals.dossier.open_deal_info")}
-                            </button>
-                        </div>
-                    </>
+                    <PackagePropertyManager
+                        deal={deal}
+                        restrictPackageOrProperty={restrictPackageOrProperty}
+                    />
                 ),
             },
             {
@@ -270,9 +257,18 @@ export default function WorkspaceContextRail({
 
     return (
         <aside aria-label={t("pages.deals.dossier.aria_label")}>
-            <h2 className="mb-1 text-sm font-bold text-[#1a1f2e]">
-                {t("pages.deals.dossier.title")}
-            </h2>
+            <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-bold text-[#1a1f2e]">
+                    {t("pages.deals.dossier.title")}
+                </h2>
+                <button
+                    type="button"
+                    onClick={onSwitchToDealInfo}
+                    className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
+                >
+                    {t("pages.deals.dossier.open_deal_info")}
+                </button>
+            </div>
             {sections.map((section, index) => {
                 const isOpen = open.has(section.title);
                 return (

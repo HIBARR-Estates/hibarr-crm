@@ -8,6 +8,8 @@ import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import usePipelineHasPackages from "../../hooks/usePipelineHasPackages";
+import useSinglePackageMode from "../../hooks/useSinglePackageMode";
 
 /**
  * 1:1 port of v2.2's PackagePropertyManager (deal-v2-2.jsx:3118-3315) — the
@@ -79,6 +81,11 @@ export default function DealPackagePropertyManager({
         ? packagePoolRaw
         : [];
 
+    // A package pipeline sells packages, not individual properties.
+    const pipelineHasPackages = usePipelineHasPackages();
+    // One package per deal: nothing to add once the deal has one.
+    const singlePackageMode = useSinglePackageMode();
+
     const hasPackage = packages.length > 0;
     const hasProperty = products.length > 0;
     const totalAttached = packages.length + products.length;
@@ -90,11 +97,13 @@ export default function DealPackagePropertyManager({
     const showPackagesSection =
         !restrictPackageOrProperty || !hasProperty || overLimit;
     const showPropertiesSection =
-        !restrictPackageOrProperty || !hasPackage || overLimit;
+        !pipelineHasPackages &&
+        (!restrictPackageOrProperty || !hasPackage || overLimit);
     const showPackageAdd =
         !isLocked &&
         showPackagesSection &&
-        (!restrictPackageOrProperty || packages.length === 0);
+        (!restrictPackageOrProperty || packages.length === 0) &&
+        (!singlePackageMode || packages.length === 0);
     const showPropertyAdd =
         !isLocked &&
         showPropertiesSection &&

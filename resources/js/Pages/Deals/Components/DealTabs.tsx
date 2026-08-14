@@ -9,6 +9,7 @@ import FilesTab from "./Tabs/FilesTab";
 import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
+import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -74,6 +75,7 @@ export default function DealTabs({
     };
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
+    const pipelineHasPackages = usePipelineHasPackages();
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
@@ -144,14 +146,17 @@ export default function DealTabs({
             });
         }
 
-        // Recommendations Tab - AI-powered property recommendations
-        items.push({
-            key: "recommendations",
-            label: t("pages.deals.tabs.recommendations"),
-            children: (
-                <RecommendationsTab deal={deal} permissions={permissions} />
-            ),
-        });
+        // Recommendations Tab - AI-powered property recommendations.
+        // Hidden for package pipelines, which do not sell properties.
+        if (!pipelineHasPackages) {
+            items.push({
+                key: "recommendations",
+                label: t("pages.deals.tabs.recommendations"),
+                children: (
+                    <RecommendationsTab deal={deal} permissions={permissions} />
+                ),
+            });
+        }
 
         // Proposals Tab
         // TODO: Enable proposals tab when ready
@@ -184,17 +189,19 @@ export default function DealTabs({
             });
         }
 
-        // Offers Tab
-        items.push({
-            key: "offers",
-            label: (
-                <span>
-                    <GiftOutlined className="mr-1" />
-                    {t("pages.deals.tabs.offers")}
-                </span>
-            ),
-            children: <DealOffersTab deal={deal} />,
-        });
+        // Offers Tab — property-led, so hidden for package pipelines.
+        if (!pipelineHasPackages) {
+            items.push({
+                key: "offers",
+                label: (
+                    <span>
+                        <GiftOutlined className="mr-1" />
+                        {t("pages.deals.tabs.offers")}
+                    </span>
+                ),
+                children: <DealOffersTab deal={deal} />,
+            });
+        }
 
         // History Tab
         items.push({
@@ -348,9 +355,12 @@ export default function DealTabs({
                 ? item.label
                 : t(`pages.deals.tabs.${item.key}`),
     }));
-    const dealTabActiveContent = tabItems.find(
-        (item) => item.key === activeTab,
-    )?.children;
+    // A ?tab= deep link can name a tab this deal does not show (e.g. offers on
+    // a package pipeline) — fall back to the first available tab rather than
+    // rendering an empty panel.
+    const dealTabActiveContent =
+        tabItems.find((item) => item.key === activeTab)?.children ??
+        tabItems[0]?.children;
 
     return (
         <>
