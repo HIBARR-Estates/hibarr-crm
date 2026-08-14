@@ -198,16 +198,30 @@ class ExposeConfiguration implements Arrayable
 
         $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery', 'site-plan'];
         $assetsByTag = self::groupImageAssetsByTags($project->assets, $availableTags);
+        $unitTypeAssetTags = [
+            'hero',
+            'cover',
+            'area',
+            'exterior',
+            'interior',
+            'floor-plan',
+            'facilities',
+            'gallery',
+            'footer',
+            'site-plan',
+        ];
 
         // Build unit type summaries for the project brochure
         $unitTypeSummaries = [];
         foreach ($project->unitTypes->sortBy('order') as $unitType) {
-            $coverUrl = $unitType->assets
-                ->filter(fn($a) => $a->asset_type === 'image' && (
-                    in_array('cover', $a->tags ?? []) || in_array('hero', $a->tags ?? [])
-                ))
-                ->sortBy('order')
-                ->first()?->url;
+            $unitAssets = self::groupImageAssetsByTags($unitType->assets, $unitTypeAssetTags);
+            $coverUrl = $unitAssets['cover'][0]
+                ?? $unitAssets['hero'][0]
+                ?? $unitAssets['interior'][0]
+                ?? $unitAssets['gallery'][0]
+                ?? $unitAssets['floor-plan'][0]
+                ?? $unitAssets['exterior'][0]
+                ?? null;
 
             $unitTypeSummaries[] = [
                 'id' => $unitType->id,
@@ -227,6 +241,7 @@ class ExposeConfiguration implements Arrayable
                 'view_types' => $unitType->view_types ?? [],
                 'completion_date' => $unitType->completion_date?->format('Y') ?? $project->completion_date?->format('Y'),
                 'cover_image' => $coverUrl,
+                'assets' => $unitAssets,
                 'description' => $unitType->description,
             ];
         }

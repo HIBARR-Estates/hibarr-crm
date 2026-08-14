@@ -4,6 +4,8 @@ namespace Tests\Feature\Api;
 
 use App\Models\ApiToken;
 use App\Models\DeveloperProject;
+use App\Models\DeveloperProjectUnitType;
+use App\Models\DeveloperProjectUnitTypeAsset;
 use App\Models\ExposeSnapshot;
 use App\Models\Lead;
 use App\Models\ProjectLocation;
@@ -116,6 +118,42 @@ class ExposeSnapshotApiTest extends TestCase
             ->assertJsonPath('data.expose.location.title', 'lapta')
             ->assertJsonPath('data.expose.location.description', 'Coastal living in Lapta')
             ->assertJsonPath('data.expose.location.image_url', 'https://cdn.example/location.jpg');
+    }
+
+    public function test_mint_includes_unit_type_assets_and_cover_fallback(): void
+    {
+        $project = $this->createProject(['name' => 'Asset Project', 'slug' => 'asset-project']);
+        $unitType = $this->createUnitType($project->id, [
+            'reference_code' => 'ASSET-001-UT01',
+        ]);
+        $this->createUnitTypeAsset($unitType->id, [
+            'external_url' => 'https://cdn.example/floor-plan.jpg',
+            'tags' => ['floor-plan'],
+            'order' => 2,
+        ]);
+        $this->createUnitTypeAsset($unitType->id, [
+            'external_url' => 'https://cdn.example/interior.jpg',
+            'tags' => ['interior'],
+            'order' => 1,
+        ]);
+        $agent = $this->createAgent();
+        $lead = $this->createLead();
+
+        $response = $this->postJson('/api/v1/expose-snapshots', [
+            'entity_type' => 'developer_project',
+            'entity_id' => $project->id,
+            'agent_id' => $agent->id,
+            'lead_id' => $lead->id,
+        ], $this->authHeaders());
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.expose.unit_types.0.id', $unitType->id)
+            ->assertJsonPath('data.expose.unit_types.0.cover_image', 'https://cdn.example/interior.jpg')
+            ->assertJsonPath('data.expose.unit_types.0.assets.interior.0', 'https://cdn.example/interior.jpg')
+            ->assertJsonPath('data.expose.unit_types.0.assets.floor-plan.0', 'https://cdn.example/floor-plan.jpg');
+
+        $this->assertSame([], $response->json('data.expose.unit_types.0.assets.cover'));
+        $this->assertSame([], $response->json('data.expose.unit_types.0.assets.hero'));
     }
 
     public function test_get_by_token_returns_frozen_payload_after_entity_mutation(): void
@@ -324,6 +362,36 @@ class ExposeSnapshotApiTest extends TestCase
         ], $overrides);
 
         return ProjectLocation::withoutGlobalScopes()->create($attrs);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createUnitType(int $projectId, array $overrides = []): DeveloperProjectUnitType
+    {
+        return DeveloperProjectUnitType::withoutGlobalScopes()->create(array_merge([
+            'company_id' => self::COMPANY_ID,
+            'developer_project_id' => $projectId,
+            'primary_category' => 'residential',
+            'property_type' => 'apartment',
+            'order' => 1,
+            'currency' => 'GBP',
+        ], $overrides));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createUnitTypeAsset(int $unitTypeId, array $overrides = []): DeveloperProjectUnitTypeAsset
+    {
+        return DeveloperProjectUnitTypeAsset::withoutGlobalScopes()->create(array_merge([
+            'unit_type_id' => $unitTypeId,
+            'company_id' => self::COMPANY_ID,
+            'asset_type' => 'image',
+            'external_url' => 'https://cdn.example/unit.jpg',
+            'tags' => ['interior'],
+            'order' => 0,
+        ], $overrides));
     }
 
     /**
