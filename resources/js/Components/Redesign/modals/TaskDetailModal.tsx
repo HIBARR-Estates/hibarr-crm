@@ -29,7 +29,7 @@ export interface TaskDetailUpdateInput {
     startDate: string;
     dueDate: string;
     dueTime: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     assignees: number[];
 }
 
@@ -50,6 +50,8 @@ export interface TaskDetailModalLabels {
     priorityHigh: string;
     priorityMedium: string;
     priorityLow: string;
+    priorityHighest: string;
+    priorityUrgent: string;
     assignees: string;
     overdue: string;
     noDescription: string;
@@ -63,7 +65,7 @@ interface EditFormState {
     startDate: string;
     dueDate: string;
     dueTime: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     assignees: number[];
 }
 
@@ -380,6 +382,12 @@ export default function TaskDetailModal({
                                     })
                                 }
                             >
+                                <option value="urgent">
+                                    {labels.priorityUrgent}
+                                </option>
+                                <option value="highest">
+                                    {labels.priorityHighest}
+                                </option>
                                 <option value="high">
                                     {labels.priorityHigh}
                                 </option>

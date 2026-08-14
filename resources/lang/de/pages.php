@@ -463,6 +463,8 @@ return [
             'priority_high'              => 'Hoch',
             'priority_medium'            => 'Mittel',
             'priority_low'               => 'Niedrig',
+            'priority_highest'           => 'Höchste',
+            'priority_urgent'            => 'Dringend',
             'assignees'                  => 'Zugewiesene',
             'loading'                    => 'Wird geladen…',
             'refresh'                    => 'Aktualisieren',

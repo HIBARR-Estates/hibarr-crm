@@ -149,6 +149,12 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                                     handleFilterChange("priority", value)
                                 }
                             >
+                                <Option value="urgent">
+                                    <Space>🔴 Urgent</Space>
+                                </Option>
+                                <Option value="highest">
+                                    <Space>🔴 Highest</Space>
+                                </Option>
                                 <Option value="high">
                                     <Space>🔴 High</Space>
                                 </Option>

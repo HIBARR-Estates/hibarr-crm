@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\DealFollowUp;
 use App\Models\Lead;
+use App\Models\Task;
+use App\Models\TaskboardColumn;
 use App\Models\User;
 use App\Models\PipelineStage;
 use App\Models\CustomField;
@@ -11,6 +14,7 @@ use App\Models\CustomFieldCategory;
 use App\Services\LeadCoreFieldsService;
 use App\Support\LeadSearchQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +56,11 @@ class LeadService
         'utm_content',
         'utm_term',
         'utm_audience',
+        'next_action',
     ];
+
+    /** Urgency buckets the Next Action column can be filtered by. */
+    public const NEXT_ACTION_BUCKETS = ['overdue', 'today', 'week', 'none'];
 
     /** Option-valued custom field types that can appear in the Leads filter modal. */
     public const OPTION_CUSTOM_FIELD_TYPES = [
@@ -101,6 +109,12 @@ class LeadService
                 'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
 
+        // Next action date as a select expression so the column can be sorted
+        // and filtered server-side; the display payload is attached per page
+        // below by attachNextActions().
+        [$nextActionSql, $nextActionBindings] = $this->nextActionAtSql();
+        $query->selectRaw("{$nextActionSql} as next_action_at", $nextActionBindings);
+
         // Apply permission-based filtering
         $this->applyPermissionScope($query, $viewPermission);
         
@@ -122,7 +136,228 @@ class LeadService
             return $lead;
         });
 
+        $this->attachNextActions($leads->getCollection());
+
         return $leads;
+    }
+
+    /**
+     * SQL for a lead's next action: the earliest open task due date or scheduled
+     * meeting, whichever comes first, NULL when the lead has neither.
+     *
+     * Raw SQL rather than a relation because the Leads index sorts and filters
+     * on it — eager-loading tasks + meetings to read one date per row would
+     * pull every open item belonging to the page.
+     *
+     * @return array{0: string, 1: array<int, mixed>} [sql, bindings]
+     */
+    /**
+     * Company's current UTC offset in minutes (east positive), matching
+     * Carbon's own getOffset() sign convention.
+     *
+     * ponytail: derived from *today's* DST state, not the meeting's own
+     * date — wrong by an hour for a meeting on the far side of a DST
+     * boundary from today. Upgrade to MySQL CONVERT_TZ() if that turns out
+     * to matter; it needs the timezone tables loaded, which isn't
+     * guaranteed in every environment this runs in.
+     */
+    private function companyOffsetMinutes(): int
+    {
+        return (int) round(now()->setTimezone($this->companyTimezone())->getOffset() / 60);
+    }
+
+    private function companyTimezone(): string
+    {
+        // company() can return false (no session/user context — e.g. a
+        // console/queue run), not just null, so ?? alone isn't safe here.
+        $company = company();
+
+        return is_object($company) ? ($company->timezone ?: 'UTC') : 'UTC';
+    }
+
+    /**
+     * lead_follow_up.next_follow_up_date is stored as true UTC (see
+     * DealController::followUpStore's ->setTimezone('UTC')); tasks.due_date
+     * is stored as company wall-clock digits with no timezone label at all
+     * (see Task::wallClockString's docblock — TaskController@store never
+     * shifts it). Shifting the meeting column by the company's UTC offset
+     * makes it comparable, as a naive string, to the task column and to
+     * companyNow() below — matching the convention tasks already assume
+     * everywhere else in the app, rather than making meetings "correct" and
+     * tasks wrong.
+     */
+    private function shiftToCompanyWallClockSql(string $column, int $offsetMinutes): string
+    {
+        if ($offsetMinutes === 0) {
+            return $column;
+        }
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $sign = $offsetMinutes >= 0 ? '+' : '-';
+
+            return "datetime({$column}, '{$sign}" . abs($offsetMinutes) . " minutes')";
+        }
+
+        return "DATE_ADD({$column}, INTERVAL {$offsetMinutes} MINUTE)";
+    }
+
+    /** "Now", rendered as the same naive company-wall-clock basis as tasks.due_date. */
+    private function companyNow(): \Illuminate\Support\Carbon
+    {
+        return now()->setTimezone($this->companyTimezone());
+    }
+
+    private function nextActionAtSql(): array
+    {
+        // ponytail: sqlite has no LEAST (its MIN/2 is the equivalent), and both
+        // return NULL if either argument is NULL — hence the sentinel round-trip.
+        $least = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
+        $bindings = [];
+
+        $meetingColumn = $this->shiftToCompanyWallClockSql(
+            'f.next_follow_up_date',
+            $this->companyOffsetMinutes(),
+        );
+
+        $meeting = "(SELECT MIN({$meetingColumn}) FROM lead_follow_up f
+            WHERE f.lead_id = leads.id AND f.status = 'scheduled'
+              AND f.next_follow_up_date IS NOT NULL";
+
+        // Mirrors LeadContactController@show: with 'added' the user only sees
+        // meetings they created, so those are the only ones that can be "next".
+        if (user()->permission('view_lead_follow_up') === 'added') {
+            $meeting .= ' AND f.added_by = ?';
+            $bindings[] = user()->id;
+        }
+
+        $meeting .= ')';
+
+        $task = "(SELECT MIN(t.due_date) FROM taskables tb
+            JOIN tasks t ON t.id = tb.task_id
+            WHERE tb.taskable_id = leads.id AND tb.taskable_type = ?
+              AND t.deleted_at IS NULL AND t.due_date IS NOT NULL";
+        $bindings[] = (new Lead())->getMorphClass();
+
+        if ($doneColumnId = $this->doneTaskColumnId()) {
+            $task .= ' AND t.board_column_id <> ?';
+            $bindings[] = $doneColumnId;
+        }
+
+        $task .= ')';
+
+        $sql = "NULLIF({$least}(COALESCE({$meeting}, '9999-12-31'), COALESCE({$task}, '9999-12-31')), '9999-12-31')";
+
+        return [$sql, $bindings];
+    }
+
+    /** Urgency bucket filter — same boundaries the table cell colours by. */
+    private function applyNextActionFilter(Builder $query, mixed $bucket): void
+    {
+        [$sql, $bindings] = $this->nextActionAtSql();
+        // Same naive company-wall-clock basis nextActionAtSql() now produces
+        // for both tasks and meetings — real UTC now() would be off by the
+        // company's offset against tasks.due_date, which carries no tz label.
+        $now = $this->companyNow();
+
+        match ($bucket) {
+            'overdue' => $query->whereRaw("{$sql} < ?", [...$bindings, $now]),
+            'today' => $query->whereRaw("{$sql} between ? and ?", [...$bindings, $now, $now->copy()->endOfDay()]),
+            'week' => $query->whereRaw("{$sql} between ? and ?", [...$bindings, $now, $now->copy()->addDays(7)]),
+            'none' => $query->whereRaw("{$sql} is null", $bindings),
+            default => null,
+        };
+    }
+
+    /**
+     * Attach the next action payload (type/title/date) to each lead on the page.
+     *
+     * Two indexed queries for the whole page, keyed off the already-paginated
+     * ids: nextActionAtSql() only yields a date, and the cell needs to say what
+     * the action is. Predicates here must stay in step with that expression.
+     */
+    private function attachNextActions(EloquentCollection $leads): void
+    {
+        $leadIds = $leads->pluck('id')->all();
+
+        if (empty($leadIds)) {
+            return;
+        }
+
+        $meetingQuery = DealFollowUp::query()
+            ->whereIn('lead_id', $leadIds)
+            ->where('status', 'scheduled')
+            ->whereNotNull('next_follow_up_date')
+            ->with('meetingType:id,name')
+            ->orderBy('next_follow_up_date');
+
+        if (user()->permission('view_lead_follow_up') === 'added') {
+            $meetingQuery->where('added_by', user()->id);
+        }
+
+        // ponytail: no per-lead LIMIT — one page carries tens of open items, so
+        // take the earliest in PHP. ROW_NUMBER() if leads ever hold hundreds.
+        $meetings = $meetingQuery
+            ->get(['id', 'lead_id', 'next_follow_up_date', 'remark', 'meeting_type_id'])
+            ->groupBy('lead_id');
+
+        $doneColumnId = $this->doneTaskColumnId();
+
+        $tasks = Task::query()
+            ->without(['company', 'project', 'users'])
+            ->join('taskables', 'taskables.task_id', '=', 'tasks.id')
+            ->where('taskables.taskable_type', (new Lead())->getMorphClass())
+            ->whereIn('taskables.taskable_id', $leadIds)
+            ->whereNotNull('tasks.due_date')
+            ->when($doneColumnId, fn ($q) => $q->where('tasks.board_column_id', '<>', $doneColumnId))
+            ->orderBy('tasks.due_date')
+            ->get(['tasks.id', 'tasks.heading', 'tasks.due_date', 'taskables.taskable_id as lead_id'])
+            ->groupBy('lead_id');
+
+        $leads->each(function ($lead) use ($meetings, $tasks) {
+            $meeting = $meetings->get($lead->id)?->first();
+            $task = $tasks->get($lead->id)?->first();
+
+            $candidates = [];
+
+            if ($meeting) {
+                $candidates[] = [
+                    'type' => 'meeting',
+                    'id' => $meeting->id,
+                    'title' => trim(strip_tags((string) $meeting->remark))
+                        ?: ($meeting->meetingType?->name ?? 'Meeting'),
+                    // next_follow_up_date is stored as true UTC (unlike
+                    // tasks.due_date — see Task::wallClockString's docblock),
+                    // so it needs an explicit conversion before formatting as
+                    // a naive string. Without this the frontend, which treats
+                    // due_at as already-company-local, displayed raw UTC.
+                    'due_at' => $meeting->next_follow_up_date
+                        ?->copy()
+                        ->setTimezone($this->companyTimezone())
+                        ->format('Y-m-d H:i:s'),
+                    'meta' => $meeting->meetingType?->name,
+                ];
+            }
+
+            if ($task) {
+                $candidates[] = [
+                    'type' => 'task',
+                    'id' => $task->id,
+                    'title' => $task->heading,
+                    'due_at' => $task->due_date?->format('Y-m-d H:i:s'),
+                    'meta' => null,
+                ];
+            }
+
+            $lead->next_action = collect($candidates)->sortBy('due_at')->first();
+        });
+    }
+
+    private ?int $doneTaskColumnId = null;
+
+    /** Board column meaning "done"; null when the company has none. */
+    private function doneTaskColumnId(): ?int
+    {
+        return $this->doneTaskColumnId ??= TaskboardColumn::completeColumn()?->id;
     }
 
     /**
@@ -140,6 +375,23 @@ class LeadService
         $this->applyFilters($query, $request);
 
         return $query->pluck('leads.id')->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    /**
+     * Count of leads (current filters + permission scope) whose next action
+     * falls in the given urgency bucket. Toolbar summary pill — one indexed
+     * COUNT, same predicate applyNextActionFilter() uses for the column itself.
+     */
+    public function countNextActionBucket(Request $request, string $bucket): int
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+        $this->applyNextActionFilter($query, $bucket);
+
+        return $query->count();
     }
 
     /**
@@ -321,6 +573,10 @@ class LeadService
 
         if ($request->filled('country')) {
             $query->whereIn('country', $this->toValueArray($request->get('country')));
+        }
+
+        if ($request->filled('next_action')) {
+            $this->applyNextActionFilter($query, $request->get('next_action'));
         }
 
         if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
@@ -608,7 +864,15 @@ class LeadService
             if (!in_array($sortDirection, ['asc', 'desc'])) {
                 $sortDirection = 'asc';
             }
-            
+
+            // Leads with nothing scheduled sort last in both directions — an
+            // empty cell is never the most urgent row on the page.
+            if ($sortBy === 'next_action') {
+                $query->orderByRaw("next_action_at is null, next_action_at {$sortDirection}");
+
+                return;
+            }
+
             // Map frontend sort fields to database columns
             $sortMapping = [
                 'client_name' => 'leads.client_name',

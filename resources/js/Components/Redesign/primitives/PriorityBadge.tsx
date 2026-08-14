@@ -1,17 +1,21 @@
 import Badge from "./Badge";
 
-type Priority = "high" | "medium" | "low";
+type Priority = "high" | "medium" | "low" | "highest" | "urgent";
 
 const PRIORITY_VARIANT: Record<Priority, "red" | "amber" | "gray"> = {
     high: "red",
     medium: "amber",
     low: "gray",
+    highest: "red",
+    urgent: "red",
 };
 
 const DEFAULT_LABELS: Record<Priority, string> = {
     high: "High",
     medium: "Medium",
     low: "Low",
+    highest: "Highest",
+    urgent: "Urgent",
 };
 
 interface PriorityBadgeProps {

@@ -105,9 +105,11 @@ function SectionDivider({ label }: { label: string }) {
 // ─── Priority chip selector ────────────────────────────────────────────────────
 
 const PRIORITY_CONFIG = {
-    high:   { color: "#ef4444", bg: "#fef2f2", border: "#ef444440", label: "High Priority"   },
-    medium: { color: "#f59e0b", bg: "#fffbeb", border: "#f59e0b40", label: "Medium Priority" },
-    low:    { color: "#94a3b8", bg: "#f8fafc", border: "#94a3b840", label: "Low Priority"    },
+    urgent:  { color: "#dc2626", bg: "#fef2f2", border: "#dc262640", label: "Urgent Priority"  },
+    highest: { color: "#ef4444", bg: "#fef2f2", border: "#ef444440", label: "Highest Priority" },
+    high:    { color: "#ef4444", bg: "#fef2f2", border: "#ef444440", label: "High Priority"    },
+    medium:  { color: "#f59e0b", bg: "#fffbeb", border: "#f59e0b40", label: "Medium Priority"  },
+    low:     { color: "#94a3b8", bg: "#f8fafc", border: "#94a3b840", label: "Low Priority"     },
 } as const;
 
 function PriorityChips({
@@ -116,14 +118,14 @@ function PriorityChips({
     disabled,
     td = identityTd,
 }: {
-    value?: "low" | "medium" | "high";
-    onChange?: (v: "low" | "medium" | "high") => void;
+    value?: "low" | "medium" | "high" | "highest" | "urgent";
+    onChange?: (v: "low" | "medium" | "high" | "highest" | "urgent") => void;
     disabled?: boolean;
     td?: TdFn;
 }) {
     return (
         <div className="flex flex-col gap-1.5">
-            {(["high", "medium", "low"] as const).map((pr) => {
+            {(["urgent", "highest", "high", "medium", "low"] as const).map((pr) => {
                 const cfg = PRIORITY_CONFIG[pr];
                 const active = value === pr;
                 return (

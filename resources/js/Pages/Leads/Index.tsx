@@ -3,6 +3,10 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
 import { LEAD_TABLE_COLUMNS } from "@/Features/Leads/Columns";
+// dr-btn / dr-pill / modal-panel — the toolbar buttons and Schedule-next-step
+// modals render unstyled without this (page-scoped, like QualificationMapping).
+import "@/Components/Redesign/redesign.css";
+import "@/Features/Leads/leadsTable.css";
 
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import ImportLeads from "@/Features/Leads/ImportLeads";
@@ -24,9 +28,10 @@ import {
     ReloadOutlined,
     MergeCellsOutlined,
     SettingOutlined,
+    ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps } from "antd";
+import { MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
@@ -45,6 +50,15 @@ import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import FindDuplicatesModal from "@/Features/Leads/Merge/FindDuplicatesModal";
 import useLeadMergeAccess from "@/Features/Leads/Merge/useLeadMergeAccess";
+import ScheduleNextStepFlow from "@/Features/Leads/NextAction/ScheduleNextStepFlow";
+import NextActionDetailFlow, {
+    type NextActionRef,
+} from "@/Features/Leads/NextAction/NextActionDetailFlow";
+import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import {
+    REDESIGN_TOKENS as T,
+    REDESIGN_FONT_STACK,
+} from "@/Components/Redesign/tokens";
 
 export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
@@ -56,12 +70,18 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
         key: string;
         label_color?: string;
     }>;
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
+    nextActionDueThisWeekCount?: number;
+    taskBoardColumns?: TaskboardColumn[];
 }
 
 const Index = ({
     pageTitle,
     leads,
     leadLifecycleStatuses = [],
+    meetingTypes = [],
+    nextActionDueThisWeekCount,
+    taskBoardColumns = [],
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -149,6 +169,25 @@ const Index = ({
         [filter.config, filter.filters],
     );
 
+    // "Due this week" pill → next_action=week. filter.setFilter() only
+    // writes draft state; filter.applyFilters() reads draftFilters from its
+    // OWN closure, so calling both in the same tick would apply the filter
+    // from before this click. Deferring the apply to the render after the
+    // draft update picks up applyFilters as it looks once the draft is set.
+    const [applyWeekFilterPending, setApplyWeekFilterPending] = useState(false);
+    useEffect(() => {
+        if (!applyWeekFilterPending) return;
+        filter.applyFilters();
+        setApplyWeekFilterPending(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [applyWeekFilterPending]);
+
+    const handleDueThisWeekClick = useCallback(() => {
+        filter.setFilter("next_action", "week", "Next action", "Due this week");
+        setApplyWeekFilterPending(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Table row selection (pageData keeps selections when paging)
     const [selectAllMatching, setSelectAllMatching] = useState(false);
     const exitSelectAllMatching = useCallback(
@@ -184,6 +223,11 @@ const Index = ({
     const canManageQualificationMapping =
         pageProps.auth?.permissions?.manage_qualification_mapping === "all";
     const [findDuplicatesLead, setFindDuplicatesLead] = useState<Lead | null>(
+        null,
+    );
+    const [scheduleNextStepLead, setScheduleNextStepLead] =
+        useState<Lead | null>(null);
+    const [openNextAction, setOpenNextAction] = useState<NextActionRef | null>(
         null,
     );
 
@@ -277,7 +321,14 @@ const Index = ({
     );
 
     const columns = useMemo(
-        () => LEAD_TABLE_COLUMNS({ actionItems: getActionItems, t, td }),
+        () =>
+            LEAD_TABLE_COLUMNS({
+                actionItems: getActionItems,
+                t,
+                td,
+                onScheduleNextStep: setScheduleNextStepLead,
+                onOpenNextAction: setOpenNextAction,
+            }),
         [getActionItems, t, td],
     );
 
@@ -310,94 +361,125 @@ const Index = ({
                     useFilterV2 ? undefined : <ContextualActiveFilters />
                 }
             >
-                <div className="max-w-[1440px] mx-auto space-y-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
+                <div
+                    className="max-w-[1560px] mx-auto space-y-4"
+                    style={{ fontFamily: REDESIGN_FONT_STACK }}
+                >
+                    <div
+                        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-[10px] border px-4 py-3.5 bg-white"
+                        style={{ borderColor: T.BORDER }}
+                    >
+                        <div className="flex items-center gap-2.5">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-primary"
                                 onClick={handleCreateLead}
                             >
+                                <PlusOutlined style={{ fontSize: 13 }} />
                                 {t("app.leads.actions.add")}
-                            </Button>
-                            <Button
-                                type="text"
-                                icon={<ImportOutlined />}
+                            </button>
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={handleImportLeads}
                             >
+                                <ImportOutlined style={{ fontSize: 13 }} />
                                 {t("app.import")}
-                            </Button>
+                            </button>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
+                            {typeof nextActionDueThisWeekCount === "number" &&
+                                nextActionDueThisWeekCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleDueThisWeekClick}
+                                        className="inline-flex items-center rounded-md font-semibold cursor-pointer"
+                                        style={{
+                                            gap: 7,
+                                            padding: "9px 14px",
+                                            fontSize: 14,
+                                            border: `1px solid ${T.NAVY_MID}`,
+                                            background: T.NAVY_SOFT,
+                                            color: T.NAVY,
+                                        }}
+                                    >
+                                        <ClockCircleOutlined style={{ fontSize: 14 }} />
+                                        {td("Due this week", { source: "en" })} ·{" "}
+                                        {nextActionDueThisWeekCount}
+                                    </button>
+                                )}
                             {canManageQualificationMapping && (
                                 <Link
                                     href={route(
                                         "qualification-field-mapping.index",
                                     )}
+                                    className="dr-btn dr-btn-ghost"
+                                    title={td(
+                                        "Qualification script field mapping",
+                                        { source: "en" },
+                                    )}
+                                    aria-label={td(
+                                        "Qualification script field mapping",
+                                        { source: "en" },
+                                    )}
                                 >
-                                    <Button
-                                        type="text"
-                                        icon={<SettingOutlined />}
-                                        title={td(
-                                            "Qualification script field mapping",
-                                            { source: "en" },
-                                        )}
-                                        aria-label={td(
-                                            "Qualification script field mapping",
-                                            { source: "en" },
-                                        )}
-                                    />
+                                    <SettingOutlined style={{ fontSize: 13 }} />
                                 </Link>
                             )}
-                            <Button
-                                icon={<ReloadOutlined spin={isRefreshing} />}
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={refresh}
                                 disabled={isRefreshing}
-                                type="text"
                             >
+                                <ReloadOutlined
+                                    spin={isRefreshing}
+                                    style={{ fontSize: 13 }}
+                                />
                                 {td("Refresh", { source: "en" })}
-                            </Button>
+                            </button>
                             {/* Advanced Filters Button */}
-                            <Button
-                                icon={<FilterOutlined />}
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={openDrawer}
                             >
+                                <FilterOutlined style={{ fontSize: 13 }} />
                                 {t("app.filter")}
                                 {useFilterV2 && activeFilterCount > 0 && (
-                                    <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#1a6bb5] text-white text-[11px] font-semibold">
+                                    <span
+                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
+                                        style={{ background: T.BLUE, color: T.WHITE }}
+                                    >
                                         {activeFilterCount}
                                     </span>
                                 )}
-                            </Button>
-
-                            {/* Bulk actions — appear once a row is selected.
-                                "Select all matching" lives inside that card. */}
-                            {(selectAllMatching ||
-                                selectedEntities.length > 0) && (
-                                <BulkLeadActionSelector
-                                    selectedEntityIds={selectedEntities.map(
-                                        ({ id }) => id,
-                                    )}
-                                    matchingTotal={leads.total}
-                                    selectAllMatching={selectAllMatching}
-                                    onSelectAllMatching={
-                                        handleSelectAllMatching
-                                    }
-                                    clearSelected={clearSelected}
-                                    optionsLoading={formDataLoading}
-                                    updateOptions={{
-                                        categories: formData.categories || [],
-                                        sources: formData.sources || [],
-                                        employees: formData.employees || [],
-                                        temperatures:
-                                            formData.temperatures || [],
-                                        leadLifecycleStatuses,
-                                    }}
-                                />
-                            )}
+                            </button>
                         </div>
                     </div>
+
+                    {/* Bulk actions — appear once a row is selected, full-width
+                        below the toolbar. "Select all matching" lives inside it. */}
+                    {(selectAllMatching || selectedEntities.length > 0) && (
+                        <BulkLeadActionSelector
+                            selectedEntityIds={selectedEntities.map(
+                                ({ id }) => id,
+                            )}
+                            matchingTotal={leads.total}
+                            selectAllMatching={selectAllMatching}
+                            onSelectAllMatching={handleSelectAllMatching}
+                            clearSelected={clearSelected}
+                            optionsLoading={formDataLoading}
+                            updateOptions={{
+                                categories: formData.categories || [],
+                                sources: formData.sources || [],
+                                employees: formData.employees || [],
+                                temperatures: formData.temperatures || [],
+                                leadLifecycleStatuses,
+                            }}
+                        />
+                    )}
 
                     {/* 3c — quiet active-filter sentence */}
                     {useFilterV2 && (
@@ -413,6 +495,8 @@ const Index = ({
                         dataSource={leads.data}
                         rowKey="id"
                         rowSelection={rowSelection}
+                        stripe={false}
+                        containerClassName="leads-table"
                         paginationData={{
                             current_page: leads.current_page,
                             last_page: leads.last_page,
@@ -492,6 +576,18 @@ const Index = ({
                     leadName={findDuplicatesLead?.client_name}
                 />
             )}
+
+            <ScheduleNextStepFlow
+                lead={scheduleNextStepLead}
+                onClose={() => setScheduleNextStepLead(null)}
+                meetingTypes={meetingTypes}
+            />
+
+            <NextActionDetailFlow
+                action={openNextAction}
+                onClose={() => setOpenNextAction(null)}
+                taskBoardColumns={taskBoardColumns}
+            />
 
             {/* Filter UI — v2 two-pane workbench behind crm.leads-filter-v2,
                 otherwise the shared universal filter modal. */}

@@ -6,7 +6,7 @@ export interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: "to_do" | "in_progress" | "in_review" | "on_hold" | "done" | string;
     integration_origin?: IntegrationOrigin | null;
     board_column_id?: number;
@@ -86,7 +86,7 @@ export interface TaskPayload {
     description?: string;
     start_date?: string;
     due_date?: string;
-    priority?: "low" | "medium" | "high";
+    priority?: "low" | "medium" | "high" | "highest" | "urgent";
     project_id?: number;
     user_ids?: number[];
     category_id?: number;

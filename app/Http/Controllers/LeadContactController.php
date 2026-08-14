@@ -119,6 +119,18 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
+            // Toolbar "Due this week" pill + the Schedule-next-step meeting
+            // modal — neither blocks first paint, so both are deferred.
+            'nextActionDueThisWeekCount' => Inertia::defer(
+                fn () => $this->leadService->countNextActionBucket($request, 'week')
+            ),
+            'meetingTypes' => Inertia::defer(
+                fn () => \App\Models\MeetingType::where('company_id', company()->id)->get(['id', 'name'])
+            ),
+            // Next Action click-through: TaskDetailModal's status dropdown.
+            'taskBoardColumns' => Inertia::defer(
+                fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()
+            ),
         ];
 
         // Filter modal chrome — only the v2 filter UI consumes these, and the
@@ -175,6 +187,7 @@ class LeadContactController extends AccountBaseController
             'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
             'lifecycleStatus:id,key,label,label_color,sort_order',
+            'referredByAgent.user:id,name',
             'activeQualification.answers',
             'activeQualification.agent:id,name,image',
             'leadFlightItineraries',
@@ -962,6 +975,10 @@ class LeadContactController extends AccountBaseController
             if ($request->has('added_by')) {
                 $leadContact->added_by = $request->added_by;
             }
+            // Write-once: LeadObserver::saving() throws if this would overwrite an existing referrer.
+            if ($request->has('referred_by_agent_id')) {
+                $leadContact->referred_by_agent_id = $request->referred_by_agent_id ?: null;
+            }
             
             // Handle categorization (multi via category_ids; category_id still accepted)
             $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
@@ -1157,6 +1174,12 @@ class LeadContactController extends AccountBaseController
                 if ($request->has('lead_owner')) {
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
+                }
+
+                if ($request->has('referred_by_agent_id')) {
+                    $leadContact->load('referredByAgent.user:id,name');
+                    $responseData['referred_by_agent_id'] = $leadContact->referred_by_agent_id;
+                    $responseData['referred_by_agent'] = $leadContact->referredByAgent;
                 }
 
                 if ($request->has('lead_lifecycle_status_id')) {

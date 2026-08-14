@@ -32,7 +32,7 @@ interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     board_column_id?: number;
     board_column?: {

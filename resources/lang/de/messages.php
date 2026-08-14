@@ -23,6 +23,7 @@ return array(
     'dealUpdateSuccess' => 'Angebot erfolgreich aktualisiert.',
     'dealLocked' => 'Dieses Angebot ist gesperrt und kann nicht geändert werden.',
     'leadUpdateSuccess' => 'Kontakt erfolgreich aktualisiert.',
+    'leadReferrerImmutable' => 'Der Empfehlungsgeber ist bereits gesetzt und kann nicht geändert werden.',
     'propertyUpdateSuccess' => 'Immobilie erfolgreich aktualisiert.',
     'taskUpdateSuccess' => 'Aufgabe erfolgreich aktualisiert.',
     'taskCreatedSuccessfully' => 'Aufgabe erfolgreich erstellt.',

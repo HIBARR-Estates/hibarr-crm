@@ -63,6 +63,8 @@ class PatchRequest extends CoreRequest
             
             // Assignment (all optional for patch)
             'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
+            // Write-once — LeadObserver rejects any attempt to change an existing referrer.
+            'referred_by_agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
             'lead_owner' => 'sometimes|nullable|integer|exists:users,id',
             'added_by' => 'sometimes|nullable|integer|exists:users,id',
             
@@ -117,6 +119,7 @@ class PatchRequest extends CoreRequest
             'products.*.exists' => 'One or more selected products do not exist.',
             'currency_id.exists' => 'Selected currency is invalid.',
             'agent_id.exists' => 'Selected agent is invalid.',
+            'referred_by_agent_id.exists' => 'Selected referrer is invalid.',
             'lead_owner.exists' => 'Selected lead owner is invalid.',
             'added_by.exists' => 'Selected user is invalid.',
             'category_id.exists' => 'Selected category is invalid.',
@@ -145,6 +148,7 @@ class PatchRequest extends CoreRequest
             'postal_code' => 'postal code',
             'next_follow_up' => 'next follow-up date',
             'agent_id' => 'assigned agent',
+            'referred_by_agent_id' => 'referrer',
             'lead_owner' => 'lead owner',
             'added_by' => 'added by',
             'category_id' => 'category',
