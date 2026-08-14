@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import useTaskStatus, { applyTaskStatus } from "@/Hooks/useTaskStatus";
@@ -8,6 +9,8 @@ import useDashboardTaskUpdate from "@/Pages/Dashboard/V2/hooks/useDashboardTaskU
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { Task } from "@/Types/api/tasks";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { Modal } from "@/Components/Redesign/primitives/Modal";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import TaskDetailModal from "@/Components/Redesign/modals/TaskDetailModal";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
 import RescheduleMeetingModal from "@/Components/Redesign/modals/RescheduleMeetingModal";
@@ -37,19 +40,32 @@ export default function NextActionDetailFlow({
     taskBoardColumns,
 }: NextActionDetailFlowProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
 
-    const { data: taskData } = useApiQuery<{ task: Task }>({
+    // retry: false — a "fetch this one record" request that fails once
+    // (permissions, a bad id) won't succeed by retrying identically, and
+    // TanStack's default 3-retry exponential backoff (~1s + 2s + 4s) was
+    // exactly the multi-second silent wait before the modal ever appeared.
+    const {
+        data: taskData,
+        isLoading: taskLoading,
+        isError: taskLoadError,
+    } = useApiQuery<{ task: Task }>({
         path: action?.type === "task" ? route("tasks.data", action.id) : "",
-        options: { enabled: action?.type === "task" },
+        options: { enabled: action?.type === "task", retry: false },
     });
-    const { data: meetingData } = useApiQuery<{ followUp: DealFollowup }>({
+    const {
+        data: meetingData,
+        isLoading: meetingLoading,
+        isError: meetingLoadError,
+    } = useApiQuery<{ followUp: DealFollowup }>({
         path:
             action?.type === "meeting"
                 ? route("deals.follow_up_data", action.id)
                 : "",
-        options: { enabled: action?.type === "meeting" },
+        options: { enabled: action?.type === "meeting", retry: false },
     });
 
     // Local copies so an edit/status-change reflects immediately without
@@ -117,8 +133,42 @@ export default function NextActionDetailFlow({
         onClose();
     };
 
+    // The real detail modals only open once `task`/`meeting` is populated
+    // (TaskDetailModal/MeetingDetailModal both key `open` off the record
+    // being non-null) — without this, the click sat there doing nothing
+    // visible for as long as the fetch took.
+    const isLoadingDetail =
+        (action?.type === "task" && taskLoading) ||
+        (action?.type === "meeting" && meetingLoading);
+    const detailLoadErrored =
+        (action?.type === "task" && taskLoadError) ||
+        (action?.type === "meeting" && meetingLoadError);
+
     return (
         <>
+            <Modal
+                open={Boolean(action) && (isLoadingDetail || detailLoadErrored)}
+                onClose={handleClose}
+                title={
+                    action?.type === "meeting"
+                        ? td("Meeting", { source: "en" })
+                        : td("Task", { source: "en" })
+                }
+            >
+                {detailLoadErrored ? (
+                    <p style={{ fontSize: 14, color: T.RED, margin: 0 }}>
+                        {td("Couldn't load this — try again.", { source: "en" })}
+                    </p>
+                ) : (
+                    <div className="flex items-center justify-center py-6">
+                        <span
+                            className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
+                            style={{ width: 22, height: 22, color: T.BLUE }}
+                        />
+                    </div>
+                )}
+            </Modal>
+
             <TaskDetailModal
                 task={action?.type === "task" ? task : null}
                 taskBoardColumns={taskBoardColumns}

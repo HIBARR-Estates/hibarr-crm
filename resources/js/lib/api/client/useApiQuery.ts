@@ -53,6 +53,14 @@ export const useApiQuery = <
         staleTime?: number;
         gcTime?: number;
         refetchOnMount?: boolean | "always";
+        /**
+         * Defaults to TanStack Query's own default (3 retries, exponential
+         * backoff up to 30s) when omitted. A "fetch this one record" query
+         * that fails once almost never succeeds on retry — pass `false` to
+         * surface the error immediately instead of silently retrying for
+         * several seconds first.
+         */
+        retry?: boolean | number;
     };
 }) => {
     const { props } = usePage();
