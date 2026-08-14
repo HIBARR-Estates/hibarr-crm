@@ -23,7 +23,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Schema;
 
 
 class DealContactApiController extends Controller
@@ -620,8 +619,8 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Set referral_agent_id on a newly created lead when that column exists.
-     * Missing column or invalid input is ignored so the endpoint still succeeds.
+     * Set referred_by_agent_id on a newly created lead (Lead::referredByAgent()).
+     * Invalid input is ignored so the endpoint still succeeds.
      */
     private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
     {
@@ -634,30 +633,7 @@ class DealContactApiController extends Controller
             return;
         }
 
-        $column = $this->referralAgentColumnName();
-        if ($column === null) {
-            return;
-        }
-
-        $lead->setAttribute($column, (int) $referralAgentId);
-    }
-
-    private function referralAgentColumnName(): ?string
-    {
-        foreach (['referral_agent_id', 'referal_agent_id'] as $candidate) {
-            try {
-                if (Schema::hasColumn('leads', $candidate)) {
-                    return $candidate;
-                }
-            } catch (\Throwable $e) {
-                Log::warning('Could not inspect leads column for referral agent', [
-                    'column' => $candidate,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return null;
+        $lead->referred_by_agent_id = (int) $referralAgentId;
     }
 
     /**

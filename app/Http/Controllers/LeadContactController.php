@@ -6,6 +6,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
 use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Helper\Files;
 use App\Helper\Reply;
@@ -119,6 +120,14 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
+            'preferredContactTimes' => Inertia::defer(
+                fn () => collect(PreferredContactTime::cases())->map(
+                    fn (PreferredContactTime $time) => [
+                        'value' => $time->value,
+                        'label' => $time->label(),
+                    ]
+                )->values()->all()
+            ),
         ];
 
         // Filter modal chrome — only the v2 filter UI consumes these, and the

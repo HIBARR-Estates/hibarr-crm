@@ -8,6 +8,10 @@ import {
     computeAgeRangeFromAge,
 } from "@/lib/leadAge";
 import { getLeadNativeEditValue } from "../../adapters/dossierAdapter";
+import {
+    PREFERRED_CONTACT_TIME_LABELS,
+    PREFERRED_CONTACT_TIME_VALUES,
+} from "../../config/leadPreferredContactTime";
 import { LEAD_INFO_CORE_SECTIONS } from "../../config/leadInfoSections";
 import type { LeadInfoCoreSectionId } from "../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -399,11 +403,13 @@ export default function EditLeadDetailsModal({
                                     "preferred_contact_time",
                                     field.label,
                                     "select",
-                                    [
-                                        { value: "morning", label: td("Morning", { source: "en" }) },
-                                        { value: "afternoon", label: td("Afternoon", { source: "en" }) },
-                                        { value: "evening", label: td("Evening", { source: "en" }) },
-                                    ],
+                                    PREFERRED_CONTACT_TIME_VALUES.map((value) => ({
+                                        value,
+                                        label: td(
+                                            PREFERRED_CONTACT_TIME_LABELS[value],
+                                            { source: "en" },
+                                        ),
+                                    })),
                                 );
                             }
                             if (
