@@ -25,6 +25,7 @@ import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
 import { PROPERTY_TABLE_COLUMNS } from "@/Features/Properties/Columns";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
+import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 import BulkActionSelector from "@/Features/Properties/BulkActions/BulkActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
@@ -412,15 +413,27 @@ const Index = ({
         [filters, sortParams],
     );
 
+    const { persistPageSize } = usePersistedPageSize({
+        storageKey: "hibarr_properties_per_page",
+        currentPerPage: properties.per_page,
+        onRestore: (perPage) =>
+            router.get(
+                route("properties.index"),
+                { ...filters, ...sortParams, page: 1, per_page: perPage },
+                { preserveState: true, preserveScroll: true },
+            ),
+    });
+
     const handlePropertiesPageSizeChange = useCallback(
         (per_page: number) => {
+            persistPageSize(per_page);
             router.get(
                 route("properties.index"),
                 { ...filters, ...sortParams, page: 1, per_page },
                 { preserveState: true, preserveScroll: true },
             );
         },
-        [filters, sortParams],
+        [filters, sortParams, persistPageSize],
     );
 
     const propertiesPaginationMeta: LaravelPaginationMeta = {

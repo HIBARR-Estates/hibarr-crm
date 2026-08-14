@@ -47,6 +47,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
+import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -436,6 +437,22 @@ const Index = ({
         ? Number(pageFilters.lead_pipeline_id)
         : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
 
+    const { persistPageSize } = usePersistedPageSize({
+        storageKey: "hibarr_deals_per_page",
+        currentPerPage: deals.per_page,
+        onRestore: (perPage) =>
+            router.get(
+                route("deals.index"),
+                mergeQueryParams({
+                    lead_pipeline_id: valueLeadPipelineId,
+                    page: 1,
+                    per_page: perPage,
+                    view,
+                }),
+                { only: ["deals"], preserveState: true, preserveScroll: true },
+            ),
+    });
+
     // Kanban view handlers
     const handleColumnsUpdate = useCallback((updatedColumns: BoardColumn[]) => {
         setBoardColumns(updatedColumns);
@@ -578,6 +595,7 @@ const Index = ({
                                 );
                             }}
                             onPageSizeChange={(pageSize) => {
+                                persistPageSize(pageSize);
                                 router.get(
                                     route("deals.index"),
                                     mergeQueryParams({
