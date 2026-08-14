@@ -407,6 +407,13 @@ class ExposeConfiguration implements Arrayable
                 'location_airports' => $expandedAirports ?? [],
                 'location_attractions' => $locationAttractions,
 
+                // Project location page payload
+                'location_payload' => [
+                    'name' => $location?->name,
+                    'description' => $location?->description,
+                    'image_url' => $location?->image_url,
+                ],
+
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
 

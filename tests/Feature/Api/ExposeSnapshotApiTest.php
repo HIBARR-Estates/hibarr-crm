@@ -6,6 +6,7 @@ use App\Models\ApiToken;
 use App\Models\DeveloperProject;
 use App\Models\ExposeSnapshot;
 use App\Models\Lead;
+use App\Models\ProjectLocation;
 use App\Models\User;
 use App\Services\ApiTokenScopeService;
 use Illuminate\Database\Schema\Blueprint;
@@ -87,6 +88,34 @@ class ExposeSnapshotApiTest extends TestCase
         $this->assertDatabaseCount('expose_snapshots', 1);
         $this->assertNotSame($token, DB::table('expose_snapshots')->value('token_hash'));
         $this->assertSame(ExposeSnapshot::hashToken($token), DB::table('expose_snapshots')->value('token_hash'));
+    }
+
+    public function test_mint_includes_project_location_title_description_and_image(): void
+    {
+        $location = $this->createLocation([
+            'name' => 'lapta',
+            'description' => 'Coastal living in Lapta',
+            'image_url' => 'https://cdn.example/location.jpg',
+        ]);
+        $project = $this->createProject([
+            'name' => 'Located Project',
+            'slug' => 'located-project',
+            'project_location_id' => $location->id,
+        ]);
+        $agent = $this->createAgent();
+        $lead = $this->createLead();
+
+        $response = $this->postJson('/api/v1/expose-snapshots', [
+            'entity_type' => 'developer_project',
+            'entity_id' => $project->id,
+            'agent_id' => $agent->id,
+            'lead_id' => $lead->id,
+        ], $this->authHeaders());
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.expose.location.title', 'lapta')
+            ->assertJsonPath('data.expose.location.description', 'Coastal living in Lapta')
+            ->assertJsonPath('data.expose.location.image_url', 'https://cdn.example/location.jpg');
     }
 
     public function test_get_by_token_returns_frozen_payload_after_entity_mutation(): void
@@ -285,6 +314,21 @@ class ExposeSnapshotApiTest extends TestCase
     /**
      * @param  array<string, mixed>  $overrides
      */
+    private function createLocation(array $overrides = []): ProjectLocation
+    {
+        $attrs = array_merge([
+            'company_id' => self::COMPANY_ID,
+            'name' => 'Test Location',
+            'description' => null,
+            'image_url' => null,
+        ], $overrides);
+
+        return ProjectLocation::withoutGlobalScopes()->create($attrs);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
     private function createAgent(array $overrides = []): User
     {
         $id = (int) DB::table('users')->insertGetId(array_merge([
@@ -470,10 +514,12 @@ class ExposeSnapshotApiTest extends TestCase
                 $table->id();
                 $table->unsignedInteger('company_id');
                 $table->string('name')->nullable();
+                $table->text('description')->nullable();
                 $table->string('city')->nullable();
                 $table->string('area')->nullable();
                 $table->json('address')->nullable();
                 $table->string('map_url')->nullable();
+                $table->string('image_url', 500)->nullable();
                 $table->decimal('latitude', 10, 7)->nullable();
                 $table->decimal('longitude', 10, 7)->nullable();
                 $table->json('attractions')->nullable();
@@ -483,6 +529,16 @@ class ExposeSnapshotApiTest extends TestCase
                 $table->softDeletes();
             });
         } else {
+            if (!Schema::hasColumn('project_locations', 'description')) {
+                Schema::table('project_locations', function (Blueprint $table) {
+                    $table->text('description')->nullable();
+                });
+            }
+            if (!Schema::hasColumn('project_locations', 'image_url')) {
+                Schema::table('project_locations', function (Blueprint $table) {
+                    $table->string('image_url', 500)->nullable();
+                });
+            }
             DB::table('project_locations')->delete();
         }
 
