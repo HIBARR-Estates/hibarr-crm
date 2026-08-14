@@ -828,10 +828,11 @@ class LeadContactController extends AccountBaseController
      * Allows for quick updates with optional fields.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|array
      */
     public function patch(PatchRequest $request, $id)
     {
+        /** @var Lead $leadContact */
         $leadContact = Lead::findOrFail($id);
 
         $leadRules = [
@@ -1199,13 +1200,14 @@ class LeadContactController extends AccountBaseController
             \DB::rollback();
 
             // Log the error
-            Log::error('Lead patch update failed: '.$e->getMessage(), [
-                'lead_id' => $id,
-                'user_id' => user()->id,
-                'request_data' => $request->all(),
+            Log::error('Lead patch update failed', [
+                'lead_id' => (int) $id,
+                'user_id' => user()?->id,
+                'fields' => array_keys($request->validated()),
+                'exception' => $e::class,
             ]);
 
-            return Reply::error('An error occurred while updating the lead contact: '.$e->getMessage());
+            return Reply::error(__('messages.somethingWentWrong'));
 
         }
     }
@@ -1417,7 +1419,28 @@ class LeadContactController extends AccountBaseController
                 return Reply::success($this->bulkUpdateSuccessMessage($skipped));
 
             case 'delete':
-                Lead::whereIn('id', $rowIds)->get()->each->forceDelete();
+                try {
+                    DB::transaction(function () use ($rowIds) {
+                        Lead::query()
+                            ->whereIn('id', $rowIds)
+                            ->orderBy('id')
+                            ->chunkById(500, function ($leads) {
+                                foreach ($leads as $lead) {
+                                    if ($lead->forceDelete() === false) {
+                                        throw new \RuntimeException('Failed to delete lead '.$lead->id);
+                                    }
+                                }
+                            });
+                    });
+                } catch (\Throwable $e) {
+                    Log::error('Bulk lead delete failed', [
+                        'lead_ids' => $rowIds,
+                        'user_id' => user()?->id,
+                        'exception' => $e::class,
+                    ]);
+
+                    return Reply::error(__('messages.somethingWentWrong'));
+                }
 
                 return Reply::success(
                     $skipped > 0
@@ -1453,15 +1476,17 @@ class LeadContactController extends AccountBaseController
             return [[], 0];
         }
 
-        $leads = Lead::whereIn('id', $rowIds)->get();
-        $accessibleIds = $leads
-            ->filter(function (Lead $lead) use ($permissionName, $leadRules) {
-                return PermissionService::checkAccess(user(), $permissionName, $lead, $leadRules)['canAccess'];
-            })
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
+        $accessibleIds = [];
+        Lead::query()
+            ->whereIn('id', $rowIds)
+            ->orderBy('id')
+            ->chunkById(500, function ($leads) use ($permissionName, $leadRules, &$accessibleIds) {
+                foreach ($leads as $lead) {
+                    if (PermissionService::checkAccess(user(), $permissionName, $lead, $leadRules)['canAccess']) {
+                        $accessibleIds[] = (int) $lead->id;
+                    }
+                }
+            });
 
         $skipped = count($rowIds) - count($accessibleIds);
 

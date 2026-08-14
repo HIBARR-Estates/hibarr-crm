@@ -51,7 +51,9 @@ class LeadNotificationService
         $followUp->loadMissing([
             'deal.leadAgent.user.employeeDetail',
             'deal.contact',
+            'deal.company',
             'lead.leadOwner.employeeDetail',
+            'lead.company',
         ]);
 
         $company = $followUp->deal?->company ?? $followUp->lead?->company;
@@ -91,7 +93,6 @@ class LeadNotificationService
                 )),
                 'scheduled_at' => $followUp->next_follow_up_date?->toIso8601String(),
                 'recipient_ids' => $recipients->pluck('id')->values()->all(),
-                'recipient_emails' => $recipients->pluck('email')->values()->all(),
             ]);
         }
 
@@ -136,7 +137,9 @@ class LeadNotificationService
             ->with([
                 'deal.leadAgent.user.employeeDetail',
                 'deal.contact',
+                'deal.company',
                 'lead.leadOwner.employeeDetail',
+                'lead.company',
             ])
             ->whereNotNull('next_follow_up_date')
             ->where('next_follow_up_date', '<', $now)
@@ -160,14 +163,51 @@ class LeadNotificationService
                 });
             })
             ->get()
-            ->filter(fn (DealFollowUp $followUp) => ! $this->hasUpcomingIncompleteFollowUp($followUp, $now))
+            ->pipe(fn ($followUps) => $this->excludeFollowUpsWithUpcoming($followUps, $now))
             ->values();
     }
 
-    private function hasUpcomingIncompleteFollowUp(DealFollowUp $followUp, Carbon $now): bool
+    /**
+     * @param  \Illuminate\Support\Collection<int, DealFollowUp>  $followUps
+     * @return \Illuminate\Support\Collection<int, DealFollowUp>
+     */
+    private function excludeFollowUpsWithUpcoming(\Illuminate\Support\Collection $followUps, Carbon $now): \Illuminate\Support\Collection
     {
+        if ($followUps->isEmpty()) {
+            return $followUps;
+        }
+
+        $dealIds = $followUps->pluck('deal_id')->filter()->unique()->values()->all();
+        $leadIds = $followUps->whereNull('deal_id')->pluck('lead_id')->filter()->unique()->values()->all();
+
+        $dealIdsWithUpcoming = $this->entityIdsWithUpcomingIncompleteFollowUp('deal_id', $dealIds, $now);
+        $leadIdsWithUpcoming = $this->entityIdsWithUpcomingIncompleteFollowUp('lead_id', $leadIds, $now, true);
+
+        return $followUps->reject(function (DealFollowUp $followUp) use ($dealIdsWithUpcoming, $leadIdsWithUpcoming) {
+            if ($followUp->deal_id) {
+                return in_array((int) $followUp->deal_id, $dealIdsWithUpcoming, true);
+            }
+
+            if ($followUp->lead_id) {
+                return in_array((int) $followUp->lead_id, $leadIdsWithUpcoming, true);
+            }
+
+            return false;
+        });
+    }
+
+    /**
+     * @param  list<int>  $entityIds
+     * @return list<int>
+     */
+    private function entityIdsWithUpcomingIncompleteFollowUp(string $column, array $entityIds, Carbon $now, bool $leadOnly = false): array
+    {
+        if ($entityIds === []) {
+            return [];
+        }
+
         $query = DealFollowUp::query()
-            ->where('id', '!=', $followUp->id)
+            ->whereIn($column, $entityIds)
             ->whereNotNull('next_follow_up_date')
             ->where('next_follow_up_date', '>=', $now)
             ->where(function ($statusQuery) {
@@ -175,15 +215,15 @@ class LeadNotificationService
                     ->orWhereIn('status', ['pending', 'incomplete', 'scheduled']);
             });
 
-        if ($followUp->deal_id) {
-            $query->where('deal_id', $followUp->deal_id);
-        } elseif ($followUp->lead_id) {
-            $query->where('lead_id', $followUp->lead_id)->whereNull('deal_id');
-        } else {
-            return false;
+        if ($leadOnly) {
+            $query->whereNull('deal_id');
         }
 
-        return $query->exists();
+        return $query->pluck($column)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function resolveAssignedAgent(DealFollowUp $followUp): ?User

@@ -375,15 +375,15 @@ class DealNotificationService
             return;
         }
 
-        Notification::send($recipients, new DealDeleted($deal, $deletedBy));
+        Notification::send($recipients, BaseNotification::applySuppressionFromContainer(new DealDeleted($deal, $deletedBy)));
     }
 
     /**
      * Open deals with close_date inside the reminder window.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Deal>
+     * @return \Illuminate\Support\LazyCollection<int, Deal>
      */
-    public function dealsWithApproachingCloseDateForCompany(int $companyId, ?\Carbon\Carbon $now = null): \Illuminate\Database\Eloquent\Collection
+    public function dealsWithApproachingCloseDateForCompany(int $companyId, ?\Carbon\Carbon $now = null): \Illuminate\Support\LazyCollection
     {
         $company = \App\Models\Company::find($companyId);
         $now = $now ?? now($company?->timezone ?: 'UTC');
@@ -404,7 +404,7 @@ class DealNotificationService
                     ]);
             })
             ->whereDoesntHave('leadStage', fn ($stageQuery) => $stageQuery->whereIn('slug', ['win', 'lost']))
-            ->get();
+            ->cursor();
     }
 
     /**

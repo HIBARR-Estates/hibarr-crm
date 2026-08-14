@@ -34,7 +34,7 @@ class DealCloseDateApproaching extends BaseNotification
             && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && ! empty($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -76,6 +76,7 @@ class DealCloseDateApproaching extends BaseNotification
             'actionDescription' => __('Review the deal and update the close date if plans have changed.'),
             'actionText' => $actionText,
             'dealUrl' => $dealUrl,
+            'currentYear' => date('Y'),
         ]);
 
         parent::resetLocale();

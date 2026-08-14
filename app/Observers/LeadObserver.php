@@ -117,10 +117,18 @@ class LeadObserver
         \App\Models\Notification::deleteNotification($notifyData, $leadContact->id);
 
         if (! isRunningInConsoleOrSeeding()) {
-            app(LeadNotificationService::class)->notifyLeadDeleted(
-                $leadContact,
-                user(),
-            );
+            $lead = $leadContact;
+            $deletedByUser = user();
+            DB::afterCommit(function () use ($lead, $deletedByUser) {
+                try {
+                    app(LeadNotificationService::class)->notifyLeadDeleted($lead, $deletedByUser);
+                } catch (\Throwable $e) {
+                    \Log::error('Failed to notify lead deletion after commit', [
+                        'lead_id' => $lead->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            });
         }
     }
 

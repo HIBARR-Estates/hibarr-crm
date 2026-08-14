@@ -211,29 +211,27 @@
 </head>
 <body style="margin:0;padding:0;background-color:#eef2f8;">
 @php
-    $layoutPreheader = is_string($preheader ?? null) ? $preheader : (string) ($preheader ?? '');
-    // Cap before trim/yield — huge strings OOM during preheader sanitize.
-    if ($layoutPreheader !== '' && strlen($layoutPreheader) > 2000) {
-        $layoutPreheader = substr($layoutPreheader, 0, 2000);
-    }
-    $layoutPreheader = trim($layoutPreheader);
+    $capPreheaderText = static function (mixed $value): string {
+        $text = is_string($value) ? $value : (string) ($value ?? '');
+        if ($text !== '' && mb_strlen($text) > 2000) {
+            $text = mb_substr($text, 0, 2000);
+        }
+
+        return trim($text);
+    };
+
+    $layoutPreheader = $capPreheaderText($preheader ?? '');
     if ($layoutPreheader === '') {
-        $yielded = (string) $__env->yieldContent('preheader');
-        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
-        $layoutPreheader = trim($layoutPreheader);
-    }
-    if ($layoutPreheader === '') {
-        $yielded = (string) $__env->yieldContent('intro');
-        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
-        $layoutPreheader = trim($layoutPreheader);
+        $layoutPreheader = $capPreheaderText((string) $__env->yieldContent('preheader'));
     }
     if ($layoutPreheader === '') {
-        $yielded = (string) $__env->yieldContent('title');
-        $layoutPreheader = strlen($yielded) > 2000 ? substr($yielded, 0, 2000) : $yielded;
-        $layoutPreheader = trim($layoutPreheader);
+        $layoutPreheader = $capPreheaderText((string) $__env->yieldContent('intro'));
     }
     if ($layoutPreheader === '') {
-        $layoutPreheader = 'Just a quick heads up';
+        $layoutPreheader = $capPreheaderText((string) $__env->yieldContent('title'));
+    }
+    if ($layoutPreheader === '') {
+        $layoutPreheader = __('email.defaultPreheader');
     }
 
     // @section('name', $value) inline form pre-escapes $value (Laravel's startSection
@@ -255,7 +253,8 @@
     $actionDescription = trim(html_entity_decode((string) $__env->yieldContent('actionDescription'), ENT_QUOTES, 'UTF-8'));
     $footerNote = trim(html_entity_decode((string) $__env->yieldContent('footerNote'), ENT_QUOTES, 'UTF-8'));
     $subfooter = trim(html_entity_decode((string) $__env->yieldContent('subfooter'), ENT_QUOTES, 'UTF-8'));
-    $closingSection = trim((string) $__env->yieldContent('closing'));
+    $closingSection = trim(html_entity_decode((string) $__env->yieldContent('closing'), ENT_QUOTES, 'UTF-8'));
+    $layoutNotifiableName = trim(html_entity_decode((string) $__env->yieldContent('notifiableName'), ENT_QUOTES, 'UTF-8'));
     $showClosing = $closingSection !== 'none';
 @endphp
 
@@ -299,16 +298,16 @@
                         </tr>
                         <tr>
                             <td class="content mp" style="padding:32px 40px 40px">
-                                @if(!empty($notifiableName))
+                                @if($layoutNotifiableName !== '')
                                     <p class="greeting-text">
-                                        @lang('email.hello') <strong>{{ $notifiableName }}</strong>,
+                                        @lang('email.hello') <strong>{{ $layoutNotifiableName }}</strong>,
                                     </p>
                                 @endif
 
                                 @hasSection('intro')
                                     <p>@yield('intro')</p>
                                 @else
-                                    <p>Just a quick heads up</p>
+                                    <p>{{ __('email.defaultPreheader') }}</p>
                                 @endif
 
                                 @hasSection('content')
@@ -341,7 +340,7 @@
 
                                 @if($showClosing)
                                     <p class="closing-text" style="margin-top:20px">
-                                        @yield('closing', 'Best regards')
+                                        {{ $closingSection !== '' ? $closingSection : 'Best regards' }}
                                     </p>
                                     <p class="strong-text" style="margin:8px 0 0 0;font-weight:700">
                                         The {{ config('app.name') }} Team

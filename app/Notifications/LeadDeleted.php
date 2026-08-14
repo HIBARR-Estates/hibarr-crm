@@ -12,8 +12,6 @@ class LeadDeleted extends BaseNotification
 
     private string $leadName;
 
-    private ?string $leadEmail;
-
     private ?int $deletedById;
 
     private string $deletedByName;
@@ -25,7 +23,6 @@ class LeadDeleted extends BaseNotification
         $this->company = $lead->company;
         $this->leadId = (int) $lead->id;
         $this->leadName = trim((string) ($lead->client_name ?? '')) ?: __('modules.lead.lead');
-        $this->leadEmail = $lead->client_email;
         $this->deletedById = $deletedBy?->id;
         $this->deletedByName = trim((string) ($deletedBy?->name ?? '')) ?: __('email.leadDeleted.unknownActor');
         $this->emailSetting = $this->company
@@ -46,7 +43,7 @@ class LeadDeleted extends BaseNotification
             && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && ! empty($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -68,7 +65,6 @@ class LeadDeleted extends BaseNotification
             ->view('mail.lead.lead-deleted', [
                 'url' => $url,
                 'leadName' => $this->leadName,
-                'leadEmail' => $this->leadEmail,
                 'deletedByName' => $this->deletedByName,
                 'preheader' => $bodyText,
                 'actionText' => $actionText,
@@ -83,11 +79,11 @@ class LeadDeleted extends BaseNotification
             'notifiableName' => $notifiable->name,
             'bodyText' => $bodyText,
             'leadName' => $this->leadName,
-            'leadEmail' => $this->leadEmail ?? '',
             'deletedByName' => $this->deletedByName,
-            'actionDescription' => __('You can review your remaining leads in the CRM.'),
+            'actionDescription' => __('email.leadDeleted.actionDescription'),
             'actionText' => $actionText,
             'leadUrl' => $url,
+            'currentYear' => date('Y'),
         ]);
 
         parent::resetLocale();

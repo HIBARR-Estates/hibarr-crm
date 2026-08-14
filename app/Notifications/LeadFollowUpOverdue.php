@@ -39,7 +39,7 @@ class LeadFollowUpOverdue extends BaseNotification
             && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && ! empty($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -52,25 +52,46 @@ class LeadFollowUpOverdue extends BaseNotification
         $build = parent::build($notifiable);
         $presenter = new MeetingEmailPresenter($this->followUp, $this->company);
         $scheduledAt = $this->followUp->next_follow_up_date;
+        $mailSubject = __('email.leadFollowUpOverdue.subject');
+        $bodyText = $this->bodyText();
+        $actionUrl = $this->actionUrl();
+        $actionText = $this->followUp->deal_id
+            ? __('email.followUpReminder.viewDeal')
+            : __('email.followUpReminder.viewLead');
+        $scheduledDate = $scheduledAt ? $presenter->meetingDate() : '';
+        $scheduledTime = $scheduledAt ? $presenter->meetingTime() : '';
 
         $build
-            ->subject(__('email.leadFollowUpOverdue.subject').' - '.config('app.name'))
+            ->subject($mailSubject.' - '.config('app.name'))
             ->view('mail.lead.lead-follow-up-overdue', [
-                'url' => $this->actionUrl(),
+                'url' => $actionUrl,
                 'entityName' => $this->entityName,
-                'scheduledDate' => $scheduledAt
-                    ? $presenter->meetingDate()
-                    : '',
-                'scheduledTime' => $scheduledAt
-                    ? $presenter->meetingTime()
-                    : '',
-                'overdueMessage' => $this->bodyText(),
-                'preheader' => $this->bodyText(),
-                'actionText' => $this->followUp->deal_id
-                    ? __('email.followUpReminder.viewDeal')
-                    : __('email.followUpReminder.viewLead'),
+                'scheduledDate' => $scheduledDate,
+                'scheduledTime' => $scheduledTime,
+                'overdueMessage' => $bodyText,
+                'preheader' => $bodyText,
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $templateId = config('email.plunk_template_ids.lead_follow_up_overdue');
+        if (is_string($templateId) && $templateId !== '') {
+            $this->attachPlunkTemplate($build, $templateId, [
+                'mailSubject' => $mailSubject,
+                'appName' => config('app.name'),
+                'preheader' => $bodyText,
+                'badgeLabel' => $mailSubject,
+                'notifiableName' => $notifiable->name,
+                'overdueMessage' => $bodyText,
+                'scheduledDate' => $scheduledDate,
+                'scheduledTime' => $scheduledTime,
+                'entityName' => $this->entityName,
+                'actionDescription' => __('email.leadFollowUpOverdue.footerNote'),
+                'actionText' => $actionText,
+                'actionUrl' => $actionUrl,
+                'currentYear' => date('Y'),
+            ]);
+        }
 
         parent::resetLocale();
 
@@ -80,11 +101,11 @@ class LeadFollowUpOverdue extends BaseNotification
     public function toArray($notifiable): array
     {
         return [
+            'id' => $this->followUp->lead_id ?? $this->followUp->deal_id ?? $this->followUp->id,
             'entity_type' => 'meeting',
             'follow_up_id' => $this->followUp->id,
             'deal_id' => $this->followUp->deal_id,
             'lead_id' => $this->followUp->lead_id,
-            'id' => $this->followUp->deal_id ?? $this->followUp->lead_id ?? $this->followUp->id,
             'name' => $this->entityName,
             'title' => __('email.leadFollowUpOverdue.subject'),
             'text' => $this->bodyText(),

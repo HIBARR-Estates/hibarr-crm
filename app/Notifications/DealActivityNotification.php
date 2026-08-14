@@ -123,6 +123,7 @@ class DealActivityNotification extends BaseNotification
             'actionDescription' => __('Click the button below to view the deal details.'),
             'actionText' => $actionText,
             'dealUrl' => $url,
+            'currentYear' => date('Y'),
         ]);
 
         parent::resetLocale();

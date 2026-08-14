@@ -20,4 +20,8 @@ return [
         'dark' => env('EMAIL_LOGO_DARK', 'https://res.cloudinary.com/hibarr/image/upload/v1752237736/logo_ywr5n3.png'),
     ],
 
+    'plunk_template_ids' => [
+        'lead_follow_up_overdue' => env('LEAD_FOLLOW_UP_OVERDUE_PLUNK_TEMPLATE_ID', ''),
+    ],
+
 ];

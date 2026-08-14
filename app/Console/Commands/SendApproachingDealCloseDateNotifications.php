@@ -28,8 +28,16 @@ class SendApproachingDealCloseDateNotifications extends Command
                         continue;
                     }
 
-                    $dealNotificationService->notifyCloseDateApproaching($deal);
-                    Cache::put($cacheKey, true, now($timezone)->endOfDay());
+                    try {
+                        $dealNotificationService->notifyCloseDateApproaching($deal);
+                        Cache::put($cacheKey, true, now($timezone)->endOfDay());
+                    } catch (\Throwable $e) {
+                        \Log::error('Failed to send approaching close date notification', [
+                            'deal_id' => $deal->id,
+                            'company_id' => $company->id,
+                            'exception' => $e::class,
+                        ]);
+                    }
                 }
             }
         });

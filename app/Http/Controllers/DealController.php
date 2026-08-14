@@ -2165,7 +2165,10 @@ class DealController extends AccountBaseController
         // Mass delete bypasses DealObserver, so capture the affected deals up front
         // and notify their agents/watchers explicitly (in-app only — mail stays
         // suppressed by the bulk-action container flag set in bulkAction()).
-        $deals = Deal::whereIn('id', $deletableIds)->get();
+        $deals = Deal::query()
+            ->with(['leadAgent.user', 'dealWatchers'])
+            ->whereIn('id', $deletableIds)
+            ->get();
 
         $model = new ReflectionClass('App\Models\Deal');
 
@@ -2212,6 +2215,10 @@ class DealController extends AccountBaseController
         // only — mail stays suppressed by the bulk-action container flag).
         $deals = Deal::whereIn('id', $editableIds)->get();
 
+        if ($stage === null) {
+            return;
+        }
+
         if ($stage->slug === 'win' || $stage->slug === 'lost') {
             Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
@@ -2224,7 +2231,15 @@ class DealController extends AccountBaseController
                 continue;
             }
             $fromStageName = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
-            $notificationService->notifyStageChanged($deal, $fromStageName, $stage->name ?? 'Unknown');
+            $toStageName = $stage->name ?? 'Unknown';
+
+            if ($stage->slug === 'win') {
+                $notificationService->notifyDealWon($deal);
+            } elseif ($stage->slug === 'lost') {
+                $notificationService->notifyDealLost($deal);
+            } else {
+                $notificationService->notifyStageChanged($deal, $fromStageName, $toStageName);
+            }
         }
     }
 

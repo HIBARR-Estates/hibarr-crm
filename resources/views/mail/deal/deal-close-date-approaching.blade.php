@@ -4,14 +4,10 @@
 @section('badgeLabel', __('email.dealCloseDateApproaching.subject'))
 @section('notifiableName', $notifiableName)
 
-@section('actionText', __($actionText))
+@section('actionText', $actionText)
 @section('actionUrl', $url)
 @section('actionDescription', __('Review the deal and update the close date if plans have changed.'))
 @section('intro', $preheader)
-
-@section('content')
-    {{ __('email.dealCloseDateApproaching.text', ['dealName' => $dealName, 'closeDate' => $closeDate]) }}
-@endsection
 
 @section('detail')
     @if(!empty($closeDate))

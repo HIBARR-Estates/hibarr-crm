@@ -3,7 +3,7 @@
 @section('title', 'Follow-up overdue')
 @section('notifiableName', $notifiableName)
 
-@section('actionText', __($actionText))
+@section('actionText', $actionText)
 @section('actionUrl', $url)
 @section('actionDescription', __('email.leadFollowUpOverdue.footerNote'))
 @section('intro', $preheader)

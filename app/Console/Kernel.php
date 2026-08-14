@@ -128,7 +128,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('sync-user-permissions')->everyMinute();
         // $schedule->command('fetch-ticket-emails')->everyMinute(); // phpcs:ignore
         $schedule->command('send-auto-followup-reminder')->everyMinute();
-        $schedule->command('send-overdue-lead-followup-notifications')->hourly();
+        $schedule->command('send-overdue-lead-followup-notifications')->hourly()->withoutOverlapping();
         $schedule->command('send-approaching-deal-close-date-notifications')->dailyAt('08:00');
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();

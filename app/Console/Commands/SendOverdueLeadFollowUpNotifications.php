@@ -19,7 +19,15 @@ class SendOverdueLeadFollowUpNotifications extends Command
                 $overdueFollowUps = $leadNotificationService->overdueFollowUpsForCompany((int) $company->id);
 
                 foreach ($overdueFollowUps as $followUp) {
-                    $leadNotificationService->notifyFollowUpOverdue($followUp);
+                    try {
+                        $leadNotificationService->notifyFollowUpOverdue($followUp);
+                    } catch (\Throwable $e) {
+                        \Log::error('Failed to send overdue follow-up notification', [
+                            'follow_up_id' => $followUp->id,
+                            'company_id' => $company->id,
+                            'exception' => $e::class,
+                        ]);
+                    }
                 }
             }
         });

@@ -38,12 +38,16 @@ class DealDeleted extends BaseNotification
     {
         $via = ['database'];
 
+        if ($this->suppressBulkTransactionalEmails) {
+            return $via;
+        }
+
         if (
             $notifiable->status === 'active'
             && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && ! empty($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -80,9 +84,10 @@ class DealDeleted extends BaseNotification
             'bodyText' => $bodyText,
             'dealName' => $this->dealName,
             'deletedByName' => $this->deletedByName,
-            'actionDescription' => __('You can review your remaining deals in the CRM.'),
+            'actionDescription' => __('email.dealDeleted.actionDescription'),
             'actionText' => $actionText,
             'dealUrl' => $url,
+            'currentYear' => date('Y'),
         ]);
 
         parent::resetLocale();

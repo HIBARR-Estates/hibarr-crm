@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'defaultPreheader' => 'Just a quick heads up',
     'newLead' => [
         'subject' => 'New lead received.',
         'action' => 'View Lead',
@@ -240,6 +241,7 @@ return [
         'subject' => 'Lead removed from pipeline',
         'text' => ':leadName was removed from the active pipeline by :deletedBy.',
         'action' => 'View leads',
+        'actionDescription' => 'You can review your remaining leads in the CRM.',
         'unknownActor' => 'A team member',
     ],
     'leadFollowUpOverdue' => [
@@ -412,6 +414,7 @@ return [
         'subject' => 'Deal removed from pipeline',
         'text' => ':dealName was removed from the active pipeline by :deletedBy.',
         'action' => 'View deals',
+        'actionDescription' => 'You can review your remaining deals in the CRM.',
         'unknownActor' => 'A team member',
     ],
 

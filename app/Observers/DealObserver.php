@@ -189,7 +189,14 @@ class DealObserver
             }
 
             // Only pipeline moves that don't also change stage — stage changes are covered below.
-            if ($deal->isDirty('lead_pipeline_id')) {
+            $fromStageModel = null;
+            $toStageModel = null;
+            if ($deal->isDirty('pipeline_stage_id')) {
+                $fromStageModel = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
+                $toStageModel = PipelineStage::find($deal->pipeline_stage_id);
+            }
+
+            if ($deal->isDirty('lead_pipeline_id') && ! $deal->isDirty('pipeline_stage_id')) {
                 $fromPipeline = LeadPipeline::find($deal->getOriginal('lead_pipeline_id'))?->name ?? 'Unknown';
                 $toPipeline = LeadPipeline::find($deal->lead_pipeline_id)?->name ?? 'Unknown';
                 $this->notificationService->notifyPipelineChanged($deal, $fromPipeline, $toPipeline);
@@ -197,11 +204,10 @@ class DealObserver
 
             // Send notification for stage change to watchers and agent
             if ($deal->isDirty('pipeline_stage_id')) {
-                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'))?->name ?? 'Unknown';
-                $toStage = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
+                $fromStage = $fromStageModel?->name ?? 'Unknown';
+                $toStage = $toStageModel?->name ?? 'Unknown';
                 $this->notificationService->notifyStageChanged($deal, $fromStage, $toStage);
 
-                $toStageModel = PipelineStage::find($deal->pipeline_stage_id);
                 if ($toStageModel?->slug === 'win') {
                     $this->notificationService->notifyDealWon($deal);
                 } elseif ($toStageModel?->slug === 'lost') {
@@ -230,8 +236,8 @@ class DealObserver
 
             if ($deal->isDirty('pipeline_stage_id')) {
                 $trackedDirtyFields[] = 'pipeline_stage_id';
-                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
-                $toStage = PipelineStage::find($deal->pipeline_stage_id);
+                $fromStage = $fromStageModel;
+                $toStage = $toStageModel;
                 $this->recordCrmEvent('deal_stage_changed', $deal, [
                     'metadata' => [
                         'comment' => CrmEventDescriptionBuilder::dealStageChanged($fromStage->name ?? null, $toStage->name ?? null),
