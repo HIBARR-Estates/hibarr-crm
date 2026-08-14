@@ -32,6 +32,7 @@ export interface LocationFormValues {
     address_state?: string;
     address_country?: string;
     address_postalCode?: string;
+    location_image?: UploadFile[];
     map_image?: UploadFile[];
     attractions?: AttractionFormValue[];
     infrastructure?: InfrastructureFormValue[];
@@ -81,6 +82,17 @@ const getFileFromUpload = (uploadFile: UploadFile): File | null => {
  */
 const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
     const files: ExtractedFile[] = [];
+
+    if (values.location_image?.[0]) {
+        const file = getFileFromUpload(values.location_image[0]);
+        if (file) {
+            files.push({
+                file,
+                path: "image_url",
+                targetFolder: "project-locations/images",
+            });
+        }
+    }
 
     // Map image
     if (values.map_image?.[0]) {

@@ -1,4 +1,3 @@
-import { Button } from "antd";
 import React, { useMemo } from "react";
 import BulkDeleteLeads from "./BulkDeleteLeads";
 import BulkExportLeads from "./BulkExportLeads";
@@ -9,6 +8,8 @@ import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { usePermission } from "@/lib/permissionUtils";
 import { fmt } from "@/Features/Leads/Filters/controls";
+import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { BulkUpdateOptionsInput } from "./bulkUpdateConfig";
 import type { LeadBulkTarget } from "./bulkTarget";
 
@@ -146,60 +147,56 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                 />
             ) : null}
 
-            <div className="flex items-center gap-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 shadow-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                    <span className="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-1.5 rounded-md bg-blue-600 text-white text-xs font-semibold tabular-nums">
-                        {fmt(selectedCount)}
+            <BulkActionBar
+                count={selectedCount}
+                onClear={clearSelected}
+                clearLabel={td("Clear", { source: "en" })}
+                selectedLabel={`${fmt(selectedCount)} ${
+                    selectAllMatching
+                        ? td("matching selected", { source: "en" })
+                        : td("selected", { source: "en" })
+                }`}
+                style={{ padding: "14px 18px", gap: 16 }}
+                actionsGap={10}
+            >
+                {showSelectAllMatching ? (
+                    <button
+                        type="button"
+                        className="dr-btn"
+                        style={{ background: T.WHITE, color: T.NAVY }}
+                        onClick={onSelectAllMatching}
+                    >
+                        {td("Select all", { source: "en" })} {fmt(matchingTotal)}
+                    </button>
+                ) : null}
+
+                {selectAllMatching ? (
+                    <span
+                        className="inline-flex items-center rounded-md text-sm font-medium whitespace-nowrap"
+                        style={{ padding: "9px 14px", background: T.WHITE, color: T.NAVY }}
+                    >
+                        {td("All matching filters", { source: "en" })}
                     </span>
-                    <span className="text-sm text-blue-900 whitespace-nowrap">
-                        {selectAllMatching
-                            ? td("matching selected", { source: "en" })
-                            : td("selected", { source: "en" })}
-                    </span>
-                </div>
+                ) : null}
 
-                <div className="w-px h-5 bg-blue-200 shrink-0" aria-hidden />
-
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    {showSelectAllMatching ? (
-                        <Button
-                            size="small"
-                            type="default"
-                            className="!border-blue-300 !text-blue-800 !bg-white hover:!border-blue-400 hover:!text-blue-900 font-medium"
-                            onClick={onSelectAllMatching}
-                        >
-                            {td("Select all", { source: "en" })}{" "}
-                            {fmt(matchingTotal)}
-                        </Button>
-                    ) : null}
-
-                    {selectAllMatching ? (
-                        <span className="inline-flex items-center h-6 px-2 rounded-md border border-blue-300 bg-white text-xs font-medium text-blue-800 whitespace-nowrap">
-                            {td("All matching filters", { source: "en" })}
-                        </span>
-                    ) : null}
-
-                    {availableActions.map((item) => (
-                        <Button
-                            key={item.key}
-                            type={
-                                item.key === "bulk_update"
-                                    ? "primary"
-                                    : "default"
-                            }
-                            danger={item.key === "delete"}
-                            size="small"
-                            onClick={() => setAction(item.key)}
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
-
-                    <Button size="small" type="text" onClick={clearSelected}>
-                        {td("Clear", { source: "en" })}
-                    </Button>
-                </div>
-            </div>
+                {availableActions.map((item) => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        className="dr-btn"
+                        style={
+                            item.key === "bulk_update"
+                                ? { background: T.BLUE, color: T.WHITE }
+                                : item.key === "delete"
+                                  ? { background: T.RED, color: T.WHITE }
+                                  : { background: T.WHITE, color: T.NAVY }
+                        }
+                        onClick={() => setAction(item.key)}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </BulkActionBar>
         </>
     );
 };

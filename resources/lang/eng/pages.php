@@ -476,6 +476,8 @@ return [
             'priority_high'              => 'High',
             'priority_medium'            => 'Medium',
             'priority_low'               => 'Low',
+            'priority_highest'           => 'Highest',
+            'priority_urgent'            => 'Urgent',
             'assignees'                  => 'Assignees',
             'loading'                    => 'Loading…',
             'refresh'                    => 'Refresh',

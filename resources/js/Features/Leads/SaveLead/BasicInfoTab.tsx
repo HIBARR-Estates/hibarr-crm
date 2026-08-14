@@ -295,6 +295,18 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Form.Item>
                         </Col>
 
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                label="Preferred contact time"
+                                name="preferred_contact_time"
+                            >
+                                <FormDataSelector
+                                    type="preferred-contact-times"
+                                    placeholder="—"
+                                />
+                            </Form.Item>
+                        </Col>
+
                         {permissions?.view_lead_sources !== "none" && (
                             <Col xs={24} md={8}>
                                 <Form.Item label="Lead source" name="source_id">

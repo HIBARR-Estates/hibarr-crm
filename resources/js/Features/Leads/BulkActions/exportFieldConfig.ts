@@ -36,6 +36,7 @@ export const LEAD_EXPORT_FIELDS: LeadExportFieldDef[] = [
     { key: "occupation", label: "Occupation", group: "Profile" },
     { key: "languages", label: "Languages", group: "Profile" },
     { key: "temperature", label: "Temperature", group: "Profile", defaultSelected: true },
+    { key: "preferred_contact_time", label: "Preferred contact time", group: "Profile" },
     { key: "value", label: "Lead value", group: "Profile" },
     { key: "currency", label: "Currency", group: "Profile" },
 

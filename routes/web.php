@@ -526,6 +526,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
     Route::post('deals/follow-up-store', [DealController::class, 'followUpStore'])->name('deals.follow_up_store');
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
+    Route::get('deals/follow-up-data/{id}', [DealController::class, 'followUpData'])->name('deals.follow_up_data');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
     Route::post('deals/follow-up-apply-quick-action', [DealController::class, 'applyFollowUpQuickAction'])->name('deals.follow_up_apply_quick_action');

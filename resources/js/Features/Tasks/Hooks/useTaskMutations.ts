@@ -9,7 +9,7 @@ interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     board_column_id?: number;
     project?: {
@@ -38,7 +38,7 @@ interface CreateTaskData {
     description?: string;
     start_date: string;
     due_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     project_id?: number;
     category_id?: number;
     user_ids?: number[];

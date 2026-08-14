@@ -23,6 +23,8 @@ import {
 } from "../../config/leadInfoSections";
 import {
     LeadCategoryField,
+    LeadReferrerField,
+    LeadPreferredContactTimeField,
     LeadSourceField,
     LeadTemperatureField,
 } from "./LeadAttributionFields";
@@ -502,6 +504,11 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
+                <DetailField
+                    label={td("Preferred contact time", { source: "en" })}
+                >
+                    <LeadPreferredContactTimeField {...attributionFieldProps} />
+                </DetailField>
             </FieldGrid>
 
             <DealInfoGroupTitle>{td("Attribution", { source: "en" })}</DealInfoGroupTitle>
@@ -518,6 +525,9 @@ export default function LeadInfoSectionPanel({
                     })}
                 >
                     <LeadTemperatureField {...attributionFieldProps} />
+                </DetailField>
+                <DetailField label={td("Referrer", { source: "en" })}>
+                    <LeadReferrerField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField
                     label={t("pages.leads.info.fields.joined_whatsapp_group")}

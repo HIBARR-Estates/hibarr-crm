@@ -210,6 +210,10 @@ export function getDossierFieldValue(
             const value = asString(l.temperature);
             return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
         }
+        case "preferredContactTime": {
+            const value = asString(l.preferred_contact_time);
+            return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+        }
         case "languages":
             return asString(l.languages);
         case "occupation":

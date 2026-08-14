@@ -86,6 +86,8 @@ export default function TaskActionModals({
                 priorityHigh: t("pages.deals.common.priority_high"),
                 priorityMedium: t("pages.deals.common.priority_medium"),
                 priorityLow: t("pages.deals.common.priority_low"),
+                priorityHighest: t("pages.deals.common.priority_highest"),
+                priorityUrgent: t("pages.deals.common.priority_urgent"),
                 assignees: t("pages.deals.common.assignees"),
                 overdue: t("pages.deals.workspace.tasks.overdue"),
                 noDescription: t("pages.deals.common.no_description"),

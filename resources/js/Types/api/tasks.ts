@@ -6,7 +6,7 @@ export interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     integration_origin?: IntegrationOrigin | null;
     board_column_id?: number;

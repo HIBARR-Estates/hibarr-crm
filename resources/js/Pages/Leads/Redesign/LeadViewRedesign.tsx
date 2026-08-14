@@ -875,6 +875,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     priorityHigh: td("High", { source: "en" }),
                     priorityMedium: td("Medium", { source: "en" }),
                     priorityLow: td("Low", { source: "en" }),
+                    priorityHighest: td("Highest", { source: "en" }),
+                    priorityUrgent: td("Urgent", { source: "en" }),
                     assignees: td("Assignees", { source: "en" }),
                     dateRangeError: td("Due date must be on or after start date", { source: "en" }),
                 }}

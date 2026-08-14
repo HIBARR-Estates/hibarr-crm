@@ -96,6 +96,25 @@ mix.js("resources/js/bootstrap.js", "public/js")
                 cacheGroups: {
                     // Finer cache groups first (higher priority) so antd/react
                     // are not swallowed by the generic vendor group.
+
+                    // `chunks: "async"` — the only group here that is not
+                    // "all". posthog-js is loaded through a dynamic import in
+                    // lib/analytics.ts precisely so environments with no
+                    // POSTHOG_KEY never download it; the generic vendor group
+                    // below matches all of node_modules and would pull it into
+                    // the always-loaded vendor bundle, undoing that.
+                    //
+                    // Bare "posthog", without the `js/` prefix the groups below
+                    // carry: async chunks are named via output.chunkFilename,
+                    // which already resolves inside public/js, so prefixing
+                    // here emits public/js/js/posthog.js.
+                    posthog: {
+                        test: /[\\/]node_modules[\\/]posthog-js[\\/]/,
+                        name: "posthog",
+                        chunks: "async",
+                        priority: 40,
+                        reuseExistingChunk: true,
+                    },
                     antd: {
                         test: /[\\/]node_modules[\\/](antd|@ant-design)[\\/]/,
                         name: "js/antd",

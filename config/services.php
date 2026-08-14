@@ -127,6 +127,23 @@ return [
         'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
     ],
 
+    /*
+     * PostHog product analytics for the React/Inertia screens.
+     *
+     * Shipped to the browser through Inertia shared props rather than a build-time
+     * env var, because two asset pipelines coexist here (Mix reads process.env.MIX_*,
+     * Vite reads import.meta.env.VITE_*) and a build-time key would have to be
+     * declared twice and rebuilt to rotate. The project key is a publishable
+     * client-side key, so serving it in the page payload is its intended use.
+     *
+     * Leave POSTHOG_KEY empty to switch analytics off — that is the default, so
+     * nothing is sent until someone deliberately configures it.
+     */
+    'posthog' => [
+        'key' => env('POSTHOG_KEY'),
+        'host' => env('POSTHOG_HOST', 'https://eu.i.posthog.com'),
+    ],
+
     'ol' => [
         // Used for OL integration endpoints (e.g. Zoho Calendar sync jobs).
         // Default includes `/v1` to match frontend configuration.

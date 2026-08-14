@@ -1,0 +1,51 @@
+/*
+ * Leads Table — design-system header overrides.
+ *
+ * DataTable's shared stylesheet (resources/css/tailwind.css `.dt-table`)
+ * forces header background/color/size/weight with `!important` so every
+ * DataTable consumer gets one consistent header look. Inline `style` can
+ * never beat `!important`, so the Next Action column's navy header text and
+ * the 12px/700 label recipe from the design system need matching
+ * specificity + `!important` here instead of the `onHeaderCell` style prop.
+ *
+ * Font: nothing else on this page sets IBM Plex Sans — antd's own theme
+ * (resources/js/providers/antd/utils.ts) never overrides the default
+ * font stack, so without this the table renders in antd's default font
+ * instead of the design system's typeface.
+ */
+.leads-table .dt-table {
+    font-family:
+        "IBM Plex Sans",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif !important;
+}
+
+.leads-table .dt-table .ant-table-thead > tr > th {
+    background: #f8f9fb !important;
+    color: #5b6472 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+}
+
+.leads-table .dt-table .ant-table-thead > tr > th.leads-th-next-action {
+    color: #16294d !important;
+}
+
+/*
+ * Lead name + Next Action are the two clickable columns in the table body.
+ * Inline `style` sets their resting color, which beats a plain hover rule
+ * on specificity alone — hence !important here too.
+ */
+.leads-table .leads-lead-link:hover .leads-lead-name {
+    color: #155fa0 !important;
+    text-decoration: underline;
+}
+
+.leads-table .leads-next-action-btn:hover .leads-next-action-title {
+    color: #1a6bb5 !important;
+    text-decoration: underline;
+}

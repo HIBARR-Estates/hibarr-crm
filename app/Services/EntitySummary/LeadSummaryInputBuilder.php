@@ -53,11 +53,14 @@ class LeadSummaryInputBuilder
 
         $sections = [];
 
-        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office) {
+        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time) {
             $sections['contact'] = [
                 'email' => $lead->client_email ?: null,
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
+                'preferred_contact_time' => $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime
+                    ? $lead->preferred_contact_time->label()
+                    : $lead->preferred_contact_time,
             ];
         }
 

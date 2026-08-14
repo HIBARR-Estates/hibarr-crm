@@ -2457,6 +2457,20 @@ class DealController extends AccountBaseController
         return view('leads.followup.edit', $this->data);
     }
 
+    /**
+     * JSON single-follow-up fetch for the React detail modals (e.g. the Leads
+     * index Next Action click-through), which need one record on demand
+     * rather than the whole list a workspace page preloads.
+     */
+    public function followUpData($id)
+    {
+        $followUp = DealFollowUp::findOrFail($id);
+        $viewPermission = user()->permission('view_lead_follow_up');
+        abort_403($viewPermission === 'none' || ($viewPermission === 'added' && $followUp->added_by !== user()->id));
+
+        return Reply::dataOnly(['followUp' => $this->loadFollowUpWithParticipants($id)]);
+    }
+
     public function updateFollow(FollowUpStoreRequest $request)
     {
         $this->deal = Deal::findOrFail($request->deal_id);

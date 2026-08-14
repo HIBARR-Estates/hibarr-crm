@@ -16,7 +16,7 @@ export interface LeadTaskCreateInput {
     startDate?: string;
     dueDate?: string;
     dueTime?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     description?: string;
     assignees?: number[];
 }
@@ -27,7 +27,7 @@ interface CreateTaskRequest {
     start_date?: string;
     due_date?: string;
     without_duedate?: boolean;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     taskable_type: "lead";
     taskable_id: number;
     user_id?: number[];

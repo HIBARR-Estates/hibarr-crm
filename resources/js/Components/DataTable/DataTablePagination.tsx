@@ -1,5 +1,6 @@
 import React, { useId, useMemo } from "react";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { LaravelPaginationMeta } from "./types";
 import { buildPageRange } from "./utils";
 
@@ -16,7 +17,7 @@ interface DataTablePaginationProps {
 
 // Shared button base class — hoisted to avoid re-creation on every render (rendering-hoist-jsx)
 const NAV_BTN_BASE =
-    "inline-flex items-center justify-center w-8 h-8 rounded-md text-sm border transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500";
+    "inline-flex items-center justify-center w-8 h-8 rounded-md text-sm border transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1";
 
 const DataTablePagination: React.FC<DataTablePaginationProps> = ({
     meta,
@@ -50,24 +51,25 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
 
     return (
         <div
-            className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-gray-200 bg-white ${className}`}
+            className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t bg-white ${className}`}
+            style={{ borderColor: T.BORDER }}
         >
             {/* Left — result range + optional rows-per-page selector */}
-            <div className="flex items-center gap-3 text-sm text-gray-500">
+            <div className="flex items-center gap-3 text-sm" style={{ color: T.TEXT_MUTED }}>
                 <span aria-live="polite" aria-atomic="true">
                     Showing{" "}
-                    <span className="font-medium text-gray-700">{displayFrom}</span>
+                    <span className="font-semibold" style={{ color: T.TEXT }}>{displayFrom}</span>
                     {"–"}
-                    <span className="font-medium text-gray-700">{displayTo}</span>
+                    <span className="font-semibold" style={{ color: T.TEXT }}>{displayTo}</span>
                     {" of "}
-                    <span className="font-medium text-gray-700">{total}</span>
+                    <span className="font-semibold" style={{ color: T.TEXT }}>{total}</span>
                 </span>
 
                 {onPageSizeChange !== undefined ? (
                     <div className="flex items-center gap-1.5">
                         <label
                             htmlFor={selectId}
-                            className="whitespace-nowrap text-gray-500 select-none"
+                            className="whitespace-nowrap select-none"
                         >
                             Rows per page
                         </label>
@@ -77,9 +79,8 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                             onChange={(e) =>
                                 onPageSizeChange(Number(e.target.value))
                             }
-                            className="text-sm border border-gray-200 rounded-md px-2 py-1 text-gray-700 bg-white cursor-pointer
-                                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                       hover:border-gray-300 transition-colors"
+                            className="text-sm rounded-md px-2 py-1 cursor-pointer outline-none transition-colors hover:border-[#c7d0de] focus:border-[#b8d4f0] focus:shadow-[0_0_0_2px_#e8f1fb]"
+                            style={{ border: `1px solid ${T.BORDER}`, color: T.TEXT }}
                         >
                             {resolvedPageSizeOptions.map((n) => (
                                 <option key={n} value={n}>
@@ -98,14 +99,15 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                 className="flex items-center gap-1"
             >
                 <span
-                    className="text-sm text-gray-500 mr-2 whitespace-nowrap"
+                    className="text-sm mr-2 whitespace-nowrap"
+                    style={{ color: T.TEXT_MUTED }}
                     aria-live="polite"
                     aria-atomic="true"
                 >
                     Page{" "}
-                    <span className="font-medium text-gray-700">{current_page}</span>
+                    <span className="font-semibold" style={{ color: T.TEXT }}>{current_page}</span>
                     {" of "}
-                    <span className="font-medium text-gray-700">{last_page}</span>
+                    <span className="font-semibold" style={{ color: T.TEXT }}>{last_page}</span>
                 </span>
 
                 {/* Previous */}
@@ -114,9 +116,8 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     onClick={() => hasPrev && onPageChange(current_page - 1)}
                     disabled={!hasPrev}
                     aria-label="Previous page"
-                    className={`${NAV_BTN_BASE} text-gray-500 border-gray-200 bg-white
-                        hover:bg-gray-50 hover:border-gray-300
-                        disabled:opacity-40 disabled:cursor-not-allowed`}
+                    className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                    style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                 >
                     <LeftOutlined style={{ fontSize: 10 }} />
                 </button>
@@ -126,7 +127,8 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     page === "ellipsis" ? (
                         <span
                             key={`ellipsis-${idx}`}
-                            className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none"
+                            className="w-8 h-8 flex items-center justify-center text-sm select-none"
+                            style={{ color: T.TEXT_HINT }}
                             aria-hidden="true"
                         >
                             …
@@ -144,9 +146,14 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                             }
                             className={`${NAV_BTN_BASE} ${
                                 page === current_page
-                                    ? "border-blue-600 bg-blue-600 text-white font-medium cursor-default"
-                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
+                                    ? "font-semibold cursor-default"
+                                    : "cursor-pointer bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de]"
                             }`}
+                            style={
+                                page === current_page
+                                    ? { borderColor: T.BLUE, background: T.BLUE, color: T.WHITE }
+                                    : { borderColor: T.BORDER, color: T.TEXT_MUTED }
+                            }
                         >
                             {page}
                         </button>
@@ -159,9 +166,8 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     onClick={() => hasNext && onPageChange(current_page + 1)}
                     disabled={!hasNext}
                     aria-label="Next page"
-                    className={`${NAV_BTN_BASE} text-gray-500 border-gray-200 bg-white
-                        hover:bg-gray-50 hover:border-gray-300
-                        disabled:opacity-40 disabled:cursor-not-allowed`}
+                    className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                    style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                 >
                     <RightOutlined style={{ fontSize: 10 }} />
                 </button>

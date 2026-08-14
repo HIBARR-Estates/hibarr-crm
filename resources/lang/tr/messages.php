@@ -23,6 +23,7 @@ return array(
     'dealUpdateSuccess' => 'Anlaşma başarıyla güncellendi.',
     'dealLocked' => 'Bu anlaşma kilitli ve değiştirilemez.',
     'leadUpdateSuccess' => 'İletişim başarıyla güncellendi.',
+    'leadReferrerImmutable' => 'Yönlendiren zaten belirlenmiş ve değiştirilemez.',
     'propertyUpdateSuccess' => 'Mülk başarıyla güncellendi.',
     'taskUpdateSuccess' => 'Görev başarıyla güncellendi.',
     'taskCreatedSuccessfully' => 'Görev başarıyla oluşturuldu.',
