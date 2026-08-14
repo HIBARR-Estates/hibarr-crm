@@ -11,10 +11,12 @@ const VERTICAL_STYLES = {
         labelKey: "priority_medium",
     },
     low: { bg: T.GRAY, color: T.GRAY_DARK, border: T.BORDER, labelKey: "priority_low" },
+    highest: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID, labelKey: "priority_highest" },
+    urgent: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID, labelKey: "priority_urgent" },
 } as const;
 
 interface OverviewPriorityBadgeProps {
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     vertical?: boolean;
 }
 

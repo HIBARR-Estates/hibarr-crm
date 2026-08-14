@@ -57,6 +57,7 @@ export default function MoreMenu({
     }, [open]);
 
     const items = MORE_MENU_ITEMS.filter((item) => {
+        if (item.id === "replay_guide") return onReplayGuide !== undefined;
         if (item.id === "delete") return canDelete;
         if (item.id === "find_duplicates") return canFindDuplicates;
         return true;
@@ -112,22 +113,6 @@ export default function MoreMenu({
                                     {td(item.label, { source: "en" })}
                                 </button>
                             ),
-                        )}
-                        {onReplayGuide && (
-                            <>
-                                <div className="dr-menu-sep" role="separator" />
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="dr-menu-item"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        onReplayGuide();
-                                    }}
-                                >
-                                    {t("pages.leads.tour.replay_menu_item")}
-                                </button>
-                            </>
                         )}
                     </div>,
                     document.body,

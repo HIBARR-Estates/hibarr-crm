@@ -80,7 +80,7 @@ export const useTasksTableColumns = ({
             key: "heading",
             width: 340,
             render: (_: string, record: Task) => {
-                const priority = record.priority as "low" | "medium" | "high";
+                const priority = record.priority;
                 const priorityColor = getPriorityConfig(priority).color;
                 return (
                     <div className="py-1">

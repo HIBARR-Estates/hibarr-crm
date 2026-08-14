@@ -6,7 +6,7 @@ export interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     integration_origin?: IntegrationOrigin | null;
     board_column_id?: number;
@@ -51,6 +51,17 @@ export interface Task {
         id: number;
         column_name: string;
         label_color: string;
+    };
+    /**
+     * What the API actually returns — Task::toFrontendArray() serialises the
+     * `boardColumn` relation under its snake_case key. Declared because half
+     * the codebase was reading it through `as any` casts and local re-decls.
+     */
+    board_column?: {
+        id: number;
+        column_name?: string;
+        label_color?: string;
+        slug?: string;
     };
 
     completed_on?: string;

@@ -409,12 +409,17 @@ trait EmployeeDashboard
 
 
 
+            // Both read 'pending', which is not in the lead_follow_up.status enum
+            // (scheduled|completed|cancelled), so both counters showed 0 for every
+            // agent no matter their workload. The split is overdue vs upcoming —
+            // the second one's name is a misnomer, left alone because the blades
+            // read it.
             $this->pendingDealFollowUps = $this->dealFollowUps->filter(function ($value) {
-                return $value->status == 'pending' && Carbon::parse($value->next_follow_up_date)->lt(now());
+                return $value->status == 'scheduled' && Carbon::parse($value->next_follow_up_date)->lt(now());
             })->count();
 
             $this->completedDealFollowUps = $this->dealFollowUps->filter(function ($value) {
-                return $value->status == 'pending' && Carbon::parse($value->next_follow_up_date)->isFuture();
+                return $value->status == 'scheduled' && Carbon::parse($value->next_follow_up_date)->isFuture();
             })->count();
 
         }

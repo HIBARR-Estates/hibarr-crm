@@ -9,6 +9,8 @@ use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Models\CrmEventCategory;
 use App\Models\CrmEventType;
+use App\Models\Deal;
+use App\Models\Lead;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -110,6 +112,8 @@ class CrmEventService
             'occurred_at' => $params['occurred_at'] ?? now(),
         ];
 
+        $this->stampLeadFirstContact($eventData, $params['event_type_slug']);
+
         // Dispatch async or insert sync
         if (!$forceSync && $eventType->isAsync()) {
             $queueConnection = config('crm_events.queue.connection');
@@ -141,6 +145,78 @@ class CrmEventService
         ]);
 
         return $event;
+    }
+
+    /**
+     * Stamp leads.first_contacted_at the first time an agent-originated activity
+     * is recorded against a lead.
+     *
+     * Lives here rather than in each emitting controller/observer so there is one
+     * writer: every event, sync or async, passes through record(). Idempotent via
+     * the whereNull guard, so replays and backfills cannot move the timestamp.
+     *
+     * Uses a query-builder update deliberately — it must not fire LeadObserver and
+     * emit a spurious lead_updated event.
+     */
+    private function stampLeadFirstContact(array $eventData, string $slug): void
+    {
+        if (!in_array($slug, config('crm_events.first_contact.slugs', []), true)) {
+            return;
+        }
+
+        $leadId = $this->resolveLeadId($eventData['model_type'] ?? null, $eventData['model_id'] ?? null);
+
+        if (!$leadId) {
+            return;
+        }
+
+        $occurredAt = $eventData['occurred_at'] ?? now();
+
+        $stamped = Lead::withoutGlobalScopes()
+            ->whereKey($leadId)
+            ->whereNull('first_contacted_at')
+            ->update(['first_contacted_at' => $occurredAt]);
+
+        if (!$stamped) {
+            return;
+        }
+
+        // Not in first_contact.slugs, so this cannot recurse.
+        $this->record([
+            'event_type_slug' => 'lead_first_contact',
+            'company_id' => $eventData['company_id'],
+            'user_id' => $eventData['user_id'] ?? null,
+            'model_type' => Lead::class,
+            'model_id' => $leadId,
+            'source' => $eventData['source'],
+            'correlation_id' => $eventData['correlation_id'] ?? null,
+            'occurred_at' => $occurredAt,
+            'metadata' => [
+                'comment' => 'First contact logged',
+                'triggered_by_event' => $slug,
+            ],
+        ], forceSync: true);
+    }
+
+    /**
+     * Resolve the lead behind an event — either the lead itself, or the lead the
+     * deal belongs to (deals.lead_id).
+     */
+    private function resolveLeadId(?string $modelType, $modelId): ?int
+    {
+        if (!$modelId) {
+            return null;
+        }
+
+        if ($modelType === Lead::class) {
+            return (int) $modelId;
+        }
+
+        if ($modelType === Deal::class) {
+            return Deal::withoutGlobalScopes()->whereKey($modelId)->value('lead_id');
+        }
+
+        return null;
     }
 
     /**

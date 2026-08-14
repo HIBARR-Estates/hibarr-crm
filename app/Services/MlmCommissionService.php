@@ -34,14 +34,36 @@ class MlmCommissionService
     /**
      * Distribute commissions for a won deal using the Differential Commission Model.
      *
+     * A persist loop over preview(), deliberately: the dashboard shows partners
+     * a forecast of what their open referrals would pay, and a forecast
+     * computed by a parallel implementation is a forecast that drifts. This one
+     * is shown to people outside the company, so it has to be the same
+     * arithmetic that later writes the money.
+     *
+     * @return array<int, MlmCommission> the persisted records
+     */
+    public function distribute(Deal $deal): array
+    {
+        $records = [];
+
+        foreach ($this->preview($deal) as $leg) {
+            $records[] = MlmCommission::create($leg);
+        }
+
+        return $records;
+    }
+
+    /**
+     * The commission legs a deal would produce, without writing any of them.
+     *
      * Commission flow:
      * 1. Agent receives their level's commission %
      * 2. Each ancestor receives (their_level% - previous_cumulative%)
      * 3. Remaining up to max_commission% goes to system
      *
-     * @return array Summary of distributed commissions
+     * @return array<int, array<string, mixed>>
      */
-    public function distribute(Deal $deal): array
+    public function preview(Deal $deal): array
     {
         $agent = LeadAgent::find($deal->agent_id);
 
@@ -88,7 +110,7 @@ class MlmCommissionService
         // 1. Agent's own commission
         if ($agentCommissionPct > 0) {
             $effectivePct = min($agentCommissionPct, $maxCommission);
-            $records[] = $this->createCommissionRecord(
+            $records[] = $this->leg(
                 deal: $deal,
                 agent: $agent,
                 sourceAgent: $agent,
@@ -137,7 +159,7 @@ class MlmCommissionService
                     $effectivePct = min($differential, $maxCommission - $cumulativePct);
 
                     if ($effectivePct > 0) {
-                        $records[] = $this->createCommissionRecord(
+                        $records[] = $this->leg(
                             deal: $deal,
                             agent: $ancestor,
                             sourceAgent: $agent,
@@ -157,7 +179,7 @@ class MlmCommissionService
         $remainingPct = $maxCommission - $cumulativePct;
 
         if ($remainingPct > 0.001) {
-            $records[] = $this->createCommissionRecord(
+            $records[] = $this->leg(
                 deal: $deal,
                 agent: $agent,
                 sourceAgent: $agent,
@@ -168,7 +190,7 @@ class MlmCommissionService
             );
         }
 
-        Log::info("MlmCommissionService: Distributed " . count($records) . " commission records for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)" . ($useSnapshots ? ' [snapshot]' : ''));
+        Log::info("MlmCommissionService: Resolved " . count($records) . " commission legs for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)" . ($useSnapshots ? ' [snapshot]' : ''));
 
         return $records;
     }
@@ -265,9 +287,11 @@ class MlmCommissionService
     }
 
     /**
-     * Create a commission record in the database.
+     * Describe one commission leg, without writing it.
+     *
+     * @return array<string, mixed>
      */
-    protected function createCommissionRecord(
+    protected function leg(
         Deal $deal,
         LeadAgent $agent,
         LeadAgent $sourceAgent,
@@ -276,8 +300,8 @@ class MlmCommissionService
         float $amount,
         MlmCommissionType $type,
         ?int $cycleLevelSnapshotId = null
-    ): MlmCommission {
-        return MlmCommission::create([
+    ): array {
+        return [
             'company_id' => $deal->company_id,
             'deal_id' => $deal->id,
             'agent_id' => $agent->id,
@@ -288,6 +312,6 @@ class MlmCommissionService
             'amount' => $amount,
             'type' => $type->value,
             'status' => MlmCommissionStatus::Pending->value,
-        ]);
+        ];
     }
 }

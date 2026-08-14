@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
@@ -54,6 +55,7 @@ class PatchRequest extends CoreRequest
             'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
+            'preferred_contact_time' => ['sometimes', 'nullable', 'string', Rule::in(PreferredContactTime::values())],
 
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',
@@ -63,6 +65,8 @@ class PatchRequest extends CoreRequest
             
             // Assignment (all optional for patch)
             'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
+            // Write-once — LeadObserver rejects any attempt to change an existing referrer.
+            'referred_by_agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
             'lead_owner' => 'sometimes|nullable|integer|exists:users,id',
             'added_by' => 'sometimes|nullable|integer|exists:users,id',
             
@@ -117,6 +121,7 @@ class PatchRequest extends CoreRequest
             'products.*.exists' => 'One or more selected products do not exist.',
             'currency_id.exists' => 'Selected currency is invalid.',
             'agent_id.exists' => 'Selected agent is invalid.',
+            'referred_by_agent_id.exists' => 'Selected referrer is invalid.',
             'lead_owner.exists' => 'Selected lead owner is invalid.',
             'added_by.exists' => 'Selected user is invalid.',
             'category_id.exists' => 'Selected category is invalid.',
@@ -145,6 +150,7 @@ class PatchRequest extends CoreRequest
             'postal_code' => 'postal code',
             'next_follow_up' => 'next follow-up date',
             'agent_id' => 'assigned agent',
+            'referred_by_agent_id' => 'referrer',
             'lead_owner' => 'lead owner',
             'added_by' => 'added by',
             'category_id' => 'category',

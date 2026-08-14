@@ -6,6 +6,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
 use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Helper\Files;
 use App\Helper\Reply;
@@ -119,6 +120,26 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
+            // Toolbar "Due this week" pill + the Schedule-next-step meeting
+            // modal — neither blocks first paint, so both are deferred.
+            'nextActionDueThisWeekCount' => Inertia::defer(
+                fn () => $this->leadService->countNextActionBucket($request, 'week')
+            ),
+            'meetingTypes' => Inertia::defer(
+                fn () => \App\Models\MeetingType::where('company_id', company()->id)->get(['id', 'name'])
+            ),
+            // Next Action click-through: TaskDetailModal's status dropdown.
+            'taskBoardColumns' => Inertia::defer(
+                fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()
+            ),
+            'preferredContactTimes' => Inertia::defer(
+                fn () => collect(PreferredContactTime::cases())->map(
+                    fn (PreferredContactTime $time) => [
+                        'value' => $time->value,
+                        'label' => $time->label(),
+                    ]
+                )->values()->all()
+            ),
         ];
 
         // Filter modal chrome — only the v2 filter UI consumes these, and the
@@ -175,6 +196,7 @@ class LeadContactController extends AccountBaseController
             'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
             'lifecycleStatus:id,key,label,label_color,sort_order',
+            'referredByAgent.user:id,name',
             'activeQualification.answers',
             'activeQualification.agent:id,name,image',
             'leadFlightItineraries',
@@ -570,6 +592,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->temperature = $request->temperature;
+        $leadContact->preferred_contact_time = $request->preferred_contact_time;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -767,6 +790,9 @@ class LeadContactController extends AccountBaseController
         if ($request->has('temperature')) {
             $leadContact->temperature = $request->temperature;
         }
+        if ($request->has('preferred_contact_time')) {
+            $leadContact->preferred_contact_time = $request->preferred_contact_time;
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -876,6 +902,9 @@ class LeadContactController extends AccountBaseController
             if ($request->has('temperature')) {
                 $leadContact->temperature = $request->temperature;
             }
+            if ($request->has('preferred_contact_time')) {
+                $leadContact->preferred_contact_time = $request->preferred_contact_time;
+            }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
             }
@@ -961,6 +990,10 @@ class LeadContactController extends AccountBaseController
             }
             if ($request->has('added_by')) {
                 $leadContact->added_by = $request->added_by;
+            }
+            // Write-once: LeadObserver::saving() throws if this would overwrite an existing referrer.
+            if ($request->has('referred_by_agent_id')) {
+                $leadContact->referred_by_agent_id = $request->referred_by_agent_id ?: null;
             }
             
             // Handle categorization (multi via category_ids; category_id still accepted)
@@ -1118,7 +1151,7 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'temperature', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'preferred_contact_time', 'note', 'lead_owner', 'category_id',
                     'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
@@ -1157,6 +1190,12 @@ class LeadContactController extends AccountBaseController
                 if ($request->has('lead_owner')) {
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
+                }
+
+                if ($request->has('referred_by_agent_id')) {
+                    $leadContact->load('referredByAgent.user:id,name');
+                    $responseData['referred_by_agent_id'] = $leadContact->referred_by_agent_id;
+                    $responseData['referred_by_agent'] = $leadContact->referredByAgent;
                 }
 
                 if ($request->has('lead_lifecycle_status_id')) {

@@ -27,6 +27,22 @@ class LeadObserver
             $lead->last_updated_by = $userID;
         }
 
+        // Stamp the assignment clock whenever the lead lands on an owner. Set in
+        // saving() (not updated()) so it persists in the same write.
+        if ($lead->isDirty('lead_owner') && $lead->lead_owner) {
+            $lead->assigned_at = now();
+        }
+
+        // The referrer drives partner commission attribution, so it is write-once:
+        // it can be filled when missing, never reassigned or cleared. Guarded here
+        // rather than in the controller so every writer (UI, import, API) is covered.
+        if ($lead->exists
+            && $lead->isDirty('referred_by_agent_id')
+            && $lead->getOriginal('referred_by_agent_id') !== null
+        ) {
+            throw new \RuntimeException(__('messages.leadReferrerImmutable'));
+        }
+
     }
 
     public function creating(Lead $leadContact)
@@ -147,6 +163,28 @@ class LeadObserver
             ]);
         }
 
+        if ($leadContact->wasChanged('lead_lifecycle_status_id')) {
+            $fromId = $leadContact->getOriginal('lead_lifecycle_status_id');
+            $toId = $leadContact->lead_lifecycle_status_id;
+
+            $statuses = LeadLifecycleStatus::whereIn('id', array_filter([$fromId, $toId]))
+                ->get()
+                ->keyBy('id');
+
+            // ── CRM Event: lead_lifecycle_status_changed ──
+            $this->recordCrmEvent('lead_lifecycle_status_changed', $leadContact, [
+                'metadata' => [
+                    'comment' => 'Lifecycle status changed from '
+                        . ($statuses->get($fromId)?->label ?? 'none')
+                        . ' to ' . ($statuses->get($toId)?->label ?? 'none'),
+                    'from_status_id' => $fromId,
+                    'to_status_id' => $toId,
+                    'from_status_key' => $statuses->get($fromId)?->key,
+                    'to_status_key' => $statuses->get($toId)?->key,
+                ],
+            ]);
+        }
+
         if (!$leadContact->wasChanged('lead_owner')) {
             return;
         }
@@ -184,8 +222,8 @@ class LeadObserver
             }
         });
 
-        // ── CRM Event: lead_status_changed (owner reassigned) ──
-        $this->recordCrmEvent('lead_status_changed', $leadContact, [
+        // ── CRM Event: lead_owner_changed ──
+        $this->recordCrmEvent('lead_owner_changed', $leadContact, [
             'metadata' => [
                 'comment' => 'Lead owner changed',
                 'from_owner_id' => $oldOwnerId,

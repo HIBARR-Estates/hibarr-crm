@@ -7,6 +7,7 @@ use App\Enums\Salutation;
 use App\Enums\Gender;
 use App\Enums\AgeRange;
 use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
@@ -27,7 +28,15 @@ use Illuminate\Notifications\Notifiable;
  * @property int $id
  * @property int|null $client_id
  * @property int|null $source_id
+ * @property int|null $referred_by_agent_id
  * @property int|null $status_id
+ * @property int|null $lead_lifecycle_status_id
+ * @property \App\Enums\LeadTemperature|null $temperature
+ * @property array|null $languages
+ * @property string|null $primary_language
+ * @property \Illuminate\Support\Carbon|null $assigned_at
+ * @property \Illuminate\Support\Carbon|null $first_contacted_at
+ * @property-read \App\Models\LeadAgent|null $referredByAgent
  * @property int $column_priority
  * @property int|null $agent_id
  * @property string|null $company_name
@@ -47,6 +56,7 @@ use Illuminate\Notifications\Notifiable;
  * @property \Illuminate\Support\Carbon|null $date_of_birth
  * @property int|null $age
  * @property string|null $age_range
+ * @property string|null $preferred_contact_time
  * @property string|null $note
  * @property string $next_follow_up
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -158,10 +168,22 @@ class Lead extends BaseModel
         'age' => 'integer',
         'age_range' => AgeRange::class,
         'temperature' => LeadTemperature::class,
+        'preferred_contact_time' => PreferredContactTime::class,
         'languages' => 'array',
+        'assigned_at' => 'datetime',
+        'first_contacted_at' => 'datetime',
         'remind_at' => 'datetime',
         'reminders' => 'array',
     ];
+
+    /**
+     * The partner/agent who introduced this lead — distinct from agent_id/lead_owner,
+     * which is whoever works it. Drives partner commission attribution.
+     */
+    public function referredByAgent(): BelongsTo
+    {
+        return $this->belongsTo(LeadAgent::class, 'referred_by_agent_id');
+    }
 
     public function leadFlightItineraries()
     {

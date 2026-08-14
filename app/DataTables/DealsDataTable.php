@@ -317,7 +317,10 @@ class DealsDataTable extends BaseDataTable
                 'leads.id as contact_id',
                 'leads.client_name as client_name',
                 'leads.client_email as client_email',
-                DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' and lead_follow_up.status  = 'pending' ORDER BY next_follow_up_date asc limit 1) as next_follow_up_date"),
+                // 'scheduled', not 'pending': the lead_follow_up.status enum is
+                // (scheduled|completed|cancelled), so this filter matched nothing
+                // and the Next Follow Up column was permanently empty.
+                DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' and lead_follow_up.status  = 'scheduled' ORDER BY next_follow_up_date asc limit 1) as next_follow_up_date"),
                 DB::raw("(select lead_follow_up.status from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes'  ORDER BY next_follow_up_date asc limit 1) as next_follow_up_status")
             )
             ->leftJoin('pipeline_stages', 'pipeline_stages.id', 'deals.pipeline_stage_id')

@@ -2520,6 +2520,8 @@ return array(
         'leadContactEmail' => 'Lead Contact Email',
         'dealCategory' => 'Deal Category',
         'dealMethod' => 'Round Robin',
+        'firstContactSla' => 'First contact SLA (hours)',
+        'firstContactSlaHelp' => 'How long an agent has to make first contact with a new lead. Drives the "Contacted in SLA" figure and the overdue-contact column on the team dashboard.',
         'ticketSetting' => 'Ticket Setting',
         'ticketVisibilitySetting' => 'Ticket Visibility Setting',
         'information' => 'Information :',

@@ -107,6 +107,20 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 ) || [],
         },
         {
+            key: "next_action",
+            label: "Next action",
+            type: "select",
+            control: "segmented",
+            sentence: "next action",
+            section: "General",
+            options: [
+                { value: "overdue", label: "Overdue" },
+                { value: "today", label: "Today" },
+                { value: "week", label: "Next 7 days" },
+                { value: "none", label: "None" },
+            ],
+        },
+        {
             key: "lead_type",
             label: "Lead type",
             type: "select",
@@ -207,6 +221,16 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             sentence: "gender",
             section: "Profile",
             options: props.genders || [],
+        },
+        {
+            key: "preferred_contact_time",
+            label: "Preferred contact time",
+            type: "multiselect",
+            control: "pills",
+            facetKey: "preferred_contact_time",
+            sentence: "preferred contact time",
+            section: "Profile",
+            options: props.preferredContactTimes || [],
         },
         {
             key: "age_range",

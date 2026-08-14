@@ -36,8 +36,6 @@ interface QualificationTabProps {
     current: LeadQualification | null;
     history: LeadQualification[];
     onStartQualify?: () => void;
-    /** Repeat a script the lead has already been called with. */
-    onStartWithScript?: (templateId: string) => void;
     onResumeQualify?: (qualification: LeadQualification) => void;
     onDeleteQualify?: (qualification: LeadQualification) => Promise<boolean> | boolean;
     canStart?: boolean;
@@ -143,7 +141,6 @@ export default function QualificationTab({
     current,
     history,
     onStartQualify,
-    onStartWithScript,
     onResumeQualify,
     onDeleteQualify,
     canStart,
@@ -258,8 +255,9 @@ export default function QualificationTab({
                                 : td("scripts", { source: "en" })}
                         </span>
                     </div>
-                    {/* Always present — an open call disables them rather than
-                        hiding them, so the rail header never loses its actions. */}
+                    {/* Always present — an open call disables it rather than
+                        hiding it, so the rail header never loses its action.
+                        Picks the script (auto-starts when there's only one). */}
                     <div className="flex flex-col gap-2 mt-3">
                         <Button
                             size="sm"
@@ -275,33 +273,9 @@ export default function QualificationTab({
                                           { source: "en" },
                                       )
                             }
-                            onClick={() => {
-                                const lastScript = calls[0]?.template_id;
-                                if (lastScript && onStartWithScript) {
-                                    onStartWithScript(lastScript);
-                                } else {
-                                    onStartQualify?.();
-                                }
-                            }}
-                        >
-                            {td("New qualification call", { source: "en" })}
-                        </Button>
-                        <Button
-                            size="sm"
-                            icon={<Icon name="layers" size={13} />}
-                            style={{ width: "100%" }}
-                            disabled={!canStart}
-                            title={
-                                canStart
-                                    ? undefined
-                                    : td(
-                                          "Finish the open call before starting another.",
-                                          { source: "en" },
-                                      )
-                            }
                             onClick={onStartQualify}
                         >
-                            {td("Call with another script", { source: "en" })}
+                            {td("New qualification call", { source: "en" })}
                         </Button>
                     </div>
                     {hasInProgress ? (

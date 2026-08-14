@@ -467,6 +467,8 @@ return [
             'priority_high'              => 'Yüksek',
             'priority_medium'            => 'Orta',
             'priority_low'               => 'Düşük',
+            'priority_highest'           => 'En yüksek',
+            'priority_urgent'            => 'Acil',
             'assignees'                  => 'Atananlar',
             'loading'                    => 'Yükleniyor…',
             'refresh'                    => 'Yenile',

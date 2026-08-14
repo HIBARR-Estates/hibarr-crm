@@ -184,6 +184,14 @@ class PackagePipelineRouterService
 
         $deal->lead_pipeline_id = $targetPipeline->id;
         $deal->pipeline_stage_id = $targetStageId;
+
+        // saveQuietly skips DealObserver, which is what stamps the stage dwell
+        // clock. DealActivityEventService records the crm_event separately, so
+        // only this half was missing.
+        if ($stageChanged) {
+            $deal->stage_entered_at = now();
+        }
+
         $deal->saveQuietly();
 
         Log::info('Deal routed to pipeline via package linkage', [
