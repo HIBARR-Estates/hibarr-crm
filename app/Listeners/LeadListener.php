@@ -20,8 +20,12 @@ class LeadListener
     public function handle(LeadEvent $event)
     {
         $admins = User::allAdmins($event->leadContact->company->id);
+        $actorId = user()?->id;
+        if ($actorId !== null) {
+            $admins = $admins->reject(fn (User $admin) => (int) $admin->id === (int) $actorId);
+        }
 
-        if (session('is_imported') == false) {
+        if (session('is_imported') == false && $admins->isNotEmpty()) {
             Notification::send($admins, new NewLeadCreated($event->leadContact));
         }
 

@@ -94,7 +94,8 @@ function processStandardField(
     if (
         fieldName === "gender" ||
         fieldName === "salutation" ||
-        fieldName === "temperature"
+        fieldName === "temperature" ||
+        fieldName === "preferred_contact_time"
     ) {
         return { [fieldName]: value || null };
     }

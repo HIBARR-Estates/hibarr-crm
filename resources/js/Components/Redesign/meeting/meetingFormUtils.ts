@@ -118,6 +118,128 @@ export function requiresManualMeetingLink(
     return isVideoPlatform(platform) && !usesAutoMeetingLink(platform);
 }
 
+/**
+ * Providers that can open an external "create meeting" page from the CRM form.
+ * Zoho is excluded (auto-link). Zoom has no query-prefill schedule URL, so we
+ * still open its schedule UI without form params.
+ */
+export function supportsExternalMeetingCreate(
+    platform: MeetingPlatform | string,
+): boolean {
+    return requiresManualMeetingLink(platform);
+}
+
+export interface ExternalMeetingCreateInput {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    details?: string;
+    guestEmails?: string[];
+    location?: string;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Local date+time → UTC `YYYYMMDDTHHMMSSZ` for Google Calendar TEMPLATE links. */
+const toGoogleUtcStamp = (isoDate: string, time: string): string | null => {
+    if (!isoDate || !time) return null;
+    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    if (Number.isNaN(local.getTime())) return null;
+    return (
+        `${local.getUTCFullYear()}${pad2(local.getUTCMonth() + 1)}${pad2(local.getUTCDate())}` +
+        `T${pad2(local.getUTCHours())}${pad2(local.getUTCMinutes())}${pad2(local.getUTCSeconds())}Z`
+    );
+};
+
+/** Local date+time → UTC ISO `YYYY-MM-DDTHH:mm:ssZ` for Outlook deeplinks. */
+const toOutlookUtcIso = (isoDate: string, time: string): string | null => {
+    if (!isoDate || !time) return null;
+    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    if (Number.isNaN(local.getTime())) return null;
+    return local.toISOString().replace(/\.\d{3}Z$/, "Z");
+};
+
+/**
+ * Build a provider create-meeting URL from the current form selection.
+ * If end time is missing, defaults to 30 minutes after start so the button
+ * stays usable with the form's usual date+start prefill.
+ */
+export function buildExternalMeetingCreateUrl(
+    platform: MeetingPlatform | string,
+    input: ExternalMeetingCreateInput,
+): string | null {
+    if (!supportsExternalMeetingCreate(platform)) return null;
+
+    const title = input.title.trim() || "Meeting";
+    const details = (input.details ?? "").trim();
+    const guests = (input.guestEmails ?? [])
+        .map((email) => email.trim())
+        .filter(Boolean);
+
+    const endTime =
+        input.endTime?.trim() ||
+        (input.startTime
+            ? // Fallback when callers omit end — prefer passing a resolved end.
+              (() => {
+                  const [hours = 0, mins = 0] = input.startTime
+                      .split(":")
+                      .map(Number);
+                  const total = hours * 60 + mins + 30;
+                  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+              })()
+            : "");
+
+    // Resolved end time can land at/before the start time (midnight wrap from
+    // the +30min fallback, or an explicit overnight end) — roll to next day.
+    const endDate =
+        input.startTime && endTime && endTime <= input.startTime
+            ? dayjs(input.date).add(1, "day").format("YYYY-MM-DD")
+            : input.date;
+
+    if (platform === "google_meet" || platform === "meet") {
+        const start = toGoogleUtcStamp(input.date, input.startTime);
+        const end = toGoogleUtcStamp(endDate, endTime);
+        if (!start || !end) return null;
+
+        const url = new URL("https://calendar.google.com/calendar/render");
+        url.searchParams.set("action", "TEMPLATE");
+        url.searchParams.set("text", title);
+        url.searchParams.set("dates", `${start}/${end}`);
+        if (details) url.searchParams.set("details", details);
+        if (guests.length) url.searchParams.set("add", guests.join(","));
+        return url.toString();
+    }
+
+    if (platform === "teams") {
+        const start = toOutlookUtcIso(input.date, input.startTime);
+        const end = toOutlookUtcIso(endDate, endTime);
+        if (!start || !end) return null;
+
+        const url = new URL(
+            "https://outlook.office.com/calendar/deeplink/compose",
+        );
+        url.searchParams.set("path", "/calendar/action/compose");
+        url.searchParams.set("rru", "addevent");
+        url.searchParams.set("subject", title);
+        url.searchParams.set("startdt", start);
+        url.searchParams.set("enddt", end);
+        url.searchParams.set(
+            "location",
+            input.location?.trim() || "Microsoft Teams",
+        );
+        if (details) url.searchParams.set("body", details);
+        return url.toString();
+    }
+
+    if (platform === "zoom") {
+        // Zoom has no public query-prefill for personal meeting schedule.
+        return "https://zoom.us/meeting#/schedule";
+    }
+
+    return null;
+}
+
 /** Backend requires participants when location === zoho. */
 export function requiresMeetingParticipants(
     platform: MeetingPlatform | string,
@@ -297,6 +419,18 @@ export function getDefaultMeetingParticipants(
     collectIds(source?.deal_watchers ?? source?.watchers, ids);
 
     return ids;
+}
+
+/**
+ * Date + start time seed for a new meeting: 15 minutes from now, which also
+ * clears the "at least 5 minutes in the future" validation. Derived from one
+ * instant so the date rolls forward with the time across midnight.
+ *
+ * Call this when a form is *shown* — a value captured at mount goes stale.
+ */
+export function defaultMeetingStart(): { date: string; startTime: string } {
+    const start = dayjs().add(15, "minute");
+    return { date: toIsoDate(start), startTime: toTimeValue(start) };
 }
 
 export function buildEmptyMeetingForm(

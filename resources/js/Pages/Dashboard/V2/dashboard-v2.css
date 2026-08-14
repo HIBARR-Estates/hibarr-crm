@@ -1,0 +1,136 @@
+/* Page scope for the v2 dashboards. Shared primitives (.dr-btn, .dr-pill, …)
+   come from @/Components/Redesign/redesign.css, which is deliberately global. */
+
+.dashboard-v2 {
+    min-height: 100%;
+    background: #f5f6f8;
+    color: #1a1f2e;
+    font-family:
+        "IBM Plex Sans",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    font-size: 14px;
+    padding: 18px 22px 24px;
+}
+
+.dashboard-v2 *,
+.dashboard-v2 *::before,
+.dashboard-v2 *::after {
+    box-sizing: border-box;
+}
+
+/* Segmented view switcher. */
+.dashboard-v2 .dv2-tabs {
+    display: inline-flex;
+    background: #e7eaf0;
+    border-radius: 9px;
+    padding: 3px;
+}
+
+.dashboard-v2 .dv2-tab {
+    height: 32px;
+    padding: 0 16px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: #5b6472;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-tab:hover {
+    color: #1a1f2e;
+}
+
+.dashboard-v2 .dv2-tab[aria-current="page"] {
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(22, 41, 77, 0.1);
+    font-weight: 600;
+    color: #16294d;
+}
+
+/* Section label: "YOUR WEEK", "OVERDUE TASKS", column headers. */
+.dashboard-v2 .dv2-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    text-transform: uppercase;
+}
+
+/* Rows that link to a record. */
+.dashboard-v2 .dv2-row-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.dashboard-v2 .dv2-row-link:hover {
+    background: #f8f9fb;
+    color: inherit;
+}
+
+/* Rows that carry their own action buttons. A button inside an anchor is
+   invalid HTML and the anchor eats the click, so the row is a plain div and
+   only the label opens the record. */
+.dashboard-v2 .dv2-row:hover {
+    background: #f8f9fb;
+}
+
+.dashboard-v2 .dv2-row-open {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dashboard-v2 .dv2-row-open:hover {
+    color: #16294d;
+}
+
+.dashboard-v2 .dv2-row-open:focus-visible {
+    outline: 2px solid #1a6bb5;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Filter pills inside the full queue. */
+.dashboard-v2 .dv2-chip {
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid #e2e5ea;
+    background: transparent;
+    color: #5b6472;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-chip[aria-pressed="true"] {
+    background: #16294d;
+    border-color: #16294d;
+    color: #ffffff;
+}
+
+.dashboard-v2 .dv2-scroll-x {
+    overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+    .dashboard-v2 {
+        padding: 14px 12px 20px;
+    }
+}

@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Events\LeadEvent;
 use App\Models\Lead;
+use App\Models\LeadLifecycleStatus;
 use App\Models\UniversalSearch;
 use App\Models\User;
 use App\Notifications\LeadImported;
@@ -24,6 +25,12 @@ class LeadObserver
         if (! isRunningInConsoleOrSeeding()) {
             $userID = (! is_null(user())) ? user()->id : null;
             $lead->last_updated_by = $userID;
+        }
+
+        // Stamp the assignment clock whenever the lead lands on an owner. Set in
+        // saving() (not updated()) so it persists in the same write.
+        if ($lead->isDirty('lead_owner') && $lead->lead_owner) {
+            $lead->assigned_at = now();
         }
 
     }
@@ -166,6 +173,28 @@ class LeadObserver
             ]);
         }
 
+        if ($leadContact->wasChanged('lead_lifecycle_status_id')) {
+            $fromId = $leadContact->getOriginal('lead_lifecycle_status_id');
+            $toId = $leadContact->lead_lifecycle_status_id;
+
+            $statuses = LeadLifecycleStatus::whereIn('id', array_filter([$fromId, $toId]))
+                ->get()
+                ->keyBy('id');
+
+            // ── CRM Event: lead_lifecycle_status_changed ──
+            $this->recordCrmEvent('lead_lifecycle_status_changed', $leadContact, [
+                'metadata' => [
+                    'comment' => 'Lifecycle status changed from '
+                        . ($statuses->get($fromId)?->label ?? 'none')
+                        . ' to ' . ($statuses->get($toId)?->label ?? 'none'),
+                    'from_status_id' => $fromId,
+                    'to_status_id' => $toId,
+                    'from_status_key' => $statuses->get($fromId)?->key,
+                    'to_status_key' => $statuses->get($toId)?->key,
+                ],
+            ]);
+        }
+
         if (! $leadContact->wasChanged('lead_owner')) {
             return;
         }
@@ -185,8 +214,14 @@ class LeadObserver
             return;
         }
 
-        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId) {
+        $actorId = user()?->id;
+        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId) {
             try {
+                // Skip when the assignee is the one who made the change (incl. admins).
+                if ($actorId !== null && (int) $actorId === (int) $newOwner->id) {
+                    return;
+                }
+
                 Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
             } catch (\Throwable $e) {
                 \Log::error('Failed to notify lead owner after assignment', [
@@ -197,8 +232,8 @@ class LeadObserver
             }
         });
 
-        // ── CRM Event: lead_status_changed (owner reassigned) ──
-        $this->recordCrmEvent('lead_status_changed', $leadContact, [
+        // ── CRM Event: lead_owner_changed ──
+        $this->recordCrmEvent('lead_owner_changed', $leadContact, [
             'metadata' => [
                 'comment' => 'Lead owner changed',
                 'from_owner_id' => $oldOwnerId,

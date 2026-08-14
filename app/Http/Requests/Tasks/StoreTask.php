@@ -62,7 +62,10 @@ class StoreTask extends CoreRequest
         $rules = [
             'heading' => 'required',
             'start_date' => 'nullable|date_format:"' . $setting->date_format . ' ' . $setting->time_format . '"',
-            'priority' => 'required'
+            'priority' => 'required',
+            // Marks this task as the record's committed next action. Only the
+            // dashboard's "log activity" flow sets it.
+            'is_next_step' => 'nullable|boolean',
         ];
 
         if(in_array('client', user_roles()) || $taskSetting->project_required == 'yes')

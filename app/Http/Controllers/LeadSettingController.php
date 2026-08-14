@@ -12,6 +12,7 @@ use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\LeadSetting;
+use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\PackageRoutingFieldCatalog;
 
@@ -41,7 +42,10 @@ class LeadSettingController extends AccountBaseController
         $this->leadStages = PipelineStage::all();
         $this->leadAgents = User::whereHas('leadAgent')->with('leadAgent', 'employeeDetail.designation:id,name')->get();
         $this->leadCategories = LeadCategory::all();
-        $this->leadSettings = LeadSetting::select('status')->first();
+        $this->leadSettings = LeadSetting::select('status', 'first_contact_sla_hours')->first();
+        $this->slaHoursDefault = DashboardMetricsService::SLA_HOURS_DEFAULT;
+        $this->slaHoursMin = DashboardMetricsService::SLA_HOURS_MIN;
+        $this->slaHoursMax = DashboardMetricsService::SLA_HOURS_MAX;
         $this->leadLifecycleStatuses = app(LeadLifecycleStatusService::class)
             ->listForCompany((int) company()->id);
 
@@ -109,6 +113,44 @@ class LeadSettingController extends AccountBaseController
         $leadSetting->save();
 
         return reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * How many hours an agent has to make first contact on a new lead.
+     *
+     * Drives the "Contacted in SLA" KPI and the per-agent breach column on the
+     * v2 manager dashboard. Bounds come from DashboardMetricsService so the form
+     * and the reader cannot disagree about what a valid value is.
+     */
+    public function updateFirstContactSla(Request $request)
+    {
+        $request->validate([
+            'first_contact_sla_hours' => [
+                'required',
+                'integer',
+                'min:' . DashboardMetricsService::SLA_HOURS_MIN,
+                'max:' . DashboardMetricsService::SLA_HOURS_MAX,
+            ],
+        ]);
+
+        // Assigned rather than mass-filled: LeadSetting declares no $fillable, so
+        // it is totally guarded and fill() would throw. Same shape as
+        // updateLeadSettingStatus above.
+        $companyId = company()->id;
+        $leadSetting = LeadSetting::where('company_id', $companyId)->first();
+
+        if (! $leadSetting) {
+            // A company that has never opened this screen has no row at all, and
+            // without this the saved SLA would silently stay at the default.
+            $leadSetting = new LeadSetting;
+            $leadSetting->company_id = $companyId;
+            $leadSetting->user_id = user()->id;
+        }
+
+        $leadSetting->first_contact_sla_hours = (int) $request->first_contact_sla_hours;
+        $leadSetting->save();
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
     public function updateDealPackageSettings(Request $request)

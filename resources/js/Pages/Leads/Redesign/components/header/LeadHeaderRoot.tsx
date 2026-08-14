@@ -22,7 +22,6 @@ interface LeadHeaderRootProps {
     lifecycle: ResolvedLifecycle;
     statuses: LeadStatusOption[];
     valueLabel?: string | null;
-    answerCount?: number;
     firstName: string;
     templateName?: string | null;
     qualificationAnswered?: number;
@@ -37,7 +36,6 @@ interface LeadHeaderRootProps {
     onReplayGuide?: () => void;
     onStatusChange: (key: string) => void;
     statusSaving?: boolean;
-    onOpenAnswers?: () => void;
     onMoreAction: (id: MoreMenuActionId) => void;
     onBannerPrimary: () => void;
     onBannerSecondary?: () => void;
@@ -49,7 +47,6 @@ export default function LeadHeaderRoot({
     lead,
     lifecycle,
     statuses,
-    answerCount = 0,
     firstName,
     templateName,
     qualificationAnswered,
@@ -62,7 +59,6 @@ export default function LeadHeaderRoot({
     onReplayGuide,
     onStatusChange,
     statusSaving = false,
-    onOpenAnswers,
     onMoreAction,
     onBannerPrimary,
     onBannerSecondary,
@@ -132,29 +128,10 @@ export default function LeadHeaderRoot({
                                 {formatLeadTemperature(lead.temperature)}
                             </span>
                         )}
-                        {showQualification &&
-                            answerCount > 0 &&
-                            onOpenAnswers && (
-                            <button
-                                type="button"
-                                className="v2-btn v2-btn-ghost"
-                                style={{ padding: "5px 10px", fontSize: 12 }}
-                                onClick={onOpenAnswers}
-                            >
-                                {td("Qualification answers", { source: "en" })}
-                                <span
-                                    className="v2-pill v2-pill-gray"
-                                    style={{ marginLeft: 2 }}
-                                >
-                                    {answerCount}
-                                </span>
-                            </button>
-                        )}
                         <MoreMenu
                             onAction={onMoreAction}
                             canDelete={canDelete}
                             canFindDuplicates={canFindDuplicates}
-                            showQualification={showQualification}
                             onReplayGuide={onReplayGuide}
                         />
                     </div>

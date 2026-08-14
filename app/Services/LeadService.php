@@ -36,6 +36,7 @@ class LeadService
         'language',
         'language_id',
         'temperature',
+        'preferred_contact_time',
         'gender',
         'age_range',
         'nationality',
@@ -96,7 +97,7 @@ class LeadService
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
                 'leads.lead_lifecycle_status_id',
-                'leads.salutation', 'leads.gender', 'leads.temperature', 'leads.address', 'leads.city', 'leads.state',
+                'leads.salutation', 'leads.gender', 'leads.temperature', 'leads.preferred_contact_time', 'leads.address', 'leads.city', 'leads.state',
                 'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
                 'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
@@ -305,6 +306,10 @@ class LeadService
 
         if ($request->filled('temperature')) {
             $query->whereIn('temperature', $this->toValueArray($request->get('temperature')));
+        }
+
+        if ($request->filled('preferred_contact_time')) {
+            $query->whereIn('preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
         }
 
         if ($request->filled('gender')) {

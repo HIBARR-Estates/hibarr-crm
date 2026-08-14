@@ -205,6 +205,17 @@
     overflow: hidden;
 }
 
+/* Qualify modal — wider right rail for script steps / answers */
+.analysis-modal-panel .qualify-3col-right {
+    width: 360px;
+}
+
+@media (min-width: 1280px) {
+    .analysis-modal-panel .qualify-3col-right {
+        width: 400px;
+    }
+}
+
 /* Analysis modal — large panel (~90vw × ~90vh), portaled to document.body */
 .analysis-modal-overlay {
     position: fixed;
@@ -238,7 +249,7 @@
 .analysis-modal-panel .line-clamp-3 {
     display: block !important;
     overflow: visible !important;
-    -webkit-line-clamp: none;
+    -webkit-line-clamp: none !important;
     -webkit-box-orient: unset;
 }
 

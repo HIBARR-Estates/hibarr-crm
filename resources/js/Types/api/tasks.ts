@@ -52,6 +52,17 @@ export interface Task {
         column_name: string;
         label_color: string;
     };
+    /**
+     * What the API actually returns — Task::toFrontendArray() serialises the
+     * `boardColumn` relation under its snake_case key. Declared because half
+     * the codebase was reading it through `as any` casts and local re-decls.
+     */
+    board_column?: {
+        id: number;
+        column_name?: string;
+        label_color?: string;
+        slug?: string;
+    };
 
     completed_on?: string;
 

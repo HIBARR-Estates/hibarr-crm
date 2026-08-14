@@ -23,8 +23,9 @@ import {
     FilterOutlined,
     ReloadOutlined,
     MergeCellsOutlined,
+    SettingOutlined,
 } from "@ant-design/icons";
-import { Link, router, usePage } from "@inertiajs/react";
+import { Deferred, Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
@@ -55,12 +56,14 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
         key: string;
         label_color?: string;
     }>;
+    preferredContactTimes?: Array<{ value: string; label: string }>;
 }
 
 const Index = ({
     pageTitle,
     leads,
     leadLifecycleStatuses = [],
+    preferredContactTimes = [],
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -116,6 +119,7 @@ const Index = ({
                 genders: formData.genders || [],
                 ageRanges: formData["age-ranges"] || [],
                 temperatures: formData.temperatures || [],
+                preferredContactTimes,
                 utmSources: formData["lead-utm-sources"] || [],
                 utmMediums: formData["lead-utm-mediums"] || [],
                 utmCampaigns: formData["lead-utm-campaigns"] || [],
@@ -131,7 +135,7 @@ const Index = ({
                 filterV2: useFilterV2,
                 excludeFields: ["search"],
             }),
-        [formData, leadLifecycleStatuses, useLeadCoreFields, useFilterV2],
+        [formData, leadLifecycleStatuses, preferredContactTimes, useLeadCoreFields, useFilterV2],
     );
 
     // Setup search and filter contexts
@@ -179,6 +183,9 @@ const Index = ({
     }, [leads.total]);
 
     const canMergeLeads = useLeadMergeAccess();
+    // Mirrors QualificationFieldMappingController::assertCanManage.
+    const canManageQualificationMapping =
+        pageProps.auth?.permissions?.manage_qualification_mapping === "all";
     const [findDuplicatesLead, setFindDuplicatesLead] = useState<Lead | null>(
         null,
     );
@@ -326,6 +333,26 @@ const Index = ({
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {canManageQualificationMapping && (
+                                <Link
+                                    href={route(
+                                        "qualification-field-mapping.index",
+                                    )}
+                                >
+                                    <Button
+                                        type="text"
+                                        icon={<SettingOutlined />}
+                                        title={td(
+                                            "Qualification script field mapping",
+                                            { source: "en" },
+                                        )}
+                                        aria-label={td(
+                                            "Qualification script field mapping",
+                                            { source: "en" },
+                                        )}
+                                    />
+                                </Link>
+                            )}
                             <Button
                                 icon={<ReloadOutlined spin={isRefreshing} />}
                                 onClick={refresh}
@@ -471,18 +498,36 @@ const Index = ({
 
             {/* Filter UI — v2 two-pane workbench behind crm.leads-filter-v2,
                 otherwise the shared universal filter modal. */}
-            {useFilterV2 ? (
-                <LeadFilterModal
-                    config={filterConfig}
-                    optionsLoading={formDataLoading}
-                />
-            ) : (
-                <UniversalFilterDrawer
-                    config={filterConfig}
-                    loading={formDataLoading}
-                    width={960}
-                />
-            )}
+            <Deferred
+                data="preferredContactTimes"
+                fallback={
+                    useFilterV2 ? (
+                        <LeadFilterModal
+                            config={filterConfig}
+                            optionsLoading
+                        />
+                    ) : (
+                        <UniversalFilterDrawer
+                            config={filterConfig}
+                            loading
+                            width={960}
+                        />
+                    )
+                }
+            >
+                {useFilterV2 ? (
+                    <LeadFilterModal
+                        config={filterConfig}
+                        optionsLoading={formDataLoading}
+                    />
+                ) : (
+                    <UniversalFilterDrawer
+                        config={filterConfig}
+                        loading={formDataLoading}
+                        width={960}
+                    />
+                )}
+            </Deferred>
         </>
     );
 };

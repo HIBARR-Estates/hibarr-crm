@@ -7,6 +7,7 @@ import {
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import {
     resolveCurrencyDisplay,
     type CurrencyDisplay,
@@ -160,10 +161,13 @@ export function getDossierFieldValue(
                     l.has_attended_webinar ??
                     l.webinar_attended,
             );
-        case "lastWebinarDate":
-            return asString(
+        case "lastWebinarDate": {
+            const raw = asString(
                 m.last_webinar_date ?? l.last_webinar_date ?? l.last_webinar_at,
             );
+            // Company App Settings date format, same as the Marketing tab.
+            return raw ? formatCompanyDate(raw, "") : "";
+        }
         case "hasDownloadedEbook":
             return yesNo(
                 m.has_downloaded_the_ebook ??
@@ -204,6 +208,10 @@ export function getDossierFieldValue(
             return asString(l.gender_value ?? l.gender);
         case "temperature": {
             const value = asString(l.temperature);
+            return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+        }
+        case "preferredContactTime": {
+            const value = asString(l.preferred_contact_time);
             return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
         }
         case "languages":

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
@@ -42,6 +43,7 @@ class UpdateRequest extends CoreRequest
             'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => 'nullable|in:male,female',
             'temperature' => 'nullable|in:cold,warm,hot',
+            'preferred_contact_time' => ['nullable', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
         ];
 

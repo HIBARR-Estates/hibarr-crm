@@ -22,9 +22,11 @@ import {
     isLeadInfoCoreSection,
 } from "../../config/leadInfoSections";
 import {
-    formatLeadTemperature,
-    LEAD_TEMPERATURE_TONE,
-} from "../../config/leadTemperature";
+    LeadCategoryField,
+    LeadPreferredContactTimeField,
+    LeadSourceField,
+    LeadTemperatureField,
+} from "./LeadAttributionFields";
 import type { LeadFieldChange } from "../../hooks/useLeadInfoFieldUpdate";
 import type { LeadInfoSectionId } from "../../types";
 
@@ -157,6 +159,15 @@ export default function LeadInfoSectionPanel({
             ...previous,
             [fieldName]: { value, type },
         }));
+    };
+
+    const attributionFieldProps = {
+        lead,
+        onFieldUpdate,
+        isFieldLoading,
+        disabled: !canEdit,
+        alwaysEditing: editing,
+        onChange: handleFieldChange,
     };
 
     const handleEnterEdit = () => {
@@ -492,114 +503,27 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
+                <DetailField
+                    label={td("Preferred contact time", { source: "en" })}
+                >
+                    <LeadPreferredContactTimeField {...attributionFieldProps} />
+                </DetailField>
             </FieldGrid>
 
             <DealInfoGroupTitle>{td("Attribution", { source: "en" })}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField label={t("pages.leads.info.fields.lead_source")}>
-                    <DealEditableField
-                        value={lead.source_id || null}
-                        fieldName="source_id"
-                        selectorType="sources"
-                        displayValue={
-                            getDossierFieldValue(lead, "source") ? (
-                                <span className="text-gray-700">
-                                    {getDossierFieldValue(lead, "source")}
-                                </span>
-                            ) : (
-                                <span className="italic text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) => onFieldUpdate("source_id", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("source_id")}
-                        disabled={!canEdit}
-                    />
+                    <LeadSourceField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.category")}>
-                    <DealEditableField
-                        value={
-                            Array.isArray(lead.categories) && lead.categories.length
-                                ? lead.categories.map((c) => c.id)
-                                : Array.isArray(lead.category_ids) && lead.category_ids.length
-                                  ? lead.category_ids
-                                  : lead.category_id
-                                    ? [lead.category_id]
-                                    : []
-                        }
-                        fieldName="category_ids"
-                        selectorType="categories"
-                        mode="multiple"
-                        displayValue={
-                            (() => {
-                                const names =
-                                    Array.isArray(lead.categories) && lead.categories.length
-                                        ? lead.categories.map((c) => c.category_name).filter(Boolean)
-                                        : lead.category?.category_name
-                                          ? [lead.category.category_name]
-                                          : [];
-                                return names.length ? (
-                                    <span className="text-gray-700">{names.join(", ")}</span>
-                                ) : (
-                                    <span className="italic text-gray-400">--</span>
-                                );
-                            })()
-                        }
-                        onSave={(value) => onFieldUpdate("category_ids", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("category_ids")}
-                        disabled={!canEdit}
-                    />
+                    <LeadCategoryField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField
                     label={t("pages.leads.info.fields.temperature", {
                         defaultValue: "Temperature",
                     })}
                 >
-                    <DealEditableField
-                        value={lead.temperature || ""}
-                        fieldName="temperature"
-                        fieldType="select"
-                        options={[
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_cold",
-                                    { defaultValue: "Cold" },
-                                ),
-                                value: "cold",
-                            },
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_warm",
-                                    { defaultValue: "Warm" },
-                                ),
-                                value: "warm",
-                            },
-                            {
-                                label: t(
-                                    "pages.leads.info.fields.temperature_hot",
-                                    { defaultValue: "Hot" },
-                                ),
-                                value: "hot",
-                            },
-                        ]}
-                        displayValue={
-                            lead.temperature ? (
-                                <span
-                                    className={`v2-pill v2-pill-${LEAD_TEMPERATURE_TONE[lead.temperature]}`}
-                                >
-                                    {formatLeadTemperature(lead.temperature)}
-                                </span>
-                            ) : undefined
-                        }
-                        onSave={(value) => onFieldUpdate("temperature", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("temperature")}
-                        disabled={!canEdit}
-                    />
+                    <LeadTemperatureField {...attributionFieldProps} />
                 </DetailField>
                 <DetailField
                     label={t("pages.leads.info.fields.joined_whatsapp_group")}

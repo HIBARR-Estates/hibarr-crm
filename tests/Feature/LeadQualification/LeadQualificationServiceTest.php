@@ -59,7 +59,7 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
         $completed = $this->service->complete($qualification, [
             'outcome' => QualificationOutcome::BookMeeting->value,
             'selected_branch_keys' => ['join_the_cage'],
-        ]);
+        ])['qualification'];
 
         $this->assertSame(QualificationStatus::Completed, $completed->status);
         $this->assertSame(QualificationOutcome::BookMeeting, $completed->outcome);
@@ -89,7 +89,7 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
             ],
             'outcome_comment' => 'Wants spouse on the call',
             'selected_branch_keys' => ['join_the_cage'],
-        ]);
+        ])['qualification'];
 
         $this->assertSame(QualificationStatus::Completed, $completed->status);
         $this->assertSame(QualificationOutcome::InviteWebinar, $completed->outcome);
@@ -126,7 +126,7 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
                 ['type' => 'create_task'],
                 ['type' => 'book_consultation'],
             ],
-        ]);
+        ])['qualification'];
 
         $runs = $completed->actionRuns;
         $this->assertCount(2, $runs);
@@ -148,7 +148,7 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
         $completed = $this->service->complete($qualification, [
             'outcomes' => [QualificationOutcome::Callback->value],
             'actions' => [['type' => 'schedule_callback']],
-        ]);
+        ])['qualification'];
         $run = $completed->actionRuns->first();
         $this->assertNotNull($run);
 
@@ -168,7 +168,7 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
         $completed = $this->service->complete($qualification, [
             'outcomes' => [QualificationOutcome::Callback->value],
             'actions' => [['type' => 'create_task']],
-        ]);
+        ])['qualification'];
         $run = $completed->actionRuns->first();
         $this->assertNotNull($run);
         $this->assertSame(\App\Enums\QualificationActionRunStatus::Unavailable, $run->status);
@@ -259,5 +259,31 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
 
         $this->assertSame($inProgress->id, $workspace['current']->id);
         $this->assertCount(1, $workspace['history']);
+    }
+
+    public function test_delete_removes_qualification_and_cascades_answers(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+
+        $this->service->upsertAnswer($qualification, [
+            'segment_key' => 'entry',
+            'answer_values' => ['join_the_cage'],
+        ]);
+
+        $qualificationId = $qualification->id;
+        $this->service->delete($qualification);
+
+        $this->assertDatabaseMissing('lead_qualifications', [
+            'id' => $qualificationId,
+        ]);
+        $this->assertDatabaseMissing('lead_qualification_answers', [
+            'lead_qualification_id' => $qualificationId,
+        ]);
     }
 }

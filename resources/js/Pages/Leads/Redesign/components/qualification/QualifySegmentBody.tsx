@@ -1,243 +1,287 @@
-import { useMemo } from "react";
-import type {
-    LeadQualification,
-    QualificationOutcome,
-    Segment,
-} from "@/Types/qualification";
+import type { Segment } from "@/Types/qualification";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
-import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
+import {
+    useDynamicTranslation,
+    useDynamicTranslations,
+    useTd,
+} from "@/Hooks/useDynamicTranslation";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
-import OutcomeMultiSelect from "@/Pages/Leads/Components/Qualification/OutcomeMultiSelect";
-import { getScriptOutcomes } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { useTd } from "@/Hooks/useDynamicTranslation";
-import Icon from "@/Components/Redesign/primitives/Icon";
+import QualificationScriptHtml from "@/Pages/Leads/Components/Qualification/QualificationScriptHtml";
+import {
+    hasAnswerContent,
+    stripHtmlTags,
+} from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import DealSwitch from "@/Pages/Deals/Redesign/components/primitives/DealSwitch";
+import RadioInput from "@/Pages/Deals/Redesign/components/analysis/inputs/RadioInput";
+import CheckboxInput from "@/Pages/Deals/Redesign/components/analysis/inputs/CheckboxInput";
+import SelectInput from "@/Pages/Deals/Redesign/components/analysis/inputs/SelectInput";
+import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
-
-const GUIDANCE_BY_KIND: Record<string, string> = {
-    say: "Read this aloud to the lead.",
-    instruction: "Agent note — do not read aloud.",
-    question: "Capture the lead's answer below.",
-    outcome: "Select one or more outcomes for this lead.",
-};
-
-interface ScriptPromptProps {
-    text: string;
-    kind: string;
-    translateScript: (text: string) => string;
-}
-
-function ScriptPrompt({ text, kind, translateScript }: ScriptPromptProps) {
-    const localized = useDynamicTranslation(text, { source: "en" });
-    const translated = translateScript(localized);
-    const quoted = kind === "say" || kind === "question";
-
-    return (
-        <p className="v2-qualify-prompt">
-            {quoted ? `“${translated}”` : translated}
-        </p>
-    );
-}
 
 interface QualifySegmentBodyProps {
     flow: QualificationFlow;
     currentSegment: Segment;
     agentLanguage: string;
-    onCompletedWithActions?: (qualification: LeadQualification) => void;
+    /** 1-based question number among walk questions (Analysis NumberBadge). */
+    questionNumber?: number;
+}
+
+function NumberBadge({
+    number,
+    answered,
+}: {
+    number?: number;
+    answered: boolean;
+}) {
+    return (
+        <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-all"
+            style={
+                answered
+                    ? {
+                          backgroundColor: "#d1fae5",
+                          color: "#065f46",
+                          boxShadow: "0 0 0 2px #a7f3d0",
+                      }
+                    : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
+            }
+        >
+            {answered ? (
+                <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                    />
+                </svg>
+            ) : (
+                number ?? "·"
+            )}
+        </div>
+    );
+}
+
+function InstructionCard({
+    text,
+    translateScript,
+}: {
+    text: string;
+    translateScript: (text: string) => string;
+}) {
+    const localized = useDynamicTranslation(text, { source: "en" });
+    const html = translateScript(localized);
+
+    return (
+        <div
+            className="flex items-start gap-2.5 rounded-md px-3 py-2.5 my-3 border border-amber-200"
+            style={{ background: "#fffbeb" }}
+        >
+            <svg
+                className="w-4 h-4 shrink-0 mt-0.5"
+                style={{ color: "#d97706" }}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"
+                />
+            </svg>
+            <QualificationScriptHtml
+                html={html}
+                className="text-xs leading-relaxed flex-1"
+            />
+        </div>
+    );
+}
+
+function ScriptBlock({
+    text,
+    translateScript,
+}: {
+    text: string;
+    translateScript: (text: string) => string;
+}) {
+    const localized = useDynamicTranslation(text, { source: "en" });
+    const translated = translateScript(localized);
+    return (
+        <QualificationScriptHtml
+            html={translated}
+            className="qualify-segment-prompt text-base font-normal mb-2 leading-snug"
+            quoted
+        />
+    );
 }
 
 export default function QualifySegmentBody({
     flow,
     currentSegment,
     agentLanguage,
-    onCompletedWithActions,
+    questionNumber,
 }: QualifySegmentBodyProps) {
     const { td } = useTd();
 
     const answer = flow.answers[currentSegment.key];
     const selectedValues = answer?.answer_values ?? [];
     const contextText = answer?.answer_text ?? "";
+    const answered = hasAnswerContent(answer);
 
     const kind = currentSegment.type;
     const isQuestion = kind === "question";
-    const isOutcome = kind === "outcome";
-    const showContextField =
-        !isOutcome && currentSegment.answerType !== "text";
 
-    const scriptOutcomes = useMemo(
-        () => getScriptOutcomes(flow.templateTree),
-        [flow.templateTree],
+    const rawOptions = currentSegment.options ?? [];
+    const optionLabels = useDynamicTranslations(
+        rawOptions.map((option) => stripHtmlTags(option.label) || option.label),
+        { source: "en" },
     );
+    const optionChoices = rawOptions.map((option, index) => ({
+        value: option.id,
+        label: optionLabels[index] ?? option.label,
+    }));
 
-    const handleOutcomeConfirm = async (
-        outcomes: QualificationOutcome[],
-        comment: string | null,
-    ) => {
-        const updated = await flow.completeWithOutcomes(outcomes, { comment });
-        if (updated) {
-            onCompletedWithActions?.(updated);
-        }
+    const patch = (values: string[], text?: string | null) => {
+        flow.applyAnswerChange(currentSegment, values, text ?? null);
     };
 
-    const toggleMulti = (optionId: string) => {
-        const selected = selectedValues.includes(optionId);
-        const next = selected
-            ? selectedValues.filter((id) => id !== optionId)
-            : [...selectedValues, optionId];
-        void flow.applyAnswerChange(currentSegment, next, contextText || null);
-    };
+    // Prefer SelectInput for long option lists (Analysis select fields);
+    // RadioInput for shorter single-select (Analysis radio fields).
+    const useSelect =
+        currentSegment.answerType === "singleSelect" &&
+        optionChoices.length > 6;
 
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
-            <div>
-                {(kind === "say" ||
-                    kind === "instruction" ||
-                    isQuestion ||
-                    isOutcome) && (
-                    <>
-                        <ScriptPrompt
+            {kind === "instruction" ? (
+                <InstructionCard
+                    text={currentSegment.label}
+                    translateScript={flow.translateScript}
+                />
+            ) : kind === "say" ? (
+                <div className="mb-7">
+                    <p
+                        className="text-xs font-semibold uppercase tracking-wider mb-2"
+                        style={{ color: T.TEXT_MUTED }}
+                    >
+                        {td("Script", { source: "en" })}
+                    </p>
+                    <ScriptBlock
+                        text={currentSegment.label}
+                        translateScript={flow.translateScript}
+                    />
+                    <p
+                        className="text-sm mt-2"
+                        style={{ color: T.TEXT_MUTED }}
+                    >
+                        {td("Read this aloud to the lead.", { source: "en" })}
+                    </p>
+                </div>
+            ) : isQuestion ? (
+                <div className="flex gap-4 mb-7">
+                    <NumberBadge number={questionNumber} answered={answered} />
+                    <div className="flex-1 min-w-0">
+                        <ScriptBlock
                             text={currentSegment.label}
-                            kind={kind}
                             translateScript={flow.translateScript}
                         />
-                        <p className="v2-qualify-guidance">
-                            {td(GUIDANCE_BY_KIND[kind] ?? GUIDANCE_BY_KIND.question, { source: "en" })}
-                        </p>
-                    </>
-                )}
-
-                {isQuestion && currentSegment.answerType === "text" && (
-                    <textarea
-                        className="v2-input"
-                        value={contextText}
-                        onChange={(e) =>
-                            void flow.applyAnswerChange(
-                                currentSegment,
-                                [],
-                                e.target.value,
-                            )
-                        }
-                        disabled={flow.saving}
-                        rows={4}
-                        placeholder={td("Type the answer...", { source: "en" })}
-                        style={{ marginBottom: 14 }}
-                    />
-                )}
-
-                {isQuestion && currentSegment.answerType === "boolean" && (
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                            marginBottom: 14,
-                        }}
-                    >
-                        {(["yes", "no"] as const).map((value) => {
-                            const selected = selectedValues[0] === value;
-                            return (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    className={`v2-option${
-                                        selected ? " selected" : ""
-                                    }`}
-                                    disabled={flow.saving}
-                                    onClick={() =>
-                                        void flow.applyAnswerChange(
-                                            currentSegment,
-                                            [value],
-                                            contextText || null,
-                                        )
-                                    }
-                                >
-                                    <span>
-                                        {value === "yes" ? td("Yes", { source: "en" }) : td("No", { source: "en" })}
-                                    </span>
-                                    {selected ? (
-                                        <Icon name="check" size={16} />
-                                    ) : null}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {isQuestion &&
-                    (currentSegment.answerType === "singleSelect" ||
-                        currentSegment.answerType === "multiSelect") && (
-                        <div
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 8,
-                                marginBottom: 14,
-                            }}
+                        <p
+                            className="text-sm mb-3"
+                            style={{ color: T.TEXT_MUTED }}
                         >
-                            {(currentSegment.options ?? []).map((option) => {
-                                const selected = selectedValues.includes(
-                                    option.id,
-                                );
-                                return (
-                                    <button
-                                        key={option.id}
-                                        type="button"
-                                        className={`v2-option${
-                                            selected ? " selected" : ""
-                                        }`}
-                                        disabled={flow.saving}
-                                        onClick={() => {
-                                            if (
-                                                currentSegment.answerType ===
-                                                "multiSelect"
-                                            ) {
-                                                toggleMulti(option.id);
-                                                return;
-                                            }
-                                            void flow.applyAnswerChange(
-                                                currentSegment,
-                                                [option.id],
-                                                contextText || null,
-                                            );
-                                        }}
-                                    >
-                                        <span>{option.label}</span>
-                                        {selected ? (
-                                            <Icon name="check" size={16} />
-                                        ) : null}
-                                    </button>
-                                );
+                            {td("Capture the lead's answer below.", {
+                                source: "en",
                             })}
-                        </div>
-                    )}
+                            {currentSegment.required ? (
+                                <span className="text-red-500 ml-1">*</span>
+                            ) : null}
+                        </p>
 
-                {isOutcome ? (
-                    <OutcomeMultiSelect
-                        options={scriptOutcomes}
-                        variant="redesign"
-                        completing={flow.completing}
-                        onConfirm={(outcomes, comment) =>
-                            handleOutcomeConfirm(outcomes, comment)
-                        }
-                    />
-                ) : null}
+                        {currentSegment.answerType === "boolean" ? (
+                            <DealSwitch
+                                checked={
+                                    selectedValues[0] === "true" ||
+                                    selectedValues[0] === "yes"
+                                }
+                                label={
+                                    selectedValues[0] === "true" ||
+                                    selectedValues[0] === "yes"
+                                        ? td("Yes", { source: "en" })
+                                        : selectedValues[0] === "false" ||
+                                            selectedValues[0] === "no"
+                                          ? td("No", { source: "en" })
+                                          : td("Toggle answer", {
+                                                source: "en",
+                                            })
+                                }
+                                onChange={() => {
+                                    const next =
+                                        selectedValues[0] === "true" ||
+                                        selectedValues[0] === "yes"
+                                            ? "false"
+                                            : "true";
+                                    patch([next], contextText || null);
+                                }}
+                            />
+                        ) : null}
 
-                {showContextField ? (
-                    <input
-                        className="v2-input"
-                        value={contextText}
-                        onChange={(e) =>
-                            void flow.applyAnswerChange(
-                                currentSegment,
-                                selectedValues,
-                                e.target.value,
-                            )
-                        }
-                        disabled={flow.saving}
-                        placeholder={td("Add context for this answer...", { source: "en" })}
-                    />
-                ) : null}
-            </div>
+                        {currentSegment.answerType === "singleSelect" &&
+                        useSelect ? (
+                            <SelectInput
+                                value={selectedValues[0] ?? ""}
+                                options={optionChoices}
+                                placeholder={td("Select an option", {
+                                    source: "en",
+                                })}
+                                onChange={(value) =>
+                                    patch([value], contextText || null)
+                                }
+                            />
+                        ) : null}
+
+                        {currentSegment.answerType === "singleSelect" &&
+                        !useSelect ? (
+                            <RadioInput
+                                value={selectedValues[0] ?? ""}
+                                options={optionChoices}
+                                onChange={(value) =>
+                                    patch([value], contextText || null)
+                                }
+                            />
+                        ) : null}
+
+                        {currentSegment.answerType === "multiSelect" ? (
+                            <CheckboxInput
+                                value={selectedValues}
+                                options={optionChoices}
+                                onChange={(values) =>
+                                    patch(values, contextText || null)
+                                }
+                            />
+                        ) : null}
+
+                        {currentSegment.answerType === "text" ? (
+                            <p
+                                className="text-sm"
+                                style={{ color: T.TEXT_MUTED }}
+                            >
+                                {td(
+                                    "Use the answer field below the script to capture their response.",
+                                    { source: "en" },
+                                )}
+                            </p>
+                        ) : null}
+                    </div>
+                </div>
+            ) : null}
         </DynamicTranslationProvider>
     );
 }

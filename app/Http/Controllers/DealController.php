@@ -68,6 +68,9 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PipelineScopeResolverService;
+use App\Services\Deal\DealOutcomeService;
+use App\Enums\OutcomeStatus;
+use Illuminate\Validation\Rule;
 
 class DealController extends AccountBaseController
 {
@@ -1626,6 +1629,41 @@ class DealController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Manually set or clear a deal's outcome (won / lost).
+     *
+     * Admin-only, and deliberately does NOT refuse locked deals the way patch()
+     * does — correcting a wrongly-won deal is the entire point, and winning is
+     * what locks it in the first place.
+     *
+     * Marking won queues commission distribution; un-marking won reverses the
+     * pending commissions and the agent metrics. See DealOutcomeService.
+     */
+    public function updateOutcome(\Illuminate\Http\Request $request, $id, DealOutcomeService $outcomes)
+    {
+        abort_403(!in_array('admin', user_roles()));
+
+        $validated = $request->validate([
+            'outcome_status' => ['present', 'nullable', Rule::in(OutcomeStatus::toArray())],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $deal = Deal::findOrFail($id);
+
+        $result = $outcomes->apply(
+            $deal,
+            $validated['outcome_status'] ? OutcomeStatus::from($validated['outcome_status']) : null,
+            $validated['reason'] ?: 'Outcome changed manually by ' . user()->name,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.dealUpdateSuccess'),
+            'outcome' => $result,
+            'data' => $this->loadFullDeal($deal->id),
+        ]);
+    }
+
     private function loadFullDeal($id): Deal
     {
         $deal = Deal::with([
@@ -2210,11 +2248,6 @@ class DealController extends AccountBaseController
             return;
         }
 
-        // Mass update bypasses DealObserver, so capture pre-change deals up front
-        // and notify their agents/watchers explicitly after the update (in-app
-        // only — mail stays suppressed by the bulk-action container flag).
-        $deals = Deal::whereIn('id', $editableIds)->get();
-
         if ($stage === null) {
             return;
         }
@@ -2223,24 +2256,12 @@ class DealController extends AccountBaseController
             Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
 
-        Deal::whereIn('id', $editableIds)->update(['pipeline_stage_id' => $newStatus]);
-
-        $notificationService = app(\App\Services\DealNotificationService::class);
-        foreach ($deals as $deal) {
-            if ((int) $deal->pipeline_stage_id === (int) $newStatus) {
-                continue;
-            }
-            $fromStageName = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
-            $toStageName = $stage->name ?? 'Unknown';
-
-            if ($stage->slug === 'win') {
-                $notificationService->notifyDealWon($deal);
-            } elseif ($stage->slug === 'lost') {
-                $notificationService->notifyDealLost($deal);
-            } else {
-                $notificationService->notifyStageChanged($deal, $fromStageName, $toStageName);
-            }
-        }
+        // Iterated rather than a mass update: whereIn()->update() bypasses
+        // DealObserver, which stamps stage_entered_at, records deal_stage_changed,
+        // and notifies agents/watchers (mail suppressed by the bulk-action flag).
+        Deal::whereIn('id', $editableIds)
+            ->get()
+            ->each(fn (Deal $deal) => $deal->update(['pipeline_stage_id' => $newStatus]));
     }
 
     protected function changeAgentStatus($request, ?Collection $eligibleDeals = null)
@@ -2647,8 +2668,10 @@ class DealController extends AccountBaseController
         $followUpIds = explode(',', $request->row_ids);
         $newStatus = $request->status;
 
-        // Validate status
-        $validStatuses = ['pending', 'completed', 'cancelled'];
+        // Validate status. 'pending' is not in the lead_follow_up.status enum
+        // (scheduled|completed|cancelled) — selecting it wrote an empty string
+        // or threw, depending on the connection's strict mode.
+        $validStatuses = ['scheduled', 'completed', 'cancelled'];
         if (!in_array($newStatus, $validStatuses)) {
             abort(422, __('Invalid status provided'));
         }
@@ -2666,18 +2689,13 @@ class DealController extends AccountBaseController
             abort_403(__('messages.permissionDenied'));
         }
 
-        // Update the status
+        // Update the status. There is deliberately no completed_at write here:
+        // no migration ever created that column, so the old "if completed"
+        // branch made every bulk completion fail. updated_at is the stamp.
         DealFollowUp::whereIn('id', $followUpIds)->update([
             'status' => $newStatus,
             'updated_at' => now()
         ]);
-
-        // If status is completed, update completion date
-        if ($newStatus === 'completed') {
-            DealFollowUp::whereIn('id', $followUpIds)->update([
-                'completed_at' => now()
-            ]);
-        }
     }
 
     public function proposals()
@@ -2839,19 +2857,36 @@ class DealController extends AccountBaseController
         return $dataTable->render('leads.show', $this->data);
     }
 
+    /**
+     * Set a single follow-up's status — the "mark held" path.
+     *
+     * Previously this validated nothing, checked no permission, and called
+     * triggerDealUpdateAutomation() on $leadFollowUp->deal unguarded. That last
+     * one is typed Deal, not ?Deal, so every lead-only follow-up (95 of 96 rows
+     * carry a lead_id) raised a TypeError.
+     */
     public function changeFollowUpStatus(Request $request)
     {
-        $id = $request->id;
-        $status = $request->status;
-        $leadFollowUp = DealFollowUp::find($id);
+        $request->validate([
+            'id' => 'required|integer',
+            'status' => 'required|in:scheduled,completed,cancelled',
+        ]);
 
-        if (!is_null($leadFollowUp)) {
-            $leadFollowUp->status = $status;
-            $leadFollowUp->save();
+        $editPermission = user()->permission('edit_lead_follow_up');
+        abort_403(!in_array($editPermission, ['all', 'added']));
+
+        $leadFollowUp = DealFollowUp::findOrFail($request->id);
+
+        abort_403($editPermission == 'added' && $leadFollowUp->added_by != user()->id);
+
+        $leadFollowUp->status = $request->status;
+        $leadFollowUp->save();
+
+        // A lead-only follow-up has no deal to run deal automation against.
+        if ($leadFollowUp->deal) {
+            $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
         }
 
-
-        $this->triggerDealUpdateAutomation($request, $leadFollowUp->deal);
         return Reply::success(__('messages.leadStatusChangeSuccess'));
     }
 

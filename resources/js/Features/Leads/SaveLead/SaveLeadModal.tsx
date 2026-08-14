@@ -224,6 +224,10 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             "",
         temperature:
             (lead?.temperature as any)?.value ?? lead?.temperature ?? "",
+        preferred_contact_time:
+            (lead?.preferred_contact_time as any)?.value ??
+            lead?.preferred_contact_time ??
+            "",
         languages: lead?.languages || [],
         date_of_birth: lead?.date_of_birth || null,
         nationality: lead?.nationality || "",

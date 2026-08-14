@@ -6,7 +6,7 @@ export type IntegrationOrigin = "meeting_bot" | "sally" | "max" | null;
 export interface Note {
     id: number;
     deal_id: number;
-    title: string;
+    title: string | null;
     details: string;
     integration_origin?: IntegrationOrigin | null;
     created_at: string;

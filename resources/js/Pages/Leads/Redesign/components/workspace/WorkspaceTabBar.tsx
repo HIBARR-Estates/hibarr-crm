@@ -17,6 +17,8 @@ interface WorkspaceTabBarProps {
     active: WorkspaceTabId;
     onChange: (tab: WorkspaceTabId) => void;
     counts?: LeadTabCount;
+    /** When false, hide the Qualification record tab (feature flag). */
+    showQualification?: boolean;
 }
 
 /**
@@ -27,9 +29,14 @@ export default function WorkspaceTabBar({
     active,
     onChange,
     counts = {},
+    showQualification = true,
 }: WorkspaceTabBarProps) {
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
+
+    const recordTabs = showQualification
+        ? RECORD_TABS
+        : RECORD_TABS.filter((tab) => tab.id !== "qualification");
 
     const countFor = (id: WorkspaceTabId): number | undefined => {
         if (id === "notes") return counts.notes;
@@ -38,11 +45,12 @@ export default function WorkspaceTabBar({
         if (id === "files") return counts.files;
         if (id === "deals") return counts.deals;
         if (id === "itinerary") return counts.itinerary;
+        if (id === "qualification") return counts.qualification;
         return undefined;
     };
 
     const orderedIds: WorkspaceTabId[] = [
-        ...RECORD_TABS.map((t) => t.id),
+        ...recordTabs.map((t) => t.id),
         ...META_TABS.map((t) => t.id),
     ];
 
@@ -105,7 +113,7 @@ export default function WorkspaceTabBar({
                 aria-label="Lead record tabs"
                 className="dr-tabs-scroll"
             >
-                {RECORD_TABS.map((tab) =>
+                {recordTabs.map((tab) =>
                     renderTab(tab.id, tab.label, tab.countable),
                 )}
             </div>

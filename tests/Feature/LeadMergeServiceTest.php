@@ -161,6 +161,37 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame('1 Dup St', $primary->address);
     }
 
+    public function test_merge_copies_email_onto_empty_primary_when_unique_index_exists(): void
+    {
+        Schema::table('leads', function (Blueprint $table) {
+            $table->unique('client_email', 'leads_client_email_unique');
+            $table->unique('client_whatsapp', 'leads_client_whatsapp_unique');
+        });
+
+        $primaryId = $this->insertLead([
+            'client_name' => 'Primary Empty Email',
+            'client_email' => null,
+            'client_whatsapp' => null,
+        ]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate With Email',
+            'client_email' => 'befus81@web.de',
+            'client_whatsapp' => '+49123456789',
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 177);
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertSame('befus81@web.de', $primary->client_email);
+        $this->assertSame('+49123456789', $primary->client_whatsapp);
+
+        $trashed = Lead::withTrashed()->findOrFail($duplicateId);
+        $this->assertTrue($trashed->trashed());
+        $this->assertSame($primaryId, (int) $trashed->merged_into_lead_id);
+        $this->assertStringStartsWith('invalid_lead_', (string) $trashed->client_email);
+        $this->assertStringStartsWith('invalid_lead_', (string) $trashed->client_whatsapp);
+    }
+
     public function test_keeps_primary_contact_value_and_creates_conflict_note(): void
     {
         $primaryId = $this->insertLead([
@@ -492,6 +523,7 @@ class LeadMergeServiceTest extends TestCase
             $table->string('client_telegram')->nullable();
             $table->string('client_instagram')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
+            $table->timestamp('assigned_at')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('client_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();

@@ -1,6 +1,7 @@
 import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import NoteDetailModal from "@/Components/Redesign/modals/NoteDetailModal";
+import { hasNoteScopeAccess } from "@/Components/Redesign/adapters/noteAdapter";
 import type { LeadNote } from "@/Types/api/lead-note";
 import useLeadNoteMutations from "../../hooks/useLeadNoteMutations";
 
@@ -8,16 +9,7 @@ interface LeadNoteDetailModalProps {
     note: LeadNote | null;
     permissions?: Record<string, string>;
     onClose: () => void;
-}
-
-// Permission scopes are "all" | "added" | "owned" | "both" | "none" — "added"/"owned" both
-// mean "only your own notes", "both" behaves as "all".
-function hasNoteScopeAccess(scope: string | undefined, isOwner: boolean): boolean {
-    return (
-        scope === "all" ||
-        scope === "both" ||
-        ((scope === "added" || scope === "owned") && isOwner)
-    );
+    initialEditing?: boolean;
 }
 
 function canEditNote(
@@ -46,6 +38,7 @@ export default function LeadNoteDetailModal({
     note,
     permissions,
     onClose,
+    initialEditing = false,
 }: LeadNoteDetailModalProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -64,6 +57,7 @@ export default function LeadNoteDetailModal({
             canDelete={canDelete}
             isUpdating={isUpdating}
             isDeleting={isDeleting}
+            initialEditing={initialEditing}
             onUpdate={(payload, onSuccess) => updateNote(payload, onSuccess)}
             onDelete={(onSuccess) => deleteNote(onSuccess)}
             labels={{

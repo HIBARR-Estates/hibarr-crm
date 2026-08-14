@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
 import { Lead } from "@/Types/api/leads";
 import {
     LeadQualification,
+    QualificationLeadPatch,
     QualificationOutcome,
     Segment,
     SegmentAnswerState,
@@ -16,10 +17,10 @@ import {
     answersFromQualification,
     buildTokenMap,
     computeVisibleSegments,
+    computeWalkSegments,
     findEntrySegment,
     getActionsForSelectedOutcomes,
     getBranchOptionKeys,
-    getBranchSegmentKeysToClear,
     mapOptionIdsToStoredValues,
     resolveTokens,
     validateSegmentAnswer,
@@ -34,8 +35,11 @@ export interface UseQualificationFlowOptions {
     registrationService: RegistrationService;
     agentLanguage: string;
     onQualificationUpdated: (qualification: LeadQualification) => void;
+    /** Fired when completing an outcome also changed the lead's lifecycle status server-side. */
+    onLeadUpdated?: (lead: QualificationLeadPatch) => void;
 }
 
+/** @deprecated Soft-hide no longer prompts; kept for legacy callers. */
 export interface BranchChangePending {
     segmentKey: string;
     newValues: string[];
@@ -50,6 +54,7 @@ export const useQualificationFlow = ({
     registrationService: _registrationService,
     agentLanguage,
     onQualificationUpdated,
+    onLeadUpdated,
 }: UseQualificationFlowOptions) => {
     const { props } = usePage<PageProps>();
     const tokenMap = useMemo(
@@ -70,18 +75,156 @@ export const useQualificationFlow = ({
         );
         return visible[0]?.key ?? "";
     });
-    const [saving, setSaving] = useState(false);
+    /** Completing still blocks the CTA; answer saves never block inputs. */
     const [completing, setCompleting] = useState(false);
-    const [branchChangePending, setBranchChangePending] =
-        useState<BranchChangePending | null>(null);
+
+    const pendingTimers = useRef(
+        new Map<string, ReturnType<typeof setTimeout>>(),
+    );
+    /** Per-segment save chain — serializes upserts so out-of-order network
+     * responses can't clobber a newer answer with a stale one. */
+    const saveChains = useRef(new Map<string, Promise<unknown>>());
+    const inFlight = useRef(new Set<Promise<unknown>>());
+    const savingListeners = useRef(new Set<(saving: boolean) => void>());
+
+    const notifySaving = useCallback(() => {
+        const saving =
+            pendingTimers.current.size > 0 || inFlight.current.size > 0;
+        savingListeners.current.forEach((listener) => listener(saving));
+    }, []);
+
+    const subscribeSaving = useCallback((cb: (saving: boolean) => void) => {
+        savingListeners.current.add(cb);
+        cb(pendingTimers.current.size > 0 || inFlight.current.size > 0);
+        return () => {
+            savingListeners.current.delete(cb);
+        };
+    }, []);
+
+    const trackInFlight = useCallback(
+        (promise: Promise<unknown>) => {
+            inFlight.current.add(promise);
+            notifySaving();
+            promise.catch(() => {}).then(() => {
+                inFlight.current.delete(promise);
+                notifySaving();
+            });
+            return promise;
+        },
+        [notifySaving],
+    );
+
+    const persistAnswer = useCallback(
+        (segment: Segment, values: string[], text?: string | null) => {
+            const storedValues = mapOptionIdsToStoredValues(segment, values);
+            const previous =
+                saveChains.current.get(segment.key) ?? Promise.resolve();
+            const chained = previous
+                .catch(() => {})
+                .then(() =>
+                    service
+                        .upsertAnswer(qualification.id, {
+                            segment_key: segment.key,
+                            answer_values: storedValues,
+                            answer_text: text ?? null,
+                        })
+                        .catch(() => {
+                            message.error("Failed to save answer");
+                        }),
+                );
+            saveChains.current.set(segment.key, chained);
+            return trackInFlight(chained);
+        },
+        [qualification.id, service, trackInFlight],
+    );
+
+    /**
+     * Optimistic local patch + background upsert. Never awaits in a way that
+     * disables inputs — mirrors Deal Analysis field saves.
+     */
+    const applyAnswerChange = useCallback(
+        (
+            segment: Segment,
+            values: string[],
+            text?: string | null,
+        ): void => {
+            setAnswers((prev) => ({
+                ...prev,
+                [segment.key]: {
+                    answer_values: values,
+                    answer_text: text ?? null,
+                },
+            }));
+
+            const existing = pendingTimers.current.get(segment.key);
+            if (existing) clearTimeout(existing);
+
+            // Debounce free-text / context; discrete picks flush immediately.
+            const delay =
+                segment.answerType === "text"
+                    ? 400
+                    : text != null &&
+                        (segment.answerType === "singleSelect" ||
+                            segment.answerType === "multiSelect" ||
+                            segment.answerType === "boolean")
+                      ? 400
+                      : 0;
+
+            const timer = setTimeout(() => {
+                pendingTimers.current.delete(segment.key);
+                notifySaving();
+                void persistAnswer(segment, values, text);
+            }, delay);
+
+            pendingTimers.current.set(segment.key, timer);
+            notifySaving();
+        },
+        [notifySaving, persistAnswer],
+    );
+
+    const answersRef = useRef(answers);
+    answersRef.current = answers;
+
+    const flushPendingSaves = useCallback((): Promise<void> => {
+        const snapshot = answersRef.current;
+        pendingTimers.current.forEach((timer, key) => {
+            clearTimeout(timer);
+            const answer = snapshot[key];
+            const segment = templateTree.segments.find((s) => s.key === key);
+            if (segment && answer) {
+                void persistAnswer(
+                    segment,
+                    answer.answer_values,
+                    answer.answer_text,
+                );
+            }
+        });
+        pendingTimers.current.clear();
+        notifySaving();
+        return Promise.all([...inFlight.current]).then(() => undefined);
+    }, [notifySaving, persistAnswer, templateTree.segments]);
+
+    useEffect(() => {
+        return () => {
+            pendingTimers.current.forEach((timer) => clearTimeout(timer));
+            pendingTimers.current.clear();
+        };
+    }, []);
 
     const entrySegment = useMemo(
         () => findEntrySegment(templateTree),
         [templateTree],
     );
 
+    /** All unlocked segments including outcomes (legacy tab navigation). */
     const visibleSegments = useMemo(
         () => computeVisibleSegments(templateTree, answers),
+        [templateTree, answers],
+    );
+
+    /** Non-outcome segments for the redesign stepped walk. */
+    const walkSegments = useMemo(
+        () => computeWalkSegments(templateTree, answers),
         [templateTree, answers],
     );
 
@@ -91,7 +234,9 @@ export const useQualificationFlow = ({
     );
 
     const currentSegment: Segment | undefined =
-        currentIndex >= 0 ? visibleSegments[currentIndex] : visibleSegments[0];
+        currentIndex >= 0
+            ? visibleSegments[currentIndex]
+            : visibleSegments[0];
 
     useEffect(() => {
         if (
@@ -99,8 +244,9 @@ export const useQualificationFlow = ({
             !visibleSegments.some((s) => s.key === currentSegmentKey)
         ) {
             const fallback =
-                visibleSegments[Math.min(currentIndex, visibleSegments.length - 1)] ??
-                visibleSegments[0];
+                visibleSegments[
+                    Math.min(currentIndex, visibleSegments.length - 1)
+                ] ?? visibleSegments[0];
             if (fallback) {
                 setCurrentSegmentKey(fallback.key);
             }
@@ -120,139 +266,36 @@ export const useQualificationFlow = ({
         [qualification.id, service],
     );
 
-    const saveAnswer = useCallback(
-        async (
-            segment: Segment,
-            values: string[],
-            text?: string | null,
-        ): Promise<void> => {
-            const storedValues = mapOptionIdsToStoredValues(segment, values);
-
-            setSaving(true);
-            try {
-                await service.upsertAnswer(qualification.id, {
-                    segment_key: segment.key,
-                    answer_values: storedValues,
-                    answer_text: text ?? null,
-                });
-
-                setAnswers((prev) => ({
-                    ...prev,
-                    [segment.key]: {
-                        answer_values: values,
-                        answer_text: text ?? null,
-                    },
-                }));
-            } catch {
-                message.error("Failed to save answer");
-                throw new Error("save failed");
-            } finally {
-                setSaving(false);
-            }
-        },
-        [qualification.id, service],
-    );
-
-    const applyAnswerChange = useCallback(
-        async (
-            segment: Segment,
-            values: string[],
-            text?: string | null,
-        ): Promise<void> => {
-            const isEntry =
-                segment.isEntryQuestion ||
-                (entrySegment && segment.key === entrySegment.key);
-            const previousEntryValues = entrySegment
-                ? (answers[entrySegment.key]?.answer_values ?? [])
-                : [];
-            const branchChanged =
-                isEntry &&
-                previousEntryValues.length > 0 &&
-                (values.length !== previousEntryValues.length ||
-                    values.some((v) => !previousEntryValues.includes(v)));
-
-            if (branchChanged) {
-                setBranchChangePending({
-                    segmentKey: segment.key,
-                    newValues: values,
-                    newText: text,
-                });
+    const jumpToSegment = useCallback(
+        async (segmentKey: string) => {
+            const allowed =
+                walkSegments.some((s) => s.key === segmentKey) ||
+                visibleSegments.some(
+                    (s) => s.key === segmentKey && s.type === "outcome",
+                );
+            if (!allowed) {
                 return;
             }
-
-            await saveAnswer(segment, values, text);
+            setCurrentSegmentKey(segmentKey);
+            await persistNavigation(segmentKey);
         },
-        [answers, entrySegment, saveAnswer],
+        [persistNavigation, visibleSegments, walkSegments],
     );
 
-    const confirmBranchChange = useCallback(async () => {
-        if (!branchChangePending || !entrySegment) {
-            return;
-        }
-
-        const segmentKeysToClear = getBranchSegmentKeysToClear(
-            templateTree,
-            entrySegment,
-        );
-        const storedValues = mapOptionIdsToStoredValues(
-            entrySegment,
-            branchChangePending.newValues,
-        );
-
-        setSaving(true);
-        try {
-            if (segmentKeysToClear.length > 0) {
-                await service.clearBranchAnswers(
-                    qualification.id,
-                    segmentKeysToClear,
-                );
-            }
-
-            await service.upsertAnswer(qualification.id, {
-                segment_key: branchChangePending.segmentKey,
-                answer_values: storedValues,
-                answer_text: branchChangePending.newText ?? null,
-            });
-
-            setAnswers({
-                [branchChangePending.segmentKey]: {
-                    answer_values: branchChangePending.newValues,
-                    answer_text: branchChangePending.newText ?? null,
-                },
-            });
-            setBranchChangePending(null);
-
-            const visible = computeVisibleSegments(templateTree, {
-                [branchChangePending.segmentKey]: {
-                    answer_values: branchChangePending.newValues,
-                    answer_text: branchChangePending.newText ?? null,
-                },
-            });
-            const nextKey = visible.find((s) => s.key !== entrySegment.key)?.key;
-            if (nextKey) {
-                setCurrentSegmentKey(nextKey);
-                await persistNavigation(nextKey);
-            }
-        } catch {
-            message.error("Failed to update branch");
-        } finally {
-            setSaving(false);
-        }
-    }, [
-        branchChangePending,
-        entrySegment,
-        persistNavigation,
-        qualification.id,
-        service,
-        templateTree,
-    ]);
-
-    const cancelBranchChange = useCallback(() => {
-        setBranchChangePending(null);
-    }, []);
+    const walkIndex = useMemo(
+        () => walkSegments.findIndex((s) => s.key === currentSegmentKey),
+        [walkSegments, currentSegmentKey],
+    );
 
     const canGoBack = currentIndex > 0;
     const isLastSegment = currentIndex === visibleSegments.length - 1;
+    const isLastWalkSegment =
+        walkSegments.length > 0 &&
+        (walkIndex === walkSegments.length - 1 ||
+            (walkIndex < 0 &&
+                Boolean(
+                    currentSegment && currentSegment.type === "outcome",
+                )));
 
     const validationError = currentSegment
         ? validateSegmentAnswer(currentSegment, answers[currentSegment.key])
@@ -265,25 +308,26 @@ export const useQualificationFlow = ({
         await persistNavigation(prev.key);
     }, [canGoBack, currentIndex, persistNavigation, visibleSegments]);
 
-    const goNext = useCallback(async (options?: { skipValidation?: boolean }) => {
-        if (!currentSegment) return;
-        // `skipValidation` backs the Skip control — the agent may move past a
-        // question the lead would not answer without inventing a value for it.
-        if (validationError && !options?.skipValidation) {
-            message.warning("Please answer this question before continuing");
-            return;
-        }
-        if (currentIndex >= visibleSegments.length - 1) return;
-        const next = visibleSegments[currentIndex + 1];
-        setCurrentSegmentKey(next.key);
-        await persistNavigation(next.key);
-    }, [
-        currentIndex,
-        currentSegment,
-        persistNavigation,
-        validationError,
-        visibleSegments,
-    ]);
+    const goNext = useCallback(
+        async (options?: { skipValidation?: boolean }) => {
+            if (!currentSegment) return;
+            if (validationError && !options?.skipValidation) {
+                message.warning("Please answer this question before continuing");
+                return;
+            }
+            if (currentIndex >= visibleSegments.length - 1) return;
+            const next = visibleSegments[currentIndex + 1];
+            setCurrentSegmentKey(next.key);
+            await persistNavigation(next.key);
+        },
+        [
+            currentIndex,
+            currentSegment,
+            persistNavigation,
+            validationError,
+            visibleSegments,
+        ],
+    );
 
     const translateScript = useCallback(
         (text: string) => resolveTokens(text, tokenMap, lead, props.auth),
@@ -313,20 +357,22 @@ export const useQualificationFlow = ({
 
             setCompleting(true);
             try {
+                await flushPendingSaves();
                 const actions = getActionsForSelectedOutcomes(
                     templateTree,
                     outcomes,
                 );
-                const updated = await service.completeQualification(
-                    qualification.id,
-                    {
+                const { qualification: updated, lead: leadPatch } =
+                    await service.completeQualification(qualification.id, {
                         outcomes,
                         outcome_comment: metadata?.comment ?? null,
                         selected_branch_keys: selectedBranchKeys,
                         actions,
-                    },
-                );
+                    });
                 onQualificationUpdated(updated);
+                if (leadPatch) {
+                    onLeadUpdated?.(leadPatch);
+                }
                 message.success("Qualification completed");
                 return updated;
             } catch (error) {
@@ -341,6 +387,8 @@ export const useQualificationFlow = ({
             }
         },
         [
+            flushPendingSaves,
+            onLeadUpdated,
             onQualificationUpdated,
             qualification.id,
             selectedBranchKeys,
@@ -356,7 +404,7 @@ export const useQualificationFlow = ({
                 comment?: string | null;
             },
         ) => {
-            await completeWithOutcomes([outcome], metadata);
+            return completeWithOutcomes([outcome], metadata);
         },
         [completeWithOutcomes],
     );
@@ -376,21 +424,30 @@ export const useQualificationFlow = ({
     return {
         agentLanguage,
         answers,
-        branchChangePending,
+        /** Always null — soft-hide replaced the warning modal. */
+        branchChangePending: null as BranchChangePending | null,
         canGoBack,
         completing,
-        confirmBranchChange,
-        cancelBranchChange,
+        confirmBranchChange: async () => undefined,
+        cancelBranchChange: () => undefined,
         currentIndex,
         currentSegment,
+        currentSegmentKey,
         goBack,
         goNext,
+        jumpToSegment,
         isLastSegment,
-        saving,
+        isLastWalkSegment,
+        /** Always false for input disabling — use subscribeSaving for the header indicator. */
+        saving: false,
+        subscribeSaving,
+        flushPendingSaves,
         translateScript,
         tokenMap,
         validationError,
         visibleSegments,
+        walkSegments,
+        walkIndex,
         templateTree,
         applyAnswerChange,
         completeWithOutcome,

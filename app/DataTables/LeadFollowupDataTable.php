@@ -66,18 +66,22 @@ class LeadFollowupDataTable extends BaseDataTable
 
                 $status .= '<select class="form-control statusChange status" data-followup-id = " ' . $row->id . '">';
 
-                $status .= '<option value="pending"';
+                // Values must match the lead_follow_up.status enum
+                // (scheduled|completed|cancelled). They previously read
+                // "pending" and "canceled", neither of which is in it, so
+                // every selection here wrote a value the column rejected.
+                $status .= '<option value="scheduled"';
 
-                if ($row->status == 'pending') {
+                if ($row->status == 'scheduled') {
                     $status .= 'selected';
                 }
 
                 $status .= ' data-content="<i class=\'fa fa-circle mr-2 text-warning\'></i>'
                     . trans('app.pending') . ' " > ' . trans('app.pending') . '</option>';
 
-                $status .= '<option value="canceled"';
+                $status .= '<option value="cancelled"';
 
-                if ($row->status == 'canceled') {
+                if ($row->status == 'cancelled') {
                     $status .= 'selected';
                 }
 

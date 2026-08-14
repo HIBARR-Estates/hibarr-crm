@@ -39,6 +39,8 @@ abstract class LeadQualificationTestCase extends TestCase
     protected function resetSchema(): void
     {
         Schema::dropIfExists('crm_events');
+        Schema::dropIfExists('qualification_field_mappings');
+        Schema::dropIfExists('qualification_script_settings');
         Schema::dropIfExists('lead_qualification_action_runs');
         Schema::dropIfExists('lead_qualification_answers');
         Schema::dropIfExists('lead_qualifications');
@@ -142,6 +144,26 @@ abstract class LeadQualificationTestCase extends TestCase
             $table->json('payload')->nullable();
             $table->text('error')->nullable();
             $table->timestamp('completed_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('qualification_script_settings', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('company_id');
+            $table->string('template_id');
+            $table->string('template_name')->nullable();
+            $table->boolean('auto_write')->default(true);
+            $table->string('webinar_id', 255)->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('qualification_field_mappings', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('script_setting_id');
+            $table->string('segment_key');
+            $table->string('lead_field')->nullable();
+            $table->string('write_mode', 32)->default('fill_empty');
+            $table->json('option_map')->nullable();
             $table->timestamps();
         });
 

@@ -76,7 +76,9 @@ class LeadReportDataTable extends BaseDataTable
             DB::raw("SUM(CASE WHEN pipeline_stages.slug = 'win' THEN deals.value ELSE 0 END) as total_converted_value"),
             DB::raw("COUNT(DISTINCT CASE WHEN pipeline_stages.slug = 'lost' THEN deals.id END) as total_lost_deals"),
             DB::raw("COUNT(DISTINCT lead_follow_up.id) as count_total_follow_up"),
-            DB::raw("COUNT(DISTINCT CASE WHEN lead_follow_up.status = 'pending' THEN lead_follow_up.id END) as count_total_pending_follow_up")
+            // 'scheduled', not 'pending' — see the enum note in DealsDataTable.
+            // This counter read 0 for every agent regardless of their workload.
+            DB::raw("COUNT(DISTINCT CASE WHEN lead_follow_up.status = 'scheduled' THEN lead_follow_up.id END) as count_total_pending_follow_up")
         )
             ->leftJoin('deals', 'deals.agent_id', 'lead_agents.id')
             ->leftJoin('pipeline_stages', 'deals.pipeline_stage_id', 'pipeline_stages.id')

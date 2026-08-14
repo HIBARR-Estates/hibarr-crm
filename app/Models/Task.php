@@ -164,6 +164,7 @@ class Task extends BaseModel
         'start_date' => 'datetime',
         'remind_at' => 'datetime',
         'reminders' => 'array',
+        'is_next_step' => 'boolean',
         'integration_origin' => IntegrationOrigin::class,
     ];
     protected $appends = ['due_on', 'create_on'];
