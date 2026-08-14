@@ -23,6 +23,7 @@ import {
 } from "../../config/leadInfoSections";
 import {
     LeadCategoryField,
+    LeadPreferredContactTimeField,
     LeadSourceField,
     LeadTemperatureField,
 } from "./LeadAttributionFields";
@@ -501,6 +502,11 @@ export default function LeadInfoSectionPanel({
                         loading={isFieldLoading("client_instagram")}
                         disabled={!canEdit}
                     />
+                </DetailField>
+                <DetailField
+                    label={td("Preferred contact time", { source: "en" })}
+                >
+                    <LeadPreferredContactTimeField {...attributionFieldProps} />
                 </DetailField>
             </FieldGrid>
 

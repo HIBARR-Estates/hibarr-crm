@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Contact;
 
+use App\Enums\PreferredContactTime;
 use App\Http\Requests\CoreRequest;
+use Illuminate\Validation\Rule;
 
 class CreateOrUpdateContactRequest extends CoreRequest
 {
@@ -16,6 +18,15 @@ class CreateOrUpdateContactRequest extends CoreRequest
         return true; // Authorization handled by middleware
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (! $this->exists('referral_agent_id') && $this->exists('referal_agent_id')) {
+            $this->merge([
+                'referral_agent_id' => $this->input('referal_agent_id'),
+            ]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,6 +34,8 @@ class CreateOrUpdateContactRequest extends CoreRequest
      */
     public function rules()
     {
+        $referralAgentRules = $this->referralAgentRules();
+
         return [
             // Required contact fields
             'name' => 'required|string|max:255',
@@ -33,6 +46,8 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
             'lead_owner_id' => 'nullable|integer|exists:users,id',
+            'referral_agent_id' => $referralAgentRules,
+            'referal_agent_id' => $referralAgentRules,
             'lead_category_id' => 'nullable|integer|exists:lead_category,id',
             'update_agent_if_exists' => 'nullable|boolean',
             'notify' => 'nullable|boolean',
@@ -69,6 +84,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
 
             // Optional classification / engagement (CRM lead fields)
             'temperature' => 'nullable|string|in:cold,warm,hot',
+            'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
@@ -79,6 +95,36 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'custom_fields' => 'nullable|array',
             'custom_fields.*' => 'nullable',
         ];
+    }
+
+    /**
+     * @return list<string|\Illuminate\Validation\Rules\Exists>
+     */
+    private function referralAgentRules(): array
+    {
+        $rules = ['nullable', 'integer'];
+        $exists = Rule::exists('lead_agents', 'id');
+        $companyId = $this->resolveCompanyId();
+        if ($companyId) {
+            $exists = $exists->where(fn ($query) => $query->where('company_id', $companyId));
+        }
+
+        $rules[] = $exists;
+
+        return $rules;
+    }
+
+    private function resolveCompanyId(): ?int
+    {
+        $companyId = $this->header('X-COMPANY-ID');
+        if (! $companyId && function_exists('company')) {
+            $company = company();
+            if ($company && is_object($company) && isset($company->id)) {
+                $companyId = $company->id;
+            }
+        }
+
+        return $companyId ? (int) $companyId : null;
     }
 
     /**

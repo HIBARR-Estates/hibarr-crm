@@ -287,6 +287,7 @@ class DealContactApiController extends Controller
                     }
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
+                    $this->applyReferralAgentToNewLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
@@ -462,6 +463,7 @@ class DealContactApiController extends Controller
         }
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
+        $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -579,7 +581,7 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Apply optional lead classification fields (temperature, lifecycle status).
+     * Apply optional lead classification fields (temperature, preferred contact time, lifecycle status).
      * Returns true if any attribute was changed.
      * WhatsApp group membership is applied via saveUtmInfo (marketing record).
      */
@@ -596,6 +598,15 @@ class DealContactApiController extends Controller
             }
         }
 
+        if ($request->has('preferred_contact_time')) {
+            $preferredContactTime = $request->input('preferred_contact_time');
+            $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
+            if ((string) $current !== (string) $preferredContactTime) {
+                $lead->preferred_contact_time = $preferredContactTime;
+                $updated = true;
+            }
+        }
+
         if ($request->filled('lead_lifecycle_status_id')) {
             $statusId = (int) $request->input('lead_lifecycle_status_id');
             if ((int) $lead->lead_lifecycle_status_id !== $statusId) {
@@ -605,6 +616,33 @@ class DealContactApiController extends Controller
         }
 
         return $updated;
+    }
+
+    /**
+     * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
+     * Invalid, missing, or cross-company IDs are ignored.
+     */
+    private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
+    {
+        $referralAgentId = $request->input('referral_agent_id', $request->input('referal_agent_id'));
+        if ($referralAgentId === null || $referralAgentId === '') {
+            return;
+        }
+
+        if (! is_numeric($referralAgentId) || ! $lead->company_id) {
+            return;
+        }
+
+        $agent = LeadAgent::query()
+            ->where('company_id', $lead->company_id)
+            ->whereKey((int) $referralAgentId)
+            ->first();
+
+        if ($agent === null) {
+            return;
+        }
+
+        $lead->referred_by_agent_id = $agent->id;
     }
 
     /**

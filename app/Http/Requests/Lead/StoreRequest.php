@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
@@ -48,6 +49,7 @@ class StoreRequest extends CoreRequest
         $rules['salutation'] = ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))];
         $rules['gender'] = 'nullable|in:male,female';
         $rules['temperature'] = 'nullable|in:cold,warm,hot';
+        $rules['preferred_contact_time'] = ['nullable', Rule::in(PreferredContactTime::values())];
         $rules['lead_lifecycle_status_id'] = 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id';
 
         if (request()->boolean('create_deal')) {

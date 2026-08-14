@@ -39,7 +39,7 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'age-ranges', 'temperatures', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'temperatures', 'preferred-contact-times', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
@@ -86,12 +86,12 @@ class FormDataController extends Controller
     public function batch(Request $request): JsonResponse
     {
         $request->validate([
-            'types' => 'required|array|max:15',
+            'types' => 'required|array|max:20',
             'types.*' => 'required|string',
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'age-ranges', 'temperatures', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'temperatures', 'preferred-contact-times', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
