@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Task;
+use App\Support\EntityActivityMailBuilder;
 
 class TaskOverdue extends TaskAssigneeNotification
 {
@@ -26,15 +27,26 @@ class TaskOverdue extends TaskAssigneeNotification
 
     protected function mailContent($notifiable): string
     {
+        return '';
+    }
+
+    protected function mailIntro($notifiable): string
+    {
+        return __('email.taskOverdue.text', ['days' => $this->daysOverdue]);
+    }
+
+    protected function mailDetailHtml($notifiable): string
+    {
         $dateFormat = $this->company?->date_format ?? 'Y-m-d';
         $dueDate = $this->task->due_date
             ? $this->task->due_date->copy()->timezone($this->company?->timezone ?: 'UTC')->format($dateFormat)
             : __('app.na');
 
-        return __('email.taskOverdue.text', ['days' => $this->daysOverdue]).'<br>'
-            .__('app.task').': '.$this->safeMailText($this->task->heading, 200).'<br>'
-            .__('app.dueDate').': '.$dueDate.'<br>'
-            .$this->projectLine();
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $dueDate,
+            $this->safeMailText($this->task->heading, 200),
+            $this->taskMetaLine(),
+        );
     }
 
     protected function actionText(): string

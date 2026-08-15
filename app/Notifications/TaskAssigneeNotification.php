@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
 use App\Notifications\Channels\BeamsPushChannel;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Notifications\Messages\MailMessage;
 use NotificationChannels\OneSignal\OneSignalChannel;
 
@@ -100,17 +101,23 @@ abstract class TaskAssigneeNotification extends BaseNotification
     {
         $build = parent::build($notifiable);
         $url = $this->taskUrl();
-        $content = $this->mailContent($notifiable);
         $subject = rtrim($this->mailSubject(), '.');
-        $introText = $this->safeMailText(strip_tags(str_replace('<br>', ' ', $content)), 500);
+        $introText = $this->safeMailText($this->mailIntro($notifiable), 500);
+        $detailHtml = $this->mailDetailHtml($notifiable);
+        $content = $this->mailSupplementalContent($notifiable);
+        $actionText = $this->actionText();
 
         $build
             ->subject($this->mailSubject())
-            ->markdown('mail.email', [
+            ->view('mail.task.activity', [
                 'url' => $url,
                 'content' => $content,
-                'themeColor' => $this->company?->header_color,
-                'actionText' => $this->actionText(),
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
+                'subject' => $subject,
+                'badgeLabel' => 'Task Update',
+                'actionText' => $actionText,
+                'introText' => $introText,
                 'notifiableName' => $notifiable->name,
             ]);
 
@@ -120,15 +127,52 @@ abstract class TaskAssigneeNotification extends BaseNotification
             'badgeLabel' => 'Task Update',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
-            'contentHtml' => $this->sanitizeTaskActivityContentHtml($content),
+            'detailHtml' => $detailHtml,
+            'contentHtml' => $content,
             'actionDescription' => __('Click the button below to view the task details.'),
-            'actionText' => $this->actionText(),
+            'actionText' => $actionText,
             'entityUrl' => $url,
         ]);
 
         parent::resetLocale();
 
         return $build;
+    }
+
+    /**
+     * @param  mixed  $notifiable
+     */
+    protected function mailIntro($notifiable): string
+    {
+        return strip_tags(str_replace('<br>', ' ', $this->mailContent($notifiable)));
+    }
+
+    /**
+     * @param  mixed  $notifiable
+     */
+    protected function mailDetailHtml($notifiable): string
+    {
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $this->safeMailText($this->task->heading, 200),
+            $this->taskMetaLine(),
+        );
+    }
+
+    /**
+     * @param  mixed  $notifiable
+     */
+    protected function mailSupplementalContent($notifiable): string
+    {
+        return '';
+    }
+
+    protected function taskMetaLine(): string
+    {
+        if (! $this->task->project) {
+            return '';
+        }
+
+        return $this->safeMailText($this->task->project->project_name, 200);
     }
 
     /**
@@ -142,6 +186,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
             'task_id' => $this->task->id,
             'heading' => $this->task->heading,
             'title' => $this->pushTitle(),
+            'text' => $this->mailIntro($notifiable),
             'created_at' => now()->format('Y-m-d H:i:s'),
         ];
     }
@@ -163,27 +208,5 @@ abstract class TaskAssigneeNotification extends BaseNotification
         }
 
         return __('app.project').' - '.$this->safeMailText($this->task->project->project_name, 200).'<br>';
-    }
-
-    protected function sanitizeTaskActivityContentHtml(string $content): string
-    {
-        return collect(explode('<br>', $content))
-            ->map(function (string $line): string {
-                $line = trim($line);
-                if ($line === '') {
-                    return '';
-                }
-
-                if (preg_match('/^<strong>(.+?)<\/strong>\s*(.*)$/s', $line, $matches)) {
-                    $label = $this->safeMailText(strip_tags($matches[1]), 100);
-                    $value = $this->safeMailText(strip_tags($matches[2]), 500);
-
-                    return '<strong>'.e($label).':</strong> '.e($value);
-                }
-
-                return e($this->safeMailText(strip_tags($line), 500));
-            })
-            ->filter()
-            ->implode('<br>');
     }
 }

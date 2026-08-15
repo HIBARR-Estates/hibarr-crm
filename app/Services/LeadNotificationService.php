@@ -70,28 +70,34 @@ class LeadNotificationService
         ], null, null, $note);
     }
 
-    public function notifyFileUploaded(Lead $lead, string $fileName, ?int $fileId = null): void
+    public function notifyFileUploaded(Lead $lead, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPLOADED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPLOADED, $payload);
     }
 
-    public function notifyFileUpdated(Lead $lead, string $fileName, ?int $fileId = null): void
+    public function notifyFileUpdated(Lead $lead, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPDATED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPDATED, $payload);
     }
 
-    public function notifyFileDeleted(Lead $lead, string $fileName, ?int $fileId = null): void
+    public function notifyFileDeleted(Lead $lead, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::FILE_DELETED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_DELETED, $payload);
     }
 
     /**

@@ -557,34 +557,43 @@ class DealNotificationService
 
     /**
      * Notify about a file being uploaded.
+     *
+     * @param  ?string  $fieldLabel  Custom-field label when the upload targets a field; omit for deal file-tab uploads.
      */
-    public function notifyFileUploaded(Deal $deal, string $fileName, ?int $fileId = null): void
+    public function notifyFileUploaded(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::FILE_UPLOADED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_UPLOADED, $payload);
     }
 
     /**
      * Notify about a file metadata update on a deal.
      */
-    public function notifyFileUpdated(Deal $deal, string $fileName, ?int $fileId = null): void
+    public function notifyFileUpdated(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::FILE_UPDATED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_UPDATED, $payload);
     }
 
     /**
      * Notify about a file being deleted.
      */
-    public function notifyFileDeleted(Deal $deal, string $fileName): void
+    public function notifyFileDeleted(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::FILE_DELETED, [
-            'file_name' => $fileName,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_DELETED, $payload);
     }
 
     /**

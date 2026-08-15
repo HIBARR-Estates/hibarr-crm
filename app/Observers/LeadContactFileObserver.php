@@ -42,7 +42,6 @@ class LeadContactFileObserver
 
         $this->notificationService->notifyFileUploaded(
             $lead,
-            $file->filename ?? 'Unknown file',
             $file->id,
         );
     }
@@ -64,7 +63,6 @@ class LeadContactFileObserver
 
         $this->notificationService->notifyFileUpdated(
             $lead,
-            $file->filename ?? 'Unknown file',
             $file->id,
         );
     }
@@ -82,7 +80,6 @@ class LeadContactFileObserver
 
         $this->notificationService->notifyFileDeleted(
             $lead,
-            $file->filename ?? 'Unknown file',
             $file->id,
         );
     }

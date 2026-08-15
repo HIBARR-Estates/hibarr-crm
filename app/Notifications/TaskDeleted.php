@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityMailBuilder;
 
 class TaskDeleted extends TaskAssigneeNotification
 {
@@ -27,12 +28,24 @@ class TaskDeleted extends TaskAssigneeNotification
 
     protected function mailContent($notifiable): string
     {
+        return '';
+    }
+
+    protected function mailIntro($notifiable): string
+    {
         $deletedByName = $this->deletedBy?->name ?? __('app.system');
 
-        return __('email.taskDeleted.text').'<br>'
-            .__('email.taskUpdate.updatedBy').': '.$deletedByName.'<br>'
-            .__('app.task').': '.$this->task->heading.'<br>'
-            .$this->projectLine();
+        return "{$deletedByName} deleted a task. This action cannot be undone.";
+    }
+
+    protected function mailDetailHtml($notifiable): string
+    {
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $this->safeMailText($this->task->heading, 200),
+            $this->taskMetaLine(),
+            __('This action cannot be undone.'),
+            true,
+        );
     }
 
     protected function actionText(): string

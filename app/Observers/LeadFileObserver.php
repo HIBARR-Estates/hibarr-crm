@@ -38,8 +38,7 @@ class LeadFileObserver
                 if ($deal) {
                     $this->notificationService->notifyFileUploaded(
                         $deal,
-                        $leadFile->filename ?? 'Unknown file',
-                        $leadFile->id
+                        $leadFile->id,
                     );
                 }
             }
@@ -64,7 +63,6 @@ class LeadFileObserver
         if ($deal) {
             $this->notificationService->notifyFileUpdated(
                 $deal,
-                $leadFile->filename ?? 'Unknown file',
                 $leadFile->id,
             );
         }
@@ -87,7 +85,7 @@ class LeadFileObserver
             if ($deal) {
                 $this->notificationService->notifyFileDeleted(
                     $deal,
-                    $leadFile->filename ?? 'Unknown file'
+                    $leadFile->id,
                 );
             }
         }

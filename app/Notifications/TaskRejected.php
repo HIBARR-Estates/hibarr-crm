@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityMailBuilder;
 
 class TaskRejected extends TaskAssigneeNotification
 {
@@ -30,13 +31,26 @@ class TaskRejected extends TaskAssigneeNotification
 
     protected function mailContent($notifiable): string
     {
+        return '';
+    }
+
+    protected function mailIntro($notifiable): string
+    {
         $rejectedByName = $this->rejectedBy?->name ?? __('app.system');
 
-        return __('email.taskRejected.text').'<br>'
-            .__('email.taskRejected.rejectedBy').': '.$rejectedByName.'<br>'
-            .__('email.taskRejected.reason').': '.strip_tags($this->reason).'<br>'
-            .__('app.task').': '.$this->task->heading.'<br>'
-            .$this->projectLine();
+        return __('email.taskRejected.text').' '.__('email.taskRejected.rejectedBy').': '.$rejectedByName.'.';
+    }
+
+    protected function mailSupplementalContent($notifiable): string
+    {
+        $reason = $this->safeMailText(strip_tags($this->reason), 500);
+        if ($reason === '') {
+            return '';
+        }
+
+        $line = EntityActivityMailBuilder::supplementalLine(__('email.taskRejected.reason'), $reason);
+
+        return $line !== '' ? '<div class="callout">'.$line.'</div>' : '';
     }
 
     protected function actionText(): string

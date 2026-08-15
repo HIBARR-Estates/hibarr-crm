@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Enums\LeadActivityType;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
+use App\Support\EntityActivityMailBuilder;
 
 class LeadActivityNotification extends BaseNotification
 {
@@ -62,16 +63,21 @@ class LeadActivityNotification extends BaseNotification
 
         $url = getDomainSpecificUrl(route('lead-contact.show', $this->lead->id), $this->company);
         $subject = $this->getEmailSubject();
-        $content = $this->getEmailContent();
         $actionText = __('email.leadDeleted.action');
         $introText = $this->safeMailText($this->getNotificationText(), 500);
+        $detailHtml = $this->getEmailDetailHtml();
+        $content = $this->getEmailContent();
+        if ($content !== '') {
+            $content = '<div class="callout">'.$content.'</div>';
+        }
 
         $build
             ->subject($subject.' - '.config('app.name'))
             ->view('mail.lead.activity', [
                 'url' => $url,
                 'content' => $content,
-                'preheader' => $this->safePreheader($subject),
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
                 'subject' => $subject,
                 'actionText' => $actionText,
                 'introText' => $introText,
@@ -80,10 +86,11 @@ class LeadActivityNotification extends BaseNotification
 
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
-            'preheader' => $this->safePreheader($subject),
+            'preheader' => $this->safePreheader($introText),
             'badgeLabel' => 'Lead Activity',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
+            'detailHtml' => $detailHtml,
             'contentHtml' => $content,
             'actionDescription' => __('Click the button below to view the lead details.'),
             'actionText' => $actionText,
@@ -129,14 +136,22 @@ class LeadActivityNotification extends BaseNotification
     protected function getNotificationText(): string
     {
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
+        $leadName = $this->safeMailText($this->leadName(), 200);
+        $fieldLabel = $this->fileFieldLabel();
 
         return match ($this->activityType) {
-            LeadActivityType::NOTE_ADDED => "{$triggeredBy} added a note: ".($this->data['note_title'] ?? 'Untitled'),
-            LeadActivityType::NOTE_UPDATED => "{$triggeredBy} updated the note: ".($this->data['note_title'] ?? 'Untitled'),
-            LeadActivityType::NOTE_DELETED => "{$triggeredBy} deleted the note: ".($this->data['note_title'] ?? 'Untitled'),
-            LeadActivityType::FILE_UPLOADED => "{$triggeredBy} uploaded a file: ".($this->data['file_name'] ?? 'Unknown'),
-            LeadActivityType::FILE_UPDATED => "{$triggeredBy} updated a file: ".($this->data['file_name'] ?? 'Unknown'),
-            LeadActivityType::FILE_DELETED => "{$triggeredBy} deleted a file: ".($this->data['file_name'] ?? 'Unknown'),
+            LeadActivityType::NOTE_ADDED => "{$triggeredBy} added a note on {$leadName}.",
+            LeadActivityType::NOTE_UPDATED => "{$triggeredBy} updated a note on {$leadName}.",
+            LeadActivityType::NOTE_DELETED => "{$triggeredBy} deleted a note on {$leadName}.",
+            LeadActivityType::FILE_UPLOADED => $fieldLabel
+                ? "{$triggeredBy} uploaded a file to {$fieldLabel} on {$leadName}."
+                : "{$triggeredBy} added a file to {$leadName}.",
+            LeadActivityType::FILE_UPDATED => $fieldLabel
+                ? "{$triggeredBy} updated a file on {$fieldLabel} for {$leadName}."
+                : "{$triggeredBy} updated a file on {$leadName}.",
+            LeadActivityType::FILE_DELETED => $fieldLabel
+                ? "{$triggeredBy} removed a file from {$fieldLabel} on {$leadName}. This action cannot be undone."
+                : "{$triggeredBy} removed a file from {$leadName}. This action cannot be undone.",
         };
     }
 
@@ -154,30 +169,55 @@ class LeadActivityNotification extends BaseNotification
         };
     }
 
-    protected function getEmailContent(): string
+    protected function getEmailDetailHtml(): string
     {
-        $lines = [];
-        $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
         $leadName = $this->safeMailText($this->leadName(), 200);
 
-        $lines[] = '<strong>'.__('modules.lead.clientName').":</strong> {$leadName}";
-        $lines[] = '<strong>'.__('app.changedBy').":</strong> {$triggeredBy}";
-        $lines[] = '<br>';
+        return match ($this->activityType) {
+            LeadActivityType::NOTE_ADDED,
+            LeadActivityType::NOTE_UPDATED,
+            LeadActivityType::NOTE_DELETED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['note_title'] ?? 'Untitled', 200),
+                $leadName,
+            ),
+            LeadActivityType::FILE_UPLOADED,
+            LeadActivityType::FILE_UPDATED,
+            LeadActivityType::FILE_DELETED => $this->fileDetailHtml($leadName),
+        };
+    }
 
-        switch ($this->activityType) {
-            case LeadActivityType::NOTE_ADDED:
-            case LeadActivityType::NOTE_UPDATED:
-            case LeadActivityType::NOTE_DELETED:
-                $lines[] = '<strong>Note Title:</strong> '.$this->safeMailText($this->data['note_title'] ?? 'Untitled', 200);
-                break;
-            case LeadActivityType::FILE_UPLOADED:
-            case LeadActivityType::FILE_UPDATED:
-            case LeadActivityType::FILE_DELETED:
-                $lines[] = '<strong>File:</strong> '.$this->safeMailText($this->data['file_name'] ?? 'Unknown', 200);
-                break;
+    protected function getEmailContent(): string
+    {
+        return '';
+    }
+
+    protected function fileDetailHtml(string $leadName): string
+    {
+        $fieldLabel = $this->fileFieldLabel();
+        $warning = $this->activityType === LeadActivityType::FILE_DELETED;
+
+        if ($fieldLabel !== null) {
+            return EntityActivityMailBuilder::renderDetailBlock(
+                $fieldLabel,
+                $leadName,
+                $warning ? __('This action cannot be undone.') : null,
+                $warning,
+            );
         }
 
-        return implode('<br>', $lines);
+        return EntityActivityMailBuilder::renderDetailBlock(
+            null,
+            $leadName,
+            $warning ? __('This action cannot be undone.') : null,
+            $warning,
+        );
+    }
+
+    protected function fileFieldLabel(): ?string
+    {
+        $label = trim((string) ($this->data['field_label'] ?? ''));
+
+        return $label !== '' ? $this->safeMailText($label, 200) : null;
     }
 
     protected function getAdditionalDataForStorage(): array
@@ -188,7 +228,7 @@ class LeadActivityNotification extends BaseNotification
             LeadActivityType::NOTE_DELETED => ['note_id', 'note_title'],
             LeadActivityType::FILE_UPLOADED,
             LeadActivityType::FILE_UPDATED,
-            LeadActivityType::FILE_DELETED => ['file_id', 'file_name'],
+            LeadActivityType::FILE_DELETED => ['file_id', 'field_label'],
         };
 
         $relevant = [];

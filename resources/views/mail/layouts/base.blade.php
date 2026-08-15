@@ -95,6 +95,13 @@
             margin-bottom: 4px;
         }
 
+        .hm .detail-warning {
+            color: #b45309;
+            font-family: "Syne", Georgia, serif;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
         .hm .closing-text,
         .hm .strong-text {
             font-family: "Syne", Georgia, serif;
@@ -141,6 +148,10 @@
 
             .hm .detail-meta {
                 color: #9ca3af !important;
+            }
+
+            .hm .detail-warning {
+                color: #fbbf24 !important;
             }
 
             .hm .detail-block {
@@ -310,14 +321,14 @@
                                     <p>{{ __('email.defaultPreheader') }}</p>
                                 @endif
 
+                                @hasSection('detail')
+                                    @yield('detail')
+                                @endif
+
                                 @hasSection('content')
                                     <div class="callout">
                                         @yield('content')
                                     </div>
-                                @endif
-
-                                @hasSection('detail')
-                                    @yield('detail')
                                 @endif
 
                                 @if($actionText !== '' && $actionUrl !== '')
