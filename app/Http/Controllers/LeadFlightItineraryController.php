@@ -150,11 +150,7 @@ class LeadFlightItineraryController extends Controller
 
         if ($request->filled('flight_date')) {
 
-            \Log::info('[itinerary debug] store received flight_date', ['raw' => $request->input('flight_date')]);
-
             $data['flight_date'] = Carbon::parse($request->flight_date)->toDateTimeString();
-
-            \Log::info('[itinerary debug] store parsed flight_date', ['stored' => $data['flight_date']]);
 
         }
 
@@ -285,15 +281,11 @@ class LeadFlightItineraryController extends Controller
 
         if ($request->has('flight_date')) {
 
-            \Log::info('[itinerary debug] update received flight_date', ['raw' => $request->input('flight_date')]);
-
             $data['flight_date'] = $request->filled('flight_date')
 
                 ? Carbon::parse($request->flight_date)->toDateTimeString()
 
                 : null;
-
-            \Log::info('[itinerary debug] update parsed flight_date', ['stored' => $data['flight_date']]);
 
         }
 
