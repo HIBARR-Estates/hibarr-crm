@@ -15,7 +15,48 @@ import {
     OlApiError,
     RegisterWebinarSessionPayload,
     RegisterWebinarSessionResponse,
+    WebinarSession,
 } from "@/Types/qualification";
+
+interface OlWebinarSessionRaw {
+    id?: number | string;
+    title?: string;
+    /** OL's field name; `startsAt` accepted too in case the API converges. */
+    startDate?: string;
+    startsAt?: string;
+    duration?: number;
+    timezone?: string;
+    status?: string;
+}
+
+/**
+ * `/sessions/next` returns a *single* session object — not a list — using
+ * `startDate` and a numeric id. Normalize to an array of our own shape so
+ * callers render 0..n uniformly and a non-array can never reach a list
+ * renderer (which crashes the page).
+ */
+const normalizeWebinarSessions = (payload: unknown): WebinarSession[] => {
+    const raw = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === "object"
+          ? [payload]
+          : [];
+
+    return raw
+        .filter(
+            (session): session is OlWebinarSessionRaw =>
+                Boolean(session) && typeof session === "object",
+        )
+        .filter((session) => session.id != null)
+        .map((session) => ({
+            id: String(session.id),
+            title: session.title ?? "Webinar session",
+            startsAt: session.startDate ?? session.startsAt ?? "",
+            timezone: session.timezone,
+            duration: session.duration,
+            status: session.status,
+        }));
+};
 
 const sleep = (ms: number): Promise<void> =>
     new Promise((resolve) => setTimeout(resolve, ms));
@@ -91,11 +132,17 @@ export class RegistrationService {
         webinarId: string,
     ): Promise<GetNextWebinarSessionsResponse> {
         return this.withRetry(async () => {
-            const response = await axios.get<GetNextWebinarSessionsResponse>(
+            const response = await axios.get<{
+                success?: boolean;
+                data?: unknown;
+            }>(
                 `${this.config.baseUrl}/internal/${webinarId}/sessions/next`,
                 { headers: this.headers },
             );
-            return response.data;
+            return {
+                success: response.data?.success ?? true,
+                data: normalizeWebinarSessions(response.data?.data),
+            };
         }, "getNextWebinarSessions");
     }
 

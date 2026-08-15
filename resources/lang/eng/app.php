@@ -1367,6 +1367,7 @@ return array(
     'sku' => 'SKU',
     'host' => 'Host',
     'cancelled' => 'Cancelled',
+    'scheduled' => 'Scheduled',
     'markComplete' => 'Mark Complete',
     'markCancel' => 'Mark Cancelled',
     'taxName' => 'Tax Name',

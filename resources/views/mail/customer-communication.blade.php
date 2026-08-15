@@ -6,6 +6,18 @@
     <title>{{ $subject ?? 'Customer Communication' }}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f6f6f6; font-family: Arial, sans-serif;">
+    @include('mail.partials.preheader', [
+        'preheader' => $preheader ?? ($subject ?? (
+            isset($emailContent)
+                ? \Illuminate\Support\Str::limit(
+                    strlen((string) $emailContent) > 2000
+                        ? substr((string) $emailContent, 0, 2000)
+                        : (string) $emailContent,
+                    140
+                )
+                : 'Customer communication'
+        )),
+    ])
     <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f6f6f6">
         <tr>
             <td align="center" style="padding: 20px 0;">

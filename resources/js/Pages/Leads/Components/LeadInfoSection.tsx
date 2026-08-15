@@ -43,7 +43,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { formatMobileForDisplay, resolveLeadPhoneDisplay } from "@/lib/utils";
 import {
     computeAgeFieldsFromDateOfBirth,
     resolveLeadAgeFields,
@@ -542,36 +542,11 @@ const ageRangeOptions = useMemo(
         }
     };
 
-    // Resolve mobile for display/edit — handles JSON (legacy + antd-phone-input shapes)
-    const getMobileNumber = (mobile: string | null | undefined): string => {
-        if (!mobile) return "";
-
-        if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
-            try {
-                const mobileData = JSON.parse(mobile.trim());
-                if (typeof mobileData?.phone === "string") {
-                    return mobileData.phone.trim();
-                }
-                return formatMobileForDisplay(mobile) || "";
-            } catch {
-                return mobile;
-            }
-        }
-
-        return mobile;
-    };
-
+    // Prefer accessor-formatted phone, then format the raw column (JSON / E.164).
     const resolvePhoneFieldValue = (
         mobile: string | null | undefined,
         formattedFallback?: string | null,
-    ): string => {
-        const fromMobile = getMobileNumber(mobile);
-        if (fromMobile) return fromMobile;
-        if (formattedFallback && formattedFallback !== "--") {
-            return formattedFallback;
-        }
-        return "";
-    };
+    ): string => resolveLeadPhoneDisplay(mobile, formattedFallback);
 
     // Handle field update
     const handleFieldUpdate = async (
@@ -1039,6 +1014,34 @@ const ageRangeOptions = useMemo(
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("temperature")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.preferred_contact_time", { defaultValue: "Preferred contact time" })}>
+                            <EditableField
+                                value={currentLeadState.preferred_contact_time || ""}
+                                fieldName="preferred_contact_time"
+                                fieldType="select"
+                                options={[
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_morning", { defaultValue: "Morning" }), value: "morning" },
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_afternoon", { defaultValue: "Afternoon" }), value: "afternoon" },
+                                    { label: t("pages.leads.info.fields.preferred_contact_time_evening", { defaultValue: "Evening" }), value: "evening" },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("preferred_contact_time", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.preferred_contact_time ? (
+                                        <span className="capitalize">
+                                            {currentLeadState.preferred_contact_time}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("preferred_contact_time")}
                             />
                         </DetailField>
 

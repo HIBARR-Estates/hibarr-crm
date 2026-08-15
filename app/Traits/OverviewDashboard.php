@@ -96,7 +96,7 @@ trait OverviewDashboard
 
         $this->pendingLeadFollowUps = Deal::with('followup', 'leadAgent', 'leadAgent.user', 'leadAgent.user.employeeDetail', 'leadAgent.user.employeeDetail.designation')
             ->selectRaw('deals.id,leads.company_name, leads.client_name as client_name, deals.agent_id, ( select lead_follow_up.next_follow_up_date from lead_follow_up where lead_follow_up.deal_id = deals.id and DATE(lead_follow_up.next_follow_up_date) < "' . $currentDate . '" ORDER BY lead_follow_up.created_at DESC Limit 1) as follow_up_date_past,
-            ( select lead_follow.next_follow_up_date from lead_follow_up as lead_follow where lead_follow.deal_id = deals.id and status = "incomplete" ORDER BY lead_follow.created_at DESC Limit 1) as follow_up_date_next'
+            ( select lead_follow.next_follow_up_date from lead_follow_up as lead_follow where lead_follow.deal_id = deals.id and status = "scheduled" ORDER BY lead_follow.created_at DESC Limit 1) as follow_up_date_next'
             )
             // Exclude soft-deleted leads from join (HIB-1119 merge)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
@@ -105,8 +105,12 @@ trait OverviewDashboard
             ->groupBy('deals.id')
             ->get();
 
+        // follow_up_date_next used to filter on status "incomplete", which is not
+        // in the enum, so it was always NULL and this condition was a no-op —
+        // deals kept showing as needing follow-up even with a later one booked.
+        // Now that it resolves, the check does what it says.
         $this->pendingLeadFollowUps = $this->pendingLeadFollowUps->filter(function ($value, $key) {
-            return $value->follow_up_date_past != null && $value->follow_up_date_next == null && $value->followup->status != 'completed';
+            return $value->follow_up_date_past != null && $value->follow_up_date_next == null && $value->followup?->status != 'completed';
         });
 
         $this->projectActivities = ProjectActivity::with('project')

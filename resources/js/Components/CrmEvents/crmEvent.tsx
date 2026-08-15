@@ -53,6 +53,10 @@ export default function getEventIcon(slug: string | undefined): React.ReactNode 
         lead_updated: <EditOutlined style={{ fontSize: "11px" }} />,
         lead_converted: <SwapOutlined style={{ fontSize: "11px" }} />,
         lead_status_changed: <TagOutlined style={{ fontSize: "11px" }} />,
+        lead_lifecycle_status_changed: <TagOutlined style={{ fontSize: "11px" }} />,
+        lead_owner_changed: <UserAddOutlined style={{ fontSize: "11px" }} />,
+        lead_note_added: <FileTextOutlined style={{ fontSize: "11px" }} />,
+        lead_first_contact: <MessageOutlined style={{ fontSize: "11px" }} />,
         // Property
         property_created: <HomeOutlined style={{ fontSize: "11px" }} />,
         property_updated: <EditOutlined style={{ fontSize: "11px" }} />,

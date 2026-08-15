@@ -3,7 +3,10 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
-import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
+import {
+    defaultMeetingStart,
+    type MeetingFormState,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 export interface ScheduleMeetingModalLabels {
     title: string;
@@ -40,14 +43,16 @@ export default function ScheduleMeetingModal({
     const seededForOpenRef = useRef(false);
 
     // Seed once per open session — not when parent re-renders with a fresh
-    // initialForm object (e.g. after validation sets errors).
+    // initialForm object (e.g. after validation sets errors). Date/time are
+    // recomputed here rather than taken from `initialForm`, which callers
+    // memoize at mount and would otherwise seed a stale (possibly past) time.
     useEffect(() => {
         if (!open) {
             seededForOpenRef.current = false;
             return;
         }
         if (!seededForOpenRef.current) {
-            setForm(initialForm);
+            setForm({ ...initialForm, ...defaultMeetingStart() });
             seededForOpenRef.current = true;
         }
     }, [open, initialForm]);

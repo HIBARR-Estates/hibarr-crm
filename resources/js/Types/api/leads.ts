@@ -37,6 +37,7 @@ export interface Lead {
     gender?: "male" | "female" | null;
     gender_value?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
+    preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
     category_id?: number | null;
     category_ids?: number[];
     source_id?: number | null;
@@ -75,6 +76,9 @@ export interface Lead {
     categories?: LeadCategory[];
     lead_source?: LeadSource | null;
     leadSource?: LeadSource | null;
+    /** Partner/agent who introduced the lead — write-once, see LeadObserver. */
+    referred_by_agent_id?: number | null;
+    referred_by_agent?: { id: number; user?: User | null } | null;
     client?: User | null;
     created_at?: string;
     updated_at?: string;
@@ -92,6 +96,19 @@ export interface Lead {
     // Custom Fields
     // custom_fields?: Record<string, any>;
     custom_fields_data?: Record<string, any>;
+
+    /** Soonest open task or scheduled meeting; null when the lead has neither. */
+    next_action?: LeadNextAction | null;
+}
+
+export interface LeadNextAction {
+    type: "task" | "meeting";
+    id: number;
+    title: string;
+    /** Wall-clock `Y-m-d H:i:s` — parse as local, not UTC. */
+    due_at: string;
+    /** Meeting type name (e.g. "Video call"); null for tasks. */
+    meta?: string | null;
 }
 
 export interface LeadMarketing {
@@ -136,6 +153,7 @@ export interface CreateLeadFormData {
     salutation?: string;
     gender?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
+    preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
     client_name: string;
     client_email: string;
     mobile?: string;

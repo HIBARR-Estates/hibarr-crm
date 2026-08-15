@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Helper\Reply;
 use App\Jobs\ProcessDealRequestJob;
+use App\Models\CustomField;
+use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\DealHistory;
 use App\Models\Lead;
@@ -82,10 +84,22 @@ class DealContactApiController extends Controller
             }
 
             // Use the same approach as the existing changeStage method
-            // Update the deal stage directly without triggering observers
+            // Update the deal stage directly without triggering observers.
+            //
+            // stage_entered_at is normally stamped by DealObserver; set it here
+            // because the bypass skips it, and without it the deal reports the
+            // dwell time of whatever stage it was in before this one.
+            //
+            // ponytail: this path still emits no deal_stage_changed crm_event,
+            // so its transitions are invisible to the funnel's closed-dwell
+            // half (the DealHistory row below is a separate, barely-read
+            // trail). Add the event here if this endpoint sees real traffic.
             DB::table('deals')
                 ->where('id', $dealId)
-                ->update(['pipeline_stage_id' => $newStageId]);
+                ->update([
+                    'pipeline_stage_id' => $newStageId,
+                    'stage_entered_at' => now(),
+                ]);
 
             // Create deal history manually with the responsible agent's user ID (if available)
             \App\Models\DealHistory::create([
@@ -161,6 +175,15 @@ class DealContactApiController extends Controller
             $contactId = $request->input('lead_id') ?? null;
             if (!$contactId) {
                 $contactId = $this->resolveContact($request, $companyId);
+            } else {
+                // lead_id bypasses resolveContact — still apply optional lead fields / CFs
+                $existingLead = Lead::where('company_id', $companyId)->find($contactId);
+                if ($existingLead) {
+                    if ($this->applyLeadOptionalFields($existingLead, $request)) {
+                        $existingLead->saveQuietly();
+                    }
+                    $this->applyLeadCustomFields($existingLead, $request);
+                }
             }
             
             // Save UTM information if provided (also fast)
@@ -263,7 +286,10 @@ class DealContactApiController extends Controller
                         $contact->category_id = $request->lead_category_id;
                     }
                     $this->applyAddressAndDobToLead($contact, $request);
+                    $this->applyLeadOptionalFields($contact, $request);
+                    $this->applyReferralAgentToNewLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
+                    $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
                 } else {
                     // Update existing contact
@@ -304,9 +330,13 @@ class DealContactApiController extends Controller
                     if ($this->applyAddressAndDobToLead($existingContact, $request)) {
                         $updated = true;
                     }
+                    if ($this->applyLeadOptionalFields($existingContact, $request)) {
+                        $updated = true;
+                    }
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
+                    $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
                 }
 
@@ -368,9 +398,13 @@ class DealContactApiController extends Controller
                 if ($this->applyAddressAndDobToLead($existingContact, $request)) {
                     $updated = true;
                 }
+                if ($this->applyLeadOptionalFields($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
+                $this->applyLeadCustomFields($existingContact, $request);
                 return $existingContact->id;
             }
         }
@@ -402,9 +436,13 @@ class DealContactApiController extends Controller
                 if ($this->applyAddressAndDobToLead($existingContact, $request)) {
                     $updated = true;
                 }
+                if ($this->applyLeadOptionalFields($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
+                $this->applyLeadCustomFields($existingContact, $request);
                 return $existingContact->id;
             }
         }
@@ -424,7 +462,10 @@ class DealContactApiController extends Controller
             $contact->source_id = $sourceId;
         }
         $this->applyAddressAndDobToLead($contact, $request);
+        $this->applyLeadOptionalFields($contact, $request);
+        $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
+        $this->applyLeadCustomFields($contact, $request);
 
         return $contact->id;
     }
@@ -540,6 +581,136 @@ class DealContactApiController extends Controller
     }
 
     /**
+     * Apply optional lead classification fields (temperature, preferred contact time, lifecycle status).
+     * Returns true if any attribute was changed.
+     * WhatsApp group membership is applied via saveUtmInfo (marketing record).
+     */
+    private function applyLeadOptionalFields(Lead $lead, Request $request): bool
+    {
+        $updated = false;
+
+        if ($request->filled('temperature')) {
+            $temperature = $request->input('temperature');
+            $current = $lead->temperature?->value ?? $lead->temperature;
+            if ((string) $current !== (string) $temperature) {
+                $lead->temperature = $temperature;
+                $updated = true;
+            }
+        }
+
+        if ($request->has('preferred_contact_time')) {
+            $preferredContactTime = $request->input('preferred_contact_time');
+            $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
+            if ((string) $current !== (string) $preferredContactTime) {
+                $lead->preferred_contact_time = $preferredContactTime;
+                $updated = true;
+            }
+        }
+
+        if ($request->filled('lead_lifecycle_status_id')) {
+            $statusId = (int) $request->input('lead_lifecycle_status_id');
+            if ((int) $lead->lead_lifecycle_status_id !== $statusId) {
+                $lead->lead_lifecycle_status_id = $statusId;
+                $updated = true;
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
+     * Invalid, missing, or cross-company IDs are ignored.
+     */
+    private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
+    {
+        $referralAgentId = $request->input('referral_agent_id', $request->input('referal_agent_id'));
+        if ($referralAgentId === null || $referralAgentId === '') {
+            return;
+        }
+
+        if (! is_numeric($referralAgentId) || ! $lead->company_id) {
+            return;
+        }
+
+        $agent = LeadAgent::query()
+            ->where('company_id', $lead->company_id)
+            ->whereKey((int) $referralAgentId)
+            ->first();
+
+        if ($agent === null) {
+            return;
+        }
+
+        $lead->referred_by_agent_id = $agent->id;
+    }
+
+    /**
+     * Upsert lead custom fields from lead_custom_fields (and custom_fields alias on contact create).
+     * Format: {"131": "value", "132": ["a","b"]} — keys are custom field IDs.
+     * Only Lead-group fields for the contact's company are accepted.
+     */
+    private function applyLeadCustomFields(Lead $lead, Request $request): void
+    {
+        if (!$lead->id) {
+            return;
+        }
+
+        $payload = [];
+
+        if ($request->has('lead_custom_fields') && is_array($request->input('lead_custom_fields'))) {
+            $payload = $request->input('lead_custom_fields');
+        }
+
+        // Contact-only alias — deal create keeps custom_fields for deal CFs
+        if ($request instanceof CreateOrUpdateContactRequest
+            && $request->has('custom_fields')
+            && is_array($request->input('custom_fields'))
+        ) {
+            $payload = array_replace($payload, $request->input('custom_fields'));
+        }
+
+        if ($payload === []) {
+            return;
+        }
+
+        $leadGroup = CustomFieldGroup::where('company_id', $lead->company_id)
+            ->where('model', Lead::CUSTOM_FIELD_MODEL)
+            ->first();
+
+        if (!$leadGroup) {
+            return;
+        }
+
+        $allowedIds = CustomField::where('custom_field_group_id', $leadGroup->id)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $customFieldsData = [];
+        foreach ($payload as $fieldId => $value) {
+            $fieldId = (string) $fieldId;
+            if ($value === null || !in_array($fieldId, $allowedIds, true)) {
+                continue;
+            }
+            $customFieldsData['field_' . $fieldId] = $value;
+        }
+
+        if ($customFieldsData === []) {
+            return;
+        }
+
+        try {
+            $lead->updateCustomFieldData($customFieldsData, $lead->company_id);
+        } catch (\Exception $e) {
+            Log::error('DealContactApi: Error updating lead custom fields', [
+                'lead_id' => $lead->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Save UTM information and marketing data to the contact's marketing record.
      *
      * @param int $contactId
@@ -590,6 +761,7 @@ class DealContactApiController extends Controller
             'has_joined_the_facebook_group' => $request->input('has_joined_the_facebook_group'),
             'has_downloaded_the_ebook' => $request->input('has_downloaded_the_ebook'),
             'has_attended_the_webinar' => $request->input('has_attended_the_webinar'),
+            'has_joined_the_whatsapp_group' => $request->input('has_joined_the_whatsapp_group'),
             'registered_for_zoom_meeting' => $request->input('registered_for_zoom_meeting'),
             'last_webinar_date' => $request->input('last_webinar_date'),
             'contact_score' => $request->input('contact_score'),
@@ -599,8 +771,14 @@ class DealContactApiController extends Controller
         foreach ($engagementFields as $key => $value) {
             if ($value !== null) {
                 // Convert boolean strings to actual booleans
-                if (in_array($key, ['has_registered_for_the_webinar', 'has_joined_the_facebook_group', 
-                    'has_downloaded_the_ebook', 'has_attended_the_webinar', 'registered_for_zoom_meeting'])) {
+                if (in_array($key, [
+                    'has_registered_for_the_webinar',
+                    'has_joined_the_facebook_group',
+                    'has_downloaded_the_ebook',
+                    'has_attended_the_webinar',
+                    'has_joined_the_whatsapp_group',
+                    'registered_for_zoom_meeting',
+                ], true)) {
                     $marketingPayload[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
                 } 
                 // Parse date fields properly

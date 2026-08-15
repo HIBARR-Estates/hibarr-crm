@@ -43,7 +43,21 @@
     </style>
 </head>
 <body style="margin:0; padding:0; background:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-    
+    @php
+        $layoutPreheader = is_string($preheader ?? null) ? $preheader : '';
+        // Cap before trim/yield — huge strings OOM during preheader sanitize.
+        if ($layoutPreheader !== '' && strlen($layoutPreheader) > 500) {
+            $layoutPreheader = substr($layoutPreheader, 0, 500);
+        }
+        $layoutPreheader = trim($layoutPreheader);
+        // Prefer the explicit preheader; do not materialize huge @section yields
+        // just to invent a preview string (yieldContent copies the full section).
+        if ($layoutPreheader === '') {
+            $layoutPreheader = 'Just a quick heads up';
+        }
+    @endphp
+    @include('mail.partials.preheader', ['preheader' => $layoutPreheader])
+
     <!-- Wrapper Table -->
     <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" class="main-container" style="background:#f5f5f5; padding:20px 0;">
         <tr>

@@ -26,6 +26,17 @@ interface UseLeadQualificationLoaderOptions {
     seed?: QualificationWorkspaceSeed | null;
 }
 
+/**
+ * Loads the lead's qualification workspace + OL template tree.
+ *
+ * Important UX invariants:
+ * - Bootstrap runs once per (enabled, leadId); it does not re-hit the index API
+ *   on incidental callback identity changes.
+ * - `templateTree` is retained across refetches for the same template so the
+ *   qualify modal never unmounts from a brief null tree.
+ * - Closing/finishing does not require wiping the tree before `qualificationOpen`
+ *   flips false — callers should close first, then finish.
+ */
 export default function useLeadQualificationLoader(
     leadId: number,
     { enabled = true, seed = null }: UseLeadQualificationLoaderOptions = {},
@@ -41,16 +52,16 @@ export default function useLeadQualificationLoader(
     qualificationServiceRef.current = qualificationService;
     templateServiceRef.current = templateService;
 
-    const loadRequestIdRef = useRef(0);
-    // The seed is a mount-time value only; holding it in a ref keeps a fresh
-    // prop identity each render from re-triggering the bootstrap effect.
+    const treeRequestIdRef = useRef(0);
+    const bootstrappedLeadIdRef = useRef<number | null>(null);
+    const treeCacheRef = useRef<Map<string, TemplateTree>>(new Map());
+    const currentRef = useRef<LeadQualification | null>(null);
     const seedRef = useRef(seed);
-    const seedConsumedRef = useRef(false);
+    seedRef.current = seed;
 
     const [phase, setPhase] = useState<QualificationLoaderPhase>(() => {
         if (!enabled) return "disabled";
         if (!seed) return "loading";
-        // An in-progress run still needs its template tree before it can render.
         if (seed.current?.status === "inProgress") return "loading";
         if (seed.current?.status === "completed") return "completed";
         return "empty";
@@ -61,148 +72,200 @@ export default function useLeadQualificationLoader(
     const [history, setHistory] = useState<LeadQualification[]>(() =>
         enabled ? seed?.history ?? [] : [],
     );
-    const [templateTree, setTemplateTree] = useState<TemplateTree | null>(null);
+    const [templateTree, setTemplateTree] = useState<TemplateTree | null>(
+        () => {
+            const templateId = seed?.current?.template_id;
+            return templateId
+                ? treeCacheRef.current.get(templateId) ?? null
+                : null;
+        },
+    );
+    const [treeLoading, setTreeLoading] = useState(
+        () =>
+            Boolean(
+                enabled &&
+                    seed?.current?.status === "inProgress" &&
+                    !treeCacheRef.current.get(seed.current.template_id),
+            ),
+    );
 
-    const applyWorkspace = useCallback(
-        async (workspace: QualificationWorkspaceSeed, requestId: number) => {
-            setCurrent(workspace.current);
-            setHistory(workspace.history ?? []);
+    currentRef.current = current;
 
-            if (workspace.current?.status === "inProgress") {
-                const treeResponse =
-                    await templateServiceRef.current.getTemplateTree(
-                        workspace.current.template_id,
-                        workspace.current.template_name,
-                    );
-
-                if (requestId !== loadRequestIdRef.current) {
-                    return;
-                }
-
-                setTemplateTree(treeResponse.data);
-                setPhase("inProgress");
-                return;
-            }
-
-            if (workspace.current?.status === "completed") {
-                setTemplateTree(null);
-                setPhase("completed");
-                return;
-            }
-
-            setTemplateTree(null);
-            setPhase("empty");
+    const rememberTree = useCallback(
+        (templateId: string, tree: TemplateTree) => {
+            treeCacheRef.current.set(templateId, tree);
+            setTemplateTree(tree);
+            setTreeLoading(false);
         },
         [],
     );
 
+    const loadTreeForQualification = useCallback(
+        async (qualification: LeadQualification): Promise<boolean> => {
+            const cached = treeCacheRef.current.get(qualification.template_id);
+            if (cached) {
+                setTemplateTree(cached);
+                setTreeLoading(false);
+                return true;
+            }
+
+            const requestId = ++treeRequestIdRef.current;
+            setTreeLoading(true);
+
+            try {
+                const treeResponse =
+                    await templateServiceRef.current.getTemplateTree(
+                        qualification.template_id,
+                        qualification.template_name,
+                    );
+
+                if (requestId !== treeRequestIdRef.current) {
+                    return false;
+                }
+
+                rememberTree(qualification.template_id, treeResponse.data);
+                return true;
+            } catch {
+                if (requestId !== treeRequestIdRef.current) {
+                    return false;
+                }
+
+                setTreeLoading(false);
+                message.error("Failed to load template");
+                return false;
+            }
+        },
+        [rememberTree],
+    );
+
+    const applyWorkspace = useCallback(
+        async (
+            workspace: QualificationWorkspaceSeed,
+            options: { fetchTree?: boolean } = {},
+        ) => {
+            const { fetchTree = true } = options;
+            setCurrent(workspace.current);
+            setHistory(workspace.history ?? []);
+
+            if (workspace.current?.status === "inProgress") {
+                setPhase("inProgress");
+                if (fetchTree) {
+                    await loadTreeForQualification(workspace.current);
+                }
+                return;
+            }
+
+            if (workspace.current?.status === "completed") {
+                // Keep any cached tree so reopening a just-finished run does not
+                // flash empty; do not clear to null while a modal may still be open.
+                const cached = workspace.current.template_id
+                    ? treeCacheRef.current.get(workspace.current.template_id)
+                    : null;
+                if (cached) {
+                    setTemplateTree(cached);
+                }
+                setTreeLoading(false);
+                setPhase("completed");
+                return;
+            }
+
+            setTreeLoading(false);
+            setPhase("empty");
+        },
+        [loadTreeForQualification],
+    );
+
     const loadQualifications = useCallback(async () => {
         if (!enabled) {
-            loadRequestIdRef.current += 1;
+            treeRequestIdRef.current += 1;
             setPhase("disabled");
             setCurrent(null);
             setHistory([]);
             setTemplateTree(null);
+            setTreeLoading(false);
             return;
         }
 
-        const requestId = ++loadRequestIdRef.current;
-        setPhase("loading");
+        setPhase((prev) => (prev === "inProgress" ? prev : "loading"));
 
         try {
             const response =
                 await qualificationServiceRef.current.getQualifications(leadId);
-
-            if (requestId !== loadRequestIdRef.current) {
-                return;
-            }
-
-            await applyWorkspace(response, requestId);
+            await applyWorkspace(response);
         } catch {
-            if (requestId !== loadRequestIdRef.current) {
-                return;
-            }
-
             message.error("Failed to load qualifications");
-            setTemplateTree(null);
+            setTreeLoading(false);
             setPhase("empty");
         }
     }, [applyWorkspace, enabled, leadId]);
 
+    // One-shot bootstrap per lead while enabled. Do not re-run when callback
+    // identities churn — that was re-fetching the tree and unmounting the modal.
     useEffect(() => {
+        if (!enabled) {
+            bootstrappedLeadIdRef.current = null;
+            treeRequestIdRef.current += 1;
+            setPhase("disabled");
+            setCurrent(null);
+            setHistory([]);
+            setTemplateTree(null);
+            setTreeLoading(false);
+            return;
+        }
+
+        if (bootstrappedLeadIdRef.current === leadId) {
+            return;
+        }
+        bootstrappedLeadIdRef.current = leadId;
+
         const initialSeed = seedRef.current;
-
-        // Bootstrap from the server-rendered workspace when we have one, so the
-        // first paint costs no `lead-qualifications.index` round-trip.
-        if (enabled && initialSeed && !seedConsumedRef.current) {
-            seedConsumedRef.current = true;
-            const requestId = ++loadRequestIdRef.current;
-
-            void applyWorkspace(initialSeed, requestId).catch(() => {
-                if (requestId !== loadRequestIdRef.current) return;
+        if (initialSeed) {
+            void applyWorkspace(initialSeed).catch(() => {
                 message.error("Failed to load qualifications");
-                setTemplateTree(null);
+                setTreeLoading(false);
                 setPhase("empty");
             });
             return;
         }
 
-        seedConsumedRef.current = true;
         void loadQualifications();
-    }, [applyWorkspace, enabled, loadQualifications]);
+        // intentionally omit applyWorkspace/loadQualifications from deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enabled, leadId]);
 
-    const handleStarted = useCallback(async (qualification: LeadQualification) => {
-        const requestId = ++loadRequestIdRef.current;
-        setCurrent(qualification);
-
-        try {
-            const treeResponse =
-                await templateServiceRef.current.getTemplateTree(
-                    qualification.template_id,
-                    qualification.template_name,
-                );
-
-            if (requestId !== loadRequestIdRef.current) {
-                return;
-            }
-
-            setTemplateTree(treeResponse.data);
+    const handleStarted = useCallback(
+        async (qualification: LeadQualification) => {
+            setCurrent(qualification);
             setPhase("inProgress");
-        } catch {
-            if (requestId !== loadRequestIdRef.current) {
-                return;
+            const ok = await loadTreeForQualification(qualification);
+            if (!ok && !treeCacheRef.current.get(qualification.template_id)) {
+                setPhase("empty");
             }
-
-            message.error("Failed to load template");
-            setPhase("empty");
-        }
-    }, []);
+        },
+        [loadTreeForQualification],
+    );
 
     const handleQualificationUpdated = useCallback(
         (qualification: LeadQualification) => {
             setCurrent(qualification);
             setHistory((prev) => {
-                const without = prev.filter((item) => item.id !== qualification.id);
+                const without = prev.filter(
+                    (item) => item.id !== qualification.id,
+                );
                 return [qualification, ...without];
             });
 
-            if (qualification.status !== "completed") {
-                return;
+            if (qualification.status === "completed") {
+                setPhase("completed");
             }
-
-            // Keep the active script UI (and template tree) mounted while
-            // post-complete action runs are present so the actions panel can render.
-            if ((qualification.action_runs?.length ?? 0) > 0) {
-                return;
-            }
-
-            setTemplateTree(null);
-            setPhase("completed");
         },
         [],
     );
 
-    /** Dismiss the in-progress script UI after the actions panel (or modal) is closed. */
+    /**
+     * Dismiss the script session after the modal has closed. Keeps the tree
+     * cached so a rapid reopen does not remount through a null-tree gap.
+     */
     const finishQualificationSession = useCallback(
         (qualification?: LeadQualification | null) => {
             if (qualification) {
@@ -214,16 +277,65 @@ export default function useLeadQualificationLoader(
                     return [qualification, ...without];
                 });
             }
-            setTemplateTree(null);
+            setTreeLoading(false);
             setPhase("completed");
         },
         [],
     );
 
+    const resumeQualification = useCallback(
+        async (qualification: LeadQualification): Promise<boolean> => {
+            if (qualification.status !== "inProgress") {
+                return false;
+            }
+
+            const previous = currentRef.current;
+
+            setHistory((historyPrev) => {
+                const without = historyPrev.filter(
+                    (item) => item.id !== qualification.id,
+                );
+                if (
+                    previous &&
+                    previous.id !== qualification.id &&
+                    !without.some((item) => item.id === previous.id)
+                ) {
+                    return [previous, ...without];
+                }
+                return without;
+            });
+            setCurrent(qualification);
+            setPhase("inProgress");
+
+            return loadTreeForQualification(qualification);
+        },
+        [loadTreeForQualification],
+    );
+
+    const deleteQualification = useCallback(
+        async (qualificationId: number): Promise<boolean> => {
+            try {
+                const workspace =
+                    await qualificationServiceRef.current.deleteQualification(
+                        qualificationId,
+                    );
+
+                // Drop cache entry for the deleted run's template only if no
+                // remaining run shares it — simplest: leave cache, harmless.
+                await applyWorkspace(workspace);
+                return true;
+            } catch {
+                message.error("Failed to delete qualification");
+                return false;
+            }
+        },
+        [applyWorkspace],
+    );
+
     const handleStartNew = useCallback(() => {
-        loadRequestIdRef.current += 1;
+        treeRequestIdRef.current += 1;
         setCurrent(null);
-        setTemplateTree(null);
+        setTreeLoading(false);
         setPhase("empty");
     }, []);
 
@@ -233,12 +345,15 @@ export default function useLeadQualificationLoader(
         current,
         history,
         templateTree,
+        treeLoading,
         qualificationService,
         templateService,
         loadQualifications,
         handleStarted,
         handleQualificationUpdated,
         finishQualificationSession,
+        resumeQualification,
+        deleteQualification,
         handleStartNew,
         setCurrent,
         setHistory,

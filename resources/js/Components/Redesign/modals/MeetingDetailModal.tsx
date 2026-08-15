@@ -33,9 +33,27 @@ interface MeetingDetailModalProps {
     meeting: DealFollowup | null;
     canEdit: boolean;
     canDelete: boolean;
+    /**
+     * Rescheduling separately from editing. Defaults to `canEdit`, which is
+     * what every deal/lead caller wants.
+     *
+     * The dashboard needs them apart: editing a meeting posts to
+     * deals.follow_up_update, which requires a deal_id and 500s on a
+     * lead-only follow-up, while meetings.reschedule handles both. So the
+     * dashboard offers reschedule and sends editing to the record page.
+     */
+    canReschedule?: boolean;
     onClose: () => void;
     isUpdating: boolean;
     onCancelMeeting: () => void;
+    /**
+     * Marks a concluded meeting as actually held.
+     *
+     * Optional because only the dashboard offers it. Without someone recording
+     * this, `lead_follow_up.status` never leaves 'scheduled' and any metric
+     * counting held meetings has to infer them from the date instead.
+     */
+    onMarkHeld?: () => void;
     /** Entity-specific edit / reschedule / delete / summary modals. */
     renderNestedModals?: (controls: MeetingDetailNestedControls) => ReactNode;
 }
@@ -55,9 +73,11 @@ export default function MeetingDetailModal({
     meeting,
     canEdit,
     canDelete,
+    canReschedule,
     onClose,
     isUpdating,
     onCancelMeeting,
+    onMarkHeld,
     renderNestedModals,
 }: MeetingDetailModalProps) {
     const { td } = useTd();
@@ -75,7 +95,7 @@ export default function MeetingDetailModal({
     const attendees = meeting.participant_users ?? [];
     const reminders = meeting.reminders ?? [];
     const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
-    const showReschedule = canEdit && isActionable;
+    const showReschedule = (canReschedule ?? canEdit) && isActionable;
     const showSummaryBadge = item.isConcluded && item.summaryStatus !== "none";
     const summaryReady = item.summaryStatus === "available";
 
@@ -121,6 +141,17 @@ export default function MeetingDetailModal({
                             </Button>
                         )}
                         <span style={{ flex: 1 }} />
+                        {onMarkHeld &&
+                            item.isConcluded &&
+                            item.statusLabel !== "completed" && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={onMarkHeld}
+                                    disabled={isUpdating}
+                                >
+                                    {td("Mark held")}
+                                </Button>
+                            )}
                         {canEdit && (
                             <Button
                                 variant="primary"

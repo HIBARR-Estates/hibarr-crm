@@ -1,12 +1,14 @@
 import useTranslation from "@/Hooks/useTranslation";
 import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 
-type Priority = "high" | "medium" | "low";
+type Priority = "high" | "medium" | "low" | "highest" | "urgent";
 
 const PRIORITY_LABEL_KEYS: Record<Priority, string> = {
     high: "priority_high",
     medium: "priority_medium",
     low: "priority_low",
+    highest: "priority_highest",
+    urgent: "priority_urgent",
 };
 
 interface DealPriorityBadgeProps {

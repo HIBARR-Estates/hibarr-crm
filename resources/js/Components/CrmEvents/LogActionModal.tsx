@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import {
     Modal,
     Form,
@@ -33,6 +34,13 @@ dayjs.extend(utc);
 const { TextArea } = Input;
 const { Text } = Typography;
 
+interface NextStepConfig {
+    taskableType: "lead" | "deal";
+    taskableId: number;
+    /** Who the next-step task is assigned to. Defaults to the acting user. */
+    defaultAssigneeUserId?: number;
+}
+
 interface Props {
     open: boolean;
     onClose: () => void;
@@ -40,6 +48,25 @@ interface Props {
     modelType: string;
     modelId: number;
     userId?: number;
+    /**
+     * When set, the modal also offers a "what happens next" task.
+     *
+     * Absent everywhere except the dashboard, so the deal and lead timelines
+     * keep the modal they already have.
+     */
+    nextStep?: NextStepConfig;
+}
+
+interface CreateNextStepTaskRequest {
+    heading: string;
+    due_date: string;
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
+    taskable_type: "lead" | "deal";
+    taskable_id: number;
+    user_id: number[];
+    is_next_step: true;
+    estimate_hours: number;
+    estimate_minutes: number;
 }
 
 export default function LogActionModal({
@@ -49,10 +76,26 @@ export default function LogActionModal({
     modelType,
     modelId,
     userId,
+    nextStep,
 }: Props) {
     const [form] = Form.useForm();
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    const [partialError, setPartialError] = useState<string | null>(null);
     const queryClient = useQueryClient();
+    const { props: pageProps } = usePage();
+
+    /**
+     * The event is saved before the task. If the task then fails, a retry must
+     * not log the activity twice — the user would be looking at a duplicate
+     * they cannot see yet.
+     */
+    const eventSavedRef = useRef(false);
+
+    const createTask = useApiMutate<
+        CreateNextStepTaskRequest,
+        unknown,
+        ApiSuccessResponse<unknown>
+    >(route("tasks.store"), "POST");
 
     /* ---- Fetch event types ------------------------------------------------ */
     const { data: typesResponse, status: typesStatus } =
@@ -150,6 +193,55 @@ export default function LogActionModal({
                     : dayjs().utc().toISOString(),
             };
 
+            const finish = () => {
+                void queryClient.invalidateQueries({
+                    queryKey: ["/api/v1/crm-events"],
+                });
+                reset();
+                onSuccess();
+                onClose();
+            };
+
+            const afterEvent = () => {
+                eventSavedRef.current = true;
+
+                if (!nextStep || !values.next_step_title) {
+                    finish();
+                    return;
+                }
+
+                createTask.mutate(
+                    {
+                        heading: values.next_step_title,
+                        due_date: dayjs(values.next_step_due).format(
+                            `${pageProps.company?.date_format || "d-m-Y"} ${pageProps.company?.time_format || "H:i"}`,
+                        ),
+                        priority: "medium",
+                        taskable_type: nextStep.taskableType,
+                        taskable_id: nextStep.taskableId,
+                        user_id: [
+                            nextStep.defaultAssigneeUserId ?? userId,
+                        ].filter(Boolean) as number[],
+                        is_next_step: true,
+                        estimate_hours: 0,
+                        estimate_minutes: 0,
+                    },
+                    {
+                        onSuccess: finish,
+                        onError: () =>
+                            setPartialError(
+                                "Activity logged. The next step was not saved — try again.",
+                            ),
+                    },
+                );
+            };
+
+            // A retry after a failed task must not re-log the event.
+            if (eventSavedRef.current) {
+                afterEvent();
+                return;
+            }
+
             mutation.mutate(payload, {
                 onSuccess: (response) => {
                     // 201 success or 202 accepted (async queue) both count.
@@ -158,13 +250,7 @@ export default function LogActionModal({
                         response?.status === "accepted";
                     if (!ok) return;
 
-                    void queryClient.invalidateQueries({
-                        queryKey: ["/api/v1/crm-events"],
-                    });
-                    form.resetFields();
-                    setSelectedSlug(null);
-                    onSuccess();
-                    onClose();
+                    afterEvent();
                 },
 
                 onError: (error) => {
@@ -177,9 +263,15 @@ export default function LogActionModal({
         }
     };
 
-    const handleCancel = () => {
+    const reset = () => {
         form.resetFields();
         setSelectedSlug(null);
+        setPartialError(null);
+        eventSavedRef.current = false;
+    };
+
+    const handleCancel = () => {
+        reset();
         onClose();
     };
 
@@ -287,7 +379,75 @@ export default function LogActionModal({
                         format="YYYY-MM-DD HH:mm:ss"
                     />
                 </Form.Item>
+
+                {nextStep && (
+                    <>
+                        <Divider orientation="left" plain>
+                            Next step
+                        </Divider>
+
+                        <Text type="secondary" className="mb-3 block text-xs">
+                            Optional. Saved as a task on this record — a record
+                            with no open next step is what puts it in your
+                            queue.
+                        </Text>
+
+                        <Form.Item
+                            name="next_step_title"
+                            label="What happens next"
+                            rules={[
+                                {
+                                    // Half a next step is not a next step: a
+                                    // title with no date never becomes overdue,
+                                    // and a date with no title says nothing.
+                                    required: !!form.getFieldValue(
+                                        "next_step_due",
+                                    ),
+                                    message:
+                                        "Describe the next step, or clear the date",
+                                },
+                            ]}
+                        >
+                            <Input
+                                maxLength={190}
+                                placeholder="e.g. Book a viewing"
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="next_step_due"
+                            label="By when"
+                            dependencies={["next_step_title"]}
+                            rules={[
+                                ({ getFieldValue }) => ({
+                                    required: !!getFieldValue(
+                                        "next_step_title",
+                                    ),
+                                    message:
+                                        "Give the next step a date, or clear the title",
+                                }),
+                            ]}
+                        >
+                            <DatePicker
+                                className="w-full"
+                                format="YYYY-MM-DD"
+                                disabledDate={(date) =>
+                                    date && date < dayjs().startOf("day")
+                                }
+                            />
+                        </Form.Item>
+                    </>
+                )}
             </Form>
+
+            {partialError && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    className="mb-3"
+                    message={partialError}
+                />
+            )}
 
             <Text type="secondary" className="text-xs">
                 This will log a user-generated event against the current record.

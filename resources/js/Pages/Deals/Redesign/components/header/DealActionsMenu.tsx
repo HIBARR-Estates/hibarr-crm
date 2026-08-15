@@ -16,12 +16,19 @@ interface DealActionsMenuProps {
     canAddNote?: boolean;
     canAddTask?: boolean;
     canScheduleMeeting?: boolean;
+    /**
+     * Admin-only manual outcome override. Omitted entirely for non-admins rather
+     * than shown disabled — the endpoint 403s for them either way.
+     */
+    onSetOutcome?: (outcome: "won" | "lost" | null) => void;
+    currentOutcome?: "won" | "lost" | null;
 }
 
 /**
  * Deal "⋯" actions menu, ported from v2.2's ActionsMenu (deal-v2-2.jsx:1354-1407).
- * Only items with a real CRM endpoint are shown — Won/Lost and Lock/Unlock are
- * omitted (no user-facing backing).
+ * Lock/Unlock is still omitted (no user-facing backing); Won/Lost is admin-only
+ * and routed through onSetOutcome, which confirms before firing because marking
+ * a deal won queues commission payouts.
  */
 export default function DealActionsMenu({
     onAddNote,
@@ -33,12 +40,19 @@ export default function DealActionsMenu({
     canAddNote = true,
     canAddTask = true,
     canScheduleMeeting = true,
+    onSetOutcome,
+    currentOutcome = null,
 }: DealActionsMenuProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
+    // Up to 9 entries (3 quick actions + guide + 3 outcome transitions +
+    // delete) — the 260px default cut the list off before Delete deal.
+    const floatStyle = useFloatingMenuPosition(open, btnRef, {
+        align: "right",
+        maxHeight: 420,
+    });
 
     useEffect(() => {
         if (!open) return undefined;
@@ -99,6 +113,31 @@ export default function DealActionsMenu({
         });
     }
 
+    // Only the transitions that change something are offered, so the menu never
+    // shows "Mark as won" on a deal that is already won.
+    const outcomeItems: Array<{ label: string; action: () => void }> = [];
+
+    if (onSetOutcome) {
+        if (currentOutcome !== "won") {
+            outcomeItems.push({
+                label: t("pages.deals.header.outcome.mark_won"),
+                action: () => onSetOutcome("won"),
+            });
+        }
+        if (currentOutcome !== "lost") {
+            outcomeItems.push({
+                label: t("pages.deals.header.outcome.mark_lost"),
+                action: () => onSetOutcome("lost"),
+            });
+        }
+        if (currentOutcome !== null) {
+            outcomeItems.push({
+                label: t("pages.deals.header.outcome.clear"),
+                action: () => onSetOutcome(null),
+            });
+        }
+    }
+
     return (
         <div data-tour="deal-actions-menu" style={{ display: "inline-flex" }}>
             <button
@@ -134,6 +173,22 @@ export default function DealActionsMenu({
                                 {item.label}
                             </button>
                         ))}
+                        {outcomeItems.length > 0 && (
+                            <>
+                                <div className="dr-menu-sep" role="separator" />
+                                {outcomeItems.map((item) => (
+                                    <button
+                                        key={item.label}
+                                        type="button"
+                                        role="menuitem"
+                                        className="dr-menu-item"
+                                        onClick={() => run(item.action)}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </>
+                        )}
                         {canDelete && (
                             <>
                                 <div className="dr-menu-sep" role="separator" />

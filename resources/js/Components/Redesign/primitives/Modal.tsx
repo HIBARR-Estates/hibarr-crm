@@ -15,6 +15,10 @@ const FOCUSABLE =
 interface ModalProps {
     open: boolean;
     title: string;
+    /** Second header line — what this dialog is acting on. */
+    subtitle?: ReactNode;
+    /** "sunken" tints the header, matching the mapping dialogs. */
+    headerTone?: "plain" | "sunken";
     onClose: () => void;
     children: ReactNode;
     footer?: ReactNode;
@@ -32,6 +36,8 @@ interface ModalProps {
 export function Modal({
     open,
     title,
+    subtitle,
+    headerTone = "plain",
     onClose,
     children,
     footer,
@@ -104,6 +110,8 @@ export function Modal({
             >
                 <PanelHeader
                     title={title}
+                    subtitle={subtitle}
+                    tone={headerTone}
                     titleId={titleId}
                     onClose={onClose}
                     closeAriaLabel={closeAriaLabel}

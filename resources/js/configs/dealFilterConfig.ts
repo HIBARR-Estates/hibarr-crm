@@ -1,4 +1,4 @@
-import { FilterConfig } from "@/contexts/FilterContext";
+import { FilterConfig, type FilterFieldConfig } from "@/contexts/FilterContext";
 
 interface DealFilterProps {
     leadPipelines?: any[];
@@ -7,61 +7,149 @@ interface DealFilterProps {
     sources?: any[];
     packages?: any[];
     leadAgents?: any[];
-    nonActiveLeadAgents?: any[];
+    /** Pipeline currently shown by the page selector; "all" unpins it. */
+    activePipelineId?: number | "all";
     excludeFields?: string[];
     [key: string]: any;
 }
 
+/**
+ * Schema for the Deals filter modal. Same contract as the Leads one
+ * (see leadFilterConfig): `type` drives URL/draft state in FilterContext,
+ * `control` picks the visual treatment in EntityFilterModal.
+ */
 export const createDealFilterConfig = (
     props: DealFilterProps,
 ): FilterConfig => {
-    const fields = [
+    const allPipelines = props.activePipelineId === "all";
+
+    // Stages are pipeline-specific, so only offer the ones belonging to the
+    // pipeline being viewed. Viewing "all", every stage is fair game.
+    const stageOptions = (props.stages ?? [])
+        .filter(
+            (stage: any) =>
+                allPipelines ||
+                Number(stage.lead_pipeline_id) ===
+                    Number(props.activePipelineId),
+        )
+        .map((stage: any) => ({ value: stage.id, label: stage.name }));
+
+    const fields: FilterFieldConfig[] = [
         {
             key: "search",
             label: "Search",
-            type: "text" as const,
+            type: "text",
             placeholder: "Search deals by contact name, company, deal name...",
             span: 24,
         },
-        {
-            key: "lead_pipeline_id",
-            label: "Pipeline",
-            type: "select" as const,
-            placeholder: "Select pipeline",
-            span: 12,
-            options:
-                props.leadPipelines?.map((pipeline: any) => ({
-                    value: pipeline.id,
-                    label: pipeline.name,
-                })) || [],
-        },
+
+        // ── General ──────────────────────────────────────────────
         {
             key: "pipeline_stage_id",
             label: "Stage",
-            type: "select" as const,
-            placeholder: "Select stage",
-            span: 12,
-            dependsOn: "lead_pipeline_id",
-            filterOptions: (pipelineId: number) => {
-                return (
-                    props.stages
-                        ?.filter(
-                            (stage: any) =>
-                                stage.lead_pipeline_id === pipelineId,
-                        )
-                        .map((stage: any) => ({
-                            value: stage.id,
-                            label: stage.name,
-                        })) || []
-                );
-            },
+            type: "multiselect",
+            control: "pills",
+            sentence: "stage",
+            section: "General",
+            options: stageOptions,
+        },
+        {
+            key: "outcome_status",
+            label: "Outcome",
+            type: "multiselect",
+            control: "pills",
+            sentence: "outcome",
+            section: "General",
+            options: [
+                { value: "open", label: "Open" },
+                { value: "won", label: "Won" },
+                { value: "lost", label: "Lost" },
+            ],
+        },
+        {
+            key: "is_locked",
+            label: "Locked",
+            type: "select",
+            control: "segmented",
+            sentence: "locked",
+            section: "General",
+            options: [
+                { value: "1", label: "Locked" },
+                { value: "0", label: "Unlocked" },
+            ],
+        },
+        {
+            key: "start_date",
+            label: "Created",
+            type: "date",
+            control: "datePresets",
+            rangeKeys: ["start_date", "end_date"],
+            sentence: "created",
+            section: "General",
+        },
+        { key: "end_date", label: "Created to", type: "date", hidden: true },
+        {
+            key: "close_start",
+            label: "Closed",
+            type: "date",
+            control: "datePresets",
+            rangeKeys: ["close_start", "close_end"],
+            sentence: "closed",
+            section: "General",
+        },
+        { key: "close_end", label: "Closed to", type: "date", hidden: true },
+        {
+            key: "value_range",
+            label: "Deal value",
+            type: "numberrange",
+            control: "scoreRange",
+            sentence: "deal value",
+            section: "General",
+        },
+
+        // ── Pipeline ─────────────────────────────────────────────
+        // Only meaningful when the page is not pinned to a single pipeline —
+        // otherwise the pipeline selector already answers this question.
+        ...(allPipelines
+            ? [
+                  {
+                      key: "lead_pipeline_id",
+                      label: "Pipeline",
+                      type: "multiselect" as const,
+                      control: "pills" as const,
+                      sentence: "pipeline",
+                      section: "Pipeline",
+                      options:
+                          props.leadPipelines?.map((pipeline: any) => ({
+                              value: pipeline.id,
+                              label: pipeline.name,
+                          })) || [],
+                  },
+              ]
+            : []),
+
+        // ── Assignment & source ──────────────────────────────────
+        {
+            key: "agent_id",
+            label: "Agent",
+            type: "multiselect",
+            control: "checklist",
+            sentence: "agent",
+            section: "Assignment & Source",
+            placeholder: "Search agents…",
+            options:
+                props.leadAgents?.map((agent: any) => ({
+                    value: agent.user?.id || agent.user_id,
+                    label: agent.user?.name || agent.name,
+                })) || [],
         },
         {
             key: "category_id",
-            label: "Category",
-            type: "select" as const,
-            placeholder: "Select category",
-            span: 12,
+            label: "Categories",
+            type: "multiselect",
+            control: "pills",
+            sentence: "category",
+            section: "Assignment & Source",
             options:
                 props.categories?.map((category: any) => ({
                     value: category.id,
@@ -70,10 +158,11 @@ export const createDealFilterConfig = (
         },
         {
             key: "source_id",
-            label: "Lead Source",
-            type: "select" as const,
-            placeholder: "Select lead source",
-            span: 12,
+            label: "Source",
+            type: "multiselect",
+            control: "pills",
+            sentence: "source",
+            section: "Assignment & Source",
             options:
                 props.sources?.map((source: any) => ({
                     value: source.id,
@@ -81,47 +170,18 @@ export const createDealFilterConfig = (
                 })) || [],
         },
         {
-            key: "agent_id",
-            label: "Assigned Agent",
-            type: "select" as const,
-            placeholder: "Select agent",
-            span: 12,
-            options:
-                props.leadAgents?.map((agent: any) => ({
-                    value: agent.user?.id || agent.user_id,
-                    label: agent.user?.name || agent.name,
-                })) || [],
-        },
-        {
             key: "package_id",
-            label: "Package",
-            type: "select" as const,
-            placeholder: "Select package",
-            span: 12,
+            label: "Packages",
+            type: "multiselect",
+            control: "checklist",
+            sentence: "package",
+            section: "Assignment & Source",
+            placeholder: "Search packages…",
             options:
                 props.packages?.map((pkg: any) => ({
                     value: pkg.id,
                     label: pkg.name,
                 })) || [],
-        },
-        {
-            key: "start_date",
-            label: "Created Date Range",
-            type: "daterange" as const,
-            span: 24,
-            formatDisplayValue: (value: any, options?: any) => {
-                // This will be handled by the daterange type automatically
-                return value;
-            },
-        },
-        {
-            key: "value_range",
-            label: "Deal Value",
-            type: "numberrange" as const,
-            span: 24,
-            formatDisplayValue: (value: any) => {
-                return `$${value.toLocaleString()}`;
-            },
         },
     ];
 

@@ -74,7 +74,27 @@ export function LeadWorkspaceProvider({
 }: LeadWorkspaceProviderProps) {
     const [lead, setLead] = useState<Lead>(initialLead);
     useEffect(() => {
-        setLead(initialLead);
+        // Sync from Inertia props when the lead identity changes or the page
+        // reloads. Preserve a locally uploaded avatar when props are still
+        // stale (upload patches context without an Inertia visit).
+        setLead((prev) => {
+            if (prev.id !== initialLead.id) {
+                return initialLead;
+            }
+
+            const image = initialLead.image || prev.image || null;
+            const image_url = initialLead.image
+                ? initialLead.image_url
+                : prev.image
+                  ? prev.image_url
+                  : initialLead.image_url;
+
+            return {
+                ...initialLead,
+                image,
+                image_url,
+            };
+        });
     }, [initialLead]);
 
     const [notes, setNotes] = useState<LeadNote[]>(() => notesProp ?? []);

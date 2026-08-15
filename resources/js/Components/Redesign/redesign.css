@@ -28,8 +28,18 @@
     flex-direction: column;
 }
 
-.redesign-modal-overlay .modal-field label {
+/* Unscoped: `ModalField` is also rendered outside a `.redesign-modal-overlay`
+   (e.g. the meeting form inlined into the Qualify outcome step), and an
+   ancestor-scoped selector would leave those inputs completely unstyled. */
+.modal-field {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    color: #1a1f2e;
+}
+
+.modal-field label {
     display: block;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 700;
     color: #5b6472;
@@ -38,23 +48,69 @@
     margin-bottom: 7px;
 }
 
-.redesign-modal-overlay .modal-field input,
-.redesign-modal-overlay .modal-field select,
-.redesign-modal-overlay .modal-field textarea {
+.modal-field input,
+.modal-field select,
+.modal-field textarea {
     width: 100%;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
     padding: 11px 12px;
+    font-family: inherit;
     font-size: 14px;
+    font-weight: 400;
     color: #1a1f2e;
+    background: #ffffff;
     outline: none;
 }
 
-.redesign-modal-overlay .modal-field input:focus,
-.redesign-modal-overlay .modal-field select:focus,
-.redesign-modal-overlay .modal-field textarea:focus {
+.modal-field input::placeholder,
+.modal-field textarea::placeholder {
+    color: #9ca3af;
+}
+
+.modal-field input:disabled,
+.modal-field select:disabled,
+.modal-field textarea:disabled {
+    color: #5b6472;
+    background: #f8f9fb;
+}
+
+.modal-field input:focus,
+.modal-field select:focus,
+.modal-field textarea:focus {
     border-color: #b8d4f0;
     box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+.meeting-form-fields {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    color: #1a1f2e;
+    font-size: 14px;
+}
+
+.meeting-form-fields .meeting-form-link {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a6bb5;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.meeting-form-fields .meeting-form-link:hover {
+    color: #145890;
+}
+
+.meeting-form-fields .meeting-form-hint {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    color: #9ca3af;
+    margin: 6px 0 0;
+    line-height: 1.45;
 }
 
 /* ==================================================================== */
@@ -239,6 +295,11 @@
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(22, 41, 77, 0.14);
     padding: 6px;
+    /* useFloatingMenuPosition sets an inline max-height; without this the
+       overflowing items (e.g. Delete deal, always last) are clipped away
+       instead of being reachable. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 .dr-menu-item {
     width: 100%;
@@ -331,4 +392,58 @@
     background: #eef0f3;
     border-radius: 6px;
     animation: dr-shimmer 1.2s ease-in-out infinite;
+}
+
+.workspace-note-html.html-content {
+    font-size: 15px;
+    line-height: 1.55;
+    color: inherit;
+}
+.workspace-note-html.html-content p {
+    margin: 0 0 0.45em;
+}
+.workspace-note-html.html-content p:last-child {
+    margin-bottom: 0;
+}
+.workspace-note-html.html-content ul,
+.workspace-note-html.html-content ol {
+    margin: 0.35em 0 0.45em;
+    padding-left: 1.25em;
+}
+
+/* Card preview keeps real rich HTML. Nested blocks break -webkit-line-clamp
+   (ellipsis + leaked lines), so clamp with a hard max-height instead. */
+.workspace-note-card-clamp {
+    overflow: hidden;
+    max-height: calc(1.55em * 3);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content {
+    font-size: inherit;
+    line-height: inherit;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content p,
+.workspace-note-card-clamp .workspace-note-html.html-content ul,
+.workspace-note-card-clamp .workspace-note-html.html-content ol,
+.workspace-note-card-clamp .workspace-note-html.html-content blockquote,
+.workspace-note-card-clamp .workspace-note-html.html-content pre,
+.workspace-note-card-clamp .workspace-note-html.html-content h1,
+.workspace-note-card-clamp .workspace-note-html.html-content h2,
+.workspace-note-card-clamp .workspace-note-html.html-content h3,
+.workspace-note-card-clamp .workspace-note-html.html-content h4,
+.workspace-note-card-clamp .workspace-note-html.html-content h5,
+.workspace-note-card-clamp .workspace-note-html.html-content h6 {
+    margin-top: 0;
+    margin-bottom: 0.2em;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6):last-child {
+    margin-bottom: 0;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content ul,
+.workspace-note-card-clamp .workspace-note-html.html-content ol {
+    padding-left: 1.2em;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content li {
+    margin-bottom: 0;
 }

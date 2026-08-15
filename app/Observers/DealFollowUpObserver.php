@@ -5,7 +5,6 @@ namespace App\Observers;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Jobs\DeleteCalendarSyncEventJob;
-use App\Jobs\SyncCalendarEventJob;
 use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
@@ -55,24 +54,8 @@ class DealFollowUpObserver
             return;
         }
 
-        if (!FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
-            return;
-        }
-
-        $creatorUserId = $dealFollowUp->added_by;
-        if (!$creatorUserId) {
-            return;
-        }
-
-        // Show the user an immediate "pending" indicator, while the queued job
-        // performs the OL enqueue request and stores the returned jobId.
-        // OL resolves CRM user → WORKSUITE_USER; missing link surfaces as 404.
-        $dealFollowUp->update([
-            'zoho_calendar_job_id' => $dealFollowUp->zoho_calendar_job_id,
-            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
-        ]);
-
-        SyncCalendarEventJob::dispatch($dealFollowUp->id);
+        // Calendar sync is scheduled after meeting automation completes so the
+        // OL payload includes meeting_link and lead/contact guest details.
     }
 
     /**

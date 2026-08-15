@@ -11,7 +11,7 @@ import { getPriorityConfig } from "@/lib/priority";
 
 const { Text, Paragraph } = Typography;
 
-export type Priority = "low" | "medium" | "high";
+export type Priority = "low" | "medium" | "high" | "highest" | "urgent";
 
 export interface KanbanTaskCardUser {
     id?: string | number;

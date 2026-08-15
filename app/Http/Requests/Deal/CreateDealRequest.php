@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deal;
 
+use App\Enums\PreferredContactTime;
 use App\Http\Requests\CoreRequest;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
@@ -45,6 +46,12 @@ class CreateDealRequest extends CoreRequest
             if ($this->has($field) && !is_array($this->input($field)) && is_numeric($this->input($field))) {
                 $this->merge([$field => [(int) $this->input($field)]]);
             }
+        }
+
+        if (! $this->exists('referral_agent_id') && $this->exists('referal_agent_id')) {
+            $this->merge([
+                'referral_agent_id' => $this->input('referal_agent_id'),
+            ]);
         }
     }
 
@@ -121,12 +128,25 @@ class CreateDealRequest extends CoreRequest
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
+            'referral_agent_id' => $this->referralAgentRules($companyId),
+            'referal_agent_id' => $this->referralAgentRules($companyId),
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
             'country' => 'nullable|string|max:255',
             'postal_code' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
+
+            // Optional lead classification / engagement (applied to the contact)
+            'temperature' => 'nullable|string|in:cold,warm,hot',
+            'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
+            'has_joined_the_whatsapp_group' => 'nullable|boolean',
+
+            // Optional lead custom fields (separate from deal custom_fields below)
+            // Format: {"131": "value", "132": ["a","b"]}
+            'lead_custom_fields' => 'nullable|array',
+            'lead_custom_fields.*' => 'nullable',
 
             // Optional deal fields
             'package_id' => 'nullable|array',
@@ -219,6 +239,22 @@ class CreateDealRequest extends CoreRequest
             'custom_fields_data' => 'nullable|array',
             'custom_fields_data.*' => 'nullable',
         ];
+    }
+
+    /**
+     * @return list<string|\Illuminate\Validation\Rules\Exists>
+     */
+    private function referralAgentRules(?int $companyId): array
+    {
+        $rules = ['nullable', 'integer'];
+        $exists = Rule::exists('lead_agents', 'id');
+        if ($companyId) {
+            $exists = $exists->where(fn ($query) => $query->where('company_id', $companyId));
+        }
+
+        $rules[] = $exists;
+
+        return $rules;
     }
 
     /**

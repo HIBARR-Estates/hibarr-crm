@@ -38,6 +38,7 @@ function processStandardField(
         fieldName === "lead_owner" ||
         fieldName === "status_id" ||
         fieldName === "agent_id" ||
+        fieldName === "referred_by_agent_id" ||
         fieldName === "lead_lifecycle_status_id"
     ) {
         return { [fieldName]: value ? Number(value) : null };
@@ -94,13 +95,21 @@ function processStandardField(
     if (
         fieldName === "gender" ||
         fieldName === "salutation" ||
-        fieldName === "temperature"
+        fieldName === "temperature" ||
+        fieldName === "preferred_contact_time"
     ) {
         return { [fieldName]: value || null };
     }
 
     if (fieldName === "email") {
         return { client_email: value || null };
+    }
+
+    if (fieldName === "has_joined_the_whatsapp_group") {
+        return {
+            has_joined_the_whatsapp_group:
+                value === true || value === 1 || value === "1",
+        };
     }
 
     return { [fieldName]: value ?? null };

@@ -10,6 +10,7 @@ use App\Models\UniversalSearch;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Lead;
+use App\Models\Currency;
 use App\Models\PipelineStage;
 use App\Models\LeadPipeline;
 use App\Models\LeadSource;
@@ -58,6 +59,45 @@ class DealObserver
         }
 
         $deal->next_follow_up = 'yes';
+
+        // Stage dwell clock. Set here (not updated()) so it lands in the same
+        // write as the stage change itself.
+        if ($deal->isDirty('pipeline_stage_id')) {
+            $deal->stage_entered_at = now();
+        }
+
+        $this->snapshotExchangeRate($deal);
+    }
+
+    /**
+     * Freeze the currency's exchange rate onto the deal, the way invoices,
+     * payments and expenses already do. Without it, editing a rate in settings
+     * silently rewrites the value of every historical deal in that currency.
+     *
+     * Re-snapshots while the deal is open (the rate that matters is the one at
+     * close), then stops once an outcome is set.
+     */
+    private function snapshotExchangeRate(Deal $deal): void
+    {
+        if (!$deal->currency_id) {
+            return;
+        }
+
+        $alreadyClosed = $deal->getOriginal('outcome_status') !== null;
+
+        if ($alreadyClosed && !$deal->isDirty('currency_id')) {
+            return;
+        }
+
+        if (!$deal->isDirty('currency_id') && !$deal->isDirty('outcome_status') && $deal->exchange_rate !== null) {
+            return;
+        }
+
+        $rate = Currency::whereKey($deal->currency_id)->value('exchange_rate');
+
+        if ($rate !== null) {
+            $deal->exchange_rate = $rate;
+        }
     }
 
     public function creating(Deal $deal)
@@ -141,7 +181,10 @@ class DealObserver
             // Allow only is_locked changes (for the locking operation itself)
             // All other changes are blocked
             $changedFields = array_keys($deal->getDirty());
-            $allowedFields = ['is_locked', 'locked_at', 'outcome_status', 'updated_at'];
+            // won_at belongs with outcome_status: correcting the outcome on a
+            // locked deal has to be able to clear the win timestamp too, or the
+            // deal reads as un-won while still carrying a won_at.
+            $allowedFields = ['is_locked', 'locked_at', 'outcome_status', 'won_at', 'updated_at'];
             $disallowedChanges = array_diff($changedFields, $allowedFields);
 
             if (!empty($disallowedChanges)) {
@@ -455,8 +498,14 @@ class DealObserver
 
                     }
                     else {
-
-                        Notification::send(User::allAdmins($deal->company->id), new LeadAgentAssigned($deal));
+                        $admins = User::allAdmins($deal->company->id);
+                        $actorId = user()?->id;
+                        if ($actorId !== null) {
+                            $admins = $admins->reject(fn (User $admin) => (int) $admin->id === (int) $actorId);
+                        }
+                        if ($admins->isNotEmpty()) {
+                            Notification::send($admins, new LeadAgentAssigned($deal));
+                        }
                     }
                 }else if(session()->has('is_imported')){
 

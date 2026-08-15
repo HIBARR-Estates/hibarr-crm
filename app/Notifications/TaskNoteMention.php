@@ -100,6 +100,9 @@ class TaskNoteMention extends BaseNotification
     {
         return [
             'id' => $this->task->id,
+            'task_id' => $this->task->id,
+            'title' => __('email.taskNote.mentionSubject'),
+            'text' => __('email.taskNote.mentionNote') . ' "' . $this->task->heading . '"',
             'created_at' => $this->task->created_at->format('Y-m-d H:i:s'),
             'heading' => $this->task->heading,
             'type' => 'note',

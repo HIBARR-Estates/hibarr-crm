@@ -3,20 +3,46 @@ import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { DOSSIER_SECTIONS } from "../../config/dossierSections";
+import type { DossierFieldKey } from "../../config/dossierSections";
 import {
     countFilledFields,
     getDossierFieldValue,
 } from "../../adapters/dossierAdapter";
+import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
+import {
+    LeadCategoryField,
+    LeadPreferredContactTimeField,
+    LeadSourceField,
+    LeadTemperatureField,
+} from "../lead-info/LeadAttributionFields";
 import DossierField from "./DossierField";
 import DossierSection from "./DossierSection";
+
+/** Dossier keys that edit in place instead of rendering a read-only value. */
+const EDITABLE_FIELDS: Partial<
+    Record<DossierFieldKey, typeof LeadSourceField>
+> = {
+    source: LeadSourceField,
+    category: LeadCategoryField,
+    temperature: LeadTemperatureField,
+    preferredContactTime: LeadPreferredContactTimeField,
+};
 
 interface LeadDossierProps {
     lead: Lead;
     onOpenLeadInfo?: () => void;
+    /** Record-scoped edit permission, from the parent's `canEditLead` check. */
+    canEdit?: boolean;
 }
 
-export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) {
+export default function LeadDossier({
+    lead,
+    onOpenLeadInfo,
+    canEdit = false,
+}: LeadDossierProps) {
     const { td } = useTd();
+    const { isFieldLoading, handleFieldUpdate } =
+        useLeadInfoFieldUpdate(canEdit);
     const [openSections, setOpenSections] = useState<Set<string>>(
         () =>
             new Set(
@@ -111,33 +137,33 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                                 lead,
                                 field.key,
                             );
+                            const EditableField = EDITABLE_FIELDS[field.key];
 
                             return (
-                                <div
-                                    key={field.key}
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "88px 1fr",
-                                        gap: 8,
-                                        padding: "5px 0",
-                                        fontSize: 13,
-                                        alignItems: "center",
-                                    }}
-                                >
+                                <div key={field.key} className="v2-dossier-row">
                                     <span style={{ color: "var(--lr-text-dim)" }}>
                                         {td(field.label, { source: "en" })}
                                     </span>
-                                    <DossierField
-                                        value={displayValue}
-                                        placeholder={
-                                            field.placeholder || "Not set"
-                                        }
-                                        tone={field.tone}
-                                        copyable={
-                                            field.copyable !== false &&
-                                            section.copyable !== false
-                                        }
-                                    />
+                                    {EditableField ? (
+                                        <EditableField
+                                            lead={lead}
+                                            onFieldUpdate={handleFieldUpdate}
+                                            isFieldLoading={isFieldLoading}
+                                            disabled={!canEdit}
+                                        />
+                                    ) : (
+                                        <DossierField
+                                            value={displayValue}
+                                            placeholder={
+                                                field.placeholder || "Not set"
+                                            }
+                                            tone={field.tone}
+                                            copyable={
+                                                field.copyable !== false &&
+                                                section.copyable !== false
+                                            }
+                                        />
+                                    )}
                                 </div>
                             );
                         })}

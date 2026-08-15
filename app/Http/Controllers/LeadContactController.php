@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
+use App\Enums\LeadTemperature;
+use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
 use App\Helper\Files;
 use App\Helper\Reply;
@@ -50,6 +52,11 @@ use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
+use App\Exports\LeadExport;
+use App\Support\LeadExportFields;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+
 class LeadContactController extends AccountBaseController
 {
 
@@ -100,7 +107,7 @@ class LeadContactController extends AccountBaseController
         // Keep leadLifecycleStatuses for the inline status cell.
         $props = [
             'pageTitle' => 'Lead Contacts',
-            'filters' => $request->only(LeadService::FILTER_KEYS),
+            'filters' => LeadService::filtersFromRequest($request),
             'leads' => [
                 'data' => $leads->items(),
                 'current_page' => $leads->currentPage(),
@@ -113,6 +120,26 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
+            // Toolbar "Due this week" pill + the Schedule-next-step meeting
+            // modal — neither blocks first paint, so both are deferred.
+            'nextActionDueThisWeekCount' => Inertia::defer(
+                fn () => $this->leadService->countNextActionBucket($request, 'week')
+            ),
+            'meetingTypes' => Inertia::defer(
+                fn () => \App\Models\MeetingType::where('company_id', company()->id)->get(['id', 'name'])
+            ),
+            // Next Action click-through: TaskDetailModal's status dropdown.
+            'taskBoardColumns' => Inertia::defer(
+                fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()
+            ),
+            'preferredContactTimes' => Inertia::defer(
+                fn () => collect(PreferredContactTime::cases())->map(
+                    fn (PreferredContactTime $time) => [
+                        'value' => $time->value,
+                        'label' => $time->label(),
+                    ]
+                )->values()->all()
+            ),
         ];
 
         // Filter modal chrome — only the v2 filter UI consumes these, and the
@@ -169,6 +196,7 @@ class LeadContactController extends AccountBaseController
             'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
             'lifecycleStatus:id,key,label,label_color,sort_order',
+            'referredByAgent.user:id,name',
             'activeQualification.answers',
             'activeQualification.agent:id,name,image',
             'leadFlightItineraries',
@@ -564,6 +592,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->temperature = $request->temperature;
+        $leadContact->preferred_contact_time = $request->preferred_contact_time;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -761,6 +790,9 @@ class LeadContactController extends AccountBaseController
         if ($request->has('temperature')) {
             $leadContact->temperature = $request->temperature;
         }
+        if ($request->has('preferred_contact_time')) {
+            $leadContact->preferred_contact_time = $request->preferred_contact_time;
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -870,6 +902,9 @@ class LeadContactController extends AccountBaseController
             if ($request->has('temperature')) {
                 $leadContact->temperature = $request->temperature;
             }
+            if ($request->has('preferred_contact_time')) {
+                $leadContact->preferred_contact_time = $request->preferred_contact_time;
+            }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
             }
@@ -955,6 +990,10 @@ class LeadContactController extends AccountBaseController
             }
             if ($request->has('added_by')) {
                 $leadContact->added_by = $request->added_by;
+            }
+            // Write-once: LeadObserver::saving() throws if this would overwrite an existing referrer.
+            if ($request->has('referred_by_agent_id')) {
+                $leadContact->referred_by_agent_id = $request->referred_by_agent_id ?: null;
             }
             
             // Handle categorization (multi via category_ids; category_id still accepted)
@@ -1112,7 +1151,7 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'temperature', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'preferred_contact_time', 'note', 'lead_owner', 'category_id',
                     'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
@@ -1151,6 +1190,12 @@ class LeadContactController extends AccountBaseController
                 if ($request->has('lead_owner')) {
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
+                }
+
+                if ($request->has('referred_by_agent_id')) {
+                    $leadContact->load('referredByAgent.user:id,name');
+                    $responseData['referred_by_agent_id'] = $leadContact->referred_by_agent_id;
+                    $responseData['referred_by_agent'] = $leadContact->referredByAgent;
                 }
 
                 if ($request->has('lead_lifecycle_status_id')) {
@@ -1318,63 +1363,288 @@ class LeadContactController extends AccountBaseController
         return Reply::success(__('messages.deleteSuccess'));
     }
 
+    /**
+     * Admin-only bulk export of selected / filter-matching leads (CSV or XLSX).
+     */
+    public function export(Request $request)
+    {
+        abort_403(! in_array('admin', user_roles() ?? [], true));
+
+        if (user()->permission('view_lead') === 'none') {
+            abort(403, __('messages.permissionDenied'));
+        }
+
+        $format = (string) $request->input('format', 'xlsx');
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            return response('Invalid export format. Use csv or xlsx.', 422);
+        }
+
+        $fields = LeadExportFields::filterRequested((array) $request->input('fields', []));
+        if ($fields === []) {
+            return response('Select at least one valid field to export.', 422);
+        }
+
+        $hasIds = filled($request->input('row_ids'));
+        $allMatching = $request->boolean('select_all_matching');
+        if ($hasIds === $allMatching) {
+            return response(
+                $hasIds
+                    ? 'Provide either row_ids or select_all_matching, not both.'
+                    : 'Select at least one lead.',
+                422
+            );
+        }
+
+        [$rowIds] = $this->resolveBulkLeadIds($request, 'view_lead');
+
+        if ($rowIds === []) {
+            return response(__('messages.selectAtleastOne') ?: 'Select at least one lead.', 422);
+        }
+
+        if (count($rowIds) > LeadExportFields::MAX_ROWS) {
+            return response(
+                'Export is limited to ' . number_format(LeadExportFields::MAX_ROWS) . ' leads. Narrow your filters or selection and try again.',
+                422
+            );
+        }
+
+        $filename = 'leads-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $writerType = $format === 'csv' ? ExcelWriter::CSV : ExcelWriter::XLSX;
+
+        return Excel::download(new LeadExport($rowIds, $fields), $filename, $writerType);
+    }
+
     public function applyQuickAction(Request $request)
     {
-        $rowIds = explode(',', $request->row_ids);
         $actionType = $request->action_type ?? 'delete';
+        $permissionName = $actionType === 'delete' ? 'delete_lead' : 'edit_lead';
+
+        if (user()->permission($permissionName) === 'none') {
+            return Reply::error(__('messages.permissionDenied'));
+        }
+
+        [$rowIds, $skipped] = $this->resolveBulkLeadIds($request, $permissionName);
+
+        if ($rowIds === []) {
+            return Reply::error(
+                $skipped > 0
+                    ? (__('messages.permissionDenied'))
+                    : (__('messages.selectAtleastOne') ?: 'Select at least one lead.')
+            );
+        }
 
         switch ($actionType) {
+            case 'bulk_update':
+                $fields = $request->input('fields', []);
+                if (! is_array($fields) || $fields === []) {
+                    return Reply::error(__('messages.updateFail') ?: 'Select at least one field to update.');
+                }
+
+                $error = $this->applyBulkUpdateFields($request, $rowIds, $fields);
+                if ($error !== null) {
+                    return Reply::error($error);
+                }
+
+                return Reply::success($this->bulkUpdateSuccessMessage($skipped));
+
             case 'change_category':
-                $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
-                // Legacy bulk payloads send category_id (possibly null to clear).
-                if ($categoryIds === null) {
-                    return Reply::error(__('messages.categoryNotFound'));
-                }
-
-                if ($categoryIds !== []) {
-                    $found = LeadCategory::whereIn('id', $categoryIds)->count();
-                    if ($found !== count($categoryIds)) {
-                        return Reply::error(__('messages.categoryNotFound'));
-                    }
-                }
-
-                $leads = Lead::whereIn('id', $rowIds)->get();
-                foreach ($leads as $lead) {
-                    $lead->syncCategories($categoryIds);
-                }
-                return Reply::success(__('messages.updateSuccess'));
-
             case 'change_source':
-                $sourceId = $request->source_id;
-                
-                if ($sourceId) {
-                    $source = LeadSource::find($sourceId);
-                    if (!$source) {
-                        return Reply::error(__('messages.sourceNotFound'));
-                    }
-                }
-                
-                Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
-                return Reply::success(__('messages.updateSuccess'));
-
             case 'change_owner':
-                $leadOwner = $request->lead_owner;
-                
-                if ($leadOwner) {
-                    $owner = User::find($leadOwner);
-                    if (!$owner) {
-                        return Reply::error(__('messages.userNotFound'));
-                    }
+            case 'change_temperature':
+            case 'change_lifecycle_status':
+            case 'change_whatsapp_group':
+                // Legacy single-field actions — still supported by clients that send one field.
+                $fieldKey = match ($actionType) {
+                    'change_category' => 'category_ids',
+                    'change_source' => 'source_id',
+                    'change_owner' => 'lead_owner',
+                    'change_temperature' => 'temperature',
+                    'change_lifecycle_status' => 'lead_lifecycle_status_id',
+                    'change_whatsapp_group' => 'has_joined_the_whatsapp_group',
+                };
+                $error = $this->applyBulkUpdateFields($request, $rowIds, [$fieldKey]);
+                if ($error !== null) {
+                    return Reply::error($error);
                 }
-                
-                Lead::whereIn('id', $rowIds)->update(['lead_owner' => $leadOwner]);
-                return Reply::success(__('messages.updateSuccess'));
+
+                return Reply::success($this->bulkUpdateSuccessMessage($skipped));
 
             case 'delete':
-            default:
                 Lead::whereIn('id', $rowIds)->forceDelete();
-                return Reply::success(__('messages.deleteSuccess'));
+
+                return Reply::success(
+                    $skipped > 0
+                        ? ((__('messages.deleteSuccess') ?: 'Deleted successfully.') . " ({$skipped} skipped)")
+                        : (__('messages.deleteSuccess') ?: 'Deleted successfully.')
+                );
+
+            default:
+                return Reply::error(__('messages.updateFail') ?: 'Unknown bulk action.');
         }
+    }
+
+    /**
+     * @return array{0: list<int>, 1: int} [accessibleIds, skippedCount]
+     */
+    private function resolveBulkLeadIds(Request $request, string $permissionName): array
+    {
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ];
+
+        if ($request->boolean('select_all_matching')) {
+            $rowIds = $this->leadService->getMatchingLeadIds($request);
+        } else {
+            $rowIds = array_values(array_filter(array_map(
+                'intval',
+                explode(',', (string) $request->row_ids)
+            )));
+        }
+
+        if ($rowIds === []) {
+            return [[], 0];
+        }
+
+        $leads = Lead::whereIn('id', $rowIds)->get();
+        $accessibleIds = $leads
+            ->filter(function (Lead $lead) use ($permissionName, $leadRules) {
+                return PermissionService::checkAccess(user(), $permissionName, $lead, $leadRules)['canAccess'];
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $skipped = count($rowIds) - count($accessibleIds);
+
+        return [$accessibleIds, $skipped];
+    }
+
+    /**
+     * Apply one or more bulk field updates. Returns an error message or null on success.
+     *
+     * @param  list<string>  $fields
+     * @param  list<int>  $rowIds
+     */
+    private function applyBulkUpdateFields(Request $request, array $rowIds, array $fields): ?string
+    {
+        $fields = array_values(array_unique(array_map('strval', $fields)));
+
+        foreach ($fields as $field) {
+            switch ($field) {
+                case 'category_ids':
+                    $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+                    // Legacy bulk payloads send category_id (possibly null to clear).
+                    // Empty array is allowed and clears all categories.
+                    if ($categoryIds === null) {
+                        return __('messages.categoryNotFound');
+                    }
+
+                    if ($categoryIds !== []) {
+                        $found = LeadCategory::whereIn('id', $categoryIds)->count();
+                        if ($found !== count($categoryIds)) {
+                            return __('messages.categoryNotFound');
+                        }
+                    }
+
+                    $leads = Lead::whereIn('id', $rowIds)->get();
+                    foreach ($leads as $lead) {
+                        $lead->syncCategories($categoryIds);
+                    }
+                    break;
+
+                case 'source_id':
+                    $sourceId = $request->input('source_id');
+                    if ($sourceId === '' || $sourceId === false) {
+                        $sourceId = null;
+                    }
+                    if ($sourceId !== null) {
+                        $sourceId = (int) $sourceId;
+                        if (! LeadSource::whereKey($sourceId)->exists()) {
+                            return __('messages.sourceNotFound');
+                        }
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
+                    break;
+
+                case 'lead_owner':
+                    $leadOwner = $request->input('lead_owner');
+                    if ($leadOwner === '' || $leadOwner === false) {
+                        $leadOwner = null;
+                    }
+                    if ($leadOwner !== null) {
+                        $leadOwner = (int) $leadOwner;
+                        if (! User::whereKey($leadOwner)->exists()) {
+                            return __('messages.userNotFound');
+                        }
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['lead_owner' => $leadOwner]);
+                    break;
+
+                case 'temperature':
+                    $temperature = $request->input('temperature');
+                    if ($temperature === '' || $temperature === false) {
+                        $temperature = null;
+                    }
+                    if ($temperature !== null) {
+                        $temperature = (string) $temperature;
+                        if (! in_array($temperature, LeadTemperature::values(), true)) {
+                            return __('messages.updateFail') ?: 'Invalid temperature.';
+                        }
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['temperature' => $temperature]);
+                    break;
+
+                case 'lead_lifecycle_status_id':
+                    $statusId = $request->input('lead_lifecycle_status_id');
+                    if ($statusId === '' || $statusId === false) {
+                        $statusId = null;
+                    }
+                    if ($statusId !== null) {
+                        $statusId = (int) $statusId;
+                        $status = LeadLifecycleStatus::whereKey($statusId)
+                            ->where('company_id', company()->id)
+                            ->first();
+                        if (! $status) {
+                            return __('messages.updateFail') ?: 'Status not found.';
+                        }
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['lead_lifecycle_status_id' => $statusId]);
+                    break;
+
+                case 'has_joined_the_whatsapp_group':
+                    if (! $request->has('has_joined_the_whatsapp_group')) {
+                        return __('messages.updateFail') ?: 'WhatsApp group value required.';
+                    }
+
+                    $joined = $request->boolean('has_joined_the_whatsapp_group');
+                    $leads = Lead::whereIn('id', $rowIds)->get();
+                    foreach ($leads as $lead) {
+                        $lead->marketing()->updateOrCreate(
+                            ['lead_id' => $lead->id],
+                            ['has_joined_the_whatsapp_group' => $joined],
+                        );
+                    }
+                    break;
+
+                default:
+                    return __('messages.updateFail') ?: 'Unknown bulk field.';
+            }
+        }
+
+        return null;
+    }
+
+    private function bulkUpdateSuccessMessage(int $skipped): string
+    {
+        $base = __('messages.updateSuccess') ?: 'Updated successfully.';
+
+        return $skipped > 0 ? "{$base} ({$skipped} skipped)" : $base;
     }
 
     public function importLead()

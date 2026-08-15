@@ -40,6 +40,7 @@ import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import PropertyCarousel from "./PropertyCarousel";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
 import useTranslation from "@/Hooks/useTranslation";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -232,6 +233,8 @@ export default function DealInfoSection({
     const hasActiveDealFieldScopes = resolvedDealFieldKeys !== null;
     const hasActiveLeadFieldScopes = resolvedLeadFieldKeys !== null;
     const showExtraDealField = () => !hasActiveDealFieldScopes;
+    // A package pipeline sells packages, not individual properties.
+    const pipelineHasPackages = usePipelineHasPackages();
     const showExtraLeadField = () => !hasActiveLeadFieldScopes;
 
     const HIBARR_FIELD_KEYS = [
@@ -1401,7 +1404,7 @@ export default function DealInfoSection({
                         </DetailField>
                         )}
 
-                        {showExtraDealField() && (
+                        {showExtraDealField() && !pipelineHasPackages && (
                         <DetailField
                             label={t("pages.deals.info.fields.properties")}
                             span={2}

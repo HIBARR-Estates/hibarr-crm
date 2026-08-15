@@ -28,6 +28,8 @@ const createTaskFilterConfig = (
             label: "Priority",
             type: "select",
             options: [
+                { label: "Urgent", value: "urgent" },
+                { label: "Highest", value: "highest" },
                 { label: "High", value: "high" },
                 { label: "Medium", value: "medium" },
                 { label: "Low", value: "low" },

@@ -175,14 +175,50 @@ export interface ConsultationCalendlyPayload {
     };
 }
 
+/** Languages the OL webinar registration endpoint accepts. Note: no `ru`. */
+export const WEBINAR_LANGUAGES = [
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "pt",
+    "tr",
+] as const;
+
+export type WebinarLanguage = (typeof WEBINAR_LANGUAGES)[number];
+
+export const WEBINAR_LANGUAGE_LABELS: Record<WebinarLanguage, string> = {
+    de: "German",
+    en: "English",
+    es: "Spanish",
+    fr: "French",
+    it: "Italian",
+    pt: "Portuguese",
+    tr: "Turkish",
+};
+
+export type WebinarGender = "male" | "female";
+
+/**
+ * Falls back to English for agent languages OL does not accept (e.g. `ru`,
+ * which the qualification script offers but the registration enum rejects).
+ */
+export function toWebinarLanguage(language?: string | null): WebinarLanguage {
+    const normalized = (language ?? "").toLowerCase();
+    return (WEBINAR_LANGUAGES as readonly string[]).includes(normalized)
+        ? (normalized as WebinarLanguage)
+        : "en";
+}
+
+/** Mirrors `POST /v1/internal/registration/webinar/session/{sessionId}`. */
 export interface RegisterWebinarSessionPayload {
+    firstName: string;
     email: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    leadId?: number;
-    language?: string;
-    gender?: string;
+    language: WebinarLanguage;
+    lastName?: string | null;
+    gender?: WebinarGender | null;
+    phone?: string | null;
     utmInfo?: {
         utmSource?: string;
         utmMedium?: string;
@@ -190,7 +226,7 @@ export interface RegisterWebinarSessionPayload {
         utmTerm?: string;
         utmContent?: string;
         agt?: number;
-    };
+    } | null;
 }
 
 export interface ConsultationCalendlyResponse {
@@ -204,8 +240,12 @@ export interface ConsultationCalendlyResponse {
 export interface WebinarSession {
     id: string;
     title: string;
+    /** Normalized from OL's `startDate`. */
     startsAt: string;
     timezone?: string;
+    /** Minutes. */
+    duration?: number;
+    status?: string;
 }
 
 export interface GetNextWebinarSessionsResponse {
@@ -213,9 +253,33 @@ export interface GetNextWebinarSessionsResponse {
     data: WebinarSession[];
 }
 
+/**
+ * Flattened result of a webinar registration. OL returns the join link and
+ * topic in three places (`data`, `data.registrationMetadata`, and
+ * `data.event.eventContent`); this keeps one canonical copy of each.
+ */
+export interface WebinarRegistrationResult {
+    registrationId: number | null;
+    webinarSessionId: number | null;
+    leadId: number | null;
+    /** Zoom join link for this registrant — the artifact worth persisting. */
+    joinUrl: string | null;
+    topic: string | null;
+    /** OL/Zoom registrant identifier, needed to reconcile attendance later. */
+    registrantId: string | null;
+    /**
+     * Start of the booked occurrence. Preferred over the series-level
+     * `registrationMetadata.startTime`, which can point at a later date.
+     */
+    startsAt: string | null;
+    isStartingSoon: boolean;
+    hasAlreadyStarted: boolean;
+}
+
 export interface RegisterWebinarSessionResponse {
     success: boolean;
     message?: string;
+    data: WebinarRegistrationResult | null;
 }
 
 // ============================================================================
@@ -334,6 +398,17 @@ export const DEFAULT_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
     noFit: "Not a fit",
 };
 
+/**
+ * Lifecycle status key each outcome moves the lead to on completion.
+ * Mirrors App\Enums\QualificationOutcome::lifecycleStatusKey() — keep in sync.
+ */
+export const OUTCOME_LIFECYCLE_STATUS_KEY: Record<QualificationOutcome, string> = {
+    bookMeeting: "qualified",
+    inviteWebinar: "nurturing",
+    callback: "callback",
+    noFit: "not_fit",
+};
+
 /** Past-tense labels for completed qualification review surfaces. */
 export const COMPLETED_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
     bookMeeting: "Consultation booked",
@@ -357,6 +432,16 @@ export interface LeadLifecycleStatus {
     description?: string;
     label_color?: string;
     sort_order?: number;
+}
+
+/** Lead patch returned alongside a completed qualification (lifecycle + written fields). */
+export interface QualificationLeadPatch {
+    id: number;
+    lead_lifecycle_status_id: number | null;
+    lead_lifecycle_status?: LeadLifecycleStatus | null;
+    lifecycleStatus?: LeadLifecycleStatus | null;
+    /** Core / custom / category attributes written by the field mapping. */
+    [key: string]: unknown;
 }
 
 /** In-memory answer state keyed by segment_key */

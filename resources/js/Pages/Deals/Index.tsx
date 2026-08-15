@@ -1,14 +1,20 @@
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
+import "@/Components/Redesign/redesign.css";
+import {
+    REDESIGN_TOKENS as T,
+    REDESIGN_FONT_STACK,
+} from "@/Components/Redesign/tokens";
 import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import useViewPreference from "@/Hooks/useViewPreference";
 import { PipelineStage } from "@/Types/api/deals";
-import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
-import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
+import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
@@ -28,7 +34,7 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps, Select, Spin } from "antd";
+import { MenuProps, Spin } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
@@ -47,6 +53,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
+import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -90,6 +97,10 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
         search?: string;
         start_date?: string;
         end_date?: string;
+        close_start?: string;
+        close_end?: string;
+        outcome_status?: string;
+        is_locked?: string;
         view?: string;
     };
     addLeadPermission?: string;
@@ -208,6 +219,7 @@ const Index = ({
                 "lead-agents",
                 "lead-pipelines",
                 "lead-stages",
+                "employees",
             ] as FormDataType[],
         [],
     );
@@ -215,20 +227,31 @@ const Index = ({
     const { data: filterFormData, loading: formDataLoading } =
         useFormDataBatch(filterFormDataTypes);
 
-    const filterStages = useMemo(
-        () =>
-            (Array.isArray(filterFormData["lead-stages"])
+    // "all" unpins the list from a single pipeline; a multi-pipeline filter
+    // value counts as unpinned too (the chip, not the selector, tells the truth).
+    const rawPipelineFilter = pageFilters?.lead_pipeline_id;
+    const activePipelineId: number | "all" =
+        rawPipelineFilter === "all" || rawPipelineFilter?.includes(",")
+            ? "all"
+            : rawPipelineFilter
+              ? Number(rawPipelineFilter)
+              : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
+
+    // Bulk update workbench options (stage / agent / watchers).
+    const bulkUpdateOptions = useMemo(
+        () => ({
+            stages: (Array.isArray(filterFormData["lead-stages"])
                 ? filterFormData["lead-stages"]
                 : []) as PipelineStage[],
-        [filterFormData],
-    );
-
-    const filterLeadAgents = useMemo(
-        () =>
-            (Array.isArray(filterFormData["lead-agents"])
+            leadAgents: (Array.isArray(filterFormData["lead-agents"])
                 ? filterFormData["lead-agents"]
                 : []) as LeadAgent[],
-        [filterFormData],
+            employees: (Array.isArray(filterFormData.employees)
+                ? filterFormData.employees
+                : []) as Array<{ id: number; name: string }>,
+            activePipelineId,
+        }),
+        [filterFormData, activePipelineId],
     );
 
     // Memoize configs to prevent unnecessary re-renders and filter resets
@@ -245,13 +268,10 @@ const Index = ({
             leadAgents: pick("lead-agents"),
             leadPipelines: pick("lead-pipelines", pipelines || []),
             stages: pick("lead-stages"),
-            excludeFields: [
-                "pipeline_stage_id",
-                "lead_pipeline_id",
-                "search",
-            ],
+            activePipelineId,
+            excludeFields: ["search"],
         });
-    }, [filterFormData, pipelines]);
+    }, [filterFormData, pipelines, activePipelineId]);
 
     // Setup search and filter contexts
     const { filter } = usePageSearchAndFilter({
@@ -261,7 +281,14 @@ const Index = ({
     // Extract commonly used values
     const { openDrawer, filters } = filter;
 
-    const handlePipelineChange = (value: number) => {
+    // Count clauses, not raw keys, so the badge matches the filter sentence
+    // (a date range is two keys but reads as one filter).
+    const activeFilterCount = useMemo(
+        () => describeFilters(filter.config, filter.filters).length,
+        [filter.config, filter.filters],
+    );
+
+    const handlePipelineChange = (value: number | "all") => {
         // Get current params
         const urlParams = new URLSearchParams(window.location.search);
         const params = Object.fromEntries(urlParams.entries());
@@ -281,9 +308,31 @@ const Index = ({
         });
     };
 
-    // Table row selection
-    const { selectedEntities, rowSelection, clearSelected } =
-        useGenericTableRowSelection<Deal>();
+    // Table row selection (pageData keeps selections when paging)
+    const [selectAllMatching, setSelectAllMatching] = useState(false);
+    const exitSelectAllMatching = useCallback(
+        () => setSelectAllMatching(false),
+        [],
+    );
+    const {
+        selectedEntities,
+        rowSelection,
+        clearSelected: clearRowSelection,
+    } = useGenericTableRowSelection<Deal>({
+        pageData: deals.data,
+        selectAllMatching,
+        onExitSelectAllMatching: exitSelectAllMatching,
+    });
+
+    const clearSelected = useCallback(() => {
+        setSelectAllMatching(false);
+        clearRowSelection();
+    }, [clearRowSelection]);
+
+    // Result set size changed (new filters/search) — drop "all matching".
+    React.useEffect(() => {
+        setSelectAllMatching(false);
+    }, [deals.total]);
 
     // Handle create deal
     const handleCreateDeal = () => {
@@ -432,9 +481,23 @@ const Index = ({
         td,
     });
 
-    const valueLeadPipelineId = pageFilters?.lead_pipeline_id
-        ? Number(pageFilters.lead_pipeline_id)
-        : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
+    const valueLeadPipelineId = activePipelineId;
+
+    const { persistPageSize } = usePersistedPageSize({
+        storageKey: "hibarr_deals_per_page",
+        currentPerPage: deals.per_page,
+        onRestore: (perPage) =>
+            router.get(
+                route("deals.index"),
+                mergeQueryParams({
+                    lead_pipeline_id: valueLeadPipelineId,
+                    page: 1,
+                    per_page: perPage,
+                    view,
+                }),
+                { only: ["deals"], preserveState: true, preserveScroll: true },
+            ),
+    });
 
     // Kanban view handlers
     const handleColumnsUpdate = useCallback((updatedColumns: BoardColumn[]) => {
@@ -482,68 +545,102 @@ const Index = ({
                         className="w-full"
                     />
                 }
-                filterSection={<ContextualActiveFilters />}
             >
-                <div className="max-w-7xl mx-auto space-y-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="flex items-center gap-3">
+                <div
+                    className="max-w-[1440px] mx-auto space-y-4"
+                    style={{ fontFamily: REDESIGN_FONT_STACK }}
+                >
+                    <div
+                        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-[10px] border px-4 py-3.5 bg-white"
+                        style={{ borderColor: T.BORDER }}
+                    >
+                        <div className="flex items-center gap-2.5">
                             <PipelineSelector
                                 pipelines={pipelines}
                                 currentPipelineId={valueLeadPipelineId}
                                 onSelect={handlePipelineChange}
+                                allowAll
+                                variant="chip"
                             />
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-primary"
                                 onClick={handleCreateDeal}
                             >
+                                <PlusOutlined style={{ fontSize: 13 }} />
                                 {t("app.deals.actions.add")}
-                            </Button>
-                            <Button
-                                type="text"
-                                icon={<ImportOutlined />}
+                            </button>
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={handleImportDeals}
                             >
+                                <ImportOutlined style={{ fontSize: 13 }} />
                                 {t("app.import")}
-                            </Button>
+                            </button>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <Button
-                                icon={<ReloadOutlined spin={isRefreshing} />}
+                        <div className="flex items-center gap-2.5">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={refresh}
                                 disabled={isRefreshing}
-                                type="text"
                             >
+                                <ReloadOutlined
+                                    spin={isRefreshing}
+                                    style={{ fontSize: 13 }}
+                                />
                                 {td("Refresh", { source: "en" })}
-                            </Button>
+                            </button>
                             {/* Advanced Filters Button */}
-                            <div className="flex items-center gap-x-2">
-                                <Button
-                                    icon={<FilterOutlined />}
-                                    onClick={openDrawer}
-                                >
-                                    {t("app.filter")}
-                                </Button>
-                                <DealsModeSwitcher
-                                    view={view}
-                                    onChange={handleViewChange}
-                                />
-                            </div>
-
-                            {/* Bulk Actions - Only show when items are selected (table view only) */}
-                            {isTableView && selectedEntities.length > 0 && (
-                                <BulkDealActionSelector
-                                    selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id,
-                                    )}
-                                    stages={filterStages}
-                                    leadAgents={filterLeadAgents}
-                                    clearSelected={clearSelected}
-                                />
-                            )}
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                onClick={openDrawer}
+                            >
+                                <FilterOutlined style={{ fontSize: 13 }} />
+                                {t("app.filter")}
+                                {activeFilterCount > 0 && (
+                                    <span
+                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
+                                        style={{ background: T.BLUE, color: T.WHITE }}
+                                    >
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </button>
+                            <DealsModeSwitcher
+                                view={view}
+                                onChange={handleViewChange}
+                            />
                         </div>
                     </div>
+
+                    {/* Bulk actions — full-width bar below the toolbar, table view only. */}
+                    {isTableView &&
+                        (selectAllMatching || selectedEntities.length > 0) && (
+                            <BulkDealActionSelector
+                                selectedEntityIds={selectedEntities.map(
+                                    ({ id }) => id,
+                                )}
+                                matchingTotal={deals.total}
+                                selectAllMatching={selectAllMatching}
+                                onSelectAllMatching={() =>
+                                    setSelectAllMatching(true)
+                                }
+                                updateOptions={bulkUpdateOptions}
+                                optionsLoading={formDataLoading}
+                                clearSelected={clearSelected}
+                            />
+                        )}
+
+                    {/* Quiet active-filter sentence */}
+                    <ActiveFilterSentence
+                        count={deals.total}
+                        entityLabel="deals"
+                        onOpenFilters={openDrawer}
+                    />
 
                     {/* Table View */}
                     {isTableView && (
@@ -577,7 +674,24 @@ const Index = ({
                                     },
                                 );
                             }}
-                            scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                            onPageSizeChange={(pageSize) => {
+                                persistPageSize(pageSize);
+                                router.get(
+                                    route("deals.index"),
+                                    mergeQueryParams({
+                                        lead_pipeline_id: valueLeadPipelineId,
+                                        page: 1,
+                                        per_page: pageSize,
+                                        view,
+                                    }),
+                                    {
+                                        only: ["deals"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
                             size="small"
                         />
                     )}
@@ -627,7 +741,13 @@ const Index = ({
                 open={action === "add"}
                 onClose={handleClose}
                 deal={action === "edit" ? deal : null}
-                pipelineId={valueLeadPipelineId}
+                // New deals always need a concrete pipeline, even while the
+                // list is showing all of them.
+                pipelineId={
+                    valueLeadPipelineId === "all"
+                        ? (defaultPipeline?.id ?? pipelines[0]?.id ?? 0)
+                        : valueLeadPipelineId
+                }
             />
 
             <DeleteDeal
@@ -652,10 +772,13 @@ const Index = ({
                 onClose={() => handleClose()}
             />
 
-            {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer
+            {/* Two-pane filter workbench — shared with Leads */}
+            <EntityFilterModal
                 config={filterConfig}
-                loading={formDataLoading}
+                optionsLoading={formDataLoading}
+                entityLabel="deals"
+                currentCount={deals.total}
+                savedViews={false}
             />
         </>
     );

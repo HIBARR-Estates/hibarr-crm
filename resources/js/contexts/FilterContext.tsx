@@ -50,6 +50,12 @@ export interface FilterFieldConfig {
     /** Key into the `filterFacets` page prop for per-option result counts. */
     facetKey?: string;
     /**
+     * The two URL params a `datePresets` control writes. Defaults to the legacy
+     * `start_date`/`end_date` pair; a page with a second date range (e.g. deals'
+     * close date) names its own.
+     */
+    rangeKeys?: [string, string];
+    /**
      * Tracked in URL/draft state but never rendered as its own control — used by
      * paired keys like end_date, which the date-range control writes alongside start_date.
      */

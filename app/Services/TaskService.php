@@ -64,6 +64,7 @@ class TaskService
             $task->project_id = $data['project_id'] ?? null;
             $task->task_category_id = $data['category_id'] ?? null;
             $task->priority = $data['priority'] ?? 'medium';
+            $task->is_next_step = (bool) ($data['is_next_step'] ?? false);
             if (array_key_exists('reminders', $data)) {
                 $task->reminders = $data['reminders'];
             }

@@ -33,6 +33,8 @@ interface TasksWidgetProps {
 export default function TasksWidget({ tasks }: TasksWidgetProps) {
     const getPriorityColor = (priority: string) => {
         const colors: Record<string, string> = {
+            urgent: "red",
+            highest: "red",
             high: "red",
             medium: "orange",
             low: "green",
@@ -42,6 +44,8 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
 
     const getPriorityIcon = (priority: string) => {
         switch (priority?.toLowerCase()) {
+            case "urgent":
+            case "highest":
             case "high":
                 return <AlertTriangle size={14} className="text-red-500" />;
             case "medium":

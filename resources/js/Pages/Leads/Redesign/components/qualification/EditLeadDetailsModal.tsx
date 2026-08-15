@@ -8,6 +8,10 @@ import {
     computeAgeRangeFromAge,
 } from "@/lib/leadAge";
 import { getLeadNativeEditValue } from "../../adapters/dossierAdapter";
+import {
+    PREFERRED_CONTACT_TIME_LABELS,
+    PREFERRED_CONTACT_TIME_VALUES,
+} from "../../config/leadPreferredContactTime";
 import { LEAD_INFO_CORE_SECTIONS } from "../../config/leadInfoSections";
 import type { LeadInfoCoreSectionId } from "../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -152,6 +156,11 @@ export default function EditLeadDetailsModal({
                             payload.age = form.age ? Number(form.age) : null;
                             payload.age_range = form.age_range || null;
                         }
+                    } else if (
+                        field.leadField === "has_joined_the_whatsapp_group"
+                    ) {
+                        payload.has_joined_the_whatsapp_group =
+                            raw === "1" || raw === "true";
                     } else {
                         payload[field.leadField] = raw || null;
                     }
@@ -386,6 +395,40 @@ export default function EditLeadDetailsModal({
                                         { value: "cold", label: td("Cold", { source: "en" }) },
                                         { value: "warm", label: td("Warm", { source: "en" }) },
                                         { value: "hot", label: td("Hot", { source: "en" }) },
+                                    ],
+                                );
+                            }
+                            if (field.leadField === "preferred_contact_time") {
+                                return renderFieldInput(
+                                    "preferred_contact_time",
+                                    field.label,
+                                    "select",
+                                    PREFERRED_CONTACT_TIME_VALUES.map((value) => ({
+                                        value,
+                                        label: td(
+                                            PREFERRED_CONTACT_TIME_LABELS[value],
+                                            { source: "en" },
+                                        ),
+                                    })),
+                                );
+                            }
+                            if (
+                                field.leadField ===
+                                "has_joined_the_whatsapp_group"
+                            ) {
+                                return renderFieldInput(
+                                    "has_joined_the_whatsapp_group",
+                                    field.label,
+                                    "select",
+                                    [
+                                        {
+                                            value: "1",
+                                            label: td("Yes", { source: "en" }),
+                                        },
+                                        {
+                                            value: "0",
+                                            label: td("No", { source: "en" }),
+                                        },
                                     ],
                                 );
                             }

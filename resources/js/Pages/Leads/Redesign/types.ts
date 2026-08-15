@@ -16,7 +16,8 @@ export type LeadRecordTab =
     | "files"
     | "deals"
     | "itinerary"
-    | "marketing";
+    | "marketing"
+    | "qualification";
 
 /** Meta tabs — match Deals' dealinfo/timeline split (past the divider). */
 export type LeadMetaTab = "leadinfo" | "timeline";
@@ -60,4 +61,5 @@ export interface LeadTabCount {
     files?: number;
     deals?: number;
     itinerary?: number;
+    qualification?: number;
 }

@@ -47,7 +47,7 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
     const update = (newDial: string, newNumber: string) => onChange(`${newDial}|${newNumber}`);
 
     return (
-        <div ref={containerRef} className="flex items-center">
+        <div ref={containerRef} className="flex items-center w-full min-w-0">
             <div className="relative shrink-0">
                 <button
                     ref={triggerRef}
@@ -105,13 +105,15 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                 </FloatingDropdown>
             </div>
 
+            {/* min-w-0: without it the input's intrinsic width wins over flex-1
+                and the control overflows narrow containers (300px qualify panel). */}
             <input
                 type="text"
                 inputMode="tel"
                 value={number}
                 placeholder="Enter number..."
                 onChange={(e) => update(dial, e.target.value.replace(/[^0-9 \-()]/g, ""))}
-                className="flex-1 h-10 bg-white border border-slate-200 rounded-r-xl px-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors"
+                className="flex-1 min-w-0 h-10 bg-white border border-slate-200 rounded-r-xl px-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors"
                 style={{ color: T.TEXT }}
             />
         </div>

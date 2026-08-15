@@ -53,11 +53,14 @@ class LeadSummaryInputBuilder
 
         $sections = [];
 
-        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office) {
+        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time) {
             $sections['contact'] = [
                 'email' => $lead->client_email ?: null,
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
+                'preferred_contact_time' => $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime
+                    ? $lead->preferred_contact_time->label()
+                    : $lead->preferred_contact_time,
             ];
         }
 
@@ -122,11 +125,19 @@ class LeadSummaryInputBuilder
             ->get();
 
         if ($notes->isNotEmpty()) {
-            $sections['notes'] = $notes->map(fn ($note) => [
-                'author' => $note->addedBy?->name,
-                'created_at' => $note->created_at?->toIso8601String(),
-                'excerpt' => mb_substr(strip_tags((string) $note->details), 0, 200),
-            ])->values()->all();
+            $sections['notes'] = $notes->map(function ($note) {
+                $details = is_string($note->details) ? $note->details : (string) ($note->details ?? '');
+                // Cap BEFORE strip_tags — unbounded note HTML OOMs during sanitize.
+                if ($details !== '' && strlen($details) > 5000) {
+                    $details = substr($details, 0, 5000);
+                }
+
+                return [
+                    'author' => $note->addedBy?->name,
+                    'created_at' => $note->created_at?->toIso8601String(),
+                    'excerpt' => mb_substr(strip_tags($details), 0, 200),
+                ];
+            })->values()->all();
         }
 
         if ($sections !== []) {

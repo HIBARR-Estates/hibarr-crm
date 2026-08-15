@@ -94,6 +94,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Reminder ledger (company send queue) */
     Route::get('reminder-ledger', [ReminderLedgerController::class, 'index'])->name('reminder-ledger.index');
+    Route::post('reminder-ledger/{reminder}/cancel', [ReminderLedgerController::class, 'cancel'])->name('reminder-ledger.cancel');
+    Route::post('reminder-ledger/{reminder}/send-now', [ReminderLedgerController::class, 'sendNow'])->name('reminder-ledger.send-now');
 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
@@ -235,6 +237,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Lead Settings */
     Route::put('lead-settings/deal-package-settings', [LeadSettingController::class, 'updateDealPackageSettings'])->name('lead-settings.deal-package-settings');
+    // Both of these must stay above the resource, or lead-settings/{lead_setting}
+    // swallows them.
+    Route::put('lead-settings/first-contact-sla', [LeadSettingController::class, 'updateFirstContactSla'])->name('lead-settings.first-contact-sla');
     Route::resource('lead-settings', LeadSettingController::class);
     Route::post('lead-settings-status/update-status/{companyId}', [LeadSettingController::class, 'updateLeadSettingStatus'])->name('lead-setting.update_status');
     Route::post('lead-sources/reorder', [LeadSourceSettingController::class, 'reorder'])->name('lead-sources.reorder');

@@ -20,6 +20,8 @@ class LeadQualificationControllerTest extends TestCase
         $this->assertTrue(Route::has('lead-qualifications.index'));
         $this->assertTrue(Route::has('lead-qualifications.store'));
         $this->assertTrue(Route::has('lead-qualifications.complete'));
+        $this->assertTrue(Route::has('lead-qualifications.abandon'));
+        $this->assertTrue(Route::has('lead-qualifications.destroy'));
         $this->assertTrue(Route::has('lead-qualifications.clear-branch-answers'));
         $this->assertTrue(Route::has('lead-qualifications.actions.execute'));
         $this->assertTrue(Route::has('qualification-actions.index'));

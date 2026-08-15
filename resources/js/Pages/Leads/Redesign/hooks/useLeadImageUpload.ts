@@ -6,6 +6,10 @@ import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 /**
  * Persist a lead avatar upload and patch LeadWorkspaceContext — no page reload.
+ *
+ * Do not set Content-Type on FormData posts: the browser must attach the
+ * multipart boundary. Setting `multipart/form-data` alone makes PHP drop the
+ * file, validation fails, and Laravel may redirect (looks like a full refresh).
  */
 export default function useLeadImageUpload() {
     const { lead, setLead } = useLeadWorkspace();
@@ -32,7 +36,6 @@ export default function useLeadImageUpload() {
                     {
                         headers: {
                             Accept: "application/json",
-                            "Content-Type": "multipart/form-data",
                         },
                     },
                 );

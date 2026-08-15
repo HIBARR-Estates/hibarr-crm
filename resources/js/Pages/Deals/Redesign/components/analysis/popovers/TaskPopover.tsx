@@ -32,6 +32,8 @@ const PRIORITY_OPTIONS = [
     { label: "Low", value: "low" as const },
     { label: "Normal", value: "medium" as const },
     { label: "High", value: "high" as const },
+    { label: "Highest", value: "highest" as const },
+    { label: "Urgent", value: "urgent" as const },
 ];
 
 export default function TaskPopover({ open, onClose }: Props) {
@@ -42,7 +44,9 @@ export default function TaskPopover({ open, onClose }: Props) {
 
     const [title, setTitle] = useState("");
     const [dueIdx, setDueIdx] = useState(0);
-    const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+    const [priority, setPriority] = useState<
+        "low" | "medium" | "high" | "highest" | "urgent"
+    >("medium");
 
     useEffect(() => {
         if (!open) return;

@@ -102,6 +102,9 @@ class MentionTicketAgent extends BaseNotification
     {
         return [
             'id' => $this->ticket->id,
+            'ticket_number' => $this->ticket->ticket_number,
+            'title' => __('email.ticketAgent.mentionSubject'),
+            'text' => __('email.ticketAgent.mentionedText') . ' - ' . $this->ticket->subject,
             'subject' => $this->ticket->subject
         ];
     }

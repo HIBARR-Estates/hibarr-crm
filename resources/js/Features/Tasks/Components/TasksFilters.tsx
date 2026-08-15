@@ -181,6 +181,12 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                         <Option value="high">
                             <Space>🔴 High</Space>
                         </Option>
+                        <Option value="highest">
+                            <Space>🔴 Highest</Space>
+                        </Option>
+                        <Option value="urgent">
+                            <Space>🔴 Urgent</Space>
+                        </Option>
                     </Select>
                 </Col>
 

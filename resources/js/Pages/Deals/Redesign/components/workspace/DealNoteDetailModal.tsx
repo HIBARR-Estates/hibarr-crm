@@ -3,6 +3,7 @@ import type { Note } from "@/Types/api/note";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import NoteDetailModal from "@/Components/Redesign/modals/NoteDetailModal";
+import { hasNoteScopeAccess } from "@/Components/Redesign/adapters/noteAdapter";
 import useDealNoteMutations from "../../hooks/useDealNoteMutations";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -10,22 +11,14 @@ interface DealNoteDetailModalProps {
     note: Note | null;
     permissions: Record<string, string>;
     onClose: () => void;
-}
-
-// Permission scopes are "all" | "added" | "owned" | "both" | "none" (Module::edit_deal_note
-// allows all of them) — "added"/"owned" both mean "only your own notes", "both" behaves as "all".
-function hasNoteScopeAccess(scope: string | undefined, isOwner: boolean): boolean {
-    return (
-        scope === "all" ||
-        scope === "both" ||
-        ((scope === "added" || scope === "owned") && isOwner)
-    );
+    initialEditing?: boolean;
 }
 
 export default function DealNoteDetailModal({
     note,
     permissions,
     onClose,
+    initialEditing = false,
 }: DealNoteDetailModalProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -49,6 +42,7 @@ export default function DealNoteDetailModal({
             canDelete={canDelete}
             isUpdating={isUpdating}
             isDeleting={isDeleting}
+            initialEditing={initialEditing}
             onUpdate={(payload, onSuccess) => updateNote(payload, onSuccess)}
             onDelete={(onSuccess) => deleteNote(onSuccess)}
             labels={{

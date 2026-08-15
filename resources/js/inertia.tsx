@@ -4,6 +4,7 @@ import { OuterProviders, InnerProviders } from "./providers";
 import { route } from "ziggy-js";
 import React from "react";
 import { initI18n, loadI18n } from "@/lib/i18n";
+import { initAnalytics } from "@/lib/analytics";
 // import { Ziggy } from "./ziggy";
 
 // Declare global route function
@@ -37,12 +38,19 @@ createInertiaApp({
         return component;
     },
     setup({ App, props, el: og }) {
+        const initialPage = (
+            props as { initialPage?: { component?: string; url?: string; props?: Record<string, unknown> } }
+        ).initialPage;
+
         const sharedProps =
-            ((props as { initialPage?: { props?: Record<string, unknown> } })
-                .initialPage?.props as Record<string, unknown> | undefined) ||
-            {};
+            (initialPage?.props as Record<string, unknown> | undefined) || {};
 
         const locale = (sharedProps.locale as string) || "en";
+
+        // No-op unless a PostHog key is configured server-side. Started here
+        // rather than in a provider so it also covers pages that never mount
+        // the dashboard layout, and cannot re-fire on re-render.
+        initAnalytics(initialPage ?? {});
 
         const el = document.getElementById("app");
         if (!el) {

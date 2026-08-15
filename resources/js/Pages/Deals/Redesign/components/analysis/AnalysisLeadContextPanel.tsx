@@ -377,7 +377,11 @@ export default function AnalysisLeadContextPanel({
                 email={email}
                 phones={phones}
                 whatsapp={whatsapp}
-                imageUrl={contact?.image_url}
+                imageUrl={
+                    contact?.image && contact?.image_url
+                        ? contact.image_url
+                        : undefined
+                }
             />
 
             {/* Tab bar — revamp §C.2 style */}

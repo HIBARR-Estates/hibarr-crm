@@ -463,6 +463,8 @@ return [
             'priority_high'              => 'Высокий',
             'priority_medium'            => 'Средний',
             'priority_low'               => 'Низкий',
+            'priority_highest'           => 'Наивысший',
+            'priority_urgent'            => 'Срочный',
             'assignees'                  => 'Исполнители',
             'loading'                    => 'Загрузка…',
             'refresh'                    => 'Обновить',

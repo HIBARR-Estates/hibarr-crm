@@ -7,7 +7,7 @@ export interface WorkspaceTaskPreview {
     id: number;
     title: string;
     description: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     dueDate: Date | null;
     dueDateLabel: string;
     isOpen: boolean;
@@ -28,6 +28,8 @@ export interface WorkspaceTaskListItem extends WorkspaceTaskPreview {
 }
 
 const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
+    urgent: 5,
+    highest: 4,
     high: 3,
     medium: 2,
     low: 1,
