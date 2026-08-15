@@ -274,49 +274,74 @@ export function CheckList({
         );
     };
 
+    const selectedOptions = options.filter((option) =>
+        selected.has(String(option.value)),
+    );
+
     return (
-        <div className="lfm-checklist">
-            <input
-                className="lfm-checklist__search"
-                value={query}
-                placeholder={searchPlaceholder}
-                onChange={(event) => setQuery(event.target.value)}
-            />
-            <div className="lfm-checklist__body">
-                {visible.length === 0 && (
-                    <div className="lfm-empty lfm-empty--pad">No matches</div>
-                )}
-                {visible.map((option) => {
-                    const key = String(option.value);
-                    const isOn = selected.has(key);
-                    const count = counts?.[key];
-                    return (
-                        <button
-                            key={key}
-                            type="button"
-                            className={`lfm-checklist__row${isOn ? " is-on" : ""}`}
-                            onClick={() => toggle(option.value)}
-                        >
-                            <span
-                                className={`lfm-check${isOn ? " is-on" : ""}`}
+        <div>
+            <div className="lfm-checklist">
+                <input
+                    className="lfm-checklist__search"
+                    value={query}
+                    placeholder={searchPlaceholder}
+                    onChange={(event) => setQuery(event.target.value)}
+                />
+                <div className="lfm-checklist__body">
+                    {visible.length === 0 && (
+                        <div className="lfm-empty lfm-empty--pad">
+                            No matches
+                        </div>
+                    )}
+                    {visible.map((option) => {
+                        const key = String(option.value);
+                        const isOn = selected.has(key);
+                        const count = counts?.[key];
+                        return (
+                            <button
+                                key={key}
+                                type="button"
+                                className={`lfm-checklist__row${isOn ? " is-on" : ""}`}
+                                onClick={() => toggle(option.value)}
                             >
-                                {isOn ? "✓" : ""}
-                            </span>
-                            <span className="lfm-avatar">
-                                {initialsOf(String(option.label))}
-                            </span>
-                            <span className="lfm-checklist__name">
-                                {option.label}
-                            </span>
-                            {count != null && (
-                                <span className="lfm-checklist__count">
-                                    {fmt(count)}
+                                <span
+                                    className={`lfm-check${isOn ? " is-on" : ""}`}
+                                >
+                                    {isOn ? "✓" : ""}
                                 </span>
-                            )}
-                        </button>
-                    );
-                })}
+                                <span className="lfm-avatar">
+                                    {initialsOf(String(option.label))}
+                                </span>
+                                <span className="lfm-checklist__name">
+                                    {option.label}
+                                </span>
+                                {count != null && (
+                                    <span className="lfm-checklist__count">
+                                        {fmt(count)}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
+            {selectedOptions.length > 0 && (
+                <div className="lfm-selected-pills">
+                    {selectedOptions.map((option) => (
+                        <span key={String(option.value)} className="lfm-tray__chip">
+                            {option.label}
+                            <button
+                                type="button"
+                                className="lfm-tray__x"
+                                aria-label={`Remove ${option.label}`}
+                                onClick={() => toggle(option.value)}
+                            >
+                                ✕
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

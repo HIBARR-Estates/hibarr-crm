@@ -2,17 +2,9 @@
  * Field picker config for lead bulk export.
  * Keys must stay in sync with App\Support\LeadExportFields.
  */
+import type { BulkExportFieldDef } from "@/Features/BulkActions/exportFields";
 
-export type LeadExportFormat = "csv" | "xlsx";
-
-export interface LeadExportFieldDef {
-    key: string;
-    label: string;
-    group: string;
-    defaultSelected?: boolean;
-}
-
-export const LEAD_EXPORT_FIELDS: LeadExportFieldDef[] = [
+export const LEAD_EXPORT_FIELDS: BulkExportFieldDef[] = [
     // Meta
     { key: "id", label: "ID", group: "Meta" },
     { key: "created_at", label: "Created at", group: "Meta", defaultSelected: true },
@@ -89,28 +81,3 @@ export const LEAD_EXPORT_FIELDS: LeadExportFieldDef[] = [
         group: "Marketing",
     },
 ];
-
-export function defaultExportFieldKeys(): string[] {
-    return LEAD_EXPORT_FIELDS.filter((f) => f.defaultSelected).map((f) => f.key);
-}
-
-export function exportFieldGroups(): Array<{
-    group: string;
-    fields: LeadExportFieldDef[];
-}> {
-    const order: string[] = [];
-    const map = new Map<string, LeadExportFieldDef[]>();
-
-    for (const field of LEAD_EXPORT_FIELDS) {
-        if (!map.has(field.group)) {
-            order.push(field.group);
-            map.set(field.group, []);
-        }
-        map.get(field.group)!.push(field);
-    }
-
-    return order.map((group) => ({
-        group,
-        fields: map.get(group)!,
-    }));
-}

@@ -38,6 +38,7 @@ function processStandardField(
         fieldName === "lead_owner" ||
         fieldName === "status_id" ||
         fieldName === "agent_id" ||
+        fieldName === "referred_by_agent_id" ||
         fieldName === "lead_lifecycle_status_id"
     ) {
         return { [fieldName]: value ? Number(value) : null };

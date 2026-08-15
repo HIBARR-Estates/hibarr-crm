@@ -5,7 +5,7 @@ import Button from "@/Components/Redesign/primitives/Button";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
 
-export type TaskPriority = "low" | "medium" | "high";
+export type TaskPriority = "low" | "medium" | "high" | "highest" | "urgent";
 
 export interface AddTaskFormState {
     title: string;
@@ -32,6 +32,8 @@ export interface AddTaskModalLabels {
     priorityHigh: string;
     priorityMedium: string;
     priorityLow: string;
+    priorityHighest: string;
+    priorityUrgent: string;
     assignees: string;
     dateRangeError: string;
 }
@@ -249,6 +251,8 @@ export default function AddTaskModal({
                             }))
                         }
                     >
+                        <option value="urgent">{labels.priorityUrgent}</option>
+                        <option value="highest">{labels.priorityHighest}</option>
                         <option value="high">{labels.priorityHigh}</option>
                         <option value="medium">{labels.priorityMedium}</option>
                         <option value="low">{labels.priorityLow}</option>

@@ -1,4 +1,7 @@
+import { useState } from "react";
 import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
+import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
+import FormDataSelector from "@/Components/FormDataSelector";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Lead } from "@/Types/api/leads";
@@ -104,6 +107,83 @@ export function LeadCategoryField({
             loading={isFieldLoading("category_ids")}
             disabled={disabled}
         />
+    );
+}
+
+/**
+ * Referrer (the partner who introduced the lead) — write-once.
+ * Already set: read-only name. Not set: pick an agent, confirm, save.
+ * ponytail: deliberately outside the section's bulk-edit/Save All flow so the
+ * confirmation can never be bypassed; it always saves on its own.
+ */
+export function LeadReferrerField({
+    lead,
+    onFieldUpdate,
+    isFieldLoading,
+    disabled,
+}: LeadAttributionFieldProps) {
+    const { td } = useTd();
+    const [pending, setPending] = useState<{ id: number; name: string } | null>(
+        null,
+    );
+    const [saving, setSaving] = useState(false);
+
+    if (lead.referred_by_agent_id) {
+        return (
+            <span className="text-gray-700">
+                {lead.referred_by_agent?.user?.name ||
+                    `#${lead.referred_by_agent_id}`}
+            </span>
+        );
+    }
+
+    if (disabled) {
+        return <span className="italic text-gray-400">--</span>;
+    }
+
+    return (
+        <>
+            <FormDataSelector
+                type="lead-agents"
+                value={pending?.id ?? null}
+                onSelect={(value, entity) =>
+                    setPending({
+                        id: Number(value),
+                        name: entity?.user?.name || `#${value}`,
+                    })
+                }
+                placeholder={td("Select referrer", { source: "en" })}
+                className="w-full min-w-[200px]"
+                allowClear={false}
+                disabled={isFieldLoading("referred_by_agent_id")}
+            />
+            <DealConfirmDialog
+                open={pending !== null}
+                title={td("Set referrer?", { source: "en" })}
+                message={td(
+                    `The referrer can only be set once. Saving ${pending?.name ?? ""} here is permanent — it cannot be changed or removed afterwards.`,
+                    { source: "en" },
+                )}
+                confirmLabel={td("Set referrer", { source: "en" })}
+                confirmLoading={saving}
+                onConfirm={async () => {
+                    if (!pending) return;
+                    setSaving(true);
+                    try {
+                        await onFieldUpdate(
+                            "referred_by_agent_id",
+                            pending.id,
+                        );
+                        setPending(null);
+                    } catch {
+                        // useLeadInfoFieldUpdate already surfaced the error.
+                    } finally {
+                        setSaving(false);
+                    }
+                }}
+                onCancel={() => setPending(null)}
+            />
+        </>
     );
 }
 

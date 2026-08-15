@@ -70,6 +70,8 @@ export default function DealAddTaskModal({
                 priorityHigh: t("pages.deals.common.priority_high"),
                 priorityMedium: t("pages.deals.common.priority_medium"),
                 priorityLow: t("pages.deals.common.priority_low"),
+                priorityHighest: t("pages.deals.common.priority_highest"),
+                priorityUrgent: t("pages.deals.common.priority_urgent"),
                 assignees: t("pages.deals.common.assignees"),
                 dateRangeError: t(
                     "pages.deals.workspace.tasks.date_range_error",

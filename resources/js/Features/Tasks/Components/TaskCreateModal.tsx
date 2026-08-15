@@ -209,6 +209,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                     <Option value="high">
                                         <Space>🔴 High Priority</Space>
                                     </Option>
+                                    <Option value="highest">
+                                        <Space>🔴 Highest Priority</Space>
+                                    </Option>
+                                    <Option value="urgent">
+                                        <Space>🔴 Urgent Priority</Space>
+                                    </Option>
                                 </Select>
                             </Form.Item>
                         </Col>

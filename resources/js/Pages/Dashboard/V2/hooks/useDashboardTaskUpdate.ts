@@ -16,7 +16,7 @@ export interface DashboardTaskUpdateInput {
     startDate?: string;
     dueDate?: string;
     dueTime?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     description?: string;
     assignees: number[];
 }
@@ -27,7 +27,7 @@ interface UpdateTaskRequest {
     due_date?: string;
     without_duedate?: boolean;
     start_date: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     user_id: number[];
 }
 

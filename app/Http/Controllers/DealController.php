@@ -50,6 +50,7 @@ use App\Scopes\ActiveScope;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\DealAgentAssignmentService;
+use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
 use App\Services\MeetingVisibilityService;
@@ -152,8 +153,11 @@ class DealController extends AccountBaseController
         $view = $request->get('view', 'table');
         $isKanbanView = $view === 'kanban';
 
-        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all'
-            ? $request->lead_pipeline_id
+        // A board always renders one pipeline's columns, so a multi-pipeline
+        // filter ("1,2") or "all" falls back to the first/default pipeline.
+        $requestedPipelines = app(DealFilters::class)->values($request, 'lead_pipeline_id');
+        $pipelineId = count($requestedPipelines) === 1
+            ? $requestedPipelines[0]
             : optional($this->defaultPipeline)->id;
 
         $boardColumns = $isKanbanView
@@ -182,9 +186,15 @@ class DealController extends AccountBaseController
                 'source_id',
                 'package_id',
                 'agent_id',
+                'outcome_status',
+                'is_locked',
                 'search',
                 'start_date',
                 'end_date',
+                'close_start',
+                'close_end',
+                'min_value_range',
+                'max_value_range',
                 'view',
             ]),
         ]);
@@ -240,67 +250,19 @@ class DealController extends AccountBaseController
             $dealsQuery->where('deals.pipeline_stage_id', $pipelineStageId);
         }
 
-        // Apply filters from request
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $dealsQuery->where(function ($query) use ($searchTerm) {
-                $query->where('deals.name', 'like', '%'.$searchTerm.'%')
-                    ->orWhereHas('contact', function ($q) use ($searchTerm) {
-                        $q->where('client_name', 'like', '%'.$searchTerm.'%')
-                            ->orWhere('client_email', 'like', '%'.$searchTerm.'%')
-                            ->orWhere('company_name', 'like', '%'.$searchTerm.'%');
-                    });
-            });
+        // Pipeline/stage are the page's own context, so they stay here; every
+        // other filter is shared with the kanban columns (DealFilters).
+        $dealFilters = app(DealFilters::class);
+
+        if ($pipelines = $dealFilters->values($request, 'lead_pipeline_id')) {
+            $dealsQuery->whereIn('deals.lead_pipeline_id', $pipelines);
         }
 
-        if ($request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all') {
-            $dealsQuery->where('deals.lead_pipeline_id', $request->lead_pipeline_id);
+        if (! $pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
+            $dealsQuery->whereIn('deals.pipeline_stage_id', $stages);
         }
 
-        if ($request->filled('pipeline_stage_id') && $request->pipeline_stage_id !== 'all' && ! $pipelineStageId) {
-            $dealsQuery->where('deals.pipeline_stage_id', $request->pipeline_stage_id);
-        }
-
-        if ($request->filled('category_id') && $request->category_id !== 'all') {
-            $dealsQuery->where('deals.category_id', $request->category_id);
-        }
-
-        // Filter by lead source (via contact)
-        if ($request->filled('source_id') && $request->source_id !== 'all') {
-            $dealsQuery->whereHas('contact', function ($q) use ($request) {
-                $q->where('source_id', $request->source_id);
-            });
-        }
-
-        // Filter by package
-        if ($request->filled('package_id') && $request->package_id !== 'all') {
-            $dealsQuery->whereHas('packages', function ($q) use ($request) {
-                $q->where('packages.id', $request->package_id);
-            });
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $dealsQuery->whereBetween('deals.created_at', [
-                $request->start_date.' 00:00:00',
-                $request->end_date.' 23:59:59',
-            ]);
-        }
-
-        if ($request->agent_status == 'unassigned') {
-            $dealsQuery->whereNull('deals.agent_id');
-        } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
-            $dealsQuery->whereHas('leadAgent', function ($q) use ($request) {
-                $q->where('user_id', $request->agent_id);
-            });
-        } elseif ($request->agent_status == 'active') {
-            $dealsQuery->whereHas('leadAgent.user', function ($q) {
-                $q->where('status', 'active');
-            });
-        } elseif ($request->agent_status == 'inactive') {
-            $dealsQuery->whereHas('leadAgent.user', function ($q) {
-                $q->where('status', '!=', 'active');
-            });
-        }
+        $dealFilters->apply($dealsQuery, $request);
 
         // Apply permission-based filtering
         $dealRules = [
@@ -328,34 +290,12 @@ class DealController extends AccountBaseController
     protected function getBoardColumns(Request $request, $pipelineId)
     {
         $boardColumns = PipelineStage::withCount(['deals as deals_count' => function ($q) use ($request, $pipelineId) {
-            // Apply same filters as the main query
-            if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $q->where(function ($query) use ($searchTerm) {
-                    $query->where('deals.name', 'like', '%'.$searchTerm.'%')
-                        ->orWhereHas('contact', function ($subq) use ($searchTerm) {
-                            $subq->where('client_name', 'like', '%'.$searchTerm.'%')
-                                ->orWhere('client_email', 'like', '%'.$searchTerm.'%')
-                                ->orWhere('company_name', 'like', '%'.$searchTerm.'%');
-                        });
-                });
-            }
-
+            // Same filters as the table (minus stage — each column is one).
             if ($pipelineId) {
                 $q->where('deals.lead_pipeline_id', $pipelineId);
             }
 
-            if ($request->filled('category_id') && $request->category_id !== 'all') {
-                $q->where('deals.category_id', $request->category_id);
-            }
-
-            if ($request->agent_status == 'unassigned') {
-                $q->whereNull('deals.agent_id');
-            } elseif ($request->filled('agent_id') && $request->agent_id != 'all') {
-                $q->whereHas('leadAgent', function ($subq) use ($request) {
-                    $subq->where('user_id', $request->agent_id);
-                });
-            }
+            app(DealFilters::class)->apply($q, $request);
 
             // Apply permission-based filtering
             $dealRules = [
@@ -388,9 +328,7 @@ class DealController extends AccountBaseController
             }
 
             // Apply same filters for total value calculation
-            if ($request->filled('category_id') && $request->category_id !== 'all') {
-                $totalValueQuery->where('category_id', $request->category_id);
-            }
+            app(DealFilters::class)->apply($totalValueQuery, $request);
 
             // Apply permission-based filtering
             $dealRules = [
@@ -708,6 +646,12 @@ class DealController extends AccountBaseController
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
             'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
+
+            // A pipeline that sells packages does not sell individual properties,
+            // so properties / recommendations / offers are hidden for its deals.
+            'pipelineHasPackages' => $deal->lead_pipeline_id
+                ? \App\Models\PackagePipeline::where('pipeline_id', $deal->lead_pipeline_id)->exists()
+                : false,
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             // notes / dealFollowUps / files / tasks are no longer deferred props —
@@ -2151,10 +2095,7 @@ class DealController extends AccountBaseController
         app()->instance('suppress_bulk_notifications', true);
 
         try {
-            $rowIds = $request->filled('row_ids')
-                ? explode(',', $request->row_ids)
-                : [];
-            $rowIds = array_values(array_filter(array_map('intval', $rowIds)));
+            $rowIds = $this->resolveBulkDealIds($request);
             $records = [];
 
             switch ($request->action_type) {
@@ -2180,6 +2121,23 @@ class DealController extends AccountBaseController
                         'status' => 'success',
                         'message' => __('messages.deleteSuccess'),
                     ]);
+
+                case 'bulk_update':
+                    // Multi-field workbench (stage / agent / watchers). Answers
+                    // JSON because it is posted with axios, not an Inertia visit.
+                    $fields = (array) $request->input('fields', []);
+
+                    if ($fields === []) {
+                        return Reply::error('Select at least one field to update.');
+                    }
+
+                    $updated = $this->applyDealBulkUpdateFields($request, $rowIds, $fields);
+
+                    return Reply::success(
+                        $updated === 0
+                            ? 'No deals were updated — locked deals are skipped.'
+                            : __('messages.updateSuccess')
+                    );
 
                 case 'change-status':
                     $stage = PipelineStage::find($request->status);
@@ -2249,6 +2207,31 @@ class DealController extends AccountBaseController
         }
     }
 
+    /**
+     * Deals a bulk action should act on: either the explicitly checked rows, or
+     * every deal matching the current filters when the toolbar's "Select all"
+     * was used. The all-matching path reuses getDealsQuery(), so the same
+     * filters and the same view_deals permission scope apply — a user can never
+     * bulk-touch a deal they cannot see.
+     *
+     * @return list<int>
+     */
+    protected function resolveBulkDealIds(Request $request): array
+    {
+        if ($request->boolean('select_all_matching')) {
+            return $this->getDealsQuery($request)
+                ->pluck('deals.id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
+
+        return array_values(array_filter(array_map(
+            'intval',
+            $request->filled('row_ids') ? explode(',', (string) $request->row_ids) : []
+        )));
+    }
+
     protected function deleteRecords($request, ?array $deletableIds = null)
     {
         abort_403(user()->permission('delete_deals') != 'all');
@@ -2300,6 +2283,12 @@ class DealController extends AccountBaseController
         $newStatus = $request->status;
 
         $stage = PipelineStage::find($newStatus);
+
+        // Unknown stage id: do nothing rather than point deals at a stage
+        // that does not exist.
+        if (! $stage) {
+            return;
+        }
 
         if (is_null($editableIds)) {
             $rowIds = explode(',', $request->row_ids);
@@ -2354,6 +2343,80 @@ class DealController extends AccountBaseController
             $deal->agent_id = $matchingAgent?->id ?? $agent->id;
             $deal->save();
         }
+    }
+
+    /**
+     * Apply the bulk-update workbench fields to the selected deals.
+     *
+     * Locked deals are skipped throughout (same rule as every other bulk
+     * action). Watchers are add/remove rather than a replace so a bulk edit
+     * can never silently drop watchers the operator never saw.
+     *
+     * @param  list<int>  $rowIds
+     * @param  list<string>  $fields
+     * @return int number of deals eligible for the update
+     */
+    protected function applyDealBulkUpdateFields(Request $request, array $rowIds, array $fields): int
+    {
+        abort_403(user()->permission('edit_deals') != 'all');
+
+        $editableIds = Deal::whereIn('id', $rowIds)
+            ->where('is_locked', false)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if ($editableIds === []) {
+            return 0;
+        }
+
+        foreach (array_unique(array_map('strval', $fields)) as $field) {
+            switch ($field) {
+                // Values ride under the same keys the legacy single-field
+                // actions use ('status', 'agent'), so both paths share these helpers.
+                case 'pipeline_stage_id':
+                    if ($request->filled('status')) {
+                        $this->changeBulkStatus($request, $editableIds);
+                    }
+                    break;
+
+                case 'agent_id':
+                    if ($request->filled('agent')) {
+                        $this->changeAgentStatus(
+                            $request,
+                            $this->eligibleDealsForAgentChange($editableIds)
+                        );
+                    }
+                    break;
+
+                case 'watchers_add':
+                case 'watchers_remove':
+                    $userIds = array_values(array_filter(array_map(
+                        'intval',
+                        (array) $request->input($field, [])
+                    )));
+
+                    if ($userIds === []) {
+                        break;
+                    }
+
+                    // Only real users — a stale id would otherwise create a
+                    // watcher row pointing at nothing.
+                    $userIds = User::whereIn('id', $userIds)->pluck('id')->all();
+
+                    foreach (Deal::whereIn('id', $editableIds)->get() as $deal) {
+                        if ($field === 'watchers_add') {
+                            $deal->dealWatchers()->syncWithoutDetaching($userIds);
+                        } else {
+                            $deal->dealWatchers()->detach($userIds);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        return count($editableIds);
     }
 
     protected function eligibleDealsForAgentChange(array $rowIds): Collection
@@ -2539,6 +2602,20 @@ class DealController extends AccountBaseController
         abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $this->follow->added_by == user()->id)));
 
         return view('leads.followup.edit', $this->data);
+    }
+
+    /**
+     * JSON single-follow-up fetch for the React detail modals (e.g. the Leads
+     * index Next Action click-through), which need one record on demand
+     * rather than the whole list a workspace page preloads.
+     */
+    public function followUpData($id)
+    {
+        $followUp = DealFollowUp::findOrFail($id);
+        $viewPermission = user()->permission('view_lead_follow_up');
+        abort_403($viewPermission === 'none' || ($viewPermission === 'added' && $followUp->added_by !== user()->id));
+
+        return Reply::dataOnly(['followUp' => $this->loadFollowUpWithParticipants($id)]);
     }
 
     public function updateFollow(FollowUpStoreRequest $request)
@@ -2866,6 +2943,66 @@ class DealController extends AccountBaseController
         $batch = $this->importJobProcess($request, DealImport::class, ImportDealJob::class);
 
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
+    }
+
+    /**
+     * Admin-only bulk export of the checked deals, or of every deal matching
+     * the current filters. Mirrors LeadContactController::export().
+     */
+    public function export(Request $request)
+    {
+        abort_403(! in_array('admin', user_roles() ?? [], true));
+
+        if (user()->permission('view_deals') === 'none') {
+            abort(403, __('messages.permissionDenied'));
+        }
+
+        $format = (string) $request->input('format', 'xlsx');
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            return response('Invalid export format. Use csv or xlsx.', 422);
+        }
+
+        $fields = \App\Support\DealExportFields::filterRequested((array) $request->input('fields', []));
+        if ($fields === []) {
+            return response('Select at least one valid field to export.', 422);
+        }
+
+        $hasIds = filled($request->input('row_ids'));
+        $allMatching = $request->boolean('select_all_matching');
+        if ($hasIds === $allMatching) {
+            return response(
+                $hasIds
+                    ? 'Provide either row_ids or select_all_matching, not both.'
+                    : 'Select at least one deal.',
+                422
+            );
+        }
+
+        // Same resolver the bulk actions use, so the export can never reach a
+        // deal outside the caller's view_deals scope.
+        $rowIds = $this->resolveBulkDealIds($request);
+
+        if ($rowIds === []) {
+            return response(__('messages.selectAtleastOne') ?: 'Select at least one deal.', 422);
+        }
+
+        if (count($rowIds) > \App\Support\DealExportFields::MAX_ROWS) {
+            return response(
+                'Export is limited to ' . number_format(\App\Support\DealExportFields::MAX_ROWS) . ' deals. Narrow your filters or selection and try again.',
+                422
+            );
+        }
+
+        $filename = 'deals-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $writerType = $format === 'csv'
+            ? \Maatwebsite\Excel\Excel::CSV
+            : \Maatwebsite\Excel\Excel::XLSX;
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\DealExport($rowIds, $fields),
+            $filename,
+            $writerType
+        );
     }
 
     /**

@@ -258,7 +258,12 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                                 actions={actionItems}
                                 dueDate={task.due_date}
                                 priority={
-                                    task.priority as "low" | "medium" | "high"
+                                    task.priority as
+                                        | "low"
+                                        | "medium"
+                                        | "high"
+                                        | "highest"
+                                        | "urgent"
                                 }
                                 isOverdue={!!isOverdue}
                                 isLoading={isProcessing}
