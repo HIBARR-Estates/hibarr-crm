@@ -596,6 +596,12 @@
     background: var(--lfm-accent);
     border-color: var(--lfm-accent);
 }
+.lfm-selected-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 9px;
+}
 .lfm-avatar {
     width: 22px;
     height: 22px;

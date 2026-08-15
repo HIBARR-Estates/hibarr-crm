@@ -40,6 +40,7 @@ import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
+import usePipelineHasPackages from "./hooks/usePipelineHasPackages";
 import {
     filterCategoriesByScope,
     resolveScopedFieldKeys,
@@ -191,6 +192,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
+    const pipelineHasPackages = usePipelineHasPackages();
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),
@@ -228,13 +230,18 @@ function DealViewRedesignInner(props: DealShowProps) {
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
-        if (permissions.view_lead_proposals !== "none") tabs.push("offers");
-        // recommendations / itinerary / dealinfo / timeline have no matching
-        // permission in this system, so they follow deal visibility itself.
+        // Offers and recommendations are both property-led, so a package
+        // pipeline drops them (see usePipelineHasPackages).
+        if (permissions.view_lead_proposals !== "none" && !pipelineHasPackages) {
+            tabs.push("offers");
+        }
+        if (!pipelineHasPackages) tabs.push("recommendations");
+        // itinerary / dealinfo / timeline have no matching permission in this
+        // system, so they follow deal visibility itself.
         // Note `view_events` is the calendar module, not the CRM timeline.
-        tabs.push("recommendations", "itinerary", "dealinfo", "timeline");
+        tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions]);
+    }, [permissions, pipelineHasPackages]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -605,9 +612,6 @@ function DealViewRedesignInner(props: DealShowProps) {
                                     }
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() => nav.goToDealInfo("general")}
-                                    onManagePackagesProperties={() =>
-                                        nav.goToDealInfo("general")
-                                    }
                                 />
                             </div>
                         </div>

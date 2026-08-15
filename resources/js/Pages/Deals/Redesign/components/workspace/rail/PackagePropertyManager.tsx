@@ -6,6 +6,8 @@ import { useFormData } from "@/Hooks/useFormData";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import usePipelineHasPackages from "../../../hooks/usePipelineHasPackages";
+import useSinglePackageMode from "../../../hooks/useSinglePackageMode";
 import type { Deal } from "@/Types/api/deals";
 import DealIcon from "../../primitives/DealIcon";
 import DealMenuSelect from "../../primitives/DealMenuSelect";
@@ -79,6 +81,11 @@ export default function PackagePropertyManager({
     const isLocked = isDealEffectivelyLocked(deal);
     const canEdit = permissions.canEdit;
 
+    // A package pipeline sells packages, not individual properties.
+    const pipelineHasPackages = usePipelineHasPackages();
+    // One package per deal: nothing to add once the deal has one.
+    const singlePackageMode = useSinglePackageMode();
+
     const hasPackage = packages.length > 0;
     const hasProperty = products.length > 0;
     const totalAttached = packages.length + products.length;
@@ -87,12 +94,14 @@ export default function PackagePropertyManager({
     const showPackagesSection =
         !restrictPackageOrProperty || !hasProperty || overLimit;
     const showPropertiesSection =
-        !restrictPackageOrProperty || !hasPackage || overLimit;
+        !pipelineHasPackages &&
+        (!restrictPackageOrProperty || !hasPackage || overLimit);
     const showPackageAdd =
         canEdit &&
         !isLocked &&
         showPackagesSection &&
-        (!restrictPackageOrProperty || packages.length === 0);
+        (!restrictPackageOrProperty || packages.length === 0) &&
+        (!singlePackageMode || packages.length === 0);
     const showPropertyAdd =
         canEdit &&
         !isLocked &&

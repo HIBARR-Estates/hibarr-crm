@@ -1,17 +1,21 @@
 import React, { useMemo } from "react";
 import BulkDeleteLeads from "./BulkDeleteLeads";
-import BulkExportLeads from "./BulkExportLeads";
+import BulkExportModal from "@/Features/BulkActions/BulkExportModal";
+import { LEAD_EXPORT_FIELDS } from "./exportFieldConfig";
 import BulkMergeLeads from "../Merge/BulkMergeLeads";
-import BulkUpdateModal from "./BulkUpdateModal";
+import BulkUpdateModal from "@/Features/BulkActions/BulkUpdateModal";
 import useLeadMergeAccess from "../Merge/useLeadMergeAccess";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { usePermission } from "@/lib/permissionUtils";
-import { fmt } from "@/Features/Leads/Filters/controls";
+import { fmt } from "@/Features/Filters/controls";
 import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import type { BulkUpdateOptionsInput } from "./bulkUpdateConfig";
-import type { LeadBulkTarget } from "./bulkTarget";
+import {
+    createLeadBulkUpdateFields,
+    type BulkUpdateOptionsInput,
+} from "./bulkUpdateConfig";
+import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 
 type TLeadBulkAction = "bulk_update" | "delete" | "merge" | "export";
 
@@ -44,6 +48,11 @@ const BulkLeadActionSelector: React.FC<Props> = ({
     const { td } = useTd();
     const { hasPermission } = usePermission();
 
+    const updateFields = useMemo(
+        () => createLeadBulkUpdateFields(updateOptions),
+        [updateOptions],
+    );
+
     const canEdit = hasPermission("edit_lead");
     const canDelete = hasPermission("delete_lead");
     const canExport = useIsAdminRole();
@@ -59,7 +68,7 @@ const BulkLeadActionSelector: React.FC<Props> = ({
         ? matchingTotal
         : selectedEntityIds.length;
 
-    const target: LeadBulkTarget = selectAllMatching
+    const target: BulkTarget = selectAllMatching
         ? { mode: "all_matching", count: matchingTotal }
         : {
               mode: "ids",
@@ -118,7 +127,10 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                     open={action === "bulk_update"}
                     onClose={onClose}
                     target={target}
-                    options={updateOptions}
+                    fields={updateFields}
+                    endpoint={route("lead-contact.apply_quick_action")}
+                    entityLabel="lead"
+                    reloadOnly="leads"
                     optionsLoading={optionsLoading}
                 />
             ) : null}
@@ -140,10 +152,13 @@ const BulkLeadActionSelector: React.FC<Props> = ({
             ) : null}
 
             {canExport ? (
-                <BulkExportLeads
+                <BulkExportModal
                     target={target}
                     onClose={onClose}
                     open={action === "export"}
+                    fields={LEAD_EXPORT_FIELDS}
+                    endpoint={route("lead-contact.export")}
+                    entityLabel="leads"
                 />
             ) : null}
 

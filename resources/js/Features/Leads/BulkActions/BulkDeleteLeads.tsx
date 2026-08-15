@@ -8,12 +8,12 @@ import { pluralOrSingular, isLoading as getLoadingStatus } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
-import type { LeadBulkTarget } from "./bulkTarget";
-import { buildBulkTargetPayload } from "./bulkTarget";
-import { fmt } from "@/Features/Leads/Filters/controls";
+import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
+import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
+import { fmt } from "@/Features/Filters/controls";
 
 interface Props extends IModalProps {
-    target: LeadBulkTarget;
+    target: BulkTarget;
 }
 
 const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target }) => {

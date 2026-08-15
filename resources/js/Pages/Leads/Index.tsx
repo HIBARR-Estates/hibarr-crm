@@ -40,14 +40,15 @@ import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
-import LeadFilterModal from "@/Features/Leads/Filters/LeadFilterModal";
-import ActiveFilterSentence from "@/Features/Leads/Filters/ActiveFilterSentence";
-import { describeFilters } from "@/Features/Leads/Filters/filterSummary";
+import LeadFilterModal from "@/Features/Filters/EntityFilterModal";
+import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 import FindDuplicatesModal from "@/Features/Leads/Merge/FindDuplicatesModal";
 import useLeadMergeAccess from "@/Features/Leads/Merge/useLeadMergeAccess";
 import ScheduleNextStepFlow from "@/Features/Leads/NextAction/ScheduleNextStepFlow";
@@ -59,6 +60,9 @@ import {
     REDESIGN_TOKENS as T,
     REDESIGN_FONT_STACK,
 } from "@/Components/Redesign/tokens";
+
+/** Rows-per-page preference, remembered per browser across visits. */
+const LEADS_PER_PAGE_STORAGE_KEY = "hibarr_leads_per_page";
 
 export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
@@ -220,6 +224,17 @@ const Index = ({
     useEffect(() => {
         setSelectAllMatching(false);
     }, [leads.total]);
+
+    const { persistPageSize } = usePersistedPageSize({
+        storageKey: LEADS_PER_PAGE_STORAGE_KEY,
+        currentPerPage: leads.per_page,
+        onRestore: (perPage) =>
+            router.get(
+                route("lead-contact.index"),
+                mergeQueryParams({ page: 1, per_page: perPage }),
+                { only: ["leads"], preserveState: true, preserveScroll: true },
+            ),
+    });
 
     const canMergeLeads = useLeadMergeAccess();
     // Mirrors QualificationFieldMappingController::assertCanManage.
@@ -524,6 +539,7 @@ const Index = ({
                             );
                         }}
                         onPageSizeChange={(pageSize) => {
+                            persistPageSize(pageSize);
                             router.get(
                                 route("lead-contact.index"),
                                 mergeQueryParams({

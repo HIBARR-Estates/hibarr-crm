@@ -24,13 +24,19 @@ import SaveViewPopover from "./SaveViewPopover";
 import ViewsBar from "./ViewsBar";
 import { describeFilters, suggestViewName } from "./filterSummary";
 import useLeadSavedViews, { type LeadSavedView } from "./useLeadSavedViews";
-import "./lead-filter-modal.css";
+import "./entity-filter-modal.css";
 
 const UTM_SECTION = "Campaign (UTM)";
 
-interface LeadFilterModalProps {
+interface EntityFilterModalProps {
     config: FilterConfig;
     optionsLoading?: boolean;
+    /** Plural noun for the copy, e.g. "leads" / "deals". */
+    entityLabel?: string;
+    /** Rows currently listed (footer estimate). */
+    currentCount?: number;
+    /** Saved views bar — only rendered for entities that support it (leads). */
+    savedViews?: boolean;
 }
 
 function optionsOf(field: FilterFieldConfig): FilterOption[] {
@@ -39,15 +45,24 @@ function optionsOf(field: FilterFieldConfig): FilterOption[] {
     return options ?? [];
 }
 
+/** Date-range fields write two keys; leads' created range keeps the legacy pair. */
+function rangeKeysOf(field: FilterFieldConfig): [string, string] {
+    return field.rangeKeys ?? ["start_date", "end_date"];
+}
+
 /**
- * Redesigned Leads filter modal — mockups 1a (two-pane workbench), 2a (UTM),
- * 2b/2c (saved views). State still flows through FilterContext, so the URL
- * contract and the backend query params are unchanged.
+ * Two-pane filter workbench — mockups 1a, 2a (UTM), 2b/2c (saved views).
+ * Shared by Leads and Deals: everything entity-specific comes from the
+ * FilterConfig. State still flows through FilterContext, so the URL contract
+ * and the backend query params are unchanged.
  */
-export default function LeadFilterModal({
+export default function EntityFilterModal({
     config,
     optionsLoading = false,
-}: LeadFilterModalProps) {
+    entityLabel = "leads",
+    currentCount,
+    savedViews: savedViewsEnabled = true,
+}: EntityFilterModalProps) {
     const {
         isDrawerOpen,
         closeDrawer,
@@ -59,8 +74,7 @@ export default function LeadFilterModal({
 
     const facets = (props.filterFacets ?? {}) as Record<string, any>;
     const savedViews = (props.savedViews ?? []) as LeadSavedView[];
-    const totalLeads = facets.total as number | undefined;
-    const currentCount = props.leads?.total as number | undefined;
+    const totalRows = facets.total as number | undefined;
 
     const { saving, createView, updateView, deleteView } = useLeadSavedViews();
     const [savePopoverOpen, setSavePopoverOpen] = useState(false);
@@ -96,11 +110,10 @@ export default function LeadFilterModal({
         for (const section of sections) {
             counts[section.name] = section.fields.reduce((total, field) => {
                 if (field.control === "datePresets") {
+                    const [startKey, endKey] = rangeKeysOf(field);
                     return (
                         total +
-                        (draftFilters.start_date || draftFilters.end_date
-                            ? 1
-                            : 0)
+                        (draftFilters[startKey] || draftFilters[endKey] ? 1 : 0)
                     );
                 }
                 if (field.control === "scoreRange") {
@@ -129,8 +142,7 @@ export default function LeadFilterModal({
         for (const field of config.fields) {
             setFilter(field.key, null);
             if (field.control === "datePresets") {
-                setFilter("start_date", null);
-                setFilter("end_date", null);
+                rangeKeysOf(field).forEach((key) => setFilter(key, null));
             }
             if (field.control === "scoreRange") {
                 setFilter(`min_${field.key}`, null);
@@ -264,19 +276,21 @@ export default function LeadFilterModal({
                     </FieldShell>
                 );
 
-            case "datePresets":
+            case "datePresets": {
+                const [startKey, endKey] = rangeKeysOf(field);
                 return (
                     <FieldShell key={field.key} label={field.label}>
                         <DatePresets
-                            start={draftFilters.start_date}
-                            end={draftFilters.end_date}
+                            start={draftFilters[startKey]}
+                            end={draftFilters[endKey]}
                             onChange={(start, end) => {
-                                setFilter("start_date", start, "Created from");
-                                setFilter("end_date", end, "Created to");
+                                setFilter(startKey, start, `${field.label} from`);
+                                setFilter(endKey, end, `${field.label} to`);
                             }}
                         />
                     </FieldShell>
                 );
+            }
 
             case "scoreRange":
                 return (
@@ -356,11 +370,13 @@ export default function LeadFilterModal({
             <div className="lfm">
                 <header className="lfm-header">
                     <div>
-                        <h2 className="lfm-header__title">Filter leads</h2>
+                        <h2 className="lfm-header__title">
+                            Filter {entityLabel}
+                        </h2>
                         <p className="lfm-header__sub">
-                            {totalLeads != null
-                                ? `Narrow ${fmt(totalLeads)} leads down to the list you want to work today.`
-                                : "Narrow your leads down to the list you want to work today."}
+                            {totalRows != null
+                                ? `Narrow ${fmt(totalRows)} ${entityLabel} down to the list you want to work today.`
+                                : `Narrow your ${entityLabel} down to the list you want to work today.`}
                         </p>
                     </div>
                     <div className="lfm-header__actions">
@@ -383,25 +399,27 @@ export default function LeadFilterModal({
                     </div>
                 </header>
 
-                <ViewsBar
-                    views={savedViews}
-                    activeViewId={activeViewId}
-                    dirty={activeViewId == null}
-                    hasFilters={activeFilterCount > 0}
-                    onApplyView={applyView}
-                    onSaveCurrent={() => {
-                        setRenameTarget(null);
-                        setSavePopoverOpen(true);
-                    }}
-                    onRename={(view) => {
-                        setRenameTarget(view);
-                        setSavePopoverOpen(true);
-                    }}
-                    onDelete={(view) => {
-                        void deleteView(view.id);
-                        if (activeViewId === view.id) setActiveViewId(null);
-                    }}
-                />
+                {savedViewsEnabled && (
+                    <ViewsBar
+                        views={savedViews}
+                        activeViewId={activeViewId}
+                        dirty={activeViewId == null}
+                        hasFilters={activeFilterCount > 0}
+                        onApplyView={applyView}
+                        onSaveCurrent={() => {
+                            setRenameTarget(null);
+                            setSavePopoverOpen(true);
+                        }}
+                        onRename={(view) => {
+                            setRenameTarget(view);
+                            setSavePopoverOpen(true);
+                        }}
+                        onDelete={(view) => {
+                            void deleteView(view.id);
+                            if (activeViewId === view.id) setActiveViewId(null);
+                        }}
+                    />
+                )}
 
                 <div className="lfm-body">
                     <nav className="lfm-rail">
@@ -431,12 +449,12 @@ export default function LeadFilterModal({
                             </div>
                             <div className="lfm-estimate__value">
                                 {currentCount != null
-                                    ? `${fmt(currentCount)} leads`
+                                    ? `${fmt(currentCount)} ${entityLabel}`
                                     : "—"}
                             </div>
                             <div className="lfm-estimate__sub">
-                                {totalLeads != null
-                                    ? `of ${fmt(totalLeads)} · updates on Apply`
+                                {totalRows != null
+                                    ? `of ${fmt(totalRows)} · updates on Apply`
                                     : "updates on Apply"}
                             </div>
                         </div>
@@ -506,17 +524,19 @@ export default function LeadFilterModal({
                         )}
                     </div>
                     <div className="lfm-footer__actions">
-                        <button
-                            type="button"
-                            className="lfm-btn"
-                            onClick={() => {
-                                setRenameTarget(null);
-                                setSavePopoverOpen(true);
-                            }}
-                            disabled={activeFilterCount === 0}
-                        >
-                            Save as view
-                        </button>
+                        {savedViewsEnabled && (
+                            <button
+                                type="button"
+                                className="lfm-btn"
+                                onClick={() => {
+                                    setRenameTarget(null);
+                                    setSavePopoverOpen(true);
+                                }}
+                                disabled={activeFilterCount === 0}
+                            >
+                                Save as view
+                            </button>
+                        )}
                         <button
                             type="button"
                             className="lfm-btn lfm-btn--primary"

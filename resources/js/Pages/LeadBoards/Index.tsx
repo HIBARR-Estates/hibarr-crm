@@ -131,7 +131,7 @@ const LeadBoardIndex = ({
     // Extract commonly used values
     const { openDrawer, filters } = filter;
 
-    const handlePipelineChange = (value: number) => {
+    const handlePipelineChange = (value: number | "all") => {
         // Get current params
         const urlParams = new URLSearchParams(window.location.search);
         const params = Object.fromEntries(urlParams.entries());

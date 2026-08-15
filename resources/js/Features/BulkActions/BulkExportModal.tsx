@@ -3,20 +3,27 @@ import { Checkbox, Radio, message } from "antd";
 import type { IModalProps } from "@/Types/common";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
-import { fmt } from "@/Features/Leads/Filters/controls";
+import { fmt } from "@/Features/Filters/controls";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import RedesignButton from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import type { LeadBulkTarget } from "./bulkTarget";
-import { buildBulkTargetPayload } from "./bulkTarget";
+import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
+import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
 import {
-    defaultExportFieldKeys,
-    exportFieldGroups,
-    type LeadExportFormat,
-} from "./exportFieldConfig";
+    defaultKeysOf,
+    groupExportFields,
+    type BulkExportFieldDef,
+    type BulkExportFormat,
+} from "./exportFields";
 
 interface Props extends IModalProps {
-    target: LeadBulkTarget;
+    target: BulkTarget;
+    /** Field picker contents — see the entity's own export field config. */
+    fields: BulkExportFieldDef[];
+    /** POST endpoint that streams the file back. */
+    endpoint: string;
+    /** Plural noun for the copy, e.g. "leads" / "deals". */
+    entityLabel: string;
 }
 
 function appendHidden(
@@ -31,23 +38,30 @@ function appendHidden(
     form.appendChild(input);
 }
 
-const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
+const BulkExportModal: React.FC<Props> = ({
+    open,
+    onClose,
+    target,
+    fields,
+    endpoint,
+    entityLabel,
+}) => {
     const { td } = useTd();
-    const groups = useMemo(() => exportFieldGroups(), []);
+    const groups = useMemo(() => groupExportFields(fields), [fields]);
     const [selectedKeys, setSelectedKeys] = useState<string[]>(() =>
-        defaultExportFieldKeys(),
+        defaultKeysOf(fields),
     );
-    const [format, setFormat] = useState<LeadExportFormat>("xlsx");
+    const [format, setFormat] = useState<BulkExportFormat>("xlsx");
     const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         if (!open) {
             return;
         }
-        setSelectedKeys(defaultExportFieldKeys());
+        setSelectedKeys(defaultKeysOf(fields));
         setFormat("xlsx");
         setExporting(false);
-    }, [open]);
+    }, [open, fields]);
 
     const allKeys = useMemo(
         () => groups.flatMap((g) => g.fields.map((f) => f.key)),
@@ -55,7 +69,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     );
 
     const handleSelectAll = () => setSelectedKeys(allKeys);
-    const handleResetDefaults = () => setSelectedKeys(defaultExportFieldKeys());
+    const handleResetDefaults = () => setSelectedKeys(defaultKeysOf(fields));
 
     const toggleKey = (key: string, checked: boolean) => {
         setSelectedKeys((prev) => {
@@ -78,7 +92,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
 
         const form = document.createElement("form");
         form.method = "POST";
-        form.action = route("lead-contact.export");
+        form.action = endpoint;
         form.style.display = "none";
 
         const csrfToken = document
@@ -107,7 +121,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
             appendHidden(form, key, value as string | number | boolean);
         });
 
-        // Preserve picker order (LEAD_EXPORT_FIELDS order among selected).
+        // Preserve picker order (config order among selected).
         const ordered = allKeys.filter((key) => selectedKeys.includes(key));
         ordered.forEach((key) => appendHidden(form, "fields[]", key));
 
@@ -128,16 +142,18 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     const subtitle =
         target.mode === "all_matching"
             ? td(
-                  `Export all ${countLabel} leads matching the current filters.`,
+                  `Export all ${countLabel} ${entityLabel} matching the current filters.`,
                   { source: "en" },
               )
-            : td(`Export ${countLabel} selected leads.`, { source: "en" });
+            : td(`Export ${countLabel} selected ${entityLabel}.`, {
+                  source: "en",
+              });
 
     return (
         <Modal
             open={open}
             onClose={() => onClose?.(false)}
-            title={td("Export leads", { source: "en" })}
+            title={td(`Export ${entityLabel}`, { source: "en" })}
             maxWidth={640}
             footer={
                 <>
@@ -229,4 +245,4 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     );
 };
 
-export default BulkExportLeads;
+export default BulkExportModal;

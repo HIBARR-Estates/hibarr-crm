@@ -13,31 +13,30 @@ import {
     PillGroup,
     TemperatureCards,
     fmt,
-} from "@/Features/Leads/Filters/controls";
-import "@/Features/Leads/Filters/lead-filter-modal.css";
+} from "@/Features/Filters/controls";
+import "@/Features/Filters/entity-filter-modal.css";
 import {
-    createLeadBulkUpdateFields,
+    asArray,
     groupBulkUpdateFieldsBySection,
     type BulkUpdateFieldDef,
-    type BulkUpdateOptionsInput,
-} from "./bulkUpdateConfig";
-import type { LeadBulkTarget } from "./bulkTarget";
+    type BulkUpdateValue as DraftValue,
+} from "./bulkUpdateFields";
+import type { BulkTarget } from "./bulkTarget";
 import { buildBulkTargetPayload } from "./bulkTarget";
 
 interface Props {
     open: boolean;
     onClose: (operationSucceeded?: boolean) => void;
-    target: LeadBulkTarget;
-    options: BulkUpdateOptionsInput;
+    target: BulkTarget;
+    /** Fields this entity can bulk-update (see bulkUpdateFields). */
+    fields: BulkUpdateFieldDef[];
+    /** POST endpoint accepting `action_type: "bulk_update"`. */
+    endpoint: string;
+    /** Singular noun for the copy, e.g. "lead" / "deal". */
+    entityLabel: string;
+    /** Inertia prop to refresh after a successful update. */
+    reloadOnly: string;
     optionsLoading?: boolean;
-}
-
-type DraftValue = string | number | boolean | Array<string | number> | null;
-
-function asArray(value: DraftValue): Array<string | number> {
-    if (value == null || value === false) return [];
-    if (Array.isArray(value)) return value;
-    return [value as string | number];
 }
 
 function takeSingle(next: Array<string | number>): string | number | null {
@@ -50,10 +49,10 @@ function describePending(
     value: DraftValue,
     td: TdFn,
 ): string {
-    if (field.control === "pills") {
+    if (field.control === "pills" || field.control === "checklist") {
         const ids = asArray(value);
         if (ids.length === 0) {
-            return td("Clear categories", { source: "en" });
+            return td(`Clear ${field.label.toLowerCase()}`, { source: "en" });
         }
         const labels = field.options
             .filter((option) => ids.map(String).includes(String(option.value)))
@@ -72,26 +71,15 @@ function describePending(
 }
 
 function fieldIsCleared(field: BulkUpdateFieldDef, value: DraftValue): boolean {
-    if (field.control === "pills") {
+    if (field.control === "pills" || field.control === "checklist") {
         return asArray(value).length === 0;
     }
     return value == null || value === "";
 }
 
 function fieldIsReady(field: BulkUpdateFieldDef, value: DraftValue): boolean {
-    if (field.control === "pills") {
+    if (field.control === "pills" || field.control === "checklist") {
         return field.clearable || asArray(value).length > 0;
-    }
-
-    if (field.key === "has_joined_the_whatsapp_group") {
-        return (
-            value === true ||
-            value === false ||
-            value === 1 ||
-            value === 0 ||
-            value === "1" ||
-            value === "0"
-        );
     }
 
     if (value == null || value === "") {
@@ -103,21 +91,22 @@ function fieldIsReady(field: BulkUpdateFieldDef, value: DraftValue): boolean {
 
 /**
  * LFM-styled bulk update workbench: scroll sections like the filter modal and
- * apply multiple option-backed fields in one submit.
+ * apply multiple option-backed fields in one submit. Entity-agnostic — the
+ * caller supplies the fields (each carrying its own payload mapping) and the
+ * endpoint that accepts them.
  */
 export default function BulkUpdateModal({
     open,
     onClose,
     target,
-    options,
+    fields,
+    endpoint,
+    entityLabel,
+    reloadOnly,
     optionsLoading = false,
 }: Props) {
     const { td } = useTd();
     const paneRef = useRef<HTMLDivElement | null>(null);
-    const fields = useMemo(
-        () => createLeadBulkUpdateFields(options),
-        [options],
-    );
     const sections = useMemo(
         () => groupBulkUpdateFieldsBySection(fields),
         [fields],
@@ -160,11 +149,12 @@ export default function BulkUpdateModal({
         Record<string, unknown>,
         unknown,
         ApiResponse<{ message?: string }>
-    >(route("lead-contact.apply_quick_action"), "POST");
+    >(endpoint, "POST");
 
     const loading = getLoadingStatus({ status });
-    const leadWord = target.count === 1 ? "lead" : "leads";
-    const countPhrase = `${fmt(target.count)} ${leadWord}`;
+    const countPhrase = `${fmt(target.count)} ${
+        target.count === 1 ? entityLabel : `${entityLabel}s`
+    }`;
 
     const setFieldValue = (key: string, value: DraftValue) => {
         setDraft((prev) => ({ ...prev, [key]: value }));
@@ -174,7 +164,9 @@ export default function BulkUpdateModal({
         if (!field.clearable) return;
         setFieldValue(
             field.key,
-            field.control === "pills" ? [] : null,
+            field.control === "pills" || field.control === "checklist"
+                ? []
+                : null,
         );
     };
 
@@ -215,34 +207,7 @@ export default function BulkUpdateModal({
         delete payload.per_page;
 
         for (const field of pendingFields) {
-            const value = draft[field.key] ?? null;
-            switch (field.actionType) {
-                case "change_category":
-                    payload.category_ids = asArray(value)
-                        .map(Number)
-                        .filter(Boolean);
-                    break;
-                case "change_source":
-                    payload.source_id =
-                        value == null || value === "" ? null : Number(value);
-                    break;
-                case "change_owner":
-                    payload.lead_owner =
-                        value == null || value === "" ? null : Number(value);
-                    break;
-                case "change_temperature":
-                    payload.temperature =
-                        value == null || value === "" ? null : String(value);
-                    break;
-                case "change_lifecycle_status":
-                    payload.lead_lifecycle_status_id =
-                        value == null || value === "" ? null : Number(value);
-                    break;
-                case "change_whatsapp_group":
-                    payload.has_joined_the_whatsapp_group =
-                        value === true || value === 1 || value === "1";
-                    break;
-            }
+            Object.assign(payload, field.toPayload(draft[field.key] ?? null));
         }
 
         return payload;
@@ -257,16 +222,16 @@ export default function BulkUpdateModal({
             onSuccess: (response) => {
                 message.success(
                     (response as { message?: string })?.message ||
-                        td("Leads updated successfully", { source: "en" }),
+                        td(`Updated ${countPhrase}`, { source: "en" }),
                 );
                 onClose(true);
-                router.reload({ only: ["leads"] });
+                router.reload({ only: [reloadOnly] });
             },
             onError: (error: unknown) => {
                 const detail =
                     (error as { response?: { data?: { message?: string } } })
                         ?.response?.data?.message ||
-                    td("Failed to update leads", { source: "en" });
+                    td(`Failed to update ${entityLabel}s`, { source: "en" });
                 message.error(detail);
             },
         });
@@ -309,6 +274,17 @@ export default function BulkUpdateModal({
                         }
                     />
                 );
+            case "checklist":
+                return (
+                    <CheckList
+                        options={field.options}
+                        value={asArray(value)}
+                        onChange={(next) => setFieldValue(field.key, next)}
+                        searchPlaceholder={td("Search people…", {
+                            source: "en",
+                        })}
+                    />
+                );
             case "checklist-single":
                 return (
                     <CheckList
@@ -347,11 +323,11 @@ export default function BulkUpdateModal({
                         <p className="lfm-header__sub">
                             {target.mode === "all_matching"
                                 ? td(
-                                      "Set one or more fields on every lead in the current filtered list.",
+                                      `Set one or more fields on every ${entityLabel} in the current filtered list.`,
                                       { source: "en" },
                                   )
                                 : td(
-                                      "Set one or more fields on the selected leads.",
+                                      `Set one or more fields on the selected ${entityLabel}s.`,
                                       { source: "en" },
                                   )}
                         </p>
@@ -443,13 +419,10 @@ export default function BulkUpdateModal({
                                                     source: "en",
                                                 })}
                                                 hint={
-                                                    field.control === "pills"
-                                                        ? td(
-                                                              "Replaces existing categories",
-                                                              {
-                                                                  source: "en",
-                                                              },
-                                                          )
+                                                    field.hint
+                                                        ? td(field.hint, {
+                                                              source: "en",
+                                                          })
                                                         : undefined
                                                 }
                                                 action={

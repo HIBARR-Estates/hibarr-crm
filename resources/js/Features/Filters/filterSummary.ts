@@ -59,11 +59,15 @@ export function describeFilters(
 
         // Date range spans two keys.
         if (field.control === "datePresets") {
-            const start = filters.start_date;
-            const end = filters.end_date;
+            const [startKey, endKey] = field.rangeKeys ?? [
+                "start_date",
+                "end_date",
+            ];
+            const start = filters[startKey];
+            const end = filters[endKey];
             if (isEmpty(start) && isEmpty(end)) continue;
-            consumed.add("start_date");
-            consumed.add("end_date");
+            consumed.add(startKey);
+            consumed.add(endKey);
 
             const text =
                 !isEmpty(start) && !isEmpty(end)
@@ -72,7 +76,7 @@ export function describeFilters(
                       ? `${noun} after ${start}`
                       : `${noun} before ${end}`;
             parts.push({
-                keys: ["start_date", "end_date"],
+                keys: [startKey, endKey],
                 label: field.label,
                 text,
                 chip: !isEmpty(start) && !isEmpty(end) ? `${start} → ${end}` : text,
