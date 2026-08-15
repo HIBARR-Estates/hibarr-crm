@@ -12,6 +12,10 @@ import {
     resolveCurrencyDisplay,
     type CurrencyDisplay,
 } from "./currencyAdapter";
+import {
+    formatPreferredContactTimes,
+    resolvePreferredContactTimes,
+} from "../config/leadPreferredContactTime";
 
 /** Values that should render as empty (no copy, not "filled"). */
 const EMPTY_VALUE_MARKERS = new Set([
@@ -211,8 +215,8 @@ export function getDossierFieldValue(
             return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
         }
         case "preferredContactTime": {
-            const value = asString(l.preferred_contact_time);
-            return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+            const times = resolvePreferredContactTimes(l);
+            return times.length ? formatPreferredContactTimes(times) : "";
         }
         case "languages":
             return asString(l.languages);
@@ -319,6 +323,9 @@ export function getLeadNativeEditValue(
     }
     if (key === "dateOfBirthAndAge") {
         return String(record.date_of_birth ?? record.age ?? "");
+    }
+    if (key === "preferredContactTime") {
+        return resolvePreferredContactTimes(lead).join(",");
     }
     if (key === "languages") {
         const languages = record.languages;

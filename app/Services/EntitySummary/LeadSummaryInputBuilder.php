@@ -53,14 +53,15 @@ class LeadSummaryInputBuilder
 
         $sections = [];
 
-        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time) {
+        $preferredContactTimes = $lead->resolvedPreferredContactTimes();
+        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $preferredContactTimes !== []) {
             $sections['contact'] = [
                 'email' => $lead->client_email ?: null,
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
-                'preferred_contact_time' => $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime
-                    ? $lead->preferred_contact_time->label()
-                    : $lead->preferred_contact_time,
+                'preferred_contact_time' => collect($preferredContactTimes)
+                    ->map(fn (string $value) => \App\Enums\PreferredContactTime::tryFrom($value)?->label() ?? $value)
+                    ->implode(', '),
             ];
         }
 

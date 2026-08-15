@@ -281,14 +281,11 @@ class DealContactApiController extends Controller
                         $contact->lead_owner = $request->lead_owner_id;
                     }
 
-                    // Set lead category if provided
-                    if ($request->has('lead_category_id') && !empty($request->lead_category_id)) {
-                        $contact->category_id = $request->lead_category_id;
-                    }
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
                     $this->applyReferralAgentToNewLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
+                    $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
                 } else {
@@ -320,12 +317,8 @@ class DealContactApiController extends Controller
                             $updated = true;
                         }
                     }
-                    // Update lead category if provided
-                    if ($request->has('lead_category_id') && !empty($request->lead_category_id)) {
-                        if (!$existingContact->category_id) {
-                            $existingContact->category_id = $request->lead_category_id;
-                            $updated = true;
-                        }
+                    if ($this->applyLeadCategories($existingContact, $request, false)) {
+                        $updated = true;
                     }
                     if ($this->applyAddressAndDobToLead($existingContact, $request)) {
                         $updated = true;
@@ -343,9 +336,14 @@ class DealContactApiController extends Controller
                 // Save UTM information if provided
                 $this->saveUtmInfo($contactId, $request);
 
+                $savedContact = Lead::query()->find($contactId);
+                $preferredContactTimes = $savedContact?->resolvedPreferredContactTimes() ?? [];
+
                 return Reply::successWithData($isNewContact ? 'Contact created successfully' : 'Contact updated successfully', [
                     'contact_id' => $contactId,
-                    'is_new' => $isNewContact
+                    'is_new' => $isNewContact,
+                    'preferred_contact_times' => $preferredContactTimes,
+                    'preferred_contact_time' => $preferredContactTimes[0] ?? null,
                 ]);
             });
         } catch (\Exception $e) {
@@ -598,13 +596,8 @@ class DealContactApiController extends Controller
             }
         }
 
-        if ($request->has('preferred_contact_time')) {
-            $preferredContactTime = $request->input('preferred_contact_time');
-            $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
-            if ((string) $current !== (string) $preferredContactTime) {
-                $lead->preferred_contact_time = $preferredContactTime;
-                $updated = true;
-            }
+        if (Lead::applyPreferredContactTimesFromRequest($lead, $request)) {
+            $updated = true;
         }
 
         if ($request->filled('lead_lifecycle_status_id')) {
@@ -882,6 +875,62 @@ class DealContactApiController extends Controller
 
                 return $source->id;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Sync taxonomy categories onto a saved lead.
+     * `lead_category_ids` replaces the full set; legacy `lead_category_id` only
+     * applies when the contact has no primary category yet.
+     */
+    private function applyLeadCategories(Lead $contact, Request $request, bool $isNewContact): bool
+    {
+        if (! $contact->id) {
+            return false;
+        }
+
+        if ($request->has('lead_category_ids')) {
+            $contact->syncCategories($this->normalizeLeadCategoryIdsFromRequest($request) ?? []);
+
+            return true;
+        }
+
+        if (! $request->has('lead_category_id') || empty($request->lead_category_id)) {
+            return false;
+        }
+
+        if ($isNewContact || ! $contact->category_id) {
+            $contact->syncCategories([(int) $request->lead_category_id]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    private function normalizeLeadCategoryIdsFromRequest(Request $request): ?array
+    {
+        if ($request->has('lead_category_ids')) {
+            $raw = $request->input('lead_category_ids', []);
+            if (! is_array($raw)) {
+                $raw = $raw === null || $raw === '' ? [] : [$raw];
+            }
+
+            return array_values(array_unique(array_filter(
+                array_map(static fn ($id) => $id === null || $id === '' ? null : (int) $id, $raw),
+                static fn ($id) => $id !== null && $id > 0
+            )));
+        }
+
+        if ($request->has('lead_category_id')) {
+            $id = $request->input('lead_category_id');
+
+            return $id === null || $id === '' ? [] : [(int) $id];
         }
 
         return null;

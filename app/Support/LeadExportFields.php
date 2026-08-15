@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\PreferredContactTime;
 use App\Models\Lead;
 use BackedEnum;
 use Carbon\CarbonInterface;
@@ -202,7 +203,9 @@ class LeadExportFields
             'occupation' => $lead->occupation,
             'languages' => self::formatList($lead->languages),
             'temperature' => self::enumLabel($lead->temperature),
-            'preferred_contact_time' => self::enumLabel($lead->preferred_contact_time),
+            'preferred_contact_time' => collect($lead->resolvedPreferredContactTimes())
+                ->map(fn (string $value) => PreferredContactTime::tryFrom($value)?->label() ?? $value)
+                ->implode(', '),
             'value' => $lead->value,
             'currency' => $lead->currency?->currency_code ?? $lead->currency?->currency_name,
             'address' => $lead->address,
