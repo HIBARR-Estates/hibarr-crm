@@ -14,6 +14,7 @@ enum DealActivityType: string
     // Notes
     case NOTE_ADDED = 'note_added';
     case NOTE_UPDATED = 'note_updated';
+    case NOTE_DELETED = 'note_deleted';
 
     // Stage & Pipeline
     case STAGE_CHANGED = 'stage_changed';
@@ -34,6 +35,7 @@ enum DealActivityType: string
 
     // Files
     case FILE_UPLOADED = 'file_uploaded';
+    case FILE_UPDATED = 'file_updated';
     case FILE_DELETED = 'file_deleted';
 
     // Properties
@@ -64,6 +66,7 @@ enum DealActivityType: string
         return match ($this) {
             self::NOTE_ADDED => 'Note Added',
             self::NOTE_UPDATED => 'Note Updated',
+            self::NOTE_DELETED => 'Note Deleted',
             self::STAGE_CHANGED => 'Stage Changed',
             self::PIPELINE_CHANGED => 'Pipeline Changed',
             self::DEAL_WON => 'Deal Won',
@@ -76,6 +79,7 @@ enum DealActivityType: string
             self::MEETING_UPDATED => 'Meeting Updated',
             self::MEETING_CANCELLED => 'Meeting Cancelled',
             self::FILE_UPLOADED => 'File Uploaded',
+            self::FILE_UPDATED => 'File Updated',
             self::FILE_DELETED => 'File Deleted',
             self::PROPERTY_LINKED => 'Property Linked',
             self::PROPERTY_UNLINKED => 'Property Unlinked',
@@ -96,11 +100,11 @@ enum DealActivityType: string
     public function icon(): string
     {
         return match ($this) {
-            self::NOTE_ADDED, self::NOTE_UPDATED => 'note',
+            self::NOTE_ADDED, self::NOTE_UPDATED, self::NOTE_DELETED => 'note',
             self::STAGE_CHANGED, self::PIPELINE_CHANGED, self::DEAL_WON, self::DEAL_LOST => 'stage',
             self::TASK_ADDED, self::TASK_UPDATED, self::TASK_COMPLETED, self::TASK_DELETED => 'task',
             self::MEETING_SCHEDULED, self::MEETING_UPDATED, self::MEETING_CANCELLED => 'meeting',
-            self::FILE_UPLOADED, self::FILE_DELETED => 'file',
+            self::FILE_UPLOADED, self::FILE_UPDATED, self::FILE_DELETED => 'file',
             self::PROPERTY_LINKED, self::PROPERTY_UNLINKED => 'property',
             self::PACKAGE_ASSIGNED, self::PACKAGE_REMOVED => 'package',
             self::OFFER_APPLIED, self::OFFER_REMOVED => 'offer',
@@ -115,6 +119,10 @@ enum DealActivityType: string
      */
     public function emailSettingSlug(): string
     {
-        return 'deal-activity-notification';
+        return match ($this) {
+            self::PACKAGE_ASSIGNED, self::PACKAGE_REMOVED => 'deal-package-notification',
+            self::PROPERTY_LINKED, self::PROPERTY_UNLINKED => 'deal-property-notification',
+            default => 'deal-activity-notification',
+        };
     }
 }

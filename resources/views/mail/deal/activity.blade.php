@@ -1,3 +1,7 @@
+{{--
+  Keep in sync with resources/views/mail/plunk/entity-activity.plunk.html
+  Plunk: ENTITY_ACTIVITY_PLUNK_TEMPLATE_ID — see plunk/TEMPLATE_REGISTRY.md
+--}}
 @extends('mail.layouts.base')
 
 @section('title', $subject)

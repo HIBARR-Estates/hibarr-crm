@@ -1,0 +1,5 @@
+<!--
+  Plunk subject for property workflow REQUEST emails.
+  Variables: mailSubject, appName
+-->
+{{mailSubject}} - {{appName}}

@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\LeadActivityType;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
+use App\Models\LeadNote;
 use App\Models\User;
+use App\Notifications\BaseNotification;
+use App\Notifications\LeadActivityNotification;
 use App\Notifications\LeadDeleted;
 use App\Notifications\LeadFollowUpOverdue;
 use Carbon\Carbon;
@@ -15,6 +19,157 @@ use Illuminate\Support\Facades\Notification;
 
 class LeadNotificationService
 {
+    /**
+     * Send notifications for a lead contact activity.
+     */
+    public function notifyLeadActivity(
+        Lead $lead,
+        LeadActivityType $activityType,
+        array $additionalData = [],
+        ?int $excludeUserId = null,
+        ?Collection $recipients = null,
+        ?LeadNote $note = null,
+    ): void {
+        $excludeUserId = $excludeUserId ?? (user()?->id);
+        $notifiableUsers = $recipients ?? $this->getNotifiableUsers($lead, $excludeUserId, $note);
+
+        if ($notifiableUsers->isEmpty()) {
+            return;
+        }
+
+        $notificationData = $this->buildNotificationData($lead, $activityType, $additionalData, $excludeUserId);
+        $notification = new LeadActivityNotification($lead, $activityType, $notificationData);
+
+        Notification::send(
+            $notifiableUsers,
+            BaseNotification::applySuppressionFromContainer($notification),
+        );
+    }
+
+    public function notifyNoteAdded(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_ADDED, [
+            'note_title' => $noteTitle,
+            'note_id' => $noteId,
+        ], null, null, $note);
+    }
+
+    public function notifyNoteUpdated(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_UPDATED, [
+            'note_title' => $noteTitle,
+            'note_id' => $noteId,
+        ], null, null, $note);
+    }
+
+    public function notifyNoteDeleted(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_DELETED, [
+            'note_title' => $noteTitle,
+            'note_id' => $noteId,
+        ], null, null, $note);
+    }
+
+    public function notifyFileUploaded(Lead $lead, string $fileName, ?int $fileId = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPLOADED, [
+            'file_name' => $fileName,
+            'file_id' => $fileId,
+        ]);
+    }
+
+    public function notifyFileUpdated(Lead $lead, string $fileName, ?int $fileId = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_UPDATED, [
+            'file_name' => $fileName,
+            'file_id' => $fileId,
+        ]);
+    }
+
+    public function notifyFileDeleted(Lead $lead, string $fileName, ?int $fileId = null): void
+    {
+        $this->notifyLeadActivity($lead, LeadActivityType::FILE_DELETED, [
+            'file_name' => $fileName,
+            'file_id' => $fileId,
+        ]);
+    }
+
+    /**
+     * Lead owner + private-note members; admins when nobody qualifies.
+     *
+     * @return Collection<int, User>
+     */
+    public function getNotifiableUsers(Lead $lead, ?int $excludeUserId = null, ?LeadNote $note = null): Collection
+    {
+        $lead->loadMissing(['leadOwner', 'company']);
+
+        $userIds = collect();
+
+        if ($lead->lead_owner) {
+            $userIds->push((int) $lead->lead_owner);
+        }
+
+        if ($note && (int) $note->type === 1) {
+            $note->loadMissing('members');
+            $userIds = $userIds->merge($note->members->pluck('user_id'));
+        }
+
+        $excludedIds = collect([$excludeUserId])->filter()->unique();
+        $userIds = $userIds->unique()->filter(function ($userId) use ($excludedIds) {
+            if ($userId === null) {
+                return false;
+            }
+
+            return ! $excludedIds->contains(fn ($excludedId) => (int) $userId === (int) $excludedId);
+        });
+
+        if ($userIds->isEmpty() && $lead->company_id) {
+            return $this->activeAdminsForCompany((int) $lead->company_id, $excludeUserId);
+        }
+
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::whereIn('id', $userIds->toArray())
+            ->where('status', 'active')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    protected function activeAdminsForCompany(int $companyId, ?int $excludeUserId = null): Collection
+    {
+        $excludedIds = collect([$excludeUserId])->filter()->unique();
+
+        return User::allAdmins($companyId)
+            ->filter(fn (User $user) => $user->status === 'active' && ! $excludedIds->contains($user->id))
+            ->values();
+    }
+
+    protected function buildNotificationData(
+        Lead $lead,
+        LeadActivityType $activityType,
+        array $additionalData,
+        ?int $triggeredByUserId,
+    ): array {
+        $triggeredBy = $triggeredByUserId
+            ? User::find($triggeredByUserId)
+            : user();
+
+        return array_merge([
+            'lead_id' => $lead->id,
+            'lead_name' => $lead->client_name,
+            'activity_type' => $activityType->value,
+            'activity_label' => $activityType->label(),
+            'activity_icon' => $activityType->icon(),
+            'triggered_by_id' => $triggeredBy?->id,
+            'triggered_by_name' => $triggeredBy?->name ?? 'System',
+            'company_id' => $lead->company_id,
+        ], $additionalData);
+    }
+
     /**
      * Notify the assigned lead owner when a lead is removed from the pipeline.
      */

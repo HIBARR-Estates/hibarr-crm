@@ -49,7 +49,7 @@ class DealActivityNotification extends BaseNotification
 
         // Load email notification settings
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
-            ->where('slug', 'deal-activity-notification')
+            ->where('slug', $this->activityType->emailSettingSlug())
             ->first();
 
         $this->initUnsRouting();
@@ -118,9 +118,8 @@ class DealActivityNotification extends BaseNotification
                 'notifiableName' => $notifiable->name,
             ]);
 
-        $this->attachPlunkTemplate($build, '0b42fd37-19ec-465d-b244-0dec0bbab80f', [
+        $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
-            'appName' => config('app.name'),
             'preheader' => $introText,
             'badgeLabel' => 'Deal Activity',
             'notifiableName' => $notifiable->name,
@@ -128,8 +127,7 @@ class DealActivityNotification extends BaseNotification
             'contentHtml' => $content,
             'actionDescription' => __('Click the button below to view the deal details.'),
             'actionText' => $actionText,
-            'dealUrl' => $url,
-            'currentYear' => date('Y'),
+            'entityUrl' => $url,
         ]);
 
         parent::resetLocale();
@@ -215,6 +213,7 @@ class DealActivityNotification extends BaseNotification
         return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "Note added to deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "Note updated on deal: {$dealName}",
+            DealActivityType::NOTE_DELETED => "Note deleted from deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "Deal stage changed: {$dealName}",
             DealActivityType::PIPELINE_CHANGED => "Deal pipeline changed: {$dealName}",
             DealActivityType::DEAL_WON => "Deal won: {$dealName}",
@@ -227,6 +226,7 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_UPDATED => "Meeting updated for deal: {$dealName}",
             DealActivityType::MEETING_CANCELLED => "Meeting cancelled for deal: {$dealName}",
             DealActivityType::FILE_UPLOADED => "File uploaded to deal: {$dealName}",
+            DealActivityType::FILE_UPDATED => "File updated on deal: {$dealName}",
             DealActivityType::FILE_DELETED => "File deleted from deal: {$dealName}",
             DealActivityType::PROPERTY_LINKED => "Property linked to deal: {$dealName}",
             DealActivityType::PROPERTY_UNLINKED => "Property unlinked from deal: {$dealName}",
@@ -252,6 +252,7 @@ class DealActivityNotification extends BaseNotification
         return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "{$triggeredBy} added a note: ".($this->data['note_title'] ?? 'Untitled'),
             DealActivityType::NOTE_UPDATED => "{$triggeredBy} updated the note: ".($this->data['note_title'] ?? 'Untitled'),
+            DealActivityType::NOTE_DELETED => "{$triggeredBy} deleted the note: ".($this->data['note_title'] ?? 'Untitled'),
             DealActivityType::STAGE_CHANGED => "{$triggeredBy} changed the stage from ".($this->data['from_stage'] ?? 'Unknown').' to '.($this->data['to_stage'] ?? 'Unknown'),
             DealActivityType::PIPELINE_CHANGED => "{$triggeredBy} changed the pipeline from ".($this->data['from_pipeline'] ?? 'Unknown').' to '.($this->data['to_pipeline'] ?? 'Unknown'),
             DealActivityType::DEAL_WON => "{$triggeredBy} marked this deal as won",
@@ -264,6 +265,7 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_UPDATED => "{$triggeredBy} updated a meeting".($meetingDate ? ' scheduled for '.$meetingDate : ''),
             DealActivityType::MEETING_CANCELLED => "{$triggeredBy} cancelled a meeting",
             DealActivityType::FILE_UPLOADED => "{$triggeredBy} uploaded a file: ".($this->data['file_name'] ?? 'Unknown'),
+            DealActivityType::FILE_UPDATED => "{$triggeredBy} updated a file: ".($this->data['file_name'] ?? 'Unknown'),
             DealActivityType::FILE_DELETED => "{$triggeredBy} deleted a file: ".($this->data['file_name'] ?? 'Unknown'),
             DealActivityType::PROPERTY_LINKED => "{$triggeredBy} linked a property: ".($this->data['property_title'] ?? 'Unknown'),
             DealActivityType::PROPERTY_UNLINKED => "{$triggeredBy} unlinked a property: ".($this->data['property_title'] ?? 'Unknown'),
@@ -289,6 +291,7 @@ class DealActivityNotification extends BaseNotification
         return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "{$prefix}New Note on Deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "{$prefix}Note Updated on Deal: {$dealName}",
+            DealActivityType::NOTE_DELETED => "{$prefix}Note Deleted from Deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "{$prefix}Deal Stage Changed: {$dealName}",
             DealActivityType::PIPELINE_CHANGED => "{$prefix}Deal Pipeline Changed: {$dealName}",
             DealActivityType::DEAL_WON => "{$prefix}Deal Won: {$dealName}",
@@ -301,6 +304,7 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_UPDATED => "{$prefix}Meeting Updated for Deal: {$dealName}",
             DealActivityType::MEETING_CANCELLED => "{$prefix}Meeting Cancelled for Deal: {$dealName}",
             DealActivityType::FILE_UPLOADED => "{$prefix}New File on Deal: {$dealName}",
+            DealActivityType::FILE_UPDATED => "{$prefix}File Updated on Deal: {$dealName}",
             DealActivityType::FILE_DELETED => "{$prefix}File Deleted from Deal: {$dealName}",
             DealActivityType::PROPERTY_LINKED => "{$prefix}Property Linked to Deal: {$dealName}",
             DealActivityType::PROPERTY_UNLINKED => "{$prefix}Property Unlinked from Deal: {$dealName}",
@@ -335,6 +339,7 @@ class DealActivityNotification extends BaseNotification
         switch ($this->activityType) {
             case DealActivityType::NOTE_ADDED:
             case DealActivityType::NOTE_UPDATED:
+            case DealActivityType::NOTE_DELETED:
                 $lines[] = '<strong>Note Title:</strong> '.$this->safeMailText($this->data['note_title'] ?? 'Untitled', 200);
                 break;
 
@@ -371,6 +376,7 @@ class DealActivityNotification extends BaseNotification
                 break;
 
             case DealActivityType::FILE_UPLOADED:
+            case DealActivityType::FILE_UPDATED:
             case DealActivityType::FILE_DELETED:
                 $lines[] = '<strong>File:</strong> '.$this->safeMailText($this->data['file_name'] ?? 'Unknown', 200);
                 break;
@@ -416,7 +422,7 @@ class DealActivityNotification extends BaseNotification
         $relevant = [];
 
         $keys = match ($this->activityType) {
-            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED => ['note_id', 'note_title'],
+            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED, DealActivityType::NOTE_DELETED => ['note_id', 'note_title'],
             DealActivityType::STAGE_CHANGED => ['from_stage', 'to_stage'],
             DealActivityType::PIPELINE_CHANGED => ['from_pipeline', 'to_pipeline'],
             DealActivityType::DEAL_WON, DealActivityType::DEAL_LOST => ['outcome'],
@@ -424,7 +430,7 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::TASK_COMPLETED, DealActivityType::TASK_DELETED => ['task_id', 'task_heading'],
             DealActivityType::MEETING_SCHEDULED, DealActivityType::MEETING_UPDATED,
             DealActivityType::MEETING_CANCELLED => ['follow_up_id', 'meeting_remark', 'meeting_date'],
-            DealActivityType::FILE_UPLOADED, DealActivityType::FILE_DELETED => ['file_id', 'file_name'],
+            DealActivityType::FILE_UPLOADED, DealActivityType::FILE_UPDATED, DealActivityType::FILE_DELETED => ['file_id', 'file_name'],
             DealActivityType::PROPERTY_LINKED, DealActivityType::PROPERTY_UNLINKED => ['property_id', 'property_title'],
             DealActivityType::PACKAGE_ASSIGNED, DealActivityType::PACKAGE_REMOVED => ['package_names', 'package_count'],
             DealActivityType::AGENT_CHANGED => ['from_agent_name', 'to_agent_name'],

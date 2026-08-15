@@ -1,16 +1,9 @@
 <!--
   Plunk subject line for deal activity notifications.
-  Paste into the Plunk template Subject field.
+  Canonical copy: plunk/entity-activity.plunk.subject
 
   Variables:
     mailSubject — activity-specific subject (without app name suffix)
     appName     — application name (e.g. Hibarr)
-
-  Examples (mailSubject only):
-    "[Jane Doe] New Note on Deal: Beach Villa"
-    "[Jane Doe] Deal Stage Changed: Beach Villa"
-    "Agent Assigned to Deal: Beach Villa"
-
-  Keep in sync with App\Notifications\DealActivityNotification::getEmailSubject()
 -->
 {{mailSubject}} - {{appName}}

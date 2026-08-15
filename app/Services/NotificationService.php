@@ -201,6 +201,10 @@ class NotificationService
             'task_lifecycle_updated_notification' => __('email.taskUpdate.subject'),
             'task_lifecycle_due_notification' => __('email.taskLifecycle.due.subject'),
             'task_lifecycle_completed_notification' => __('email.taskComplete.subject'),
+            'task_deleted' => __('email.taskDeleted.subject'),
+            'task_rejected' => __('email.taskRejected.subject'),
+            'task_overdue' => __('email.taskOverdue.subject'),
+            'task_priority_updated' => __('email.taskPriorityUpdated.subject'),
             'task_updated' => __('email.taskUpdate.subject'),
             'task_comment' => __('email.taskComment.subject'),
             'new_chat' => __('email.newChat.subject'),
@@ -234,6 +238,8 @@ class NotificationService
             'lead_follow_up_overdue' => __('email.leadFollowUpOverdue.subject'),
             'deal_deleted' => __('email.dealDeleted.subject'),
             'deal_close_date_approaching' => __('email.dealCloseDateApproaching.subject'),
+            'property_activity_notification' => 'Property update',
+            'expose_ready_notification' => 'Exposé ready',
         ];
 
         return $titles[$typeSlug] ?? ($data['title'] ?? $data['activity_label'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
@@ -327,6 +333,10 @@ class NotificationService
             return $data['action_url'];
         }
 
+        if (! empty($data['download_url']) && $typeSlug === 'expose_ready_notification') {
+            return $data['download_url'];
+        }
+
         // Resolve the entity ID — task alerts must link to the task, not a related deal.
         $icon = $this->getNotificationIcon($typeSlug);
         if (in_array($icon, ['task', 'task-completed'], true) || ($data['entity_type'] ?? null) === 'task') {
@@ -336,7 +346,7 @@ class NotificationService
         } elseif ($typeSlug === 'mention_ticket_agent') {
             $id = $data['ticket_number'] ?? null;
         } else {
-            $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+            $id = $data['property_id'] ?? $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
         }
 
         if (! $id) {
@@ -370,6 +380,10 @@ class NotificationService
             'sub_task_created' => 'tasks.show',
             'sub_task_completed' => 'tasks.show',
             'sub_task_assignee_added' => 'tasks.show',
+            'task_deleted' => 'tasks.index',
+            'task_rejected' => 'tasks.show',
+            'task_overdue' => 'tasks.show',
+            'task_priority_updated' => 'tasks.show',
 
             // Notices
             'new_notice' => 'notices.show',
@@ -393,9 +407,23 @@ class NotificationService
             'new_communication_activity' => 'deals.show',
             'lead_imported' => 'deals.show',
             'lead_deleted' => 'lead-contact.index',
+            'lead_activity_notification' => 'lead-contact.show',
             'lead_follow_up_overdue' => 'deals.show',
             'deal_deleted' => 'deals.index',
             'deal_close_date_approaching' => 'deals.show',
+
+            // Properties
+            'property_activity_notification' => 'properties.show',
+            'expose_ready_notification' => 'properties.show',
+            'availability_requested' => 'properties.show',
+            'availability_response' => 'properties.show',
+            'availability_escalation' => 'properties.show',
+            'availability_escalation_reminder' => 'properties.show',
+            'edit_access_requested' => 'properties.show',
+            'edit_access_reviewed' => 'properties.show',
+            'property_access_request' => 'properties.show',
+            'publish_request_submitted' => 'properties.show',
+            'publish_request_reviewed' => 'properties.show',
 
             // Projects
             'new_project' => 'projects.show',
@@ -521,6 +549,10 @@ class NotificationService
             'sub_task_created' => 'task',
             'sub_task_completed' => 'task-completed',
             'sub_task_assignee_added' => 'task',
+            'task_deleted' => 'task',
+            'task_rejected' => 'task',
+            'task_overdue' => 'task',
+            'task_priority_updated' => 'task',
 
             // Notices
             'new_notice' => 'notice',
@@ -551,6 +583,19 @@ class NotificationService
             'lead_follow_up_overdue' => 'event',
             'deal_deleted' => 'deal',
             'deal_close_date_approaching' => 'deal',
+
+            // Properties
+            'property_activity_notification' => 'property',
+            'expose_ready_notification' => 'file',
+            'availability_requested' => 'property',
+            'availability_response' => 'property',
+            'availability_escalation' => 'property',
+            'availability_escalation_reminder' => 'property',
+            'edit_access_requested' => 'property',
+            'edit_access_reviewed' => 'property',
+            'property_access_request' => 'property',
+            'publish_request_submitted' => 'property',
+            'publish_request_reviewed' => 'property',
 
             // Projects
             'new_project' => 'project',

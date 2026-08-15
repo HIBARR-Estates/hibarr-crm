@@ -380,6 +380,33 @@ return [
         'text' => 'You have been added as assignee on Task ',
         'action' => 'View Sub Tasks',
     ],
+    'subTaskCreated' => [
+        'subject' => 'New sub task added',
+        'text' => 'A new sub task was added to one of your tasks.',
+        'action' => 'View Sub Tasks',
+    ],
+    'taskDeleted' => [
+        'subject' => 'Task deleted',
+        'text' => 'A task you were assigned to has been deleted.',
+        'action' => 'View Tasks',
+    ],
+    'taskRejected' => [
+        'subject' => 'Task sent back from review',
+        'text' => 'A task was rejected from review and needs rework.',
+        'rejectedBy' => 'Rejected by',
+        'reason' => 'Reason',
+        'action' => 'View Task',
+    ],
+    'taskOverdue' => [
+        'subject' => 'Task overdue',
+        'text' => 'This task is :days day(s) past its due date.',
+        'action' => 'View Task',
+    ],
+    'taskPriorityUpdated' => [
+        'subject' => 'Task priority updated',
+        'text' => 'The priority on one of your tasks has changed.',
+        'action' => 'View Task',
+    ],
 
     'leadAgent' => [
         'subject' => 'New Deal Notification',
@@ -424,7 +451,6 @@ return [
         'action' => 'View deal',
     ],
 
-    'subTaskCreated' => 'Sub task created.',
     'discussionReply' => [
         'subject' => ' replied to ',
         'text' => 'You have received a reply on ',

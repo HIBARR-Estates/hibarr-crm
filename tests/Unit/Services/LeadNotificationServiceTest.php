@@ -2,41 +2,38 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\DealFollowUp;
-use App\Models\EmployeeDetails;
-use App\Models\LeadAgent;
+use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadNotificationService;
+use Mockery;
 use Tests\TestCase;
 
 class LeadNotificationServiceTest extends TestCase
 {
-    public function test_resolve_overdue_recipients_includes_agent_and_manager(): void
+    protected function tearDown(): void
     {
-        $manager = $this->makeUser(20);
-        $agent = $this->makeUser(21);
-        $employeeDetail = new EmployeeDetails(['reporting_to' => $manager->id]);
-        $employeeDetail->setRelation('reportingTo', $manager);
-        $agent->setRelation('employeeDetail', $employeeDetail);
+        Mockery::close();
+        parent::tearDown();
+    }
 
-        $leadAgent = new LeadAgent(['user_id' => $agent->id]);
-        $leadAgent->setRelation('user', $agent);
+    public function test_get_notifiable_users_falls_back_to_admins_when_unassigned(): void
+    {
+        $admin = $this->makeUser(50);
+        $lead = new Lead(['company_id' => 7]);
+        $lead->setRelation('leadOwner', null);
+        $lead->setRelation('company', null);
 
-        $followUp = new DealFollowUp([
-            'deal_id' => 99,
-            'lead_id' => 5,
-            'next_follow_up_date' => now()->subDay(),
-        ]);
+        $service = Mockery::mock(LeadNotificationService::class)->makePartial();
+        $service->shouldAllowMockingProtectedMethods();
+        $service->shouldReceive('activeAdminsForCompany')
+            ->once()
+            ->with(7, null)
+            ->andReturn(collect([$admin]));
 
-        $followUp->setRelation('deal', (object) [
-            'leadAgent' => $leadAgent,
-        ]);
-        $followUp->setRelation('lead', null);
+        $recipients = $service->getNotifiableUsers($lead);
 
-        $recipients = app(LeadNotificationService::class)->resolveOverdueRecipients($followUp);
-
-        $this->assertTrue($recipients->contains(fn (User $user) => $user->id === $agent->id));
-        $this->assertTrue($recipients->contains(fn (User $user) => $user->id === $manager->id));
+        $this->assertCount(1, $recipients);
+        $this->assertSame(50, $recipients->first()->id);
     }
 
     private function makeUser(int $id): User

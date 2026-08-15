@@ -17,14 +17,17 @@ use Symfony\Component\Mime\Email;
 
 class BaseNotification extends Notification implements ShouldQueue
 {
-
-    use Queueable, Dispatchable;
+    use Dispatchable, Queueable;
 
     protected $company = null;
+
     protected $slack = null;
+
     protected bool $suppressBulkTransactionalEmails = false;
+
     // Resolved at HTTP dispatch time so queue workers don't call the flag service.
     protected bool $unsRoutingEnabled = false;
+
     /** Captured at construct time — queue workers have no auth user. */
     protected ?int $triggeredByUserId = null;
 
@@ -61,7 +64,7 @@ class BaseNotification extends Notification implements ShouldQueue
      * Symfony headers so UnsEmailPayloadMapper can switch to templateSlug mode.
      * The headers are harmless on the SMTP fallback path — they're just ignored.
      *
-     * @param array<string, mixed> $variables
+     * @param  array<string, mixed>  $variables
      */
     protected function attachPlunkTemplate(MailMessage $build, string $templateId, array $variables): void
     {
@@ -69,6 +72,85 @@ class BaseNotification extends Notification implements ShouldQueue
             $message->getHeaders()->addTextHeader('X-Plunk-Template-Id', $templateId);
             $message->getHeaders()->addTextHeader('X-Plunk-Template-Variables', base64_encode((string) json_encode($variables)));
         });
+    }
+
+    /**
+     * Attach shared entity-activity Plunk template (deal / lead / property / task).
+     * HTML: resources/views/mail/plunk/entity-activity.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachEntityActivityPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.entity_activity');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach exposé-ready Plunk template.
+     * HTML: resources/views/mail/plunk/expose-ready.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachExposeReadyPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.expose_ready');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach property workflow REQUEST Plunk template (approve / review CTAs).
+     * HTML: resources/views/mail/plunk/property-request.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachPropertyRequestPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.property_request');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+            'footerNote' => '',
+        ], $variables));
+    }
+
+    /**
+     * Attach property workflow REVIEWED Plunk template (outcomes).
+     * HTML: plunk/property-request-reviewed.plunk.html (same layout as entity-activity).
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachPropertyRequestReviewedPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.property_request_reviewed')
+            ?: config('email.plunk_template_ids.entity_activity');
+
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
     }
 
     /**
@@ -122,7 +204,7 @@ class BaseNotification extends Notification implements ShouldQueue
             } else {
                 // Last resort: still avoid casting the whole JSON column via the model.
                 $statusLine = $query->toBase()->value(\Illuminate\Support\Facades\DB::raw(
-                    "summary_json"
+                    'summary_json'
                 ));
                 if (is_string($statusLine) && $statusLine !== '') {
                     $decoded = json_decode(
@@ -178,6 +260,7 @@ class BaseNotification extends Notification implements ShouldQueue
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;
+
         return $this;
     }
 
@@ -217,9 +300,8 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Set the application locale based on the company's locale or global settings
         if (isset($locale)) {
-            App::setLocale($locale ?? (!is_null($company) ? $company->locale : 'en'));
-        }
-        else {
+            App::setLocale($locale ?? (! is_null($company) ? $company->locale : 'en'));
+        } else {
             App::setLocale(session('locale') ?: $globalSetting->locale);
         }
 
@@ -249,7 +331,7 @@ class BaseNotification extends Notification implements ShouldQueue
         }
 
         // If a company is specified, customize the reply name, email, logo URL, and application name
-        if (!is_null($company)) {
+        if (! is_null($company)) {
             $replyName = $company->company_name;
             $replyEmail = $company->company_email;
             Config::set('app.logo', $company->masked_logo_url);
@@ -258,7 +340,7 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Ensure that the company email and name are used if mail verification is successful
         $companyEmail = config('mail.verified') === true ? $companyEmail : $replyEmail;
-//        $companyName = config('mail.verified') === true ? $companyName : $replyName;
+        //        $companyName = config('mail.verified') === true ? $companyName : $replyName;
 
         // Return the mail message with configured from and replyTo settings
         return $build->from($companyEmail, $replyName)->replyTo($replyEmail, $replyName);
@@ -278,10 +360,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $slack = $notifiable->company->slackSetting;
 
         // Compose and return a Slack message
-        return (new SlackMessage())
+        return (new SlackMessage)
             ->from($notifiable->company->company_name) // Set the sender name
-            ->to('@' . $notifiable->employeeDetail->slack_username) // Set the recipient's Slack username
-            ->image(asset_url_local_s3('slack-logo/' . $slack->slack_logo)); // Set the image for Slack message
+            ->to('@'.$notifiable->employeeDetail->slack_username) // Set the recipient's Slack username
+            ->image(asset_url_local_s3('slack-logo/'.$slack->slack_logo)); // Set the image for Slack message
     }
 
     /**
@@ -292,7 +374,7 @@ class BaseNotification extends Notification implements ShouldQueue
         try {
             // Build a Slack message using the slackBuild function
             return $this->slackBuild($notifiable)
-                ->content('*' . __($subjectKey) . '*' . "\n" . 'This is a redirected notification. Add slack username for *' . $notifiable->name . '*');
+                ->content('*'.__($subjectKey).'*'."\n".'This is a redirected notification. Add slack username for *'.$notifiable->name.'*');
         } catch (\Exception $e) {
             // Catch and display any exceptions occurred
             echo $e->getMessage();
@@ -302,12 +384,11 @@ class BaseNotification extends Notification implements ShouldQueue
     /**
      * Check if the notifiable has a Slack username.
      *
-     * @param mixed $notifiable
-     * @return bool
+     * @param  mixed  $notifiable
      */
     protected function slackUserNameCheck($notifiable): bool
     {
-        if (!isset($notifiable->employeeDetail)) {
+        if (! isset($notifiable->employeeDetail)) {
             return false;
         }
 
@@ -318,7 +399,7 @@ class BaseNotification extends Notification implements ShouldQueue
         }
 
         // Check if the notifiable a non-empty Slack username
-        return (!is_null($notifiable->employeeDetail->slack_username) && ($notifiable->employeeDetail->slack_username != ''));
+        return ! is_null($notifiable->employeeDetail->slack_username) && ($notifiable->employeeDetail->slack_username != '');
     }
 
     public function resetLocale()
@@ -328,12 +409,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $globalSetting = GlobalSetting::first();
 
         // Set the application locale based on the company's locale or global settings
-        if (!is_null($company)) {
+        if (! is_null($company)) {
             App::setLocale($company->locale ?? 'en');
-        }
-        else {
+        } else {
             App::setLocale(session('locale') ?: $globalSetting->locale);
         }
     }
-
 }

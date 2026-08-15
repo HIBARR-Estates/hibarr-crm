@@ -35,6 +35,7 @@ use App\Console\Commands\SendEventReminder;
 use App\Console\Commands\SendInvoiceReminder;
 use App\Console\Commands\SendMonthlyAttendanceReport;
 use App\Console\Commands\SendOverdueLeadFollowUpNotifications;
+use App\Console\Commands\SendOverdueTaskNotifications;
 use App\Console\Commands\SendProjectReminder;
 use App\Console\Commands\SendTimeTracker;
 use App\Console\Commands\SyncDynamicTranslations;
@@ -71,6 +72,7 @@ class Kernel extends ConsoleKernel
         SyncUserPermissions::class,
         SendAutoFollowUpReminder::class,
         SendOverdueLeadFollowUpNotifications::class,
+        SendOverdueTaskNotifications::class,
         SendApproachingDealCloseDateNotifications::class,
         FetchTicketEmails::class,
         AddMissingRolePermission::class,
@@ -129,6 +131,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('fetch-ticket-emails')->everyMinute(); // phpcs:ignore
         $schedule->command('send-auto-followup-reminder')->everyMinute();
         $schedule->command('send-overdue-lead-followup-notifications')->hourly()->withoutOverlapping();
+        $schedule->command('send-overdue-task-notifications')->hourly()->withoutOverlapping();
         $schedule->command('send-approaching-deal-close-date-notifications')->dailyAt('08:00');
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();

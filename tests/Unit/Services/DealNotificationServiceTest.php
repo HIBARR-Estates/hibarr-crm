@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\DealActivityType;
 use App\Models\Deal;
 use App\Models\User;
 use App\Services\DealNotificationService;
@@ -35,6 +36,36 @@ class DealNotificationServiceTest extends TestCase
 
         $this->assertCount(1, $recipients);
         $this->assertSame(50, $recipients->first()->id);
+    }
+
+    public function test_notify_meeting_cancelled_delegates_to_deal_activity(): void
+    {
+        $deal = new Deal(['name' => 'Pipeline deal']);
+        $deal->id = 3;
+
+        $service = Mockery::mock(DealNotificationService::class)->makePartial();
+        $service->shouldReceive('notifyDealActivity')
+            ->once()
+            ->with(
+                $deal,
+                DealActivityType::MEETING_CANCELLED,
+                [
+                    'meeting_remark' => 'Strategy sync',
+                    'meeting_date' => '2026-08-20T10:00:00+00:00',
+                    'follow_up_id' => 12,
+                ],
+                7
+            );
+
+        $service->notifyMeetingCancelled(
+            $deal,
+            'Strategy sync',
+            '2026-08-20T10:00:00+00:00',
+            12,
+            7
+        );
+
+        $this->addToAssertionCount(1);
     }
 
     private function makeUser(int $id): User

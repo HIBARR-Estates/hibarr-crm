@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\DataTables\LeadNotesDataTable;
 use App\Helper\Reply;
 use App\Http\Requests\Lead\StoreLeadNote;
+use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\LeadUserNote;
-use App\Models\Lead;
 use App\Models\User;
 use App\Services\Reminders\NoteReminderSync;
 use App\Traits\RecordsCrmEvents;
@@ -29,14 +29,14 @@ class LeadNoteController extends AccountBaseController
 
     public function index(LeadNotesDataTable $dataTable)
     {
-        abort_403(!(in_array(user()->permission('view_lead_note'), ['all', 'added'])));
+        abort_403(! (in_array(user()->permission('view_lead_note'), ['all', 'added'])));
 
         return $dataTable->render('lead-contact.notes.index', $this->data);
     }
 
     public function create()
     {
-        abort_403(!in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
+        abort_403(! in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
 
         $this->employees = User::allEmployees();
 
@@ -62,15 +62,14 @@ class LeadNoteController extends AccountBaseController
 
         $viewClientNotePermission = user()->permission('view_lead_note');
         $memberIds = $this->note->members->pluck('user_id')->toArray(); /** @phpstan-ignore-line */
-
-        abort_403(!($viewClientNotePermission == 'all'
+        abort_403(! ($viewClientNotePermission == 'all'
             || ($viewClientNotePermission == 'added' && $this->note->added_by == user()->id)
             || ($viewClientNotePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
             || ($viewClientNotePermission == 'both' && (in_array(user()->id, $memberIds) || $this->note->added_by == user()->id))
-            )
+        )
         );
 
-        $this->pageTitle = __('app.lead') . ' ' . __('app.note');
+        $this->pageTitle = __('app.lead').' '.__('app.note');
         $this->view = 'lead-contact.notes.show';
 
         if (request()->ajax()) {
@@ -83,11 +82,11 @@ class LeadNoteController extends AccountBaseController
 
     public function store(StoreLeadNote $request)
     {
-        abort_403(!in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
+        abort_403(! in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
 
         $this->employees = User::allEmployees();
 
-        $note = new LeadNote();
+        $note = new LeadNote;
         $note->title = $request->filled('title') ? $request->title : null;
         $note->lead_id = $request->lead_id;
         $note->details = $request->details;
@@ -100,16 +99,18 @@ class LeadNoteController extends AccountBaseController
             $note->reminders = $request->input('reminders');
         }
 
+        app()->instance('skip_lead_note_created_notification', true);
         $note->save();
+        app()->forgetInstance('skip_lead_note_created_notification');
         /* if note type is private */
         if ($request->type == 1) {
             $users = $request->user_id;
 
-            if (!is_null($users)) {
+            if (! is_null($users)) {
                 foreach ($users as $user) {
                     LeadUserNote::firstOrCreate([
                         'user_id' => $user,
-                        'lead_note_id' => $note->id
+                        'lead_note_id' => $note->id,
                     ]);
                 }
             }
@@ -120,12 +121,19 @@ class LeadNoteController extends AccountBaseController
         if ($lead) {
             $this->recordCrmEvent('lead_note_added', $lead, [
                 'metadata' => [
-                    'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
+                    'comment' => 'Note added: '.($note->title ?? 'Untitled'),
                     'note_id' => $note->id,
                     'note_title' => $note->title,
                     'note_type' => $note->type == 1 ? 'private' : 'public',
                 ],
             ]);
+
+            app(\App\Services\LeadNotificationService::class)->notifyNoteAdded(
+                $lead,
+                $note->title ?? 'Untitled Note',
+                $note->id,
+                $note->load('members'),
+            );
         }
 
         app(NoteReminderSync::class)->syncFromLeadNote($note->load(['lead', 'addedBy', 'members']));
@@ -147,8 +155,7 @@ class LeadNoteController extends AccountBaseController
         $this->note = LeadNote::findOrFail($id);
         $editClientNotePermission = user()->permission('view_lead_note');
         $memberIds = $this->note->members->pluck('user_id')->toArray(); /** @phpstan-ignore-line */
-
-        abort_403(!($editClientNotePermission == 'all'
+        abort_403(! ($editClientNotePermission == 'all'
             || ($editClientNotePermission == 'added' && user()->id == $this->note->added_by)
             || ($editClientNotePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
             || ($editClientNotePermission == 'both' && ($this->note->added_by == user()->id || in_array(user()->id, $memberIds)))
@@ -174,13 +181,13 @@ class LeadNoteController extends AccountBaseController
         $note = LeadNote::findOrFail($id);
         $note->title = $request->filled('title') ? $request->title : null;
         $note->details = $request->details;
-    // Preserve type/privacy when the redesign editor only sends title + details.
-    if ($request->exists('type')) {
-        $note->type = $request->type;
-    }
-    if ($request->exists('ask_password')) {
-        $note->ask_password = $request->ask_password ?: '';
-    }
+        // Preserve type/privacy when the redesign editor only sends title + details.
+        if ($request->exists('type')) {
+            $note->type = $request->type;
+        }
+        if ($request->exists('ask_password')) {
+            $note->ask_password = $request->ask_password ?: '';
+        }
         if ($request->exists('remind_at')) {
             $note->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
         }
@@ -196,11 +203,11 @@ class LeadNoteController extends AccountBaseController
 
             $users = $request->user_id;
 
-            if (!is_null($users)) {
+            if (! is_null($users)) {
                 foreach ($users as $user) {
                     LeadUserNote::firstOrCreate([
                         'user_id' => $user,
-                        'lead_note_id' => $note->id
+                        'lead_note_id' => $note->id,
                     ]);
                 }
             }
@@ -222,8 +229,7 @@ class LeadNoteController extends AccountBaseController
         $this->note = LeadNote::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead_note');
         $memberIds = $this->note->members->pluck('user_id')->toArray(); /** @phpstan-ignore-line */
-
-        abort_403(!($this->deletePermission == 'all'
+        abort_403(! ($this->deletePermission == 'all'
             || ($this->deletePermission == 'added' && $this->note->added_by == user()->id))
             || ($this->deletePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
             || ($this->deletePermission == 'both' && ($this->note->added_by == user()->id || in_array(user()->id, $memberIds)))
@@ -238,6 +244,7 @@ class LeadNoteController extends AccountBaseController
     {
         if ($request->action_type == 'delete') {
             $this->deleteRecords($request);
+
             return Reply::success(__('messages.deleteSuccess'));
         }
 
@@ -246,15 +253,17 @@ class LeadNoteController extends AccountBaseController
 
     protected function deleteRecords($request)
     {
-        abort_403(!(user()->permission('delete_lead_note') == 'all'));
+        abort_403(! (user()->permission('delete_lead_note') == 'all'));
 
         LeadNote::whereIn('id', explode(',', $request->row_ids))->delete();
+
         return true;
     }
 
     public function askForPassword($id)
     {
         $this->note = LeadNote::findOrFail($id);
+
         return view('lead-contact.notes.verify-password', $this->data);
     }
 
@@ -268,5 +277,4 @@ class LeadNoteController extends AccountBaseController
 
         return Reply::error(__('messages.incorrectPassword'));
     }
-
 }

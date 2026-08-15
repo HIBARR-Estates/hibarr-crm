@@ -293,6 +293,17 @@ class DealNotificationService
     }
 
     /**
+     * Notify about a note being deleted from a deal.
+     */
+    public function notifyNoteDeleted(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    {
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_DELETED, [
+            'note_title' => $noteTitle,
+            'note_id' => $noteId,
+        ]);
+    }
+
+    /**
      * Notify about a stage change.
      */
     public function notifyStageChanged(Deal $deal, ?string $fromStage, ?string $toStage): void
@@ -445,14 +456,14 @@ class DealNotificationService
             $removedIds = array_diff($removedIds, [$excludeUserId]);
         }
 
-        if (!empty($addedIds)) {
+        if (! empty($addedIds)) {
             $added = User::whereIn('id', $addedIds)->where('status', 'active')->get();
             if ($added->isNotEmpty()) {
                 $this->notifyDealActivity($deal, DealActivityType::WATCHER_ADDED, [], $excludeUserId, [], $added);
             }
         }
 
-        if (!empty($removedIds)) {
+        if (! empty($removedIds)) {
             $removed = User::whereIn('id', $removedIds)->where('status', 'active')->get();
             if ($removed->isNotEmpty()) {
                 $this->notifyDealActivity($deal, DealActivityType::WATCHER_REMOVED, [], $excludeUserId, [], $removed);
@@ -496,25 +507,52 @@ class DealNotificationService
     /**
      * Notify about a meeting being scheduled.
      */
-    public function notifyMeetingScheduled(Deal $deal, string $meetingRemark, ?string $meetingDate = null, ?int $followUpId = null): void
-    {
+    public function notifyMeetingScheduled(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
         $this->notifyDealActivity($deal, DealActivityType::MEETING_SCHEDULED, [
             'meeting_remark' => $meetingRemark,
             'meeting_date' => $meetingDate,
             'follow_up_id' => $followUpId,
-        ]);
+        ], $excludeUserId);
     }
 
     /**
      * Notify about a meeting being updated.
      */
-    public function notifyMeetingUpdated(Deal $deal, string $meetingRemark, ?string $meetingDate = null, ?int $followUpId = null): void
-    {
+    public function notifyMeetingUpdated(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
         $this->notifyDealActivity($deal, DealActivityType::MEETING_UPDATED, [
             'meeting_remark' => $meetingRemark,
             'meeting_date' => $meetingDate,
             'follow_up_id' => $followUpId,
-        ]);
+        ], $excludeUserId);
+    }
+
+    /**
+     * Notify about a meeting being cancelled or removed.
+     */
+    public function notifyMeetingCancelled(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
+        $this->notifyDealActivity($deal, DealActivityType::MEETING_CANCELLED, [
+            'meeting_remark' => $meetingRemark,
+            'meeting_date' => $meetingDate,
+            'follow_up_id' => $followUpId,
+        ], $excludeUserId);
     }
 
     /**
@@ -523,6 +561,17 @@ class DealNotificationService
     public function notifyFileUploaded(Deal $deal, string $fileName, ?int $fileId = null): void
     {
         $this->notifyDealActivity($deal, DealActivityType::FILE_UPLOADED, [
+            'file_name' => $fileName,
+            'file_id' => $fileId,
+        ]);
+    }
+
+    /**
+     * Notify about a file metadata update on a deal.
+     */
+    public function notifyFileUpdated(Deal $deal, string $fileName, ?int $fileId = null): void
+    {
+        $this->notifyDealActivity($deal, DealActivityType::FILE_UPDATED, [
             'file_name' => $fileName,
             'file_id' => $fileId,
         ]);

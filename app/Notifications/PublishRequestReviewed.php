@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyPublishRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -14,8 +15,9 @@ class PublishRequestReviewed extends BaseNotification
 
     public function __construct(PropertyPublishRequest $publishRequest)
     {
-        $this->publishRequest = $publishRequest;
+        $this->publishRequest = $publishRequest->load(['property', 'reviewer']);
         $this->company = $publishRequest->property?->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
@@ -32,27 +34,46 @@ class PublishRequestReviewed extends BaseNotification
 
         $build = $this->build($notifiable);
 
-        $mail = $build
-            ->subject("Publish Request {$status}: {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},")
-            ->line("Your publish request has been **{$status}**.")
-            ->line("**Property:** {$property->display_title}")
-            ->line("**Reference Code:** {$property->reference_code}")
-            ->line("**Reviewed by:** {$reviewer->name}");
+        $subject = "Publish Request {$status}: {$property->display_title}";
+        $introText = "Your publish request has been {$status}.";
+        $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+            PropertyRequestMailPresenter::propertyMeta($property, false),
+            PropertyRequestMailPresenter::line('Reviewed by', $reviewer->name),
+            PropertyRequestMailPresenter::line("Reviewer's Note", $this->publishRequest->response_message),
+            $isApproved
+                ? 'Your property is now published and visible to the public.'
+                : 'Please review the feedback and update your property before requesting again.',
+        );
+        $actionUrl = $this->modifyUrl(route('properties.show', $property->id));
 
-        if ($this->publishRequest->response_message) {
-            $mail->line("**Reviewer's Note:** {$this->publishRequest->response_message}");
-        }
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Publish Review',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => 'View the property in the CRM.',
+                'actionText' => 'View Property',
+                'url' => $actionUrl,
+            ]);
 
-        if ($isApproved) {
-            $mail->line('Your property is now published and visible to the public.')
-                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
-        } else {
-            $mail->line('Please review the feedback and update your property before requesting again.')
-                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
-        }
+        $this->attachPropertyRequestReviewedPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => 'Publish Review',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $contentHtml,
+            'actionDescription' => 'View the property in the CRM.',
+            'actionText' => 'View Property',
+            'entityUrl' => $actionUrl,
+        ]);
 
-        return $mail;
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array
@@ -73,7 +94,7 @@ class PublishRequestReviewed extends BaseNotification
             'result' => $status,
             'response_message' => $this->publishRequest->response_message,
             'icon' => $isApproved ? 'check-circle' : 'close-circle',
-            'heading' => 'Publish Request ' . ucfirst($status),
+            'heading' => 'Publish Request '.ucfirst($status),
             'description' => "Your property \"{$property->display_title}\" was {$status} by {$reviewer->name}.",
         ];
     }
