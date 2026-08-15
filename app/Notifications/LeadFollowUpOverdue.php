@@ -60,6 +60,7 @@ class LeadFollowUpOverdue extends BaseNotification
             : __('email.followUpReminder.viewLead');
         $scheduledDate = $scheduledAt ? $presenter->meetingDate() : '';
         $scheduledTime = $scheduledAt ? $presenter->meetingTime() : '';
+        $scheduleBlockHtml = $this->scheduleBlockHtml($scheduledDate, $scheduledTime);
 
         $build
             ->subject($mailSubject.' - '.config('app.name'))
@@ -83,8 +84,7 @@ class LeadFollowUpOverdue extends BaseNotification
                 'badgeLabel' => $mailSubject,
                 'notifiableName' => $notifiable->name,
                 'overdueMessage' => $bodyText,
-                'scheduledDate' => $scheduledDate,
-                'scheduledTime' => $scheduledTime,
+                'scheduleBlockHtml' => $scheduleBlockHtml,
                 'entityName' => $this->entityName,
                 'actionDescription' => __('email.leadFollowUpOverdue.footerNote'),
                 'actionText' => $actionText,
@@ -156,5 +156,22 @@ class LeadFollowUpOverdue extends BaseNotification
         }
 
         return url('/');
+    }
+
+    private function scheduleBlockHtml(string $scheduledDate, string $scheduledTime): string
+    {
+        if ($scheduledDate === '') {
+            return '';
+        }
+
+        $timeSegment = $scheduledTime !== '' ? ' &middot; '.e($scheduledTime) : '';
+
+        return '<div style="border-top:1px solid #d5dce8;margin:20px 0 0;padding:20px 0 0">'
+            .'<div style="font-family:Syne,Georgia,serif;font-size:20px;font-weight:700;color:#0a0e1a;line-height:1.2;margin-bottom:8px">'
+            .e($scheduledDate).$timeSegment
+            .'</div>'
+            .'<div style="font-family:\'DM Mono\',Consolas,monospace;font-size:14px;color:#4a5272;line-height:1.6">'
+            .e($this->entityName)
+            .'</div></div>';
     }
 }

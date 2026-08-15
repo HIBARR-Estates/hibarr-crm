@@ -23,12 +23,17 @@ class SendApproachingDealCloseDateNotifications extends Command
 
                 foreach ($deals as $deal) {
                     $cacheKey = "deal_close_date_reminder_sent:{$deal->id}:{$today}";
+                    $lock = Cache::lock("deal_close_date_reminder_lock:{$deal->id}:{$today}", 60);
 
-                    if (Cache::has($cacheKey)) {
+                    if (! $lock->get()) {
                         continue;
                     }
 
                     try {
+                        if (Cache::has($cacheKey)) {
+                            continue;
+                        }
+
                         $dealNotificationService->notifyCloseDateApproaching($deal);
                         Cache::put($cacheKey, true, now($timezone)->endOfDay());
                     } catch (\Throwable $e) {
@@ -37,6 +42,8 @@ class SendApproachingDealCloseDateNotifications extends Command
                             'company_id' => $company->id,
                             'exception' => $e::class,
                         ]);
+                    } finally {
+                        $lock->release();
                     }
                 }
             }

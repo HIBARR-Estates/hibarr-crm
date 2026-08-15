@@ -340,10 +340,10 @@
 
                                 @if($showClosing)
                                     <p class="closing-text" style="margin-top:20px">
-                                        {{ $closingSection !== '' ? $closingSection : 'Best regards' }}
+                                        {{ $closingSection !== '' ? $closingSection : __('email.regards') }}
                                     </p>
                                     <p class="strong-text" style="margin:8px 0 0 0;font-weight:700">
-                                        The {{ config('app.name') }} Team
+                                        {{ __('email.teamSignature', ['appName' => config('app.name')]) }}
                                     </p>
                                 @endif
                             </td>

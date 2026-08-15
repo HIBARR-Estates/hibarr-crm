@@ -52,8 +52,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        EmailNotificationSetting::query()
-            ->whereIn('slug', ['deal-package-notification', 'deal-property-notification'])
-            ->delete();
+        // Non-destructive rollback: settings may pre-exist or be tenant-managed.
     }
 };

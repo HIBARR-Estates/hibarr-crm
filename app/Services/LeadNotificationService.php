@@ -220,7 +220,7 @@ class LeadNotificationService
         $today = now($timezone)->toDateString();
         $cacheKey = "lead_followup_overdue_sent:{$followUp->id}:{$today}";
 
-        if (Cache::has($cacheKey)) {
+        if (Cache::add($cacheKey, true, now($timezone)->endOfDay()) === false) {
             return;
         }
 
@@ -252,7 +252,6 @@ class LeadNotificationService
         }
 
         Notification::send($recipients, new LeadFollowUpOverdue($followUp));
-        Cache::put($cacheKey, true, now($timezone)->endOfDay());
     }
 
     /**
@@ -287,6 +286,7 @@ class LeadNotificationService
     {
         $company = \App\Models\Company::find($companyId);
         $now = $now ?? now($company?->timezone ?: 'UTC');
+        $storageNow = $now->copy()->timezone(config('app.timezone'));
 
         return DealFollowUp::query()
             ->with([
@@ -297,7 +297,7 @@ class LeadNotificationService
                 'lead.company',
             ])
             ->whereNotNull('next_follow_up_date')
-            ->where('next_follow_up_date', '<', $now)
+            ->where('next_follow_up_date', '<', $storageNow)
             ->where(function ($query) {
                 $query->whereNull('status')
                     ->orWhereNotIn('status', ['completed', 'cancelled']);
@@ -361,10 +361,12 @@ class LeadNotificationService
             return [];
         }
 
+        $storageNow = $now->copy()->timezone(config('app.timezone'));
+
         $query = DealFollowUp::query()
             ->whereIn($column, $entityIds)
             ->whereNotNull('next_follow_up_date')
-            ->where('next_follow_up_date', '>=', $now)
+            ->where('next_follow_up_date', '>=', $storageNow)
             ->where(function ($statusQuery) {
                 $statusQuery->whereNull('status')
                     ->orWhereIn('status', ['pending', 'incomplete', 'scheduled']);

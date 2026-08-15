@@ -22,12 +22,20 @@ class PublishRequestReviewed extends BaseNotification
 
     public function via($notifiable): array
     {
+        if (! $this->publishRequest->property || ! $this->publishRequest->reviewer) {
+            return ['database'];
+        }
+
         return ['database', 'mail'];
     }
 
     public function toMail($notifiable): MailMessage
     {
         $property = $this->publishRequest->property;
+        if (! $property) {
+            return $this->build($notifiable);
+        }
+
         $reviewer = $this->publishRequest->reviewer;
         $isApproved = $this->publishRequest->isApproved();
         $status = $isApproved ? 'Approved' : 'Rejected';

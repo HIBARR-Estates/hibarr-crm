@@ -120,7 +120,7 @@ class DealActivityNotification extends BaseNotification
 
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
-            'preheader' => $introText,
+            'preheader' => $this->safePreheader($subject),
             'badgeLabel' => 'Deal Activity',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
@@ -395,8 +395,8 @@ class DealActivityNotification extends BaseNotification
                 break;
 
             case DealActivityType::AGENT_CHANGED:
-                $lines[] = '<strong>Previous Agent:</strong> '.($this->data['from_agent_name'] ?? 'Unassigned');
-                $lines[] = '<strong>New Agent:</strong> '.($this->data['to_agent_name'] ?? 'Unknown');
+                $lines[] = '<strong>Previous Agent:</strong> '.$this->safeMailText($this->data['from_agent_name'] ?? 'Unassigned', 100);
+                $lines[] = '<strong>New Agent:</strong> '.$this->safeMailText($this->data['to_agent_name'] ?? 'Unknown', 100);
                 break;
         }
 

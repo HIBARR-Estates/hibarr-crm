@@ -104,7 +104,7 @@ class TaskLifecycleNotificationService
             $task->loadMissing(['users', 'createBy', 'addedByUser', 'company', 'boardColumn']);
             $actorId = $actorId ?? (user() ? user()->id : null);
 
-            $recipients = $this->assignees($task)
+            $recipients = $this->assigneesAndAssigner($task)
                 ->filter(fn (User $user) => $actorId === null || (int) $user->id !== (int) $actorId);
 
             if ($recipients->isEmpty()) {

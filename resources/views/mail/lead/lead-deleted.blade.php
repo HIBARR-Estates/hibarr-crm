@@ -1,6 +1,6 @@
 @extends('mail.layouts.base')
 
-@section('title', 'Lead removed')
+@section('title', __('email.leadDeleted.subject'))
 @section('badgeLabel', __('email.leadDeleted.subject'))
 @section('notifiableName', $notifiableName)
 

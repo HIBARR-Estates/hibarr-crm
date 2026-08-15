@@ -8,6 +8,7 @@ use App\DataTables\LeadNotesDataTable;
 use App\Enums\LeadTemperature;
 use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
+use App\Exports\LeadExport;
 use App\Helper\Files;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
@@ -24,12 +25,12 @@ use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
-use App\Models\LeadSavedView;
 use App\Models\LeadCustomForm;
 use App\Models\LeadLifecycleStatus;
 use App\Models\LeadNote;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
+use App\Models\LeadSavedView;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\PipelineStage;
@@ -37,21 +38,20 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadFilterFacetsService;
 use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
+use App\Support\FeatureFlags;
+use App\Support\LeadExportFields;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
-use App\Exports\LeadExport;
-use App\Services\LeadFilterFacetsService;
-use App\Support\FeatureFlags;
-use App\Support\LeadExportFields;
-use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LeadContactController extends AccountBaseController
 {
@@ -1368,12 +1368,12 @@ class LeadContactController extends AccountBaseController
 
         if (count($rowIds) > LeadExportFields::MAX_ROWS) {
             return response(
-                'Export is limited to ' . number_format(LeadExportFields::MAX_ROWS) . ' leads. Narrow your filters or selection and try again.',
+                'Export is limited to '.number_format(LeadExportFields::MAX_ROWS).' leads. Narrow your filters or selection and try again.',
                 422
             );
         }
 
-        $filename = 'leads-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $filename = 'leads-export-'.now()->format('Y-m-d-H-i-s').'.'.$format;
         $writerType = $format === 'csv' ? ExcelWriter::CSV : ExcelWriter::XLSX;
 
         return Excel::download(new LeadExport($rowIds, $fields), $filename, $writerType);
@@ -1436,18 +1436,7 @@ class LeadContactController extends AccountBaseController
 
             case 'delete':
                 try {
-                    DB::transaction(function () use ($rowIds) {
-                        Lead::query()
-                            ->whereIn('id', $rowIds)
-                            ->orderBy('id')
-                            ->chunkById(500, function ($leads) {
-                                foreach ($leads as $lead) {
-                                    if ($lead->forceDelete() === false) {
-                                        throw new \RuntimeException('Failed to delete lead '.$lead->id);
-                                    }
-                                }
-                            });
-                    });
+                    app(LeadService::class)->bulkForceDelete($rowIds);
                 } catch (\Throwable $e) {
                     Log::error('Bulk lead delete failed', [
                         'lead_ids' => $rowIds,
@@ -1460,7 +1449,7 @@ class LeadContactController extends AccountBaseController
 
                 return Reply::success(
                     $skipped > 0
-                        ? ((__('messages.deleteSuccess') ?: 'Deleted successfully.') . " ({$skipped} skipped)")
+                        ? ((__('messages.deleteSuccess') ?: 'Deleted successfully.')." ({$skipped} skipped)")
                         : (__('messages.deleteSuccess') ?: 'Deleted successfully.')
                 );
 

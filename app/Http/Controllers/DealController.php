@@ -2183,7 +2183,14 @@ class DealController extends AccountBaseController
 
                 case 'change-status':
                     $stage = PipelineStage::find($request->status);
-                    $stageLabel = $stage?->name ?? ('ID '.$request->status);
+                    if ($stage === null) {
+                        return back()->with([
+                            'status' => 'error',
+                            'message' => __('messages.updateFail'),
+                        ]);
+                    }
+
+                    $stageLabel = $stage->name;
                     $editableIds = Deal::whereIn('id', $rowIds)
                         ->where('is_locked', false)
                         ->pluck('id')
@@ -2309,7 +2316,7 @@ class DealController extends AccountBaseController
         }
 
         if ($stage === null) {
-            return;
+            throw new \InvalidArgumentException('Invalid pipeline stage.');
         }
 
         if ($stage->slug === 'win' || $stage->slug === 'lost') {

@@ -371,7 +371,7 @@ class DealNotificationService
             return;
         }
 
-        Notification::send($recipients, new DealCloseDateApproaching($deal));
+        Notification::send($recipients, BaseNotification::applySuppressionFromContainer(new DealCloseDateApproaching($deal)));
     }
 
     /**

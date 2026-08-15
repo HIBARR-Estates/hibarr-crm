@@ -100,8 +100,11 @@ class LeadNoteController extends AccountBaseController
         }
 
         app()->instance('skip_lead_note_created_notification', true);
-        $note->save();
-        app()->forgetInstance('skip_lead_note_created_notification');
+        try {
+            $note->save();
+        } finally {
+            app()->forgetInstance('skip_lead_note_created_notification');
+        }
         /* if note type is private */
         if ($request->type == 1) {
             $users = $request->user_id;

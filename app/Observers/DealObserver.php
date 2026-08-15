@@ -5,9 +5,9 @@ namespace App\Observers;
 use App\Events\DealEvent;
 use App\Events\DealWonEvent;
 use App\Jobs\SendMetaConversionEventJob;
+use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\Lead;
-use App\Models\Currency;
 use App\Models\LeadAgent;
 use App\Models\LeadPipeline;
 use App\Models\LeadSetting;
@@ -80,17 +80,17 @@ class DealObserver
      */
     private function snapshotExchangeRate(Deal $deal): void
     {
-        if (!$deal->currency_id) {
+        if (! $deal->currency_id) {
             return;
         }
 
         $alreadyClosed = $deal->getOriginal('outcome_status') !== null;
 
-        if ($alreadyClosed && !$deal->isDirty('currency_id')) {
+        if ($alreadyClosed && ! $deal->isDirty('currency_id')) {
             return;
         }
 
-        if (!$deal->isDirty('currency_id') && !$deal->isDirty('outcome_status') && $deal->exchange_rate !== null) {
+        if (! $deal->isDirty('currency_id') && ! $deal->isDirty('outcome_status') && $deal->exchange_rate !== null) {
             return;
         }
 
@@ -219,6 +219,9 @@ class DealObserver
             }
 
             if ($deal->isDirty('agent_id')) {
+                $deal->unsetRelation('leadAgent');
+                $deal->load('leadAgent.user');
+
                 event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
                 $this->addParentAgentAsWatcher($deal);
 

@@ -30,6 +30,7 @@ return [
     'hello' => 'Hello',
     'whoops' => 'Whoops',
     'regards' => 'Regards',
+    'teamSignature' => 'The :appName Team',
     'newExpense' => [
         'subject' => 'New Expense Submitted for Approval',
         'newSubject' => 'New Expense has been Submitted',
@@ -445,9 +446,18 @@ return [
         'unknownActor' => 'A team member',
     ],
 
+    'propertyActivity' => [
+        'subject' => 'Property update',
+    ],
+
+    'exposeReady' => [
+        'subject' => 'Exposé ready',
+    ],
+
     'dealCloseDateApproaching' => [
         'subject' => 'Deal close date approaching',
         'text' => 'The close date for :dealName is :closeDate. Review the deal and update the timeline if needed.',
+        'textNoDate' => 'The close date for :dealName is approaching. Review the deal and update the timeline if needed.',
         'action' => 'View deal',
     ],
 

@@ -208,9 +208,13 @@ class TaskObserver
             }
 
             if ($task->wasChanged('board_column_id')) {
+                $task->unsetRelation('boardColumn');
+                $task->load('boardColumn');
+                $currentColumnSlug = $task->boardColumn?->slug ?? '';
+
                 $previousColumn = TaskboardColumn::find($task->getOriginal('board_column_id'));
                 $rejectedFromReview = $previousColumn?->slug === 'in_review'
-                    && ($task->boardColumn?->slug ?? '') !== 'in_review'
+                    && $currentColumnSlug !== 'in_review'
                     && request()->filled('reason');
 
                 if ($rejectedFromReview) {
@@ -221,15 +225,15 @@ class TaskObserver
                     );
                 }
 
-                if ($task->boardColumn->slug == 'done') {
+                if ($currentColumnSlug === 'done') {
                     $notification = 'TaskCompleted';
-                } elseif ($task->boardColumn->slug == 'in_review') {
+                } elseif ($currentColumnSlug === 'in_review') {
                     $notification = 'TaskApproval';
                 } else {
                     $notification = 'TaskStatusUpdated';
                 }
 
-                if ($task->boardColumn->slug == 'in_review') {
+                if ($currentColumnSlug === 'in_review') {
                     // For waiting_approval, notify admins, task users, and project admins
                     $admins = User::allAdmins($task->company->id);
 
@@ -250,7 +254,7 @@ class TaskObserver
 
                     $taskUser = $task->users->whereNotIn('id', $admins->pluck('id'))->whereNotIn('id', [$task->added_by]);
 
-                } elseif ($task->boardColumn->slug == 'in_review' && $task->project_id && $task->project && $task->project->project_admin) {
+                } elseif ($currentColumnSlug === 'in_review' && $task->project_id && $task->project && $task->project->project_admin) {
                     // For in_review, also notify project admin if this is a project task
                     $projectAdmin = $task->project->projectAdmin;
                     $notifiedUserIds = [];
@@ -288,7 +292,7 @@ class TaskObserver
 
                 $sendLegacyStatusNotification = ! $rejectedFromReview
                     && (! FeatureFlags::enabled('crm.task-lifecycle-notifications')
-                    || $task->boardColumn->slug === 'in_review');
+                    || $currentColumnSlug === 'in_review');
 
                 if ($sendLegacyStatusNotification) {
                     event(new TaskEvent($task, $taskUser, $notification));
@@ -298,7 +302,7 @@ class TaskObserver
                     ->where('task_id', $task->id)
                     ->get();
 
-                if ($timeLogs && ($task->boardColumn->slug == 'done' || $task->boardColumn->slug == 'in_review')) {
+                if ($timeLogs && ($currentColumnSlug === 'done' || $currentColumnSlug === 'in_review')) {
                     foreach ($timeLogs as $timeLog) {
 
                         $timeLog->end_time = now();

@@ -16,9 +16,11 @@ class SubTaskCreated extends BaseNotification
     {
         $this->subTask = $subTask;
         $this->company = $this->subTask->task->company;
-        $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
-            ->where('slug', 'sub-task-created')
-            ->first();
+        $this->emailSetting = $this->company
+            ? EmailNotificationSetting::where('company_id', $this->company->id)
+                ->where('slug', 'sub-task-created')
+                ->first()
+            : null;
         $this->initUnsRouting();
     }
 
@@ -34,7 +36,7 @@ class SubTaskCreated extends BaseNotification
             $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && filled($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -42,7 +44,7 @@ class SubTaskCreated extends BaseNotification
         if (
             $this->emailSetting
             && $this->emailSetting->send_slack === 'yes'
-            && $this->company->slackSetting?->status === 'active'
+            && $this->company?->slackSetting?->status === 'active'
             && $this->slackUserNameCheck($notifiable)
         ) {
             $via[] = 'slack';
@@ -67,7 +69,7 @@ class SubTaskCreated extends BaseNotification
             ->markdown('mail.email', [
                 'url' => $url,
                 'content' => $content,
-                'themeColor' => $this->company->header_color,
+                'themeColor' => $this->company?->header_color,
                 'actionText' => __('email.subTaskCreated.action'),
                 'notifiableName' => $notifiable->name,
             ]);

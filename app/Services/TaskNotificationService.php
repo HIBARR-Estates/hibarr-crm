@@ -61,7 +61,7 @@ class TaskNotificationService
         $today = now($timezone)->toDateString();
         $cacheKey = "task_overdue_sent:{$task->id}:{$today}";
 
-        if (Cache::has($cacheKey)) {
+        if (Cache::add($cacheKey, true, now($timezone)->endOfDay()) === false) {
             return;
         }
 
@@ -73,7 +73,6 @@ class TaskNotificationService
         $daysOverdue = max(1, $task->due_date->copy()->timezone($timezone)->startOfDay()->diffInDays(now($timezone)->startOfDay()));
 
         $this->send($recipients, new TaskOverdue($task, (int) $daysOverdue));
-        Cache::put($cacheKey, true, now($timezone)->endOfDay());
     }
 
     /**

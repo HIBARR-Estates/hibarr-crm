@@ -29,10 +29,12 @@ class ExposeReadyNotification extends BaseNotification
         $via = ['database'];
 
         if (
-            $this->emailSetting
+            $notifiable->status === 'active'
+            && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
             && ! empty($notifiable->email)
+            && $this->resolveDownloadUrl() !== null
         ) {
             $via[] = 'mail';
         }
@@ -44,14 +46,10 @@ class ExposeReadyNotification extends BaseNotification
     {
         $build = parent::build($notifiable);
         $subject = 'Your exposé is ready';
-        $url = $this->exposeJob->download_url;
+        $url = $this->resolveDownloadUrl();
         $filename = $this->exposeJob->filename ?? 'expose.pdf';
         $introText = 'Your PDF exposé has finished generating and is ready to download.';
         $contentHtml = '<strong>File:</strong> '.$this->safeMailText($filename, 200);
-
-        if ($url && $this->company) {
-            $url = getDomainSpecificUrl($url, $this->company);
-        }
 
         $build
             ->subject($subject.' - '.config('app.name'))
@@ -101,5 +99,20 @@ class ExposeReadyNotification extends BaseNotification
             'text' => 'Your PDF exposé '.($this->exposeJob->filename ?? '').' is ready to download',
             'activity_icon' => 'file',
         ];
+    }
+
+    private function resolveDownloadUrl(): ?string
+    {
+        $url = $this->exposeJob->download_url;
+
+        if (! $url && $this->exposeJob->entity_type === ExposeJob::ENTITY_PROPERTY && $this->exposeJob->entity_id) {
+            $url = route('properties.show', $this->exposeJob->entity_id);
+        }
+
+        if (! $url) {
+            return null;
+        }
+
+        return $this->company ? getDomainSpecificUrl($url, $this->company) : $url;
     }
 }

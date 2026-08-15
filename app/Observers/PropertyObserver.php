@@ -56,12 +56,16 @@ class PropertyObserver
         }
     }
 
-    public function deleting(Property $property): void
+    public function deleted(Property $property): void
     {
         if (isRunningInConsoleOrSeeding() || ! user()) {
             return;
         }
 
-        $this->notificationService->notifyArchived($property);
+        try {
+            $this->notificationService->notifyArchived($property);
+        } catch (\Throwable) {
+            // Notification failures must not affect deletion.
+        }
     }
 }

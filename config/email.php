@@ -33,6 +33,9 @@ return [
         'property_request_reviewed' => '381c73fb-3938-4b32-8255-d3fb9d68d501', // same layout as entity-activity
         'expose_ready' => '588657fa-4242-4b4b-b8b9-6279b93cd97e',
 
+        'deal_close_date_approaching' => 'f1da65e3-4b42-40c5-b5ae-1ba82fe3d94d',
+        'deal_deleted' => '45171f58-24cf-468e-8a8b-0edaf9023142',
+
         'lead_follow_up_overdue' => env('LEAD_FOLLOW_UP_OVERDUE_PLUNK_TEMPLATE_ID', ''),
     ],
 

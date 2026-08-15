@@ -26,9 +26,14 @@ class TaskOverdue extends TaskAssigneeNotification
 
     protected function mailContent($notifiable): string
     {
+        $dateFormat = $this->company?->date_format ?? 'Y-m-d';
+        $dueDate = $this->task->due_date
+            ? $this->task->due_date->copy()->timezone($this->company?->timezone ?: 'UTC')->format($dateFormat)
+            : __('app.na');
+
         return __('email.taskOverdue.text', ['days' => $this->daysOverdue]).'<br>'
-            .__('app.task').': '.$this->task->heading.'<br>'
-            .__('app.dueDate').': '.$this->task->due_date?->format($this->company->date_format).'<br>'
+            .__('app.task').': '.$this->safeMailText($this->task->heading, 200).'<br>'
+            .__('app.dueDate').': '.$dueDate.'<br>'
             .$this->projectLine();
     }
 

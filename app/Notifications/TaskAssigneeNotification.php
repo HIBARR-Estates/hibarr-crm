@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
+use App\Notifications\Channels\BeamsPushChannel;
 use Illuminate\Notifications\Messages\MailMessage;
 use NotificationChannels\OneSignal\OneSignalChannel;
 
@@ -17,9 +18,11 @@ abstract class TaskAssigneeNotification extends BaseNotification
     {
         $this->task = $task;
         $this->company = $task->company;
-        $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
-            ->where('slug', $emailSettingSlug)
-            ->first();
+        $this->emailSetting = $this->company
+            ? EmailNotificationSetting::where('company_id', $this->company->id)
+                ->where('slug', $emailSettingSlug)
+                ->first()
+            : null;
         $this->initUnsRouting();
     }
 
@@ -39,7 +42,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
             $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
-            && $notifiable->email !== ''
+            && filled($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -47,7 +50,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
         if (
             $this->emailSetting
             && $this->emailSetting->send_slack === 'yes'
-            && $this->company->slackSetting?->status === 'active'
+            && $this->company?->slackSetting?->status === 'active'
             && $this->slackUserNameCheck($notifiable)
         ) {
             $via[] = 'slack';
@@ -63,15 +66,26 @@ abstract class TaskAssigneeNotification extends BaseNotification
             && push_setting()->beams_push_status === 'active'
             && isset($notifiable->id)
         ) {
-            $pushNotification = new \App\Http\Controllers\DashboardController;
-            $pushNotification->sendPushNotifications(
-                [[$notifiable->id]],
-                $this->pushTitle(),
-                $this->task->heading
-            );
+            $via[] = BeamsPushChannel::class;
         }
 
         return $via;
+    }
+
+    /**
+     * @param  mixed  $notifiable
+     * @return array{title: string, body: string}|null
+     */
+    public function toBeamsPush($notifiable): ?array
+    {
+        if (! $this->emailSetting || $this->emailSetting->send_push !== 'yes') {
+            return null;
+        }
+
+        return [
+            'title' => $this->pushTitle(),
+            'body' => (string) $this->task->heading,
+        ];
     }
 
     abstract protected function pushTitle(): string;
@@ -95,7 +109,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
             ->markdown('mail.email', [
                 'url' => $url,
                 'content' => $content,
-                'themeColor' => $this->company->header_color,
+                'themeColor' => $this->company?->header_color,
                 'actionText' => $this->actionText(),
                 'notifiableName' => $notifiable->name,
             ]);
@@ -106,7 +120,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
             'badgeLabel' => 'Task Update',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
-            'contentHtml' => $content,
+            'contentHtml' => $this->sanitizeTaskActivityContentHtml($content),
             'actionDescription' => __('Click the button below to view the task details.'),
             'actionText' => $this->actionText(),
             'entityUrl' => $url,
@@ -148,6 +162,28 @@ abstract class TaskAssigneeNotification extends BaseNotification
             return '';
         }
 
-        return __('app.project').' - '.$this->task->project->project_name.'<br>';
+        return __('app.project').' - '.$this->safeMailText($this->task->project->project_name, 200).'<br>';
+    }
+
+    protected function sanitizeTaskActivityContentHtml(string $content): string
+    {
+        return collect(explode('<br>', $content))
+            ->map(function (string $line): string {
+                $line = trim($line);
+                if ($line === '') {
+                    return '';
+                }
+
+                if (preg_match('/^<strong>(.+?)<\/strong>\s*(.*)$/s', $line, $matches)) {
+                    $label = $this->safeMailText(strip_tags($matches[1]), 100);
+                    $value = $this->safeMailText(strip_tags($matches[2]), 500);
+
+                    return '<strong>'.e($label).':</strong> '.e($value);
+                }
+
+                return e($this->safeMailText(strip_tags($line), 500));
+            })
+            ->filter()
+            ->implode('<br>');
     }
 }

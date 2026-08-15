@@ -104,10 +104,15 @@ class Kernel extends ConsoleKernel
 
     }
 
-    // Cache for schedule commands to be array. Such that it do not conflict with application cache
+    /**
+     * Shared cache store for schedule mutexes (withoutOverlapping).
+     * Must be persistent across processes — not the in-memory array driver.
+     */
     protected function scheduleCache()
     {
-        return 'array';
+        $store = config('cache.default');
+
+        return ($store === 'array' || $store === null) ? 'file' : $store;
     }
 
     /**

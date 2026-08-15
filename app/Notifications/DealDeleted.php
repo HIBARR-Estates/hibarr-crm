@@ -75,7 +75,7 @@ class DealDeleted extends BaseNotification
                 'notifiableName' => $notifiable->name,
             ]);
 
-        $this->attachPlunkTemplate($build, '45171f58-24cf-468e-8a8b-0edaf9023142', [
+        $this->attachDealDeletedPlunk($build, [
             'mailSubject' => $mailSubject,
             'appName' => config('app.name'),
             'preheader' => $bodyText,

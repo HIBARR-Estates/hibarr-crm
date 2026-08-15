@@ -238,8 +238,8 @@ class NotificationService
             'lead_follow_up_overdue' => __('email.leadFollowUpOverdue.subject'),
             'deal_deleted' => __('email.dealDeleted.subject'),
             'deal_close_date_approaching' => __('email.dealCloseDateApproaching.subject'),
-            'property_activity_notification' => 'Property update',
-            'expose_ready_notification' => 'Exposé ready',
+            'property_activity_notification' => __('email.propertyActivity.subject'),
+            'expose_ready_notification' => __('email.exposeReady.subject'),
         ];
 
         return $titles[$typeSlug] ?? ($data['title'] ?? $data['activity_label'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
@@ -337,6 +337,8 @@ class NotificationService
             return $data['download_url'];
         }
 
+        $routes = $this->notificationLinkRoutes();
+
         // Resolve the entity ID — task alerts must link to the task, not a related deal.
         $icon = $this->getNotificationIcon($typeSlug);
         if (in_array($icon, ['task', 'task-completed'], true) || ($data['entity_type'] ?? null) === 'task') {
@@ -346,15 +348,69 @@ class NotificationService
         } elseif ($typeSlug === 'mention_ticket_agent') {
             $id = $data['ticket_number'] ?? null;
         } else {
-            $id = $data['property_id'] ?? $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+            $id = $this->resolveNotificationEntityId($typeSlug, $data, $routes);
         }
 
-        if (! $id) {
+        if (! $id && ! in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
             return null;
         }
 
-        $routes = [
-            // Tasks
+        if (isset($routes[$typeSlug])) {
+            try {
+                if (in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
+                    return route($routes[$typeSlug]);
+                }
+
+                return route($routes[$typeSlug], $id);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, string>  $routes
+     */
+    protected function resolveNotificationEntityId(string $typeSlug, array $data, array $routes): mixed
+    {
+        $routeName = $routes[$typeSlug] ?? null;
+
+        if ($routeName === null) {
+            return $data['property_id'] ?? $data['deal_id'] ?? $data['lead_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'properties.')) {
+            return $data['property_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'deals.')) {
+            return $data['deal_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'lead-contact.')) {
+            return $data['lead_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'tasks.')) {
+            return $data['task_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'projects.')) {
+            return $data['project_id'] ?? $data['id'] ?? null;
+        }
+
+        return $data['id'] ?? null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function notificationLinkRoutes(): array
+    {
+        return [
             'new_task' => 'tasks.show',
             'task_completed' => 'tasks.show',
             'task_completed_client' => 'tasks.show',
@@ -384,20 +440,14 @@ class NotificationService
             'task_rejected' => 'tasks.show',
             'task_overdue' => 'tasks.show',
             'task_priority_updated' => 'tasks.show',
-
-            // Notices
             'new_notice' => 'notices.show',
             'notice_update' => 'notices.show',
-
-            // Tickets
             'new_ticket' => 'tickets.show',
             'new_ticket_reply' => 'tickets.show',
             'new_ticket_requester' => 'tickets.show',
             'new_ticket_note' => 'tickets.show',
             'ticket_agent' => 'tickets.show',
             'mention_ticket_agent' => 'tickets.show',
-
-            // Deals / Leads
             'new_lead_created' => 'deals.show',
             'lead_owner_assigned' => 'lead-contact.show',
             'lead_agent_assigned' => 'deals.show',
@@ -411,8 +461,6 @@ class NotificationService
             'lead_follow_up_overdue' => 'deals.show',
             'deal_deleted' => 'deals.index',
             'deal_close_date_approaching' => 'deals.show',
-
-            // Properties
             'property_activity_notification' => 'properties.show',
             'expose_ready_notification' => 'properties.show',
             'availability_requested' => 'properties.show',
@@ -424,8 +472,6 @@ class NotificationService
             'property_access_request' => 'properties.show',
             'publish_request_submitted' => 'properties.show',
             'publish_request_reviewed' => 'properties.show',
-
-            // Projects
             'new_project' => 'projects.show',
             'new_project_member' => 'projects.show',
             'new_project_status' => 'projects.show',
@@ -435,20 +481,14 @@ class NotificationService
             'project_note_updated' => 'projects.show',
             'project_note_mention' => 'projects.show',
             'project_member_mention' => 'projects.show',
-
-            // Expenses
             'new_expense_admin' => 'expenses.show',
             'new_expense_member' => 'expenses.show',
             'new_expense_status' => 'expenses.show',
-
-            // Invoices
             'invoice_payment_received' => 'invoices.show',
             'new_invoice' => 'invoices.show',
             'invoice_updated' => 'invoices.show',
             'invoice_reminder' => 'invoices.show',
             'invoice_reminder_after' => 'invoices.show',
-
-            // Leaves
             'leave_application' => 'leaves.show',
             'leave_status_approve' => 'leaves.show',
             'leave_status_reject' => 'leaves.show',
@@ -456,65 +496,35 @@ class NotificationService
             'new_leave_request' => 'leaves.show',
             'new_multiple_leave_request' => 'leaves.show',
             'multiple_leave_application' => 'leaves.show',
-
-            // Events
             'event_invite' => 'events.show',
             'event_reminder' => 'events.show',
             'event_invite_mention' => 'events.show',
             'event_host_invite' => 'events.show',
             'event_completed' => 'events.show',
             'event_status_note' => 'events.show',
-
-            // Appreciations
             'new_appreciation' => 'appreciations.show',
-
-            // Contracts
             'contract_signed' => 'contracts.show',
             'new_contract' => 'contracts.show',
-
-            // Discussions
             'new_discussion' => 'discussion.show',
             'new_discussion_reply' => 'discussion.show',
             'new_discussion_mention' => 'discussion.show',
-
-            // Shifts
             'shift_scheduled' => 'attendances.index',
             'shift_change_status' => 'attendances.index',
             'shift_change_request' => 'attendances.index',
             'bulk_shift_notification' => 'attendances.index',
             'shift_rotation_notification' => 'attendances.index',
-
-            // Promotions
             'promotion_added' => 'employees.show',
             'promotion_updated' => 'employees.show',
-
-            // Estimates
             'new_estimate' => 'estimates.show',
             'estimate_accepted' => 'estimates.show',
             'estimate_declined' => 'estimates.show',
-
-            // Proposals
             'new_proposal' => 'proposals.show',
             'proposal_signed' => 'proposals.show',
-
-            // Payments
             'new_payment' => 'payments.show',
             'payment_reminder' => 'payments.show',
-
-            // Orders
             'new_order' => 'orders.show',
             'order_updated' => 'orders.show',
         ];
-
-        if (isset($routes[$typeSlug])) {
-            try {
-                return route($routes[$typeSlug], $id);
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
     }
 
     /**

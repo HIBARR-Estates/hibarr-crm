@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
+use App\Services\LeadService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class LeadBulkDeleteTest extends TestCase
         DB::purge('sqlite');
         DB::reconnect('sqlite');
 
+        Schema::dropIfExists('notifications');
         Schema::dropIfExists('leads');
         Schema::create('leads', function (Blueprint $table) {
             $table->id();
@@ -30,6 +32,14 @@ class LeadBulkDeleteTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data')->nullable();
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
+        });
     }
 
     public function test_bulk_delete_rolls_back_when_a_deletion_fails(): void
@@ -37,24 +47,17 @@ class LeadBulkDeleteTest extends TestCase
         $firstId = $this->insertLead('First Lead');
         $secondId = $this->insertLead('Second Lead');
 
-        try {
-            Lead::withoutEvents(function () use ($firstId, $secondId) {
-                DB::transaction(function () use ($firstId, $secondId) {
-                    foreach ([$firstId, $secondId] as $index => $leadId) {
-                        if ($index === 1) {
-                            throw new \RuntimeException('Simulated delete failure');
-                        }
+        Lead::deleting(function (Lead $lead) use ($secondId) {
+            if ((int) $lead->id === $secondId) {
+                return false;
+            }
+        });
 
-                        $lead = Lead::query()->findOrFail($leadId);
-                        if ($lead->forceDelete() === false) {
-                            throw new \RuntimeException('Failed to delete lead '.$lead->id);
-                        }
-                    }
-                });
-            });
+        try {
+            app(LeadService::class)->bulkForceDelete([$firstId, $secondId]);
             $this->fail('Expected bulk delete transaction to throw');
         } catch (\RuntimeException $e) {
-            $this->assertSame('Simulated delete failure', $e->getMessage());
+            $this->assertSame('Failed to delete lead '.$secondId, $e->getMessage());
         }
 
         $this->assertNotNull(Lead::find($firstId));

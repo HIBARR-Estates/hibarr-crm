@@ -45,7 +45,8 @@ class PropertyActivityNotification extends BaseNotification
         }
 
         if (
-            $this->emailSetting
+            $notifiable->status === 'active'
+            && $this->emailSetting
             && $this->emailSetting->send_email === 'yes'
             && $notifiable->email_notifications
             && ! empty($notifiable->email)
@@ -169,7 +170,7 @@ class PropertyActivityNotification extends BaseNotification
     protected function getEmailContent(): string
     {
         $lines = [];
-        $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
+        $triggeredBy = $this->safeMailText($this->data['triggered_by_name'] ?? 'Someone', 100);
         $title = $this->safeMailText($this->propertyTitle(), 200);
 
         $lines[] = '<strong>Property:</strong> '.$title;

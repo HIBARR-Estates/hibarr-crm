@@ -1,6 +1,6 @@
 @extends('mail.layouts.base')
 
-@section('title', 'Follow-up overdue')
+@section('title', __('email.leadFollowUpOverdue.subject'))
 @section('notifiableName', $notifiableName)
 
 @section('actionText', $actionText)

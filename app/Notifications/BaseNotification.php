@@ -113,6 +113,42 @@ class BaseNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * Attach deal close-date approaching Plunk template.
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachDealCloseDateApproachingPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.deal_close_date_approaching');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach deal deleted Plunk template.
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachDealDeletedPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.deal_deleted');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
      * Attach property workflow REQUEST Plunk template (approve / review CTAs).
      * HTML: resources/views/mail/plunk/property-request.plunk.html
      *
@@ -140,6 +176,13 @@ class BaseNotification extends Notification implements ShouldQueue
      */
     protected function attachPropertyRequestReviewedPlunk(MailMessage $build, array $variables): void
     {
+        $actionText = trim((string) ($variables['actionText'] ?? ''));
+        $entityUrl = trim((string) ($variables['entityUrl'] ?? ''));
+
+        if ($actionText === '' || $entityUrl === '' || $entityUrl === '#') {
+            return;
+        }
+
         $templateId = config('email.plunk_template_ids.property_request_reviewed')
             ?: config('email.plunk_template_ids.entity_activity');
 

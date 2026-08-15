@@ -80,7 +80,7 @@ class LeadActivityNotification extends BaseNotification
 
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
-            'preheader' => $introText,
+            'preheader' => $this->safePreheader($subject),
             'badgeLabel' => 'Lead Activity',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,

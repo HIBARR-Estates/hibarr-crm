@@ -49,14 +49,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        EmailNotificationSetting::query()
-            ->whereIn('slug', [
-                'task-deleted',
-                'task-rejected',
-                'task-overdue',
-                'task-priority-updated',
-                'sub-task-created',
-            ])
-            ->delete();
+        // Non-destructive rollback: settings may pre-exist or be tenant-managed.
     }
 };

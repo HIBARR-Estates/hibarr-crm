@@ -30,16 +30,18 @@ class TaskPriorityUpdated extends TaskAssigneeNotification
 
     protected function mailContent($notifiable): string
     {
-        $updatedByName = $this->updatedBy?->name ?? __('app.system');
+        $updatedByName = $this->safeMailText($this->updatedBy?->name ?? __('app.system'), 100);
         $oldLabel = $this->oldPriority
             ? __('modules.tasks.'.strtolower($this->oldPriority))
             : __('app.na');
-        $newLabel = __('modules.tasks.'.strtolower((string) $this->task->priority));
+        $newLabel = $this->task->priority
+            ? __('modules.tasks.'.strtolower((string) $this->task->priority))
+            : __('app.na');
 
         return __('email.taskPriorityUpdated.text').'<br>'
             .__('email.taskUpdate.updatedBy').': '.$updatedByName.'<br>'
             .__('modules.tasks.priority').': '.$oldLabel.' → '.$newLabel.'<br>'
-            .__('app.task').': '.$this->task->heading.'<br>'
+            .__('app.task').': '.$this->safeMailText($this->task->heading, 200).'<br>'
             .$this->projectLine();
     }
 

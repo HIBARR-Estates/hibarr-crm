@@ -22,6 +22,10 @@ class PublishRequestSubmitted extends BaseNotification
 
     public function via($notifiable): array
     {
+        if (! $this->publishRequest->property || ! $this->publishRequest->requestingAgent) {
+            return ['database'];
+        }
+
         return ['database', 'mail'];
     }
 
@@ -29,6 +33,10 @@ class PublishRequestSubmitted extends BaseNotification
     {
         $property = $this->publishRequest->property;
         $agent = $this->publishRequest->requestingAgent;
+
+        if (! $property || ! $agent) {
+            return $this->build($notifiable);
+        }
 
         $build = $this->build($notifiable);
 
