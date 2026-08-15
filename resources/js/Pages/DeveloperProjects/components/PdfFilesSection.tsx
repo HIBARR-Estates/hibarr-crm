@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Card, Button, List, Empty, Typography } from "antd";
-import { FilePdfOutlined } from "@ant-design/icons";
+import { FilePdfOutlined, LinkOutlined } from "@ant-design/icons";
 import type { DeveloperProjectUnitType } from "../../../Types/developerProject";
 import type { PriceListItem } from "../Show";
 import ExposeGenerationModal from "../../../Features/DeveloperProjects/ExposeGenerationModal";
 import GenerateUnitTypeExposeModal from "../../../Features/DeveloperProjects/GenerateUnitTypeExposeModal";
 import GenerateProjectExposeModal from "../../../Features/DeveloperProjects/GenerateProjectExposeModal";
+import ShareExposeLinkModal from "../../../Features/Expose/ShareExposeLinkModal";
+import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 import { snakeToReadable } from "../../../lib/utils";
 
 const { Paragraph } = Typography;
@@ -23,6 +25,8 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
     unitTypes,
     priceList,
 }) => {
+    const shareLinksEnabled = useExposeShareLinksFlag();
+
     const [projectExposeModalOpen, setProjectExposeModalOpen] = useState(false);
     const [unitTypeExposeModalOpen, setUnitTypeExposeModalOpen] =
         useState(false);
@@ -32,9 +36,41 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
     const [selectedPriceListItem, setSelectedPriceListItem] =
         useState<PriceListItem | null>(null);
 
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [shareEntity, setShareEntity] = useState<{
+        entityType: "developer_project" | "unit_type";
+        entityId: number;
+        unitTypeId?: number;
+        title: string;
+        subtitle?: string;
+    } | null>(null);
+
     const handleGenerateUnitTypeExpose = (ut: DeveloperProjectUnitType) => {
         setSelectedUnitType(ut);
         setUnitTypeExposeModalOpen(true);
+    };
+
+    const handleShareUnitType = (ut: DeveloperProjectUnitType) => {
+        setShareEntity({
+            entityType: "unit_type",
+            entityId: projectId,
+            unitTypeId: ut.id,
+            title:
+                ut.display_label ??
+                snakeToReadable(ut.property_type) ??
+                "Unit Type",
+            subtitle: projectName,
+        });
+        setShareModalOpen(true);
+    };
+
+    const handleShareProject = () => {
+        setShareEntity({
+            entityType: "developer_project",
+            entityId: projectId,
+            title: projectName,
+        });
+        setShareModalOpen(true);
     };
 
     const handleOpenLegacyModal = (item: PriceListItem) => {
@@ -45,8 +81,32 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
     return (
         <>
             <div className="flex flex-col gap-6">
-                {/* Project-level brochure */}
-                {/* <Card
+                {shareLinksEnabled ? (
+                    <Card
+                        title="Project exposé"
+                        extra={
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<LinkOutlined />}
+                                onClick={handleShareProject}
+                            >
+                                Share link
+                            </Button>
+                        }
+                    >
+                        <Paragraph className="text-gray-600 mb-0">
+                            Create a personalized shareable link for the full
+                            project exposé, including overview, unit types,
+                            facilities, and location details.
+                        </Paragraph>
+                    </Card>
+                ) : null}
+
+                {/* Project-level brochure PDF — hidden while share links are enabled */}
+                {!shareLinksEnabled ? (
+                    <>
+                        {/* <Card
                     title="Project Brochure"
                     extra={
                         <Button
@@ -63,35 +123,56 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                         summaries, facilities, payment plan and infrastructure distances.
                     </Paragraph>
                 </Card> */}
+                    </>
+                ) : null}
 
-                {/* Unit type exposes */}
-                <Card title="Unit Expose PDFs">
+                <Card title={shareLinksEnabled ? "Unit Exposes" : "Unit Expose PDFs"}>
                     {unitTypes.length === 0 ? (
-                        <Empty description="No unit types defined. Add unit types to generate individual expose PDFs." />
+                        <Empty
+                            description={
+                                shareLinksEnabled
+                                    ? "No unit types yet. Add unit types to share exposés."
+                                    : "No unit types defined. Add unit types to generate individual expose PDFs."
+                            }
+                        />
                     ) : (
                         <>
                             <Paragraph className="mb-4 text-gray-600">
-                                Generate an expose PDF for each unit type. Each
-                                PDF uses the property expose template,
-                                inheriting project-level data where needed.
+                                {shareLinksEnabled
+                                    ? "Create a personalized shareable link for each unit type. The link opens the digital exposé for the selected lead."
+                                    : "Generate an expose PDF for each unit type. Each PDF uses the property expose template, inheriting project-level data where needed."}
                             </Paragraph>
                             <List
                                 dataSource={unitTypes}
                                 renderItem={(ut) => (
                                     <List.Item
                                         actions={[
-                                            <Button
-                                                key="generate"
-                                                size="small"
-                                                icon={<FilePdfOutlined />}
-                                                onClick={() =>
-                                                    handleGenerateUnitTypeExpose(
-                                                        ut,
-                                                    )
-                                                }
-                                            >
-                                                Generate Expose
-                                            </Button>,
+                                            shareLinksEnabled ? (
+                                                <Button
+                                                    key="share"
+                                                    size="small"
+                                                    type="primary"
+                                                    icon={<LinkOutlined />}
+                                                    onClick={() =>
+                                                        handleShareUnitType(ut)
+                                                    }
+                                                >
+                                                    Share link
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    key="generate"
+                                                    size="small"
+                                                    icon={<FilePdfOutlined />}
+                                                    onClick={() =>
+                                                        handleGenerateUnitTypeExpose(
+                                                            ut,
+                                                        )
+                                                    }
+                                                >
+                                                    Generate Expose
+                                                </Button>
+                                            ),
                                         ]}
                                     >
                                         <List.Item.Meta
@@ -161,36 +242,55 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                 )} */}
             </div>
 
-            <GenerateProjectExposeModal
-                open={projectExposeModalOpen}
-                onClose={() => setProjectExposeModalOpen(false)}
-                projectId={projectId}
-                projectName={projectName}
-            />
+            {!shareLinksEnabled && (
+                <>
+                    <GenerateProjectExposeModal
+                        open={projectExposeModalOpen}
+                        onClose={() => setProjectExposeModalOpen(false)}
+                        projectId={projectId}
+                        projectName={projectName}
+                    />
 
-            {selectedUnitType && (
-                <GenerateUnitTypeExposeModal
-                    open={unitTypeExposeModalOpen}
-                    onClose={() => {
-                        setUnitTypeExposeModalOpen(false);
-                        setSelectedUnitType(null);
-                    }}
-                    projectId={projectId}
-                    projectName={projectName}
-                    unitType={selectedUnitType}
-                />
+                    {selectedUnitType && (
+                        <GenerateUnitTypeExposeModal
+                            open={unitTypeExposeModalOpen}
+                            onClose={() => {
+                                setUnitTypeExposeModalOpen(false);
+                                setSelectedUnitType(null);
+                            }}
+                            projectId={projectId}
+                            projectName={projectName}
+                            unitType={selectedUnitType}
+                        />
+                    )}
+
+                    {selectedPriceListItem && (
+                        <ExposeGenerationModal
+                            open={legacyModalOpen}
+                            onClose={() => {
+                                setLegacyModalOpen(false);
+                                setSelectedPriceListItem(null);
+                            }}
+                            projectId={projectId}
+                            projectName={projectName}
+                            priceListItem={selectedPriceListItem}
+                        />
+                    )}
+                </>
             )}
 
-            {selectedPriceListItem && (
-                <ExposeGenerationModal
-                    open={legacyModalOpen}
+            {shareLinksEnabled && shareEntity && (
+                <ShareExposeLinkModal
+                    open={shareModalOpen}
                     onClose={() => {
-                        setLegacyModalOpen(false);
-                        setSelectedPriceListItem(null);
+                        setShareModalOpen(false);
+                        setShareEntity(null);
                     }}
-                    projectId={projectId}
-                    projectName={projectName}
-                    priceListItem={selectedPriceListItem}
+                    entityType={shareEntity.entityType}
+                    entityId={shareEntity.entityId}
+                    unitTypeId={shareEntity.unitTypeId}
+                    title={shareEntity.title}
+                    subtitle={shareEntity.subtitle}
                 />
             )}
         </>
