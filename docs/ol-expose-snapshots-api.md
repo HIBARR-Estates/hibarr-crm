@@ -180,6 +180,21 @@ Paginated envelope matches catalog list style (`status`, `data`, `current_page`,
 
 ---
 
+## 7.1 CRM share links (agents)
+
+When feature flag **`crm.expose-share-links`** is enabled, CRM agents mint the same `exp_…` snapshots from the session UI (`POST /account/expose-snapshots/share`). The response includes:
+
+| Field | Notes |
+|---|---|
+| `token` | Same opaque `exp_…` reference as API mint |
+| `share_url` | `{EXPOSE_SHARE_BASE_URL}/{token}` (default base: `https://hibarr-os-expose.vercel.app`) |
+| `snapshot_id` | Row id |
+| `warnings` | Same content warnings as API mint |
+
+Agents share `share_url` with leads. The exposé host app loads `/{token}`, calls OL, and OL resolves via existing **`GET /api/v1/expose-snapshots/{token}`** (API token + `X-COMPANY-ID`). No public CRM resolve endpoint — auth vs snapshot reference (§1) is unchanged.
+
+---
+
 ## 8. Checklist
 
 - [ ] Token includes create/show/index snapshot scopes
