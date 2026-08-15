@@ -32,6 +32,21 @@ class StoreRequest extends CoreRequest
         if ($this->has('salutation') && $this->salutation === '') {
             $this->merge(['salutation' => null]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -50,6 +65,8 @@ class StoreRequest extends CoreRequest
         $rules['gender'] = 'nullable|in:male,female';
         $rules['temperature'] = 'nullable|in:cold,warm,hot';
         $rules['preferred_contact_time'] = ['nullable', Rule::in(PreferredContactTime::values())];
+        $rules['preferred_contact_times'] = 'nullable|array';
+        $rules['preferred_contact_times.*'] = ['string', Rule::in(PreferredContactTime::values())];
         $rules['lead_lifecycle_status_id'] = 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id';
 
         if (request()->boolean('create_deal')) {

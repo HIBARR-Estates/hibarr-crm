@@ -114,6 +114,41 @@ class LeadPreferredContactTimeTest extends TestCase
         $this->assertSame([$morningId], $ids);
     }
 
+    public function test_sync_preferred_contact_times_persists_all_values(): void
+    {
+        Schema::table('leads', function (Blueprint $table) {
+            $table->json('preferred_contact_times')->nullable();
+        });
+
+        $leadId = $this->insertLead(['client_name' => 'Multi Time Lead']);
+
+        $lead = Lead::findOrFail($leadId);
+        $lead->syncPreferredContactTimes(['morning', 'evening']);
+        $lead->save();
+
+        $fresh = Lead::findOrFail($leadId);
+
+        $this->assertSame(['morning', 'evening'], $fresh->preferred_contact_times);
+        $this->assertSame(PreferredContactTime::Morning, $fresh->preferred_contact_time);
+    }
+
+    public function test_normalize_list_accepts_json_encoded_array_string(): void
+    {
+        $normalized = PreferredContactTime::normalizeList('["morning", "evening"]');
+
+        $this->assertSame(['morning', 'evening'], $normalized);
+    }
+
+    public function test_normalize_list_accepts_associative_object_of_slugs(): void
+    {
+        $normalized = PreferredContactTime::normalizeList([
+            'morning' => 'Morning',
+            'evening' => 'Evening',
+        ]);
+
+        $this->assertSame(['morning', 'evening'], $normalized);
+    }
+
     private function resetSchema(): void
     {
         Schema::dropIfExists('leads');

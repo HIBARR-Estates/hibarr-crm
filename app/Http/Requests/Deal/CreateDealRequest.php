@@ -53,6 +53,21 @@ class CreateDealRequest extends CoreRequest
                 'referral_agent_id' => $this->input('referal_agent_id'),
             ]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -140,6 +155,8 @@ class CreateDealRequest extends CoreRequest
             // Optional lead classification / engagement (applied to the contact)
             'temperature' => 'nullable|string|in:cold,warm,hot',
             'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => 'sometimes|nullable|array',
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
