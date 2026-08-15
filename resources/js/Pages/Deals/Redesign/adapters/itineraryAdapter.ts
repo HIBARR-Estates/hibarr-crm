@@ -1,4 +1,5 @@
 import { FlightDirection, ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
+import { parseNaiveDateTime } from "@/lib/companyDateTime";
 import {
     formatDate,
     formatMonthShort,
@@ -37,8 +38,7 @@ export interface WorkspaceItineraryItem {
 export function toWorkspaceItineraryItem(
     leg: ILeadFlightItinerary,
 ): WorkspaceItineraryItem {
-    const parsed = leg.flight_date ? new Date(leg.flight_date) : null;
-    const valid = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+    const valid = parseNaiveDateTime(leg.flight_date);
     const startsAtMs = valid?.getTime() ?? null;
 
     return {

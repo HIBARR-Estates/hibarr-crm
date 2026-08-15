@@ -33,6 +33,7 @@ import {
     formatCompanyDate,
     formatCompanyDateTime,
     formatCompanyTime,
+    parseNaiveDateTime,
 } from "@/lib/companyDateTime";
 import ItineraryModal, {
     type ItineraryFormInput,
@@ -45,12 +46,7 @@ const FLIGHT_ITINERARY_EXTRACTION_FLAG = "crm.flight-itinerary-extraction";
 type FilterKey = "all" | "arrival" | "departure" | "transfer";
 
 function parseFlightDate(value: string) {
-    const normalized =
-        value.includes(" ") && !value.includes("T")
-            ? value.replace(" ", "T")
-            : value;
-    const parsed = new Date(normalized);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return parseNaiveDateTime(value);
 }
 
 function formatFlightDateParts(value: string) {

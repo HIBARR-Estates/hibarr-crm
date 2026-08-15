@@ -123,6 +123,29 @@ export function companyDateTimeDayjsFormat(separator = " "): string {
     return `${companyDateDayjsFormat()}${separator}${companyTimeDayjsFormat()}`;
 }
 
+/**
+ * Parse a datetime string that is really a naive wall-clock value (e.g.
+ * flight_date: the airport's own local time, with no real UTC meaning)
+ * even though Eloquent's default JSON cast tags it with a "Z" as if it
+ * were an absolute instant. Strips any timezone marker before parsing so
+ * `new Date()` keeps the literal numbers instead of reinterpreting them
+ * through the viewer's browser timezone.
+ */
+export function parseNaiveDateTime(
+    value: string | Date | null | undefined,
+): Date | null {
+    if (!value) return null;
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+    }
+    const naive = value
+        .trim()
+        .replace(/(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/, "")
+        .replace(" ", "T");
+    const parsed = new Date(naive);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function toDayjs(value: Date | Dayjs | string | null | undefined): Dayjs | null {
     if (value == null || value === "") return null;
     if (dayjs.isDayjs(value)) return value.isValid() ? value : null;
