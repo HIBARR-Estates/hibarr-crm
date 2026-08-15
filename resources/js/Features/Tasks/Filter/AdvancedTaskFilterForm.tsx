@@ -152,6 +152,12 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                                 <Option value="high">
                                     <Space>🔴 High Priority</Space>
                                 </Option>
+                                <Option value="highest">
+                                    <Space>🔴 Highest Priority</Space>
+                                </Option>
+                                <Option value="urgent">
+                                    <Space>🔴 Urgent Priority</Space>
+                                </Option>
                             </Select>
                         </Form.Item>
                     </Col>

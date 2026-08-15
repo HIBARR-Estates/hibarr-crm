@@ -1,19 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Checkbox, Modal, Radio, message } from "antd";
+import { Checkbox, Radio, message } from "antd";
 import type { IModalProps } from "@/Types/common";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
-import { fmt } from "@/Features/Leads/Filters/controls";
-import type { LeadBulkTarget } from "./bulkTarget";
-import { buildBulkTargetPayload } from "./bulkTarget";
+import { fmt } from "@/Features/Filters/controls";
+import { Modal } from "@/Components/Redesign/primitives/Modal";
+import RedesignButton from "@/Components/Redesign/primitives/Button";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
+import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
 import {
-    defaultExportFieldKeys,
-    exportFieldGroups,
-    type LeadExportFormat,
-} from "./exportFieldConfig";
+    defaultKeysOf,
+    groupExportFields,
+    type BulkExportFieldDef,
+    type BulkExportFormat,
+} from "./exportFields";
 
 interface Props extends IModalProps {
-    target: LeadBulkTarget;
+    target: BulkTarget;
+    /** Field picker contents — see the entity's own export field config. */
+    fields: BulkExportFieldDef[];
+    /** POST endpoint that streams the file back. */
+    endpoint: string;
+    /** Plural noun for the copy, e.g. "leads" / "deals". */
+    entityLabel: string;
 }
 
 function appendHidden(
@@ -28,23 +38,30 @@ function appendHidden(
     form.appendChild(input);
 }
 
-const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
+const BulkExportModal: React.FC<Props> = ({
+    open,
+    onClose,
+    target,
+    fields,
+    endpoint,
+    entityLabel,
+}) => {
     const { td } = useTd();
-    const groups = useMemo(() => exportFieldGroups(), []);
+    const groups = useMemo(() => groupExportFields(fields), [fields]);
     const [selectedKeys, setSelectedKeys] = useState<string[]>(() =>
-        defaultExportFieldKeys(),
+        defaultKeysOf(fields),
     );
-    const [format, setFormat] = useState<LeadExportFormat>("xlsx");
+    const [format, setFormat] = useState<BulkExportFormat>("xlsx");
     const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         if (!open) {
             return;
         }
-        setSelectedKeys(defaultExportFieldKeys());
+        setSelectedKeys(defaultKeysOf(fields));
         setFormat("xlsx");
         setExporting(false);
-    }, [open]);
+    }, [open, fields]);
 
     const allKeys = useMemo(
         () => groups.flatMap((g) => g.fields.map((f) => f.key)),
@@ -52,7 +69,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     );
 
     const handleSelectAll = () => setSelectedKeys(allKeys);
-    const handleResetDefaults = () => setSelectedKeys(defaultExportFieldKeys());
+    const handleResetDefaults = () => setSelectedKeys(defaultKeysOf(fields));
 
     const toggleKey = (key: string, checked: boolean) => {
         setSelectedKeys((prev) => {
@@ -75,7 +92,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
 
         const form = document.createElement("form");
         form.method = "POST";
-        form.action = route("lead-contact.export");
+        form.action = endpoint;
         form.style.display = "none";
 
         const csrfToken = document
@@ -104,7 +121,7 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
             appendHidden(form, key, value as string | number | boolean);
         });
 
-        // Preserve picker order (LEAD_EXPORT_FIELDS order among selected).
+        // Preserve picker order (config order among selected).
         const ordered = allKeys.filter((key) => selectedKeys.includes(key));
         ordered.forEach((key) => appendHidden(form, "fields[]", key));
 
@@ -125,40 +142,45 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     const subtitle =
         target.mode === "all_matching"
             ? td(
-                  `Export all ${countLabel} leads matching the current filters.`,
+                  `Export all ${countLabel} ${entityLabel} matching the current filters.`,
                   { source: "en" },
               )
-            : td(`Export ${countLabel} selected leads.`, { source: "en" });
+            : td(`Export ${countLabel} selected ${entityLabel}.`, {
+                  source: "en",
+              });
 
     return (
         <Modal
             open={open}
-            onCancel={() => onClose?.(false)}
-            title={td("Export leads", { source: "en" })}
-            width={640}
-            centered
-            destroyOnClose
-            footer={[
-                <Button key="cancel" onClick={() => onClose?.(false)}>
-                    {td("Cancel", { source: "en" })}
-                </Button>,
-                <Button
-                    key="export"
-                    type="primary"
-                    loading={exporting}
-                    disabled={selectedKeys.length === 0}
-                    onClick={handleExport}
-                >
-                    {td("Export", { source: "en" })}
-                </Button>,
-            ]}
+            onClose={() => onClose?.(false)}
+            title={td(`Export ${entityLabel}`, { source: "en" })}
+            maxWidth={640}
+            footer={
+                <>
+                    <RedesignButton
+                        variant="ghost"
+                        onClick={() => onClose?.(false)}
+                        disabled={exporting}
+                    >
+                        {td("Cancel", { source: "en" })}
+                    </RedesignButton>
+                    <RedesignButton
+                        variant="primary"
+                        loading={exporting}
+                        disabled={selectedKeys.length === 0}
+                        onClick={handleExport}
+                    >
+                        {td("Export", { source: "en" })}
+                    </RedesignButton>
+                </>
+            }
         >
-            <p className="text-sm text-gray-600 mb-4">{subtitle}</p>
+            <p className="text-sm mb-4" style={{ color: T.TEXT_MUTED }}>
+                {subtitle}
+            </p>
 
             <div className="mb-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                    {td("Format", { source: "en" })}
-                </div>
+                <div className="dr-label mb-2">{td("Format", { source: "en" })}</div>
                 <Radio.Group
                     value={format}
                     onChange={(e) => setFormat(e.target.value)}
@@ -172,24 +194,35 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
             </div>
 
             <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <div className="dr-label">
                     {td("Fields", { source: "en" })} ({selectedKeys.length}/
                     {allKeys.length})
                 </div>
                 <div className="flex gap-2">
-                    <Button size="small" onClick={handleSelectAll}>
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-ghost dr-btn-sm"
+                        onClick={handleSelectAll}
+                    >
                         {td("Select all", { source: "en" })}
-                    </Button>
-                    <Button size="small" onClick={handleResetDefaults}>
+                    </button>
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-ghost dr-btn-sm"
+                        onClick={handleResetDefaults}
+                    >
                         {td("Reset defaults", { source: "en" })}
-                    </Button>
+                    </button>
                 </div>
             </div>
 
             <div className="max-h-[420px] overflow-y-auto space-y-4 pr-1">
                 {groups.map(({ group, fields }) => (
                     <div key={group}>
-                        <div className="text-sm font-medium text-gray-800 mb-2">
+                        <div
+                            className="text-sm font-semibold mb-2"
+                            style={{ color: T.TEXT }}
+                        >
                             {td(group, { source: "en" })}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
@@ -212,4 +245,4 @@ const BulkExportLeads: React.FC<Props> = ({ open, onClose, target }) => {
     );
 };
 
-export default BulkExportLeads;
+export default BulkExportModal;

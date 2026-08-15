@@ -107,6 +107,20 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 ) || [],
         },
         {
+            key: "next_action",
+            label: "Next action",
+            type: "select",
+            control: "segmented",
+            sentence: "next action",
+            section: "General",
+            options: [
+                { value: "overdue", label: "Overdue" },
+                { value: "today", label: "Today" },
+                { value: "week", label: "Next 7 days" },
+                { value: "none", label: "None" },
+            ],
+        },
+        {
             key: "lead_type",
             label: "Lead type",
             type: "select",

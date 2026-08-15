@@ -60,7 +60,7 @@ interface Props {
 interface CreateNextStepTaskRequest {
     heading: string;
     due_date: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     taskable_type: "lead" | "deal";
     taskable_id: number;
     user_id: number[];

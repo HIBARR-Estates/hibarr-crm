@@ -23,6 +23,7 @@ return array(
     'dealUpdateSuccess' => 'Сделка успешно обновлена.',
     'dealLocked' => 'Эта сделка заблокирована и не может быть изменена.',
     'leadUpdateSuccess' => 'Контакт успешно обновлён.',
+    'leadReferrerImmutable' => 'Реферер уже указан и не может быть изменён.',
     'propertyUpdateSuccess' => 'Недвижимость успешно обновлена.',
     'taskUpdateSuccess' => 'Задача успешно обновлена.',
     'taskCreatedSuccessfully' => 'Задача успешно создана.',

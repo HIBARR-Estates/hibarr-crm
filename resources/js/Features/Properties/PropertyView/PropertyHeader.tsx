@@ -16,6 +16,7 @@ import {
     EnvironmentOutlined,
     DollarOutlined,
     FilePdfOutlined,
+    LinkOutlined,
     CheckCircleOutlined,
     CopyOutlined,
     GlobalOutlined,
@@ -37,6 +38,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { useCurrencies } from "@/Hooks/useFormData";
+import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 
 const { Title, Text } = Typography;
 
@@ -61,6 +63,7 @@ function PropertyHeader({
 }: PropertyHeaderProps) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
+    const shareLinksEnabled = useExposeShareLinksFlag();
     const {
         default_currency_code: defaultCurrencyCode,
         default_currency_symbol: defaultCurrencySymbol,
@@ -430,14 +433,15 @@ function PropertyHeader({
                             Share
                         </Button>
                     )} */}
-                    {/* {onGenerateExpose && (
+                    {shareLinksEnabled && onGenerateExpose && (
                         <Button
-                            icon={<FilePdfOutlined />}
+                            type="primary"
+                            icon={<LinkOutlined />}
                             onClick={onGenerateExpose}
                         >
-                            Generate Expose
+                            Share exposé
                         </Button>
-                    )} */}
+                    )}
                     {permissions.canEdit && (
                         <Button
                             type="primary"

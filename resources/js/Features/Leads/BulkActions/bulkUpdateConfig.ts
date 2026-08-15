@@ -1,31 +1,12 @@
 import type { FilterOption } from "@/contexts/FilterContext";
+import {
+    asArray,
+    type BulkUpdateFieldDef,
+    type BulkUpdateValue,
+} from "@/Features/BulkActions/bulkUpdateFields";
 
-export type BulkUpdateControl =
-    | "pills"
-    | "pills-single"
-    | "temperature"
-    | "checklist-single";
-
-export type BulkUpdateActionType =
-    | "change_category"
-    | "change_source"
-    | "change_owner"
-    | "change_temperature"
-    | "change_lifecycle_status"
-    | "change_whatsapp_group";
-
-export interface BulkUpdateFieldDef {
-    key: string;
-    label: string;
-    section: string;
-    control: BulkUpdateControl;
-    actionType: BulkUpdateActionType;
-    /** Request body key for the value (except category_ids / has_joined…). */
-    payloadKey: string;
-    /** Allow explicitly clearing this field (null / empty). */
-    clearable: boolean;
-    options: FilterOption[];
-}
+export type { BulkUpdateFieldDef };
+export { groupBulkUpdateFieldsBySection } from "@/Features/BulkActions/bulkUpdateFields";
 
 export interface BulkUpdateOptionsInput {
     categories?: Array<{ id: number; category_name?: string; name?: string }>;
@@ -39,9 +20,12 @@ export interface BulkUpdateOptionsInput {
     }>;
 }
 
+const numberOrNull = (value: BulkUpdateValue) =>
+    value == null || value === "" ? null : Number(value);
+
 /**
  * Option-backed lead fields available in the Bulk update workbench.
- * Controls reuse the Lead Filter modal vocabulary (pills / temperature / checklist / segmented).
+ * Controls reuse the filter modal vocabulary (pills / temperature / checklist).
  */
 export function createLeadBulkUpdateFields(
     props: BulkUpdateOptionsInput,
@@ -81,77 +65,68 @@ export function createLeadBulkUpdateFields(
             label: "Categories",
             section: "Assignment",
             control: "pills",
-            actionType: "change_category",
-            payloadKey: "category_ids",
             clearable: true,
+            hint: "Replaces existing categories",
             options: categories,
+            toPayload: (value) => ({
+                category_ids: asArray(value).map(Number).filter(Boolean),
+            }),
         },
         {
             key: "source_id",
             label: "Source",
             section: "Assignment",
             control: "pills-single",
-            actionType: "change_source",
-            payloadKey: "source_id",
             clearable: true,
             options: sources,
+            toPayload: (value) => ({ source_id: numberOrNull(value) }),
         },
         {
             key: "lead_owner",
             label: "Lead owner",
             section: "Assignment",
             control: "checklist-single",
-            actionType: "change_owner",
-            payloadKey: "lead_owner",
             clearable: true,
             options: employees,
+            toPayload: (value) => ({ lead_owner: numberOrNull(value) }),
         },
         {
             key: "temperature",
             label: "Temperature",
             section: "Classification",
             control: "temperature",
-            actionType: "change_temperature",
-            payloadKey: "temperature",
             clearable: true,
             options: temperatures,
+            toPayload: (value) => ({
+                temperature:
+                    value == null || value === "" ? null : String(value),
+            }),
         },
         {
             key: "lead_lifecycle_status_id",
             label: "Status",
             section: "Classification",
             control: "pills-single",
-            actionType: "change_lifecycle_status",
-            payloadKey: "lead_lifecycle_status_id",
             clearable: true,
             options: statuses,
+            toPayload: (value) => ({
+                lead_lifecycle_status_id: numberOrNull(value),
+            }),
         },
         {
             key: "has_joined_the_whatsapp_group",
             label: "Joined WhatsApp group",
             section: "Engagement",
             control: "pills-single",
-            actionType: "change_whatsapp_group",
-            payloadKey: "has_joined_the_whatsapp_group",
             clearable: false,
             options: [
                 { value: "1", label: "Yes" },
                 { value: "0", label: "No" },
             ],
+            toPayload: (value) => ({
+                has_joined_the_whatsapp_group:
+                    value === true || value === 1 || value === "1",
+            }),
         },
     ];
-}
-
-export function groupBulkUpdateFieldsBySection(
-    fields: BulkUpdateFieldDef[],
-): Array<{ name: string; fields: BulkUpdateFieldDef[] }> {
-    const grouped = new Map<string, BulkUpdateFieldDef[]>();
-    for (const field of fields) {
-        if (!grouped.has(field.section)) grouped.set(field.section, []);
-        grouped.get(field.section)!.push(field);
-    }
-    return Array.from(grouped.entries()).map(([name, sectionFields]) => ({
-        name,
-        fields: sectionFields,
-    }));
 }

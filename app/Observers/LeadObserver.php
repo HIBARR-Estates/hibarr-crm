@@ -33,6 +33,16 @@ class LeadObserver
             $lead->assigned_at = now();
         }
 
+        // The referrer drives partner commission attribution, so it is write-once:
+        // it can be filled when missing, never reassigned or cleared. Guarded here
+        // rather than in the controller so every writer (UI, import, API) is covered.
+        if ($lead->exists
+            && $lead->isDirty('referred_by_agent_id')
+            && $lead->getOriginal('referred_by_agent_id') !== null
+        ) {
+            throw new \RuntimeException(__('messages.leadReferrerImmutable'));
+        }
+
     }
 
     public function creating(Lead $leadContact)

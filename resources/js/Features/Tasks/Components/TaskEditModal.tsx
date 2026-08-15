@@ -39,7 +39,7 @@ interface Task {
     description?: string;
     due_date?: string;
     start_date?: string;
-    priority: "low" | "medium" | "high";
+    priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     board_column_id?: number;
     project?: {
@@ -378,6 +378,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                     </Option>
                                     <Option value="high">
                                         <Space>🔴 High Priority</Space>
+                                    </Option>
+                                    <Option value="highest">
+                                        <Space>🔴 Highest Priority</Space>
+                                    </Option>
+                                    <Option value="urgent">
+                                        <Space>🔴 Urgent Priority</Space>
                                     </Option>
                                 </Select>
                             </Form.Item>

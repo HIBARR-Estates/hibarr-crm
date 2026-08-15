@@ -526,6 +526,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
     Route::post('deals/follow-up-store', [DealController::class, 'followUpStore'])->name('deals.follow_up_store');
     Route::get('deals/follow-up-edit/{id?}', [DealController::class, 'editFollow'])->name('deals.follow_up_edit');
+    Route::get('deals/follow-up-data/{id}', [DealController::class, 'followUpData'])->name('deals.follow_up_data');
     Route::post('deals/follow-up-update', [DealController::class, 'updateFollow'])->name('deals.follow_up_update');
     Route::post('deals/follow-up-delete/{id}', [DealController::class, 'deleteFollow'])->name('deals.follow_up_delete');
     Route::post('deals/follow-up-apply-quick-action', [DealController::class, 'applyFollowUpQuickAction'])->name('deals.follow_up_apply_quick_action');
@@ -536,6 +537,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deals/change-stage', [DealController::class, 'changeStage'])->name('deals.change_stage');
     Route::post('deals/change-agent', [DealController::class, 'changeAgent'])->name('deals.change_agent');
     Route::post('deals/apply-quick-action', [DealController::class, 'applyQuickAction'])->name('deals.apply_quick_action');
+    Route::post('deals/export', [DealController::class, 'export'])->name('deals.export');
 
     Route::get('deals/gdpr-consent', [DealController::class, 'consent'])->name('deals.gdpr_consent');
     Route::post('deals/save-deal-consent/{deal}', [DealController::class, 'saveLeadConsent'])->name('deals.save_lead_consent');
@@ -1184,6 +1186,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // Expose job status polling
     Route::get('expose-jobs/{id}', [App\Http\Controllers\ExposeJobController::class, 'show'])->name('expose-jobs.show');
+    Route::post('expose-snapshots/share', [App\Http\Controllers\ExposeSnapshotShareController::class, 'store'])->name('expose-snapshots.share');
 
     Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
 

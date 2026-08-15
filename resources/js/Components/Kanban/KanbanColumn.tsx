@@ -91,9 +91,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         >({
             path: route("deals.kanban_deals"),
             params: {
-                pipeline_stage_id: column.id,
                 page: 1,
                 ...filters,
+                // A column *is* a stage — never let a stage filter override it.
+                pipeline_stage_id: column.id,
             },
             getNextPageParam: (lastPage) => {
                 if (lastPage?.deals?.next_page_url) {

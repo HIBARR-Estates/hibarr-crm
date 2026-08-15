@@ -5,6 +5,8 @@ import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import MarkAsSoldModal from "@/Features/Properties/MarkAsSoldModal";
 import GenerateUnitTypeExposeModal from "@/Features/DeveloperProjects/GenerateUnitTypeExposeModal";
+import ShareExposeLinkModal from "@/Features/Expose/ShareExposeLinkModal";
+import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 
 import type {
     DeveloperProject,
@@ -51,6 +53,7 @@ const UnitTypeShow = ({
     employees,
 }: UnitTypeShowProps) => {
     const { t } = useTranslation();
+    const shareLinksEnabled = useExposeShareLinksFlag();
     const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
     const [showExposeModal, setShowExposeModal] = useState(false);
     const [currentSoldCount, setCurrentSoldCount] = useState(soldCount);
@@ -121,13 +124,29 @@ const UnitTypeShow = ({
                 onSuccess={handleMarkAsSoldSuccess}
             />
 
-            <GenerateUnitTypeExposeModal
-                open={showExposeModal}
-                onClose={() => setShowExposeModal(false)}
-                projectId={developerProject.id}
-                projectName={developerProject.name}
-                unitType={unitType}
-            />
+            {shareLinksEnabled ? (
+                <ShareExposeLinkModal
+                    open={showExposeModal}
+                    onClose={() => setShowExposeModal(false)}
+                    entityType="unit_type"
+                    entityId={developerProject.id}
+                    unitTypeId={unitType.id}
+                    title={
+                        unitType.display_label ??
+                        unitType.property_type ??
+                        "Unit Type"
+                    }
+                    subtitle={developerProject.name}
+                />
+            ) : (
+                <GenerateUnitTypeExposeModal
+                    open={showExposeModal}
+                    onClose={() => setShowExposeModal(false)}
+                    projectId={developerProject.id}
+                    projectName={developerProject.name}
+                    unitType={unitType}
+                />
+            )}
         </>
     );
 };

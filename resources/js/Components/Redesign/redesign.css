@@ -295,6 +295,11 @@
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(22, 41, 77, 0.14);
     padding: 6px;
+    /* useFloatingMenuPosition sets an inline max-height; without this the
+       overflowing items (e.g. Delete deal, always last) are clipped away
+       instead of being reachable. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 .dr-menu-item {
     width: 100%;

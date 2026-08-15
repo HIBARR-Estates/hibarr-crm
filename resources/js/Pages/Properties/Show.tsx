@@ -5,16 +5,18 @@ import { Property } from "@/Types";
 // Import components
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import { Button, Tooltip, message } from "antd";
+import { Button, message } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import PropertyView from "@/Features/Properties/PropertyView/PropertyView";
 import { Task } from "@/Types/api/tasks";
 import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
+import ShareExposeLinkModal from "@/Features/Expose/ShareExposeLinkModal";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
 import { generatePropertySubtitle } from "@/lib/utils";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 
 interface ShowProps {
     pageTitle: string;
@@ -43,6 +45,7 @@ const Show = ({
 }: ShowProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const shareLinksEnabled = useExposeShareLinksFlag();
     // Breadcrumbs for the page
     const breadcrumbs = [
         {
@@ -102,15 +105,6 @@ const Show = ({
             });
     };
 
-    const handleFavorite = () => {
-        // This would typically make an API call to add/remove from favorites
-        message.success(t("pages.properties.show.messages.added_to_favorites"));
-    };
-
-    const handleBack = () => {
-        router.visit(route("properties.index"));
-    };
-
     return (
         <>
             <PageLayout
@@ -136,7 +130,11 @@ const Show = ({
                         }
                         onEdit={handleEdit}
                         onShare={handleShare}
-                        onGenerateExpose={() => setShowExposeModal(true)}
+                        onGenerateExpose={
+                            shareLinksEnabled
+                                ? () => setShowExposeModal(true)
+                                : undefined
+                        }
                         tasks={tasks}
                         taskCategories={taskCategories}
                         taskLabels={taskLabels}
@@ -147,22 +145,43 @@ const Show = ({
                 </div>
             </PageLayout>
 
-            <GenerateExposeModal
-                open={showExposeModal}
-                onClose={() => setShowExposeModal(false)}
-                propertyId={currentProperty.id}
-                projectName={
-                    currentProperty?.developer_project?.name ||
-                    currentProperty?.developerProject?.name ||
-                    undefined
-                }
-                unitName={
-                    generatePropertySubtitle(currentProperty) ||
-                    currentProperty?.display_title ||
-                    currentProperty?.title ||
-                    undefined
-                }
-            />
+            {shareLinksEnabled ? (
+                <ShareExposeLinkModal
+                    open={showExposeModal}
+                    onClose={() => setShowExposeModal(false)}
+                    entityType="property"
+                    entityId={currentProperty.id}
+                    title={
+                        generatePropertySubtitle(currentProperty) ||
+                        currentProperty?.display_title ||
+                        currentProperty?.title ||
+                        currentProperty?.reference_code ||
+                        `Property #${currentProperty.id}`
+                    }
+                    subtitle={
+                        currentProperty?.developer_project?.name ||
+                        currentProperty?.developerProject?.name ||
+                        undefined
+                    }
+                />
+            ) : (
+                <GenerateExposeModal
+                    open={showExposeModal}
+                    onClose={() => setShowExposeModal(false)}
+                    propertyId={currentProperty.id}
+                    projectName={
+                        currentProperty?.developer_project?.name ||
+                        currentProperty?.developerProject?.name ||
+                        undefined
+                    }
+                    unitName={
+                        generatePropertySubtitle(currentProperty) ||
+                        currentProperty?.display_title ||
+                        currentProperty?.title ||
+                        undefined
+                    }
+                />
+            )}
 
             <SavePropertyModal
                 open={showEditModal}
