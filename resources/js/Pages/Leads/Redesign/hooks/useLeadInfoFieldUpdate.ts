@@ -61,6 +61,19 @@ function processStandardField(
         return { languages: Array.isArray(value) ? value : [] };
     }
 
+    if (
+        fieldName === "preferred_contact_times" ||
+        fieldName === "preferred_contact_time"
+    ) {
+        const times = Array.isArray(value)
+            ? value
+            : value != null && value !== ""
+              ? [value]
+              : [];
+
+        return { preferred_contact_times: times };
+    }
+
     if (fieldName === "date_of_birth") {
         if (!value) {
             return {
@@ -95,8 +108,7 @@ function processStandardField(
     if (
         fieldName === "gender" ||
         fieldName === "salutation" ||
-        fieldName === "temperature" ||
-        fieldName === "preferred_contact_time"
+        fieldName === "temperature"
     ) {
         return { [fieldName]: value || null };
     }
@@ -130,11 +142,22 @@ export default function useLeadInfoFieldUpdate(canEdit = true) {
                 Object.entries(updated).forEach(([key, val]) => {
                     if (val === undefined) return;
                     next[key] =
-                        (key === "languages" || key === "categories" || key === "category_ids") &&
+                        (key === "languages" ||
+                            key === "categories" ||
+                            key === "category_ids" ||
+                            key === "preferred_contact_times") &&
                         !Array.isArray(val)
                             ? []
                             : val;
                 });
+
+                if (updated.preferred_contact_times !== undefined) {
+                    const times = Array.isArray(updated.preferred_contact_times)
+                        ? updated.preferred_contact_times
+                        : [];
+                    next.preferred_contact_times = times;
+                    next.preferred_contact_time = times[0] ?? null;
+                }
 
                 if (updated.mobile !== undefined) {
                     const formatted = formatMobileForDisplay(

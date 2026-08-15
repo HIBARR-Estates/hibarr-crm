@@ -7,9 +7,10 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { Lead } from "@/Types/api/leads";
 import { getDossierFieldValue } from "../../adapters/dossierAdapter";
 import {
-    formatPreferredContactTime,
+    formatPreferredContactTimes,
     PREFERRED_CONTACT_TIME_LABELS,
     PREFERRED_CONTACT_TIME_VALUES,
+    resolvePreferredContactTimes,
 } from "../../config/leadPreferredContactTime";
 import {
     formatLeadTemperature,
@@ -249,12 +250,13 @@ export function LeadPreferredContactTimeField({
     onChange,
 }: LeadAttributionFieldProps) {
     const { td } = useTd();
+    const selected = resolvePreferredContactTimes(lead);
 
     return (
         <DealEditableField
-            value={lead.preferred_contact_time || ""}
-            fieldName="preferred_contact_time"
-            fieldType="select"
+            value={selected}
+            fieldName="preferred_contact_times"
+            fieldType="multiselect"
             options={PREFERRED_CONTACT_TIME_VALUES.map((value) => ({
                 label: td(PREFERRED_CONTACT_TIME_LABELS[value], {
                     source: "en",
@@ -262,23 +264,20 @@ export function LeadPreferredContactTimeField({
                 value,
             }))}
             displayValue={
-                lead.preferred_contact_time ? (
+                selected.length ? (
                     <span className="text-gray-700">
-                        {td(
-                            formatPreferredContactTime(
-                                lead.preferred_contact_time,
-                            ),
-                            { source: "en" },
-                        )}
+                        {td(formatPreferredContactTimes(selected), {
+                            source: "en",
+                        })}
                     </span>
                 ) : undefined
             }
             onSave={(value) =>
-                onFieldUpdate("preferred_contact_time", value)
+                onFieldUpdate("preferred_contact_times", value)
             }
             alwaysEditing={alwaysEditing}
             onChange={onChange}
-            loading={isFieldLoading("preferred_contact_time")}
+            loading={isFieldLoading("preferred_contact_times")}
             disabled={disabled}
         />
     );
