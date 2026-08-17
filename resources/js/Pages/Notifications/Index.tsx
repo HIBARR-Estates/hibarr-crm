@@ -61,6 +61,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
+import { isDistinctNotificationBody } from "@/lib/notificationAlerts";
 
 dayjs.extend(relativeTime);
 
@@ -264,12 +265,17 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                     <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                                 )}
                             </div>
-                            <Paragraph
-                                ellipsis={{ rows: 2 }}
-                                className="!mb-1 text-sm text-gray-600"
-                            >
-                                {notification.text}
-                            </Paragraph>
+                            {isDistinctNotificationBody(
+                                notification.title,
+                                notification.text,
+                            ) && (
+                                <Paragraph
+                                    ellipsis={{ rows: 2 }}
+                                    className="!mb-1 text-sm text-gray-600"
+                                >
+                                    {notification.text}
+                                </Paragraph>
+                            )}
                             <div className="flex items-center gap-2 text-xs text-gray-400">
                                 <ClockCircleOutlined />
                                 <span>{notification.time_ago}</span>

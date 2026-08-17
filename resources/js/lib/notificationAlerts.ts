@@ -50,6 +50,38 @@ function playTone(ctx: AudioContext, startAt: number, frequency: number, duratio
     oscillator.stop(startAt + duration);
 }
 
+/**
+ * Loosely normalize copy for a "same content?" comparison: case/accent
+ * insensitive, trailing punctuation and extra whitespace ignored. Catches
+ * near-duplicates like title "Deal stage updated" vs body "Deal stage
+ * updated." that a strict equality check would miss.
+ */
+function normalizeForComparison(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[.!?…]+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * True when `text` actually adds information beyond `title` — false when
+ * it's blank or just a restatement (same content, different punctuation/
+ * casing/whitespace). Use this to decide whether to render a notification's
+ * body at all instead of repeating the title back to the reader.
+ */
+export function isDistinctNotificationBody(
+    title: string | null | undefined,
+    text: string | null | undefined,
+): boolean {
+    const normalizedText = normalizeForComparison(text ?? "");
+    if (normalizedText === "") return false;
+
+    const normalizedTitle = normalizeForComparison(title ?? "");
+    return normalizedText !== normalizedTitle;
+}
+
 export function isAlertsMuted(): boolean {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem(MUTE_STORAGE_KEY) === "1";

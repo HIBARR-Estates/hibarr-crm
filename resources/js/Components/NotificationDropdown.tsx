@@ -47,6 +47,7 @@ import {
     requestDesktopPermission,
     acknowledgeDropdownNotifications,
     countUnacknowledgedNotifications,
+    isDistinctNotificationBody,
 } from "@/lib/notificationAlerts";
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
@@ -118,10 +119,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
         [notification.id, onDismiss],
     );
 
-    const title = notification.title?.trim() ?? "";
-    const body = notification.text?.trim() ?? "";
-    const showBody =
-        body !== "" && body.localeCompare(title, undefined, { sensitivity: "accent" }) !== 0;
+    const showBody = isDistinctNotificationBody(
+        notification.title,
+        notification.text,
+    );
 
     return (
         <motion.div
