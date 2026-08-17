@@ -115,8 +115,9 @@ class DealNotificationService
             return ! $excludedIds->contains(fn ($excludedId) => (int) $userId === (int) $excludedId);
         });
 
+        // Routine activity (notes, files, stage, meetings, …) — no admin fallback.
         if ($userIds->isEmpty()) {
-            return $this->activeAdminsForCompany((int) $deal->company_id, $excludeUserId, $additionalExcludeUserIds);
+            return collect();
         }
 
         // Fetch the actual User models with email_notifications check
@@ -166,7 +167,7 @@ class DealNotificationService
     }
 
     /**
-     * Assigned agent + their manager; falls back to admins when unassigned.
+     * Assigned agent + their manager. No admin fallback (close-date reminders).
      *
      * @return Collection<User>
      */
@@ -188,8 +189,9 @@ class DealNotificationService
         $excludedIds = collect([$excludeUserId])->filter()->unique();
         $userIds = $userIds->unique()->filter(fn ($id) => $id && ! $excludedIds->contains($id));
 
+        // Close-date reminders are not create/delete/irreversible — skip admin fallback.
         if ($userIds->isEmpty()) {
-            return $this->activeAdminsForCompany((int) $deal->company_id, $excludeUserId);
+            return collect();
         }
 
         return User::whereIn('id', $userIds->toArray())
@@ -198,7 +200,7 @@ class DealNotificationService
     }
 
     /**
-     * Agent + watchers; falls back to admins when nobody is assigned.
+     * Agent + watchers; falls back to admins when nobody is assigned (deal deletion).
      *
      * @return Collection<User>
      */

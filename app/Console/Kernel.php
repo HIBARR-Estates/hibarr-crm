@@ -40,6 +40,8 @@ use App\Console\Commands\SendProjectReminder;
 use App\Console\Commands\SendTimeTracker;
 use App\Console\Commands\SyncDynamicTranslations;
 use App\Console\Commands\SyncUserPermissions;
+use App\Console\Commands\SendMlmApproachingNotifications;
+use App\Console\Commands\TestNotificationsCommand;
 use App\Console\Commands\UpdateExchangeRates;
 use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
@@ -92,6 +94,8 @@ class Kernel extends ConsoleKernel
         MigrateFilesToExternalStorage::class,
         RecoverProjectFacilities::class,
         SyncDynamicTranslations::class,
+        TestNotificationsCommand::class,
+        SendMlmApproachingNotifications::class,
     ];
 
     /**
@@ -138,6 +142,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-overdue-lead-followup-notifications')->hourly()->withoutOverlapping();
         $schedule->command('send-overdue-task-notifications')->hourly()->withoutOverlapping();
         $schedule->command('send-approaching-deal-close-date-notifications')->dailyAt('08:00');
+        $schedule->command('send-mlm-approaching-notifications')->dailyAt('08:15');
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();

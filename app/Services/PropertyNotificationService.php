@@ -128,7 +128,7 @@ class PropertyNotificationService
                 'file_id' => $fileId,
             ],
             $excludeUserId,
-            $this->responsibleAgentAndAdmins($property, $excludeUserId),
+            $this->responsibleAgentAndWatchers($property, $excludeUserId),
         );
     }
 
@@ -152,8 +152,8 @@ class PropertyNotificationService
         ?int $excludeUserId = null,
     ): Collection {
         return match ($activityType) {
-            PropertyActivityType::CREATED,
-            PropertyActivityType::DOCUMENT_UPLOADED => $this->responsibleAgentAndAdmins($property, $excludeUserId),
+            PropertyActivityType::CREATED => $this->responsibleAgentAndAdmins($property, $excludeUserId),
+            PropertyActivityType::DOCUMENT_UPLOADED => $this->responsibleAgentAndWatchers($property, $excludeUserId),
             PropertyActivityType::PUBLISHED => $this->responsibleAgent($property, $excludeUserId),
             PropertyActivityType::UNPUBLISHED => $this->responsibleAgentAndWatchers($property, $excludeUserId),
             PropertyActivityType::STATUS_CHANGED,

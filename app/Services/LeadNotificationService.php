@@ -101,7 +101,7 @@ class LeadNotificationService
     }
 
     /**
-     * Lead owner + private-note members; admins when nobody qualifies.
+     * Lead owner + private-note members. No admin fallback for routine activity.
      *
      * @return Collection<int, User>
      */
@@ -129,10 +129,7 @@ class LeadNotificationService
             return ! $excludedIds->contains(fn ($excludedId) => (int) $userId === (int) $excludedId);
         });
 
-        if ($userIds->isEmpty() && $lead->company_id) {
-            return $this->activeAdminsForCompany((int) $lead->company_id, $excludeUserId);
-        }
-
+        // Notes/files are routine activity — no admin fallback when the lead is unassigned.
         if ($userIds->isEmpty()) {
             return collect();
         }
@@ -192,9 +189,7 @@ class LeadNotificationService
         }
 
         if ($recipients->isEmpty() && $lead->company_id) {
-            $recipients = User::allAdmins((int) $lead->company_id)
-                ->filter(fn (User $user) => $user->status === 'active' && (int) $user->id !== (int) ($deletedBy?->id))
-                ->values();
+            $recipients = $this->activeAdminsForCompany((int) $lead->company_id, $deletedBy?->id);
         }
 
         if ($recipients->isEmpty()) {
@@ -231,12 +226,6 @@ class LeadNotificationService
         }
 
         $recipients = $this->resolveOverdueRecipients($followUp);
-        if ($recipients->isEmpty() && $company->id) {
-            $recipients = User::allAdmins((int) $company->id)
-                ->filter(fn (User $user) => $user->status === 'active')
-                ->values();
-        }
-
         if ($recipients->isEmpty()) {
             return;
         }
