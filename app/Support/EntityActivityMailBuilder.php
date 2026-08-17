@@ -8,6 +8,29 @@ namespace App\Support;
  */
 class EntityActivityMailBuilder
 {
+    /**
+     * First N words of note body (HTML stripped) for notification previews.
+     */
+    public static function noteExcerpt(?string $html, int $words = 5): ?string
+    {
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $html)) ?? '');
+        if ($plain === '') {
+            return null;
+        }
+
+        $parts = preg_split('/\s+/u', $plain, $words + 1, PREG_SPLIT_NO_EMPTY);
+        if ($parts === false || $parts === []) {
+            return null;
+        }
+
+        $excerpt = implode(' ', array_slice($parts, 0, $words));
+        if (count($parts) > $words) {
+            $excerpt .= '…';
+        }
+
+        return $excerpt;
+    }
+
     public static function renderDetailBlock(
         ?string $title = null,
         ?string $meta = null,

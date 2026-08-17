@@ -15,6 +15,7 @@ enum PropertyActivityType: string
     case AGENT_ASSIGNED = 'agent_assigned';
     case DOCUMENT_UPLOADED = 'document_uploaded';
     case ARCHIVED = 'archived';
+    case WATCHER_ADDED = 'watcher_added';
 
     public function label(): string
     {
@@ -27,6 +28,7 @@ enum PropertyActivityType: string
             self::AGENT_ASSIGNED => 'Property Agent Assigned',
             self::DOCUMENT_UPLOADED => 'Property Document Uploaded',
             self::ARCHIVED => 'Property Archived',
+            self::WATCHER_ADDED => 'Property Watcher Added',
         };
     }
 
@@ -41,6 +43,7 @@ enum PropertyActivityType: string
             self::AGENT_ASSIGNED => 'agent',
             self::DOCUMENT_UPLOADED => 'file',
             self::ARCHIVED => 'property',
+            self::WATCHER_ADDED => 'watcher',
         };
     }
 

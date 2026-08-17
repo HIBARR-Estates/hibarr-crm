@@ -44,7 +44,8 @@ class DealNoteObserver
                     $this->notificationService->notifyNoteAdded(
                         $deal,
                         $dealNote->title ?? 'Untitled Note',
-                        $dealNote->id
+                        $dealNote->id,
+                        $dealNote->details,
                     );
 
                     $this->dealActivityEventService->recordNoteAdded($deal, $dealNote);
@@ -71,7 +72,8 @@ class DealNoteObserver
                 $this->notificationService->notifyNoteUpdated(
                     $deal,
                     $dealNote->title ?? 'Untitled Note',
-                    $dealNote->id
+                    $dealNote->id,
+                    $dealNote->details,
                 );
             }
         }
@@ -90,6 +92,7 @@ class DealNoteObserver
                     $deal,
                     $dealNote->title ?? 'Untitled Note',
                     $dealNote->id,
+                    $dealNote->details,
                 );
             }
         }

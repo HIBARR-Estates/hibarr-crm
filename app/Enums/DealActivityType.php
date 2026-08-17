@@ -58,6 +58,10 @@ enum DealActivityType: string
     case WATCHER_ADDED = 'watcher_added';
     case WATCHER_REMOVED = 'watcher_removed';
 
+    // Participants
+    case PARTICIPANT_ADDED = 'participant_added';
+    case PARTICIPANT_REMOVED = 'participant_removed';
+
     /**
      * Get the human-readable label for this activity type.
      */
@@ -91,6 +95,8 @@ enum DealActivityType: string
             self::AGENT_CHANGED => 'Agent Changed',
             self::WATCHER_ADDED => 'Watcher Added',
             self::WATCHER_REMOVED => 'Watcher Removed',
+            self::PARTICIPANT_ADDED => 'Participant Added',
+            self::PARTICIPANT_REMOVED => 'Participant Removed',
         };
     }
 
@@ -110,6 +116,7 @@ enum DealActivityType: string
             self::OFFER_APPLIED, self::OFFER_REMOVED => 'offer',
             self::AGENT_ASSIGNED, self::AGENT_CHANGED => 'agent',
             self::WATCHER_ADDED, self::WATCHER_REMOVED => 'watcher',
+            self::PARTICIPANT_ADDED, self::PARTICIPANT_REMOVED => 'participant',
         };
     }
 

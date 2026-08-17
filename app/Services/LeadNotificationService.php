@@ -11,6 +11,7 @@ use App\Notifications\BaseNotification;
 use App\Notifications\LeadActivityNotification;
 use App\Notifications\LeadDeleted;
 use App\Notifications\LeadFollowUpOverdue;
+use App\Support\EntityActivityMailBuilder;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -48,26 +49,47 @@ class LeadNotificationService
 
     public function notifyNoteAdded(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_ADDED, [
-            'note_title' => $noteTitle,
-            'note_id' => $noteId,
-        ], null, null, $note);
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_ADDED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $note,
+        ), null, null, $note);
     }
 
     public function notifyNoteUpdated(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_UPDATED, [
-            'note_title' => $noteTitle,
-            'note_id' => $noteId,
-        ], null, null, $note);
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_UPDATED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $note,
+        ), null, null, $note);
     }
 
     public function notifyNoteDeleted(Lead $lead, string $noteTitle, ?int $noteId = null, ?LeadNote $note = null): void
     {
-        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_DELETED, [
+        $this->notifyLeadActivity($lead, LeadActivityType::NOTE_DELETED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $note,
+        ), null, null, $note);
+    }
+
+    /**
+     * @return array{note_title: string, note_id: int|null, note_preview?: string}
+     */
+    protected function noteNotificationPayload(string $noteTitle, ?int $noteId, ?LeadNote $note): array
+    {
+        $payload = [
             'note_title' => $noteTitle,
             'note_id' => $noteId,
-        ], null, null, $note);
+        ];
+
+        $preview = EntityActivityMailBuilder::noteExcerpt($note?->details);
+        if ($preview !== null) {
+            $payload['note_preview'] = $preview;
+        }
+
+        return $payload;
     }
 
     public function notifyFileUploaded(Lead $lead, ?int $fileId = null, ?string $fieldLabel = null): void

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\BaseNotification;
 use App\Notifications\TaskDeleted;
 use App\Notifications\TaskOverdue;
+use App\Notifications\TaskOverdueForAssigner;
 use App\Notifications\TaskPriorityUpdated;
 use App\Notifications\TaskRejected;
 use Carbon\Carbon;
@@ -65,14 +66,23 @@ class TaskNotificationService
             return;
         }
 
-        $recipients = $this->resolveOverdueRecipients($task);
-        if ($recipients->isEmpty()) {
+        $assignees = $this->assignees($task);
+        $assigners = $this->resolveOverdueAssigners($task, $assignees);
+
+        if ($assignees->isEmpty() && $assigners->isEmpty()) {
             return;
         }
 
         $daysOverdue = max(1, $task->due_date->copy()->timezone($timezone)->startOfDay()->diffInDays(now($timezone)->startOfDay()));
 
-        $this->send($recipients, new TaskOverdue($task, (int) $daysOverdue));
+        if ($assignees->isNotEmpty()) {
+            $this->send($assignees, new TaskOverdue($task, (int) $daysOverdue));
+        }
+
+        if ($assigners->isNotEmpty()) {
+            $assigneeNames = $assignees->pluck('name')->filter()->implode(', ') ?: __('app.na');
+            $this->send($assigners, new TaskOverdueForAssigner($task, (int) $daysOverdue, $assigneeNames));
+        }
     }
 
     /**
@@ -120,26 +130,33 @@ class TaskNotificationService
     }
 
     /**
+     * Project admin + each assignee's manager — the "assigner" side of an overdue
+     * task, notified separately from the assignee with different copy.
+     *
+     * @param  Collection<int, User>  $assignees
      * @return Collection<int, User>
      */
-    private function resolveOverdueRecipients(Task $task): Collection
+    private function resolveOverdueAssigners(Task $task, Collection $assignees): Collection
     {
-        $recipients = $this->assignees($task);
+        $recipients = collect();
 
         $task->loadMissing('project.projectAdmin');
         if ($task->project?->projectAdmin && $task->project->projectAdmin->status === 'active') {
             $recipients->push($task->project->projectAdmin);
         }
 
-        foreach ($recipients as $assignee) {
+        foreach ($assignees as $assignee) {
             $manager = $this->resolveManager($assignee);
             if ($manager) {
                 $recipients->push($manager);
             }
         }
 
+        $assigneeIds = $assignees->pluck('id');
+
         return $recipients
             ->filter(fn ($user) => $user instanceof User && $user->status === 'active')
+            ->reject(fn (User $user) => $assigneeIds->contains($user->id))
             ->unique('id')
             ->values();
     }

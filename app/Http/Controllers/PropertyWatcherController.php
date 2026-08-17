@@ -6,12 +6,14 @@ use App\Helper\Reply;
 use App\Models\Property;
 use App\Models\PropertyWatcher;
 use App\Services\PropertyAuthorizationService;
+use App\Services\PropertyNotificationService;
 use Illuminate\Http\Request;
 
 class PropertyWatcherController extends AccountBaseController
 {
     public function __construct(
         private PropertyAuthorizationService $authorizationService,
+        private PropertyNotificationService $notificationService,
     ) {
         parent::__construct();
     }
@@ -57,12 +59,19 @@ class PropertyWatcherController extends AccountBaseController
             'user_ids.*' => 'integer|exists:users,id',
         ]);
 
+        $oldWatcherIds = $property->watchers()->pluck('users.id')->toArray();
+
         $syncData = [];
         foreach ($validated['user_ids'] as $userId) {
             $syncData[$userId] = ['added_via' => PropertyWatcher::ADDED_VIA_MANUAL];
         }
 
         $property->watchers()->sync($syncData);
+
+        $addedWatcherIds = array_diff($validated['user_ids'], $oldWatcherIds);
+        if (! empty($addedWatcherIds)) {
+            $this->notificationService->notifyWatcherAdded($property, $addedWatcherIds, user()?->id);
+        }
 
         return Reply::successWithData(
             __('messages.watchersUpdated'),

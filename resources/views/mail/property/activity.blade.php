@@ -8,7 +8,7 @@
 
 @section('title', $subject)
 
-
+@section('badgeLabel', $badgeLabel ?? $subject)
 
 @section('actionText', $actionText)
 

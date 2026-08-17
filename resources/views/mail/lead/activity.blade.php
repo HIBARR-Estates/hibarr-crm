@@ -4,6 +4,6 @@
 @extends('mail.entity.activity')
 
 @php
-    $badgeLabel = 'Lead Activity';
+    $badgeLabel = $badgeLabel ?? 'Lead Activity';
     $actionDescription = __('Click the button below to view the lead details.');
 @endphp

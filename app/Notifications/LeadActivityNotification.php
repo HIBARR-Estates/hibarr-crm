@@ -6,6 +6,7 @@ use App\Enums\LeadActivityType;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
 use App\Support\EntityActivityMailBuilder;
+use App\Support\EntityActivityNotificationUrl;
 
 class LeadActivityNotification extends BaseNotification
 {
@@ -61,7 +62,13 @@ class LeadActivityNotification extends BaseNotification
     {
         $build = parent::build($notifiable);
 
-        $url = getDomainSpecificUrl(route('lead-contact.show', $this->lead->id), $this->company);
+        $url = getDomainSpecificUrl(
+            EntityActivityNotificationUrl::leadShowUrl(
+                (int) $this->lead->id,
+                $this->activityType->value,
+            ),
+            $this->company,
+        );
         $subject = $this->getEmailSubject();
         $actionText = __('email.leadDeleted.action');
         $introText = $this->safeMailText($this->getNotificationText(), 500);
@@ -70,6 +77,7 @@ class LeadActivityNotification extends BaseNotification
         if ($content !== '') {
             $content = '<div class="callout">'.$content.'</div>';
         }
+        $badgeLabel = $this->safeMailText($this->leadName(), 100) ?: 'Lead Activity';
 
         $build
             ->subject($subject.' - '.config('app.name'))
@@ -79,6 +87,7 @@ class LeadActivityNotification extends BaseNotification
                 'detailHtml' => $detailHtml,
                 'preheader' => $this->safePreheader($introText),
                 'subject' => $subject,
+                'badgeLabel' => $badgeLabel,
                 'actionText' => $actionText,
                 'introText' => $introText,
                 'notifiableName' => $notifiable->name,
@@ -87,7 +96,7 @@ class LeadActivityNotification extends BaseNotification
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
             'preheader' => $this->safePreheader($introText),
-            'badgeLabel' => 'Lead Activity',
+            'badgeLabel' => $badgeLabel,
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
             'detailHtml' => $detailHtml,
@@ -171,18 +180,16 @@ class LeadActivityNotification extends BaseNotification
 
     protected function getEmailDetailHtml(): string
     {
-        $leadName = $this->safeMailText($this->leadName(), 200);
-
         return match ($this->activityType) {
             LeadActivityType::NOTE_ADDED,
             LeadActivityType::NOTE_UPDATED,
             LeadActivityType::NOTE_DELETED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['note_title'] ?? 'Untitled', 200),
-                $leadName,
+                $this->noteDetailMeta(),
             ),
             LeadActivityType::FILE_UPLOADED,
             LeadActivityType::FILE_UPDATED,
-            LeadActivityType::FILE_DELETED => $this->fileDetailHtml($leadName),
+            LeadActivityType::FILE_DELETED => $this->fileDetailHtml(),
         };
     }
 
@@ -191,23 +198,14 @@ class LeadActivityNotification extends BaseNotification
         return '';
     }
 
-    protected function fileDetailHtml(string $leadName): string
+    protected function fileDetailHtml(): string
     {
         $fieldLabel = $this->fileFieldLabel();
         $warning = $this->activityType === LeadActivityType::FILE_DELETED;
 
-        if ($fieldLabel !== null) {
-            return EntityActivityMailBuilder::renderDetailBlock(
-                $fieldLabel,
-                $leadName,
-                $warning ? __('This action cannot be undone.') : null,
-                $warning,
-            );
-        }
-
         return EntityActivityMailBuilder::renderDetailBlock(
+            $fieldLabel,
             null,
-            $leadName,
             $warning ? __('This action cannot be undone.') : null,
             $warning,
         );
@@ -225,7 +223,7 @@ class LeadActivityNotification extends BaseNotification
         $keys = match ($this->activityType) {
             LeadActivityType::NOTE_ADDED,
             LeadActivityType::NOTE_UPDATED,
-            LeadActivityType::NOTE_DELETED => ['note_id', 'note_title'],
+            LeadActivityType::NOTE_DELETED => ['note_id', 'note_title', 'note_preview'],
             LeadActivityType::FILE_UPLOADED,
             LeadActivityType::FILE_UPDATED,
             LeadActivityType::FILE_DELETED => ['file_id', 'field_label'],
@@ -245,4 +243,12 @@ class LeadActivityNotification extends BaseNotification
     {
         return trim((string) ($this->lead->client_name ?? '')) ?: __('modules.lead.lead');
     }
+
+    protected function noteDetailMeta(): ?string
+    {
+        $preview = trim((string) ($this->data['note_preview'] ?? ''));
+
+        return $preview !== '' ? $this->safeMailText($preview, 200) : null;
+    }
+
 }

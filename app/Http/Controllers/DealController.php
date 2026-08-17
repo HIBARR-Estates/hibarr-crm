@@ -1201,6 +1201,7 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealParticipants->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, [], $participantIds);
         }
 
         if (! is_null($request->product_id) && $request->product_id !== '') {
@@ -1533,7 +1534,9 @@ class DealController extends AccountBaseController
 
         // Handle deal participants
         if ($request->deal_participant && is_array($request->deal_participant)) {
+            $oldParticipantIds = $deal->dealParticipants()->pluck('users.id')->toArray();
             $deal->dealParticipants()->sync($request->deal_participant);
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, $oldParticipantIds, $request->deal_participant);
         }
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();

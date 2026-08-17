@@ -927,11 +927,15 @@ export default function EditableField({
     // placeholder, not a real value. Only applies when this component
     // generated the fallback text itself — a caller-supplied
     // displayValue/currency format manages its own styling.
+    // Empty arrays (multiselect) are truthy in JS, so they must be checked
+    // by length — otherwise "Click to edit" renders as a real value.
     const isEmptyValue =
         activateOnSingleClick &&
         displayValue === undefined &&
         fieldType !== "currency" &&
-        !normalizedValue;
+        (normalizedValue == null ||
+            normalizedValue === "" ||
+            (Array.isArray(normalizedValue) && normalizedValue.length === 0));
 
     if (editing) {
         return (

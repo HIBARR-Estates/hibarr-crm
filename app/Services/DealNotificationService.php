@@ -9,6 +9,7 @@ use App\Notifications\BaseNotification;
 use App\Notifications\DealActivityNotification;
 use App\Notifications\DealCloseDateApproaching;
 use App\Notifications\DealDeleted;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
@@ -275,34 +276,55 @@ class DealNotificationService
     /**
      * Notify about a note being added to a deal.
      */
-    public function notifyNoteAdded(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    public function notifyNoteAdded(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::NOTE_ADDED, [
-            'note_title' => $noteTitle,
-            'note_id' => $noteId,
-        ]);
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_ADDED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
     }
 
     /**
      * Notify about a note being updated.
      */
-    public function notifyNoteUpdated(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    public function notifyNoteUpdated(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::NOTE_UPDATED, [
-            'note_title' => $noteTitle,
-            'note_id' => $noteId,
-        ]);
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_UPDATED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
     }
 
     /**
      * Notify about a note being deleted from a deal.
      */
-    public function notifyNoteDeleted(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    public function notifyNoteDeleted(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::NOTE_DELETED, [
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_DELETED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
+    }
+
+    /**
+     * @return array{note_title: string, note_id: int|null, note_preview?: string}
+     */
+    protected function noteNotificationPayload(string $noteTitle, ?int $noteId, ?string $noteDetails): array
+    {
+        $payload = [
             'note_title' => $noteTitle,
             'note_id' => $noteId,
-        ]);
+        ];
+
+        $preview = EntityActivityMailBuilder::noteExcerpt($noteDetails);
+        if ($preview !== null) {
+            $payload['note_preview'] = $preview;
+        }
+
+        return $payload;
     }
 
     /**
@@ -469,6 +491,36 @@ class DealNotificationService
             $removed = User::whereIn('id', $removedIds)->where('status', 'active')->get();
             if ($removed->isNotEmpty()) {
                 $this->notifyDealActivity($deal, DealActivityType::WATCHER_REMOVED, [], $excludeUserId, [], $removed);
+            }
+        }
+    }
+
+    /**
+     * Notify about participants being added to / removed from a deal.
+     * Each participant only hears about the change that actually affects them.
+     */
+    public function notifyParticipantsChanged(Deal $deal, array $oldParticipantIds, array $newParticipantIds): void
+    {
+        $excludeUserId = user()?->id;
+        $addedIds = array_diff($newParticipantIds, $oldParticipantIds);
+        $removedIds = array_diff($oldParticipantIds, $newParticipantIds);
+
+        if ($excludeUserId) {
+            $addedIds = array_diff($addedIds, [$excludeUserId]);
+            $removedIds = array_diff($removedIds, [$excludeUserId]);
+        }
+
+        if (! empty($addedIds)) {
+            $added = User::whereIn('id', $addedIds)->where('status', 'active')->get();
+            if ($added->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::PARTICIPANT_ADDED, [], $excludeUserId, [], $added);
+            }
+        }
+
+        if (! empty($removedIds)) {
+            $removed = User::whereIn('id', $removedIds)->where('status', 'active')->get();
+            if ($removed->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::PARTICIPANT_REMOVED, [], $excludeUserId, [], $removed);
             }
         }
     }

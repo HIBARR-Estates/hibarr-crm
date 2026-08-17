@@ -66,6 +66,7 @@ class PropertyActivityNotification extends BaseNotification
         $content = $this->getEmailContent();
         $actionText = __('app.view').' '.__('app.property');
         $introText = $this->safeMailText($this->getNotificationText(), 500);
+        $badgeLabel = $this->safeMailText($this->propertyTitle(), 100);
 
         $build
             ->subject($subject.' - '.config('app.name'))
@@ -74,6 +75,7 @@ class PropertyActivityNotification extends BaseNotification
                 'content' => $content,
                 'preheader' => $this->safePreheader($subject),
                 'subject' => $subject,
+                'badgeLabel' => $badgeLabel,
                 'actionText' => $actionText,
                 'introText' => $introText,
                 'notifiableName' => $notifiable->name,
@@ -82,7 +84,7 @@ class PropertyActivityNotification extends BaseNotification
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
             'preheader' => $introText,
-            'badgeLabel' => 'Property Activity',
+            'badgeLabel' => $badgeLabel,
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
             'contentHtml' => $content,
@@ -128,6 +130,7 @@ class PropertyActivityNotification extends BaseNotification
             PropertyActivityType::AGENT_ASSIGNED => "Property assigned: {$title}",
             PropertyActivityType::DOCUMENT_UPLOADED => "Document uploaded: {$title}",
             PropertyActivityType::ARCHIVED => "Property archived: {$title}",
+            PropertyActivityType::WATCHER_ADDED => "You were added as a watcher on: {$title}",
         };
     }
 
@@ -137,7 +140,7 @@ class PropertyActivityNotification extends BaseNotification
         $title = $this->propertyTitle();
 
         return match ($this->activityType) {
-            PropertyActivityType::CREATED => "{$triggeredBy} added property {$title}",
+            PropertyActivityType::CREATED => "{$triggeredBy} added {$title}",
             PropertyActivityType::PUBLISHED => "{$triggeredBy} published {$title}",
             PropertyActivityType::UNPUBLISHED => "{$triggeredBy} unpublished {$title}",
             PropertyActivityType::STATUS_CHANGED => "{$triggeredBy} changed status of {$title} from "
@@ -148,6 +151,7 @@ class PropertyActivityNotification extends BaseNotification
             PropertyActivityType::DOCUMENT_UPLOADED => "{$triggeredBy} uploaded "
                 .($this->data['file_name'] ?? 'a document')." to {$title}",
             PropertyActivityType::ARCHIVED => "{$triggeredBy} archived {$title}",
+            PropertyActivityType::WATCHER_ADDED => "{$triggeredBy} added you as a watcher on {$title}.",
         };
     }
 
@@ -164,6 +168,7 @@ class PropertyActivityNotification extends BaseNotification
             PropertyActivityType::AGENT_ASSIGNED => "Property Assigned: {$title}",
             PropertyActivityType::DOCUMENT_UPLOADED => "Document Uploaded: {$title}",
             PropertyActivityType::ARCHIVED => "Property Archived: {$title}",
+            PropertyActivityType::WATCHER_ADDED => "You're Now Watching: {$title}",
         };
     }
 

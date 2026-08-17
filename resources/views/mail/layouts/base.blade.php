@@ -338,8 +338,8 @@
 
                                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 24px">
                                         <tr>
-                                            <td bgcolor="#003160" class="cta-cell">
-                                                <a href="{{ $actionUrl }}" target="_blank" rel="noopener" aria-label="{{ $actionText }}" style="display:inline-block;background-color:#003160;color:#ffffff;font-family:'DM Mono',Consolas,monospace;font-size:12px;font-weight:700;letter-spacing:0.10em;text-decoration:none;padding:13px 28px;text-transform:uppercase">{{ $actionText }} &rarr;</a>
+                                            <td bgcolor="#003160" class="cta-cell" style="background-color:#003160;padding:13px 28px;mso-padding-alt:0;border-radius:0">
+                                                <a href="{{ $actionUrl }}" target="_blank" rel="noopener" aria-label="{{ $actionText }}" style="display:block;background-color:#003160;color:#ffffff;font-family:'DM Mono',Consolas,monospace;font-size:12px;font-weight:700;letter-spacing:0.10em;text-decoration:none;text-transform:uppercase;line-height:1.4">{{ $actionText }} &rarr;</a>
                                             </td>
                                         </tr>
                                     </table>

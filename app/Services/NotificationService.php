@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityNotificationUrl;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -361,7 +362,20 @@ class NotificationService
                     return route($routes[$typeSlug]);
                 }
 
-                return route($routes[$typeSlug], $id);
+                $url = route($routes[$typeSlug], $id);
+
+                if (in_array($typeSlug, ['deal_activity_notification', 'lead_activity_notification'], true)) {
+                    $url = EntityActivityNotificationUrl::appendTabIfMissing(
+                        $url,
+                        is_string($data['activity_type'] ?? null) ? $data['activity_type'] : null,
+                    );
+                }
+
+                if ($typeSlug === 'lead_follow_up_overdue' && ! str_contains($url, 'tab=')) {
+                    $url .= (str_contains($url, '?') ? '&' : '?').'tab=meetings';
+                }
+
+                return $url;
             } catch (\Exception $e) {
                 return null;
             }

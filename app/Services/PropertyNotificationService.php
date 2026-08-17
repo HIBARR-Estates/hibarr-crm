@@ -132,6 +132,28 @@ class PropertyNotificationService
         );
     }
 
+    /**
+     * Notify newly added watchers — mirrors deal watcher-added notifications.
+     * Only the users actually being added hear about it, excluding the actor.
+     */
+    public function notifyWatcherAdded(Property $property, array $watcherUserIds, ?int $excludeUserId = null): void
+    {
+        $excludeUserId = $excludeUserId ?? (user()?->id);
+        $watchers = $this->usersFromIds(collect($watcherUserIds), $excludeUserId);
+
+        if ($watchers->isEmpty()) {
+            return;
+        }
+
+        $this->notifyPropertyActivity(
+            $property,
+            PropertyActivityType::WATCHER_ADDED,
+            [],
+            $excludeUserId,
+            $watchers,
+        );
+    }
+
     public function notifyArchived(Property $property, ?int $excludeUserId = null): void
     {
         $this->notifyPropertyActivity(
@@ -160,6 +182,7 @@ class PropertyNotificationService
             PropertyActivityType::PRICE_CHANGED => $this->dealLinkedAgents($property, $excludeUserId),
             PropertyActivityType::AGENT_ASSIGNED => collect(),
             PropertyActivityType::ARCHIVED => $this->archiveRecipients($property, $excludeUserId),
+            PropertyActivityType::WATCHER_ADDED => collect(),
         };
     }
 

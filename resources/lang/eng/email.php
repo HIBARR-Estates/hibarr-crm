@@ -412,6 +412,8 @@ return [
         'subject' => 'Task overdue',
         'text' => 'This task is :days day(s) past its due date.',
         'action' => 'View Task',
+        'assignerSubject' => 'Assigned task overdue',
+        'assignerText' => 'The task you assigned to :assignee is :days day(s) overdue.',
     ],
     'taskPriorityUpdated' => [
         'subject' => 'Task priority updated',

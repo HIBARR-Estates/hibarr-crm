@@ -7,6 +7,7 @@ use App\Models\Deal;
 use App\Models\EmailNotificationSetting;
 use App\Models\User;
 use App\Support\EntityActivityMailBuilder;
+use App\Support\EntityActivityNotificationUrl;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 
@@ -98,7 +99,10 @@ class DealActivityNotification extends BaseNotification
     {
         $build = parent::build($notifiable);
 
-        $url = route('deals.show', $this->deal->id);
+        $url = EntityActivityNotificationUrl::dealShowUrl(
+            (int) $this->deal->id,
+            $this->activityType->value,
+        );
         $url = getDomainSpecificUrl($url, $this->company);
 
         $subject = $this->getEmailSubject();
@@ -109,6 +113,7 @@ class DealActivityNotification extends BaseNotification
         if ($content !== '') {
             $content = '<div class="callout">'.$content.'</div>';
         }
+        $badgeLabel = $this->safeMailText($this->deal->name ?? '', 100) ?: 'Deal Activity';
 
         $build
             ->subject($subject.' - '.config('app.name'))
@@ -118,6 +123,7 @@ class DealActivityNotification extends BaseNotification
                 'detailHtml' => $detailHtml,
                 'preheader' => $this->safePreheader($introText),
                 'subject' => $subject,
+                'badgeLabel' => $badgeLabel,
                 'actionText' => $actionText,
                 'introText' => $introText,
                 'notifiableName' => $notifiable->name,
@@ -126,7 +132,7 @@ class DealActivityNotification extends BaseNotification
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,
             'preheader' => $this->safePreheader($introText),
-            'badgeLabel' => 'Deal Activity',
+            'badgeLabel' => $badgeLabel,
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
             'detailHtml' => $detailHtml ?: '',
@@ -244,6 +250,8 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::AGENT_CHANGED => "Agent changed on deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "You were added as a watcher on deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "You were removed as a watcher from deal: {$dealName}",
+            DealActivityType::PARTICIPANT_ADDED => "You were added as a participant on deal: {$dealName}",
+            DealActivityType::PARTICIPANT_REMOVED => "You were removed as a participant from deal: {$dealName}",
             default => $this->activityType->label().": {$dealName}",
         };
     }
@@ -285,14 +293,16 @@ class DealActivityNotification extends BaseNotification
                 : "{$triggeredBy} removed a file from {$dealName}. This action cannot be undone.",
             DealActivityType::PROPERTY_LINKED => "{$triggeredBy} linked a property to {$dealName}.",
             DealActivityType::PROPERTY_UNLINKED => "{$triggeredBy} unlinked a property from {$dealName}.",
-            DealActivityType::PACKAGE_ASSIGNED => "{$triggeredBy} assigned packages to {$dealName}.",
-            DealActivityType::PACKAGE_REMOVED => "{$triggeredBy} removed packages from {$dealName}.",
+            DealActivityType::PACKAGE_ASSIGNED => $this->packageActivityText($triggeredBy, $dealName, added: true),
+            DealActivityType::PACKAGE_REMOVED => $this->packageActivityText($triggeredBy, $dealName, added: false),
             DealActivityType::OFFER_APPLIED => "{$triggeredBy} applied an offer to {$dealName}.",
             DealActivityType::OFFER_REMOVED => "{$triggeredBy} removed an offer from {$dealName}.",
             DealActivityType::AGENT_ASSIGNED => "{$triggeredBy} assigned an agent to {$dealName}.",
             DealActivityType::AGENT_CHANGED => "{$triggeredBy} changed the agent on {$dealName}.",
             DealActivityType::WATCHER_ADDED => "{$triggeredBy} added you as a watcher on {$dealName}.",
             DealActivityType::WATCHER_REMOVED => "{$triggeredBy} removed you as a watcher from {$dealName}.",
+            DealActivityType::PARTICIPANT_ADDED => "{$triggeredBy} added you as a participant on {$dealName}.",
+            DealActivityType::PARTICIPANT_REMOVED => "{$triggeredBy} removed you as a participant from {$dealName}.",
             default => "{$triggeredBy} updated {$dealName}.",
         };
     }
@@ -335,6 +345,8 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::AGENT_CHANGED => "{$prefix}Agent Changed on Deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "{$prefix}You're now watching Deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "{$prefix}You're no longer watching Deal: {$dealName}",
+            DealActivityType::PARTICIPANT_ADDED => "{$prefix}You're now a participant on Deal: {$dealName}",
+            DealActivityType::PARTICIPANT_REMOVED => "{$prefix}You're no longer a participant on Deal: {$dealName}",
             default => "{$prefix}{$this->activityType->label()}: {$dealName}",
         };
     }
@@ -355,21 +367,20 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::NOTE_UPDATED,
             DealActivityType::NOTE_DELETED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['note_title'] ?? 'Untitled', 200),
-                $meta,
+                $this->noteDetailMeta(),
             ),
             DealActivityType::TASK_ADDED,
             DealActivityType::TASK_UPDATED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
-                $meta,
             ),
             DealActivityType::TASK_COMPLETED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
-                $meta,
+                null,
                 __('Task completed.'),
             ),
             DealActivityType::TASK_DELETED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
-                $meta,
+                null,
                 __('This action cannot be undone.'),
                 true,
             ),
@@ -378,7 +389,7 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_CANCELLED => $this->meetingDetailHtml($notifiable, $meta),
             DealActivityType::FILE_UPLOADED,
             DealActivityType::FILE_UPDATED,
-            DealActivityType::FILE_DELETED => $this->fileDetailHtml($meta),
+            DealActivityType::FILE_DELETED => $this->fileDetailHtml(),
             DealActivityType::PROPERTY_LINKED,
             DealActivityType::PROPERTY_UNLINKED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['property_title'] ?? 'Unknown', 200),
@@ -387,14 +398,14 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::OFFER_APPLIED,
             DealActivityType::OFFER_REMOVED => EntityActivityMailBuilder::renderDetailBlock(
                 $this->safeMailText($this->data['offer_name'] ?? 'Offer', 200),
-                $meta,
             ),
             DealActivityType::PACKAGE_ASSIGNED,
-            DealActivityType::PACKAGE_REMOVED => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
+            DealActivityType::PACKAGE_REMOVED => '',
+            DealActivityType::PARTICIPANT_ADDED,
+            DealActivityType::PARTICIPANT_REMOVED => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
             DealActivityType::DEAL_WON,
             DealActivityType::DEAL_LOST => EntityActivityMailBuilder::renderDetailBlock(
                 ucfirst($this->safeMailText($this->data['outcome'] ?? $this->activityType->value, 200)),
-                $meta,
             ),
             default => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
         };
@@ -408,26 +419,6 @@ class DealActivityNotification extends BaseNotification
     protected function getEmailContent($notifiable = null): string
     {
         $lines = match ($this->activityType) {
-            DealActivityType::STAGE_CHANGED => [
-                EntityActivityMailBuilder::supplementalLine(
-                    __('Previous Stage'),
-                    $this->safeMailText($this->data['from_stage'] ?? 'Unknown', 200),
-                ),
-                EntityActivityMailBuilder::supplementalLine(
-                    __('New Stage'),
-                    $this->safeMailText($this->data['to_stage'] ?? 'Unknown', 200),
-                ),
-            ],
-            DealActivityType::PIPELINE_CHANGED => [
-                EntityActivityMailBuilder::supplementalLine(
-                    __('Previous Pipeline'),
-                    $this->safeMailText($this->data['from_pipeline'] ?? 'Unknown', 200),
-                ),
-                EntityActivityMailBuilder::supplementalLine(
-                    __('New Pipeline'),
-                    $this->safeMailText($this->data['to_pipeline'] ?? 'Unknown', 200),
-                ),
-            ],
             DealActivityType::AGENT_CHANGED => [
                 EntityActivityMailBuilder::supplementalLine(
                     __('Previous Agent'),
@@ -438,8 +429,6 @@ class DealActivityNotification extends BaseNotification
                     $this->safeMailText($this->data['to_agent_name'] ?? 'Unknown', 100),
                 ),
             ],
-            DealActivityType::PACKAGE_ASSIGNED,
-            DealActivityType::PACKAGE_REMOVED => $this->packageSupplementalLines(),
             default => [],
         };
 
@@ -465,44 +454,42 @@ class DealActivityNotification extends BaseNotification
         return EntityActivityMailBuilder::renderDetailBlock($title, $meta, $subtext);
     }
 
-    protected function fileDetailHtml(string $meta): string
+    protected function fileDetailHtml(): string
     {
         $fieldLabel = $this->fileFieldLabel();
         $warning = in_array($this->activityType, [DealActivityType::FILE_DELETED], true);
 
-        if ($fieldLabel !== null) {
-            return EntityActivityMailBuilder::renderDetailBlock(
-                $fieldLabel,
-                $meta,
-                $warning ? __('This action cannot be undone.') : null,
-                $warning,
-            );
-        }
-
         return EntityActivityMailBuilder::renderDetailBlock(
+            $fieldLabel,
             null,
-            $meta,
             $warning ? __('This action cannot be undone.') : null,
             $warning,
         );
     }
 
     /**
-     * @return array<int, string>
+     * Single sentence naming the package(s) directly instead of a generic
+     * "assigned packages" line plus a duplicate "Packages: X" block below it.
      */
-    protected function packageSupplementalLines(): array
+    protected function packageActivityText(string $triggeredBy, string $dealName, bool $added): string
     {
-        $packageNames = $this->data['package_names'] ?? [];
-        if (empty($packageNames)) {
-            return [];
-        }
-
-        $names = collect($packageNames)
+        $names = collect($this->data['package_names'] ?? [])
             ->map(fn ($name) => $this->safeMailText((string) $name, 200))
             ->filter()
-            ->implode(', ');
+            ->values();
 
-        return [EntityActivityMailBuilder::supplementalLine(__('Packages'), $names)];
+        $verb = $added ? 'added' : 'removed';
+        $prep = $added ? 'to' : 'from';
+
+        if ($names->count() === 1) {
+            return "{$triggeredBy} {$verb} the {$names->first()} package {$prep} {$dealName}.";
+        }
+
+        if ($names->count() > 1) {
+            return "{$triggeredBy} {$verb} {$names->count()} packages ({$names->implode(', ')}) {$prep} {$dealName}.";
+        }
+
+        return "{$triggeredBy} {$verb} packages {$prep} {$dealName}.";
     }
 
     protected function fileFieldLabel(): ?string
@@ -531,7 +518,7 @@ class DealActivityNotification extends BaseNotification
         $relevant = [];
 
         $keys = match ($this->activityType) {
-            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED, DealActivityType::NOTE_DELETED => ['note_id', 'note_title'],
+            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED, DealActivityType::NOTE_DELETED => ['note_id', 'note_title', 'note_preview'],
             DealActivityType::STAGE_CHANGED => ['from_stage', 'to_stage'],
             DealActivityType::PIPELINE_CHANGED => ['from_pipeline', 'to_pipeline'],
             DealActivityType::DEAL_WON, DealActivityType::DEAL_LOST => ['outcome'],
@@ -565,5 +552,12 @@ class DealActivityNotification extends BaseNotification
         }
 
         return $relevant;
+    }
+
+    protected function noteDetailMeta(): ?string
+    {
+        $preview = trim((string) ($this->data['note_preview'] ?? ''));
+
+        return $preview !== '' ? $this->safeMailText($preview, 200) : null;
     }
 }

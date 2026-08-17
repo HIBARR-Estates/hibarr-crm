@@ -406,6 +406,8 @@ class DealGatheringService
                         $oldParticipantNames,
                         $newParticipantNames
                     );
+
+                    $this->notificationService->notifyParticipantsChanged($deal, $oldParticipantIds, $newParticipantIds);
                 }
 
                 $this->attemptFieldTriggerRouting($deal, $data);
