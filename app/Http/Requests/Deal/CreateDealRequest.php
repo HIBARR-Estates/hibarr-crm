@@ -30,20 +30,20 @@ class CreateDealRequest extends CoreRequest
     protected function prepareForValidation()
     {
         // Convert single package_id integer to array for backward compatibility
-        if ($this->has('package_id') && !is_array($this->package_id) && is_numeric($this->package_id)) {
+        if ($this->has('package_id') && ! is_array($this->package_id) && is_numeric($this->package_id)) {
             $this->merge([
-                'package_id' => [(int) $this->package_id]
+                'package_id' => [(int) $this->package_id],
             ]);
         }
 
         // Accept alternate key used by some clients
-        if ($this->has('deal_participants') && !$this->has('deal_participant')) {
+        if ($this->has('deal_participants') && ! $this->has('deal_participant')) {
             $this->merge(['deal_participant' => $this->input('deal_participants')]);
         }
 
         // Convert single participant/watcher integer to array for backward compatibility
         foreach (['deal_participant', 'deal_watcher'] as $field) {
-            if ($this->has($field) && !is_array($this->input($field)) && is_numeric($this->input($field))) {
+            if ($this->has($field) && ! is_array($this->input($field)) && is_numeric($this->input($field))) {
                 $this->merge([$field => [(int) $this->input($field)]]);
             }
         }
@@ -51,6 +51,21 @@ class CreateDealRequest extends CoreRequest
         if (! $this->exists('referral_agent_id') && $this->exists('referal_agent_id')) {
             $this->merge([
                 'referral_agent_id' => $this->input('referal_agent_id'),
+            ]);
+        }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
             ]);
         }
     }
@@ -64,7 +79,7 @@ class CreateDealRequest extends CoreRequest
     {
         // Get company_id from header (API requests) or from company() helper (web requests)
         $companyId = $this->header('X-COMPANY-ID');
-        if (!$companyId && function_exists('company')) {
+        if (! $companyId && function_exists('company')) {
             $company = company();
             // company() returns Company model (Eloquent) or false
             // Use isset() to check for magic property access, which works with Eloquent models
@@ -73,7 +88,7 @@ class CreateDealRequest extends CoreRequest
             }
         }
         $companyId = $companyId ? (int) $companyId : null;
-        
+
         // Get the Deal custom field group once (outside validation loop to avoid N+1 queries)
         // Filter by company_id when available to ensure company isolation and prevent cross-company access
         $dealFieldGroupQuery = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL);
@@ -81,7 +96,7 @@ class CreateDealRequest extends CoreRequest
             $dealFieldGroupQuery->where('company_id', $companyId);
         }
         $dealFieldGroup = $dealFieldGroupQuery->first();
-        
+
         // Build package validation rule with company scope
         // Security: Require company context - fail validation if companyId is not available
         $packageRule = 'integer';
@@ -90,7 +105,7 @@ class CreateDealRequest extends CoreRequest
                 'integer',
                 Rule::exists('packages', 'id')->where(function ($query) use ($companyId) {
                     return $query->where('company_id', $companyId);
-                })
+                }),
             ];
         } else {
             // Fail validation when company context is missing to prevent cross-company package selection
@@ -98,7 +113,7 @@ class CreateDealRequest extends CoreRequest
                 'integer',
                 function ($attribute, $value, $fail) {
                     $fail('Package selection requires company context. Please provide X-COMPANY-ID header or ensure you are authenticated.');
-                }
+                },
             ];
         }
 
@@ -118,13 +133,13 @@ class CreateDealRequest extends CoreRequest
                 },
             ];
         }
-        
+
         return [
             // Required contact fields
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'gender' => 'nullable|string|in:male,female',
-            
+
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
@@ -140,6 +155,8 @@ class CreateDealRequest extends CoreRequest
             // Optional lead classification / engagement (applied to the contact)
             'temperature' => 'nullable|string|in:cold,warm,hot',
             'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => 'sometimes|nullable|array',
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
@@ -159,7 +176,7 @@ class CreateDealRequest extends CoreRequest
             'deal_watcher.*' => $dealUserRule,
             'deal_participant' => 'nullable|array',
             'deal_participant.*' => $dealUserRule,
-            
+
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',
             'utmInfo.source' => 'nullable|string|max:255',
@@ -181,11 +198,11 @@ class CreateDealRequest extends CoreRequest
             'registered_for_zoom_meeting' => 'nullable|boolean',
             'last_webinar_date' => 'nullable|date',
             'contact_score' => 'nullable|integer|min:0',
-            
+
             // Optional Hibarr custom fields
             'customerBudget' => 'nullable|string|max:255',
             'motivation' => 'nullable|string',
-            
+
             // Optional meeting object
             'meeting' => 'nullable|array',
             'meeting.meeting_date' => 'nullable|date',
@@ -193,7 +210,7 @@ class CreateDealRequest extends CoreRequest
             'meeting.meeting_location' => 'nullable|string|max:255',
             'meeting.meeting_link' => 'nullable|url|max:500',
             'meeting.meeting_id' => 'nullable|string|max:255',
-            
+
             // Optional custom fields (format: {"131": "value", "132": "value"})
             'custom_fields' => 'nullable|array',
             'custom_fields.*' => [
@@ -201,40 +218,44 @@ class CreateDealRequest extends CoreRequest
                 function ($attribute, $value, $fail) use ($companyId, $dealFieldGroup) {
                     // Extract field ID from attribute (e.g., "custom_fields.131" -> 131)
                     $fieldId = (int) str_replace('custom_fields.', '', $attribute);
-                    
+
                     if ($fieldId <= 0) {
                         $fail('Invalid custom field ID format.');
+
                         return;
                     }
-                    
+
                     // Check if Deal custom field group exists (queried once outside this closure)
-                    if (!$dealFieldGroup) {
+                    if (! $dealFieldGroup) {
                         if ($companyId) {
                             $fail('Deal custom field group not found for your company.');
                         } else {
                             $fail('Deal custom field group not found.');
                         }
+
                         return;
                     }
-                    
+
                     // Check if custom field exists and belongs to Deal model
                     $customField = CustomField::where('id', $fieldId)
                         ->where('custom_field_group_id', $dealFieldGroup->id)
                         ->first();
-                    
-                    if (!$customField) {
+
+                    if (! $customField) {
                         $fail("Custom field with ID {$fieldId} does not exist or is not valid for deals.");
+
                         return;
                     }
-                    
+
                     // If company_id is available, validate company scope
                     if ($companyId && $customField->company_id && $customField->company_id !== $companyId) {
                         $fail("Custom field with ID {$fieldId} does not belong to your company.");
+
                         return;
                     }
-                }
+                },
             ],
-            
+
             // Optional custom_fields_data format (backward compatibility)
             'custom_fields_data' => 'nullable|array',
             'custom_fields_data.*' => 'nullable',
@@ -280,4 +301,3 @@ class CreateDealRequest extends CoreRequest
         ];
     }
 }
-

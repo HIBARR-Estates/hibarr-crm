@@ -1186,6 +1186,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // Expose job status polling
     Route::get('expose-jobs/{id}', [App\Http\Controllers\ExposeJobController::class, 'show'])->name('expose-jobs.show');
+    Route::post('expose-snapshots/share', [App\Http\Controllers\ExposeSnapshotShareController::class, 'store'])->name('expose-snapshots.share');
 
     Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
 

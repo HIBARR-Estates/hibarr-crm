@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
-use App\Enums\ContactType;
-use App\Enums\Salutation;
-use App\Enums\Gender;
+use App\Casts\PreferredContactTimeCast;
 use App\Enums\AgeRange;
+use App\Enums\ContactType;
+use App\Enums\Gender;
 use App\Enums\LeadTemperature;
 use App\Enums\PreferredContactTime;
-use App\Casts\PreferredContactTimeCast;
+use App\Enums\Salutation;
 use App\Scopes\ActiveScope;
-use App\Traits\CustomFieldsTrait;
-use App\Traits\HasDynamicTranslations;
-use App\Traits\HasCompany;
 use App\Support\LeadLocaleResolver;
+use App\Traits\CustomFieldsTrait;
+use App\Traits\HasCompany;
+use App\Traits\HasDynamicTranslations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -89,6 +89,7 @@ use Illuminate\Notifications\Notifiable;
  * @property-read \App\Models\LeadStatus|null $leadStatus
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection|\Illuminate\Notifications\DatabaseNotification[] $notifications
  * @property-read int|null $notifications_count
+ *
  * @method static \Database\Factories\LeadFactory factory(...$parameters)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|Lead newQuery()
@@ -122,25 +123,30 @@ use Illuminate\Notifications\Notifiable;
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereValue($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereWebsite($value)
+ *
  * @property string|null $hash
  * @property-read \App\Models\LeadCategory|null $category
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereHash($value)
+ *
  * @property int|null $company_id
  * @property-read \App\Models\Company|null $company
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereCompanyId($value)
+ *
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Product> $products
  * @property-read int|null $products_count
  * @property-read int|null $follow_up_date_next
  * @property-read int|null $follow_up_date_past
+ *
  * @mixin \Eloquent
  */
 class Lead extends BaseModel
 {
-
-    use Notifiable, HasFactory;
     use CustomFieldsTrait;
-    use HasDynamicTranslations;
     use HasCompany;
+    use HasDynamicTranslations;
+    use HasFactory, Notifiable;
     use SoftDeletes;
 
     /**
@@ -154,15 +160,14 @@ class Lead extends BaseModel
         'note',
     ];
 
-    protected $hidden = ["pivot"];
-
+    protected $hidden = ['pivot'];
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Lead';
 
     protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted', 'lead_lifecycle_status'];
 
     protected $casts = [
-        'salutation' => \App\Casts\NullableEnumCast::class . ':' . Salutation::class,
+        'salutation' => \App\Casts\NullableEnumCast::class.':'.Salutation::class,
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',
@@ -194,19 +199,19 @@ class Lead extends BaseModel
 
     public function getImageUrlAttribute()
     {
-        if (!empty($this->image)) {
-            return asset_url_local_s3('lead-avatar/' . $this->image);
+        if (! empty($this->image)) {
+            return asset_url_local_s3('lead-avatar/'.$this->image);
         }
 
-        $gravatarHash = !is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';
+        $gravatarHash = ! is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';
 
-        return 'https://www.gravatar.com/avatar/' . $gravatarHash . '.png?s=200&d=mp';
+        return 'https://www.gravatar.com/avatar/'.$gravatarHash.'.png?s=200&d=mp';
     }
 
     public function clientNameSalutation(): Attribute
     {
         return Attribute::make(
-            get: fn($value) => ($this->salutation ? $this->salutation->label() . ' ' : '') . $this->client_name
+            get: fn ($value) => ($this->salutation ? $this->salutation->label().' ' : '').$this->client_name
         );
     }
 
@@ -239,13 +244,15 @@ class Lead extends BaseModel
                     $decoded['areaCode'] ?? '',
                     $decoded['phoneNumber'],
                 ]);
-                return '+' . implode('', $parts);
+
+                return '+'.implode('', $parts);
             }
 
             // Legacy format: {phone, country_code, country_identifier}
             if (isset($decoded['phone'])) {
                 $cleanPhone = preg_replace('/[^0-9]/', '', $decoded['phone']);
-                return !empty($cleanPhone) ? '+' . $cleanPhone : '--';
+
+                return ! empty($cleanPhone) ? '+'.$cleanPhone : '--';
             }
 
             return '--';
@@ -258,7 +265,7 @@ class Lead extends BaseModel
             return '--';
         }
 
-        return '+' . $cleanPhone;
+        return '+'.$cleanPhone;
     }
 
     public function getOfficePhoneFormattedAttribute()
@@ -269,14 +276,14 @@ class Lead extends BaseModel
 
         // Clean the phone number (remove all non-numeric characters)
         $cleanPhone = preg_replace('/[^0-9]/', '', $this->office);
-        
-        // If the phone number is empty after cleaning, return -- 
+
+        // If the phone number is empty after cleaning, return --
         if (empty($cleanPhone)) {
             return '--';
         }
 
         // Add + prefix to match mobile phone format
-        return '+' . $cleanPhone;
+        return '+'.$cleanPhone;
     }
 
     /**
@@ -310,7 +317,7 @@ class Lead extends BaseModel
     /**
      * Route notifications for the mail channel.
      *
-     * @param \Illuminate\Notifications\Notification $notification
+     * @param  \Illuminate\Notifications\Notification  $notification
      * @return string
      */
     // phpcs:ignore
@@ -381,6 +388,66 @@ class Lead extends BaseModel
 
         $this->preferred_contact_times = $normalized;
         $this->preferred_contact_time = $normalized[0] ?? null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function resolvedPreferredContactTimes(): array
+    {
+        $stored = $this->preferred_contact_times;
+        if (is_array($stored) && $stored !== []) {
+            return PreferredContactTime::normalizeList($stored);
+        }
+
+        return PreferredContactTime::normalizeList(
+            $this->preferred_contact_time?->value ?? $this->preferred_contact_time
+        );
+    }
+
+    /**
+     * Normalize preferred contact times for JSON/Inertia/API payloads.
+     */
+    public function exposePreferredContactTimesForFrontend(): void
+    {
+        $this->preferred_contact_times = $this->resolvedPreferredContactTimes();
+        if ($this->preferred_contact_time instanceof PreferredContactTime) {
+            $this->preferred_contact_time = $this->preferred_contact_time->value;
+        }
+    }
+
+    /**
+     * Apply preferred contact time(s) from an HTTP request onto a lead.
+     */
+    public static function applyPreferredContactTimesFromRequest(Lead $lead, \Illuminate\Http\Request $request): bool
+    {
+        if ($request->exists('preferred_contact_times')) {
+            $incoming = PreferredContactTime::normalizeList($request->input('preferred_contact_times', []));
+            $current = $lead->resolvedPreferredContactTimes();
+
+            if ($incoming === $current) {
+                return false;
+            }
+
+            $lead->syncPreferredContactTimes($incoming);
+
+            return true;
+        }
+
+        if (! $request->exists('preferred_contact_time')) {
+            return false;
+        }
+
+        $incoming = PreferredContactTime::normalizeList($request->input('preferred_contact_time'));
+        $current = $lead->resolvedPreferredContactTimes();
+
+        if ($incoming === $current) {
+            return false;
+        }
+
+        $lead->syncPreferredContactTimes($incoming);
+
+        return true;
     }
 
     public function note(): BelongsTo
@@ -467,7 +534,7 @@ class Lead extends BaseModel
         if ($viewLeadPermission == 'both') {
             $leadsQuery = $leadsQuery->where(function ($query) {
                 $query->where('lead_owner', user()->id)
-                      ->orWhere('added_by', user()->id);
+                    ->orWhere('added_by', user()->id);
             });
         }
 
@@ -526,7 +593,7 @@ class Lead extends BaseModel
     {
         $lead = static::withTrashed()->find($id);
 
-        if (!$lead) {
+        if (! $lead) {
             return null;
         }
 

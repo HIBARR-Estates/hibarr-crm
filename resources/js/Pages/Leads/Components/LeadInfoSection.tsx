@@ -454,6 +454,17 @@ const ageRangeOptions = useMemo(
                         processedValue = value || null;
                     } else if (fieldName === "languages") {
                         processedValue = Array.isArray(value) ? value : [];
+                    } else if (
+                        fieldName === "preferred_contact_times" ||
+                        fieldName === "preferred_contact_time"
+                    ) {
+                        processedValue = Array.isArray(value)
+                            ? value
+                            : value != null && value !== ""
+                              ? [value]
+                              : [];
+                        standardChanges.preferred_contact_times = processedValue;
+                        continue;
                     } else if (fieldName === "category_ids") {
                         processedValue = (
                             Array.isArray(value)
@@ -659,6 +670,16 @@ const ageRangeOptions = useMemo(
                     processedValue = value || null;
                 } else if (fieldName === "languages") {
                     processedValue = Array.isArray(value) ? value : [];
+                } else if (
+                    fieldName === "preferred_contact_times" ||
+                    fieldName === "preferred_contact_time"
+                ) {
+                    processedValue = Array.isArray(value)
+                        ? value
+                        : value != null && value !== ""
+                          ? [value]
+                          : [];
+                    payloadData = { preferred_contact_times: processedValue };
                 } else if (fieldName === "age") {
                     processedValue =
                         value === null || value === "" || value === undefined
@@ -706,7 +727,12 @@ const ageRangeOptions = useMemo(
                     processedValue = value ? value : null;
                 }
 
-                if (fieldName !== "date_of_birth" && fieldName !== "category_ids") {
+                if (
+                    fieldName !== "date_of_birth" &&
+                    fieldName !== "category_ids" &&
+                    fieldName !== "preferred_contact_times" &&
+                    fieldName !== "preferred_contact_time"
+                ) {
                     payloadData = { [fieldName]: processedValue };
                 }
             }
@@ -731,6 +757,21 @@ const ageRangeOptions = useMemo(
                     languages: Array.isArray(payloadData.languages)
                         ? payloadData.languages
                         : [],
+                }));
+            }
+
+            if (
+                !isCustomField &&
+                (fieldName === "preferred_contact_times" ||
+                    fieldName === "preferred_contact_time")
+            ) {
+                const times = Array.isArray(payloadData.preferred_contact_times)
+                    ? payloadData.preferred_contact_times
+                    : [];
+                setCurrentLeadState((prev) => ({
+                    ...prev,
+                    preferred_contact_times: times,
+                    preferred_contact_time: times[0] ?? null,
                 }));
             }
         } catch (error: any) {
@@ -1019,20 +1060,32 @@ const ageRangeOptions = useMemo(
 
                         <DetailField label={t("pages.leads.info.fields.preferred_contact_time", { defaultValue: "Preferred contact time" })}>
                             <EditableField
-                                value={currentLeadState.preferred_contact_time || ""}
-                                fieldName="preferred_contact_time"
-                                fieldType="select"
+                                value={
+                                    Array.isArray(currentLeadState.preferred_contact_times) &&
+                                    currentLeadState.preferred_contact_times.length
+                                        ? currentLeadState.preferred_contact_times
+                                        : currentLeadState.preferred_contact_time
+                                          ? [currentLeadState.preferred_contact_time]
+                                          : []
+                                }
+                                fieldName="preferred_contact_times"
+                                fieldType="multiselect"
                                 options={[
                                     { label: t("pages.leads.info.fields.preferred_contact_time_morning", { defaultValue: "Morning" }), value: "morning" },
                                     { label: t("pages.leads.info.fields.preferred_contact_time_afternoon", { defaultValue: "Afternoon" }), value: "afternoon" },
                                     { label: t("pages.leads.info.fields.preferred_contact_time_evening", { defaultValue: "Evening" }), value: "evening" },
                                 ]}
                                 onSave={(value) =>
-                                    handleFieldUpdate("preferred_contact_time", value)
+                                    handleFieldUpdate("preferred_contact_times", value)
                                 }
                                 onChange={handleFieldChange}
                                 displayValue={
-                                    currentLeadState.preferred_contact_time ? (
+                                    Array.isArray(currentLeadState.preferred_contact_times) &&
+                                    currentLeadState.preferred_contact_times.length ? (
+                                        <span className="capitalize">
+                                            {currentLeadState.preferred_contact_times.join(", ")}
+                                        </span>
+                                    ) : currentLeadState.preferred_contact_time ? (
                                         <span className="capitalize">
                                             {currentLeadState.preferred_contact_time}
                                         </span>
@@ -1041,7 +1094,7 @@ const ageRangeOptions = useMemo(
                                     )
                                 }
                                 alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("preferred_contact_time")}
+                                loading={isFieldLoading("preferred_contact_times")}
                             />
                         </DetailField>
 

@@ -23,6 +23,21 @@ class PatchRequest extends CoreRequest
         if ($this->has('salutation') && $this->salutation === '') {
             $this->merge(['salutation' => null]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -31,7 +46,7 @@ class PatchRequest extends CoreRequest
     public function rules(): array
     {
         $leadId = $this->route('lead_contact');
-        
+
         return [
             // Contact Information (all optional for patch)
             // client_name is NOT NULL at the DB level, so this intentionally
@@ -56,7 +71,7 @@ class PatchRequest extends CoreRequest
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
             'preferred_contact_time' => ['sometimes', 'nullable', 'string', Rule::in(PreferredContactTime::values())],
-            'preferred_contact_times' => ['sometimes', 'nullable', 'array'],
+            'preferred_contact_times' => 'sometimes|nullable|array',
             'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
 
             // Lead Information (all optional for patch)
@@ -64,14 +79,14 @@ class PatchRequest extends CoreRequest
             'currency_id' => 'sometimes|integer|exists:currencies,id',
             'next_follow_up' => 'sometimes|nullable|date|after:today',
             'note' => 'sometimes|nullable|string|max:2000',
-            
+
             // Assignment (all optional for patch)
             'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
             // Write-once — LeadObserver rejects any attempt to change an existing referrer.
             'referred_by_agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
             'lead_owner' => 'sometimes|nullable|integer|exists:users,id',
             'added_by' => 'sometimes|nullable|integer|exists:users,id',
-            
+
             // Categorization — multi via category_ids; scalar category_id still accepted
             'category_id' => 'sometimes|nullable|integer|exists:lead_category,id',
             'category_ids' => 'sometimes|nullable|array',
@@ -84,19 +99,19 @@ class PatchRequest extends CoreRequest
             // Products (all optional for patch)
             'products' => 'sometimes|array',
             'products.*' => 'integer|exists:products,id',
-            
+
             // Custom fields (all optional for patch)
             'custom_fields' => 'sometimes|array',
             'custom_fields.*' => 'sometimes',
-            
+
             // Priority and status fields (all optional for patch)
             'column_priority' => 'sometimes|integer|min:0',
             'total_value' => 'sometimes|numeric|min:0',
-            
+
             // Lead conversion fields (all optional for patch)
             'client_id' => 'sometimes|integer|exists:users,id',
             'hash' => 'sometimes|string|max:255',
-            
+
             // Additional optional fields
             'tags' => 'sometimes|array',
             'tags.*' => 'string|max:50',
@@ -132,7 +147,7 @@ class PatchRequest extends CoreRequest
             'source_id.exists' => 'Selected source is invalid.',
             'status_id.exists' => 'Selected status is invalid.',
             'client_id.exists' => 'Selected client is invalid.',
-            'salutation.in' => 'Salutation must be one of: ' . implode(', ', array_column(Salutation::cases(), 'value')) . '.',
+            'salutation.in' => 'Salutation must be one of: '.implode(', ', array_column(Salutation::cases(), 'value')).'.',
             'column_priority.min' => 'Priority cannot be negative.',
         ];
     }

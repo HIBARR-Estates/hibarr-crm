@@ -104,7 +104,7 @@ class LeadService
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
                 'leads.lead_lifecycle_status_id',
-                'leads.salutation', 'leads.gender', 'leads.temperature', 'leads.preferred_contact_time', 'leads.address', 'leads.city', 'leads.state',
+                'leads.salutation', 'leads.gender', 'leads.temperature', 'leads.preferred_contact_time', 'leads.preferred_contact_times', 'leads.address', 'leads.city', 'leads.state',
                 'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
                 'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
@@ -132,6 +132,7 @@ class LeadService
         $leads->getCollection()->transform(function ($lead) {
             $lead->salutation_value = $lead->salutation instanceof \App\Enums\Salutation ? $lead->salutation->value : $lead->salutation;
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
+            $lead->exposePreferredContactTimesForFrontend();
 
             return $lead;
         });
@@ -195,7 +196,7 @@ class LeadService
         if (DB::connection()->getDriverName() === 'sqlite') {
             $sign = $offsetMinutes >= 0 ? '+' : '-';
 
-            return "datetime({$column}, '{$sign}" . abs($offsetMinutes) . " minutes')";
+            return "datetime({$column}, '{$sign}".abs($offsetMinutes)." minutes')";
         }
 
         return "DATE_ADD({$column}, INTERVAL {$offsetMinutes} MINUTE)";
@@ -232,11 +233,11 @@ class LeadService
 
         $meeting .= ')';
 
-        $task = "(SELECT MIN(t.due_date) FROM taskables tb
+        $task = '(SELECT MIN(t.due_date) FROM taskables tb
             JOIN tasks t ON t.id = tb.task_id
             WHERE tb.taskable_id = leads.id AND tb.taskable_type = ?
-              AND t.deleted_at IS NULL AND t.due_date IS NOT NULL";
-        $bindings[] = (new Lead())->getMorphClass();
+              AND t.deleted_at IS NULL AND t.due_date IS NOT NULL';
+        $bindings[] = (new Lead)->getMorphClass();
 
         if ($doneColumnId = $this->doneTaskColumnId()) {
             $task .= ' AND t.board_column_id <> ?';
@@ -305,7 +306,7 @@ class LeadService
         $tasks = Task::query()
             ->without(['company', 'project', 'users'])
             ->join('taskables', 'taskables.task_id', '=', 'tasks.id')
-            ->where('taskables.taskable_type', (new Lead())->getMorphClass())
+            ->where('taskables.taskable_type', (new Lead)->getMorphClass())
             ->whereIn('taskables.taskable_id', $leadIds)
             ->whereNotNull('tasks.due_date')
             ->when($doneColumnId, fn ($q) => $q->where('tasks.board_column_id', '<>', $doneColumnId))

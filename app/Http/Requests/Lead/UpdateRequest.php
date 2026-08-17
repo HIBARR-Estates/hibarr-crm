@@ -28,6 +28,21 @@ class UpdateRequest extends CoreRequest
         if ($this->has('salutation') && $this->salutation === '') {
             $this->merge(['salutation' => null]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -39,11 +54,13 @@ class UpdateRequest extends CoreRequest
     {
         $rules = [
             'client_name' => 'required',
-            'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
+            'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,'.company()->id,
             'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => 'nullable|in:male,female',
             'temperature' => 'nullable|in:cold,warm,hot',
             'preferred_contact_time' => ['nullable', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => 'nullable|array',
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
         ];
 
@@ -63,5 +80,4 @@ class UpdateRequest extends CoreRequest
 
         return $attributes;
     }
-
 }

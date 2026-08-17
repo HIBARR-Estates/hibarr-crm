@@ -67,7 +67,7 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
             {
                 key: "preferredContactTime",
                 label: "Preferred contact time",
-                leadField: "preferred_contact_time",
+                leadField: "preferred_contact_times",
             },
             {
                 key: "dateOfBirthAndAge",

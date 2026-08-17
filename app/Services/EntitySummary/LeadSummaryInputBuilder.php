@@ -54,21 +54,15 @@ class LeadSummaryInputBuilder
 
         $sections = [];
 
-        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time || ! empty($lead->preferred_contact_times)) {
-            $preferredTimes = $lead->preferred_contact_times ?? [];
-            if ($preferredTimes === [] && $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime) {
-                $preferredTimes = [$lead->preferred_contact_time->value];
-            }
-            $preferredLabels = array_map(
-                static fn (string $slug) => PreferredContactTime::tryFrom($slug)?->label() ?? $slug,
-                $preferredTimes
-            );
-
+        $preferredContactTimes = $lead->resolvedPreferredContactTimes();
+        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $preferredContactTimes !== []) {
             $sections['contact'] = [
                 'email' => $lead->client_email ?: null,
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
-                'preferred_contact_time' => $preferredLabels !== [] ? implode(', ', $preferredLabels) : null,
+                'preferred_contact_time' => collect($preferredContactTimes)
+                    ->map(fn (string $value) => PreferredContactTime::tryFrom($value)?->label() ?? $value)
+                    ->implode(', '),
             ];
         }
 

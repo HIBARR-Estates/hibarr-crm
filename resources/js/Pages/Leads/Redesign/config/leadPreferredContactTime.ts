@@ -23,16 +23,29 @@ export function formatPreferredContactTime(value: string): string {
     );
 }
 
-export function formatPreferredContactTimes(
-    times?: string[] | null,
-    fallback?: string | null,
-): string {
-    const values =
-        times && times.length > 0
-            ? times
-            : fallback
-              ? [fallback]
-              : [];
+export function resolvePreferredContactTimes(
+    lead: {
+        preferred_contact_times?: string[] | null;
+        preferred_contact_time?: string | null;
+    } | null | undefined,
+): PreferredContactTimeValue[] {
+    if (
+        Array.isArray(lead?.preferred_contact_times) &&
+        lead.preferred_contact_times.length
+    ) {
+        return lead.preferred_contact_times.filter((value): value is PreferredContactTimeValue =>
+            PREFERRED_CONTACT_TIME_VALUES.includes(value as PreferredContactTimeValue),
+        );
+    }
 
-    return values.map((value) => formatPreferredContactTime(value)).join(", ");
+    if (lead?.preferred_contact_time) {
+        const value = lead.preferred_contact_time as PreferredContactTimeValue;
+        return PREFERRED_CONTACT_TIME_VALUES.includes(value) ? [value] : [];
+    }
+
+    return [];
+}
+
+export function formatPreferredContactTimes(values: string[]): string {
+    return values.map(formatPreferredContactTime).join(", ");
 }

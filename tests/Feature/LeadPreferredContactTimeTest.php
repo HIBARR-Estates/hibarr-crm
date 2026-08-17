@@ -145,6 +145,23 @@ class LeadPreferredContactTimeTest extends TestCase
         $this->assertSame(PreferredContactTime::Evening, $fresh->preferred_contact_time);
     }
 
+    public function test_normalize_list_accepts_json_encoded_array_string(): void
+    {
+        $normalized = PreferredContactTime::normalizeList('["morning", "evening"]');
+
+        $this->assertSame(['morning', 'evening'], $normalized);
+    }
+
+    public function test_normalize_list_accepts_associative_object_of_slugs(): void
+    {
+        $normalized = PreferredContactTime::normalizeList([
+            'morning' => 'Morning',
+            'evening' => 'Evening',
+        ]);
+
+        $this->assertSame(['morning', 'evening'], $normalized);
+    }
+
     private function resetSchema(): void
     {
         Schema::dropIfExists('leads');

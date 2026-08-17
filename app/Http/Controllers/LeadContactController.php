@@ -200,6 +200,7 @@ class LeadContactController extends AccountBaseController
         // Ensure enum values are available for frontend
         $this->leadContact->salutation_value = $this->leadContact->salutation instanceof \App\Enums\Salutation ? $this->leadContact->salutation->value : $this->leadContact->salutation;
         $this->leadContact->gender_value = $this->leadContact->gender instanceof \App\Enums\Gender ? $this->leadContact->gender->value : $this->leadContact->gender;
+        $this->leadContact->exposePreferredContactTimesForFrontend();
 
         $leadRules = [
             'added' => 'added_by',
@@ -585,10 +586,12 @@ class LeadContactController extends AccountBaseController
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->temperature = $request->temperature;
-        if ($request->has('preferred_contact_times')) {
-            $leadContact->syncPreferredContactTimes($request->preferred_contact_times);
-        } elseif ($request->filled('preferred_contact_time')) {
-            $leadContact->syncPreferredContactTimes($request->preferred_contact_time);
+        if ($request->has('preferred_contact_times') || $request->has('preferred_contact_time')) {
+            $leadContact->syncPreferredContactTimes(
+                $request->has('preferred_contact_times')
+                    ? $request->input('preferred_contact_times', [])
+                    : $request->input('preferred_contact_time')
+            );
         }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
@@ -787,10 +790,12 @@ class LeadContactController extends AccountBaseController
         if ($request->has('temperature')) {
             $leadContact->temperature = $request->temperature;
         }
-        if ($request->has('preferred_contact_times')) {
-            $leadContact->syncPreferredContactTimes($request->preferred_contact_times);
-        } elseif ($request->has('preferred_contact_time')) {
-            $leadContact->syncPreferredContactTimes($request->preferred_contact_time);
+        if ($request->has('preferred_contact_times') || $request->has('preferred_contact_time')) {
+            $leadContact->syncPreferredContactTimes(
+                $request->has('preferred_contact_times')
+                    ? $request->input('preferred_contact_times', [])
+                    : $request->input('preferred_contact_time')
+            );
         }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
@@ -900,8 +905,8 @@ class LeadContactController extends AccountBaseController
             if ($request->has('temperature')) {
                 $leadContact->temperature = $request->temperature;
             }
-            if ($request->has('preferred_contact_time')) {
-                $leadContact->preferred_contact_time = $request->preferred_contact_time;
+            if (Lead::applyPreferredContactTimesFromRequest($leadContact, $request)) {
+                // synced on model; persisted below
             }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
@@ -1158,6 +1163,15 @@ class LeadContactController extends AccountBaseController
 
                 foreach ($allowedFields as $field) {
                     if ($field === 'category_ids') {
+                        continue;
+                    }
+                    if ($field === 'preferred_contact_times') {
+                        if ($request->has('preferred_contact_times') || $request->has('preferred_contact_time')) {
+                            $responseData['preferred_contact_times'] = $leadContact->resolvedPreferredContactTimes();
+                            $responseData['preferred_contact_time'] = $leadContact->preferred_contact_time?->value
+                                ?? $leadContact->preferred_contact_time;
+                        }
+
                         continue;
                     }
                     if ($request->has($field)) {

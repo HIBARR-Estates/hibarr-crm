@@ -9,6 +9,7 @@ import { router, usePage } from "@inertiajs/react";
 import { App, Modal } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
+import { resolvePreferredContactTimes } from "@/Pages/Leads/Redesign/config/leadPreferredContactTime";
 import { IModalProps } from "@/Types/common";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -224,10 +225,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             "",
         temperature:
             (lead?.temperature as any)?.value ?? lead?.temperature ?? "",
-        preferred_contact_time:
-            (lead?.preferred_contact_time as any)?.value ??
-            lead?.preferred_contact_time ??
-            "",
+        preferred_contact_times: resolvePreferredContactTimes(lead ?? undefined),
         languages: lead?.languages || [],
         date_of_birth: lead?.date_of_birth || null,
         nationality: lead?.nationality || "",

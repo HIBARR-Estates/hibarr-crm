@@ -25,6 +25,21 @@ class CreateOrUpdateContactRequest extends CoreRequest
                 'referral_agent_id' => $this->input('referal_agent_id'),
             ]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -41,7 +56,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'gender' => 'nullable|string|in:male,female',
-            
+
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
@@ -49,9 +64,11 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'referral_agent_id' => $referralAgentRules,
             'referal_agent_id' => $referralAgentRules,
             'lead_category_id' => 'nullable|integer|exists:lead_category,id',
+            'lead_category_ids' => 'sometimes|nullable|array',
+            'lead_category_ids.*' => 'integer|exists:lead_category,id',
             'update_agent_if_exists' => 'nullable|boolean',
             'notify' => 'nullable|boolean',
-            
+
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',
             'utmInfo.source' => 'nullable|string|max:255',
@@ -85,6 +102,8 @@ class CreateOrUpdateContactRequest extends CoreRequest
             // Optional classification / engagement (CRM lead fields)
             'temperature' => 'nullable|string|in:cold,warm,hot',
             'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => 'sometimes|nullable|array',
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
             'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
@@ -140,7 +159,10 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'email.email' => 'The contact email must be a valid email address.',
             'lead_source_id.exists' => 'The selected lead source does not exist.',
             'lead_source_id.integer' => 'The lead source ID must be a valid integer.',
+            'lead_category_ids.array' => 'Lead categories must be provided as an array.',
+            'lead_category_ids.*.exists' => 'One or more selected lead categories do not exist.',
+            'preferred_contact_times.array' => 'Preferred contact times must be provided as an array.',
+            'preferred_contact_times.*.in' => 'One or more preferred contact times are invalid.',
         ];
     }
 }
-

@@ -31,5 +31,6 @@ return [
         'crm.flight-itinerary-extraction',
         'crm.deal-analysis',
         'crm.leads-filter-v2',
+        'crm.expose-share-links',
     ],
 ];

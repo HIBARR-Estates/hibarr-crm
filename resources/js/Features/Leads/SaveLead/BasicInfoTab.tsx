@@ -298,10 +298,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 label="Preferred contact time"
-                                name="preferred_contact_time"
+                                name="preferred_contact_times"
                             >
                                 <FormDataSelector
                                     type="preferred-contact-times"
+                                    mode="multiple"
                                     placeholder="—"
                                 />
                             </Form.Item>

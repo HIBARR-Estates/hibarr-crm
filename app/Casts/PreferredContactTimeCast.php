@@ -65,7 +65,14 @@ class PreferredContactTimeCast implements CastsAttributes
         $enum = PreferredContactTime::tryFrom((string) $value);
 
         if ($enum !== null) {
-            $model->setAttribute('preferred_contact_times', [$enum->value]);
+            $existing = PreferredContactTime::normalizeList(
+                $model->getAttributes()['preferred_contact_times'] ?? null
+            );
+            // Keep an already-populated list when the scalar is its first value
+            // (syncPreferredContactTimes / exposePreferredContactTimesForFrontend).
+            if ($existing === [] || ($existing[0] ?? null) !== $enum->value) {
+                $model->setAttribute('preferred_contact_times', [$enum->value]);
+            }
         }
 
         return $enum?->value;

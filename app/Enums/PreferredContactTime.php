@@ -26,6 +26,9 @@ enum PreferredContactTime: string
     }
 
     /**
+     * Normalize API/UI input to a deduplicated list of valid time slugs.
+     *
+     * @param  mixed  $raw  array of strings, comma-separated string, or single slug
      * @return list<string>
      */
     public static function normalizeList(mixed $raw): array
@@ -44,32 +47,47 @@ enum PreferredContactTime: string
                 return [];
             }
 
-            if (str_starts_with($trimmed, '[')) {
-                $decoded = json_decode($trimmed, true);
-
-                return is_array($decoded) ? self::normalizeList($decoded) : [];
+            if (
+                (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{'))
+                && ($decoded = json_decode($trimmed, true)) !== null
+                && is_array($decoded)
+            ) {
+                $raw = $decoded;
+            } elseif (str_contains($raw, ',')) {
+                $raw = explode(',', $raw);
+            } else {
+                $raw = [$raw];
             }
-
-            if (str_contains($raw, ',')) {
-                return self::normalizeList(explode(',', $raw));
-            }
-
-            $raw = [$raw];
         }
 
         if (! is_array($raw)) {
-            return [];
+            $raw = [$raw];
         }
 
         $valid = self::values();
+        $candidates = [];
+
+        if ($raw !== [] && ! array_is_list($raw)) {
+            foreach ($raw as $key => $value) {
+                if (is_string($key) || is_int($key)) {
+                    $candidates[] = (string) $key;
+                }
+                if (is_string($value) || is_int($value)) {
+                    $candidates[] = (string) $value;
+                }
+            }
+        } else {
+            foreach ($raw as $value) {
+                if (is_string($value) || is_int($value)) {
+                    $candidates[] = (string) $value;
+                }
+            }
+        }
+
         $normalized = [];
 
-        foreach ($raw as $item) {
-            if (! is_string($item) && ! is_int($item)) {
-                continue;
-            }
-
-            $slug = strtolower(trim((string) $item));
+        foreach ($candidates as $item) {
+            $slug = strtolower(trim($item));
             if ($slug === '' || ! in_array($slug, $valid, true)) {
                 continue;
             }

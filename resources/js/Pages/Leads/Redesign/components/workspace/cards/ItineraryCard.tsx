@@ -1,5 +1,5 @@
 import type { ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { formatCompanyDateTime, parseNaiveDateTime } from "@/lib/companyDateTime";
 
 interface ItineraryCardProps {
     leg: ILeadFlightItinerary;
@@ -7,9 +7,8 @@ interface ItineraryCardProps {
 }
 
 export default function ItineraryCard({ leg, onClick }: ItineraryCardProps) {
-    const when = leg.flight_date
-        ? formatCompanyDateTime(new Date(leg.flight_date))
-        : "—";
+    const parsed = parseNaiveDateTime(leg.flight_date);
+    const when = parsed ? formatCompanyDateTime(parsed) : "—";
 
     return (
         <button
