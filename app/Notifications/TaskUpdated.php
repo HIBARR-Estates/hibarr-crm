@@ -4,18 +4,18 @@ namespace App\Notifications;
 
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class TaskUpdated extends BaseNotification
 {
-
-
     /**
      * Create a new notification instance.
      *
      * @return void
      */
     private $task;
+
     private $emailSetting;
 
     public function __construct(Task $task)
@@ -23,12 +23,13 @@ class TaskUpdated extends BaseNotification
         $this->task = $task;
         $this->company = $this->task->load('company')->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'user-assign-to-task')->first();
+        $this->initUnsRouting();
     }
 
     /**
      * Get the notification's delivery channels.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      * @return array
      */
     public function via($notifiable)
@@ -36,11 +37,11 @@ class TaskUpdated extends BaseNotification
         $via = ['database'];
 
         if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
-            array_push($via, 'mail');
+            $via[] = 'mail';
         }
 
         if ($this->emailSetting->send_slack == 'yes' && $this->company->slackSetting->status == 'active') {
-            $this->slackUserNameCheck($notifiable) ? array_push($via, 'slack') : null;
+            $this->slackUserNameCheck($notifiable) ? $via[] = 'slack' : null;
         }
 
         return $via;
@@ -49,28 +50,46 @@ class TaskUpdated extends BaseNotification
     /**
      * Get the mail representation of the notification.
      *
-     * @param mixed $notifiable
-     * @return MailMessage
+     * @param  mixed  $notifiable
      */
     public function toMail($notifiable): MailMessage
     {
         $build = parent::build($notifiable);
-        $url = route('tasks.show', $this->task->id);
-        $url = getDomainSpecificUrl($url, $this->company);
-        $taskShortCode = (!is_null($this->task->task_short_code)) ? '#' . $this->task->task_short_code : ' ';
-
-        $content = __('email.taskUpdate.text') . ' <br><br>' . $this->task->heading . ' - ' . $taskShortCode . ' <br><br>' . __('email.taskUpdate.text2');
-        $subject = __('email.taskUpdate.subject') . ' - ' . $taskShortCode . ' - ' . config('app.name'). '.';
+        $url = getDomainSpecificUrl(route('tasks.show', $this->task->id), $this->company);
+        $taskShortCode = $this->task->task_short_code ? '#'.$this->task->task_short_code : '';
+        $subject = trim(__('email.taskUpdate.subject').' '.$taskShortCode);
+        $introText = $this->capitalizeSentences(__('email.taskUpdate.intro'));
+        $detailHtml = EntityActivityMailBuilder::renderDetailBlock(
+            $this->safeMailText($this->task->heading, 200),
+            $this->taskMetaLine(),
+        );
+        $actionText = __('email.taskUpdate.action');
 
         $build
-            ->subject($subject)
+            ->subject($subject.' - '.config('app.name'))
             ->view('mail.task.updated', [
                 'url' => $url,
-                'content' => $content,
-                'themeColor' => $this->company->header_color,
-                'actionText' => __('email.taskUpdate.action'),
-                'notifiableName' => $notifiable->name
+                'content' => '',
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
+                'subject' => $subject,
+                'introText' => $introText,
+                'actionText' => $actionText,
+                'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachEntityActivityPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $introText,
+            'badgeLabel' => 'Task Update',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'detailHtml' => $detailHtml,
+            'contentHtml' => '',
+            'actionDescription' => __('email.taskUpdate.footer'),
+            'actionText' => $actionText,
+            'entityUrl' => $url,
+        ]);
 
         parent::resetLocale();
 
@@ -80,23 +99,26 @@ class TaskUpdated extends BaseNotification
     /**
      * Get the array representation of the notification.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      * @return array
      */
-    //phpcs:ignore
+    // phpcs:ignore
     public function toArray($notifiable)
     {
         return [
             'id' => $this->task->id,
+            'task_id' => $this->task->id,
             'updated_at' => $this->task->updated_at->format('Y-m-d H:i:s'),
-            'heading' => $this->task->heading
+            'heading' => $this->task->heading,
+            'title' => __('email.taskUpdate.subject'),
+            'text' => $this->capitalizeSentences(__('email.taskUpdate.intro')),
         ];
     }
 
     /**
      * Get the Slack representation of the notification.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      * @return \Illuminate\Notifications\Messages\SlackMessage
      */
     public function toSlack($notifiable)
@@ -108,7 +130,7 @@ class TaskUpdated extends BaseNotification
 
         foreach ($this->task->labels as $key => $label) {
             if ($key == 0) {
-                $labels .= __('app.label') . ' - ';
+                $labels .= __('app.label').' - ';
             }
 
             $labels .= $label->label_name;
@@ -119,9 +141,16 @@ class TaskUpdated extends BaseNotification
         }
 
         return $this->slackBuild($notifiable)
-            ->content('*' . __('email.taskUpdate.subject') . '*' . "\n" . '<' . $url . '|' . $this->task->heading . '>' . "\n" . ' #' . $this->task->task_short_code . (!is_null($this->task->project) ? "\n" . __('app.project') . ' - ' . $this->task->project->project_name : '') . "\n" . $labels);
-
+            ->content('*'.__('email.taskUpdate.subject').'*'."\n".'<'.$url.'|'.$this->task->heading.'>'."\n".' #'.$this->task->task_short_code.(! is_null($this->task->project) ? "\n".__('app.project').' - '.$this->task->project->project_name : '')."\n".$labels);
 
     }
 
+    protected function taskMetaLine(): string
+    {
+        if (! $this->task->project) {
+            return '';
+        }
+
+        return $this->safeMailText($this->task->project->project_name, 200);
+    }
 }

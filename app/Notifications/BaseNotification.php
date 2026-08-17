@@ -300,6 +300,23 @@ class BaseNotification extends Notification implements ShouldQueue
         return \App\Support\MailPreheader::sanitize($value, $maxChars);
     }
 
+    /**
+     * Ensure the first letter of each sentence starts with a capital letter.
+     */
+    protected function capitalizeSentences(string $text): string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        return (string) preg_replace_callback(
+            '/(^|[.!?]\s+)([a-z])/u',
+            static fn (array $matches): string => $matches[1].mb_strtoupper($matches[2]),
+            $text,
+        );
+    }
+
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;

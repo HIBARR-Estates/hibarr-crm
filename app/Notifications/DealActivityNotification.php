@@ -129,8 +129,8 @@ class DealActivityNotification extends BaseNotification
             'badgeLabel' => 'Deal Activity',
             'notifiableName' => $notifiable->name,
             'introText' => $introText,
-            'detailHtml' => $detailHtml,
-            'contentHtml' => $content,
+            'detailHtml' => $detailHtml ?: '',
+            'contentHtml' => $content ?: '',
             'actionDescription' => __('Click the button below to view the deal details.'),
             'actionText' => $actionText,
             'entityUrl' => $url,
@@ -238,10 +238,13 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::PROPERTY_UNLINKED => "Property unlinked from deal: {$dealName}",
             DealActivityType::PACKAGE_ASSIGNED => "Package assigned to deal: {$dealName}",
             DealActivityType::PACKAGE_REMOVED => "Package removed from deal: {$dealName}",
+            DealActivityType::OFFER_APPLIED => "Offer applied to deal: {$dealName}",
+            DealActivityType::OFFER_REMOVED => "Offer removed from deal: {$dealName}",
             DealActivityType::AGENT_ASSIGNED => "Agent assigned to deal: {$dealName}",
             DealActivityType::AGENT_CHANGED => "Agent changed on deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "You were added as a watcher on deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "You were removed as a watcher from deal: {$dealName}",
+            default => $this->activityType->label().": {$dealName}",
         };
     }
 
@@ -284,10 +287,13 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::PROPERTY_UNLINKED => "{$triggeredBy} unlinked a property from {$dealName}.",
             DealActivityType::PACKAGE_ASSIGNED => "{$triggeredBy} assigned packages to {$dealName}.",
             DealActivityType::PACKAGE_REMOVED => "{$triggeredBy} removed packages from {$dealName}.",
+            DealActivityType::OFFER_APPLIED => "{$triggeredBy} applied an offer to {$dealName}.",
+            DealActivityType::OFFER_REMOVED => "{$triggeredBy} removed an offer from {$dealName}.",
             DealActivityType::AGENT_ASSIGNED => "{$triggeredBy} assigned an agent to {$dealName}.",
             DealActivityType::AGENT_CHANGED => "{$triggeredBy} changed the agent on {$dealName}.",
             DealActivityType::WATCHER_ADDED => "{$triggeredBy} added you as a watcher on {$dealName}.",
             DealActivityType::WATCHER_REMOVED => "{$triggeredBy} removed you as a watcher from {$dealName}.",
+            default => "{$triggeredBy} updated {$dealName}.",
         };
     }
 
@@ -323,10 +329,13 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::PROPERTY_UNLINKED => "{$prefix}Property Unlinked from Deal: {$dealName}",
             DealActivityType::PACKAGE_ASSIGNED => "{$prefix}Package Assigned to Deal: {$dealName}",
             DealActivityType::PACKAGE_REMOVED => "{$prefix}Package Removed from Deal: {$dealName}",
+            DealActivityType::OFFER_APPLIED => "{$prefix}Offer Applied to Deal: {$dealName}",
+            DealActivityType::OFFER_REMOVED => "{$prefix}Offer Removed from Deal: {$dealName}",
             DealActivityType::AGENT_ASSIGNED => "{$prefix}Agent Assigned to Deal: {$dealName}",
             DealActivityType::AGENT_CHANGED => "{$prefix}Agent Changed on Deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "{$prefix}You're now watching Deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "{$prefix}You're no longer watching Deal: {$dealName}",
+            default => "{$prefix}{$this->activityType->label()}: {$dealName}",
         };
     }
 
@@ -375,6 +384,13 @@ class DealActivityNotification extends BaseNotification
                 $this->safeMailText($this->data['property_title'] ?? 'Unknown', 200),
                 $meta,
             ),
+            DealActivityType::OFFER_APPLIED,
+            DealActivityType::OFFER_REMOVED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['offer_name'] ?? 'Offer', 200),
+                $meta,
+            ),
+            DealActivityType::PACKAGE_ASSIGNED,
+            DealActivityType::PACKAGE_REMOVED => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
             DealActivityType::DEAL_WON,
             DealActivityType::DEAL_LOST => EntityActivityMailBuilder::renderDetailBlock(
                 ucfirst($this->safeMailText($this->data['outcome'] ?? $this->activityType->value, 200)),
@@ -525,7 +541,10 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_CANCELLED => ['follow_up_id', 'meeting_remark', 'meeting_date'],
             DealActivityType::FILE_UPLOADED, DealActivityType::FILE_UPDATED, DealActivityType::FILE_DELETED => ['file_id', 'field_label'],
             DealActivityType::PROPERTY_LINKED, DealActivityType::PROPERTY_UNLINKED => ['property_id', 'property_title'],
-            DealActivityType::PACKAGE_ASSIGNED, DealActivityType::PACKAGE_REMOVED => ['package_names', 'package_count'],
+            DealActivityType::PACKAGE_ASSIGNED,
+            DealActivityType::PACKAGE_REMOVED => ['package_names', 'package_count'],
+            DealActivityType::OFFER_APPLIED,
+            DealActivityType::OFFER_REMOVED => ['offer_name', 'offer_id'],
             DealActivityType::AGENT_CHANGED => ['from_agent_name', 'to_agent_name'],
             default => [],
         };
