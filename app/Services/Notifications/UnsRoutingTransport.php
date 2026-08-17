@@ -46,30 +46,22 @@ class UnsRoutingTransport implements TransportInterface
             $payload = $this->payloadMapper->map($message, $envelope);
             $sent = $this->unsClient->send($payload);
 
-            if (!$sent) {
-                Log::error('UNS email routing failed: unable to dispatch notification.', [
-                    'event' => $payload['event'] ?? null,
-                    'recipient' => $payload['data']['emailAddress'] ?? null,
-                    'user_id' => $payload['userId'] ?? null,
-                ]);
-
-                throw new \RuntimeException('UNS email routing failed: unable to dispatch notification.');
+            if ($sent) {
+                return new SentMessage($message, $envelope ?? Envelope::create($message));
             }
 
-            return new SentMessage($message, $envelope ?? Envelope::create($message));
-        } catch (\RuntimeException $exception) {
-            throw $exception;
+            Log::warning('UNS email routing failed: falling back to SMTP.', [
+                'event' => $payload['event'] ?? null,
+                'recipient' => $payload['data']['emailAddress'] ?? null,
+                'user_id' => $payload['userId'] ?? null,
+            ]);
         } catch (\Throwable $exception) {
-            Log::error('UNS email routing failed with exception.', [
+            Log::warning('UNS email routing failed: falling back to SMTP.', [
                 'error' => $exception->getMessage(),
             ]);
-
-            throw new \RuntimeException(
-                'UNS email routing failed: '.$exception->getMessage(),
-                0,
-                $exception
-            );
         }
+
+        return $this->fallbackTransport->send($message, $envelope);
     }
 
     public function __toString(): string

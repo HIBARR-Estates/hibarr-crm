@@ -26,7 +26,7 @@ class TaskNote extends BaseNotification
         $this->created_at = $created_at;
         $this->company = $this->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'task-mention-notification')->first();
-
+        $this->initTaskMailRouting();
     }
 
     /**

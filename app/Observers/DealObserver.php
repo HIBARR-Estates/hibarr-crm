@@ -579,6 +579,24 @@ class DealObserver
                 'lead_pipeline_id' => $deal->lead_pipeline_id,
             ],
         ]);
+
+        if (! isRunningInConsoleOrSeeding() && $deal->lead_id) {
+            \Illuminate\Support\Facades\DB::afterCommit(function () use ($deal) {
+                $lead = \App\Models\Lead::query()
+                    ->with('referredByAgent')
+                    ->find($deal->lead_id);
+
+                if (! $lead?->referred_by_agent_id) {
+                    return;
+                }
+
+                app(\App\Services\MlmNotificationService::class)->notifyReferralConvertedToDeal(
+                    $lead,
+                    $deal->fresh(),
+                    user()?->id,
+                );
+            });
+        }
     }
 
     public function deleting(Deal $deal)

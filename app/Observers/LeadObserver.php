@@ -11,6 +11,7 @@ use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
+use App\Services\MlmNotificationService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +119,21 @@ class LeadObserver
                 'company_name' => $leadContact->company_name,
             ],
         ]);
+
+        if (! isRunningInConsoleOrSeeding() && $leadContact->referred_by_agent_id) {
+            DB::afterCommit(function () use ($leadContact) {
+                $lead = $leadContact->fresh(['contact', 'referredByAgent']);
+                if (! $lead?->referredByAgent) {
+                    return;
+                }
+
+                app(MlmNotificationService::class)->notifyReferralCodeUsed(
+                    $lead,
+                    $lead->referredByAgent,
+                    user()?->id,
+                );
+            });
+        }
     }
 
     public function deleting(Lead $leadContact)

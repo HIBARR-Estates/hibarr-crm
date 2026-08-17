@@ -24,7 +24,7 @@ abstract class TaskAssigneeNotification extends BaseNotification
                 ->where('slug', $emailSettingSlug)
                 ->first()
             : null;
-        $this->initUnsRouting();
+        $this->initTaskMailRouting();
     }
 
     /**

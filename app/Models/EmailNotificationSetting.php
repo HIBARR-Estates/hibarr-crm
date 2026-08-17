@@ -315,6 +315,14 @@ class EmailNotificationSetting extends BaseModel
             'setting_name' => 'Sub Task Created',
             'slug' => 'sub-task-created',
         ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'send_twilio' => 'no',
+            'setting_name' => 'Partner Network (MLM) Notifications',
+            'slug' => 'mlm-partner-network-notification',
+        ],
     ];
 
     public static function userAssignTask()

@@ -21,7 +21,7 @@ class SubTaskCreated extends BaseNotification
                 ->where('slug', 'sub-task-created')
                 ->first()
             : null;
-        $this->initUnsRouting();
+        $this->initTaskMailRouting();
     }
 
     /**

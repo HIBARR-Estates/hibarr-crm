@@ -28,6 +28,9 @@ return [
         // Shared: deal / lead / property lifecycle / task activity
         'entity_activity' => '381c73fb-3938-4b32-8255-d3fb9d68d501',
 
+        // Task lifecycle (created, updated, due, completed)
+        'task_lifecycle' => '44b4e878-07ff-4ffa-9192-0ccd823987b9',
+
         // Property workflow
         'property_request' => '4b95a65c-9c0e-419a-b4c2-699370eaa829',
         'property_request_reviewed' => '381c73fb-3938-4b32-8255-d3fb9d68d501', // same layout as entity-activity

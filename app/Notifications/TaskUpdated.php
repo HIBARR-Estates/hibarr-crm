@@ -23,7 +23,7 @@ class TaskUpdated extends BaseNotification
         $this->task = $task;
         $this->company = $this->task->load('company')->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'user-assign-to-task')->first();
-        $this->initUnsRouting();
+        $this->initTaskMailRouting();
     }
 
     /**

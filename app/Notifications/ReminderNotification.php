@@ -9,7 +9,6 @@ use App\Models\LeadNote;
 use App\Models\Reminder;
 use App\Models\ReminderEmailTemplate;
 use App\Models\Task;
-use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Models\Lead;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
@@ -18,7 +17,6 @@ use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Str;
-use Symfony\Component\Mime\Email;
 
 class ReminderNotification extends BaseNotification
 {
@@ -50,9 +48,14 @@ class ReminderNotification extends BaseNotification
         $this->initUnsRouting();
         // Always route entity reminder mail through UNS/Plunk — do not fall back to SMTP
         // when crm.notification-service-routing is off.
-        $this->unsRoutingEnabled = true;
+        $this->forceUnsRouting();
         // Prefer inline delivery when queued; ReminderSender uses sendNow/notifyNow.
         $this->onConnection('sync');
+    }
+
+    protected function unsIdempotencyPrefix(): ?string
+    {
+        return 'crm-reminder-'.$this->reminder->id;
     }
 
     public function forAnonymousMail(string $name): self
@@ -320,7 +323,6 @@ class ReminderNotification extends BaseNotification
                     'actionText' => __('email.meetingReminder.action'),
                     'notifiableName' => $notifiable->name ?? $this->anonymousName,
                 ]);
-            $this->attachIdempotencyKey($build);
             parent::resetLocale();
 
             return $build;
@@ -351,7 +353,6 @@ class ReminderNotification extends BaseNotification
         // No .ics attachment here: by the time a countdown reminder fires, the
         // recipient already has the invite from the "meeting created" notice —
         // resending it would just prompt them to needlessly re-accept it.
-        $this->attachIdempotencyKey($build);
         parent::resetLocale();
 
         return $build;
@@ -406,7 +407,6 @@ class ReminderNotification extends BaseNotification
                 'footerNote' => $footerNote,
             ]);
 
-        $this->attachIdempotencyKey($build);
         parent::resetLocale();
 
         return $build;
@@ -461,7 +461,6 @@ class ReminderNotification extends BaseNotification
                 'footerNote' => $footerNote,
             ]);
 
-        $this->attachIdempotencyKey($build);
         parent::resetLocale();
 
         return $build;
@@ -520,7 +519,6 @@ class ReminderNotification extends BaseNotification
                 'footerNote' => $footerNote,
             ]);
 
-        $this->attachIdempotencyKey($build);
         parent::resetLocale();
 
         return $build;
@@ -889,21 +887,6 @@ class ReminderNotification extends BaseNotification
         return CarbonInterval::minutes($totalMinutes)
             ->cascade()
             ->forHumans(['parts' => 2, 'short' => false, 'join' => ' ']);
-    }
-
-    private function attachIdempotencyKey(MailMessage $build): void
-    {
-        $idempotencyKey = sprintf(
-            'crm-reminder-%d-%s',
-            $this->reminder->id,
-            Str::uuid()->toString()
-        );
-        $build->withSymfonyMessage(static function (Email $message) use ($idempotencyKey): void {
-            $message->getHeaders()->addTextHeader(
-                UnsEmailPayloadMapper::IDEMPOTENCY_HEADER,
-                $idempotencyKey
-            );
-        });
     }
 
     private function resolveLeadForMeetingMail(DealFollowUp $followUp): ?Lead

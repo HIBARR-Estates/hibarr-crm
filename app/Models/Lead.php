@@ -8,6 +8,7 @@ use App\Enums\Gender;
 use App\Enums\AgeRange;
 use App\Enums\LeadTemperature;
 use App\Enums\PreferredContactTime;
+use App\Casts\PreferredContactTimeCast;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
@@ -168,7 +169,8 @@ class Lead extends BaseModel
         'age' => 'integer',
         'age_range' => AgeRange::class,
         'temperature' => LeadTemperature::class,
-        'preferred_contact_time' => PreferredContactTime::class,
+        'preferred_contact_time' => PreferredContactTimeCast::class,
+        'preferred_contact_times' => 'array',
         'languages' => 'array',
         'assigned_at' => 'datetime',
         'first_contacted_at' => 'datetime',
@@ -365,6 +367,20 @@ class Lead extends BaseModel
 
         $this->unsetRelation('categories');
         $this->unsetRelation('category');
+    }
+
+    /**
+     * Replace preferred contact times and keep scalar preferred_contact_time in sync
+     * (first selected slug, or null when empty).
+     *
+     * @param  list<string>|array<int, string|null>|mixed  $times
+     */
+    public function syncPreferredContactTimes(mixed $times): void
+    {
+        $normalized = PreferredContactTime::normalizeList($times);
+
+        $this->preferred_contact_times = $normalized;
+        $this->preferred_contact_time = $normalized[0] ?? null;
     }
 
     public function note(): BelongsTo

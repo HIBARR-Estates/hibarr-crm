@@ -22,3 +22,17 @@ export function formatPreferredContactTime(value: string): string {
         value.charAt(0).toUpperCase() + value.slice(1)
     );
 }
+
+export function formatPreferredContactTimes(
+    times?: string[] | null,
+    fallback?: string | null,
+): string {
+    const values =
+        times && times.length > 0
+            ? times
+            : fallback
+              ? [fallback]
+              : [];
+
+    return values.map((value) => formatPreferredContactTime(value)).join(", ");
+}

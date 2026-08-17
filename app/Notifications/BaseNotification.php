@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Support\FeatureFlags;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,6 +14,7 @@ use Illuminate\Notifications\Messages\SlackMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use Symfony\Component\Mime\Email;
 
 class BaseNotification extends Notification implements ShouldQueue
@@ -31,9 +33,30 @@ class BaseNotification extends Notification implements ShouldQueue
     /** Captured at construct time — queue workers have no auth user. */
     protected ?int $triggeredByUserId = null;
 
+    /** Stable for the lifetime of this queued notification instance (retries reuse it). */
+    protected ?string $unsIdempotencyKey = null;
+
     protected function initUnsRouting(): void
     {
         $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
+    }
+
+    /**
+     * Route task notification email through UNS/Plunk regardless of the global flag.
+     */
+    protected function initTaskMailRouting(): void
+    {
+        $this->initUnsRouting();
+        $this->unsRoutingEnabled = true;
+    }
+
+    /**
+     * Always route entity reminder mail through UNS/Plunk — do not fall back to SMTP
+     * when crm.notification-service-routing is off.
+     */
+    protected function forceUnsRouting(): void
+    {
+        $this->unsRoutingEnabled = true;
     }
 
     /**
@@ -60,6 +83,46 @@ class BaseNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * Optional prefix for UNS idempotency keys (e.g. crm-reminder-26).
+     * When null, defaults to the notification class name.
+     */
+    protected function unsIdempotencyPrefix(): ?string
+    {
+        return null;
+    }
+
+    protected function resolveUnsIdempotencyKey(): string
+    {
+        if ($this->unsIdempotencyKey === null) {
+            $prefix = $this->unsIdempotencyPrefix() ?? 'crm-'.Str::kebab(class_basename(static::class));
+            $this->unsIdempotencyKey = $prefix.'-'.Str::uuid()->toString();
+        }
+
+        return $this->unsIdempotencyKey;
+    }
+
+    /**
+     * Attach a per-dispatch UNS idempotency key so distinct sends never collide
+     * on recipient + subject + template. Retries of the same queued job reuse
+     * the key captured on the notification instance.
+     */
+    protected function attachUnsIdempotencyKey(MailMessage $build): void
+    {
+        if (! $this->unsRoutingEnabled) {
+            return;
+        }
+
+        $key = $this->resolveUnsIdempotencyKey();
+        $build->withSymfonyMessage(static function (Email $message) use ($key): void {
+            if ($message->getHeaders()->has(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER)) {
+                return;
+            }
+
+            $message->getHeaders()->addTextHeader(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER, $key);
+        });
+    }
+
+    /**
      * Attach a Plunk template ID and variables to the mail message via custom
      * Symfony headers so UnsEmailPayloadMapper can switch to templateSlug mode.
      * The headers are harmless on the SMTP fallback path — they're just ignored.
@@ -83,6 +146,25 @@ class BaseNotification extends Notification implements ShouldQueue
     protected function attachEntityActivityPlunk(MailMessage $build, array $variables): void
     {
         $templateId = config('email.plunk_template_ids.entity_activity');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach task lifecycle Plunk template (created / updated / due / completed).
+     * HTML: resources/views/mail/task/task-lifecycle.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachTaskLifecyclePlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.task_lifecycle');
         if (empty($templateId)) {
             return;
         }
@@ -305,16 +387,7 @@ class BaseNotification extends Notification implements ShouldQueue
      */
     protected function capitalizeSentences(string $text): string
     {
-        $text = trim($text);
-        if ($text === '') {
-            return '';
-        }
-
-        return (string) preg_replace_callback(
-            '/(^|[.!?]\s+)([a-z])/u',
-            static fn (array $matches): string => $matches[1].mb_strtoupper($matches[2]),
-            $text,
-        );
+        return \App\Support\MailText::capitalizeSentences($text);
     }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
@@ -372,8 +445,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $build = (new MailMessage);
 
         if ($this->unsRoutingEnabled) {
-            $build->withSymfonyMessage(static function (Email $message): void {
+            $idempotencyKey = $this->resolveUnsIdempotencyKey();
+            $build->withSymfonyMessage(static function (Email $message) use ($idempotencyKey): void {
                 $message->getHeaders()->addTextHeader('X-Uns-Route', 'true');
+                $message->getHeaders()->addTextHeader(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER, $idempotencyKey);
             });
         }
 

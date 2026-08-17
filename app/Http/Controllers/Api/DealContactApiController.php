@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Helper\Reply;
+use App\Enums\PreferredContactTime;
 use App\Jobs\ProcessDealRequestJob;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
@@ -598,11 +599,20 @@ class DealContactApiController extends Controller
             }
         }
 
-        if ($request->has('preferred_contact_time')) {
+        if ($request->has('preferred_contact_times')) {
+            $lead->syncPreferredContactTimes($request->input('preferred_contact_times'));
+            $updated = true;
+        } elseif ($request->has('preferred_contact_time')) {
             $preferredContactTime = $request->input('preferred_contact_time');
-            $current = $lead->preferred_contact_time?->value ?? $lead->preferred_contact_time;
-            if ((string) $current !== (string) $preferredContactTime) {
-                $lead->preferred_contact_time = $preferredContactTime;
+            $current = $lead->preferred_contact_times ?? (
+                $lead->preferred_contact_time?->value
+                    ? [$lead->preferred_contact_time->value]
+                    : []
+            );
+            $next = PreferredContactTime::normalizeList($preferredContactTime);
+
+            if ($current !== $next) {
+                $lead->syncPreferredContactTimes($next);
                 $updated = true;
             }
         }

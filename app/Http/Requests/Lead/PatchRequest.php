@@ -56,6 +56,8 @@ class PatchRequest extends CoreRequest
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
             'preferred_contact_time' => ['sometimes', 'nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => ['sometimes', 'nullable', 'array'],
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
 
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',

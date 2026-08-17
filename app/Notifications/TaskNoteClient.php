@@ -26,6 +26,7 @@ class TaskNoteClient extends BaseNotification
         $this->created_at = $created_at;
         $this->emailSetting = EmailNotificationSetting::userAssignTask();
         $this->company = $this->task->company;
+        $this->initTaskMailRouting();
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
+use App\Models\MlmCommissionDispute;
 use App\Models\MlmCycle;
 use App\Models\Deal;
 use App\Models\MlmLevel;
@@ -19,6 +20,7 @@ use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MetricsService;
+use App\Services\MlmNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -944,6 +946,54 @@ class MlmAgentController extends AccountBaseController
             'total' => count($mockInvites),
             'from' => 1,
             'to' => count($mockInvites),
+        ]);
+    }
+
+    public function disputeCommissionApi(Request $request, int $id): JsonResponse
+    {
+        $agent = $this->getAgent();
+
+        if (! $agent) {
+            return response()->json(['status' => 'fail', 'message' => 'Agent profile not found.'], 403);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:100',
+            'message' => 'nullable|string|max:2000',
+        ]);
+
+        $commission = MlmCommission::query()
+            ->where('company_id', company()->id)
+            ->where('agent_id', $agent->id)
+            ->findOrFail($id);
+
+        $existing = MlmCommissionDispute::query()
+            ->where('commission_id', $commission->id)
+            ->where('status', MlmCommissionDispute::STATUS_OPEN)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'An open dispute already exists for this commission.',
+            ], 422);
+        }
+
+        $dispute = MlmCommissionDispute::create([
+            'company_id' => company()->id,
+            'commission_id' => $commission->id,
+            'agent_id' => $agent->id,
+            'reason' => $validated['reason'],
+            'message' => $validated['message'] ?? null,
+            'status' => MlmCommissionDispute::STATUS_OPEN,
+        ]);
+
+        app(MlmNotificationService::class)->notifyCommissionDisputed($dispute, user()->id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Commission dispute submitted.',
+            'data' => $dispute->load(['commission.deal', 'commission.level']),
         ]);
     }
 }

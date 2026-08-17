@@ -7,7 +7,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { Lead } from "@/Types/api/leads";
 import { getDossierFieldValue } from "../../adapters/dossierAdapter";
 import {
-    formatPreferredContactTime,
+    formatPreferredContactTimes,
     PREFERRED_CONTACT_TIME_LABELS,
     PREFERRED_CONTACT_TIME_VALUES,
 } from "../../config/leadPreferredContactTime";
@@ -250,6 +250,13 @@ export function LeadPreferredContactTimeField({
 }: LeadAttributionFieldProps) {
     const { td } = useTd();
 
+    const preferredTimes =
+        lead.preferred_contact_times && lead.preferred_contact_times.length > 0
+            ? lead.preferred_contact_times
+            : lead.preferred_contact_time
+              ? [lead.preferred_contact_time]
+              : [];
+
     return (
         <DealEditableField
             value={lead.preferred_contact_time || ""}
@@ -262,10 +269,11 @@ export function LeadPreferredContactTimeField({
                 value,
             }))}
             displayValue={
-                lead.preferred_contact_time ? (
+                preferredTimes.length > 0 ? (
                     <span className="text-gray-700">
                         {td(
-                            formatPreferredContactTime(
+                            formatPreferredContactTimes(
+                                lead.preferred_contact_times,
                                 lead.preferred_contact_time,
                             ),
                             { source: "en" },

@@ -585,7 +585,11 @@ class LeadContactController extends AccountBaseController
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->temperature = $request->temperature;
-        $leadContact->preferred_contact_time = $request->preferred_contact_time;
+        if ($request->has('preferred_contact_times')) {
+            $leadContact->syncPreferredContactTimes($request->preferred_contact_times);
+        } elseif ($request->filled('preferred_contact_time')) {
+            $leadContact->syncPreferredContactTimes($request->preferred_contact_time);
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -783,8 +787,10 @@ class LeadContactController extends AccountBaseController
         if ($request->has('temperature')) {
             $leadContact->temperature = $request->temperature;
         }
-        if ($request->has('preferred_contact_time')) {
-            $leadContact->preferred_contact_time = $request->preferred_contact_time;
+        if ($request->has('preferred_contact_times')) {
+            $leadContact->syncPreferredContactTimes($request->preferred_contact_times);
+        } elseif ($request->has('preferred_contact_time')) {
+            $leadContact->syncPreferredContactTimes($request->preferred_contact_time);
         }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
@@ -1143,7 +1149,7 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'temperature', 'preferred_contact_time', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'preferred_contact_time', 'preferred_contact_times', 'note', 'lead_owner', 'category_id',
                     'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',

@@ -64,7 +64,7 @@ class TaskLifecycleCompletedNotification extends TaskLifecycleBaseNotification
                 'notifiableName' => $notifiable->name,
             ]);
 
-        $this->attachEntityActivityPlunk($build, [
+        $this->attachTaskLifecyclePlunk($build, [
             'mailSubject' => $subject,
             'preheader' => $introText,
             'badgeLabel' => 'Task Update',

@@ -26,6 +26,7 @@ class TaskComment extends BaseNotification
         $this->taskComment = $taskComment;
         $this->emailSetting = EmailNotificationSetting::userAssignTask();
         $this->company = $this->task->company;
+        $this->initTaskMailRouting();
     }
 
     /**

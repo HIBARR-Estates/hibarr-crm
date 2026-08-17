@@ -2,6 +2,7 @@
 
 namespace App\Services\EntitySummary;
 
+use App\Enums\PreferredContactTime;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
@@ -53,14 +54,21 @@ class LeadSummaryInputBuilder
 
         $sections = [];
 
-        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time) {
+        if ($lead->client_email || $lead->mobile || $lead->cell || $lead->office || $lead->preferred_contact_time || ! empty($lead->preferred_contact_times)) {
+            $preferredTimes = $lead->preferred_contact_times ?? [];
+            if ($preferredTimes === [] && $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime) {
+                $preferredTimes = [$lead->preferred_contact_time->value];
+            }
+            $preferredLabels = array_map(
+                static fn (string $slug) => PreferredContactTime::tryFrom($slug)?->label() ?? $slug,
+                $preferredTimes
+            );
+
             $sections['contact'] = [
                 'email' => $lead->client_email ?: null,
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
-                'preferred_contact_time' => $lead->preferred_contact_time instanceof \App\Enums\PreferredContactTime
-                    ? $lead->preferred_contact_time->label()
-                    : $lead->preferred_contact_time,
+                'preferred_contact_time' => $preferredLabels !== [] ? implode(', ', $preferredLabels) : null,
             ];
         }
 

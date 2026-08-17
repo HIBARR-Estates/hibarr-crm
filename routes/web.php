@@ -1411,6 +1411,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::post('commissions/{id}/mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'markCommissionPaid'])->name('commissions.mark_paid');
             Route::post('commissions/bulk-mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'bulkMarkPaid'])->name('commissions.bulk_mark_paid');
             Route::post('commissions/{id}/revert', [App\Http\Controllers\MlmAdminApiController::class, 'revertCommission'])->name('commissions.revert');
+            Route::post('commissions/{id}/clawback', [App\Http\Controllers\MlmAdminApiController::class, 'clawbackCommission'])->name('commissions.clawback');
             Route::get('commissions/export', [App\Http\Controllers\MlmAdminApiController::class, 'exportCommissions'])->name('commissions.export');
 
             // Agent Metrics
@@ -1474,6 +1475,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::get('downlines', [App\Http\Controllers\MlmAgentController::class, 'downlineListApi'])->name('downline_list');
             Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
             Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
+            Route::post('commissions/{id}/dispute', [App\Http\Controllers\MlmAgentController::class, 'disputeCommissionApi'])->name('commissions.dispute');
         });
     });
 });
