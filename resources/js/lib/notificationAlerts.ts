@@ -60,6 +60,15 @@ export function setAlertsMuted(muted: boolean): void {
     window.localStorage.setItem(MUTE_STORAGE_KEY, muted ? "1" : "0");
 }
 
+/**
+ * Mirror the server-persisted muted flag into localStorage so the
+ * synchronous isAlertsMuted() reads used by playNotificationSound() /
+ * showDesktopNotification() stay in sync with the saved setting.
+ */
+export function syncAlertsMutedFromServer(muted: boolean): void {
+    setAlertsMuted(muted);
+}
+
 export type NotchPosition =
     | "top-left"
     | "top-center"

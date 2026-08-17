@@ -42,8 +42,6 @@ import type { Notification, NotificationIcon } from "@/Types/api/notification";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
-    isAlertsMuted,
-    setAlertsMuted,
     isDesktopNotificationSupported,
     getDesktopPermission,
     requestDesktopPermission,
@@ -53,6 +51,7 @@ import {
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import { useNotificationAlertSettings } from "@/contexts/NotificationAlertSettingsContext";
 
 dayjs.extend(relativeTime);
 
@@ -227,7 +226,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const [open, setOpen] = useState(false);
     // Bump when acknowledgment changes so badge recalculates without a refetch.
     const [ackVersion, setAckVersion] = useState(0);
-    const [alertsMuted, setAlertsMutedState] = useState(() => isAlertsMuted());
+    const {
+        settings: { alerts_muted: alertsMuted },
+        setAlertsMuted,
+    } = useNotificationAlertSettings();
     const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const { notifications, isLoading, refetch } =
@@ -244,7 +246,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const handleToggleAlerts = useCallback(() => {
         const nextMuted = !alertsMuted;
         setAlertsMuted(nextMuted);
-        setAlertsMutedState(nextMuted);
 
         if (
             !nextMuted &&
@@ -253,7 +254,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         ) {
             requestDesktopPermission();
         }
-    }, [alertsMuted]);
+    }, [alertsMuted, setAlertsMuted]);
 
     const { markAsReadQuiet, markAllAsRead, isMarkingRead } =
         useNotificationMutations();
