@@ -100,11 +100,11 @@ class ProjectLocationController extends AccountBaseController
     }
 
     /**
-     * Get all airports for dropdown selection.
+     * Get managed airports for project location forms.
      */
     public function allAirports()
     {
-        $airports = Airport::select('id', 'name', 'label', 'code')
+        $airports = Airport::select('id', 'name', 'label', 'code', 'image_url')
             ->orderBy('name')
             ->get();
 
