@@ -242,7 +242,9 @@ class ProjectLocation extends BaseModel
                         'name' => $airport->name,
                         'code' => $airport->code,
                         'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
-                        'image' => $item['image'] ?? null,
+                        'image' => !empty($item['image'])
+                            ? $item['image']
+                            : ($airport->image_url ?? null),
                     ];
                     continue;
                 }
