@@ -204,7 +204,7 @@ class LevelService
             );
         }
 
-        return AgentLevelHistory::create([
+        $history = AgentLevelHistory::create([
             'company_id' => $agent->company_id,
             'agent_id' => $agent->id,
             'level_id' => $level->id,
@@ -214,6 +214,19 @@ class LevelService
             'system_assigned' => $systemAssigned,
             'trigger_deal_id' => $deal?->id,
         ]);
+
+        if ($level->rank !== $oldRank && $currentLevel !== null) {
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyLevelChange(
+                    $agent->fresh(),
+                    $currentLevel,
+                    $level,
+                    $assignedBy,
+                )
+            );
+        }
+
+        return $history;
     }
 
     /**

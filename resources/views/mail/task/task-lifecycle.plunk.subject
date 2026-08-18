@@ -1,0 +1,12 @@
+<!--
+  Plunk subject for task lifecycle emails (same pattern as entity-activity).
+
+  {{mailSubject}} - {{appName}}
+
+  Examples (mailSubject):
+    Task updated #1042
+    Task marked as complete #1042
+    A New Task has been Assigned to You #1042
+    Task due today #1042
+-->
+{{mailSubject}} - {{appName}}

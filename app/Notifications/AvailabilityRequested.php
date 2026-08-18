@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyAvailabilityRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
 
@@ -14,6 +15,7 @@ class AvailabilityRequested extends BaseNotification
     {
         $this->availabilityRequest = $availabilityRequest->load(['property', 'requestingAgent']);
         $this->company = $availabilityRequest->property->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
@@ -27,7 +29,6 @@ class AvailabilityRequested extends BaseNotification
         $property = $this->availabilityRequest->property;
         $requestingAgent = $this->availabilityRequest->requestingAgent;
 
-        // Generate signed URLs for quick approve/deny from email
         $approveUrl = URL::signedRoute('availability-requests.respond-email', [
             'id' => $this->availabilityRequest->id,
             'action' => 'approve',
@@ -37,22 +38,46 @@ class AvailabilityRequested extends BaseNotification
             'action' => 'deny',
         ]);
 
-        return $build
-            ->subject("Availability Check: {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},")
-            ->line("{$requestingAgent->name} is requesting to check the availability of a property you manage.")
-            ->line("**Property:** {$property->display_title}")
-            ->line("**Reference:** {$property->reference_code}")
-            ->line("**Location:** " . ($property->city ? "{$property->city}, {$property->area}" : 'N/A'))
-            ->when($this->availabilityRequest->message, function ($mail) {
-                $mail->line("**Agent's Message:** {$this->availabilityRequest->message}");
-            })
-            ->line('')
-            ->line('Please respond within 8 business hours. If no response is given, this request will be escalated to admin.')
-            ->action('Approve Request', $approveUrl)
-            ->line("[Deny Request]({$denyUrl})")
-            ->line('')
-            ->line('You can also respond from the availability requests page in the CRM.');
+        $subject = "Availability Check: {$property->display_title}";
+        $introText = "{$requestingAgent->name} is requesting to check the availability of a property you manage.";
+        $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+            PropertyRequestMailPresenter::propertyMeta($property),
+            PropertyRequestMailPresenter::line("Agent's Message", $this->availabilityRequest->message),
+            '<br>Please respond within 8 business hours. If no response is given, this request will be escalated to admin.',
+            PropertyRequestMailPresenter::denyLink($denyUrl),
+        );
+        $footerNote = 'You can also respond from the availability requests page in the CRM.';
+
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Availability Request',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => 'Approve this availability check using the button below.',
+                'actionText' => 'Approve Request',
+                'url' => $approveUrl,
+                'footerNote' => $footerNote,
+            ]);
+
+        $this->attachPropertyRequestPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => 'Availability Request',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $contentHtml,
+            'actionDescription' => 'Approve this availability check using the button below.',
+            'actionText' => 'Approve Request',
+            'entityUrl' => $approveUrl,
+            'footerNote' => $footerNote,
+        ]);
+
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array

@@ -1,0 +1,17 @@
+<!--
+  Plunk subject line for shared entity-activity notifications.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — activity-specific subject (without app name suffix)
+    appName     — application name (e.g. Hibarr)
+
+  Examples (mailSubject only):
+    "New Note on Deal: Beach Villa"
+    "Property Published: Sea View Apt"
+    "Task Overdue: Follow up client"
+    "New File on Lead: John Smith"
+
+  Keep in sync with notification getEmailSubject() / mailSubject() methods.
+-->
+{{mailSubject}} - {{appName}}

@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Support\FeatureFlags;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,24 +14,49 @@ use Illuminate\Notifications\Messages\SlackMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use Symfony\Component\Mime\Email;
 
 class BaseNotification extends Notification implements ShouldQueue
 {
-
-    use Queueable, Dispatchable;
+    use Dispatchable, Queueable;
 
     protected $company = null;
+
     protected $slack = null;
+
     protected bool $suppressBulkTransactionalEmails = false;
+
     // Resolved at HTTP dispatch time so queue workers don't call the flag service.
     protected bool $unsRoutingEnabled = false;
+
     /** Captured at construct time — queue workers have no auth user. */
     protected ?int $triggeredByUserId = null;
+
+    /** Stable for the lifetime of this queued notification instance (retries reuse it). */
+    protected ?string $unsIdempotencyKey = null;
 
     protected function initUnsRouting(): void
     {
         $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
+    }
+
+    /**
+     * Route task notification email through UNS/Plunk regardless of the global flag.
+     */
+    protected function initTaskMailRouting(): void
+    {
+        $this->initUnsRouting();
+        $this->unsRoutingEnabled = true;
+    }
+
+    /**
+     * Always route entity reminder mail through UNS/Plunk — do not fall back to SMTP
+     * when crm.notification-service-routing is off.
+     */
+    protected function forceUnsRouting(): void
+    {
+        $this->unsRoutingEnabled = true;
     }
 
     /**
@@ -57,11 +83,51 @@ class BaseNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * Optional prefix for UNS idempotency keys (e.g. crm-reminder-26).
+     * When null, defaults to the notification class name.
+     */
+    protected function unsIdempotencyPrefix(): ?string
+    {
+        return null;
+    }
+
+    protected function resolveUnsIdempotencyKey(): string
+    {
+        if ($this->unsIdempotencyKey === null) {
+            $prefix = $this->unsIdempotencyPrefix() ?? 'crm-'.Str::kebab(class_basename(static::class));
+            $this->unsIdempotencyKey = $prefix.'-'.Str::uuid()->toString();
+        }
+
+        return $this->unsIdempotencyKey;
+    }
+
+    /**
+     * Attach a per-dispatch UNS idempotency key so distinct sends never collide
+     * on recipient + subject + template. Retries of the same queued job reuse
+     * the key captured on the notification instance.
+     */
+    protected function attachUnsIdempotencyKey(MailMessage $build): void
+    {
+        if (! $this->unsRoutingEnabled) {
+            return;
+        }
+
+        $key = $this->resolveUnsIdempotencyKey();
+        $build->withSymfonyMessage(static function (Email $message) use ($key): void {
+            if ($message->getHeaders()->has(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER)) {
+                return;
+            }
+
+            $message->getHeaders()->addTextHeader(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER, $key);
+        });
+    }
+
+    /**
      * Attach a Plunk template ID and variables to the mail message via custom
      * Symfony headers so UnsEmailPayloadMapper can switch to templateSlug mode.
      * The headers are harmless on the SMTP fallback path — they're just ignored.
      *
-     * @param array<string, mixed> $variables
+     * @param  array<string, mixed>  $variables
      */
     protected function attachPlunkTemplate(MailMessage $build, string $templateId, array $variables): void
     {
@@ -69,6 +135,147 @@ class BaseNotification extends Notification implements ShouldQueue
             $message->getHeaders()->addTextHeader('X-Plunk-Template-Id', $templateId);
             $message->getHeaders()->addTextHeader('X-Plunk-Template-Variables', base64_encode((string) json_encode($variables)));
         });
+    }
+
+    /**
+     * Attach shared entity-activity Plunk template (deal / lead / property / task).
+     * HTML: resources/views/mail/plunk/entity-activity.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachEntityActivityPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.entity_activity');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach task lifecycle Plunk template (created / updated / due / completed).
+     * HTML: resources/views/mail/task/task-lifecycle.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachTaskLifecyclePlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.task_lifecycle');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach exposé-ready Plunk template.
+     * HTML: resources/views/mail/plunk/expose-ready.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachExposeReadyPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.expose_ready');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach deal close-date approaching Plunk template.
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachDealCloseDateApproachingPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.deal_close_date_approaching');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach deal deleted Plunk template.
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachDealDeletedPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.deal_deleted');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
+    }
+
+    /**
+     * Attach property workflow REQUEST Plunk template (approve / review CTAs).
+     * HTML: resources/views/mail/plunk/property-request.plunk.html
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachPropertyRequestPlunk(MailMessage $build, array $variables): void
+    {
+        $templateId = config('email.plunk_template_ids.property_request');
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+            'footerNote' => '',
+        ], $variables));
+    }
+
+    /**
+     * Attach property workflow REVIEWED Plunk template (outcomes).
+     * HTML: plunk/property-request-reviewed.plunk.html (same layout as entity-activity).
+     *
+     * @param  array<string, mixed>  $variables
+     */
+    protected function attachPropertyRequestReviewedPlunk(MailMessage $build, array $variables): void
+    {
+        $actionText = trim((string) ($variables['actionText'] ?? ''));
+        $entityUrl = trim((string) ($variables['entityUrl'] ?? ''));
+
+        if ($actionText === '' || $entityUrl === '' || $entityUrl === '#') {
+            return;
+        }
+
+        $templateId = config('email.plunk_template_ids.property_request_reviewed')
+            ?: config('email.plunk_template_ids.entity_activity');
+
+        if (empty($templateId)) {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, (string) $templateId, array_merge([
+            'currentYear' => (string) date('Y'),
+            'appName' => config('app.name'),
+        ], $variables));
     }
 
     /**
@@ -122,7 +329,7 @@ class BaseNotification extends Notification implements ShouldQueue
             } else {
                 // Last resort: still avoid casting the whole JSON column via the model.
                 $statusLine = $query->toBase()->value(\Illuminate\Support\Facades\DB::raw(
-                    "summary_json"
+                    'summary_json'
                 ));
                 if (is_string($statusLine) && $statusLine !== '') {
                     $decoded = json_decode(
@@ -175,9 +382,18 @@ class BaseNotification extends Notification implements ShouldQueue
         return \App\Support\MailPreheader::sanitize($value, $maxChars);
     }
 
+    /**
+     * Ensure the first letter of each sentence starts with a capital letter.
+     */
+    protected function capitalizeSentences(string $text): string
+    {
+        return \App\Support\MailText::capitalizeSentences($text);
+    }
+
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;
+
         return $this;
     }
 
@@ -217,9 +433,8 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Set the application locale based on the company's locale or global settings
         if (isset($locale)) {
-            App::setLocale($locale ?? (!is_null($company) ? $company->locale : 'en'));
-        }
-        else {
+            App::setLocale($locale ?? (! is_null($company) ? $company->locale : 'en'));
+        } else {
             App::setLocale(session('locale') ?: $globalSetting->locale);
         }
 
@@ -230,8 +445,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $build = (new MailMessage);
 
         if ($this->unsRoutingEnabled) {
-            $build->withSymfonyMessage(static function (Email $message): void {
+            $idempotencyKey = $this->resolveUnsIdempotencyKey();
+            $build->withSymfonyMessage(static function (Email $message) use ($idempotencyKey): void {
                 $message->getHeaders()->addTextHeader('X-Uns-Route', 'true');
+                $message->getHeaders()->addTextHeader(UnsEmailPayloadMapper::IDEMPOTENCY_HEADER, $idempotencyKey);
             });
         }
 
@@ -249,7 +466,7 @@ class BaseNotification extends Notification implements ShouldQueue
         }
 
         // If a company is specified, customize the reply name, email, logo URL, and application name
-        if (!is_null($company)) {
+        if (! is_null($company)) {
             $replyName = $company->company_name;
             $replyEmail = $company->company_email;
             Config::set('app.logo', $company->masked_logo_url);
@@ -258,7 +475,7 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Ensure that the company email and name are used if mail verification is successful
         $companyEmail = config('mail.verified') === true ? $companyEmail : $replyEmail;
-//        $companyName = config('mail.verified') === true ? $companyName : $replyName;
+        //        $companyName = config('mail.verified') === true ? $companyName : $replyName;
 
         // Return the mail message with configured from and replyTo settings
         return $build->from($companyEmail, $replyName)->replyTo($replyEmail, $replyName);
@@ -278,10 +495,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $slack = $notifiable->company->slackSetting;
 
         // Compose and return a Slack message
-        return (new SlackMessage())
+        return (new SlackMessage)
             ->from($notifiable->company->company_name) // Set the sender name
-            ->to('@' . $notifiable->employeeDetail->slack_username) // Set the recipient's Slack username
-            ->image(asset_url_local_s3('slack-logo/' . $slack->slack_logo)); // Set the image for Slack message
+            ->to('@'.$notifiable->employeeDetail->slack_username) // Set the recipient's Slack username
+            ->image(asset_url_local_s3('slack-logo/'.$slack->slack_logo)); // Set the image for Slack message
     }
 
     /**
@@ -292,7 +509,7 @@ class BaseNotification extends Notification implements ShouldQueue
         try {
             // Build a Slack message using the slackBuild function
             return $this->slackBuild($notifiable)
-                ->content('*' . __($subjectKey) . '*' . "\n" . 'This is a redirected notification. Add slack username for *' . $notifiable->name . '*');
+                ->content('*'.__($subjectKey).'*'."\n".'This is a redirected notification. Add slack username for *'.$notifiable->name.'*');
         } catch (\Exception $e) {
             // Catch and display any exceptions occurred
             echo $e->getMessage();
@@ -302,12 +519,11 @@ class BaseNotification extends Notification implements ShouldQueue
     /**
      * Check if the notifiable has a Slack username.
      *
-     * @param mixed $notifiable
-     * @return bool
+     * @param  mixed  $notifiable
      */
     protected function slackUserNameCheck($notifiable): bool
     {
-        if (!isset($notifiable->employeeDetail)) {
+        if (! isset($notifiable->employeeDetail)) {
             return false;
         }
 
@@ -318,7 +534,7 @@ class BaseNotification extends Notification implements ShouldQueue
         }
 
         // Check if the notifiable a non-empty Slack username
-        return (!is_null($notifiable->employeeDetail->slack_username) && ($notifiable->employeeDetail->slack_username != ''));
+        return ! is_null($notifiable->employeeDetail->slack_username) && ($notifiable->employeeDetail->slack_username != '');
     }
 
     public function resetLocale()
@@ -328,12 +544,10 @@ class BaseNotification extends Notification implements ShouldQueue
         $globalSetting = GlobalSetting::first();
 
         // Set the application locale based on the company's locale or global settings
-        if (!is_null($company)) {
+        if (! is_null($company)) {
             App::setLocale($company->locale ?? 'en');
-        }
-        else {
+        } else {
             App::setLocale(session('locale') ?: $globalSetting->locale);
         }
     }
-
 }

@@ -17,6 +17,8 @@ class HierarchyService
      */
     public function setParent(LeadAgent $child, LeadAgent $parent): void
     {
+        $hadParent = $child->parent_agent_id !== null;
+
         DB::transaction(function () use ($child, $parent) {
             // Remove existing closure entries where child is a descendant
             $this->detachSubtree($child);
@@ -30,6 +32,16 @@ class HierarchyService
         });
 
         Log::info("Hierarchy: Agent {$child->id} assigned under parent {$parent->id}");
+
+        if (! $hadParent) {
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyNewRecruitAdded(
+                    $child->fresh(['user']),
+                    $parent->fresh(['user']),
+                    user()?->id,
+                )
+            );
+        }
     }
 
     /**

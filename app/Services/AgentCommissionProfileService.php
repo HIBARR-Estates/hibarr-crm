@@ -71,6 +71,7 @@ class AgentCommissionProfileService
             $previousOverride = $agent->custom_override_rate !== null
                 ? (float) $agent->custom_override_rate
                 : null;
+            $previousUnified = $this->resolveUnifiedCustomRate($agent);
 
             $agent->update([
                 'custom_direct_rate' => $directRate,
@@ -92,6 +93,17 @@ class AgentCommissionProfileService
                     'changed_at' => now(),
                     'reason' => $payload['reason'] ?? null,
                 ]);
+
+                $newUnified = $directRate;
+                app(MlmNotificationService::class)->afterCommit(
+                    fn () => app(MlmNotificationService::class)->notifyCommissionProfileChanged(
+                        $agent->fresh(['user']),
+                        $previousUnified,
+                        $newUnified,
+                        $payload['reason'] ?? null,
+                        $userId,
+                    )
+                );
             }
         });
 

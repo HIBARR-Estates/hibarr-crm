@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyAvailabilityRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class AvailabilityResponse extends BaseNotification
@@ -13,6 +14,7 @@ class AvailabilityResponse extends BaseNotification
     {
         $this->availabilityRequest = $availabilityRequest->load(['property', 'responsibleAgent']);
         $this->company = $availabilityRequest->property->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
@@ -27,37 +29,60 @@ class AvailabilityResponse extends BaseNotification
         $isApproved = $this->availabilityRequest->status === PropertyAvailabilityRequest::STATUS_APPROVED;
         $statusLabel = $isApproved ? 'Approved' : 'Denied';
 
-        $mail = $build
-            ->subject("Availability Request {$statusLabel}: {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},");
+        $subject = "Availability Request {$statusLabel}: {$property->display_title}";
 
         if ($isApproved) {
-            $mail->line("Great news! Your availability request for the following property has been **approved**.")
-                ->line("**Property:** {$property->display_title}")
-                ->line("**Reference:** {$property->reference_code}")
-                ->line("**Location:** " . ($property->city ? "{$property->city}, {$property->area}" : 'N/A'));
-
-            if ($this->availabilityRequest->response_message) {
-                $mail->line("**Response Message:** {$this->availabilityRequest->response_message}");
-            }
-
-            $mail->line('')
-                ->line('You may now proceed with presenting this property to your customer.')
-                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
+            $introText = 'Great news! Your availability request for the following property has been approved.';
+            $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+                PropertyRequestMailPresenter::propertyMeta($property),
+                PropertyRequestMailPresenter::line('Response Message', $this->availabilityRequest->response_message),
+                'You may now proceed with presenting this property to your customer.',
+            );
+            $actionText = 'View Property';
+            $actionUrl = $this->modifyUrl(route('properties.show', $property->id));
+            $actionDescription = 'Click the button below to view the property.';
         } else {
-            $mail->line("Your availability request for the following property has been **denied**.")
-                ->line("**Property:** {$property->display_title}")
-                ->line("**Reference:** {$property->reference_code}");
-
-            if ($this->availabilityRequest->response_message) {
-                $mail->line("**Reason:** {$this->availabilityRequest->response_message}");
-            }
-
-            $mail->line('')
-                ->line('Please consider other properties for your customer.');
+            $introText = 'Your availability request for the following property has been denied.';
+            $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+                PropertyRequestMailPresenter::propertyMeta($property, false),
+                PropertyRequestMailPresenter::line('Reason', $this->availabilityRequest->response_message),
+                'Please consider other properties for your customer.',
+            );
+            $actionText = '';
+            $actionUrl = '';
+            $actionDescription = '';
         }
 
-        return $mail;
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Availability Response',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => $actionDescription,
+                'actionText' => $actionText,
+                'url' => $actionUrl,
+            ]);
+
+        if ($actionText !== '' && $actionUrl !== '') {
+            $this->attachPropertyRequestReviewedPlunk($build, [
+                'mailSubject' => $subject,
+                'preheader' => $this->safePreheader($introText),
+                'badgeLabel' => 'Availability Response',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'contentHtml' => $contentHtml,
+                'actionDescription' => $actionDescription,
+                'actionText' => $actionText,
+                'entityUrl' => $actionUrl,
+            ]);
+        }
+
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array

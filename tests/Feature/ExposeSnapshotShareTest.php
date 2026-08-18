@@ -93,7 +93,7 @@ class ExposeSnapshotShareTest extends TestCase
 
         $this->assertIsString($token);
         $this->assertStringStartsWith('exp_', $token);
-        $this->assertSame('https://hibarr-os-expose.vercel.app/' . $token, $shareUrl);
+        $this->assertSame('https://hibarr-os-expose.vercel.app/'.$token, $shareUrl);
         $this->assertDatabaseCount('expose_snapshots', 1);
         $this->assertSame(ExposeSnapshot::hashToken($token), DB::table('expose_snapshots')->value('token_hash'));
         $this->assertSame($agent->id, (int) DB::table('expose_snapshots')->value('agent_user_id'));
@@ -136,7 +136,7 @@ class ExposeSnapshotShareTest extends TestCase
         return DeveloperProject::create(array_merge([
             'company_id' => self::COMPANY_ID,
             'name' => 'Test Project',
-            'slug' => 'test-project-' . uniqid('', true),
+            'slug' => 'test-project-'.uniqid('', true),
             'description' => null,
             'project_location_id' => null,
             'facilities' => null,
@@ -155,7 +155,7 @@ class ExposeSnapshotShareTest extends TestCase
         $id = (int) DB::table('users')->insertGetId(array_merge([
             'company_id' => self::COMPANY_ID,
             'name' => 'Default Agent',
-            'email' => 'agent' . uniqid('', true) . '@test.com',
+            'email' => 'agent'.uniqid('', true).'@test.com',
             'status' => 'active',
             'is_client_contact' => null,
             'image' => null,
@@ -176,7 +176,7 @@ class ExposeSnapshotShareTest extends TestCase
         $id = (int) DB::table('leads')->insertGetId(array_merge([
             'company_id' => self::COMPANY_ID,
             'client_name' => 'Default Lead',
-            'client_email' => 'lead' . uniqid('', true) . '@test.com',
+            'client_email' => 'lead'.uniqid('', true).'@test.com',
             'company_name' => null,
             'mobile' => null,
             'salutation' => null,
@@ -192,7 +192,7 @@ class ExposeSnapshotShareTest extends TestCase
 
     private function ensureSchema(): void
     {
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             Schema::create('companies', function (Blueprint $table) {
                 $table->id();
                 $table->string('company_name')->nullable();
@@ -206,7 +206,7 @@ class ExposeSnapshotShareTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('sessions')) {
+        if (! Schema::hasTable('sessions')) {
             Schema::create('sessions', function (Blueprint $table) {
                 $table->string('id')->primary();
                 $table->unsignedInteger('user_id')->nullable();
@@ -215,7 +215,7 @@ class ExposeSnapshotShareTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('client_contacts')) {
+        if (! Schema::hasTable('client_contacts')) {
             Schema::create('client_contacts', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('user_id')->nullable();
@@ -223,7 +223,7 @@ class ExposeSnapshotShareTest extends TestCase
                 $table->timestamps();
             });
         } else {
-            if (!Schema::hasColumn('client_contacts', 'company_id')) {
+            if (! Schema::hasColumn('client_contacts', 'company_id')) {
                 Schema::table('client_contacts', function (Blueprint $table) {
                     $table->unsignedInteger('company_id')->nullable();
                 });
@@ -239,7 +239,7 @@ class ExposeSnapshotShareTest extends TestCase
             ]);
         }
 
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('company_id')->nullable();
@@ -256,7 +256,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('users')->delete();
         }
 
-        if (!Schema::hasTable('leads')) {
+        if (! Schema::hasTable('leads')) {
             Schema::create('leads', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('company_id')->nullable();
@@ -274,7 +274,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('leads')->delete();
         }
 
-        if (!Schema::hasTable('employee_details')) {
+        if (! Schema::hasTable('employee_details')) {
             Schema::create('employee_details', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('user_id');
@@ -285,7 +285,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('employee_details')->delete();
         }
 
-        if (!Schema::hasTable('designations')) {
+        if (! Schema::hasTable('designations')) {
             Schema::create('designations', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('company_id')->nullable();
@@ -294,7 +294,7 @@ class ExposeSnapshotShareTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('company_addresses')) {
+        if (! Schema::hasTable('company_addresses')) {
             Schema::create('company_addresses', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('company_id')->nullable();
@@ -304,7 +304,7 @@ class ExposeSnapshotShareTest extends TestCase
             });
         }
 
-        if (!Schema::hasTable('company_expose_configurations')) {
+        if (! Schema::hasTable('company_expose_configurations')) {
             Schema::create('company_expose_configurations', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
@@ -320,7 +320,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('company_expose_configurations')->delete();
         }
 
-        if (!Schema::hasTable('project_facilities')) {
+        if (! Schema::hasTable('project_facilities')) {
             Schema::create('project_facilities', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
@@ -333,7 +333,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('project_facilities')->delete();
         }
 
-        if (!Schema::hasTable('project_locations')) {
+        if (! Schema::hasTable('project_locations')) {
             Schema::create('project_locations', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
@@ -356,7 +356,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('project_locations')->delete();
         }
 
-        if (!Schema::hasTable('developer_projects')) {
+        if (! Schema::hasTable('developer_projects')) {
             Schema::create('developer_projects', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
@@ -389,7 +389,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('developer_projects')->delete();
         }
 
-        if (!Schema::hasTable('developer_project_assets')) {
+        if (! Schema::hasTable('developer_project_assets')) {
             Schema::create('developer_project_assets', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('developer_project_id');
@@ -407,7 +407,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('developer_project_assets')->delete();
         }
 
-        if (!Schema::hasTable('developer_project_unit_types')) {
+        if (! Schema::hasTable('developer_project_unit_types')) {
             Schema::create('developer_project_unit_types', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
@@ -424,7 +424,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('developer_project_unit_types')->delete();
         }
 
-        if (!Schema::hasTable('developer_project_unit_type_assets')) {
+        if (! Schema::hasTable('developer_project_unit_type_assets')) {
             Schema::create('developer_project_unit_type_assets', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('unit_type_id');
@@ -442,7 +442,7 @@ class ExposeSnapshotShareTest extends TestCase
             DB::table('developer_project_unit_type_assets')->delete();
         }
 
-        if (!Schema::hasTable('expose_snapshots')) {
+        if (! Schema::hasTable('expose_snapshots')) {
             Schema::create('expose_snapshots', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('company_id');
