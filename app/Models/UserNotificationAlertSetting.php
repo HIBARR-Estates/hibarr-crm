@@ -85,22 +85,25 @@ class UserNotificationAlertSetting extends Model
     public static function upsertForUser(int $userId, array $payload): array
     {
         return DB::transaction(function () use ($userId, $payload) {
+            self::query()->firstOrCreate(
+                ['user_id' => $userId],
+                array_merge(['user_id' => $userId], self::defaults()),
+            );
+
             $setting = self::query()
                 ->where('user_id', $userId)
                 ->lockForUpdate()
-                ->first();
+                ->firstOrFail();
 
-            $current = $setting
-                ? [
-                    'notch_position' => in_array($setting->notch_position, self::VALID_POSITIONS, true)
-                        ? $setting->notch_position
-                        : self::DEFAULT_POSITION,
-                    'notch_duration_ms' => in_array($setting->notch_duration_ms, self::VALID_DURATIONS_MS, true)
-                        ? $setting->notch_duration_ms
-                        : self::DEFAULT_DURATION_MS,
-                    'alerts_muted' => (bool) $setting->alerts_muted,
-                ]
-                : self::defaults();
+            $current = [
+                'notch_position' => in_array($setting->notch_position, self::VALID_POSITIONS, true)
+                    ? $setting->notch_position
+                    : self::DEFAULT_POSITION,
+                'notch_duration_ms' => in_array($setting->notch_duration_ms, self::VALID_DURATIONS_MS, true)
+                    ? $setting->notch_duration_ms
+                    : self::DEFAULT_DURATION_MS,
+                'alerts_muted' => (bool) $setting->alerts_muted,
+            ];
 
             if (array_key_exists('notch_position', $payload)) {
                 $position = (string) $payload['notch_position'];
@@ -120,14 +123,11 @@ class UserNotificationAlertSetting extends Model
                 $current['alerts_muted'] = (bool) $payload['alerts_muted'];
             }
 
-            self::query()->updateOrCreate(
-                ['user_id' => $userId],
-                [
-                    'notch_position' => $current['notch_position'],
-                    'notch_duration_ms' => $current['notch_duration_ms'],
-                    'alerts_muted' => $current['alerts_muted'],
-                ],
-            );
+            $setting->fill([
+                'notch_position' => $current['notch_position'],
+                'notch_duration_ms' => $current['notch_duration_ms'],
+                'alerts_muted' => $current['alerts_muted'],
+            ])->save();
 
             return $current;
         });
