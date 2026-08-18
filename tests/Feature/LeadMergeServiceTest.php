@@ -2,15 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\CommunicationActivity;
-use App\Models\Deal;
-use App\Models\DealFollowUp;
 use App\Models\Lead;
-use App\Models\LeadFlightItinerary;
 use App\Models\LeadMarketing;
 use App\Models\LeadNote;
-use App\Models\LeadQualification;
-use App\Models\Taskable;
 use App\Services\CrmEventService;
 use App\Services\LeadDuplicateDetectionService;
 use App\Services\LeadMergeService;
@@ -360,7 +354,7 @@ class LeadMergeServiceTest extends TestCase
         } catch (\RuntimeException $e) {
             $this->assertSame('Forced merge failure', $e->getMessage());
         } finally {
-            Lead::getEventDispatcher()->forget('eloquent.updating: ' . Lead::class);
+            Lead::getEventDispatcher()->forget('eloquent.updating: '.Lead::class);
         }
 
         $this->assertSame($duplicateId, (int) DB::table('deals')->where('name', 'Should Roll Back')->value('lead_id'));
@@ -628,6 +622,7 @@ class LeadMergeServiceTest extends TestCase
         Schema::dropIfExists('lead_contact_methods');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('leads');
+        Schema::dropIfExists('users');
         Schema::dropIfExists('companies');
     }
 
@@ -636,6 +631,12 @@ class LeadMergeServiceTest extends TestCase
         Schema::create('companies', function (Blueprint $table) {
             $table->increments('id');
             $table->string('company_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name')->nullable();
             $table->timestamps();
         });
 
