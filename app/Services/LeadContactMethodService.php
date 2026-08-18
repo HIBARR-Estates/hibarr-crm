@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\LeadContactMethodType;
+use App\Exceptions\LeadContactMethodException;
 use App\Models\Lead;
 use App\Models\LeadContactMethod;
 use Illuminate\Support\Facades\Schema;
@@ -57,6 +58,78 @@ class LeadContactMethodService
             false,
             $sourceField,
         );
+    }
+
+    /**
+     * User-entered alternate. Never writes is_main or lead columns.
+     *
+     * @throws LeadContactMethodException
+     */
+    public function createUserAlternate(Lead $lead, LeadContactMethodType $type, mixed $raw): LeadContactMethod
+    {
+        $this->assertTableReady();
+
+        $parsed = $this->parseForType($type, $raw);
+        if ($parsed === null) {
+            throw new LeadContactMethodException('A valid email or phone is required.');
+        }
+
+        $this->assertNotOwnPrimary($lead, $type, $parsed['normalized']);
+        $this->assertNotSameLeadDuplicate($lead, $type, $parsed['normalized']);
+        $this->assertNoCrossLeadConflicts($lead, $type, $parsed['normalized']);
+
+        return LeadContactMethod::query()->create([
+            'lead_id' => $lead->id,
+            'company_id' => $lead->company_id,
+            'type' => $type,
+            'identifier' => $parsed['identifier'],
+            'normalized' => $parsed['normalized'],
+            'is_main' => false,
+            'source_field' => null,
+        ]);
+    }
+
+    /**
+     * @throws LeadContactMethodException
+     */
+    public function updateUserAlternate(Lead $lead, LeadContactMethod $method, mixed $raw): LeadContactMethod
+    {
+        $this->assertTableReady();
+        $this->assertMethodBelongsToLead($lead, $method);
+        $this->assertNotMain($method);
+
+        $type = $method->type instanceof LeadContactMethodType
+            ? $method->type
+            : LeadContactMethodType::from((string) $method->type);
+
+        $parsed = $this->parseForType($type, $raw);
+        if ($parsed === null) {
+            throw new LeadContactMethodException('A valid email or phone is required.');
+        }
+
+        $this->assertNotOwnPrimary($lead, $type, $parsed['normalized']);
+        $this->assertNotSameLeadDuplicate($lead, $type, $parsed['normalized'], $method->id);
+        $this->assertNoCrossLeadConflicts($lead, $type, $parsed['normalized'], $method->id);
+
+        $method->identifier = $parsed['identifier'];
+        $method->normalized = $parsed['normalized'];
+        $method->is_main = false;
+        $method->source_field = null;
+        $method->save();
+
+        return $method->fresh();
+    }
+
+    /**
+     * @throws LeadContactMethodException
+     */
+    public function deleteUserAlternate(Lead $lead, LeadContactMethod $method): void
+    {
+        $this->assertTableReady();
+        $this->assertMethodBelongsToLead($lead, $method);
+        $this->assertNotMain($method);
+
+        $method->delete();
     }
 
     /**
@@ -176,6 +249,186 @@ class LeadContactMethodService
         }
 
         $query->update(['is_main' => false]);
+    }
+
+    private function parseForType(LeadContactMethodType $type, mixed $raw): ?array
+    {
+        return $type === LeadContactMethodType::Email
+            ? $this->parseEmail($raw)
+            : $this->parsePhone($raw);
+    }
+
+    private function assertTableReady(): void
+    {
+        if (! $this->tableReady()) {
+            throw new LeadContactMethodException('Contact methods are not available.');
+        }
+    }
+
+    private function assertMethodBelongsToLead(Lead $lead, LeadContactMethod $method): void
+    {
+        if ((int) $method->lead_id !== (int) $lead->id) {
+            throw new LeadContactMethodException('Contact method not found for this lead.');
+        }
+    }
+
+    private function assertNotMain(LeadContactMethod $method): void
+    {
+        if ($method->is_main) {
+            throw new LeadContactMethodException('The primary email or phone cannot be changed here.');
+        }
+    }
+
+    private function assertNotOwnPrimary(Lead $lead, LeadContactMethodType $type, string $normalized): void
+    {
+        $ownMain = $this->ownMainNormalized($lead, $type);
+        if ($ownMain === null || $ownMain !== $normalized) {
+            return;
+        }
+
+        $message = $type === LeadContactMethodType::Email
+            ? "This email is already the lead's primary email."
+            : "This phone number is already the lead's primary phone.";
+
+        throw new LeadContactMethodException($message);
+    }
+
+    private function assertNotSameLeadDuplicate(
+        Lead $lead,
+        LeadContactMethodType $type,
+        string $normalized,
+        ?int $ignoreMethodId = null,
+    ): void {
+        $query = LeadContactMethod::query()
+            ->where('lead_id', $lead->id)
+            ->where('type', $type->value)
+            ->where('normalized', $normalized);
+
+        if ($ignoreMethodId !== null) {
+            $query->where('id', '!=', $ignoreMethodId);
+        }
+
+        if ($query->exists()) {
+            throw new LeadContactMethodException('This contact method already exists on this lead.');
+        }
+    }
+
+    private function assertNoCrossLeadConflicts(
+        Lead $lead,
+        LeadContactMethodType $type,
+        string $normalized,
+        ?int $ignoreMethodId = null,
+    ): void {
+        $conflicts = $this->findCrossLeadConflicts($lead, $type, $normalized, $ignoreMethodId);
+        if ($conflicts === []) {
+            return;
+        }
+
+        $message = $type === LeadContactMethodType::Email
+            ? 'This email is already used on another lead.'
+            : 'This phone number is already used on another lead.';
+
+        throw new LeadContactMethodException($message, $conflicts);
+    }
+
+    private function ownMainNormalized(Lead $lead, LeadContactMethodType $type): ?string
+    {
+        if ($type === LeadContactMethodType::Email) {
+            $parsed = $this->parseEmail($lead->client_email);
+
+            return $parsed['normalized'] ?? null;
+        }
+
+        $main = $this->parsePhone($lead->mobile) ?? $this->parsePhone($lead->cell);
+
+        return $main['normalized'] ?? null;
+    }
+
+    /**
+     * @return list<array{lead_id: int, client_name: string|null, match: 'primary'|'alternate'}>
+     */
+    private function findCrossLeadConflicts(
+        Lead $lead,
+        LeadContactMethodType $type,
+        string $normalized,
+        ?int $ignoreMethodId = null,
+    ): array {
+        if (! $this->tableReady()) {
+            return [];
+        }
+
+        $companyId = (int) $lead->company_id;
+        $conflicts = [];
+
+        $primaryMatches = Lead::query()
+            ->withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('id', '!=', $lead->id)
+            ->when(
+                $type === LeadContactMethodType::Email,
+                function ($query) use ($normalized) {
+                    $query->whereRaw('LOWER(client_email) = ?', [$normalized]);
+                },
+                function ($query) use ($normalized) {
+                    $query->where(function ($inner) use ($normalized) {
+                        $inner->where('mobile', $normalized)
+                            ->orWhere('mobile', '+'.$normalized)
+                            ->orWhere('cell', $normalized)
+                            ->orWhere('cell', '+'.$normalized);
+                    });
+                },
+            )
+            ->get(['id', 'client_name', 'client_email', 'mobile', 'cell']);
+
+        foreach ($primaryMatches as $other) {
+            $match = $this->isPrimaryMatch($other, $type, $normalized) ? 'primary' : 'alternate';
+            $conflicts[(int) $other->id] = [
+                'lead_id' => (int) $other->id,
+                'client_name' => $other->client_name,
+                'match' => $match,
+            ];
+        }
+
+        $methodQuery = LeadContactMethod::query()
+            ->where('type', $type->value)
+            ->where('normalized', $normalized)
+            ->where('lead_id', '!=', $lead->id)
+            ->whereHas('lead', function ($query) use ($companyId) {
+                $query->withoutGlobalScopes()->where('company_id', $companyId);
+            });
+
+        if ($ignoreMethodId !== null) {
+            $methodQuery->where('id', '!=', $ignoreMethodId);
+        }
+
+        $methodQuery->with(['lead' => function ($query) {
+            $query->withoutGlobalScopes()->select(['id', 'client_name', 'client_email', 'mobile', 'cell']);
+        }]);
+
+        foreach ($methodQuery->get() as $row) {
+            $other = $row->lead;
+            if ($other === null) {
+                continue;
+            }
+
+            $otherId = (int) $other->id;
+            if (isset($conflicts[$otherId])) {
+                continue;
+            }
+
+            $conflicts[$otherId] = [
+                'lead_id' => $otherId,
+                'client_name' => $other->client_name,
+                'match' => $this->isPrimaryMatch($other, $type, $normalized) ? 'primary' : 'alternate',
+            ];
+        }
+
+        return array_values($conflicts);
+    }
+
+    private function isPrimaryMatch(Lead $other, LeadContactMethodType $type, string $normalized): bool
+    {
+        return $this->ownMainNormalized($other, $type) === $normalized;
     }
 
     /**
