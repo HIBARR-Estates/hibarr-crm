@@ -26,9 +26,19 @@ import { LeadLifecycleStatus } from "@/Types/qualification";
 
 import { ILeadFlightItinerary } from './lead-flight-itinerary';
 
+export interface LeadContactMethod {
+    id: number;
+    type: "email" | "phone";
+    identifier: string;
+    normalized: string;
+    is_main: boolean;
+    source_field?: "client_email" | "mobile" | "cell" | "office" | null;
+}
+
 export interface Lead {
     id: number;
     lead_flight_itineraries?: ILeadFlightItinerary[];
+    contact_methods?: LeadContactMethod[];
     added_by?: User | null;
     lead_owner?: User | null;
     client_id?: number | null;
