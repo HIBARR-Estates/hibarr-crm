@@ -169,6 +169,7 @@ class Lead extends BaseModel
         'age_range' => AgeRange::class,
         'temperature' => LeadTemperature::class,
         'preferred_contact_time' => PreferredContactTime::class,
+        'preferred_contact_times' => 'array',
         'languages' => 'array',
         'assigned_at' => 'datetime',
         'first_contacted_at' => 'datetime',
@@ -365,6 +366,80 @@ class Lead extends BaseModel
 
         $this->unsetRelation('categories');
         $this->unsetRelation('category');
+    }
+
+    /**
+     * Replace preferred contact times and keep scalar preferred_contact_time in sync
+     * (first selected slug, or null when empty).
+     *
+     * @param  list<string>|array<int, string|null>|mixed  $times
+     */
+    public function syncPreferredContactTimes(mixed $times): void
+    {
+        $normalized = PreferredContactTime::normalizeList($times);
+
+        $this->preferred_contact_times = $normalized;
+        $this->preferred_contact_time = $normalized[0] ?? null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function resolvedPreferredContactTimes(): array
+    {
+        $stored = $this->preferred_contact_times;
+        if (is_array($stored) && $stored !== []) {
+            return PreferredContactTime::normalizeList($stored);
+        }
+
+        return PreferredContactTime::normalizeList(
+            $this->preferred_contact_time?->value ?? $this->preferred_contact_time
+        );
+    }
+
+    /**
+     * Normalize preferred contact times for JSON/Inertia/API payloads.
+     */
+    public function exposePreferredContactTimesForFrontend(): void
+    {
+        $this->preferred_contact_times = $this->resolvedPreferredContactTimes();
+        if ($this->preferred_contact_time instanceof PreferredContactTime) {
+            $this->preferred_contact_time = $this->preferred_contact_time->value;
+        }
+    }
+
+    /**
+     * Apply preferred contact time(s) from an HTTP request onto a lead.
+     */
+    public static function applyPreferredContactTimesFromRequest(Lead $lead, \Illuminate\Http\Request $request): bool
+    {
+        if ($request->exists('preferred_contact_times')) {
+            $incoming = PreferredContactTime::normalizeList($request->input('preferred_contact_times', []));
+            $current = $lead->resolvedPreferredContactTimes();
+
+            if ($incoming === $current) {
+                return false;
+            }
+
+            $lead->syncPreferredContactTimes($incoming);
+
+            return true;
+        }
+
+        if (! $request->exists('preferred_contact_time')) {
+            return false;
+        }
+
+        $incoming = PreferredContactTime::normalizeList($request->input('preferred_contact_time'));
+        $current = $lead->resolvedPreferredContactTimes();
+
+        if ($incoming === $current) {
+            return false;
+        }
+
+        $lead->syncPreferredContactTimes($incoming);
+
+        return true;
     }
 
     public function note(): BelongsTo

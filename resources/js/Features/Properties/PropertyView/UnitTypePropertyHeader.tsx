@@ -18,6 +18,7 @@ import type {
 } from "@/Types/developerProject";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { generatePropertySubtitle, formatLocationNameForDisplay } from "@/lib/utils";
+import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 
 const { Title, Text } = Typography;
 
@@ -40,6 +41,7 @@ export default function UnitTypePropertyHeader({
     onMarkAsSold,
     onGenerateExpose,
 }: UnitTypePropertyHeaderProps) {
+    const shareLinksEnabled = useExposeShareLinksFlag();
     const [copied, setCopied] = React.useState(false);
 
     const handleCopyRefCode = () => {
@@ -165,13 +167,22 @@ export default function UnitTypePropertyHeader({
                     </Button>
                 )}
 
-                {/* Generate Expose */}
+                {/* Generate Expose / Share exposé */}
                 {onGenerateExpose && (
                     <Button
-                        icon={<FilePdfOutlined />}
+                        type={shareLinksEnabled ? "primary" : "default"}
+                        icon={
+                            shareLinksEnabled ? (
+                                <LinkOutlined />
+                            ) : (
+                                <FilePdfOutlined />
+                            )
+                        }
                         onClick={onGenerateExpose}
                     >
-                        Generate Expose
+                        {shareLinksEnabled
+                            ? "Share exposé"
+                            : "Generate Expose"}
                     </Button>
                 )}
 

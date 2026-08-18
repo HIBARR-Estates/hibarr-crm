@@ -138,6 +138,13 @@ export default function EditLeadDetailsModal({
                                   .map((s) => Number(s.trim()))
                                   .filter((n) => Number.isFinite(n) && n > 0)
                             : [];
+                    } else if (field.leadField === "preferred_contact_times") {
+                        payload.preferred_contact_times = raw
+                            ? String(raw)
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                            : [];
                     } else if (field.leadField === "languages") {
                         payload.languages = raw
                             ? raw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -398,18 +405,50 @@ export default function EditLeadDetailsModal({
                                     ],
                                 );
                             }
-                            if (field.leadField === "preferred_contact_time") {
-                                return renderFieldInput(
-                                    "preferred_contact_time",
-                                    field.label,
-                                    "select",
-                                    PREFERRED_CONTACT_TIME_VALUES.map((value) => ({
-                                        value,
-                                        label: td(
-                                            PREFERRED_CONTACT_TIME_LABELS[value],
-                                            { source: "en" },
-                                        ),
-                                    })),
+                            if (field.leadField === "preferred_contact_times") {
+                                const selected = new Set(
+                                    String(form.preferred_contact_times ?? "")
+                                        .split(",")
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                );
+                                return (
+                                    <ModalField
+                                        key="preferred_contact_times"
+                                        label={td(field.label, { source: "en" })}
+                                    >
+                                        <select
+                                            className="v2-input"
+                                            multiple
+                                            value={[...selected]}
+                                            onChange={(e) => {
+                                                const values = Array.from(
+                                                    e.target.selectedOptions,
+                                                ).map((o) => o.value);
+                                                setField(
+                                                    "preferred_contact_times",
+                                                    values.join(","),
+                                                );
+                                            }}
+                                            style={{ minHeight: 96 }}
+                                        >
+                                            {PREFERRED_CONTACT_TIME_VALUES.map(
+                                                (value) => (
+                                                    <option
+                                                        key={value}
+                                                        value={value}
+                                                    >
+                                                        {td(
+                                                            PREFERRED_CONTACT_TIME_LABELS[
+                                                                value
+                                                            ],
+                                                            { source: "en" },
+                                                        )}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                    </ModalField>
                                 );
                             }
                             if (

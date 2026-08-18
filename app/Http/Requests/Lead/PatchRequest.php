@@ -23,6 +23,21 @@ class PatchRequest extends CoreRequest
         if ($this->has('salutation') && $this->salutation === '') {
             $this->merge(['salutation' => null]);
         }
+
+        if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
+            $this->merge([
+                'preferred_contact_times' => $this->input('preferred_contact_time'),
+            ]);
+            $this->offsetUnset('preferred_contact_time');
+        }
+
+        if ($this->has('preferred_contact_times')) {
+            $this->merge([
+                'preferred_contact_times' => PreferredContactTime::normalizeList(
+                    $this->input('preferred_contact_times')
+                ),
+            ]);
+        }
     }
 
     /**
@@ -56,6 +71,8 @@ class PatchRequest extends CoreRequest
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
             'preferred_contact_time' => ['sometimes', 'nullable', 'string', Rule::in(PreferredContactTime::values())],
+            'preferred_contact_times' => 'sometimes|nullable|array',
+            'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
 
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',

@@ -275,12 +275,20 @@ export const transformFormToPayload = async (
               }))
             : existingLocation?.infrastructure || [],
         airports: hasAirports
-            ? values.airports!.map((a, index) => ({
-                  airport_id: a.airport_id,
-                  name: a.name,
-                  travelTimeInMin: a.travelTimeInMin || 0,
-                  image: existingLocation?.airports?.[index]?.image || "",
-              }))
+            ? values.airports!.map((a) => {
+                  const existing = (existingLocation?.airports || []).find(
+                      (item) =>
+                          item?.airport_id != null &&
+                          Number(item.airport_id) === Number(a.airport_id),
+                  );
+
+                  return {
+                      airport_id: a.airport_id,
+                      name: a.name,
+                      travelTimeInMin: a.travelTimeInMin,
+                      image: existing?.image || "",
+                  };
+              })
             : existingLocation?.airports || [],
     };
 
@@ -306,6 +314,26 @@ export const transformFormToPayload = async (
         uploadResults.forEach(({ path, url }) => {
             setAtPath(payload, path, url);
         });
+    }
+
+    if (Array.isArray(payload.airports)) {
+        payload.airports = payload.airports
+            .filter((airport) => {
+                const travelTime = airport.travelTimeInMin;
+                const hasTravelTime =
+                    travelTime !== undefined &&
+                    travelTime !== null &&
+                    String(travelTime).trim() !== "";
+                const hasImageOverride =
+                    typeof airport.image === "string" &&
+                    airport.image.trim() !== "";
+
+                return hasTravelTime || hasImageOverride;
+            })
+            .map((airport) => ({
+                ...airport,
+                travelTimeInMin: Number(airport.travelTimeInMin) || 0,
+            }));
     }
 
     return payload;

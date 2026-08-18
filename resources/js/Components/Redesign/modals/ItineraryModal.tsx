@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Select, message } from "antd";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { parseNaiveDateTime } from "@/lib/companyDateTime";
 import {
     FlightDirection,
     ILeadFlightItinerary,
@@ -84,9 +85,8 @@ function directionFromFlightType(
 function splitFlightDateTime(
     value: string | null,
 ): { date: string; time: string } | null {
-    if (!value) return null;
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return null;
+    const parsed = parseNaiveDateTime(value);
+    if (!parsed) return null;
     return {
         date: `${parsed.getFullYear()}-${pad2(parsed.getMonth() + 1)}-${pad2(parsed.getDate())}`,
         time: `${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`,
