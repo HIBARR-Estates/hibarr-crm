@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyEditAccessRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class EditAccessRequested extends BaseNotification
@@ -13,6 +14,7 @@ class EditAccessRequested extends BaseNotification
     {
         $this->editAccessRequest = $editAccessRequest->load(['property', 'requestingAgent']);
         $this->company = $editAccessRequest->property->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
@@ -26,17 +28,44 @@ class EditAccessRequested extends BaseNotification
         $property = $this->editAccessRequest->property;
         $requestingAgent = $this->editAccessRequest->requestingAgent;
 
-        return $build
-            ->subject("Edit Access Request: {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},")
-            ->line("{$requestingAgent->name} is requesting edit access to a property you manage.")
-            ->line("**Property:** {$property->display_title}")
-            ->line("**Reference:** {$property->reference_code}")
-            ->when($this->editAccessRequest->message, function ($mail) {
-                $mail->line("**Agent's Message:** {$this->editAccessRequest->message}");
-            })
-            ->action('Review Request', $this->modifyUrl(route('edit-access-requests.index')))
-            ->line('Approve to grant the agent collaborator access to update public listing fields.');
+        $subject = "Edit Access Request: {$property->display_title}";
+        $introText = "{$requestingAgent->name} is requesting edit access to a property you manage.";
+        $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+            PropertyRequestMailPresenter::propertyMeta($property, false),
+            PropertyRequestMailPresenter::line("Agent's Message", $this->editAccessRequest->message),
+            'Approve to grant the agent collaborator access to update public listing fields.',
+        );
+        $actionUrl = $this->modifyUrl(route('edit-access-requests.index'));
+
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Edit Access Request',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => 'Review this edit access request in the CRM.',
+                'actionText' => 'Review Request',
+                'url' => $actionUrl,
+            ]);
+
+        $this->attachPropertyRequestPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => 'Edit Access Request',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $contentHtml,
+            'actionDescription' => 'Review this edit access request in the CRM.',
+            'actionText' => 'Review Request',
+            'entityUrl' => $actionUrl,
+            'footerNote' => '',
+        ]);
+
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array

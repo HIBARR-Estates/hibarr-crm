@@ -34,4 +34,3 @@ return [
         'crm.expose-share-links',
     ],
 ];
-

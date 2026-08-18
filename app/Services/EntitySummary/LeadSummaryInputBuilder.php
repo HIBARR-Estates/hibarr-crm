@@ -2,6 +2,7 @@
 
 namespace App\Services\EntitySummary;
 
+use App\Enums\PreferredContactTime;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
@@ -60,7 +61,7 @@ class LeadSummaryInputBuilder
                 'mobile' => $lead->mobile ?: $lead->cell,
                 'office_phone' => $lead->office,
                 'preferred_contact_time' => collect($preferredContactTimes)
-                    ->map(fn (string $value) => \App\Enums\PreferredContactTime::tryFrom($value)?->label() ?? $value)
+                    ->map(fn (string $value) => PreferredContactTime::tryFrom($value)?->label() ?? $value)
                     ->implode(', '),
             ];
         }

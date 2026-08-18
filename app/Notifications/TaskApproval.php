@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Notifications\Messages\MailMessage;
 use NotificationChannels\OneSignal\OneSignalChannel;
 use NotificationChannels\OneSignal\OneSignalMessage;
@@ -31,7 +32,7 @@ class TaskApproval extends BaseNotification
         $this->company = $this->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
                                 ->where('slug', 'task-status-updated')->first();
-        $this->initUnsRouting();
+        $this->initTaskMailRouting();
     }
 
     /**
@@ -78,27 +79,61 @@ class TaskApproval extends BaseNotification
      */
     public function toMail($notifiable): MailMessage
     {
-        $build = parent::build();
-        $url = route('tasks.show', $this->task->id);
-        $url = getDomainSpecificUrl($url, $this->company);
+        $build = parent::build($notifiable);
+        $url = getDomainSpecificUrl(route('tasks.show', $this->task->id), $this->company);
 
-        $projectTitle = (!is_null($this->task->project)) ? __('app.project') . ' - ' . $this->task->project->project_name : '';
-
-        $content = __('email.taskApproval.text') . '<br><br>' . 'Task Status: ' . $this->task->boardColumn->column_name . '<br>' . __('email.taskApproval.updatedBy') . ': ' . $this->updatedBy->name . '<br>' . __('app.task') . ': ' . $this->task->heading . '<br>' . $projectTitle;
+        $taskShortCode = $this->task->task_short_code ? '#'.$this->task->task_short_code : '';
+        $subject = trim(__('email.taskApproval.subject').' '.$taskShortCode);
+        $introText = $this->safeMailText(
+            __('email.taskApproval.text').' '.__('email.taskApproval.updatedBy').': '.$this->updatedBy?->name,
+            500
+        );
+        $detailHtml = $this->mailDetailHtml();
+        $actionText = __('email.taskApproval.action');
 
         $build
-            ->subject(__('email.taskApproval.subject') . ' #' . $this->task->task_short_code . ' - ' . config('app.name') . '.')
-            ->markdown('mail.email', [
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.task.activity', [
                 'url' => $url,
-                'content' => $content,
-                'themeColor' => $this->company->header_color,
-                'actionText' => __('email.taskApproval.action'),
-                'notifiableName' => $notifiable->name
+                'content' => '',
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
+                'subject' => $subject,
+                'badgeLabel' => 'Task Update',
+                'actionText' => $actionText,
+                'introText' => $introText,
+                'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachTaskLifecyclePlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $introText,
+            'badgeLabel' => 'Task Update',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'detailHtml' => $detailHtml,
+            'contentHtml' => '',
+            'actionDescription' => __('Click the button below to view the task details.'),
+            'actionText' => $actionText,
+            'entityUrl' => $url,
+        ]);
 
         parent::resetLocale();
 
         return $build;
+    }
+
+    protected function mailDetailHtml(): string
+    {
+        $meta = $this->task->project
+            ? __('app.project').' - '.$this->safeMailText($this->task->project->project_name, 200)
+            : null;
+
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $this->safeMailText($this->task->heading, 200),
+            $meta,
+            __('app.status').': '.$this->safeMailText($this->task->boardColumn->column_name ?? '', 100),
+        );
     }
 
     /**

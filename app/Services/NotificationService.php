@@ -2,17 +2,17 @@
 
 namespace App\Services;
 
-use App\Helper\Reply;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityNotificationUrl;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Service class for managing user notifications.
- * 
+ *
  * Handles notification retrieval, marking as read, deletion,
  * and bulk operations for the notification system.
  */
@@ -21,10 +21,9 @@ class NotificationService
     /**
      * Get paginated notifications for a user.
      *
-     * @param User $user The user to get notifications for
-     * @param array $filters Optional filters ['status' => 'all|unread|read', 'type' => string]
-     * @param int $perPage Number of notifications per page
-     * @return LengthAwarePaginator
+     * @param  User  $user  The user to get notifications for
+     * @param  array  $filters  Optional filters ['status' => 'all|unread|read', 'type' => string]
+     * @param  int  $perPage  Number of notifications per page
      */
     public function getNotifications(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
@@ -40,13 +39,13 @@ class NotificationService
         }
 
         // Filter by notification type
-        if (isset($filters['type']) && !empty($filters['type'])) {
-            $query->where('type', 'like', '%' . $filters['type'] . '%');
+        if (isset($filters['type']) && ! empty($filters['type'])) {
+            $query->where('type', 'like', '%'.$filters['type'].'%');
         }
 
         // Search in notification data
-        if (isset($filters['search']) && !empty($filters['search'])) {
-            $query->where('data', 'like', '%' . $filters['search'] . '%');
+        if (isset($filters['search']) && ! empty($filters['search'])) {
+            $query->where('data', 'like', '%'.$filters['search'].'%');
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -54,9 +53,6 @@ class NotificationService
 
     /**
      * Get unread notifications count for a user.
-     *
-     * @param User $user
-     * @return int
      */
     public function getUnreadCount(User $user): int
     {
@@ -65,10 +61,6 @@ class NotificationService
 
     /**
      * Get recent unread notifications for dropdown preview.
-     *
-     * @param User $user
-     * @param int $limit
-     * @return Collection
      */
     public function getRecentUnread(User $user, int $limit = 6): Collection
     {
@@ -80,9 +72,6 @@ class NotificationService
 
     /**
      * Format notification for API response.
-     *
-     * @param DatabaseNotification $notification
-     * @return array
      */
     public function formatNotification(DatabaseNotification $notification): array
     {
@@ -101,7 +90,7 @@ class NotificationService
             'data' => $data,
             'link' => $this->getNotificationLink($typeSlug, $data),
             'icon' => $this->getNotificationIcon($typeSlug),
-            'is_read' => !is_null($notification->read_at),
+            'is_read' => ! is_null($notification->read_at),
             'read_at' => $notification->read_at?->toIso8601String(),
             'created_at' => $notification->created_at->toIso8601String(),
             'time_ago' => $notification->created_at->diffForHumans(),
@@ -111,51 +100,45 @@ class NotificationService
     /**
      * Format a collection of notifications.
      *
-     * @param Collection $notifications
-     * @return array
+     * @param  Collection  $notifications
      */
     public function formatNotifications($notifications): array
     {
-        return $notifications->map(fn($n) => $this->formatNotification($n))->toArray();
+        return $notifications->map(fn ($n) => $this->formatNotification($n))->toArray();
     }
 
     /**
      * Mark a single notification as read.
-     *
-     * @param User $user
-     * @param string $notificationId
-     * @return bool
      */
     public function markAsRead(User $user, string $notificationId): bool
     {
         $notification = $user->notifications()->where('id', $notificationId)->first();
 
-        if (!$notification) {
+        if (! $notification) {
             return false;
         }
 
         $notification->markAsRead();
+
         return true;
     }
 
     /**
      * Mark all unread notifications as read for a user.
      *
-     * @param User $user
      * @return int Number of notifications marked as read
      */
     public function markAllAsRead(User $user): int
     {
         $count = $user->unreadNotifications()->count();
         $user->unreadNotifications->markAsRead();
+
         return $count;
     }
 
     /**
      * Mark multiple notifications as read.
      *
-     * @param User $user
-     * @param array $notificationIds
      * @return int Number of notifications marked as read
      */
     public function markMultipleAsRead(User $user, array $notificationIds): int
@@ -166,16 +149,12 @@ class NotificationService
             ->get();
 
         $notifications->markAsRead();
-        
+
         return $notifications->count();
     }
 
     /**
      * Delete a single notification.
-     *
-     * @param User $user
-     * @param string $notificationId
-     * @return bool
      */
     public function delete(User $user, string $notificationId): bool
     {
@@ -189,8 +168,6 @@ class NotificationService
     /**
      * Delete multiple notifications.
      *
-     * @param User $user
-     * @param array $notificationIds
      * @return int Number of notifications deleted
      */
     public function deleteMultiple(User $user, array $notificationIds): int
@@ -203,7 +180,6 @@ class NotificationService
     /**
      * Delete all read notifications for a user.
      *
-     * @param User $user
      * @return int Number of notifications deleted
      */
     public function deleteAllRead(User $user): int
@@ -215,10 +191,6 @@ class NotificationService
 
     /**
      * Get notification title based on type.
-     *
-     * @param string $typeSlug
-     * @param array $data
-     * @return string
      */
     protected function getNotificationTitle(string $typeSlug, array $data): string
     {
@@ -230,6 +202,10 @@ class NotificationService
             'task_lifecycle_updated_notification' => __('email.taskUpdate.subject'),
             'task_lifecycle_due_notification' => __('email.taskLifecycle.due.subject'),
             'task_lifecycle_completed_notification' => __('email.taskComplete.subject'),
+            'task_deleted' => __('email.taskDeleted.subject'),
+            'task_rejected' => __('email.taskRejected.subject'),
+            'task_overdue' => __('email.taskOverdue.subject'),
+            'task_priority_updated' => __('email.taskPriorityUpdated.subject'),
             'task_updated' => __('email.taskUpdate.subject'),
             'task_comment' => __('email.taskComment.subject'),
             'new_chat' => __('email.newChat.subject'),
@@ -259,6 +235,12 @@ class NotificationService
             'shift_scheduled' => __('email.shiftScheduled.subject'),
             'shift_change_status' => __('email.shiftChangeStatus.subject'),
             'promotion_added' => __('email.promotionAdded.subject'),
+            'lead_deleted' => __('email.leadDeleted.subject'),
+            'lead_follow_up_overdue' => __('email.leadFollowUpOverdue.subject'),
+            'deal_deleted' => __('email.dealDeleted.subject'),
+            'deal_close_date_approaching' => __('email.dealCloseDateApproaching.subject'),
+            'property_activity_notification' => __('email.propertyActivity.subject'),
+            'expose_ready_notification' => __('email.exposeReady.subject'),
         ];
 
         return $titles[$typeSlug] ?? ($data['title'] ?? $data['activity_label'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
@@ -268,18 +250,14 @@ class NotificationService
      * Build a readable fallback sentence for notification classes that don't
      * ship an explicit `title`/`text`/`message`/`heading` — avoids surfacing
      * a bare id, a raw model dump, or an empty body in the notification island.
-     *
-     * @param array $data
-     * @param string $title
-     * @return string
      */
     protected function getNotificationFallbackText(array $data, string $title): string
     {
         $subjectKeys = ['name', 'subject', 'project_name', 'event_name', 'item_name', 'ticket_subject'];
 
         foreach ($subjectKeys as $key) {
-            if (!empty($data[$key]) && is_string($data[$key])) {
-                return trim($title) . ': ' . $data[$key];
+            if (! empty($data[$key]) && is_string($data[$key])) {
+                return trim($title).': '.$data[$key];
             }
         }
 
@@ -348,17 +326,19 @@ class NotificationService
 
     /**
      * Get notification link based on type.
-     *
-     * @param string $typeSlug
-     * @param array $data
-     * @return string|null
      */
     protected function getNotificationLink(string $typeSlug, array $data): ?string
     {
         // Check for explicit action_url in notification data first
-        if (!empty($data['action_url'])) {
+        if (! empty($data['action_url'])) {
             return $data['action_url'];
         }
+
+        if (! empty($data['download_url']) && $typeSlug === 'expose_ready_notification') {
+            return $data['download_url'];
+        }
+
+        $routes = $this->notificationLinkRoutes();
 
         // Resolve the entity ID — task alerts must link to the task, not a related deal.
         $icon = $this->getNotificationIcon($typeSlug);
@@ -369,15 +349,82 @@ class NotificationService
         } elseif ($typeSlug === 'mention_ticket_agent') {
             $id = $data['ticket_number'] ?? null;
         } else {
-            $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+            $id = $this->resolveNotificationEntityId($typeSlug, $data, $routes);
         }
 
-        if (!$id) {
+        if (! $id && ! in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
             return null;
         }
 
-        $routes = [
-            // Tasks
+        if (isset($routes[$typeSlug])) {
+            try {
+                if (in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
+                    return route($routes[$typeSlug]);
+                }
+
+                $url = route($routes[$typeSlug], $id);
+
+                if (in_array($typeSlug, ['deal_activity_notification', 'lead_activity_notification'], true)) {
+                    $url = EntityActivityNotificationUrl::appendTabIfMissing(
+                        $url,
+                        is_string($data['activity_type'] ?? null) ? $data['activity_type'] : null,
+                    );
+                }
+
+                if ($typeSlug === 'lead_follow_up_overdue' && ! str_contains($url, 'tab=')) {
+                    $url .= (str_contains($url, '?') ? '&' : '?').'tab=meetings';
+                }
+
+                return $url;
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, string>  $routes
+     */
+    protected function resolveNotificationEntityId(string $typeSlug, array $data, array $routes): mixed
+    {
+        $routeName = $routes[$typeSlug] ?? null;
+
+        if ($routeName === null) {
+            return $data['property_id'] ?? $data['deal_id'] ?? $data['lead_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'properties.')) {
+            return $data['property_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'deals.')) {
+            return $data['deal_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'lead-contact.')) {
+            return $data['lead_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'tasks.')) {
+            return $data['task_id'] ?? $data['id'] ?? null;
+        }
+
+        if (str_starts_with($routeName, 'projects.')) {
+            return $data['project_id'] ?? $data['id'] ?? null;
+        }
+
+        return $data['id'] ?? null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function notificationLinkRoutes(): array
+    {
+        return [
             'new_task' => 'tasks.show',
             'task_completed' => 'tasks.show',
             'task_completed_client' => 'tasks.show',
@@ -403,20 +450,18 @@ class NotificationService
             'sub_task_created' => 'tasks.show',
             'sub_task_completed' => 'tasks.show',
             'sub_task_assignee_added' => 'tasks.show',
-
-            // Notices
+            'task_deleted' => 'tasks.index',
+            'task_rejected' => 'tasks.show',
+            'task_overdue' => 'tasks.show',
+            'task_priority_updated' => 'tasks.show',
             'new_notice' => 'notices.show',
             'notice_update' => 'notices.show',
-
-            // Tickets
             'new_ticket' => 'tickets.show',
             'new_ticket_reply' => 'tickets.show',
             'new_ticket_requester' => 'tickets.show',
             'new_ticket_note' => 'tickets.show',
             'ticket_agent' => 'tickets.show',
             'mention_ticket_agent' => 'tickets.show',
-
-            // Deals / Leads
             'new_lead_created' => 'deals.show',
             'lead_owner_assigned' => 'lead-contact.show',
             'lead_agent_assigned' => 'deals.show',
@@ -425,8 +470,22 @@ class NotificationService
             'auto_follow_up_reminder' => 'deals.show',
             'new_communication_activity' => 'deals.show',
             'lead_imported' => 'deals.show',
-
-            // Projects
+            'lead_deleted' => 'lead-contact.index',
+            'lead_activity_notification' => 'lead-contact.show',
+            'lead_follow_up_overdue' => 'deals.show',
+            'deal_deleted' => 'deals.index',
+            'deal_close_date_approaching' => 'deals.show',
+            'property_activity_notification' => 'properties.show',
+            'expose_ready_notification' => 'properties.show',
+            'availability_requested' => 'properties.show',
+            'availability_response' => 'properties.show',
+            'availability_escalation' => 'properties.show',
+            'availability_escalation_reminder' => 'properties.show',
+            'edit_access_requested' => 'properties.show',
+            'edit_access_reviewed' => 'properties.show',
+            'property_access_request' => 'properties.show',
+            'publish_request_submitted' => 'properties.show',
+            'publish_request_reviewed' => 'properties.show',
             'new_project' => 'projects.show',
             'new_project_member' => 'projects.show',
             'new_project_status' => 'projects.show',
@@ -436,20 +495,14 @@ class NotificationService
             'project_note_updated' => 'projects.show',
             'project_note_mention' => 'projects.show',
             'project_member_mention' => 'projects.show',
-
-            // Expenses
             'new_expense_admin' => 'expenses.show',
             'new_expense_member' => 'expenses.show',
             'new_expense_status' => 'expenses.show',
-
-            // Invoices
             'invoice_payment_received' => 'invoices.show',
             'new_invoice' => 'invoices.show',
             'invoice_updated' => 'invoices.show',
             'invoice_reminder' => 'invoices.show',
             'invoice_reminder_after' => 'invoices.show',
-
-            // Leaves
             'leave_application' => 'leaves.show',
             'leave_status_approve' => 'leaves.show',
             'leave_status_reject' => 'leaves.show',
@@ -457,72 +510,39 @@ class NotificationService
             'new_leave_request' => 'leaves.show',
             'new_multiple_leave_request' => 'leaves.show',
             'multiple_leave_application' => 'leaves.show',
-
-            // Events
             'event_invite' => 'events.show',
             'event_reminder' => 'events.show',
             'event_invite_mention' => 'events.show',
             'event_host_invite' => 'events.show',
             'event_completed' => 'events.show',
             'event_status_note' => 'events.show',
-
-            // Appreciations
             'new_appreciation' => 'appreciations.show',
-
-            // Contracts
             'contract_signed' => 'contracts.show',
             'new_contract' => 'contracts.show',
-
-            // Discussions
             'new_discussion' => 'discussion.show',
             'new_discussion_reply' => 'discussion.show',
             'new_discussion_mention' => 'discussion.show',
-
-            // Shifts
             'shift_scheduled' => 'attendances.index',
             'shift_change_status' => 'attendances.index',
             'shift_change_request' => 'attendances.index',
             'bulk_shift_notification' => 'attendances.index',
             'shift_rotation_notification' => 'attendances.index',
-
-            // Promotions
             'promotion_added' => 'employees.show',
             'promotion_updated' => 'employees.show',
-
-            // Estimates
             'new_estimate' => 'estimates.show',
             'estimate_accepted' => 'estimates.show',
             'estimate_declined' => 'estimates.show',
-
-            // Proposals
             'new_proposal' => 'proposals.show',
             'proposal_signed' => 'proposals.show',
-
-            // Payments
             'new_payment' => 'payments.show',
             'payment_reminder' => 'payments.show',
-
-            // Orders
             'new_order' => 'orders.show',
             'order_updated' => 'orders.show',
         ];
-
-        if (isset($routes[$typeSlug])) {
-            try {
-                return route($routes[$typeSlug], $id);
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
     }
 
     /**
      * Get notification icon based on type.
-     *
-     * @param string $typeSlug
-     * @return string
      */
     protected function getNotificationIcon(string $typeSlug): string
     {
@@ -553,6 +573,10 @@ class NotificationService
             'sub_task_created' => 'task',
             'sub_task_completed' => 'task-completed',
             'sub_task_assignee_added' => 'task',
+            'task_deleted' => 'task',
+            'task_rejected' => 'task',
+            'task_overdue' => 'task',
+            'task_priority_updated' => 'task',
 
             // Notices
             'new_notice' => 'notice',
@@ -579,6 +603,23 @@ class NotificationService
             'auto_follow_up_reminder' => 'deal',
             'new_communication_activity' => 'deal',
             'lead_imported' => 'lead',
+            'lead_deleted' => 'lead',
+            'lead_follow_up_overdue' => 'event',
+            'deal_deleted' => 'deal',
+            'deal_close_date_approaching' => 'deal',
+
+            // Properties
+            'property_activity_notification' => 'property',
+            'expose_ready_notification' => 'file',
+            'availability_requested' => 'property',
+            'availability_response' => 'property',
+            'availability_escalation' => 'property',
+            'availability_escalation_reminder' => 'property',
+            'edit_access_requested' => 'property',
+            'edit_access_reviewed' => 'property',
+            'property_access_request' => 'property',
+            'publish_request_submitted' => 'property',
+            'publish_request_reviewed' => 'property',
 
             // Projects
             'new_project' => 'project',
@@ -653,9 +694,6 @@ class NotificationService
 
     /**
      * Get all distinct notification types for a user.
-     *
-     * @param User $user
-     * @return array
      */
     public function getNotificationTypes(User $user): array
     {
@@ -665,6 +703,7 @@ class NotificationService
             ->pluck('type')
             ->map(function ($type) {
                 $basename = class_basename($type);
+
                 return [
                     'value' => $basename,
                     'label' => ucfirst(str_replace('_', ' ', Str::snake($basename))),

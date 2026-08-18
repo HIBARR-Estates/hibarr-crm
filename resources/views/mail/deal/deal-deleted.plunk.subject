@@ -1,0 +1,11 @@
+<!--
+  Plunk subject line for deal deleted notifications.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — "Deal removed from pipeline"
+    appName     — application name (e.g. Hibarr)
+
+  Keep in sync with App\Notifications\DealDeleted
+-->
+{{mailSubject}} - {{appName}}

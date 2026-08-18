@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'defaultPreheader' => 'Just a quick heads up',
     'newLead' => [
         'subject' => 'New lead received.',
         'action' => 'View Lead',
@@ -29,13 +30,16 @@ return [
     'hello' => 'Hello',
     'whoops' => 'Whoops',
     'regards' => 'Regards',
+    'teamSignature' => 'The :appName Team',
     'newExpense' => [
         'subject' => 'New Expense Submitted for Approval',
         'newSubject' => 'New Expense has been Submitted',
         'action' => 'View Expense',
     ],
     'leadAgentAssigned' => [
-        'subject' => 'You have been assigned as lead agent',
+        'subject' => 'New assignment',
+        'intro' => ':name assigned you to a lead.',
+        'footer' => 'Review the lead and take the appropriate next steps.',
         'text' => 'You have been assigned as lead agent for :leadName.',
         'action' => 'View Lead',
     ],
@@ -46,11 +50,15 @@ return [
     ],
     'dealWatcherAssigned' => [
         'subject' => 'You have been added as deal watcher',
+        'intro' => ':name added you as a watcher on a deal.',
+        'footer' => 'Review the deal and take the appropriate next steps.',
         'text' => 'You have been added as deal watcher for :dealName.',
         'action' => 'View Deal',
     ],
     'newDealAwaitingAgent' => [
         'subject' => 'New deal awaiting agent',
+        'intro' => 'Deal :dealName is awaiting an agent.',
+        'footer' => 'Review the deal and take the appropriate next steps.',
         'text' => 'Deal :dealName has been created and is awaiting a deal agent.',
         'action' => 'View Deal',
     ],
@@ -162,9 +170,11 @@ return [
         'completedBy' => 'Task completed by',
     ],
     'taskUpdate' => [
-        'subject' => 'Your Task Has Been Updated!',
-        'text' => 'There’s been some progress on one of your tasks! Check out the updates below to stay in sync with the latest changes.',
-        'text2' => 'To check out the changes and keep things moving, log in to your account and head over to the Task section.',
+        'subject' => 'Task updated',
+        'intro' => 'One of your tasks was updated.',
+        'footer' => 'Open the task to see what changed.',
+        'text' => 'One of your tasks was updated.',
+        'text2' => '',
         'action' => 'View Task',
         'updatedBy' => 'Task Status Updated By',
         'statusUpdated' => 'Your Task Status Has Been Updated!',
@@ -192,6 +202,8 @@ return [
     'taskLifecycle' => [
         'due' => [
             'subject' => 'Task due today',
+            'intro' => 'You have a task due today.',
+            'warning' => 'Task due today.',
         ],
     ],
     'invoices' => [
@@ -235,6 +247,18 @@ return [
         'dueCountdown' => '":title" is coming up in :countdown.',
         'dueNow' => '":title" is due now.',
         'footerNote' => 'Follow up with this lead and log the outcome.',
+    ],
+    'leadDeleted' => [
+        'subject' => 'Lead removed from pipeline',
+        'text' => ':leadName was removed from the active pipeline by :deletedBy.',
+        'action' => 'View leads',
+        'actionDescription' => 'You can review your remaining leads in the CRM.',
+        'unknownActor' => 'A team member',
+    ],
+    'leadFollowUpOverdue' => [
+        'subject' => 'Follow-up overdue',
+        'text' => 'The follow-up for :entityName was scheduled for :schedule and still needs action.',
+        'footerNote' => 'Follow up as soon as possible and log the outcome in the CRM.',
     ],
     'propertyReminder' => [
         'subject' => 'Property reminder: :title',
@@ -367,6 +391,35 @@ return [
         'text' => 'You have been added as assignee on Task ',
         'action' => 'View Sub Tasks',
     ],
+    'subTaskCreated' => [
+        'subject' => 'New sub task added',
+        'text' => 'A new sub task was added to one of your tasks.',
+        'action' => 'View Sub Tasks',
+    ],
+    'taskDeleted' => [
+        'subject' => 'Task deleted',
+        'text' => 'A task you were assigned to has been deleted.',
+        'action' => 'View Tasks',
+    ],
+    'taskRejected' => [
+        'subject' => 'Task sent back from review',
+        'text' => 'A task was rejected from review and needs rework.',
+        'rejectedBy' => 'Rejected by',
+        'reason' => 'Reason',
+        'action' => 'View Task',
+    ],
+    'taskOverdue' => [
+        'subject' => 'Task overdue',
+        'text' => 'This task is :days day(s) past its due date.',
+        'action' => 'View Task',
+        'assignerSubject' => 'Assigned task overdue',
+        'assignerText' => 'The task you assigned to :assignee is :days day(s) overdue.',
+    ],
+    'taskPriorityUpdated' => [
+        'subject' => 'Task priority updated',
+        'text' => 'The priority on one of your tasks has changed.',
+        'action' => 'View Task',
+    ],
 
     'leadAgent' => [
         'subject' => 'New Deal Notification',
@@ -397,7 +450,29 @@ return [
         'text' => 'There has been an update regarding a deal in your pipeline. We\'ve outlined the latest changes below to help you stay coordinated with your team.',
     ],
 
-    'subTaskCreated' => 'Sub task created.',
+    'dealDeleted' => [
+        'subject' => 'Deal removed from pipeline',
+        'text' => ':dealName was removed from the active pipeline by :deletedBy.',
+        'action' => 'View deals',
+        'actionDescription' => 'You can review your remaining deals in the CRM.',
+        'unknownActor' => 'A team member',
+    ],
+
+    'propertyActivity' => [
+        'subject' => 'Property update',
+    ],
+
+    'exposeReady' => [
+        'subject' => 'Exposé ready',
+    ],
+
+    'dealCloseDateApproaching' => [
+        'subject' => 'Deal close date approaching',
+        'text' => 'The close date for :dealName is :closeDate. Review the deal and update the timeline if needed.',
+        'textNoDate' => 'The close date for :dealName is approaching. Review the deal and update the timeline if needed.',
+        'action' => 'View deal',
+    ],
+
     'discussionReply' => [
         'subject' => ' replied to ',
         'text' => 'You have received a reply on ',
@@ -759,5 +834,116 @@ return [
         'text2' => 'Reason: :reason',
         'action' => 'View Timesheet',
         'thankYou' => 'Thank you for using our application!',
+    ],
+    'mlm' => [
+        'badge' => 'Partner Network',
+        'base_level' => 'Base level',
+        'default_rate' => 'Level default',
+        'detail' => [
+            'amount' => 'Amount',
+            'currency' => 'Currency',
+            'percentage' => 'Rate',
+            'level' => 'Level',
+            'cycle' => 'Cycle',
+            'recruit' => 'New recruit',
+            'progress' => 'Progress',
+            'days_remaining' => 'Days remaining',
+        ],
+        'mlm_commission_earned' => [
+            'subject' => 'Commission earned',
+            'intro' => 'You earned a commission of :amount from deal :deal_name.',
+            'footer' => 'Open your commissions to review the details.',
+            'action' => 'View commissions',
+        ],
+        'mlm_commission_paid' => [
+            'subject' => 'Commission paid out',
+            'intro' => 'Your commission of :amount for deal :deal_name has been paid out.',
+            'footer' => 'Open your commissions for payout history.',
+            'action' => 'View commissions',
+        ],
+        'mlm_commission_clawback' => [
+            'subject' => 'Commission clawback',
+            'intro' => 'A previously paid commission of :amount for deal :deal_name was reversed.',
+            'footer' => 'Contact your manager if you have questions.',
+            'action' => 'View commissions',
+        ],
+        'mlm_commission_disputed' => [
+            'subject' => 'Commission dispute raised',
+            'intro' => 'A commission dispute was raised for :amount on deal :deal_name.',
+            'footer' => 'Review the dispute in the partner network admin area.',
+            'action' => 'View commissions',
+        ],
+        'mlm_agent_level_upgraded' => [
+            'subject' => 'Agent level upgraded',
+            'intro' => ':agent_name reached level :level_name.',
+            'footer' => 'Open your level dashboard to see updated criteria.',
+            'action' => 'View my level',
+        ],
+        'mlm_agent_level_downgraded' => [
+            'subject' => 'Agent level changed',
+            'intro' => ':agent_name is now at level :level_name.',
+            'footer' => 'Open your level dashboard for current requirements.',
+            'action' => 'View my level',
+        ],
+        'mlm_agent_level_criteria_approaching' => [
+            'subject' => 'Level criteria within reach',
+            'intro' => 'You are :progress_percent% of the way to level :level_name.',
+            'footer' => 'Keep going — you are close to qualifying.',
+            'action' => 'View my level',
+        ],
+        'mlm_agent_commission_profile_changed' => [
+            'subject' => 'Commission profile updated',
+            'intro' => 'Your custom commission rate changed from :previous_rate to :new_rate.',
+            'footer' => 'Open your level page to review your profile.',
+            'action' => 'View my level',
+        ],
+        'mlm_cycle_started' => [
+            'subject' => 'New MLM cycle started',
+            'intro' => ':cycle_name is now active (:start_date – :end_date).',
+            'footer' => 'Open your dashboard to track cycle progress.',
+            'action' => 'Open dashboard',
+        ],
+        'mlm_cycle_completed' => [
+            'subject' => 'MLM cycle completed',
+            'intro' => ':cycle_name has ended and results are finalized.',
+            'footer' => 'Review your cycle results on the dashboard.',
+            'action' => 'Open dashboard',
+        ],
+        'mlm_cycle_criteria_met' => [
+            'subject' => 'Cycle criteria met',
+            'intro' => 'You met the criteria for :cycle_name.',
+            'footer' => 'Your enrollment has been completed for this cycle.',
+            'action' => 'View my level',
+        ],
+        'mlm_cycle_deadline_approaching' => [
+            'subject' => 'Cycle deadline approaching',
+            'intro' => ':days_remaining day(s) left in :cycle_name and criteria are not yet met.',
+            'footer' => 'Check your level page to see what is still required.',
+            'action' => 'View my level',
+        ],
+        'mlm_referral_code_used' => [
+            'subject' => 'Your referral code was used',
+            'intro' => ':lead_name signed up using your referral.',
+            'footer' => 'Open the lead to follow their progress.',
+            'action' => 'View lead',
+        ],
+        'mlm_new_recruit_added' => [
+            'subject' => 'New recruit in your network',
+            'intro' => ':recruit_name joined under :upline_name.',
+            'footer' => 'Open your network to see your downline.',
+            'action' => 'View network',
+        ],
+        'mlm_partner_network_joined' => [
+            'subject' => 'Welcome to the partner network',
+            'intro' => ':agent_name has joined the partner network.',
+            'footer' => 'Open your partner dashboard to get started.',
+            'action' => 'Open dashboard',
+        ],
+        'mlm_referral_converted_to_deal' => [
+            'subject' => 'Referral converted to deal',
+            'intro' => 'Your referral :lead_name is now an active deal: :deal_name.',
+            'footer' => 'Open the deal to track the opportunity.',
+            'action' => 'View deal',
+        ],
     ],
 ];

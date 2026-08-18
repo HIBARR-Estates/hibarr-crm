@@ -17,6 +17,7 @@ use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
 use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Lead;
+use App\Support\LeadSearchQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spiral\RoadRunner\GRPC\ContextInterface;
@@ -249,6 +250,7 @@ class LeadGrpcService implements LeadServiceInterface
                     $q->where('client_name', 'like', "%{$search}%")
                       ->orWhere('client_email', 'like', "%{$search}%")
                       ->orWhere('company_name', 'like', "%{$search}%");
+                    LeadSearchQuery::applyContactMethodMatch($q, $search);
                 });
             }
             if ($in->hasCreatedFrom()) $query->where('created_at', '>=', $in->getCreatedFrom());

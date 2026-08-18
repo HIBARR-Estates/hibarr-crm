@@ -26,6 +26,7 @@ class TaskMention extends BaseNotification
         $this->task = $task;
         $this->emailSetting = EmailNotificationSetting::userAssignTask();
         $this->company = $this->task->company;
+        $this->initTaskMailRouting();
     }
 
     /**

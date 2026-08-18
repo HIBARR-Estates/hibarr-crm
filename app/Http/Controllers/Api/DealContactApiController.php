@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Helper\Reply;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
+use App\Http\Requests\Deal\CreateDealRequest;
 use App\Jobs\ProcessDealRequestJob;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
@@ -13,17 +16,12 @@ use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
-use App\Http\Requests\Deal\CreateDealRequest;
-use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
-use App\Services\DealCreationService;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-
 
 class DealContactApiController extends Controller
 {
@@ -35,11 +33,9 @@ class DealContactApiController extends Controller
         // $this->middleware('api.token.auth');
     }
 
- 
     /**
      * Change the stage of a deal.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function changeStage(Request $request)
@@ -56,13 +52,13 @@ class DealContactApiController extends Controller
 
             // Check if deal exists
             $deal = Deal::find($dealId);
-            if (!$deal) {
+            if (! $deal) {
                 return Reply::error("Deal with ID {$dealId} not found.");
             }
 
             // Check if stage exists
             $newStage = PipelineStage::find($newStageId);
-            if (!$newStage) {
+            if (! $newStage) {
                 return Reply::error("Pipeline stage with ID {$newStageId} not found.");
             }
 
@@ -117,11 +113,11 @@ class DealContactApiController extends Controller
             // Get stage and pipeline names safely
             $stageName = 'Unknown';
             $pipelineName = 'Unknown';
-            
+
             if ($deal->leadStage) {
                 $stageName = $deal->leadStage->name;
             }
-            
+
             if ($deal->pipeline) {
                 $pipelineName = $deal->pipeline->name;
             }
@@ -133,7 +129,7 @@ class DealContactApiController extends Controller
                 'stage_name' => $stageName,
                 'pipeline_name' => $pipelineName,
                 'responsible_user_id' => $responsibleUserId,
-                'responsible_user_name' => $deal->leadAgent && $deal->leadAgent->user ? $deal->leadAgent->user->name : 'Unknown'
+                'responsible_user_name' => $deal->leadAgent && $deal->leadAgent->user ? $deal->leadAgent->user->name : 'Unknown',
             ]);
 
         } catch (\Exception $e) {
@@ -143,6 +139,7 @@ class DealContactApiController extends Controller
                 'deal_id' => $request->input('deal_id'),
                 'new_stage_id' => $request->input('new_stage_id'),
             ]);
+
             return Reply::error('An error occurred while changing deal stage: ');
         }
     }
@@ -152,28 +149,27 @@ class DealContactApiController extends Controller
      * If a deal exists for the contact, updates the most recent one.
      * Otherwise, creates a new deal.
      *
-     * @param CreateDealRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function createDeal(CreateDealRequest $request)
     {
         try {
             $companyId = $request->header('X-COMPANY-ID');
-            
-            if (!$companyId) {
+
+            if (! $companyId) {
                 return Reply::error(__('messages.missingCompanyId'));
             }
-            
+
             // Validate that company ID is a valid positive integer
-            if (!is_numeric($companyId) || (int) $companyId <= 0) {
+            if (! is_numeric($companyId) || (int) $companyId <= 0) {
                 return Reply::error(__('messages.invalidCompanyId'));
             }
-            
+
             $companyId = (int) $companyId;
-            
+
             // Resolve contact ID (this is fast and doesn't need to be queued)
             $contactId = $request->input('lead_id') ?? null;
-            if (!$contactId) {
+            if (! $contactId) {
                 $contactId = $this->resolveContact($request, $companyId);
             } else {
                 // lead_id bypasses resolveContact — still apply optional lead fields / CFs
@@ -185,7 +181,7 @@ class DealContactApiController extends Controller
                     $this->applyLeadCustomFields($existingLead, $request);
                 }
             }
-            
+
             // Save UTM information if provided (also fast)
             $this->saveUtmInfo($contactId, $request);
 
@@ -199,7 +195,7 @@ class DealContactApiController extends Controller
                 'company_id' => $companyId,
                 'email' => $request->input('email'),
             ]);
-            
+
             // Return 200 OK - request accepted for processing
             return response()->json([
                 'status' => 'accepted',
@@ -207,7 +203,7 @@ class DealContactApiController extends Controller
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to process deal creation request', [
                 'message' => $e->getMessage(),
@@ -215,7 +211,7 @@ class DealContactApiController extends Controller
                 'email' => $request->input('email'),
                 'name' => $request->input('name'),
             ]);
-            
+
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
             return Reply::error('Failed to process deal creation request');
@@ -226,7 +222,6 @@ class DealContactApiController extends Controller
      * Create or update a contact.
      * If a contact exists by email, updates it. Otherwise, creates a new contact.
      *
-     * @param CreateOrUpdateContactRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function createOrUpdateContact(CreateOrUpdateContactRequest $request)
@@ -234,50 +229,50 @@ class DealContactApiController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $companyId = $request->header('X-COMPANY-ID');
- 
-                if (!$companyId) {
+
+                if (! $companyId) {
                     return Reply::error(__('messages.missingCompanyId'));
                 }
-                
+
                 $companyId = (int) $companyId;
                 $updateAgentIfExists = $request->boolean('update_agent_if_exists', false);
                 $notify = $request->boolean('notify', false);
-                
+
                 // Check if contact already exists by email (most reliable identifier)
                 $existingContact = null;
-                if ($request->has('email') && !empty($request->email)) {
+                if ($request->has('email') && ! empty($request->email)) {
                     $existingContact = Lead::where('company_id', $companyId)
                         ->where('client_email', $request->email)
                         ->first();
                 }
 
                 // If not found by email, check by name and email combination
-                if (!$existingContact && $request->has('name') && $request->has('email') && !empty($request->name) && !empty($request->email)) {
+                if (! $existingContact && $request->has('name') && $request->has('email') && ! empty($request->name) && ! empty($request->email)) {
                     $existingContact = Lead::where('company_id', $companyId)
                         ->where('client_name', $request->name)
                         ->where('client_email', $request->email)
                         ->first();
                 }
 
-                $isNewContact = !$existingContact;
+                $isNewContact = ! $existingContact;
 
                 if ($isNewContact) {
                     // Create new contact
-                    $contact = new Lead();
+                    $contact = new Lead;
                     $contact->company_id = $companyId;
                     $contact->added_by = 1;
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
                     $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
-                    
+
                     // Set source_id if provided (must be valid lead_source_id)
-                    if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
+                    if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
                         $contact->source_id = $request->lead_source_id;
                     }
-                    
+
                     // Set lead_owner if provided (user_id directly, not agent_id)
-                    if ($request->has('lead_owner_id') && !empty($request->lead_owner_id)) {
+                    if ($request->has('lead_owner_id') && ! empty($request->lead_owner_id)) {
                         $contact->lead_owner = $request->lead_owner_id;
                     }
 
@@ -291,11 +286,11 @@ class DealContactApiController extends Controller
                 } else {
                     // Update existing contact
                     $updated = false;
-                    if ($request->has('name') && !empty($request->name) && $existingContact->client_name !== $request->name) {
+                    if ($request->has('name') && ! empty($request->name) && $existingContact->client_name !== $request->name) {
                         $existingContact->client_name = $request->name;
                         $updated = true;
                     }
-                    if ($request->has('phone') && !empty($request->phone) && $existingContact->mobile !== $request->phone) {
+                    if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
                         $existingContact->mobile = $request->phone;
                         $updated = true;
                     }
@@ -304,15 +299,15 @@ class DealContactApiController extends Controller
                         $updated = true;
                     }
                     // Update source_id if provided (must be valid lead_source_id)
-                    if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
+                    if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
                         if ($existingContact->source_id != $request->lead_source_id) {
                             $existingContact->source_id = $request->lead_source_id;
                             $updated = true;
                         }
                     }
                     // Update lead_owner if provided (user_id directly, not agent_id)
-                    if ($request->has('lead_owner_id') && !empty($request->lead_owner_id)) {
-                        if (!$existingContact->lead_owner && $updateAgentIfExists) {
+                    if ($request->has('lead_owner_id') && ! empty($request->lead_owner_id)) {
+                        if (! $existingContact->lead_owner && $updateAgentIfExists) {
                             $existingContact->lead_owner = $request->lead_owner_id;
                             $updated = true;
                         }
@@ -352,34 +347,30 @@ class DealContactApiController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'email' => $request->input('email'),
             ]);
-            
+
             return Reply::error('Failed to create/update contact: ');
         }
     }
 
     /**
      * Checks if contact already exists by email, otherwise creates a new contact.
-     *
-     * @param Request $request
-     * @param int $companyId
-     * @return int
      */
     private function resolveContact(Request $request, int $companyId): int
     {
         // Check if contact already exists by email (most reliable identifier)
-        if ($request->has('email') && !empty($request->email)) {
+        if ($request->has('email') && ! empty($request->email)) {
             $existingContact = Lead::where('company_id', $companyId)
                 ->where('client_email', $request->email)
                 ->first();
-            
+
             if ($existingContact) {
                 // Update contact info if provided
                 $updated = false;
-                if ($request->has('name') && !empty($request->name) && $existingContact->client_name !== $request->name) {
+                if ($request->has('name') && ! empty($request->name) && $existingContact->client_name !== $request->name) {
                     $existingContact->client_name = $request->name;
                     $updated = true;
                 }
-                if ($request->has('phone') && !empty($request->phone) && $existingContact->mobile !== $request->phone) {
+                if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
@@ -403,21 +394,22 @@ class DealContactApiController extends Controller
                     $existingContact->saveQuietly();
                 }
                 $this->applyLeadCustomFields($existingContact, $request);
+
                 return $existingContact->id;
             }
         }
 
         // Check by name and email combination as fallback
-        if ($request->has('name') && $request->has('email') && !empty($request->name) && !empty($request->email)) {
+        if ($request->has('name') && $request->has('email') && ! empty($request->name) && ! empty($request->email)) {
             $existingContact = Lead::where('company_id', $companyId)
                 ->where('client_name', $request->name)
                 ->where('client_email', $request->email)
                 ->first();
-            
+
             if ($existingContact) {
                 // Update phone if provided and different
                 $updated = false;
-                if ($request->has('phone') && !empty($request->phone) && $existingContact->mobile !== $request->phone) {
+                if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
                     $existingContact->mobile = $request->phone;
                     $updated = true;
                 }
@@ -441,19 +433,20 @@ class DealContactApiController extends Controller
                     $existingContact->saveQuietly();
                 }
                 $this->applyLeadCustomFields($existingContact, $request);
+
                 return $existingContact->id;
             }
         }
 
         // Create new contact if not found
-        $contact = new Lead();
+        $contact = new Lead;
         $contact->company_id = $companyId;
         $contact->added_by = 1;
         $contact->client_name = $request->name;
         $contact->client_email = $request->email;
         $contact->mobile = $request->phone;
         $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
-        
+
         // Resolve and set source_id if provided
         $sourceId = $this->resolveSourceId($request, $companyId);
         if ($sourceId) {
@@ -470,16 +463,12 @@ class DealContactApiController extends Controller
 
     /**
      * Save a lead contact, optionally firing model observers for notifications.
-     *
-     * @param \App\Models\Lead $contact
-     * @param Request $request
-     * @param bool $notify
-     * @return void
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
-        if (!$notify) {
+        if (! $notify) {
             $contact->saveQuietly();
+
             return;
         }
 
@@ -497,14 +486,11 @@ class DealContactApiController extends Controller
 
     /**
      * Notify the assigned owner when a new lead is created via the API.
-     *
-     * @param \App\Models\Lead $contact
-     * @return void
      */
     private function notifyLeadOwnerOnCreate(Lead $contact): void
     {
         $owner = $contact->leadOwner;
-        if (!$owner) {
+        if (! $owner) {
             return;
         }
 
@@ -524,10 +510,6 @@ class DealContactApiController extends Controller
     /**
      * Apply address fields and date_of_birth from request to a lead.
      * Returns true if any attribute was changed.
-     *
-     * @param \App\Models\Lead $lead
-     * @param Request $request
-     * @return bool
      */
     private function applyAddressAndDobToLead(Lead $lead, Request $request): bool
     {
@@ -645,7 +627,7 @@ class DealContactApiController extends Controller
      */
     private function applyLeadCustomFields(Lead $lead, Request $request): void
     {
-        if (!$lead->id) {
+        if (! $lead->id) {
             return;
         }
 
@@ -671,7 +653,7 @@ class DealContactApiController extends Controller
             ->where('model', Lead::CUSTOM_FIELD_MODEL)
             ->first();
 
-        if (!$leadGroup) {
+        if (! $leadGroup) {
             return;
         }
 
@@ -683,10 +665,10 @@ class DealContactApiController extends Controller
         $customFieldsData = [];
         foreach ($payload as $fieldId => $value) {
             $fieldId = (string) $fieldId;
-            if ($value === null || !in_array($fieldId, $allowedIds, true)) {
+            if ($value === null || ! in_array($fieldId, $allowedIds, true)) {
                 continue;
             }
-            $customFieldsData['field_' . $fieldId] = $value;
+            $customFieldsData['field_'.$fieldId] = $value;
         }
 
         if ($customFieldsData === []) {
@@ -705,16 +687,12 @@ class DealContactApiController extends Controller
 
     /**
      * Save UTM information and marketing data to the contact's marketing record.
-     *
-     * @param int $contactId
-     * @param Request $request
-     * @return void
      */
     private function saveUtmInfo(int $contactId, Request $request): void
     {
         $contact = Lead::find($contactId);
-        
-        if (!$contact) {
+
+        if (! $contact) {
             return;
         }
 
@@ -773,7 +751,7 @@ class DealContactApiController extends Controller
                     'registered_for_zoom_meeting',
                 ], true)) {
                     $marketingPayload[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
-                } 
+                }
                 // Parse date fields properly
                 elseif ($key === 'last_webinar_date') {
                     try {
@@ -792,11 +770,11 @@ class DealContactApiController extends Controller
         }
 
         // Remove null values to avoid overwriting existing data with null
-        $marketingPayload = array_filter($marketingPayload, function($value) {
+        $marketingPayload = array_filter($marketingPayload, function ($value) {
             return $value !== null;
         });
 
-        if (!empty($marketingPayload)) {
+        if (! empty($marketingPayload)) {
             $contact->marketing()->updateOrCreate(
                 ['lead_id' => $contactId],
                 $marketingPayload
@@ -806,37 +784,33 @@ class DealContactApiController extends Controller
 
     /**
      * Resolve source_id from source_name, source_id, or lead_source_id.
-     *
-     * @param Request $request
-     * @param int $companyId
-     * @return int|null
      */
     private function resolveSourceId(Request $request, int $companyId): ?int
     {
         // Check for lead_source_id first (most explicit)
-        if ($request->has('lead_source_id') && !empty($request->lead_source_id)) {
+        if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
             $source = LeadSource::where('company_id', $companyId)
                 ->where('id', $request->lead_source_id)
                 ->first();
-            
+
             if ($source) {
                 return $source->id;
             }
         }
 
         // If source_id is provided directly, validate and return it
-        if ($request->has('source_id') && !empty($request->source_id)) {
+        if ($request->has('source_id') && ! empty($request->source_id)) {
             $source = LeadSource::where('company_id', $companyId)
                 ->where('id', $request->source_id)
                 ->first();
-            
+
             if ($source) {
                 return $source->id;
             }
         }
 
         // If source_name is provided, find or create by name (type field)
-        if ($request->has('source_name') && !empty($request->source_name)) {
+        if ($request->has('source_name') && ! empty($request->source_name)) {
             $source = LeadSource::firstOrCreate(
                 [
                     'company_id' => $companyId,
@@ -851,13 +825,13 @@ class DealContactApiController extends Controller
         }
 
         // Also check for 'source' field (alternative name)
-        if ($request->has('source') && !empty($request->source)) {
+        if ($request->has('source') && ! empty($request->source)) {
             // Check if it's numeric (ID) or string (name)
             if (is_numeric($request->source)) {
                 $source = LeadSource::where('company_id', $companyId)
                     ->where('id', $request->source)
                     ->first();
-                
+
                 if ($source) {
                     return $source->id;
                 }

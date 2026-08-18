@@ -129,6 +129,7 @@ function isMeetingNotification(notification: Notification): boolean {
     const data = notification.data ?? {};
     if (data.entity_type === "meeting") return true;
     if (notification.type_slug === "auto_follow_up_reminder") return true;
+    if (notification.type_slug === "lead_follow_up_overdue") return true;
     if (notification.type_slug === "event_reminder") return true;
     if (notification.icon === "event") return true;
     return false;

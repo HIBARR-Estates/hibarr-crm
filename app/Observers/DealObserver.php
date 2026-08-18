@@ -4,32 +4,31 @@ namespace App\Observers;
 
 use App\Events\DealEvent;
 use App\Events\DealWonEvent;
-use App\Models\Deal;
-use App\Models\LeadAgent;
-use App\Models\UniversalSearch;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Lead;
+use App\Jobs\SendMetaConversionEventJob;
 use App\Models\Currency;
-use App\Models\PipelineStage;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\LeadAgent;
 use App\Models\LeadPipeline;
+use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
+use App\Models\MetaConversionTrigger;
+use App\Models\PipelineStage;
+use App\Models\Role;
+use App\Models\UniversalSearch;
+use App\Models\User;
 use App\Notifications\LeadAgentAssigned;
-use App\Models\LeadSetting;
-use Illuminate\Support\Facades\Notification;
-use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
 use App\Services\CrmEventDescriptionBuilder;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
 use App\Services\DealTaskService;
-use App\Models\MetaConversionTrigger;
-use App\Jobs\SendMetaConversionEventJob;
-
 use App\Traits\DealHistoryTrait;
+use App\Traits\EmployeeActivityTrait;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
+use Illuminate\Support\Facades\Notification;
 
 class DealObserver
 {
@@ -38,7 +37,9 @@ class DealObserver
     use RecordsCrmEvents;
 
     protected DealAutomationService $dealAutomation;
+
     protected DealNotificationService $notificationService;
+
     protected DealTaskService $dealTaskService;
 
     public function __construct(
@@ -53,8 +54,8 @@ class DealObserver
 
     public function saving(Deal $deal)
     {
-        if (!isRunningInConsoleOrSeeding()) {
-            $userID = (!is_null(user())) ? user()->id : null;
+        if (! isRunningInConsoleOrSeeding()) {
+            $userID = (! is_null(user())) ? user()->id : null;
             $deal->last_updated_by = $userID;
         }
 
@@ -79,17 +80,17 @@ class DealObserver
      */
     private function snapshotExchangeRate(Deal $deal): void
     {
-        if (!$deal->currency_id) {
+        if (! $deal->currency_id) {
             return;
         }
 
         $alreadyClosed = $deal->getOriginal('outcome_status') !== null;
 
-        if ($alreadyClosed && !$deal->isDirty('currency_id')) {
+        if ($alreadyClosed && ! $deal->isDirty('currency_id')) {
             return;
         }
 
-        if (!$deal->isDirty('currency_id') && !$deal->isDirty('outcome_status') && $deal->exchange_rate !== null) {
+        if (! $deal->isDirty('currency_id') && ! $deal->isDirty('outcome_status') && $deal->exchange_rate !== null) {
             return;
         }
 
@@ -104,17 +105,14 @@ class DealObserver
     {
         $deal->hash = md5(microtime());
 
-        if (!isRunningInConsoleOrSeeding()) {
-
+        if (! isRunningInConsoleOrSeeding()) {
 
             if (request()->has('added_by')) {
                 $deal->added_by = request('added_by');
 
+            } else {
 
-            }
-            else {
-
-                $userID = (!is_null(user())) ? user()->id : null;
+                $userID = (! is_null(user())) ? user()->id : null;
                 $deal->added_by = $userID;
             }
 
@@ -122,7 +120,7 @@ class DealObserver
                 $deal->company_id = company()->id;
             }
 
-            if (!isRunningInConsoleOrSeeding()) {
+            if (! isRunningInConsoleOrSeeding()) {
                 $categoryId = request()->category_id;
 
                 $ticketSettings = LeadSetting::select('status')->first();
@@ -130,10 +128,10 @@ class DealObserver
                 // Skip round-robin when triage (or the request) already assigned an agent.
                 if ($ticketSettings && $ticketSettings->status == 1 && is_null($deal->agent_id)) {
                     $agentCategoryData = LeadAgent::where('company_id', $deal->company_id)
-                    ->where('status', 'enabled')
-                    ->where('lead_category_id', $categoryId)
-                    ->pluck('id')
-                    ->toArray();
+                        ->where('status', 'enabled')
+                        ->where('lead_category_id', $categoryId)
+                        ->pluck('id')
+                        ->toArray();
 
                     $dealData = $deal->where('company_id', $deal->company_id)
                         ->where('category_id', $categoryId)
@@ -145,27 +143,25 @@ class DealObserver
                     $diffAgent = array_diff($agentCategoryData, $dealData);
 
                     if (is_null(request()->agent_id) || request()->agent_id === '') {
-                        if (!empty($diffAgent)) {
+                        if (! empty($diffAgent)) {
                             $deal->agent_id = current($diffAgent);
-                        }
-                        else {
+                        } else {
                             $agentDuplicateCount = array_count_values($dealData);
 
-                            if (!empty($agentDuplicateCount)) {
+                            if (! empty($agentDuplicateCount)) {
                                 $minVal = min($agentDuplicateCount);
                                 $agent_id = array_search($minVal, $agentDuplicateCount);
                                 $deal->agent_id = $agent_id;
                             }
                         }
-                    }
-                    else {
+                    } else {
                         // Prefer lead_agents.id; fall back to legacy user_id lookup.
                         $leadAgent = LeadAgent::find(request()->agent_id)
                             ?: LeadAgent::where('user_id', request()->agent_id)
                                 ->where('lead_category_id', $categoryId)
                                 ->first();
 
-                        if (!is_null($leadAgent)) {
+                        if (! is_null($leadAgent)) {
                             $deal->agent_id = $leadAgent->id;
                         }
                     }
@@ -177,7 +173,7 @@ class DealObserver
     public function updating(Deal $deal)
     {
         // Prevent modifications to locked deals
-        if ($deal->getOriginal('is_locked') && !$deal->isDirty('is_locked')) {
+        if ($deal->getOriginal('is_locked') && ! $deal->isDirty('is_locked')) {
             // Allow only is_locked changes (for the locking operation itself)
             // All other changes are blocked
             $changedFields = array_keys($deal->getDirty());
@@ -187,8 +183,8 @@ class DealObserver
             $allowedFields = ['is_locked', 'locked_at', 'outcome_status', 'won_at', 'updated_at'];
             $disallowedChanges = array_diff($changedFields, $allowedFields);
 
-            if (!empty($disallowedChanges)) {
-                \Log::warning("DealObserver: Attempted to modify locked deal {$deal->id}. Blocked fields: " . implode(', ', $disallowedChanges));
+            if (! empty($disallowedChanges)) {
+                \Log::warning("DealObserver: Attempted to modify locked deal {$deal->id}. Blocked fields: ".implode(', ', $disallowedChanges));
                 // Revert disallowed changes
                 foreach ($disallowedChanges as $field) {
                     $deal->{$field} = $deal->getOriginal($field);
@@ -196,7 +192,7 @@ class DealObserver
             }
         }
 
-        if ($deal->isDirty('pipeline_stage_id')){
+        if ($deal->isDirty('pipeline_stage_id')) {
             self::createDealHistory($deal->id, 'stage-updated', agentId: $deal->agent_id, stageFromId: $deal->getOriginal('pipeline_stage_id'), stageToId: $deal->pipeline_stage_id);
         }
 
@@ -206,7 +202,7 @@ class DealObserver
     {
         HasDynamicTranslations::dispatchDynamicTranslation($deal, true);
 
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
 
             $this->createClient($deal);
 
@@ -214,28 +210,61 @@ class DealObserver
                 self::createEmployeeActivity(user()->id, 'deal-updated', $deal->id, 'deal');
             }
 
-            if (user() && !$deal->isDirty('pipeline_stage_id') && !$deal->isDirty('lead_pipeline_id') && !$deal->isDirty('agent_id')) {
+            if (user() && ! $deal->isDirty('pipeline_stage_id') && ! $deal->isDirty('lead_pipeline_id') && ! $deal->isDirty('agent_id')) {
                 self::createDealHistory($deal->id, 'deal-updated', agentId: $deal->agent_id);
             }
 
-            if ($deal->isDirty('lead_pipeline_id')){
+            if ($deal->isDirty('lead_pipeline_id')) {
                 self::createDealHistory($deal->id, 'pipeline-updated', agentId: $deal->agent_id);
             }
 
             if ($deal->isDirty('agent_id')) {
+                $deal->unsetRelation('leadAgent');
+                $deal->load('leadAgent.user');
+
                 event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
                 $this->addParentAgentAsWatcher($deal);
+
+                // Reassignment (not the first-time assignment): notify everyone else who
+                // watches this deal. The new agent already gets LeadAgentAssigned above.
+                if ($deal->getOriginal('agent_id')) {
+                    $fromAgentName = $this->resolveAgentName($deal->getOriginal('agent_id'));
+                    $toAgentName = $this->resolveAgentName($deal->agent_id);
+                    $this->notificationService->notifyAgentChanged($deal, $fromAgentName, $toAgentName, $deal->leadAgent?->user_id);
+                }
             }
 
-            if ($deal->isDirty('pipeline_stage_id') || $deal->isDirty('lead_pipeline_id')) {
-                event(new DealEvent($deal, $deal->leadAgent, 'StageUpdated'));
+            // Only pipeline moves that don't also change stage — stage changes are covered below.
+            $fromStageModel = null;
+            $toStageModel = null;
+            if ($deal->isDirty('pipeline_stage_id')) {
+                $fromStageModel = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
+                $toStageModel = PipelineStage::find($deal->pipeline_stage_id);
+            }
+
+            if ($deal->isDirty('lead_pipeline_id') && ! $deal->isDirty('pipeline_stage_id')) {
+                $fromPipeline = LeadPipeline::find($deal->getOriginal('lead_pipeline_id'))?->name ?? 'Unknown';
+                $toPipeline = LeadPipeline::find($deal->lead_pipeline_id)?->name ?? 'Unknown';
+                $this->notificationService->notifyPipelineChanged($deal, $fromPipeline, $toPipeline);
             }
 
             // Send notification for stage change to watchers and agent
             if ($deal->isDirty('pipeline_stage_id')) {
-                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'))?->name ?? 'Unknown';
-                $toStage = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
+                $fromStage = $fromStageModel?->name ?? 'Unknown';
+                $toStage = $toStageModel?->name ?? 'Unknown';
                 $this->notificationService->notifyStageChanged($deal, $fromStage, $toStage);
+
+                if ($toStageModel?->slug === 'win') {
+                    $this->notificationService->notifyDealWon($deal);
+                } elseif ($toStageModel?->slug === 'lost') {
+                    $this->notificationService->notifyDealLost($deal);
+                }
+            } elseif ($deal->isDirty('outcome_status')) {
+                if ($deal->outcome_status === \App\Enums\OutcomeStatus::Won) {
+                    $this->notificationService->notifyDealWon($deal);
+                } elseif ($deal->outcome_status === \App\Enums\OutcomeStatus::Lost) {
+                    $this->notificationService->notifyDealLost($deal);
+                }
             }
 
             // Meta Conversions API trigger
@@ -244,7 +273,7 @@ class DealObserver
             }
 
             // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && !$deal->is_locked) {
+            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->is_locked) {
                 $this->fireDealWonEvent($deal);
             }
 
@@ -253,8 +282,8 @@ class DealObserver
 
             if ($deal->isDirty('pipeline_stage_id')) {
                 $trackedDirtyFields[] = 'pipeline_stage_id';
-                $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
-                $toStage = PipelineStage::find($deal->pipeline_stage_id);
+                $fromStage = $fromStageModel;
+                $toStage = $toStageModel;
                 $this->recordCrmEvent('deal_stage_changed', $deal, [
                     'metadata' => [
                         'comment' => CrmEventDescriptionBuilder::dealStageChanged($fromStage->name ?? null, $toStage->name ?? null),
@@ -338,7 +367,7 @@ class DealObserver
                 $newCurrencyId = $deal->currency_id;
 
                 $isInternalValueRecalc =
-                    !$deal->isDirty('value') &&
+                    ! $deal->isDirty('value') &&
                     (
                         $deal->isDirty('manual_value') ||
                         $deal->isDirty('value_source') ||
@@ -346,7 +375,7 @@ class DealObserver
                     );
 
                 // Skip intermediate recalculation saves that only update manual/calculated value state
-                if (!$isInternalValueRecalc && ($oldValue != $newValue || $oldCurrencyId !== $newCurrencyId)) {
+                if (! $isInternalValueRecalc && ($oldValue != $newValue || $oldCurrencyId !== $newCurrencyId)) {
                     $this->recordCrmEvent('deal_value_updated', $deal, [
                         'metadata' => [
                             'comment' => CrmEventDescriptionBuilder::dealValueUpdated(
@@ -462,7 +491,7 @@ class DealObserver
                 array_unique($trackedDirtyFields)
             ));
 
-            if (!empty($remainingChangedFields)) {
+            if (! empty($remainingChangedFields)) {
                 $this->recordCrmEvent('deal_updated', $deal, [
                     'metadata' => [
                         'comment' => 'Deal details updated',
@@ -471,33 +500,32 @@ class DealObserver
                 ]);
             }
         }
-        //deal automation trigger
-        if (!$deal->is_locked) {
+        // deal automation trigger
+        if (! $deal->is_locked) {
             $this->dealAutomation->process($deal, 'deal_updated');
         }
-        
+
     }
 
     public function created(Deal $deal)
     {
         HasDynamicTranslations::dispatchDynamicTranslation($deal, false);
 
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
             if (user()) {
                 self::createEmployeeActivity(user()->id, 'deal-created', $deal->id, 'deal');
             }
 
-            if(!session()->has('is_deal')){
+            if (! session()->has('is_deal')) {
 
-                if (!session()->has('is_imported') && !session()->has('create_deal_with_lead')) {
+                if (! session()->has('is_imported') && ! session()->has('create_deal_with_lead')) {
 
                     if (request('agent_id') != '') {
 
                         event(new DealEvent($deal, $deal->leadAgent, 'LeadAgentAssigned'));
                         self::createDealHistory($deal->id, 'agent-assigned', agentId: $deal->agent_id);
 
-                    }
-                    else {
+                    } else {
                         $admins = User::allAdmins($deal->company->id);
                         $actorId = user()?->id;
                         if ($actorId !== null) {
@@ -507,20 +535,18 @@ class DealObserver
                             Notification::send($admins, new LeadAgentAssigned($deal));
                         }
                     }
-                }else if(session()->has('is_imported')){
+                } elseif (session()->has('is_imported')) {
 
                     if (session('leads_count') == session('total_leads')) {
-
-
 
                         $admins = User::allAdmins(company()->id);
                         $importedLeads = session('leads', []);
                         Notification::send($admins, new LeadImported([
                             'importedByName' => user()?->name ?? '',
-                            'importCount'    => count($importedLeads),
-                            'failedCount'    => max(0, (int) session('total_leads', 0) - count($importedLeads)),
-                            'sourceName'     => 'CSV Import',
-                            'importedAt'     => now()->format(company()->date_format),
+                            'importCount' => count($importedLeads),
+                            'failedCount' => max(0, (int) session('total_leads', 0) - count($importedLeads)),
+                            'sourceName' => 'CSV Import',
+                            'importedAt' => now()->format(company()->date_format),
                         ]));
                     }
 
@@ -542,23 +568,46 @@ class DealObserver
             // Note: Default task creation disabled - tasks should be created manually
             // $this->dealTaskService->createDefaultTasks($deal);
         }
-        //deal automation trigger
+        // deal automation trigger
         $this->dealAutomation->process($deal, 'deal_created');
 
         // ── CRM Event: deal_created ──
         $this->recordCrmEvent('deal_created', $deal, [
             'metadata' => [
-                'comment' => 'Deal created' . ($deal->agent_id ? ' with agent assigned' : ''),
+                'comment' => 'Deal created'.($deal->agent_id ? ' with agent assigned' : ''),
                 'pipeline_stage_id' => $deal->pipeline_stage_id,
                 'lead_pipeline_id' => $deal->lead_pipeline_id,
             ],
         ]);
+
+        if (! isRunningInConsoleOrSeeding() && $deal->lead_id) {
+            \Illuminate\Support\Facades\DB::afterCommit(function () use ($deal) {
+                $lead = \App\Models\Lead::query()
+                    ->with('referredByAgent')
+                    ->find($deal->lead_id);
+
+                if (! $lead?->referred_by_agent_id) {
+                    return;
+                }
+
+                app(\App\Services\MlmNotificationService::class)->notifyReferralConvertedToDeal(
+                    $lead,
+                    $deal->fresh(),
+                    user()?->id,
+                );
+            });
+        }
     }
 
     public function deleting(Deal $deal)
     {
         if ($deal->isLocked()) {
             return false;
+        }
+
+        if (! isRunningInConsoleOrSeeding()) {
+            $deal->loadMissing(['leadAgent.user', 'dealWatchers', 'company']);
+            $this->notificationService->notifyDealDeleted($deal, user());
         }
 
         $notifyData = ['App\Notifications\LeadAgentAssigned'];
@@ -575,13 +624,14 @@ class DealObserver
         }
     }
 
-    private function createClient($deal){
+    private function createClient($deal)
+    {
 
         $stage = PipelineStage::where('company_id', company()->id)->where('slug', 'win')->first();
 
-        if($deal->create_client == 1 && $deal->pipeline_stage_id == $stage?->id) {
+        if ($deal->create_client == 1 && $deal->pipeline_stage_id == $stage?->id) {
 
-            $lead = Lead::where('id',$deal->lead_id)->first();
+            $lead = Lead::where('id', $deal->lead_id)->first();
             if ($lead->client_id) {
                 return;
             }
@@ -615,9 +665,6 @@ class DealObserver
 
     /**
      * Trigger Meta Conversion Event when deal moves to a configured stage
-     *
-     * @param Deal $deal
-     * @return void
      */
     private function triggerMetaConversionEvent(Deal $deal): void
     {
@@ -687,7 +734,7 @@ class DealObserver
         try {
             $agent = $deal->leadAgent;
 
-            if (!$agent) {
+            if (! $agent) {
                 return;
             }
 
@@ -707,7 +754,7 @@ class DealObserver
 
     private function resolveAgentName(?int $agentId): ?string
     {
-        if (!$agentId) {
+        if (! $agentId) {
             return null;
         }
 
@@ -718,7 +765,7 @@ class DealObserver
 
     private function resolveStatusName(?int $statusId): ?string
     {
-        if (!$statusId) {
+        if (! $statusId) {
             return null;
         }
 
@@ -727,7 +774,7 @@ class DealObserver
 
     private function resolveSourceName(?int $sourceId): ?string
     {
-        if (!$sourceId) {
+        if (! $sourceId) {
             return null;
         }
 
@@ -736,11 +783,10 @@ class DealObserver
 
     private function resolveClientName(?int $clientId): ?string
     {
-        if (!$clientId) {
+        if (! $clientId) {
             return null;
         }
 
         return User::find($clientId)?->name;
     }
 }
-

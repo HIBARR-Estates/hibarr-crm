@@ -94,11 +94,15 @@ class LeadOwnerAssigned extends BaseNotification
         $this->company = $this->company ?? $this->resolveCompany();
 
         $build = parent::build($notifiable);
-        $url = route('lead-contact.show', $this->leadId);
-        $url = getDomainSpecificUrl($url, $this->company);
+        $url = getDomainSpecificUrl(route('lead-contact.show', $this->leadId), $this->company);
+
+        $assignedByName = $this->safeMailText(user()?->name ?? __('app.system'), 100);
+        $introText = $this->capitalizeSentences(__('email.leadAgentAssigned.intro', ['name' => $assignedByName]));
+        $footerNote = $this->capitalizeSentences(__('email.leadAgentAssigned.footer'));
+        $preheader = $this->safePreheader($this->inboxPreheader() ?: $introText);
 
         $contentParts = [
-            'A lead has been assigned to you.',
+            $introText,
             __('modules.lead.clientName').': '.e($this->leadName),
         ];
 
@@ -106,29 +110,30 @@ class LeadOwnerAssigned extends BaseNotification
             $contentParts[] = __('modules.lead.clientEmail').': '.e($this->leadEmail);
         }
 
-        // Inbox preview only — keep short and complementary to the Plunk subject
-        // ("Lead assigned to you: {name}"), not a rehash of that sentence / body.
-        $preheader = $this->inboxPreheader();
-
         $build
-            ->subject('Lead owner assigned - '.config('app.name'))
+            ->subject(__('email.leadAgentAssigned.subject').' - '.config('app.name'))
             ->view('mail.lead-assigned', [
                 'url' => $url,
                 'content' => implode('<br>', $contentParts),
                 'preheader' => $preheader,
-                'intro' => $preheader,
+                'intro' => $introText,
                 'themeColor' => $this->company?->header_color,
-                'actionText' => 'View Lead',
+                'actionText' => __('email.leadAgentAssigned.action'),
                 'notifiableName' => $notifiable->name,
             ]);
 
         $this->attachPlunkTemplate($build, 'cde4d601-d358-45e5-9782-1e79d5c4f9f7', [
             'preheader' => $preheader,
+            'introText' => $introText,
+            'assignedByName' => $assignedByName,
             'leadName' => $this->leadName,
             'leadEmail' => $this->leadEmail,
             'previousOwnerName' => $this->previousOwnerName,
             'assignedAt' => $this->assignedAt,
             'leadUrl' => $url,
+            'entityUrl' => $url,
+            'actionText' => __('email.leadAgentAssigned.action'),
+            'footerNote' => $footerNote,
         ]);
 
         parent::resetLocale();
@@ -145,34 +150,12 @@ class LeadOwnerAssigned extends BaseNotification
             'new_owner_id' => $notifiable->id,
             'added_by' => $this->addedBy,
             'title' => __('email.leadAgentAssigned.subject'),
-            'text' => $this->safeMailText($this->assignmentText(), 240),
+            'text' => $this->safeMailText($this->capitalizeSentences(__('email.leadAgentAssigned.intro', [
+                'name' => $this->safeMailText(user()?->name ?? __('app.system'), 100),
+            ])), 240),
         ];
     }
 
-    /**
-     * Title + the notification's compact subject line already say "assigned as
-     * lead agent" + the lead's name, so once an AI summary exists, this detail
-     * text is the summary alone — repeating the base sentence there too would
-     * just be the same redundant boilerplate again.
-     */
-    private function assignmentText(): string
-    {
-        $base = $this->leadName !== ''
-            ? __('email.leadAgentAssigned.text', ['leadName' => $this->leadName])
-            : __('email.leadAgentAssigned.subject').'.';
-
-        $companyId = $this->companyId ?? $this->company?->id;
-        $snippet = $companyId
-            ? $this->aiSummarySnippetFor((int) $companyId, EntityAiSummary::TYPE_LEAD, $this->leadId)
-            : null;
-
-        return $snippet ?: $base;
-    }
-
-    /**
-     * Short inbox snippet that complements the subject (no emails, no assignment
-     * boilerplate). Used as both the hidden preheader and the first visible line.
-     */
     private function inboxPreheader(): string
     {
         $companyId = $this->companyId ?? $this->company?->id;
@@ -184,15 +167,15 @@ class LeadOwnerAssigned extends BaseNotification
                 70
             );
             if ($snippet !== null && $snippet !== '') {
-                return $this->safePreheader($snippet, 70);
+                return $this->capitalizeSentences($this->safePreheader($snippet, 70));
             }
         }
 
         if ($this->previousOwnerName !== '' && strcasecmp($this->previousOwnerName, 'Unassigned') !== 0) {
-            return $this->safePreheader('Previously '.$this->previousOwnerName, 70);
+            return $this->capitalizeSentences($this->safePreheader('Previously '.$this->previousOwnerName, 70));
         }
 
-        return $this->safePreheader('Open the lead to get started.', 70);
+        return '';
     }
 
     private function resolveCompany(): ?Company

@@ -7,18 +7,21 @@ use App\Models\Deal;
 use App\Models\User;
 use App\Notifications\BaseNotification;
 use App\Notifications\DealActivityNotification;
+use App\Notifications\DealCloseDateApproaching;
+use App\Notifications\DealDeleted;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
 /**
  * Centralized service for handling deal-related notifications.
- * 
+ *
  * This service is the single point of control for all deal activity notifications.
  * It handles:
  * - Determining who should be notified (agent + watchers)
  * - Excluding the user who made the change
  * - Sending notifications via the appropriate channels
- * 
+ *
  * Usage:
  *   app(DealNotificationService::class)->notifyDealActivity(
  *       $deal,
@@ -32,32 +35,44 @@ class DealNotificationService
     /**
      * Send notifications for a deal activity.
      *
-     * @param Deal $deal The deal that was affected
-     * @param DealActivityType $activityType The type of activity that occurred
-     * @param array $additionalData Additional context data for the notification
-     * @param int|null $excludeUserId User ID to exclude from notifications (defaults to current user)
-     * @return void
+     * @param  Deal  $deal  The deal that was affected
+     * @param  DealActivityType  $activityType  The type of activity that occurred
+     * @param  array  $additionalData  Additional context data for the notification
+     * @param  int|null  $excludeUserId  User ID to exclude from notifications (defaults to current user)
      */
     public function notifyDealActivity(
         Deal $deal,
         DealActivityType $activityType,
         array $additionalData = [],
-        ?int $excludeUserId = null
+        ?int $excludeUserId = null,
+        array $additionalExcludeUserIds = [],
+        ?Collection $recipients = null,
     ): void {
         // Get the user to exclude (the one who made the change)
         $excludeUserId = $excludeUserId ?? (user()?->id);
 
         // Get all users who should be notified
-        $notifiableUsers = $this->getNotifiableUsers($deal, $excludeUserId);
+        $notifiableUsers = $recipients ?? $this->getNotifiableUsers($deal, $excludeUserId, $additionalExcludeUserIds);
 
         if ($notifiableUsers->isEmpty()) {
             return;
         }
 
-        // Build the notification data
-        $notificationData = $this->buildNotificationData($deal, $activityType, $additionalData, $excludeUserId);
+        $this->sendActivityNotification($deal, $activityType, $additionalData, $notifiableUsers, $excludeUserId);
+    }
 
-        // Send the notification
+    /**
+     * @param  Collection<User>  $notifiableUsers
+     */
+    protected function sendActivityNotification(
+        Deal $deal,
+        DealActivityType $activityType,
+        array $additionalData,
+        Collection $notifiableUsers,
+        ?int $triggeredByUserId = null,
+    ): void {
+        $notificationData = $this->buildNotificationData($deal, $activityType, $additionalData, $triggeredByUserId);
+
         $notification = new DealActivityNotification($deal, $activityType, $notificationData);
         Notification::send($notifiableUsers, BaseNotification::applySuppressionFromContainer($notification));
     }
@@ -66,11 +81,9 @@ class DealNotificationService
      * Get all users who should be notified for a deal activity.
      * This includes the assigned agent and all watchers, excluding the specified user.
      *
-     * @param Deal $deal
-     * @param int|null $excludeUserId
      * @return Collection<User>
      */
-    public function getNotifiableUsers(Deal $deal, ?int $excludeUserId = null): Collection
+    public function getNotifiableUsers(Deal $deal, ?int $excludeUserId = null, array $additionalExcludeUserIds = []): Collection
     {
         $userIds = collect();
 
@@ -93,18 +106,17 @@ class DealNotificationService
             $userIds = $userIds->merge($watcherIds);
         }
 
-        // Remove duplicates and the excluded user (int-cast: pluck may return strings)
-        $userIds = $userIds->unique()->filter(function ($userId) use ($excludeUserId) {
+        // Remove duplicates and excluded users (int-cast: pluck may return strings)
+        $excludedIds = collect($additionalExcludeUserIds)->push($excludeUserId)->filter()->unique();
+        $userIds = $userIds->unique()->filter(function ($userId) use ($excludedIds) {
             if ($userId === null) {
                 return false;
             }
-            if ($excludeUserId === null) {
-                return true;
-            }
 
-            return (int) $userId !== (int) $excludeUserId;
+            return ! $excludedIds->contains(fn ($excludedId) => (int) $userId === (int) $excludedId);
         });
 
+        // Routine activity (notes, files, stage, meetings, …) — no admin fallback.
         if ($userIds->isEmpty()) {
             return collect();
         }
@@ -116,13 +128,126 @@ class DealNotificationService
     }
 
     /**
-     * Build the notification data array.
+     * Agent + manager + watchers/participants for closed-won/lost alerts.
      *
-     * @param Deal $deal
-     * @param DealActivityType $activityType
-     * @param array $additionalData
-     * @param int|null $triggeredByUserId
-     * @return array
+     * @return Collection<User>
+     */
+    public function getClosureRecipients(Deal $deal, ?int $excludeUserId = null): Collection
+    {
+        $deal->loadMissing(['leadAgent.user.employeeDetail.reportingTo', 'dealWatchers', 'dealParticipants']);
+
+        $userIds = collect();
+
+        if ($deal->leadAgent?->user_id) {
+            $userIds->push((int) $deal->leadAgent->user_id);
+
+            $manager = $deal->leadAgent->user?->employeeDetail?->reportingTo;
+            if ($manager) {
+                $userIds->push((int) $manager->id);
+            }
+        }
+
+        if ($deal->dealWatchers?->isNotEmpty()) {
+            $userIds = $userIds->merge($deal->dealWatchers->pluck('id'));
+        }
+
+        if ($deal->dealParticipants?->isNotEmpty()) {
+            $userIds = $userIds->merge($deal->dealParticipants->pluck('id'));
+        }
+
+        $excludedIds = collect([$excludeUserId])->filter()->unique();
+        $userIds = $userIds->unique()->filter(fn ($id) => $id && ! $excludedIds->contains($id));
+
+        if ($userIds->isEmpty()) {
+            return $this->activeAdminsForCompany((int) $deal->company_id, $excludeUserId);
+        }
+
+        return User::whereIn('id', $userIds->toArray())
+            ->where('status', 'active')
+            ->get();
+    }
+
+    /**
+     * Assigned agent + their manager. No admin fallback (close-date reminders).
+     *
+     * @return Collection<User>
+     */
+    public function getAgentAndManagerRecipients(Deal $deal, ?int $excludeUserId = null): Collection
+    {
+        $deal->loadMissing(['leadAgent.user.employeeDetail.reportingTo']);
+
+        $userIds = collect();
+
+        if ($deal->leadAgent?->user_id) {
+            $userIds->push((int) $deal->leadAgent->user_id);
+
+            $manager = $deal->leadAgent->user?->employeeDetail?->reportingTo;
+            if ($manager) {
+                $userIds->push((int) $manager->id);
+            }
+        }
+
+        $excludedIds = collect([$excludeUserId])->filter()->unique();
+        $userIds = $userIds->unique()->filter(fn ($id) => $id && ! $excludedIds->contains($id));
+
+        // Close-date reminders are not create/delete/irreversible — skip admin fallback.
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::whereIn('id', $userIds->toArray())
+            ->where('status', 'active')
+            ->get();
+    }
+
+    /**
+     * Agent + watchers; falls back to admins when nobody is assigned (deal deletion).
+     *
+     * @return Collection<User>
+     */
+    public function getAgentAndWatcherRecipients(Deal $deal, ?int $excludeUserId = null): Collection
+    {
+        $deal->loadMissing(['leadAgent.user', 'dealWatchers']);
+
+        $userIds = collect();
+
+        if ($deal->leadAgent?->user_id) {
+            $userIds->push((int) $deal->leadAgent->user_id);
+        }
+
+        if ($deal->dealWatchers?->isNotEmpty()) {
+            $userIds = $userIds->merge($deal->dealWatchers->pluck('id'));
+        }
+
+        $excludedIds = collect([$excludeUserId])->filter()->unique();
+        $userIds = $userIds->unique()->filter(fn ($id) => $id && ! $excludedIds->contains($id));
+
+        if ($userIds->isEmpty()) {
+            return $this->activeAdminsForCompany((int) $deal->company_id, $excludeUserId);
+        }
+
+        return User::whereIn('id', $userIds->toArray())
+            ->where('status', 'active')
+            ->get();
+    }
+
+    /**
+     * @return Collection<User>
+     */
+    protected function activeAdminsForCompany(
+        int $companyId,
+        ?int $excludeUserId = null,
+        array $additionalExcludeUserIds = [],
+    ): Collection {
+        $excludedIds = collect($additionalExcludeUserIds)->push($excludeUserId)->filter()->unique();
+
+        return User::allAdmins($companyId)
+            ->filter(fn (User $user) => $user->status === 'active' && ! $excludedIds->contains($user->id))
+            ->values();
+    }
+
+    /**
+     * Build the notification data array.
      */
     protected function buildNotificationData(
         Deal $deal,
@@ -131,8 +256,8 @@ class DealNotificationService
         ?int $triggeredByUserId
     ): array {
         // Get the user who triggered the action
-        $triggeredBy = $triggeredByUserId 
-            ? User::find($triggeredByUserId) 
+        $triggeredBy = $triggeredByUserId
+            ? User::find($triggeredByUserId)
             : user();
 
         return array_merge([
@@ -150,43 +275,60 @@ class DealNotificationService
 
     /**
      * Notify about a note being added to a deal.
-     *
-     * @param Deal $deal
-     * @param string $noteTitle
-     * @param int|null $noteId
-     * @return void
      */
-    public function notifyNoteAdded(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    public function notifyNoteAdded(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::NOTE_ADDED, [
-            'note_title' => $noteTitle,
-            'note_id' => $noteId,
-        ]);
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_ADDED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
     }
 
     /**
      * Notify about a note being updated.
-     *
-     * @param Deal $deal
-     * @param string $noteTitle
-     * @param int|null $noteId
-     * @return void
      */
-    public function notifyNoteUpdated(Deal $deal, string $noteTitle, ?int $noteId = null): void
+    public function notifyNoteUpdated(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::NOTE_UPDATED, [
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_UPDATED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
+    }
+
+    /**
+     * Notify about a note being deleted from a deal.
+     */
+    public function notifyNoteDeleted(Deal $deal, string $noteTitle, ?int $noteId = null, ?string $noteDetails = null): void
+    {
+        $this->notifyDealActivity($deal, DealActivityType::NOTE_DELETED, $this->noteNotificationPayload(
+            $noteTitle,
+            $noteId,
+            $noteDetails,
+        ));
+    }
+
+    /**
+     * @return array{note_title: string, note_id: int|null, note_preview?: string}
+     */
+    protected function noteNotificationPayload(string $noteTitle, ?int $noteId, ?string $noteDetails): array
+    {
+        $payload = [
             'note_title' => $noteTitle,
             'note_id' => $noteId,
-        ]);
+        ];
+
+        $preview = EntityActivityMailBuilder::noteExcerpt($noteDetails);
+        if ($preview !== null) {
+            $payload['note_preview'] = $preview;
+        }
+
+        return $payload;
     }
 
     /**
      * Notify about a stage change.
-     *
-     * @param Deal $deal
-     * @param string|null $fromStage
-     * @param string|null $toStage
-     * @return void
      */
     public function notifyStageChanged(Deal $deal, ?string $fromStage, ?string $toStage): void
     {
@@ -197,12 +339,194 @@ class DealNotificationService
     }
 
     /**
-     * Notify about a task being added to a deal.
+     * Notify about a pipeline change.
+     */
+    public function notifyPipelineChanged(Deal $deal, ?string $fromPipeline, ?string $toPipeline): void
+    {
+        $this->notifyDealActivity($deal, DealActivityType::PIPELINE_CHANGED, [
+            'from_pipeline' => $fromPipeline,
+            'to_pipeline' => $toPipeline,
+        ]);
+    }
+
+    /**
+     * Notify stakeholders that a deal was marked won.
+     */
+    public function notifyDealWon(Deal $deal): void
+    {
+        $recipients = $this->getClosureRecipients($deal, user()?->id);
+        $this->notifyDealActivity(
+            $deal,
+            DealActivityType::DEAL_WON,
+            ['outcome' => 'won'],
+            user()?->id,
+            [],
+            $recipients,
+        );
+    }
+
+    /**
+     * Notify stakeholders that a deal was marked lost.
+     */
+    public function notifyDealLost(Deal $deal): void
+    {
+        $recipients = $this->getClosureRecipients($deal, user()?->id);
+        $this->notifyDealActivity(
+            $deal,
+            DealActivityType::DEAL_LOST,
+            ['outcome' => 'lost'],
+            user()?->id,
+            [],
+            $recipients,
+        );
+    }
+
+    /**
+     * Notify that a deal's close date is approaching.
+     */
+    public function notifyCloseDateApproaching(Deal $deal): void
+    {
+        if (! $deal->close_date) {
+            return;
+        }
+
+        $recipients = $this->getAgentAndManagerRecipients($deal);
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send($recipients, BaseNotification::applySuppressionFromContainer(new DealCloseDateApproaching($deal)));
+    }
+
+    /**
+     * Notify agent/watchers when a deal is removed.
+     */
+    public function notifyDealDeleted(Deal $deal, ?User $deletedBy = null): void
+    {
+        if (isRunningInConsoleOrSeeding()) {
+            return;
+        }
+
+        $recipients = $this->getAgentAndWatcherRecipients($deal, $deletedBy?->id)
+            ->filter(fn (User $user) => (int) $user->id !== (int) ($deletedBy?->id));
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send($recipients, BaseNotification::applySuppressionFromContainer(new DealDeleted($deal, $deletedBy)));
+    }
+
+    /**
+     * Open deals with close_date inside the reminder window.
      *
-     * @param Deal $deal
-     * @param string $taskHeading
-     * @param int|null $taskId
-     * @return void
+     * @return \Illuminate\Support\LazyCollection<int, Deal>
+     */
+    public function dealsWithApproachingCloseDateForCompany(int $companyId, ?\Carbon\Carbon $now = null): \Illuminate\Support\LazyCollection
+    {
+        $company = \App\Models\Company::find($companyId);
+        $now = $now ?? now($company?->timezone ?: 'UTC');
+        $windowDays = max(1, (int) config('deals.close_date_reminder_days', 3));
+        $windowEnd = $now->copy()->endOfDay()->addDays($windowDays);
+
+        return Deal::query()
+            ->with(['leadAgent.user.employeeDetail.reportingTo', 'dealWatchers', 'company'])
+            ->where('company_id', $companyId)
+            ->whereNotNull('close_date')
+            ->where('close_date', '>=', $now->copy()->startOfDay())
+            ->where('close_date', '<=', $windowEnd)
+            ->where(function ($query) {
+                $query->whereNull('outcome_status')
+                    ->orWhereNotIn('outcome_status', [
+                        \App\Enums\OutcomeStatus::Won->value,
+                        \App\Enums\OutcomeStatus::Lost->value,
+                    ]);
+            })
+            ->whereDoesntHave('leadStage', fn ($stageQuery) => $stageQuery->whereIn('slug', ['win', 'lost']))
+            ->cursor();
+    }
+
+    /**
+     * Notify about the deal's agent being changed (reassignment, not first assignment).
+     * The newly-assigned agent is excluded — they already receive a dedicated
+     * LeadAgentAssigned notification, so this only reaches other watchers/participants.
+     */
+    public function notifyAgentChanged(Deal $deal, ?string $fromAgentName, ?string $toAgentName, ?int $newAgentUserId = null): void
+    {
+        $this->notifyDealActivity(
+            $deal,
+            DealActivityType::AGENT_CHANGED,
+            [
+                'from_agent_name' => $fromAgentName,
+                'to_agent_name' => $toAgentName,
+            ],
+            null,
+            $newAgentUserId ? [$newAgentUserId] : []
+        );
+    }
+
+    /**
+     * Notify about watchers being added to / removed from a deal.
+     * Each watcher only hears about the change that actually affects them.
+     */
+    public function notifyWatchersChanged(Deal $deal, array $oldWatcherIds, array $newWatcherIds): void
+    {
+        $excludeUserId = user()?->id;
+        $addedIds = array_diff($newWatcherIds, $oldWatcherIds);
+        $removedIds = array_diff($oldWatcherIds, $newWatcherIds);
+
+        if ($excludeUserId) {
+            $addedIds = array_diff($addedIds, [$excludeUserId]);
+            $removedIds = array_diff($removedIds, [$excludeUserId]);
+        }
+
+        if (! empty($addedIds)) {
+            $added = User::whereIn('id', $addedIds)->where('status', 'active')->get();
+            if ($added->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::WATCHER_ADDED, [], $excludeUserId, [], $added);
+            }
+        }
+
+        if (! empty($removedIds)) {
+            $removed = User::whereIn('id', $removedIds)->where('status', 'active')->get();
+            if ($removed->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::WATCHER_REMOVED, [], $excludeUserId, [], $removed);
+            }
+        }
+    }
+
+    /**
+     * Notify about participants being added to / removed from a deal.
+     * Each participant only hears about the change that actually affects them.
+     */
+    public function notifyParticipantsChanged(Deal $deal, array $oldParticipantIds, array $newParticipantIds): void
+    {
+        $excludeUserId = user()?->id;
+        $addedIds = array_diff($newParticipantIds, $oldParticipantIds);
+        $removedIds = array_diff($oldParticipantIds, $newParticipantIds);
+
+        if ($excludeUserId) {
+            $addedIds = array_diff($addedIds, [$excludeUserId]);
+            $removedIds = array_diff($removedIds, [$excludeUserId]);
+        }
+
+        if (! empty($addedIds)) {
+            $added = User::whereIn('id', $addedIds)->where('status', 'active')->get();
+            if ($added->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::PARTICIPANT_ADDED, [], $excludeUserId, [], $added);
+            }
+        }
+
+        if (! empty($removedIds)) {
+            $removed = User::whereIn('id', $removedIds)->where('status', 'active')->get();
+            if ($removed->isNotEmpty()) {
+                $this->notifyDealActivity($deal, DealActivityType::PARTICIPANT_REMOVED, [], $excludeUserId, [], $removed);
+            }
+        }
+    }
+
+    /**
+     * Notify about a task being added to a deal.
      */
     public function notifyTaskAdded(Deal $deal, string $taskHeading, ?int $taskId = null): void
     {
@@ -214,11 +538,6 @@ class DealNotificationService
 
     /**
      * Notify about a task being updated.
-     *
-     * @param Deal $deal
-     * @param string $taskHeading
-     * @param int|null $taskId
-     * @return void
      */
     public function notifyTaskUpdated(Deal $deal, string $taskHeading, ?int $taskId = null): void
     {
@@ -230,11 +549,6 @@ class DealNotificationService
 
     /**
      * Notify about a task being completed.
-     *
-     * @param Deal $deal
-     * @param string $taskHeading
-     * @param int|null $taskId
-     * @return void
      */
     public function notifyTaskCompleted(Deal $deal, string $taskHeading, ?int $taskId = null): void
     {
@@ -246,77 +560,98 @@ class DealNotificationService
 
     /**
      * Notify about a meeting being scheduled.
-     *
-     * @param Deal $deal
-     * @param string $meetingRemark
-     * @param string|null $meetingDate
-     * @param int|null $followUpId
-     * @return void
      */
-    public function notifyMeetingScheduled(Deal $deal, string $meetingRemark, ?string $meetingDate = null, ?int $followUpId = null): void
-    {
+    public function notifyMeetingScheduled(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
         $this->notifyDealActivity($deal, DealActivityType::MEETING_SCHEDULED, [
             'meeting_remark' => $meetingRemark,
             'meeting_date' => $meetingDate,
             'follow_up_id' => $followUpId,
-        ]);
+        ], $excludeUserId);
     }
 
     /**
      * Notify about a meeting being updated.
-     *
-     * @param Deal $deal
-     * @param string $meetingRemark
-     * @param string|null $meetingDate
-     * @param int|null $followUpId
-     * @return void
      */
-    public function notifyMeetingUpdated(Deal $deal, string $meetingRemark, ?string $meetingDate = null, ?int $followUpId = null): void
-    {
+    public function notifyMeetingUpdated(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
         $this->notifyDealActivity($deal, DealActivityType::MEETING_UPDATED, [
             'meeting_remark' => $meetingRemark,
             'meeting_date' => $meetingDate,
             'follow_up_id' => $followUpId,
-        ]);
+        ], $excludeUserId);
+    }
+
+    /**
+     * Notify about a meeting being cancelled or removed.
+     */
+    public function notifyMeetingCancelled(
+        Deal $deal,
+        string $meetingRemark,
+        ?string $meetingDate = null,
+        ?int $followUpId = null,
+        ?int $excludeUserId = null,
+    ): void {
+        $this->notifyDealActivity($deal, DealActivityType::MEETING_CANCELLED, [
+            'meeting_remark' => $meetingRemark,
+            'meeting_date' => $meetingDate,
+            'follow_up_id' => $followUpId,
+        ], $excludeUserId);
     }
 
     /**
      * Notify about a file being uploaded.
      *
-     * @param Deal $deal
-     * @param string $fileName
-     * @param int|null $fileId
-     * @return void
+     * @param  ?string  $fieldLabel  Custom-field label when the upload targets a field; omit for deal file-tab uploads.
      */
-    public function notifyFileUploaded(Deal $deal, string $fileName, ?int $fileId = null): void
+    public function notifyFileUploaded(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::FILE_UPLOADED, [
-            'file_name' => $fileName,
-            'file_id' => $fileId,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_UPLOADED, $payload);
+    }
+
+    /**
+     * Notify about a file metadata update on a deal.
+     */
+    public function notifyFileUpdated(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
+    {
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_UPDATED, $payload);
     }
 
     /**
      * Notify about a file being deleted.
-     *
-     * @param Deal $deal
-     * @param string $fileName
-     * @return void
      */
-    public function notifyFileDeleted(Deal $deal, string $fileName): void
+    public function notifyFileDeleted(Deal $deal, ?int $fileId = null, ?string $fieldLabel = null): void
     {
-        $this->notifyDealActivity($deal, DealActivityType::FILE_DELETED, [
-            'file_name' => $fileName,
-        ]);
+        $payload = ['file_id' => $fileId];
+        if ($fieldLabel !== null && $fieldLabel !== '') {
+            $payload['field_label'] = $fieldLabel;
+        }
+
+        $this->notifyDealActivity($deal, DealActivityType::FILE_DELETED, $payload);
     }
 
     /**
      * Notify about a property being linked to a deal.
-     *
-     * @param Deal $deal
-     * @param string $propertyTitle
-     * @param int|null $propertyId
-     * @return void
      */
     public function notifyPropertyLinked(Deal $deal, string $propertyTitle, ?int $propertyId = null): void
     {
@@ -328,11 +663,6 @@ class DealNotificationService
 
     /**
      * Notify about a property being unlinked from a deal.
-     *
-     * @param Deal $deal
-     * @param string $propertyTitle
-     * @param int|null $propertyId
-     * @return void
      */
     public function notifyPropertyUnlinked(Deal $deal, string $propertyTitle, ?int $propertyId = null): void
     {
@@ -345,9 +675,7 @@ class DealNotificationService
     /**
      * Notify about a package being assigned to a deal.
      *
-     * @param Deal $deal
-     * @param array $packageNames Array of package names
-     * @return void
+     * @param  array  $packageNames  Array of package names
      */
     public function notifyPackageAssigned(Deal $deal, array $packageNames): void
     {
@@ -360,9 +688,7 @@ class DealNotificationService
     /**
      * Notify about a package being removed from a deal.
      *
-     * @param Deal $deal
-     * @param array $packageNames Array of package names
-     * @return void
+     * @param  array  $packageNames  Array of package names
      */
     public function notifyPackageRemoved(Deal $deal, array $packageNames): void
     {

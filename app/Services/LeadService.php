@@ -2,16 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\CustomField;
+use App\Models\CustomFieldCategory;
+use App\Models\CustomFieldGroup;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
+use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
-use App\Models\PipelineStage;
-use App\Models\CustomField;
-use App\Models\CustomFieldGroup;
-use App\Models\CustomFieldCategory;
-use App\Services\LeadCoreFieldsService;
 use App\Support\LeadSearchQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -76,15 +75,15 @@ class LeadService
 
     public function __construct(
         private readonly LeadCoreFieldsService $coreFieldsService,
-    ) {
-    }
+    ) {}
+
     /**
      * Get paginated leads with optimized queries
      */
     public function getPaginatedLeads(Request $request, $dataTable = null): LengthAwarePaginator
     {
         $viewPermission = user()->permission('view_lead');
-        
+
         // Q2: eager-load only relations the Leads Index actually consumes.
         // - leadOwner: lead owner column (image_url, name)
         // - addedBy: edit-from-Index modal reads lead.added_by.id
@@ -101,7 +100,7 @@ class LeadService
                 'categories:id,category_name',
             ])
             ->select([
-                'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email', 
+                'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email',
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
                 'leads.lead_lifecycle_status_id',
@@ -118,13 +117,13 @@ class LeadService
 
         // Apply permission-based filtering
         $this->applyPermissionScope($query, $viewPermission);
-        
+
         // Apply filters
         $this->applyFilters($query, $request);
-        
+
         // Apply sorting
         $this->applySorting($query, $request);
-        
+
         $leads = $query->paginate($request->get('per_page', 15));
 
         // S3: do not call withCustomFields() / mergeOntoLead here — SaveLeadModal
@@ -197,7 +196,7 @@ class LeadService
         if (DB::connection()->getDriverName() === 'sqlite') {
             $sign = $offsetMinutes >= 0 ? '+' : '-';
 
-            return "datetime({$column}, '{$sign}" . abs($offsetMinutes) . " minutes')";
+            return "datetime({$column}, '{$sign}".abs($offsetMinutes)." minutes')";
         }
 
         return "DATE_ADD({$column}, INTERVAL {$offsetMinutes} MINUTE)";
@@ -234,11 +233,11 @@ class LeadService
 
         $meeting .= ')';
 
-        $task = "(SELECT MIN(t.due_date) FROM taskables tb
+        $task = '(SELECT MIN(t.due_date) FROM taskables tb
             JOIN tasks t ON t.id = tb.task_id
             WHERE tb.taskable_id = leads.id AND tb.taskable_type = ?
-              AND t.deleted_at IS NULL AND t.due_date IS NOT NULL";
-        $bindings[] = (new Lead())->getMorphClass();
+              AND t.deleted_at IS NULL AND t.due_date IS NOT NULL';
+        $bindings[] = (new Lead)->getMorphClass();
 
         if ($doneColumnId = $this->doneTaskColumnId()) {
             $task .= ' AND t.board_column_id <> ?';
@@ -307,7 +306,7 @@ class LeadService
         $tasks = Task::query()
             ->without(['company', 'project', 'users'])
             ->join('taskables', 'taskables.task_id', '=', 'tasks.id')
-            ->where('taskables.taskable_type', (new Lead())->getMorphClass())
+            ->where('taskables.taskable_type', (new Lead)->getMorphClass())
             ->whereIn('taskables.taskable_id', $leadIds)
             ->whereNotNull('tasks.due_date')
             ->when($doneColumnId, fn ($q) => $q->where('tasks.board_column_id', '<>', $doneColumnId))
@@ -406,17 +405,18 @@ class LeadService
             ->orderBy('client_name')
             ->limit($limit)
             ->get()
-            ->map(function($contact) {
+            ->map(function ($contact) {
                 $salutation = $contact->salutation;
                 if ($salutation instanceof \App\Enums\Salutation) {
                     $salutation = $salutation->label();
                 }
 
-                $salutationDisplay = $salutation ? $salutation . ' ' : '';
+                $salutationDisplay = $salutation ? $salutation.' ' : '';
+
                 return [
                     'id' => $contact->id,
                     'client_name' => $contact->client_name,
-                    'client_name_salutation' => $salutationDisplay . $contact->client_name,
+                    'client_name_salutation' => $salutationDisplay.$contact->client_name,
                     'lead_owner' => $contact->lead_owner,
                 ];
             });
@@ -429,7 +429,7 @@ class LeadService
     {
         return PipelineStage::select('id', 'name', 'lead_pipeline_id', 'label_color')
             ->get()
-            ->map(function($stage) {
+            ->map(function ($stage) {
                 return [
                     'id' => $stage->id,
                     'name' => $stage->name,
@@ -445,7 +445,7 @@ class LeadService
     public function getLeadCustomFieldsData(): array
     {
         // Get custom fields
-        $lead = new Lead();
+        $lead = new Lead;
         $getCustomFieldGroupsWithFields = $lead->getCustomFieldGroupsWithFields();
         $customFields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
@@ -486,7 +486,7 @@ class LeadService
     private function applyPermissionScope(Builder $query, string $viewPermission): void
     {
         $userId = user()->id;
-        
+
         switch ($viewPermission) {
             case 'added':
                 $query->where('added_by', $userId);
@@ -495,9 +495,9 @@ class LeadService
                 $query->where('lead_owner', $userId);
                 break;
             case 'both':
-                $query->where(function($q) use ($userId) {
+                $query->where(function ($q) use ($userId) {
                     $q->where('added_by', $userId)
-                      ->orWhere('lead_owner', $userId);
+                        ->orWhere('lead_owner', $userId);
                 });
                 break;
             case 'all':
@@ -515,12 +515,13 @@ class LeadService
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $term = '%' . $search . '%';
+                $term = '%'.$search.'%';
                 $q->where('client_name', 'like', $term)
                     ->orWhere('client_email', 'like', $term)
                     ->orWhere('company_name', 'like', $term)
                     ->orWhere('country', 'like', $term);
                 LeadSearchQuery::applyMobileMatch($q, $search);
+                LeadSearchQuery::applyContactMethodMatch($q, $search);
             });
         }
 
@@ -549,7 +550,7 @@ class LeadService
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
                 $request->get('start_date'),
-                $request->get('end_date')
+                $request->get('end_date'),
             ]);
         }
 
@@ -803,7 +804,7 @@ class LeadService
         ];
 
         foreach ($booleanFields as $field) {
-            if (!$request->filled($field)) {
+            if (! $request->filled($field)) {
                 continue;
             }
 
@@ -824,7 +825,7 @@ class LeadService
         $utmFields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_audience'];
 
         foreach ($utmFields as $field) {
-            if (!$request->filled($field)) {
+            if (! $request->filled($field)) {
                 continue;
             }
 
@@ -865,9 +866,9 @@ class LeadService
         if ($request->filled('sort_by')) {
             $sortBy = $request->get('sort_by');
             $sortDirection = $request->get('sort_direction', 'asc');
-            
+
             // Validate sort direction
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
+            if (! in_array($sortDirection, ['asc', 'desc'])) {
                 $sortDirection = 'asc';
             }
 
@@ -890,17 +891,17 @@ class LeadService
                 'client_email' => 'leads.client_email',
                 'source_id' => 'lead_sources.sort_order',
             ];
-            
+
             if (isset($sortMapping[$sortBy])) {
                 if ($sortBy === 'lead_owner') {
                     $query->leftJoin('users as lead_owner_user', 'leads.lead_owner', '=', 'lead_owner_user.id')
-                          ->orderBy($sortMapping[$sortBy], $sortDirection);
+                        ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } elseif ($sortBy === 'category') {
                     $query->leftJoin('lead_category', 'leads.category_id', '=', 'lead_category.id')
-                          ->orderBy($sortMapping[$sortBy], $sortDirection);
+                        ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } elseif ($sortBy === 'source_id') {
                     $query->leftJoin('lead_sources', 'leads.source_id', '=', 'lead_sources.id')
-                          ->orderBy($sortMapping[$sortBy], $sortDirection);
+                        ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } else {
                     $query->orderBy($sortMapping[$sortBy], $sortDirection);
                 }
@@ -912,5 +913,26 @@ class LeadService
             // Default sorting when no sort is specified
             $query->orderBy('leads.created_at', 'desc');
         }
+    }
+
+    /**
+     * Force-delete leads inside a transaction (used by bulk delete).
+     *
+     * @param  list<int>  $rowIds
+     */
+    public function bulkForceDelete(array $rowIds): void
+    {
+        DB::transaction(function () use ($rowIds) {
+            Lead::query()
+                ->whereIn('id', $rowIds)
+                ->orderBy('id')
+                ->chunkById(500, function ($leads) {
+                    foreach ($leads as $lead) {
+                        if ($lead->forceDelete() === false) {
+                            throw new \RuntimeException('Failed to delete lead '.$lead->id);
+                        }
+                    }
+                });
+        });
     }
 }

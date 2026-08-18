@@ -6,6 +6,8 @@ use App\Enums\DealActivityType;
 use App\Models\Deal;
 use App\Models\EmailNotificationSetting;
 use App\Models\User;
+use App\Support\EntityActivityMailBuilder;
+use App\Support\EntityActivityNotificationUrl;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 
@@ -26,16 +28,19 @@ use Carbon\Carbon;
 class DealActivityNotification extends BaseNotification
 {
     private Deal $deal;
+
     private DealActivityType $activityType;
+
     private array $data;
+
     private $emailSetting;
 
     /**
      * Create a new notification instance.
      *
-     * @param Deal $deal The deal associated with this notification
-     * @param DealActivityType $activityType The type of activity that occurred
-     * @param array $data Additional data for the notification
+     * @param  Deal  $deal  The deal associated with this notification
+     * @param  DealActivityType  $activityType  The type of activity that occurred
+     * @param  array  $data  Additional data for the notification
      */
     public function __construct(Deal $deal, DealActivityType $activityType, array $data = [])
     {
@@ -46,7 +51,7 @@ class DealActivityNotification extends BaseNotification
 
         // Load email notification settings
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
-            ->where('slug', 'deal-activity-notification')
+            ->where('slug', $this->activityType->emailSettingSlug())
             ->first();
 
         $this->initUnsRouting();
@@ -55,8 +60,7 @@ class DealActivityNotification extends BaseNotification
     /**
      * Get the notification's delivery channels.
      *
-     * @param mixed $notifiable
-     * @return array
+     * @param  mixed  $notifiable
      */
     public function via($notifiable): array
     {
@@ -77,7 +81,7 @@ class DealActivityNotification extends BaseNotification
         if ($this->emailSetting
             && $this->emailSetting->send_email == 'yes'
             && $notifiable->email_notifications
-            && !empty($notifiable->email)
+            && ! empty($notifiable->email)
         ) {
             $via[] = 'mail';
         }
@@ -88,31 +92,55 @@ class DealActivityNotification extends BaseNotification
     /**
      * Get the mail representation of the notification.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      * @return \Illuminate\Notifications\Messages\MailMessage
      */
     public function toMail($notifiable)
     {
         $build = parent::build($notifiable);
 
-        $url = route('deals.show', $this->deal->id);
+        $url = EntityActivityNotificationUrl::dealShowUrl(
+            (int) $this->deal->id,
+            $this->activityType->value,
+        );
         $url = getDomainSpecificUrl($url, $this->company);
 
         $subject = $this->getEmailSubject();
-        $content = $this->getEmailContent($notifiable);
         $actionText = $this->getActionText();
+        $introText = $this->safeMailText($this->getNotificationText($notifiable), 500);
+        $detailHtml = $this->getEmailDetailHtml($notifiable);
+        $content = $this->getEmailContent($notifiable);
+        if ($content !== '') {
+            $content = '<div class="callout">'.$content.'</div>';
+        }
+        $badgeLabel = $this->safeMailText($this->deal->name ?? '', 100) ?: 'Deal Activity';
 
         $build
-            ->subject($subject . ' - ' . config('app.name'))
+            ->subject($subject.' - '.config('app.name'))
             ->view('mail.deal.activity', [
                 'url' => $url,
                 'content' => $content,
-                'preheader' => $this->safePreheader($subject),
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
                 'subject' => $subject,
+                'badgeLabel' => $badgeLabel,
                 'actionText' => $actionText,
-                'introText' => $this->safeMailText($this->getNotificationText($notifiable), 500),
+                'introText' => $introText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachEntityActivityPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => $badgeLabel,
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'detailHtml' => $detailHtml ?: '',
+            'contentHtml' => $content ?: '',
+            'actionDescription' => __('Click the button below to view the deal details.'),
+            'actionText' => $actionText,
+            'entityUrl' => $url,
+        ]);
 
         parent::resetLocale();
 
@@ -122,8 +150,7 @@ class DealActivityNotification extends BaseNotification
     /**
      * Get the array representation of the notification.
      *
-     * @param mixed $notifiable
-     * @return array
+     * @param  mixed  $notifiable
      */
     public function toArray($notifiable): array
     {
@@ -146,7 +173,7 @@ class DealActivityNotification extends BaseNotification
      * Format meeting_date for a recipient (ISO UTC → local wall clock).
      * Legacy non-ISO strings are returned unchanged.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      */
     protected function formatMeetingDateFor($notifiable): ?string
     {
@@ -156,12 +183,12 @@ class DealActivityNotification extends BaseNotification
             return null;
         }
 
-        if (!is_string($raw)) {
+        if (! is_string($raw)) {
             return null;
         }
 
         // Heuristic: legacy pre-formatted strings like "Jan 19, 2026 15:00" are not ISO.
-        if (!$this->looksLikeIsoDateTime($raw)) {
+        if (! $this->looksLikeIsoDateTime($raw)) {
             return $raw;
         }
 
@@ -198,8 +225,11 @@ class DealActivityNotification extends BaseNotification
         return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "Note added to deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "Note updated on deal: {$dealName}",
+            DealActivityType::NOTE_DELETED => "Note deleted from deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "Deal stage changed: {$dealName}",
             DealActivityType::PIPELINE_CHANGED => "Deal pipeline changed: {$dealName}",
+            DealActivityType::DEAL_WON => "Deal won: {$dealName}",
+            DealActivityType::DEAL_LOST => "Deal lost: {$dealName}",
             DealActivityType::TASK_ADDED => "Task added to deal: {$dealName}",
             DealActivityType::TASK_UPDATED => "Task updated on deal: {$dealName}",
             DealActivityType::TASK_COMPLETED => "Task completed on deal: {$dealName}",
@@ -208,50 +238,72 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_UPDATED => "Meeting updated for deal: {$dealName}",
             DealActivityType::MEETING_CANCELLED => "Meeting cancelled for deal: {$dealName}",
             DealActivityType::FILE_UPLOADED => "File uploaded to deal: {$dealName}",
+            DealActivityType::FILE_UPDATED => "File updated on deal: {$dealName}",
             DealActivityType::FILE_DELETED => "File deleted from deal: {$dealName}",
             DealActivityType::PROPERTY_LINKED => "Property linked to deal: {$dealName}",
             DealActivityType::PROPERTY_UNLINKED => "Property unlinked from deal: {$dealName}",
             DealActivityType::PACKAGE_ASSIGNED => "Package assigned to deal: {$dealName}",
             DealActivityType::PACKAGE_REMOVED => "Package removed from deal: {$dealName}",
+            DealActivityType::OFFER_APPLIED => "Offer applied to deal: {$dealName}",
+            DealActivityType::OFFER_REMOVED => "Offer removed from deal: {$dealName}",
             DealActivityType::AGENT_ASSIGNED => "Agent assigned to deal: {$dealName}",
             DealActivityType::AGENT_CHANGED => "Agent changed on deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "You were added as a watcher on deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "You were removed as a watcher from deal: {$dealName}",
+            DealActivityType::PARTICIPANT_ADDED => "You were added as a participant on deal: {$dealName}",
+            DealActivityType::PARTICIPANT_REMOVED => "You were removed as a participant from deal: {$dealName}",
+            default => $this->activityType->label().": {$dealName}",
         };
     }
 
     /**
      * Get the notification text/description.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      */
     protected function getNotificationText($notifiable = null): string
     {
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
-        $meetingDate = $this->formatMeetingDateFor($notifiable);
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+        $fieldLabel = $this->fileFieldLabel();
 
         return match ($this->activityType) {
-            DealActivityType::NOTE_ADDED => "{$triggeredBy} added a note: " . ($this->data['note_title'] ?? 'Untitled'),
-            DealActivityType::NOTE_UPDATED => "{$triggeredBy} updated the note: " . ($this->data['note_title'] ?? 'Untitled'),
-            DealActivityType::STAGE_CHANGED => "{$triggeredBy} changed the stage from " . ($this->data['from_stage'] ?? 'Unknown') . " to " . ($this->data['to_stage'] ?? 'Unknown'),
-            DealActivityType::PIPELINE_CHANGED => "{$triggeredBy} changed the pipeline",
-            DealActivityType::TASK_ADDED => "{$triggeredBy} added a task: " . ($this->data['task_heading'] ?? 'Untitled'),
-            DealActivityType::TASK_UPDATED => "{$triggeredBy} updated the task: " . ($this->data['task_heading'] ?? 'Untitled'),
-            DealActivityType::TASK_COMPLETED => "{$triggeredBy} completed the task: " . ($this->data['task_heading'] ?? 'Untitled'),
-            DealActivityType::TASK_DELETED => "{$triggeredBy} deleted a task: " . ($this->data['task_heading'] ?? 'Untitled'),
-            DealActivityType::MEETING_SCHEDULED => "{$triggeredBy} scheduled a meeting" . ($meetingDate ? " for " . $meetingDate : ''),
-            DealActivityType::MEETING_UPDATED => "{$triggeredBy} updated a meeting" . ($meetingDate ? " scheduled for " . $meetingDate : ''),
-            DealActivityType::MEETING_CANCELLED => "{$triggeredBy} cancelled a meeting",
-            DealActivityType::FILE_UPLOADED => "{$triggeredBy} uploaded a file: " . ($this->data['file_name'] ?? 'Unknown'),
-            DealActivityType::FILE_DELETED => "{$triggeredBy} deleted a file: " . ($this->data['file_name'] ?? 'Unknown'),
-            DealActivityType::PROPERTY_LINKED => "{$triggeredBy} linked a property: " . ($this->data['property_title'] ?? 'Unknown'),
-            DealActivityType::PROPERTY_UNLINKED => "{$triggeredBy} unlinked a property: " . ($this->data['property_title'] ?? 'Unknown'),
-            DealActivityType::PACKAGE_ASSIGNED => "{$triggeredBy} assigned " . ($this->data['package_count'] ?? 1) . " package(s)",
-            DealActivityType::PACKAGE_REMOVED => "{$triggeredBy} removed " . ($this->data['package_count'] ?? 1) . " package(s)",
-            DealActivityType::AGENT_ASSIGNED => "{$triggeredBy} assigned an agent to this deal",
-            DealActivityType::AGENT_CHANGED => "{$triggeredBy} changed the deal agent",
-            DealActivityType::WATCHER_ADDED => "{$triggeredBy} added you as a watcher",
-            DealActivityType::WATCHER_REMOVED => "{$triggeredBy} removed you as a watcher",
+            DealActivityType::NOTE_ADDED => "{$triggeredBy} added a note on {$dealName}.",
+            DealActivityType::NOTE_UPDATED => "{$triggeredBy} updated a note on {$dealName}.",
+            DealActivityType::NOTE_DELETED => "{$triggeredBy} deleted a note on {$dealName}.",
+            DealActivityType::STAGE_CHANGED => "{$triggeredBy} changed the stage on {$dealName}.",
+            DealActivityType::PIPELINE_CHANGED => "{$triggeredBy} changed the pipeline on {$dealName}.",
+            DealActivityType::DEAL_WON => "{$triggeredBy} marked {$dealName} as won.",
+            DealActivityType::DEAL_LOST => "{$triggeredBy} marked {$dealName} as lost.",
+            DealActivityType::TASK_ADDED => "{$triggeredBy} added a task on {$dealName}.",
+            DealActivityType::TASK_UPDATED => "{$triggeredBy} updated a task on {$dealName}.",
+            DealActivityType::TASK_COMPLETED => "{$triggeredBy} completed a task on {$dealName}.",
+            DealActivityType::TASK_DELETED => "{$triggeredBy} deleted a task on {$dealName}. This action cannot be undone.",
+            DealActivityType::MEETING_SCHEDULED => "{$triggeredBy} scheduled a meeting for {$dealName}.",
+            DealActivityType::MEETING_UPDATED => "{$triggeredBy} updated a meeting for {$dealName}.",
+            DealActivityType::MEETING_CANCELLED => "{$triggeredBy} cancelled a meeting for {$dealName}.",
+            DealActivityType::FILE_UPLOADED => $fieldLabel
+                ? "{$triggeredBy} uploaded a file to {$fieldLabel} on {$dealName}."
+                : "{$triggeredBy} added a file to {$dealName}.",
+            DealActivityType::FILE_UPDATED => $fieldLabel
+                ? "{$triggeredBy} updated a file on {$fieldLabel} for {$dealName}."
+                : "{$triggeredBy} updated a file on {$dealName}.",
+            DealActivityType::FILE_DELETED => $fieldLabel
+                ? "{$triggeredBy} removed a file from {$fieldLabel} on {$dealName}. This action cannot be undone."
+                : "{$triggeredBy} removed a file from {$dealName}. This action cannot be undone.",
+            DealActivityType::PROPERTY_LINKED => "{$triggeredBy} linked a property to {$dealName}.",
+            DealActivityType::PROPERTY_UNLINKED => "{$triggeredBy} unlinked a property from {$dealName}.",
+            DealActivityType::PACKAGE_ASSIGNED => $this->packageActivityText($triggeredBy, $dealName, added: true),
+            DealActivityType::PACKAGE_REMOVED => $this->packageActivityText($triggeredBy, $dealName, added: false),
+            DealActivityType::OFFER_APPLIED => "{$triggeredBy} applied an offer to {$dealName}.",
+            DealActivityType::OFFER_REMOVED => "{$triggeredBy} removed an offer from {$dealName}.",
+            DealActivityType::AGENT_ASSIGNED => "{$triggeredBy} assigned an agent to {$dealName}.",
+            DealActivityType::AGENT_CHANGED => "{$triggeredBy} changed the agent on {$dealName}.",
+            DealActivityType::WATCHER_ADDED => "{$triggeredBy} added you as a watcher on {$dealName}.",
+            DealActivityType::WATCHER_REMOVED => "{$triggeredBy} removed you as a watcher from {$dealName}.",
+            DealActivityType::PARTICIPANT_ADDED => "{$triggeredBy} added you as a participant on {$dealName}.",
+            DealActivityType::PARTICIPANT_REMOVED => "{$triggeredBy} removed you as a participant from {$dealName}.",
+            default => "{$triggeredBy} updated {$dealName}.",
         };
     }
 
@@ -268,8 +320,11 @@ class DealActivityNotification extends BaseNotification
         return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "{$prefix}New Note on Deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "{$prefix}Note Updated on Deal: {$dealName}",
+            DealActivityType::NOTE_DELETED => "{$prefix}Note Deleted from Deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "{$prefix}Deal Stage Changed: {$dealName}",
             DealActivityType::PIPELINE_CHANGED => "{$prefix}Deal Pipeline Changed: {$dealName}",
+            DealActivityType::DEAL_WON => "{$prefix}Deal Won: {$dealName}",
+            DealActivityType::DEAL_LOST => "{$prefix}Deal Lost: {$dealName}",
             DealActivityType::TASK_ADDED => "{$prefix}New Task on Deal: {$dealName}",
             DealActivityType::TASK_UPDATED => "{$prefix}Task Updated on Deal: {$dealName}",
             DealActivityType::TASK_COMPLETED => "{$prefix}Task Completed on Deal: {$dealName}",
@@ -278,85 +333,170 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::MEETING_UPDATED => "{$prefix}Meeting Updated for Deal: {$dealName}",
             DealActivityType::MEETING_CANCELLED => "{$prefix}Meeting Cancelled for Deal: {$dealName}",
             DealActivityType::FILE_UPLOADED => "{$prefix}New File on Deal: {$dealName}",
+            DealActivityType::FILE_UPDATED => "{$prefix}File Updated on Deal: {$dealName}",
             DealActivityType::FILE_DELETED => "{$prefix}File Deleted from Deal: {$dealName}",
             DealActivityType::PROPERTY_LINKED => "{$prefix}Property Linked to Deal: {$dealName}",
             DealActivityType::PROPERTY_UNLINKED => "{$prefix}Property Unlinked from Deal: {$dealName}",
             DealActivityType::PACKAGE_ASSIGNED => "{$prefix}Package Assigned to Deal: {$dealName}",
             DealActivityType::PACKAGE_REMOVED => "{$prefix}Package Removed from Deal: {$dealName}",
+            DealActivityType::OFFER_APPLIED => "{$prefix}Offer Applied to Deal: {$dealName}",
+            DealActivityType::OFFER_REMOVED => "{$prefix}Offer Removed from Deal: {$dealName}",
             DealActivityType::AGENT_ASSIGNED => "{$prefix}Agent Assigned to Deal: {$dealName}",
             DealActivityType::AGENT_CHANGED => "{$prefix}Agent Changed on Deal: {$dealName}",
             DealActivityType::WATCHER_ADDED => "{$prefix}You're now watching Deal: {$dealName}",
             DealActivityType::WATCHER_REMOVED => "{$prefix}You're no longer watching Deal: {$dealName}",
+            DealActivityType::PARTICIPANT_ADDED => "{$prefix}You're now a participant on Deal: {$dealName}",
+            DealActivityType::PARTICIPANT_REMOVED => "{$prefix}You're no longer a participant on Deal: {$dealName}",
+            default => "{$prefix}{$this->activityType->label()}: {$dealName}",
         };
     }
 
     /**
-     * Get the email content.
+     * Prominent detail block — deal name, meeting date, task title, etc.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
+     */
+    protected function getEmailDetailHtml($notifiable = null): string
+    {
+        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
+        $contactName = $this->safeMailText($this->deal->contact?->client_name ?? '', 200);
+        $meta = $contactName !== '' ? "{$dealName} · {$contactName}" : $dealName;
+
+        return match ($this->activityType) {
+            DealActivityType::NOTE_ADDED,
+            DealActivityType::NOTE_UPDATED,
+            DealActivityType::NOTE_DELETED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['note_title'] ?? 'Untitled', 200),
+                $this->noteDetailMeta(),
+            ),
+            DealActivityType::TASK_ADDED,
+            DealActivityType::TASK_UPDATED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
+            ),
+            DealActivityType::TASK_COMPLETED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
+                null,
+                __('Task completed.'),
+            ),
+            DealActivityType::TASK_DELETED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200),
+                null,
+                __('This action cannot be undone.'),
+                true,
+            ),
+            DealActivityType::MEETING_SCHEDULED,
+            DealActivityType::MEETING_UPDATED,
+            DealActivityType::MEETING_CANCELLED => $this->meetingDetailHtml($notifiable, $meta),
+            DealActivityType::FILE_UPLOADED,
+            DealActivityType::FILE_UPDATED,
+            DealActivityType::FILE_DELETED => $this->fileDetailHtml(),
+            DealActivityType::PROPERTY_LINKED,
+            DealActivityType::PROPERTY_UNLINKED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['property_title'] ?? 'Unknown', 200),
+                $meta,
+            ),
+            DealActivityType::OFFER_APPLIED,
+            DealActivityType::OFFER_REMOVED => EntityActivityMailBuilder::renderDetailBlock(
+                $this->safeMailText($this->data['offer_name'] ?? 'Offer', 200),
+            ),
+            DealActivityType::PACKAGE_ASSIGNED,
+            DealActivityType::PACKAGE_REMOVED => '',
+            DealActivityType::PARTICIPANT_ADDED,
+            DealActivityType::PARTICIPANT_REMOVED => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
+            DealActivityType::DEAL_WON,
+            DealActivityType::DEAL_LOST => EntityActivityMailBuilder::renderDetailBlock(
+                ucfirst($this->safeMailText($this->data['outcome'] ?? $this->activityType->value, 200)),
+            ),
+            default => EntityActivityMailBuilder::renderDetailBlock(null, $meta),
+        };
+    }
+
+    /**
+     * Supplemental lines only — no repeated deal name or actor.
+     *
+     * @param  mixed  $notifiable
      */
     protected function getEmailContent($notifiable = null): string
     {
-        $lines = [];
-        $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
-        $dealName = $this->safeMailText($this->deal->name ?? '', 200);
-        $contactName = $this->safeMailText($this->deal->contact?->client_name ?? 'N/A', 200);
+        $lines = match ($this->activityType) {
+            DealActivityType::AGENT_CHANGED => [
+                EntityActivityMailBuilder::supplementalLine(
+                    __('Previous Agent'),
+                    $this->safeMailText($this->data['from_agent_name'] ?? 'Unassigned', 100),
+                ),
+                EntityActivityMailBuilder::supplementalLine(
+                    __('New Agent'),
+                    $this->safeMailText($this->data['to_agent_name'] ?? 'Unknown', 100),
+                ),
+            ],
+            default => [],
+        };
 
-        // Common deal info
-        $lines[] = '<strong>' . __('modules.lead.clientName') . ":</strong> {$contactName}";
-        $lines[] = '<strong>' . __('modules.deal.dealName') . ":</strong> {$dealName}";
-        $lines[] = '<strong>' . __('app.changedBy') . ":</strong> {$triggeredBy}";
-        $lines[] = '<br>';
+        return EntityActivityMailBuilder::joinSupplemental($lines);
+    }
 
-        // Activity-specific content
-        switch ($this->activityType) {
-            case DealActivityType::NOTE_ADDED:
-            case DealActivityType::NOTE_UPDATED:
-                $lines[] = '<strong>Note Title:</strong> ' . $this->safeMailText($this->data['note_title'] ?? 'Untitled', 200);
-                break;
+    /**
+     * @param  mixed  $notifiable
+     */
+    protected function meetingDetailHtml($notifiable, string $meta): string
+    {
+        $formatted = $this->formatMeetingDateFor($notifiable);
+        $parts = $formatted ? EntityActivityMailBuilder::splitDateAndTime($formatted) : null;
+        $title = $parts
+            ? EntityActivityMailBuilder::formatDateTimeTitle($parts['date'], $parts['time'])
+            : null;
 
-            case DealActivityType::STAGE_CHANGED:
-                $lines[] = '<strong>Previous Stage:</strong> ' . $this->safeMailText($this->data['from_stage'] ?? 'Unknown', 200);
-                $lines[] = '<strong>New Stage:</strong> ' . $this->safeMailText($this->data['to_stage'] ?? 'Unknown', 200);
-                break;
+        $remark = $this->safeMailText($this->data['meeting_remark'] ?? '', 500);
+        $subtext = $this->activityType === DealActivityType::MEETING_CANCELLED
+            ? __('Meeting cancelled')
+            : ($remark !== '' ? $remark : null);
 
-            case DealActivityType::TASK_ADDED:
-            case DealActivityType::TASK_UPDATED:
-            case DealActivityType::TASK_COMPLETED:
-            case DealActivityType::TASK_DELETED:
-                $lines[] = '<strong>Task:</strong> ' . $this->safeMailText($this->data['task_heading'] ?? 'Untitled', 200);
-                break;
+        return EntityActivityMailBuilder::renderDetailBlock($title, $meta, $subtext);
+    }
 
-            case DealActivityType::MEETING_SCHEDULED:
-            case DealActivityType::MEETING_UPDATED:
-            case DealActivityType::MEETING_CANCELLED:
-                $lines[] = '<strong>Meeting:</strong> ' . $this->safeMailText($this->data['meeting_remark'] ?? 'N/A', 500);
-                $meetingDate = $this->formatMeetingDateFor($notifiable);
-                if ($meetingDate) {
-                    $lines[] = '<strong>Date:</strong> ' . $meetingDate;
-                }
-                break;
+    protected function fileDetailHtml(): string
+    {
+        $fieldLabel = $this->fileFieldLabel();
+        $warning = in_array($this->activityType, [DealActivityType::FILE_DELETED], true);
 
-            case DealActivityType::FILE_UPLOADED:
-            case DealActivityType::FILE_DELETED:
-                $lines[] = '<strong>File:</strong> ' . $this->safeMailText($this->data['file_name'] ?? 'Unknown', 200);
-                break;
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $fieldLabel,
+            null,
+            $warning ? __('This action cannot be undone.') : null,
+            $warning,
+        );
+    }
 
-            case DealActivityType::PROPERTY_LINKED:
-            case DealActivityType::PROPERTY_UNLINKED:
-                $lines[] = '<strong>Property:</strong> ' . $this->safeMailText($this->data['property_title'] ?? 'Unknown', 200);
-                break;
+    /**
+     * Single sentence naming the package(s) directly instead of a generic
+     * "assigned packages" line plus a duplicate "Packages: X" block below it.
+     */
+    protected function packageActivityText(string $triggeredBy, string $dealName, bool $added): string
+    {
+        $names = collect($this->data['package_names'] ?? [])
+            ->map(fn ($name) => $this->safeMailText((string) $name, 200))
+            ->filter()
+            ->values();
 
-            case DealActivityType::PACKAGE_ASSIGNED:
-            case DealActivityType::PACKAGE_REMOVED:
-                $packageNames = $this->data['package_names'] ?? [];
-                if (!empty($packageNames)) {
-                    $lines[] = '<strong>Packages:</strong> ' . implode(', ', $packageNames);
-                }
-                break;
+        $verb = $added ? 'added' : 'removed';
+        $prep = $added ? 'to' : 'from';
+
+        if ($names->count() === 1) {
+            return "{$triggeredBy} {$verb} the {$names->first()} package {$prep} {$dealName}.";
         }
 
-        return implode('<br>', $lines);
+        if ($names->count() > 1) {
+            return "{$triggeredBy} {$verb} {$names->count()} packages ({$names->implode(', ')}) {$prep} {$dealName}.";
+        }
+
+        return "{$triggeredBy} {$verb} packages {$prep} {$dealName}.";
+    }
+
+    protected function fileFieldLabel(): ?string
+    {
+        $label = trim((string) ($this->data['field_label'] ?? ''));
+
+        return $label !== '' ? $this->safeMailText($label, 200) : null;
     }
 
     /**
@@ -370,7 +510,7 @@ class DealActivityNotification extends BaseNotification
     /**
      * Get additional data to store with the notification.
      *
-     * @param mixed $notifiable
+     * @param  mixed  $notifiable
      */
     protected function getAdditionalDataForStorage($notifiable = null): array
     {
@@ -378,15 +518,21 @@ class DealActivityNotification extends BaseNotification
         $relevant = [];
 
         $keys = match ($this->activityType) {
-            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED => ['note_id', 'note_title'],
+            DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED, DealActivityType::NOTE_DELETED => ['note_id', 'note_title', 'note_preview'],
             DealActivityType::STAGE_CHANGED => ['from_stage', 'to_stage'],
+            DealActivityType::PIPELINE_CHANGED => ['from_pipeline', 'to_pipeline'],
+            DealActivityType::DEAL_WON, DealActivityType::DEAL_LOST => ['outcome'],
             DealActivityType::TASK_ADDED, DealActivityType::TASK_UPDATED,
             DealActivityType::TASK_COMPLETED, DealActivityType::TASK_DELETED => ['task_id', 'task_heading'],
             DealActivityType::MEETING_SCHEDULED, DealActivityType::MEETING_UPDATED,
             DealActivityType::MEETING_CANCELLED => ['follow_up_id', 'meeting_remark', 'meeting_date'],
-            DealActivityType::FILE_UPLOADED, DealActivityType::FILE_DELETED => ['file_id', 'file_name'],
+            DealActivityType::FILE_UPLOADED, DealActivityType::FILE_UPDATED, DealActivityType::FILE_DELETED => ['file_id', 'field_label'],
             DealActivityType::PROPERTY_LINKED, DealActivityType::PROPERTY_UNLINKED => ['property_id', 'property_title'],
-            DealActivityType::PACKAGE_ASSIGNED, DealActivityType::PACKAGE_REMOVED => ['package_names', 'package_count'],
+            DealActivityType::PACKAGE_ASSIGNED,
+            DealActivityType::PACKAGE_REMOVED => ['package_names', 'package_count'],
+            DealActivityType::OFFER_APPLIED,
+            DealActivityType::OFFER_REMOVED => ['offer_name', 'offer_id'],
+            DealActivityType::AGENT_CHANGED => ['from_agent_name', 'to_agent_name'],
             default => [],
         };
 
@@ -398,6 +544,7 @@ class DealActivityNotification extends BaseNotification
                     if ($formatted !== null) {
                         $relevant[$key] = $formatted;
                     }
+
                     continue;
                 }
                 $relevant[$key] = $this->data[$key];
@@ -405,5 +552,12 @@ class DealActivityNotification extends BaseNotification
         }
 
         return $relevant;
+    }
+
+    protected function noteDetailMeta(): ?string
+    {
+        $preview = trim((string) ($this->data['note_preview'] ?? ''));
+
+        return $preview !== '' ? $this->safeMailText($preview, 200) : null;
     }
 }

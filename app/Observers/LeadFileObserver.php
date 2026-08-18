@@ -10,7 +10,6 @@ use App\Traits\DealHistoryTrait;
 
 class LeadFileObserver
 {
-
     use DealHistoryTrait;
 
     protected DealNotificationService $notificationService;
@@ -22,7 +21,7 @@ class LeadFileObserver
 
     public function saving(DealFile $leadFile)
     {
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
             $leadFile->last_updated_by = user()->id;
         }
     }
@@ -30,7 +29,7 @@ class LeadFileObserver
     public function created(DealFile $leadFile)
     {
 
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
             self::createDealHistory($leadFile->deal_id, 'file-added', fileId: $leadFile->id);
 
             // Send notification for file upload
@@ -39,8 +38,7 @@ class LeadFileObserver
                 if ($deal) {
                     $this->notificationService->notifyFileUploaded(
                         $deal,
-                        $leadFile->filename ?? 'Unknown file',
-                        $leadFile->id
+                        $leadFile->id,
                     );
                 }
             }
@@ -50,14 +48,31 @@ class LeadFileObserver
 
     public function creating(DealFile $leadFile)
     {
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
             $leadFile->added_by = user()->id;
+        }
+    }
+
+    public function updated(DealFile $leadFile)
+    {
+        if (isRunningInConsoleOrSeeding() || ! user() || ! $leadFile->wasChanged('description')) {
+            return;
+        }
+
+        $deal = Deal::find($leadFile->deal_id);
+        if ($deal) {
+            $this->notificationService->notifyFileUpdated(
+                $deal,
+                $leadFile->id,
+            );
         }
     }
 
     public function deleting(DealFile $leadFile)
     {
-        Files::deleteFile($leadFile->hashname, DealFile::FILE_PATH . '/' . $leadFile->lead_id);
+        if (! empty($leadFile->hashname) && ! empty($leadFile->deal_id)) {
+            Files::deleteFile($leadFile->hashname, DealFile::FILE_PATH.'/'.$leadFile->deal_id);
+        }
     }
 
     public function deleted(DealFile $leadFile)
@@ -70,10 +85,9 @@ class LeadFileObserver
             if ($deal) {
                 $this->notificationService->notifyFileDeleted(
                     $deal,
-                    $leadFile->filename ?? 'Unknown file'
+                    $leadFile->id,
                 );
             }
         }
     }
-
 }
