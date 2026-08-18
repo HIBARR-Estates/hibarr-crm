@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('user_notification_alert_settings', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('user_id')->unique();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->string('notch_position', 20)->default('top-center');
             $table->unsignedSmallInteger('notch_duration_ms')->default(4200);
             $table->boolean('alerts_muted')->default(false);

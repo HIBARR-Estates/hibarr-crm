@@ -25,9 +25,10 @@ class NotificationController extends AccountBaseController
     public function index()
     {
         $this->pageTitle = __('app.newNotifications');
-        
+
         return Inertia::render('Notifications/Index', [
             'pageTitle' => $this->pageTitle,
+            'notificationAlertSettings' => Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $this->user->id)),
         ]);
     }
 

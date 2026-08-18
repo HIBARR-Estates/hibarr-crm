@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class UserNotificationAlertSetting extends Model
 {
@@ -83,35 +84,52 @@ class UserNotificationAlertSetting extends Model
      */
     public static function upsertForUser(int $userId, array $payload): array
     {
-        $current = self::forUser($userId);
+        return DB::transaction(function () use ($userId, $payload) {
+            $setting = self::query()
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->first();
 
-        if (array_key_exists('notch_position', $payload)) {
-            $position = (string) $payload['notch_position'];
-            $current['notch_position'] = in_array($position, self::VALID_POSITIONS, true)
-                ? $position
-                : self::DEFAULT_POSITION;
-        }
+            $current = $setting
+                ? [
+                    'notch_position' => in_array($setting->notch_position, self::VALID_POSITIONS, true)
+                        ? $setting->notch_position
+                        : self::DEFAULT_POSITION,
+                    'notch_duration_ms' => in_array($setting->notch_duration_ms, self::VALID_DURATIONS_MS, true)
+                        ? $setting->notch_duration_ms
+                        : self::DEFAULT_DURATION_MS,
+                    'alerts_muted' => (bool) $setting->alerts_muted,
+                ]
+                : self::defaults();
 
-        if (array_key_exists('notch_duration_ms', $payload)) {
-            $duration = (int) $payload['notch_duration_ms'];
-            $current['notch_duration_ms'] = in_array($duration, self::VALID_DURATIONS_MS, true)
-                ? $duration
-                : self::DEFAULT_DURATION_MS;
-        }
+            if (array_key_exists('notch_position', $payload)) {
+                $position = (string) $payload['notch_position'];
+                $current['notch_position'] = in_array($position, self::VALID_POSITIONS, true)
+                    ? $position
+                    : self::DEFAULT_POSITION;
+            }
 
-        if (array_key_exists('alerts_muted', $payload)) {
-            $current['alerts_muted'] = (bool) $payload['alerts_muted'];
-        }
+            if (array_key_exists('notch_duration_ms', $payload)) {
+                $duration = (int) $payload['notch_duration_ms'];
+                $current['notch_duration_ms'] = in_array($duration, self::VALID_DURATIONS_MS, true)
+                    ? $duration
+                    : self::DEFAULT_DURATION_MS;
+            }
 
-        self::query()->updateOrCreate(
-            ['user_id' => $userId],
-            [
-                'notch_position' => $current['notch_position'],
-                'notch_duration_ms' => $current['notch_duration_ms'],
-                'alerts_muted' => $current['alerts_muted'],
-            ],
-        );
+            if (array_key_exists('alerts_muted', $payload)) {
+                $current['alerts_muted'] = (bool) $payload['alerts_muted'];
+            }
 
-        return $current;
+            self::query()->updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'notch_position' => $current['notch_position'],
+                    'notch_duration_ms' => $current['notch_duration_ms'],
+                    'alerts_muted' => $current['alerts_muted'],
+                ],
+            );
+
+            return $current;
+        });
     }
 }
