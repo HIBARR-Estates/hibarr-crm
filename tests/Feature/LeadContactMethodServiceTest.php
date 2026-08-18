@@ -178,6 +178,149 @@ class LeadContactMethodServiceTest extends TestCase
         $this->assertSame([$matchId], $ids);
     }
 
+    public function test_create_user_alternate_does_not_change_primary_columns(): void
+    {
+        $leadId = $this->insertLead(['client_email' => 'primary@example.com', 'mobile' => '111']);
+        $lead = Lead::findOrFail($leadId);
+
+        $method = $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'alt@example.com');
+
+        $lead->refresh();
+        $this->assertSame('primary@example.com', $lead->client_email);
+        $this->assertSame('111', $lead->mobile);
+        $this->assertFalse($method->is_main);
+        $this->assertNull($method->source_field);
+        $this->assertSame('alt@example.com', $method->normalized);
+    }
+
+    public function test_create_user_alternate_blocks_own_primary_email(): void
+    {
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'primary@example.com']));
+
+        $this->expectException(\App\Exceptions\LeadContactMethodException::class);
+        $this->expectExceptionMessage("This email is already the lead's primary email.");
+
+        $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'PRIMARY@example.com');
+    }
+
+    public function test_create_user_alternate_blocks_duplicate_on_same_lead(): void
+    {
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'primary@example.com']));
+        $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'alt@example.com');
+
+        $this->expectException(\App\Exceptions\LeadContactMethodException::class);
+        $this->expectExceptionMessage('This contact method already exists on this lead.');
+
+        $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'alt@example.com');
+    }
+
+    public function test_create_user_alternate_blocks_other_lead_primary_with_conflicts(): void
+    {
+        $otherId = $this->insertLead(['client_name' => 'Taken', 'client_email' => 'taken@example.com']);
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'mine@example.com']));
+
+        try {
+            $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'taken@example.com');
+            $this->fail('Expected conflict');
+        } catch (\App\Exceptions\LeadContactMethodException $e) {
+            $this->assertSame('This email is already used on another lead.', $e->getMessage());
+            $this->assertCount(1, $e->conflicts);
+            $this->assertSame($otherId, $e->conflicts[0]['lead_id']);
+            $this->assertSame('primary', $e->conflicts[0]['match']);
+            $this->assertSame('Taken', $e->conflicts[0]['client_name']);
+        }
+    }
+
+    public function test_create_user_alternate_blocks_other_lead_alternate(): void
+    {
+        $otherId = $this->insertLead(['client_name' => 'Other', 'client_email' => 'other@example.com']);
+        DB::table('lead_contact_methods')->insert([
+            'lead_id' => $otherId,
+            'company_id' => $this->companyId,
+            'type' => 'email',
+            'identifier' => 'shared@example.com',
+            'normalized' => 'shared@example.com',
+            'is_main' => false,
+            'source_field' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'mine@example.com']));
+
+        try {
+            $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'shared@example.com');
+            $this->fail('Expected conflict');
+        } catch (\App\Exceptions\LeadContactMethodException $e) {
+            $this->assertSame($otherId, $e->conflicts[0]['lead_id']);
+            $this->assertSame('alternate', $e->conflicts[0]['match']);
+        }
+    }
+
+    public function test_create_user_alternate_ignores_trashed_other_lead(): void
+    {
+        $trashedId = $this->insertLead(['client_email' => 'gone@example.com']);
+        DB::table('leads')->where('id', $trashedId)->update(['deleted_at' => now()]);
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'mine@example.com']));
+
+        $method = $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'gone@example.com');
+
+        $this->assertSame('gone@example.com', $method->normalized);
+    }
+
+    public function test_update_and_delete_reject_main_rows(): void
+    {
+        $leadId = $this->insertLead(['client_email' => 'primary@example.com']);
+        $lead = Lead::findOrFail($leadId);
+        $this->service->syncFromLeadColumns($lead);
+        $main = $lead->contactMethods()->where('is_main', true)->first();
+        $this->assertNotNull($main);
+
+        try {
+            $this->service->updateUserAlternate($lead, $main, 'new@example.com');
+            $this->fail('Expected main update to fail');
+        } catch (\App\Exceptions\LeadContactMethodException $e) {
+            $this->assertSame('The primary email or phone cannot be changed here.', $e->getMessage());
+        }
+
+        try {
+            $this->service->deleteUserAlternate($lead, $main);
+            $this->fail('Expected main delete to fail');
+        } catch (\App\Exceptions\LeadContactMethodException $e) {
+            $this->assertSame('The primary email or phone cannot be changed here.', $e->getMessage());
+        }
+
+        $this->assertSame('primary@example.com', $lead->fresh()->client_email);
+        $this->assertTrue($main->fresh()->is_main);
+    }
+
+    public function test_update_and_delete_user_alternate(): void
+    {
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'primary@example.com']));
+        $method = $this->service->createUserAlternate($lead, LeadContactMethodType::Email, 'old-alt@example.com');
+
+        $updated = $this->service->updateUserAlternate($lead, $method, 'new-alt@example.com');
+        $this->assertSame('new-alt@example.com', $updated->normalized);
+        $this->assertFalse($updated->is_main);
+
+        $this->service->deleteUserAlternate($lead, $updated);
+        $this->assertNull(\App\Models\LeadContactMethod::query()->find($updated->id));
+        $this->assertSame('primary@example.com', $lead->fresh()->client_email);
+    }
+
+    public function test_create_user_alternate_phone_blocks_other_primary_mobile(): void
+    {
+        $otherId = $this->insertLead(['client_name' => 'Phone Taken', 'client_email' => 'a@example.com', 'mobile' => '555111']);
+        $lead = Lead::findOrFail($this->insertLead(['client_email' => 'b@example.com', 'mobile' => '111']));
+
+        try {
+            $this->service->createUserAlternate($lead, LeadContactMethodType::Phone, '+555111');
+            $this->fail('Expected conflict');
+        } catch (\App\Exceptions\LeadContactMethodException $e) {
+            $this->assertSame($otherId, $e->conflicts[0]['lead_id']);
+            $this->assertSame('primary', $e->conflicts[0]['match']);
+        }
+    }
+
     private function resetSchema(): void
     {
         Schema::dropIfExists('lead_contact_methods');
