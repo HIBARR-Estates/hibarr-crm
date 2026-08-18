@@ -66,6 +66,7 @@ use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadContactFileController;
+use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
 use App\Http\Controllers\LeadFileController;
 use App\Http\Controllers\LeadFlightItineraryController;
@@ -658,6 +659,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates');
     Route::post('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates.find');
     Route::get('lead-contact/{lead}/merge-review/{duplicate}', [LeadMergeController::class, 'review'])->name('lead-contact.merge-review');
+
+    Route::get('lead-contact/{lead}/contact-methods', [LeadContactMethodController::class, 'index'])->name('lead-contact.contact-methods.index');
+    Route::post('lead-contact/{lead}/contact-methods', [LeadContactMethodController::class, 'store'])->name('lead-contact.contact-methods.store');
+    Route::patch('lead-contact/{lead}/contact-methods/{contact_method}', [LeadContactMethodController::class, 'update'])->name('lead-contact.contact-methods.update');
+    Route::delete('lead-contact/{lead}/contact-methods/{contact_method}', [LeadContactMethodController::class, 'destroy'])->name('lead-contact.contact-methods.destroy');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
