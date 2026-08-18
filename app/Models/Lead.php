@@ -197,6 +197,11 @@ class Lead extends BaseModel
         return $this->hasMany(LeadFlightItinerary::class);
     }
 
+    public function contactMethods(): HasMany
+    {
+        return $this->hasMany(LeadContactMethod::class, 'lead_id');
+    }
+
     public function getImageUrlAttribute()
     {
         if (! empty($this->image)) {

@@ -521,6 +521,7 @@ class LeadService
                     ->orWhere('company_name', 'like', $term)
                     ->orWhere('country', 'like', $term);
                 LeadSearchQuery::applyMobileMatch($q, $search);
+                LeadSearchQuery::applyContactMethodMatch($q, $search);
             });
         }
 

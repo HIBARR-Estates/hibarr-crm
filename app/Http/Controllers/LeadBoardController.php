@@ -149,6 +149,9 @@ class LeadBoardController extends AccountBaseController
                             ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
                         LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
+                        $query->orWhereHas('contact', function ($cq) use ($safeTerm) {
+                            LeadSearchQuery::applyContactMethodMatch($cq, $safeTerm);
+                        });
                     });
                 }
 
@@ -261,6 +264,9 @@ class LeadBoardController extends AccountBaseController
                                 ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                                 ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
                             LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
+                            $query->orWhereHas('contact', function ($cq) use ($safeTerm) {
+                                LeadSearchQuery::applyContactMethodMatch($cq, $safeTerm);
+                            });
                         });
                     }
                 }])->where(function ($query) use ($request) {
@@ -346,6 +352,9 @@ class LeadBoardController extends AccountBaseController
                             ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
                         LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
+                        $query->orWhereHas('contact', function ($cq) use ($safeTerm) {
+                            LeadSearchQuery::applyContactMethodMatch($cq, $safeTerm);
+                        });
                     });
                 }
 
@@ -517,6 +526,7 @@ class LeadBoardController extends AccountBaseController
                               $q->where('client_name', 'like', '%' . $searchTerm . '%')
                                 ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
                                 ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                              LeadSearchQuery::applyContactMethodMatch($q, $searchTerm);
                           });
                 });
             }
@@ -595,6 +605,7 @@ class LeadBoardController extends AccountBaseController
                               $q->where('client_name', 'like', '%' . $searchTerm . '%')
                                 ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
                                 ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                              LeadSearchQuery::applyContactMethodMatch($q, $searchTerm);
                           });
                 });
             }
@@ -677,6 +688,7 @@ class LeadBoardController extends AccountBaseController
                           $q->where('client_name', 'like', '%' . $searchTerm . '%')
                             ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
                             ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                          LeadSearchQuery::applyContactMethodMatch($q, $searchTerm);
                       });
             });
         }
@@ -810,6 +822,7 @@ class LeadBoardController extends AccountBaseController
                           $q->where('client_name', 'like', '%' . $searchTerm . '%')
                             ->orWhere('client_email', 'like', '%' . $searchTerm . '%')
                             ->orWhere('company_name', 'like', '%' . $searchTerm . '%');
+                          LeadSearchQuery::applyContactMethodMatch($q, $searchTerm);
                       });
             });
         }

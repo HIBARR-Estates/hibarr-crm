@@ -7,6 +7,7 @@ use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\LeadAgent;
+use App\Models\LeadContactMethod;
 use App\Models\LeadFlightItinerary;
 use App\Models\LeadMarketing;
 use App\Models\LeadNote;
@@ -24,6 +25,11 @@ use Throwable;
 class LeadMergeService
 {
     use RecordsCrmEvents;
+
+    public function __construct(
+        private LeadContactMethodService $contactMethodService,
+    ) {
+    }
 
     /** @var list<string> */
     private const CONTACT_FIELDS = [
@@ -86,10 +92,14 @@ class LeadMergeService
 
             $this->applyOwnershipPicks($primary, $ownershipFieldPicks, $actorUserId);
 
+            $this->contactMethodService->absorbFromLead($primary, $duplicate, $contactConflicts);
+
             // Free unique channel values on the duplicate before saving the primary.
             // Otherwise copying an empty primary field from the duplicate hits
             // leads_client_email_unique (and similar indexes) while the duplicate still holds the value.
-            $this->invalidateUniqueChannelFields($duplicate);
+            Lead::withoutEvents(function () use ($duplicate) {
+                $this->invalidateUniqueChannelFields($duplicate);
+            });
 
             $primary->save();
 
@@ -113,7 +123,7 @@ class LeadMergeService
                 ],
             ]);
 
-            return $primary->fresh();
+            return $primary->fresh(['contactMethods']);
         });
     }
 
@@ -459,6 +469,36 @@ class LeadMergeService
         });
 
         $this->reassignTaskables($fromId, $toId);
+        $this->reassignContactMethods($fromId, $toId);
+    }
+
+    private function reassignContactMethods(int $fromLeadId, int $toLeadId): void
+    {
+        if (! Schema::hasTable('lead_contact_methods')) {
+            return;
+        }
+
+        $primaryKeys = LeadContactMethod::query()
+            ->where('lead_id', $toLeadId)
+            ->get(['type', 'normalized']);
+
+        if ($primaryKeys->isNotEmpty()) {
+            LeadContactMethod::query()
+                ->where('lead_id', $fromLeadId)
+                ->where(function ($query) use ($primaryKeys) {
+                    foreach ($primaryKeys as $row) {
+                        $query->orWhere(function ($inner) use ($row) {
+                            $inner->where('type', $row->type)
+                                ->where('normalized', $row->normalized);
+                        });
+                    }
+                })
+                ->delete();
+        }
+
+        LeadContactMethod::query()
+            ->where('lead_id', $fromLeadId)
+            ->update(['lead_id' => $toLeadId, 'is_main' => false]);
     }
 
     private function reassignTaskables(int $fromLeadId, int $toLeadId): void

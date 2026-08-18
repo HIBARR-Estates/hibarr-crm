@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Shared lead list search helpers (Inertia index, form-data, deal gathering, etc.).
@@ -74,6 +75,33 @@ class LeadSearchQuery
         );
 
         $query->orWhereRaw(self::stripNonDigitsSql($column) . ' LIKE ?', [$digitTerm]);
+    }
+
+    /**
+     * Match a free-text search term against lead_contact_methods (identifier
+     * and normalized). Call inside an existing where() grouping so the OR
+     * does not leak past other filters. $query must be a Lead builder
+     * (has contactMethods).
+     *
+     * @param  Builder<\App\Models\Lead>  $query
+     */
+    public static function applyContactMethodMatch(Builder $query, string $search): void
+    {
+        if (! Schema::hasTable('lead_contact_methods')) {
+            return;
+        }
+
+        $term = '%' . $search . '%';
+        $digits = preg_replace('/\D+/', '', $search) ?? '';
+
+        $query->orWhereHas('contactMethods', function (Builder $methods) use ($term, $digits) {
+            $methods->where('identifier', 'like', $term)
+                ->orWhere('normalized', 'like', $term);
+
+            if ($digits !== '') {
+                $methods->orWhere('normalized', 'like', '%' . $digits . '%');
+            }
+        });
     }
 
     private static function supportsJsonMobileSearch(): bool

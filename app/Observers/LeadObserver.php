@@ -9,6 +9,7 @@ use App\Models\UniversalSearch;
 use App\Models\User;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
+use App\Services\LeadContactMethodService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
 use App\Services\MlmNotificationService;
@@ -76,6 +77,8 @@ class LeadObserver
 
     public function created(Lead $leadContact)
     {
+        $this->syncContactMethods($leadContact);
+
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, false);
 
         if (! isRunningInConsoleOrSeeding()) {
@@ -179,6 +182,10 @@ class LeadObserver
 
     public function updated(Lead $leadContact)
     {
+        if ($leadContact->wasChanged(['client_email', 'mobile', 'cell', 'office'])) {
+            $this->syncContactMethods($leadContact);
+        }
+
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
 
         if (isRunningInConsoleOrSeeding()) {
@@ -267,5 +274,10 @@ class LeadObserver
                 'new_owner_name' => $newOwner->name,
             ],
         ]);
+    }
+
+    private function syncContactMethods(Lead $lead): void
+    {
+        app(LeadContactMethodService::class)->syncFromLeadColumns($lead);
     }
 }

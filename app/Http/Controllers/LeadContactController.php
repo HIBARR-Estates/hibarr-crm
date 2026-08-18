@@ -193,6 +193,7 @@ class LeadContactController extends AccountBaseController
             'activeQualification.answers',
             'activeQualification.agent:id,name,image',
             'leadFlightItineraries',
+            'contactMethods',
         ])->findOrFail($id)->withCustomFields();
 
         $this->coreFieldsService->mergeOntoLead($this->leadContact);

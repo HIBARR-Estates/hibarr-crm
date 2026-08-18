@@ -55,6 +55,7 @@ class DealGatheringService
                     ->orWhere('client_email', 'like', $term)
                     ->orWhere('company_name', 'like', $term);
                 LeadSearchQuery::applyMobileMatch($leadQuery, $query);
+                LeadSearchQuery::applyContactMethodMatch($leadQuery, $query);
             })
             ->limit(10)
             ->get();
