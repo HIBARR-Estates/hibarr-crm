@@ -32,6 +32,12 @@ export interface Task {
         label_name: string;
         label_color: string;
     }>;
+    /** Checklist rows, sent by TaskController@index for the redesigned detail modal. */
+    subtasks?: Array<{
+        id: number;
+        title: string;
+        status: "complete" | "incomplete" | string;
+    }>;
     files_count?: number;
     notes_count?: number;
     comments_count?: number;

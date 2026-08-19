@@ -1,0 +1,187 @@
+/* Hover/interaction states for the Tasks workspace redesign. Base primitives
+   (.dr-btn, .modal-panel, .dr-pill …) come from
+   @/Components/Redesign/redesign.css, imported by TasksWorkspaceRedesign.tsx. */
+
+:root {
+    /* Vertical space above the board: app topbar + the sticky Tasks header
+       band (title row, filter row) + the board's own top/bottom padding.
+       The board is sized as calc(100vh - this), so only its columns scroll. */
+    --tasks-board-offset: 290px;
+}
+
+.tasks-row:hover {
+    background: #f8f9fb !important;
+}
+
+.tasks-group-header:hover {
+    background: #f2f4f7 !important;
+}
+
+.tasks-board-card {
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.tasks-board-card:hover {
+    border-color: #c7d0de !important;
+}
+
+.tasks-record-row:hover {
+    background: #f8f9fb;
+}
+
+/* Board cards must never widen their column — long headings/descriptions are
+   clamped rather than pushing the board into horizontal overflow. */
+.tasks-clamp-2,
+.tasks-clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.tasks-clamp-2 {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.tasks-clamp-3 {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+}
+
+.tasks-status-option:hover {
+    background: #f2f4f7 !important;
+}
+
+/* ── Subtle motion ─────────────────────────────────────────────
+   Short, easing-in transitions only; everything here is disabled
+   under prefers-reduced-motion at the bottom of this file. */
+
+.tasks-modal-overlay {
+    animation: tasks-fade-in 140ms ease-out;
+}
+
+.tasks-modal-panel {
+    animation: tasks-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tasks-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes tasks-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Disclosure content (linked records, more details). */
+.tasks-reveal {
+    animation: tasks-reveal 180ms ease-out;
+}
+
+@keyframes tasks-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Newly added link chips. */
+.tasks-chip-in {
+    animation: tasks-chip-in 160ms ease-out;
+}
+
+@keyframes tasks-chip-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Tactile press feedback on chips/buttons. */
+.tasks-press {
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        transform 90ms ease;
+}
+
+.tasks-press:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* Linked-entity links inside rows/cards. */
+.tasks-entity-link {
+    border-radius: 4px;
+    transition:
+        color 120ms ease,
+        background 120ms ease;
+}
+
+.tasks-entity-link:hover {
+    color: #1a6bb5 !important;
+    text-decoration: underline;
+}
+
+/* Pulsing bar on the board's "loading more…" indicator. */
+.tasks-pulse-bar {
+    height: 10px;
+    animation: tasks-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes tasks-pulse {
+    0%,
+    100% {
+        height: 10px;
+        opacity: 0.45;
+    }
+    50% {
+        height: 22px;
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tasks-pulse-bar {
+        animation: none;
+        height: 16px;
+        opacity: 0.7;
+    }
+
+    .tasks-modal-overlay,
+    .tasks-modal-panel,
+    .tasks-reveal,
+    .tasks-chip-in {
+        animation: none;
+    }
+
+    .tasks-press {
+        transition: none;
+    }
+
+    .tasks-press:active:not(:disabled) {
+        transform: none;
+    }
+}

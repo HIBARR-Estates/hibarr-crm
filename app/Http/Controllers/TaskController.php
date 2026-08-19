@@ -84,7 +84,9 @@ class TaskController extends AccountBaseController
             'boardColumn:id,column_name,slug,label_color',
             'deals',
             'leads',
-            'properties'
+            'properties',
+            // Checklist rows for the redesigned task detail modal.
+            'subtasks:id,task_id,title,status'
         ])->withCount([
             'files',
             'notes',
@@ -111,20 +113,31 @@ class TaskController extends AccountBaseController
             });
         }
 
+        // Multi-select filters accept either a scalar (legacy links) or an
+        // array (redesigned filter modal), so normalise before querying.
+        $asList = function ($value): array {
+            return array_values(array_filter(
+                is_array($value) ? $value : [$value],
+                fn ($item) => $item !== null && $item !== '' && $item !== 'all'
+            ));
+        };
+
         // Apply status filter
-        if (request()->filled('status') && request('status') !== 'all') {
-            if (request('status') === 'pending') {
+        $statuses = $asList(request('status'));
+        if (!empty($statuses)) {
+            if (in_array('pending', $statuses, true)) {
                 $tasksQuery->pending();
             } else {
-                $tasksQuery->whereHas('boardColumn', function ($query) {
-                    $query->where('slug', request('status'));
+                $tasksQuery->whereHas('boardColumn', function ($query) use ($statuses) {
+                    $query->whereIn('slug', $statuses);
                 });
             }
         }
 
         // Apply priority filter
-        if (request()->filled('priority') && request('priority') !== 'all') {
-            $tasksQuery->where('priority', request('priority'));
+        $priorities = $asList(request('priority'));
+        if (!empty($priorities)) {
+            $tasksQuery->whereIn('priority', $priorities);
         }
 
         // Apply project filter
@@ -133,14 +146,25 @@ class TaskController extends AccountBaseController
         }
 
         // Apply category filter
-        if (request()->filled('category_id') && request('category_id') !== 'all') {
-            $tasksQuery->where('task_category_id', request('category_id'));
+        $categoryIds = $asList(request('category_id'));
+        if (!empty($categoryIds)) {
+            $tasksQuery->whereIn('task_category_id', $categoryIds);
         }
 
         // Apply assignee filter
-        if (request()->filled('assigned_to') && request('assigned_to') !== 'all') {
-            $tasksQuery->whereHas('users', function ($query) {
-                $query->where('users.id', request('assigned_to'));
+        $assignedTo = $asList(request('assigned_to'));
+        if (!empty($assignedTo)) {
+            $tasksQuery->whereHas('users', function ($query) use ($assignedTo) {
+                $query->whereIn('users.id', $assignedTo);
+            });
+        }
+
+        // Apply assigner filter — whoever created/added the task.
+        $assignedBy = $asList(request('assigned_by'));
+        if (!empty($assignedBy)) {
+            $tasksQuery->where(function ($query) use ($assignedBy) {
+                $query->whereIn('tasks.added_by', $assignedBy)
+                    ->orWhereIn('tasks.created_by', $assignedBy);
             });
         }
 
@@ -157,6 +181,9 @@ class TaskController extends AccountBaseController
             if (count($dates) === 2 && $dates[0] && $dates[1]) {
                 $tasksQuery->whereBetween('due_date', [$dates[0], $dates[1]]);
             }
+        } elseif (request('due_date_range') === 'none') {
+            // "No date" option in the redesigned filter modal.
+            $tasksQuery->whereNull('due_date');
         }
 
         // Apply created date range filter
@@ -251,6 +278,13 @@ class TaskController extends AccountBaseController
                         'label_color' => $label->label_color,
                     ];
                 })->toArray(),
+                'subtasks' => $task->relationLoaded('subtasks')
+                    ? $task->subtasks->map(fn ($subtask) => [
+                        'id' => $subtask->id,
+                        'title' => $subtask->title,
+                        'status' => $subtask->status,
+                    ])->toArray()
+                    : [],
                 'files_count' => $task->files_count ?? 0,
                 'notes_count' => $task->notes_count ?? 0,
                 'comments_count' => $task->comments_count ?? 0,
@@ -344,18 +378,19 @@ class TaskController extends AccountBaseController
 
         // Build filters from request
         $filters = [
-            'status' => request('status'),
-            'priority' => request('priority'),
-            'assigned_to' => request('assigned_to') ? (int) request('assigned_to') : null,
+            'status' => $statuses,
+            'priority' => $priorities,
+            'assigned_to' => $assignedTo,
+            'assigned_by' => $assignedBy,
             'project_id' => request('project_id') ? (int) request('project_id') : null,
-            'category_id' => request('category_id') ? (int) request('category_id') : null,
+            'category_id' => $categoryIds,
             'labels' => request('labels', []),
             'due_date_range' => request('due_date_range'),
             'created_date_range' => request('created_date_range'),
             'search' => request('search'),
         ];
 
-        return Inertia::render('Tasks/Index', [
+        $props = [
             'tableTasks' => $tableTasks,
             'kanbanTasks' => $kanbanTasks,
             'categories' => $categories,
@@ -369,7 +404,91 @@ class TaskController extends AccountBaseController
             'filters' => $filters,
             'permissions' => $permissions,
             'stats' => $stats,
-        ]);
+        ];
+
+        // Saved views only exist as part of the redesigned tasks workspace.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser());
+        }
+
+        return Inertia::render('Tasks/Index', $props);
+    }
+
+    /**
+     * Syncs a task's linked records from a `links` payload of
+     * `[{type, id}, …]`, as sent by the redesigned task modal.
+     *
+     * Deals, leads and properties are polymorphic (`taskable`) and each type
+     * is synced to exactly the ids given; "project" maps to the task's own
+     * `project_id`. Absent `links` leaves every existing link untouched, so
+     * legacy callers that never send it can't wipe relations.
+     */
+    private function syncTaskLinks(Task $task, Request $request): void
+    {
+        if (!$request->has('links')) {
+            return;
+        }
+
+        $links = $request->input('links');
+        if (!is_array($links)) {
+            return;
+        }
+
+        $byType = ['deal' => [], 'lead' => [], 'property' => []];
+        $projectId = null;
+
+        foreach ($links as $link) {
+            if (!is_array($link)) {
+                continue;
+            }
+            $type = strtolower((string) ($link['type'] ?? ''));
+            $id = (int) ($link['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            if ($type === 'project') {
+                $projectId = $id;
+            } elseif (array_key_exists($type, $byType)) {
+                $byType[$type][] = $id;
+            }
+        }
+
+        $task->deals()->sync($byType['deal']);
+        $task->leads()->sync($byType['lead']);
+        $task->properties()->sync($byType['property']);
+
+        if ($task->project_id !== $projectId) {
+            $task->project_id = $projectId;
+            $task->save();
+        }
+    }
+
+    /**
+     * Saved filter views the current user may open: their own plus team-shared.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function savedTaskViewsForUser(): array
+    {
+        $userId = (int) user()->id;
+
+        return \App\Models\TaskSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (\App\Models\TaskSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**
@@ -1150,6 +1269,9 @@ class TaskController extends AccountBaseController
             }
         }
 
+        // Multi-record linking from the redesigned task modal.
+        $this->syncTaskLinks($task, $request);
+
 
         if (!is_null($request->taskId)) {
 
@@ -1583,6 +1705,9 @@ class TaskController extends AccountBaseController
 
         // save labels
         $task->labels()->sync($request->task_labels);
+
+        // Multi-record linking from the redesigned task modal.
+        $this->syncTaskLinks($task, $request);
 
         // To add custom fields data
         if ($request->custom_fields_data) {

@@ -74,6 +74,7 @@ use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\LeadSavedViewController;
+use App\Http\Controllers\TaskSavedViewController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
@@ -468,6 +469,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/waiting-approval', [TaskController::class, 'waitingApproval'])->name('tasks.waiting-approval');
     Route::get('tasks/show-waiting-approval-change-status-modal', [TaskController::class, 'statusReason'])->name('tasks.show_status_reason_modal');
     Route::post('tasks/store-status-reason', [TaskController::class, 'storeStatusReason'])->name('tasks.store_comment_on_change_status');
+
+    // Saved filter views for the redesigned tasks workspace
+    Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');
+    Route::patch('task-saved-views/{id}', [TaskSavedViewController::class, 'update'])->name('task-saved-views.update');
+    Route::delete('task-saved-views/{id}', [TaskSavedViewController::class, 'destroy'])->name('task-saved-views.destroy');
 
     Route::group(['prefix' => 'tasks'], function () {
 

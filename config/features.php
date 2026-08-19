@@ -32,6 +32,7 @@ return [
         'crm.deal-analysis',
         'crm.leads-filter-v2',
         'crm.expose-share-links',
+        'crm.tasks-workspace-redesign',
     ],
 ];
 
