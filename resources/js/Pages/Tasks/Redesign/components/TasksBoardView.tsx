@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import Avatar from "@/Components/Redesign/primitives/Avatar";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { TASK_ICON, statusToken } from "../config/taskDesignTokens";
@@ -265,36 +265,20 @@ export default function TasksBoardView({
                                     >
                                         <div className="flex items-center gap-2.5">
                                             <div className="flex flex-shrink-0">
-                                                {vm.people
-                                                    .slice(0, 3)
-                                                    .map((person, index) => (
-                                                        <span
-                                                            key={person.id}
-                                                            title={person.name}
-                                                            className="flex rounded-full"
-                                                            style={{
-                                                                marginRight:
-                                                                    index ===
-                                                                    Math.min(
-                                                                        vm
-                                                                            .people
-                                                                            .length,
-                                                                        3,
-                                                                    ) -
-                                                                        1
-                                                                        ? 0
-                                                                        : -7,
-                                                                border: `2px solid ${T.WHITE}`,
-                                                            }}
-                                                        >
-                                                            <Avatar
-                                                                size={24}
-                                                                initials={
-                                                                    person.initials
-                                                                }
-                                                            />
-                                                        </span>
-                                                    ))}
+                                                <MultiUserIndicator
+                                                    users={vm.people
+                                                        .slice(0, 3)
+                                                        .map((person) => ({
+                                                            id: person.id,
+                                                            name: person.name,
+                                                            image_url:
+                                                                person.image ??
+                                                                undefined,
+                                                        }))}
+                                                    size="sm"
+                                                    showNames={false}
+                                                    colorful
+                                                />
                                             </div>
                                             <span
                                                 className="min-w-0 flex-1 truncate"

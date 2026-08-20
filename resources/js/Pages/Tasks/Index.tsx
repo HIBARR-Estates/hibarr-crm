@@ -155,6 +155,7 @@ export interface TasksIndexProps extends PageProps {
         delete_tasks: string;
         change_status: string;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        view_task_category?: string;
     };
     stats: {
         total: number;

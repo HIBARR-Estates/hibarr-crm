@@ -611,6 +611,7 @@ class DealController extends AccountBaseController
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
+            'view_task_category' => user()->permission('view_task_category'),
         ];
 
         $dealWithCustomFields = $deal->toArray();

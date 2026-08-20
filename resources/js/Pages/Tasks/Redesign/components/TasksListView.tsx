@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskStatusSelect from "./primitives/TaskStatusSelect";
 import {
     ROW_PADDING,
@@ -11,7 +12,6 @@ import {
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import {
-    TaskAssigneeStack,
     TaskCategoryTag,
     TaskGlyph,
     TaskPriorityPill,
@@ -379,10 +379,16 @@ export default function TasksListView({
                                         className="flex flex-shrink-0 justify-end"
                                         style={{ width: 56 }}
                                     >
-                                        <TaskAssigneeStack
-                                            people={vm.people}
-                                            size={24}
-                                            max={2}
+                                        <MultiUserIndicator
+                                            users={vm.people.map((person) => ({
+                                                id: person.id,
+                                                name: person.name,
+                                                image_url: person.image ?? undefined,
+                                            }))}
+                                            size="sm"
+                                            maxCount={2}
+                                            showNames={false}
+                                            colorful
                                         />
                                     </div>
 

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
+import { Modal } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
+import TaskCategoryManager from "@/Pages/Settings/TaskCategoryManager";
 import PageLayout from "@/Components/PageLayout";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
@@ -137,8 +140,12 @@ export default function TasksWorkspaceRedesign({
     const { td } = useTd();
     const { t } = useTranslation();
     const userId = auth.user.id;
+    const isAdmin = useIsAdminRole();
+    const canManageTaskCategories =
+        isAdmin || permissions?.view_task_category === "all";
 
     const [tasks, setTasks] = useState<Task[]>(kanbanTasks);
+    const [taskSettingsOpen, setTaskSettingsOpen] = useState(false);
     const [view, setView] = useState<TasksViewMode>("list");
     const [quickFilter, setQuickFilter] = useState<QuickFilterKey>("all");
     const [groupMode, setGroupMode] = useState<GroupMode>("due");
@@ -689,6 +696,8 @@ export default function TasksWorkspaceRedesign({
                         onAddTask={() => setAddOpen(true)}
                         canAddTask={canAdd(permissions?.add_tasks)}
                         headline={headline}
+                        showTaskSettings={canManageTaskCategories}
+                        onOpenTaskSettings={() => setTaskSettingsOpen(true)}
                     />
                     <TasksFilterBar
                         quickFilter={quickFilter}
@@ -998,6 +1007,18 @@ export default function TasksWorkspaceRedesign({
                 entityLabel="task"
                 reloadOnly="kanbanTasks"
             />
+
+            <Modal
+                title={t("modules.tasks.taskCategory")}
+                open={taskSettingsOpen}
+                onCancel={() => setTaskSettingsOpen(false)}
+                footer={null}
+                width={640}
+                destroyOnClose
+                styles={{ content: { boxShadow: "none" } }}
+            >
+                <TaskCategoryManager />
+            </Modal>
         </PageLayout>
     );
 }

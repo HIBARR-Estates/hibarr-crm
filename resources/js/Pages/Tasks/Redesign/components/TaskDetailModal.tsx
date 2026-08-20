@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import Avatar from "@/Components/Redesign/primitives/Avatar";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { formatDateWithTime } from "@/Components/Redesign/adapters/dateFormat";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
-import { TASK_ICON, assigneeTone } from "../config/taskDesignTokens";
+import { TASK_ICON } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
 import TaskRecordIcon from "./primitives/TaskRecordIcon";
@@ -255,26 +255,17 @@ export default function TaskDetailModal({
                             className="flex items-center gap-2"
                             style={{ marginTop: 12 }}
                         >
-                            <span className="inline-flex items-center">
-                                {vm.people.slice(0, 2).map((person, index) => (
-                                    <span
-                                        key={person.id}
-                                        className="flex rounded-full"
-                                        style={{
-                                            marginLeft: index === 0 ? 0 : -8,
-                                            boxShadow: `0 0 0 2px ${T.WHITE}`,
-                                        }}
-                                    >
-                                        <Avatar
-                                            size={22}
-                                            initials={person.initials}
-                                            src={person.image}
-                                            tone={assigneeTone(person.id)}
-                                            title={person.name}
-                                        />
-                                    </span>
-                                ))}
-                            </span>
+                            <MultiUserIndicator
+                                users={vm.people.slice(0, 2).map((person) => ({
+                                    id: person.id,
+                                    name: person.name,
+                                    image_url: person.image ?? undefined,
+                                }))}
+                                size="sm"
+                                showNames={false}
+                                showTooltip={false}
+                                colorful
+                            />
                             <span
                                 style={{ fontSize: 14.5, color: T.TEXT_MUTED }}
                             >

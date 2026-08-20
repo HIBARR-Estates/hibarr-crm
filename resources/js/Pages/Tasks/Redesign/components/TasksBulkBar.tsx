@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import Avatar from "@/Components/Redesign/primitives/Avatar";
+import UserIndicator from "@/Components/UserIndicator";
 import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import { assigneeTone, statusToken } from "../config/taskDesignTokens";
+import { statusToken } from "../config/taskDesignTokens";
 
 interface UserOption {
     id: number;
@@ -236,18 +235,13 @@ export default function TasksBulkBar({
                                         textAlign: "left",
                                     }}
                                 >
-                                    <Avatar
-                                        size={24}
-                                        initials={initialsFromName(user.name)}
-                                        src={user.image}
-                                        tone={assigneeTone(user.id)}
+                                    <UserIndicator
+                                        data={{ name: user.name, image: user.image }}
+                                        size="sm"
+                                        showTooltip={false}
+                                        colorful
+                                        className="min-w-0 flex-1"
                                     />
-                                    <span
-                                        className="min-w-0 flex-1 truncate"
-                                        style={{ fontSize: 15, color: T.TEXT }}
-                                    >
-                                        {user.name}
-                                    </span>
                                 </button>
                             ))}
                         </div>

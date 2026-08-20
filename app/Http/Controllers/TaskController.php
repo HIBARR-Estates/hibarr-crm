@@ -358,6 +358,7 @@ class TaskController extends AccountBaseController
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => $viewPermission,
+            'view_task_category' => user()->permission('view_task_category'),
         ];
 
         // Build filters from request
@@ -1229,6 +1230,11 @@ class TaskController extends AccountBaseController
             // Delegate to Service
             $task = $this->taskService->createTask($data, user());
 
+            // TaskService::createTask only handles the legacy single
+            // taskable_type/taskable_id pair — the redesigned modal's
+            // multi-link `links` payload is synced separately here.
+            $this->syncTaskLinks($task, $request);
+
             // Handle Response Logic
             if (request()->add_more == 'true') {
                 $html = $this->create();
@@ -1246,7 +1252,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load(['users', 'boardColumn'])->toFrontendArray()]);
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray()]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1688,9 +1694,14 @@ class TaskController extends AccountBaseController
             $data = $request->all();
             $task = $this->taskService->updateTask($task, $data, user());
 
+            // TaskService::updateTask only handles the legacy single
+            // taskable_type/taskable_id pair — the redesigned modal's
+            // multi-link `links` payload is synced separately here.
+            $this->syncTaskLinks($task, $request);
+
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,
-                'data' => $task->load(['users', 'boardColumn'])->toFrontendArray(),
+                'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray(),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 
