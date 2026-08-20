@@ -183,24 +183,28 @@ export default function TaskDetailModal({
                                 />
                                 {td(vm.status.label, { source: "en" })}
                             </span>
-                            <span style={{ color: T.TEXT_HINT }}>·</span>
-                            <span
-                                className="inline-flex items-center gap-1.5"
-                                style={{
-                                    color: vm.category.fg,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: 999,
-                                        background: vm.category.dot,
-                                    }}
-                                />
-                                {td(vm.category.label, { source: "en" })}
-                            </span>
+                            {vm.category && (
+                                <>
+                                    <span style={{ color: T.TEXT_HINT }}>·</span>
+                                    <span
+                                        className="inline-flex items-center gap-1.5"
+                                        style={{
+                                            color: vm.category.fg,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                width: 6,
+                                                height: 6,
+                                                borderRadius: 999,
+                                                background: vm.category.dot,
+                                            }}
+                                        />
+                                        {td(vm.category.label, { source: "en" })}
+                                    </span>
+                                </>
+                            )}
                             <span style={{ color: T.TEXT_HINT }}>·</span>
                             <span className="inline-flex items-center gap-1.5">
                                 {td(vm.priority.label)} {td("priority")}

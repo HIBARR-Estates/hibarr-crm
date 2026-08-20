@@ -278,7 +278,7 @@ export default function TasksListView({
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >
-                                            {showRowCategory && (
+                                            {showRowCategory && vm.category && (
                                                 <>
                                                     <TaskCategoryTag
                                                         category={vm.category}

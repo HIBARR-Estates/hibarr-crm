@@ -238,8 +238,11 @@ export const TASK_CATEGORIES: Record<string, CategoryToken> = {
 
 const CATEGORY_PALETTE = Object.values(TASK_CATEGORIES);
 
-export function categoryToken(name: string | undefined): CategoryToken {
-    if (!name) return TASK_CATEGORIES.admin;
+/** Null when the task has no category — callers should omit the tag entirely
+ *  rather than inventing one (this used to hard-fall-back to the design's
+ *  "Admin" reference category, mislabeling every uncategorised task). */
+export function categoryToken(name: string | undefined): CategoryToken | null {
+    if (!name) return null;
 
     const normalized = name
         .trim()
