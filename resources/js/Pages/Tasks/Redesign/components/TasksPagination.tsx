@@ -1,11 +1,11 @@
+import { useId, useMemo } from "react";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import { TASK_ICON } from "../config/taskDesignTokens";
-import { TaskGlyph } from "./primitives/TaskGlyphs";
-import TaskSegmented from "./primitives/TaskSegmented";
+import { buildPageRange } from "@/Components/DataTable/utils";
 
 /** Selectable page sizes for both the list and the board columns. */
-export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export const PAGE_SIZE_OPTIONS = [10, 15, 25, 50, 100] as const;
 
 interface TasksPaginationProps {
     page: number;
@@ -15,37 +15,8 @@ interface TasksPaginationProps {
     onPageSizeChange: (size: number) => void;
 }
 
-const navButtonStyle = (disabled: boolean): React.CSSProperties => ({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    border: `1px solid ${T.BORDER}`,
-    background: T.WHITE,
-    color: disabled ? T.NAVY_MID : T.TEXT_MUTED,
-    cursor: disabled ? "default" : "pointer",
-    opacity: disabled ? 0.55 : 1,
-});
-
-/** Compact page window: 1 … 4 5 6 … 20 */
-function pageWindow(current: number, total: number): Array<number | "gap"> {
-    if (total <= 7) {
-        return Array.from({ length: total }, (_, index) => index + 1);
-    }
-    const pages = new Set<number>([1, total, current]);
-    if (current - 1 > 1) pages.add(current - 1);
-    if (current + 1 < total) pages.add(current + 1);
-
-    const sorted = Array.from(pages).sort((a, b) => a - b);
-    const output: Array<number | "gap"> = [];
-    sorted.forEach((value, index) => {
-        if (index > 0 && value - sorted[index - 1] > 1) output.push("gap");
-        output.push(value);
-    });
-    return output;
-}
+const NAV_BTN_BASE =
+    "inline-flex items-center justify-center w-8 h-8 rounded-md text-sm border transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1";
 
 export default function TasksPagination({
     page,
@@ -55,143 +26,158 @@ export default function TasksPagination({
     onPageSizeChange,
 }: TasksPaginationProps) {
     const { td } = useTd();
+    const selectId = useId();
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     const safePage = Math.min(page, totalPages);
     const from = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
     const to = Math.min(safePage * pageSize, totalItems);
+    const hasPrev = safePage > 1;
+    const hasNext = safePage < totalPages;
 
-    // Rows-per-page rides the same segmented switcher as list/board and
-    // group-by, so every switcher on the page is literally one component.
-    const sizeSelect = (
-        <div className="flex items-center gap-2">
-            <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("Rows per page")}
-            </span>
-            <TaskSegmented
-                value={pageSize}
-                ariaLabel={td("Rows per page")}
-                onChange={onPageSizeChange}
-                options={PAGE_SIZE_OPTIONS.map((option) => ({
-                    value: option,
-                    label: option,
-                }))}
-            />
-        </div>
+    const pages = useMemo(
+        () => buildPageRange(safePage, totalPages),
+        [safePage, totalPages],
     );
 
+    if (totalItems === 0) return null;
+
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5">
-            <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("Showing")}{" "}
-                <strong style={{ color: T.NAVY, fontWeight: 700 }}>
-                    {from}–{to}
-                </strong>{" "}
-                {td("of")}{" "}
-                <strong style={{ color: T.NAVY, fontWeight: 700 }}>
-                    {totalItems}
-                </strong>{" "}
-                {totalItems === 1 ? td("task") : td("tasks")}
-            </span>
+        <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t bg-white"
+            style={{ borderColor: T.BORDER }}
+        >
+            {/* Left — result range + rows-per-page selector */}
+            <div
+                className="flex items-center gap-3 text-sm"
+                style={{ color: T.TEXT_MUTED }}
+            >
+                <span aria-live="polite" aria-atomic="true">
+                    {td("Showing")}{" "}
+                    <span className="font-semibold" style={{ color: T.TEXT }}>
+                        {from}
+                    </span>
+                    {"–"}
+                    <span className="font-semibold" style={{ color: T.TEXT }}>
+                        {to}
+                    </span>
+                    {" "}
+                    {td("of")}{" "}
+                    <span className="font-semibold" style={{ color: T.TEXT }}>
+                        {totalItems}
+                    </span>{" "}
+                    {totalItems === 1 ? td("task") : td("tasks")}
+                </span>
 
-            <div className="flex items-center gap-3">
-                {sizeSelect}
-
-                {totalPages > 1 && (
-                    <div className="flex items-center gap-2.5">
-                        <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
-                            {td("Page")} {safePage} {td("of")} {totalPages}
-                        </span>
-                        <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            aria-label={td("Previous page")}
-                            disabled={safePage <= 1}
-                            onClick={() => onPageChange(safePage - 1)}
-                            style={navButtonStyle(safePage <= 1)}
-                        >
-                            <span
-                                style={{
-                                    transform: "rotate(90deg)",
-                                    display: "flex",
-                                }}
-                            >
-                                <TaskGlyph
-                                    d={TASK_ICON.chevron}
-                                    size={13}
-                                    strokeWidth={2}
-                                />
-                            </span>
-                        </button>
-
-                        {pageWindow(safePage, totalPages).map((entry, index) =>
-                            entry === "gap" ? (
-                                <span
-                                    key={`gap-${index}`}
-                                    style={{
-                                        padding: "0 4px",
-                                        fontSize: 14,
-                                        color: T.TEXT_HINT,
-                                    }}
-                                >
-                                    …
-                                </span>
-                            ) : (
-                                <button
-                                    key={entry}
-                                    type="button"
-                                    aria-current={
-                                        entry === safePage ? "page" : undefined
-                                    }
-                                    onClick={() => onPageChange(entry)}
-                                    style={{
-                                        minWidth: 30,
-                                        height: 30,
-                                        padding: "0 8px",
-                                        borderRadius: 8,
-                                        fontSize: 14,
-                                        fontWeight:
-                                            entry === safePage ? 700 : 600,
-                                        cursor: "pointer",
-                                        background:
-                                            entry === safePage
-                                                ? T.NAVY
-                                                : T.WHITE,
-                                        color:
-                                            entry === safePage
-                                                ? T.WHITE
-                                                : T.TEXT_MUTED,
-                                        border: `1px solid ${entry === safePage ? T.NAVY : T.BORDER}`,
-                                    }}
-                                >
-                                    {entry}
-                                </button>
-                            ),
-                        )}
-
-                        <button
-                            type="button"
-                            aria-label={td("Next page")}
-                            disabled={safePage >= totalPages}
-                            onClick={() => onPageChange(safePage + 1)}
-                            style={navButtonStyle(safePage >= totalPages)}
-                        >
-                            <span
-                                style={{
-                                    transform: "rotate(-90deg)",
-                                    display: "flex",
-                                }}
-                            >
-                                <TaskGlyph
-                                    d={TASK_ICON.chevron}
-                                    size={13}
-                                    strokeWidth={2}
-                                />
-                            </span>
-                        </button>
-                        </div>
-                    </div>
-                )}
+                <div className="flex items-center gap-1.5">
+                    <label
+                        htmlFor={selectId}
+                        className="whitespace-nowrap select-none"
+                    >
+                        {td("Rows per page")}
+                    </label>
+                    <select
+                        id={selectId}
+                        value={pageSize}
+                        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                        className="text-sm rounded-md px-2 py-1 cursor-pointer outline-none transition-colors hover:border-[#c7d0de] focus:border-[#b8d4f0] focus:shadow-[0_0_0_2px_#e8f1fb]"
+                        style={{ border: `1px solid ${T.BORDER}`, color: T.TEXT }}
+                    >
+                        {PAGE_SIZE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
+
+            {/* Right — page navigation controls */}
+            {totalPages > 1 && (
+                <nav
+                    role="navigation"
+                    aria-label={td("Pagination")}
+                    className="flex items-center gap-1"
+                >
+                    <span
+                        className="text-sm mr-2 whitespace-nowrap"
+                        style={{ color: T.TEXT_MUTED }}
+                        aria-live="polite"
+                        aria-atomic="true"
+                    >
+                        {td("Page")}{" "}
+                        <span className="font-semibold" style={{ color: T.TEXT }}>
+                            {safePage}
+                        </span>{" "}
+                        {td("of")}{" "}
+                        <span className="font-semibold" style={{ color: T.TEXT }}>
+                            {totalPages}
+                        </span>
+                    </span>
+
+                    <button
+                        type="button"
+                        onClick={() => hasPrev && onPageChange(safePage - 1)}
+                        disabled={!hasPrev}
+                        aria-label={td("Previous page")}
+                        className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                        style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
+                    >
+                        <LeftOutlined style={{ fontSize: 10 }} />
+                    </button>
+
+                    {pages.map((entry, index) =>
+                        entry === "ellipsis" ? (
+                            <span
+                                key={`ellipsis-${index}`}
+                                className="w-8 h-8 flex items-center justify-center text-sm select-none"
+                                style={{ color: T.TEXT_HINT }}
+                                aria-hidden="true"
+                            >
+                                …
+                            </span>
+                        ) : (
+                            <button
+                                key={entry}
+                                type="button"
+                                onClick={() =>
+                                    entry !== safePage && onPageChange(entry)
+                                }
+                                aria-label={`${td("Go to page")} ${entry}`}
+                                aria-current={
+                                    entry === safePage ? "page" : undefined
+                                }
+                                className={`${NAV_BTN_BASE} ${
+                                    entry === safePage
+                                        ? "font-semibold cursor-default"
+                                        : "cursor-pointer bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de]"
+                                }`}
+                                style={
+                                    entry === safePage
+                                        ? {
+                                              borderColor: T.BLUE,
+                                              background: T.BLUE,
+                                              color: T.WHITE,
+                                          }
+                                        : { borderColor: T.BORDER, color: T.TEXT_MUTED }
+                                }
+                            >
+                                {entry}
+                            </button>
+                        ),
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => hasNext && onPageChange(safePage + 1)}
+                        disabled={!hasNext}
+                        aria-label={td("Next page")}
+                        className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                        style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
+                    >
+                        <RightOutlined style={{ fontSize: 10 }} />
+                    </button>
+                </nav>
+            )}
         </div>
     );
 }

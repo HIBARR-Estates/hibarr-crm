@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { MoreOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
-import { TASK_ICON } from "../../config/taskDesignTokens";
-import { TaskGlyph } from "./TaskGlyphs";
 
 export interface TaskRowAction {
     key: string;
@@ -72,12 +71,7 @@ export default function TaskRowMenu({
                     flexShrink: 0,
                 }}
             >
-                <TaskGlyph
-                    d={TASK_ICON.more}
-                    size={16}
-                    color={T.TEXT_HINT}
-                    strokeWidth={1.5}
-                />
+                <MoreOutlined style={{ fontSize: 16, color: T.TEXT_HINT }} />
             </button>
 
             {open &&

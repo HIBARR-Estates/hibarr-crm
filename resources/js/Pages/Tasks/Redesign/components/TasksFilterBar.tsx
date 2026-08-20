@@ -1,7 +1,6 @@
+import { FilterOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import { TASK_ICON } from "../config/taskDesignTokens";
-import { TaskGlyph } from "./primitives/TaskGlyphs";
 import TaskSegmented from "./primitives/TaskSegmented";
 
 export type QuickFilterKey =
@@ -121,11 +120,7 @@ export default function TasksFilterBar({
                             border: `1px solid ${hasFilters ? T.BLUE_MID : T.BORDER}`,
                         }}
                     >
-                        <TaskGlyph
-                            d={TASK_ICON.filter}
-                            size={13}
-                            strokeWidth={1.5}
-                        />
+                        <FilterOutlined style={{ fontSize: 13 }} />
                         {td("Filters")}
                         {hasFilters && (
                             <span

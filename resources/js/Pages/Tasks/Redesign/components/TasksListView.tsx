@@ -208,7 +208,7 @@ export default function TasksListView({
                         </div>
 
                         {open &&
-                            group.tasks.map((vm) => (
+                            group.tasks.map((vm, rowIndex) => (
                                 <div
                                     key={vm.id}
                                     role="button"
@@ -227,7 +227,12 @@ export default function TasksListView({
                                     style={{
                                         padding: `${rowPad} 18px`,
                                         borderBottom: `1px solid ${T.BORDER_SOFT}`,
-                                        background: T.SURFACE,
+                                        // Zebra striping to match the Leads/Deals
+                                        // DataTable (--bg-subtle / gray-50 on odd rows).
+                                        background:
+                                            rowIndex % 2 !== 0
+                                                ? "rgb(249 250 251)"
+                                                : T.SURFACE,
                                     }}
                                 >
                                     <SelectCheckbox

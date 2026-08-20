@@ -9,6 +9,7 @@ import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { useFilter } from "@/contexts/FilterContext";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import TaskFormModal, {
     type RecordPool,
     type TaskFormValues,
@@ -38,6 +39,9 @@ import useTasksFilters, {
 } from "./hooks/useTasksFilters";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
 import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
+import BulkUpdateModal from "@/Features/BulkActions/BulkUpdateModal";
+import { createTaskBulkUpdateFields } from "./config/taskBulkUpdateFields";
+import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
     TASK_BUCKETS,
@@ -143,7 +147,7 @@ export default function TasksWorkspaceRedesign({
     const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(15);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
@@ -495,6 +499,17 @@ export default function TasksWorkspaceRedesign({
     const selectedIds = Array.from(selected);
     const clearSelection = () => setSelected(new Set());
 
+    const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+    const bulkUpdateFields = useMemo(
+        () => createTaskBulkUpdateFields({ columns, categories: categoryOptions, users }),
+        [columns, categoryOptions, users],
+    );
+    const bulkUpdateTarget: BulkTarget = {
+        mode: "ids",
+        ids: selectedIds,
+        count: selectedIds.length,
+    };
+
     const toggleSelect = (vm: TaskViewModel) =>
         setSelected((current) => {
             const next = new Set(current);
@@ -702,6 +717,7 @@ export default function TasksWorkspaceRedesign({
                     <div className="mx-auto w-full max-w-[1280px] px-7">
                         <ActiveFilterSentence
                             count={visible.length}
+                            entityLabel="tasks"
                             onOpenFilters={openDrawer}
                         />
                     </div>
@@ -733,6 +749,7 @@ export default function TasksWorkspaceRedesign({
                             busy={bulkBusy}
                             canReassign={permissions?.edit_tasks === "all"}
                             canDelete={permissions?.delete_tasks === "all"}
+                            canBulkUpdate={permissions?.edit_tasks === "all"}
                             allSelected={allVisibleSelected}
                             onToggleSelectAll={() =>
                                 toggleGroupSelection(
@@ -742,6 +759,7 @@ export default function TasksWorkspaceRedesign({
                             }
                             onSetStatus={bulkSetStatus}
                             onReassign={bulkReassign}
+                            onBulkUpdate={() => setBulkUpdateOpen(true)}
                             onDelete={() => setConfirmBulkDelete(true)}
                             onClear={clearSelection}
                         />
@@ -964,6 +982,19 @@ export default function TasksWorkspaceRedesign({
                 confirmLoading={bulkBusy}
                 onConfirm={bulkDelete}
                 onCancel={() => setConfirmBulkDelete(false)}
+            />
+
+            <BulkUpdateModal
+                open={bulkUpdateOpen}
+                onClose={(operationSucceeded) => {
+                    setBulkUpdateOpen(false);
+                    if (operationSucceeded) clearSelection();
+                }}
+                target={bulkUpdateTarget}
+                fields={bulkUpdateFields}
+                endpoint={route("tasks.apply_quick_action")}
+                entityLabel="task"
+                reloadOnly="kanbanTasks"
             />
         </PageLayout>
     );

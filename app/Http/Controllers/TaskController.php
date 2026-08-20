@@ -115,11 +115,20 @@ class TaskController extends AccountBaseController
             });
         }
 
-        // Multi-select filters accept either a scalar (legacy links) or an
-        // array (redesigned filter modal), so normalise before querying.
+        // Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
+        // legacy links) or a comma-joined string (the redesigned filter modal —
+        // FilterContext.tsx's applyFilters() joins multiselect values with "," so
+        // its own URL parser can read them back). Mirrors
+        // LeadService::toValueArray(), which the redesigned Leads filters already
+        // rely on — without the explode() branch, picking 2+ options silently
+        // matched nothing because "todo,in_review" was queried as one literal value.
         $asList = function ($value): array {
+            if (!is_array($value)) {
+                $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
+            }
+
             return array_values(array_filter(
-                is_array($value) ? $value : [$value],
+                array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
                 fn ($item) => $item !== null && $item !== '' && $item !== 'all'
             ));
         };
@@ -171,9 +180,10 @@ class TaskController extends AccountBaseController
         }
 
         // Apply labels filter
-        if (request()->filled('labels') && is_array(request('labels'))) {
-            $tasksQuery->whereHas('labels', function ($query) {
-                $query->whereIn('id', request('labels'));
+        $labelIds = $asList(request('labels'));
+        if (!empty($labelIds)) {
+            $tasksQuery->whereHas('labels', function ($query) use ($labelIds) {
+                $query->whereIn('id', $labelIds);
             });
         }
 
@@ -358,7 +368,7 @@ class TaskController extends AccountBaseController
             'assigned_by' => $assignedBy,
             'project_id' => request('project_id') ? (int) request('project_id') : null,
             'category_id' => $categoryIds,
-            'labels' => request('labels', []),
+            'labels' => $labelIds,
             'due_date_range' => request('due_date_range'),
             'due_start_date' => request('due_start_date'),
             'due_end_date' => request('due_end_date'),
@@ -575,6 +585,30 @@ class TaskController extends AccountBaseController
                 $this->changeBulkAssignee($request, $ids);
 
                 return Reply::success(__('messages.updateSuccess'));
+            case 'bulk_update':
+                $fields = $request->input('fields', []);
+                if (! is_array($fields) || $fields === []) {
+                    return Reply::error(__('messages.updateFail') ?: 'Select at least one field to update.');
+                }
+
+                $error = $this->applyTaskBulkUpdateFields($request, $ids, $fields);
+                if ($error !== null) {
+                    return Reply::error($error);
+                }
+
+                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                $records = $tasks->map(function (Task $task) {
+                    return [
+                        'label' => $task->heading ?? ('#' . $task->id),
+                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                    ];
+                })->values()->all();
+
+                if (user() && !empty($records)) {
+                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'bulk_update', count($records), $records));
+                }
+
+                return Reply::success(__('messages.updateSuccess'));
             case 'milestone':
                 $milestone = ProjectMilestone::find($request->milestone);
                 $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
@@ -668,6 +702,62 @@ class TaskController extends AccountBaseController
             }
             $task->users()->sync($userIds);
         }
+    }
+
+    /**
+     * Apply one or more bulk field updates to the selected tasks. Mirrors
+     * LeadContactController::applyBulkUpdateFields — each field is gated by
+     * its own permission check and reuses the existing single-field bulk
+     * helpers (changeBulkStatus / changeBulkAssignee) so the Bulk update
+     * modal can stack several field changes into one request.
+     *
+     * @param  list<string>  $fields
+     * @param  array<int, int>  $taskIds
+     */
+    protected function applyTaskBulkUpdateFields(Request $request, array $taskIds, array $fields): ?string
+    {
+        if (empty($taskIds)) {
+            return __('messages.selectAtleastOne') ?: 'Select at least one task.';
+        }
+
+        $fields = array_values(array_unique(array_map('strval', $fields)));
+
+        foreach ($fields as $field) {
+            switch ($field) {
+                case 'status':
+                    if (! $request->filled('status')) {
+                        return __('messages.updateFail') ?: 'Select a status.';
+                    }
+                    $this->authorizeBulkTaskStatusChange($taskIds);
+                    $this->changeBulkStatus($request);
+                    break;
+
+                case 'priority':
+                    abort_403(user()->permission('edit_tasks') != 'all');
+                    $priority = $request->input('priority');
+                    if (! in_array($priority, ['urgent', 'highest', 'high', 'medium', 'low', 'lowest'], true)) {
+                        return __('messages.updateFail') ?: 'Select a valid priority.';
+                    }
+                    Task::whereIn('id', $taskIds)->update(['priority' => $priority]);
+                    break;
+
+                case 'task_category_id':
+                    abort_403(user()->permission('edit_tasks') != 'all');
+                    Task::whereIn('id', $taskIds)->update([
+                        'task_category_id' => $request->input('task_category_id') ?: null,
+                    ]);
+                    break;
+
+                case 'assigned_to':
+                    $this->changeBulkAssignee($request, $taskIds);
+                    break;
+
+                default:
+                    return (__('messages.updateFail') ?: 'Unknown field.') . " ({$field})";
+            }
+        }
+
+        return null;
     }
 
     /**

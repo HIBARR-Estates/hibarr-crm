@@ -22,10 +22,12 @@ interface TasksBulkBarProps {
     busy: boolean;
     canReassign: boolean;
     canDelete: boolean;
+    canBulkUpdate: boolean;
     allSelected: boolean;
     onToggleSelectAll: () => void;
     onSetStatus: (column: TaskboardColumn) => void;
     onReassign: (userId: number) => void;
+    onBulkUpdate: () => void;
     onDelete: () => void;
     onClear: () => void;
 }
@@ -126,10 +128,12 @@ export default function TasksBulkBar({
     busy,
     canReassign,
     canDelete,
+    canBulkUpdate,
     allSelected,
     onToggleSelectAll,
     onSetStatus,
     onReassign,
+    onBulkUpdate,
     onDelete,
     onClear,
 }: TasksBulkBarProps) {
@@ -249,6 +253,22 @@ export default function TasksBulkBar({
                         </div>
                     )}
                 </BarMenu>
+            )}
+
+            {canBulkUpdate && (
+                <button
+                    type="button"
+                    disabled={busy}
+                    onClick={onBulkUpdate}
+                    style={{
+                        ...barButtonStyle,
+                        background: T.BLUE,
+                        color: T.WHITE,
+                        opacity: busy ? 0.5 : 1,
+                    }}
+                >
+                    {td("Bulk update")}
+                </button>
             )}
 
             {canDelete && (

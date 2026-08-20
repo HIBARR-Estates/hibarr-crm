@@ -1,3 +1,4 @@
+import { ReloadOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
@@ -102,11 +103,7 @@ export default function TasksHeader({
                         opacity: refreshing ? 0.6 : 1,
                     }}
                 >
-                    <TaskGlyph
-                        d={TASK_ICON.refresh}
-                        size={15}
-                        strokeWidth={1.5}
-                    />
+                    <ReloadOutlined spin={refreshing} style={{ fontSize: 13 }} />
                     {td("Refresh")}
                 </button>
 
