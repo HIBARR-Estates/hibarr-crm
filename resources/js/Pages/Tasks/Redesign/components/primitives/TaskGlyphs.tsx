@@ -111,9 +111,15 @@ export function TaskPriorityInline({ priority }: { priority: PriorityToken }) {
     );
 }
 
-/** Square colour chip + category name, shown in the row meta line. */
-export function TaskCategoryTag({ category }: { category: CategoryToken }) {
+/** Square colour chip + category name, shown in the row meta line. Renders
+ *  nothing for an uncategorised task rather than inventing a category. */
+export function TaskCategoryTag({
+    category,
+}: {
+    category: CategoryToken | null;
+}) {
     const { td } = useTd();
+    if (!category) return null;
     return (
         <span
             className="inline-flex flex-shrink-0 items-center gap-1.5"

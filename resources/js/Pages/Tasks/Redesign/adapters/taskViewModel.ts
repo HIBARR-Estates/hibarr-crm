@@ -47,7 +47,8 @@ export interface TaskViewModel {
     statusSlug: string;
     status: StatusToken;
     priority: PriorityToken;
-    category: CategoryToken;
+    /** Null when the task has no category — nothing should render for it. */
+    category: CategoryToken | null;
     /** e.g. "Today · 17:00", or "No date". */
     dueText: string;
     /** e.g. "Due in 3 hrs" / "Overdue by 2 days" / "No due date". */

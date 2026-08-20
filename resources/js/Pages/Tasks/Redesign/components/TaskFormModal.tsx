@@ -301,7 +301,9 @@ export default function TaskFormModal({
 
     /** Categories as pill options, coloured like the row tag. */
     const categoryOptions: PillOption[] = categories.map((category) => {
-        const token = categoryToken(category.category_name);
+        // category.category_name always a real string here, so categoryToken
+        // never actually returns its "no name" null.
+        const token = categoryToken(category.category_name)!;
         return {
             value: String(category.id),
             label: category.category_name,

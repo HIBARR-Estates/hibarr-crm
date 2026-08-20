@@ -379,7 +379,9 @@ export default function TasksWorkspaceRedesign({
             const byCategory = new Map<string, TaskGroup>();
             visible.forEach((vm) => {
                 const name = vm.task.category?.category_name ?? "Uncategorised";
-                const token = categoryToken(name);
+                // `name` always a real string ("Uncategorised" as the
+                // fallback), so categoryToken never returns its "no name" null.
+                const token = categoryToken(name)!;
                 if (!byCategory.has(name)) {
                     byCategory.set(name, {
                         key: `category-${name}`,
