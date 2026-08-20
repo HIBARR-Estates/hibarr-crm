@@ -6,6 +6,7 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import { TASK_ICON, statusToken } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import { TaskGlyph, TaskPriorityInline } from "./primitives/TaskGlyphs";
+import TaskRecordIcon from "./primitives/TaskRecordIcon";
 
 interface TasksBoardViewProps {
     tasks: TaskViewModel[];
@@ -189,7 +190,7 @@ export default function TasksBoardView({
                             <span
                                 className="flex-1"
                                 style={{
-                                    fontSize: 14,
+                                    fontSize: 16,
                                     fontWeight: 600,
                                     color: T.NAVY,
                                 }}
@@ -198,7 +199,7 @@ export default function TasksBoardView({
                             </span>
                             <span
                                 style={{
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: 600,
                                     color: T.TEXT_MUTED,
                                     background: T.BG,
@@ -298,7 +299,7 @@ export default function TasksBoardView({
                                             <span
                                                 className="min-w-0 flex-1 truncate"
                                                 style={{
-                                                    fontSize: 12,
+                                                    fontSize: 14,
                                                     color: T.TEXT_MUTED,
                                                     paddingLeft: 5,
                                                 }}
@@ -312,7 +313,7 @@ export default function TasksBoardView({
                                         <span
                                             className="tasks-clamp-2"
                                             style={{
-                                                fontSize: 14,
+                                                fontSize: 16,
                                                 fontWeight: 700,
                                                 color: T.NAVY,
                                                 lineHeight: 1.35,
@@ -327,7 +328,7 @@ export default function TasksBoardView({
                                             <span
                                                 className="tasks-clamp-3 flex-1"
                                                 style={{
-                                                    fontSize: 13,
+                                                    fontSize: 15,
                                                     color: T.TEXT_MUTED,
                                                     lineHeight: 1.45,
                                                 }}
@@ -344,18 +345,17 @@ export default function TasksBoardView({
                                                 {vm.links.map((link) => {
                                                     const body = (
                                                         <>
-                                                            <TaskGlyph
-                                                                d={link.d}
+                                                            <TaskRecordIcon
+                                                                type={link.type}
                                                                 size={13}
                                                                 color={
                                                                     link.iconFg
                                                                 }
-                                                                strokeWidth={1.5}
                                                             />
                                                             <span
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 12,
+                                                                    fontSize: 14,
                                                                     color: T.TEXT_MUTED,
                                                                 }}
                                                             >
@@ -393,7 +393,7 @@ export default function TasksBoardView({
                                                 {vm.extraLinks > 0 && (
                                                     <span
                                                         style={{
-                                                            fontSize: 12,
+                                                            fontSize: 14,
                                                             fontWeight: 600,
                                                             color: T.BLUE,
                                                             paddingLeft: 20,
@@ -410,7 +410,7 @@ export default function TasksBoardView({
                                             <span
                                                 className="inline-flex min-w-0 items-center gap-1.5 truncate whitespace-nowrap"
                                                 style={{
-                                                    fontSize: 12,
+                                                    fontSize: 14,
                                                     color: vm.dueColor,
                                                 }}
                                             >
@@ -450,7 +450,7 @@ export default function TasksBoardView({
                                         className="flex items-center justify-center gap-2"
                                         style={{
                                             padding: "8px 12px",
-                                            fontSize: 12,
+                                            fontSize: 14,
                                             fontWeight: 600,
                                             color: T.TEXT_HINT,
                                         }}
@@ -486,7 +486,7 @@ export default function TasksBoardView({
                                                 ? EMPTY_STATE_HEIGHT
                                                 : undefined,
                                         flexShrink: 0,
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         fontWeight: 600,
                                         color: T.BLUE_DARK,
                                         textAlign: "center",
@@ -520,7 +520,7 @@ export default function TasksBoardView({
                                     />
                                     <span
                                         style={{
-                                            fontSize: 13,
+                                            fontSize: 15,
                                             fontWeight: 600,
                                             color: T.TEXT_MUTED,
                                             textAlign: "center",
@@ -535,7 +535,7 @@ export default function TasksBoardView({
                                     </span>
                                     <span
                                         style={{
-                                            fontSize: 12,
+                                            fontSize: 14,
                                             color: T.TEXT_HINT,
                                             textAlign: "center",
                                             lineHeight: 1.45,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -16,9 +16,9 @@ import {
     type TaskPriorityKey,
 } from "../config/taskDesignTokens";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
-import TaskColorSelect, {
-    type ColorOption,
-} from "./primitives/TaskColorSelect";
+import TaskPillSelect, { type PillOption } from "./primitives/TaskPillSelect";
+import TaskDateSelect from "./primitives/TaskDateSelect";
+import TaskRecordIcon from "./primitives/TaskRecordIcon";
 
 export interface TaskLinkRef {
     type: RecordTypeKey;
@@ -37,11 +37,20 @@ export interface TaskFormValues {
     categoryId: number | null;
     boardColumnId: number | null;
     links: TaskLinkRef[];
+    /** New checklist rows to create against the saved task. */
+    checklist: string[];
+    /** New files to upload once the task exists. */
+    files: File[];
 }
 
 interface CategoryOption {
     id: number;
     category_name: string;
+}
+
+interface UserOption {
+    id: number;
+    name: string;
 }
 
 export interface RecordPool {
@@ -60,41 +69,30 @@ interface TaskFormModalProps {
     errors: string[];
     initial?: Partial<TaskFormValues>;
     categories: CategoryOption[];
+    /** Employees, used to name a lone assignee on the pill. */
+    users?: UserOption[];
     columns: TaskboardColumn[];
     records: RecordPool;
     /**
      * Links the caller owns and the user may not remove — e.g. the deal when
-     * the modal is opened from a deal workspace. Empty on the tasks page,
-     * where any link can be detached.
+     * the modal is opened from a deal workspace.
      */
     lockedLinks?: TaskLinkRef[];
-    /** Adds a category inline; resolves with the new option. */
-    onCreateCategory?: (name: string) => Promise<CategoryOption | null>;
 }
 
 const DEFAULT_DUE_TIME = "17:00";
+const RECORD_TABS: RecordTypeKey[] = ["lead", "deal", "property", "project"];
 
 function todayIso(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-const LABEL: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-    color: T.TEXT_MUTED,
-};
-
-const inputStyle: React.CSSProperties = {
-    padding: "9px 12px",
-    border: `1px solid ${T.BORDER}`,
-    borderRadius: 8,
-    fontSize: 14,
-    color: T.TEXT,
-    width: "100%",
-    background: T.WHITE,
-};
+function formatFileSize(bytes: number): string {
+    if (bytes >= 1024 * 1024) {
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 function emptyForm(): TaskFormValues {
     return {
@@ -108,15 +106,44 @@ function emptyForm(): TaskFormValues {
         categoryId: null,
         boardColumnId: null,
         links: [],
+        checklist: [],
+        files: [],
     };
 }
 
-const RECORD_TABS: RecordTypeKey[] = ["lead", "deal", "property", "project"];
+const MICRO_LABEL: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    color: T.TEXT_MUTED,
+};
+
+const popoverStyle: React.CSSProperties = {
+    position: "fixed",
+    zIndex: 60,
+    border: `1px solid ${T.BORDER}`,
+    borderRadius: 10,
+    background: T.WHITE,
+    boxShadow: "0 8px 24px rgba(22,41,77,0.14)",
+};
+
+const smallInput: React.CSSProperties = {
+    padding: "8px 10px",
+    border: `1px solid ${T.BORDER}`,
+    borderRadius: 8,
+    fontSize: 15,
+    color: T.TEXT,
+    background: T.WHITE,
+    width: "100%",
+};
 
 /**
- * Create/edit task dialog built to the handoff's "Add task" layout: a
- * title-first form with optional fields, a linked-records picker, and the
- * rest tucked behind a "More details" disclosure.
+ * Create/edit task dialog, rebuilt to the handoff's compact layout: a
+ * borderless title + description, then one pill per field that opens its
+ * editor in an anchored popover — so the dialog stays short instead of
+ * stacking every field down the page. Checklist and attachments sit inline
+ * below, always available rather than hidden behind a menu.
  */
 export default function TaskFormModal({
     open,
@@ -127,27 +154,31 @@ export default function TaskFormModal({
     errors,
     initial,
     categories,
+    users = [],
     columns,
     records,
     lockedLinks = [],
-    onCreateCategory,
 }: TaskFormModalProps) {
     const { td } = useTd();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
 
     const [form, setForm] = useState<TaskFormValues>(emptyForm);
-    const [advanced, setAdvanced] = useState(false);
+    // Status/priority/category manage their own menus (TaskPillSelect);
+    // only these two need an explicit anchored popover.
+    const [assigneeOpen, setAssigneeOpen] = useState(false);
+    const [linksOpen, setLinksOpen] = useState(false);
+    const [anchor, setAnchor] = useState<{ top: number; left: number }>({
+        top: 0,
+        left: 0,
+    });
     const [recordType, setRecordType] = useState<RecordTypeKey>("lead");
     const [recordQuery, setRecordQuery] = useState("");
-    const [newCategory, setNewCategory] = useState("");
-    const [addingCategory, setAddingCategory] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Seed the form each time the modal opens.
     useEffect(() => {
         if (!open) return;
         const seeded = { ...emptyForm(), ...initial };
-        // Locked links are always present and can't be removed.
         const merged = [...seeded.links];
         lockedLinks.forEach((locked) => {
             if (
@@ -160,15 +191,19 @@ export default function TaskFormModal({
             }
         });
         seeded.links = merged;
-        if (mode === "create" && seeded.assignees.length === 0 && currentUserId) {
+        seeded.checklist = [];
+        seeded.files = [];
+        if (
+            mode === "create" &&
+            seeded.assignees.length === 0 &&
+            currentUserId
+        ) {
             seeded.assignees = [currentUserId];
         }
         setForm(seeded);
-        // Open "More details" straight away when the task already has links,
-        // so existing relations aren't hidden behind a disclosure.
-        setAdvanced(merged.length > 0);
+        setAssigneeOpen(false);
+        setLinksOpen(false);
         setRecordQuery("");
-        setNewCategory("");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
@@ -184,11 +219,18 @@ export default function TaskFormModal({
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (event: KeyboardEvent) => {
-            if (event.key === "Escape" && !saving) onClose();
+            if (event.key !== "Escape") return;
+            // Escape closes an anchored popover first, then the dialog.
+            if (assigneeOpen || linksOpen) {
+                setAssigneeOpen(false);
+                setLinksOpen(false);
+            } else if (!saving) {
+                onClose();
+            }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [open, onClose, saving]);
+    }, [open, onClose, saving, assigneeOpen, linksOpen]);
 
     const isLocked = (link: TaskLinkRef) =>
         lockedLinks.some(
@@ -199,48 +241,6 @@ export default function TaskFormModal({
         form.startDate && form.dueDate && form.dueDate < form.startDate
             ? td("Due date can't be before the start date")
             : null;
-
-    /** Priority choices, each carrying its own arrow glyph and tint. */
-    const priorityOptions: ColorOption[] = useMemo(
-        () =>
-            TASK_PRIORITY_ORDER.map((key) => {
-                const token = TASK_PRIORITY[key];
-                return {
-                    value: key,
-                    label: token.label,
-                    color: token.color,
-                    bg: token.bg,
-                    fg: token.fg,
-                    d: token.d,
-                };
-            }),
-        [],
-    );
-
-    /** Category choices, coloured by the same palette as the row tag. */
-    const categoryColorOptions: ColorOption[] = useMemo(
-        () =>
-            categories.map((category) => {
-                const token = categoryToken(category.category_name);
-                return {
-                    value: String(category.id),
-                    label: category.category_name,
-                    color: token.dot,
-                    bg: token.bg,
-                    fg: token.fg,
-                    square: true,
-                };
-            }),
-        [categories],
-    );
-
-    const removeLink = (link: TaskLinkRef) =>
-        setForm((current) => ({
-            ...current,
-            links: current.links.filter(
-                (item) => !(item.type === link.type && item.id === link.id),
-            ),
-        }));
 
     const recordOptions = useMemo(() => {
         const pool = records[recordType] ?? [];
@@ -253,6 +253,66 @@ export default function TaskFormModal({
 
     if (!open || typeof document === "undefined") return null;
 
+    /** Opens the assignee picker anchored under its pill. */
+    const toggleAssignee = (event: React.MouseEvent<HTMLElement>) => {
+        event.stopPropagation();
+        setLinksOpen(false);
+        if (assigneeOpen) {
+            setAssigneeOpen(false);
+            return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        setAnchor({
+            top: rect.bottom + 6,
+            left: Math.max(8, Math.min(rect.left, window.innerWidth - 300)),
+        });
+        setAssigneeOpen(true);
+    };
+
+    /** Board columns as pill options. */
+    const statusOptions: PillOption[] = columns
+        .slice()
+        .sort((a, b) => a.priority - b.priority)
+        .map((column) => {
+            const token = statusToken(column.slug);
+            return {
+                value: String(column.id),
+                label: column.column_name,
+                bg: token.bg,
+                fg: token.fg,
+                border: token.border,
+                dot: token.dot,
+            };
+        });
+
+    /** Priorities as pill options, each with its arrow glyph. */
+    const priorityOptions: PillOption[] = TASK_PRIORITY_ORDER.map((key) => {
+        const token = TASK_PRIORITY[key];
+        return {
+            value: key,
+            label: token.label,
+            bg: token.bg,
+            fg: token.fg,
+            border: token.border,
+            dot: token.color,
+            d: token.d,
+        };
+    });
+
+    /** Categories as pill options, coloured like the row tag. */
+    const categoryOptions: PillOption[] = categories.map((category) => {
+        const token = categoryToken(category.category_name);
+        return {
+            value: String(category.id),
+            label: category.category_name,
+            bg: token.bg,
+            fg: token.fg,
+            border: token.border,
+            dot: token.dot,
+            square: true,
+        };
+    });
+
     const toggleLink = (id: number, name: string) => {
         const candidate: TaskLinkRef = { type: recordType, id, name };
         setForm((current) => {
@@ -264,8 +324,7 @@ export default function TaskFormModal({
                 return {
                     ...current,
                     links: current.links.filter(
-                        (link) =>
-                            !(link.type === recordType && link.id === id),
+                        (link) => !(link.type === recordType && link.id === id),
                     ),
                 };
             }
@@ -273,22 +332,38 @@ export default function TaskFormModal({
         });
     };
 
-    const handleAddCategory = async () => {
-        const name = newCategory.trim();
-        if (!name || !onCreateCategory) return;
-        setAddingCategory(true);
-        const created = await onCreateCategory(name);
-        setAddingCategory(false);
-        if (created) {
-            setForm((current) => ({ ...current, categoryId: created.id }));
-            setNewCategory("");
-        }
-    };
-
     const submit = () => {
         if (dateRangeError || !form.title.trim()) return;
-        onSubmit(form);
+        onSubmit({
+            ...form,
+            checklist: form.checklist.filter((item) => item.trim() !== ""),
+        });
     };
+
+    const currentStatus = columns.find(
+        (column) => column.id === form.boardColumnId,
+    );
+    const statusTok = statusToken(currentStatus?.slug);
+    const priorityTok = TASK_PRIORITY[form.priority];
+    const currentCategory = categories.find(
+        (category) => category.id === form.categoryId,
+    );
+    const categoryTok = currentCategory
+        ? categoryToken(currentCategory.category_name)
+        : null;
+    // A lone assignee reads as their name; zero or many keep the count.
+    const assigneeLabel = (() => {
+        if (form.assignees.length === 0) return td("Unassigned");
+        if (form.assignees.length === 1) {
+            const only = users.find((user) => user.id === form.assignees[0]);
+            if (only?.name) return only.name;
+        }
+        return `${form.assignees.length} ${td("assignees")}`;
+    })();
+
+    const chevron = (
+        <TaskGlyph d={TASK_ICON.chevron} size={12} strokeWidth={2} />
+    );
 
     return createPortal(
         <div
@@ -315,23 +390,23 @@ export default function TaskFormModal({
                 onClick={(event) => event.stopPropagation()}
                 className="tasks-modal-panel flex w-full flex-col overflow-hidden"
                 style={{
-                    maxWidth: 520,
-                    maxHeight: "88vh",
+                    width: "fit-content",
+                    minWidth: 640,
+                    maxWidth: "min(1040px, 94vw)",
                     background: T.WHITE,
-                    borderRadius: 14,
+                    borderRadius: 12,
                     boxShadow: "0 20px 50px rgba(22,41,77,0.18)",
                 }}
             >
                 <div
                     className="flex items-center justify-between"
                     style={{
-                        padding: "16px 22px",
-                        background: T.SURFACE_2,
+                        padding: "14px 24px",
                         borderBottom: `1px solid ${T.BORDER}`,
                     }}
                 >
                     <span
-                        style={{ fontSize: 16, fontWeight: 700, color: T.NAVY }}
+                        style={{ fontSize: 20, fontWeight: 700, color: T.NAVY }}
                     >
                         {mode === "create" ? td("Add task") : td("Edit task")}
                     </span>
@@ -356,15 +431,21 @@ export default function TaskFormModal({
                 </div>
 
                 <div
-                    className="flex flex-col gap-[18px] overflow-y-auto"
-                    style={{ padding: "20px 22px" }}
+                    className="flex flex-col gap-3.5 overflow-y-auto"
+                    style={{
+                        padding: "20px 24px 24px",
+                        // Roughly half the old stacked form: the pills keep
+                        // every field one click away instead of on the page.
+                        minHeight: 300,
+                        maxHeight: "70vh",
+                    }}
                 >
                     {errors.length > 0 && (
                         <div className="flex flex-col gap-1">
                             {errors.map((error) => (
                                 <p
                                     key={error}
-                                    style={{ fontSize: 12, color: T.RED }}
+                                    style={{ fontSize: 14, color: T.RED }}
                                 >
                                     {td(error)}
                                 </p>
@@ -372,124 +453,139 @@ export default function TaskFormModal({
                         </div>
                     )}
 
-                    {/* Title */}
-                    <div className="flex flex-col gap-[7px]">
-                        <input
-                            value={form.title}
-                            autoFocus
-                            onChange={(event) =>
+                    <input
+                        value={form.title}
+                        autoFocus
+                        onChange={(event) =>
+                            setForm((c) => ({
+                                ...c,
+                                title: event.target.value,
+                            }))
+                        }
+                        className="tasks-bare-input"
+                        placeholder={td("Task name")}
+                        style={{
+                            border: "none",
+                            padding: 0,
+                            fontSize: 23,
+                            fontWeight: 700,
+                            color: T.TEXT,
+                            outline: "none",
+                        }}
+                    />
+                    <textarea
+                        rows={2}
+                        value={form.description}
+                        onChange={(event) =>
+                            setForm((c) => ({
+                                ...c,
+                                description: event.target.value,
+                            }))
+                        }
+                        className="tasks-bare-input"
+                        placeholder={td("Add description")}
+                        style={{
+                            border: "none",
+                            padding: 0,
+                            fontSize: 16,
+                            color: T.TEXT_MUTED,
+                            resize: "vertical",
+                            minHeight: 108,
+                            outline: "none",
+                        }}
+                    />
+
+                    {/* One pill dropdown per field, matching the list view */}
+                    <div className="flex flex-nowrap items-center gap-[7px] overflow-x-auto pt-0.5">
+                        <TaskPillSelect
+                            value={
+                                form.boardColumnId !== null
+                                    ? String(form.boardColumnId)
+                                    : null
+                            }
+                            options={statusOptions}
+                            placeholder={td("Status")}
+                            menuHeading={td("Move to")}
+                            disabled={saving}
+                            onChange={(value) =>
                                 setForm((c) => ({
                                     ...c,
-                                    title: event.target.value,
+                                    boardColumnId: value ? Number(value) : null,
                                 }))
                             }
-                            placeholder={td("What needs to happen?")}
-                            style={{
-                                ...inputStyle,
-                                padding: "12px 14px",
-                                borderRadius: 10,
-                                fontSize: 16,
-                                fontWeight: 600,
-                            }}
                         />
-                        <div className="flex items-center gap-[7px] pl-0.5">
+
+                        <button
+                            type="button"
+                            onClick={toggleAssignee}
+                            className="tasks-press inline-flex items-center gap-1.5 whitespace-nowrap"
+                            style={{
+                                padding: "7px 13px",
+                                borderRadius: 6,
+                                fontSize: 15,
+                                fontWeight: 600,
+                                lineHeight: 1.5,
+                                background: form.assignees.length
+                                    ? T.BLUE_LIGHT
+                                    : T.WHITE,
+                                color: form.assignees.length
+                                    ? T.BLUE_DARK
+                                    : T.TEXT_MUTED,
+                                border: `1px solid ${form.assignees.length ? T.BLUE_MID : T.BORDER}`,
+                                cursor: "pointer",
+                            }}
+                        >
                             <TaskGlyph
-                                d="M12 16v-4M12 8h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"
+                                d={TASK_ICON.user}
                                 size={13}
-                                color={T.TEXT_HINT}
                                 strokeWidth={1.5}
                             />
-                            <span
-                                style={{ fontSize: 12, color: T.TEXT_HINT }}
-                            >
-                                {td(
-                                    "Everything below is optional — hit save when the title is enough.",
-                                )}
+                            {assigneeLabel}
+                            <span style={{ display: "flex", opacity: 0.6 }}>
+                                <TaskGlyph
+                                    d={TASK_ICON.chevron}
+                                    size={11}
+                                    strokeWidth={1.5}
+                                />
                             </span>
-                        </div>
-                    </div>
+                        </button>
 
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <label className="flex flex-col gap-1.5">
-                            <span style={LABEL}>{td("Start date")}</span>
-                            <input
-                                type="date"
-                                value={form.startDate}
-                                onChange={(event) =>
-                                    setForm((c) => ({
-                                        ...c,
-                                        startDate: event.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        </label>
-                        <label className="flex flex-col gap-1.5">
-                            <span style={LABEL}>{td("Due date")}</span>
-                            <input
-                                type="date"
-                                value={form.dueDate}
-                                onChange={(event) =>
-                                    setForm((c) => ({
-                                        ...c,
-                                        dueDate: event.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        </label>
-                    </div>
-                    {dateRangeError && (
-                        <p style={{ fontSize: 12, color: T.RED, marginTop: -10 }}>
-                            {dateRangeError}
-                        </p>
-                    )}
+                        <TaskDateSelect
+                            startDate={form.startDate}
+                            dueDate={form.dueDate}
+                            dueTime={form.dueTime}
+                            disabled={saving}
+                            error={dateRangeError}
+                            onChange={(next) =>
+                                setForm((c) => ({ ...c, ...next }))
+                            }
+                        />
 
-                    {/* Priority + assignee */}
-                    <div className="grid grid-cols-2 items-start gap-3">
-                        <div className="flex flex-col gap-1.5">
-                            <span style={LABEL}>{td("Priority")}</span>
-                            <TaskColorSelect
-                                value={form.priority}
-                                options={priorityOptions}
-                                placeholder={td("Select priority")}
-                                clearable={false}
-                                disabled={saving}
-                                onChange={(value) =>
-                                    setForm((c) => ({
-                                        ...c,
-                                        priority:
-                                            (value as TaskPriorityKey) ??
-                                            "medium",
-                                    }))
-                                }
-                            />
-                        </div>
+                        <TaskPillSelect
+                            value={form.priority}
+                            options={priorityOptions}
+                            placeholder={td("Priority")}
+                            disabled={saving}
+                            onChange={(value) =>
+                                setForm((c) => ({
+                                    ...c,
+                                    priority:
+                                        (value as TaskPriorityKey) ?? "medium",
+                                }))
+                            }
+                        />
 
-                        <div className="flex flex-col gap-1.5">
-                            <span style={LABEL}>{td("Assignee")}</span>
-                            <AssigneeField
-                                value={form.assignees}
-                                onChange={(assignees) =>
-                                    setForm((c) => ({ ...c, assignees }))
-                                }
-                                disabled={saving}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Category */}
-                    <div className="flex flex-col gap-2">
-                        <span style={LABEL}>{td("Category")}</span>
-                        <TaskColorSelect
+                        <TaskPillSelect
                             value={
                                 form.categoryId !== null
                                     ? String(form.categoryId)
                                     : null
                             }
-                            options={categoryColorOptions}
-                            placeholder={td("No category")}
+                            options={categoryOptions}
+                            placeholder={td("Category")}
+                            clearable
+                            columns={categoryOptions.length > 6 ? 2 : 1}
+                            menuWidth={categoryOptions.length > 6 ? 320 : 240}
                             disabled={saving}
                             onChange={(value) =>
                                 setForm((c) => ({
@@ -498,451 +594,647 @@ export default function TaskFormModal({
                                 }))
                             }
                         />
-                        {onCreateCategory && (
-                            <div className="flex items-center gap-2">
-                                <input
-                                    value={newCategory}
-                                    onChange={(event) =>
-                                        setNewCategory(event.target.value)
-                                    }
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.preventDefault();
-                                            void handleAddCategory();
-                                        }
-                                    }}
-                                    placeholder={td("New category name")}
-                                    style={{ ...inputStyle, fontSize: 13 }}
-                                />
-                                <button
-                                    type="button"
-                                    disabled={
-                                        !newCategory.trim() || addingCategory
-                                    }
-                                    onClick={() => void handleAddCategory()}
-                                    className="tasks-press"
-                                    style={{
-                                        flexShrink: 0,
-                                        padding: "9px 12px",
-                                        borderRadius: 8,
-                                        border: `1px solid ${T.BORDER}`,
-                                        background: T.WHITE,
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        color: T.BLUE,
-                                        cursor: "pointer",
-                                        opacity:
-                                            !newCategory.trim() ||
-                                            addingCategory
-                                                ? 0.5
-                                                : 1,
-                                    }}
-                                >
-                                    {addingCategory ? td("Adding…") : td("Add")}
-                                </button>
-                            </div>
-                        )}
-                    </div>
 
-
-                    {/* More details */}
-                    <div
-                        style={{
-                            borderTop: `1px solid ${T.BORDER_SOFT}`,
-                            paddingTop: 12,
-                        }}
-                    >
                         <button
                             type="button"
-                            onClick={() => setAdvanced((value) => !value)}
-                            className="inline-flex items-center gap-[7px]"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setAssigneeOpen(false);
+                                if (linksOpen) {
+                                    setLinksOpen(false);
+                                    return;
+                                }
+                                const rect =
+                                    event.currentTarget.getBoundingClientRect();
+                                setAnchor({
+                                    top: rect.bottom + 6,
+                                    left: Math.max(
+                                        8,
+                                        Math.min(
+                                            rect.left,
+                                            window.innerWidth - 380,
+                                        ),
+                                    ),
+                                });
+                                setLinksOpen(true);
+                            }}
+                            className="tasks-press inline-flex items-center gap-1.5 whitespace-nowrap"
                             style={{
-                                padding: 0,
-                                background: "transparent",
-                                border: "none",
-                                fontSize: 13,
+                                padding: "7px 13px",
+                                borderRadius: 6,
+                                fontSize: 15,
                                 fontWeight: 600,
-                                color: T.BLUE,
+                                lineHeight: 1.5,
+                                background: form.links.length
+                                    ? T.BLUE_LIGHT
+                                    : T.WHITE,
+                                color: form.links.length
+                                    ? T.BLUE_DARK
+                                    : T.TEXT_MUTED,
+                                border: `1px solid ${form.links.length ? T.BLUE_MID : T.BORDER}`,
                                 cursor: "pointer",
                             }}
                         >
-                            <span
-                                style={{
-                                    display: "flex",
-                                    transform: advanced
-                                        ? "rotate(180deg)"
-                                        : "rotate(0deg)",
-                                    transition: "transform 160ms ease",
-                                }}
-                            >
+                            <TaskGlyph
+                                d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"
+                                size={13}
+                                strokeWidth={1.5}
+                            />
+                            {form.links.length
+                                ? `${form.links.length} ${td("linked")}`
+                                : td("Linked items")}
+                            <span style={{ display: "flex", opacity: 0.6 }}>
                                 <TaskGlyph
                                     d={TASK_ICON.chevron}
-                                    size={14}
-                                    strokeWidth={2}
+                                    size={11}
+                                    strokeWidth={1.5}
                                 />
                             </span>
-                            {advanced ? td("Hide details") : td("More details")}
                         </button>
                     </div>
-                    {advanced && (
-                        <div className="tasks-reveal flex flex-col gap-4">
-                            <label className="flex flex-col gap-1.5">
-                                <span style={LABEL}>{td("Description")}</span>
-                                <textarea
-                                    rows={3}
-                                    value={form.description}
-                                    onChange={(event) =>
-                                        setForm((c) => ({
-                                            ...c,
-                                            description: event.target.value,
-                                        }))
-                                    }
-                                    placeholder={td(
-                                        "Context the assignee will need",
-                                    )}
+
+                    {/* Assignee picker, anchored under its pill */}
+                    {assigneeOpen &&
+                        createPortal(
+                            <>
+                                <div
+                                    role="presentation"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setAssigneeOpen(false);
+                                    }}
                                     style={{
-                                        ...inputStyle,
-                                        resize: "vertical",
+                                        position: "fixed",
+                                        inset: 0,
+                                        zIndex: 59,
                                     }}
                                 />
-                            </label>
+                                <div
+                                    className="tasks-reveal"
+                                    onClick={(event) => event.stopPropagation()}
+                                    style={{
+                                        position: "fixed",
+                                        top: anchor.top,
+                                        left: anchor.left,
+                                        zIndex: 60,
+                                        width: 280,
+                                        padding: 12,
+                                        background: T.WHITE,
+                                        border: `1px solid ${T.BORDER}`,
+                                        borderRadius: 12,
+                                        boxShadow:
+                                            "0 16px 36px rgba(22,41,77,0.16)",
+                                    }}
+                                >
+                                    <AssigneeField
+                                        value={form.assignees}
+                                        onChange={(assignees) =>
+                                            setForm((c) => ({
+                                                ...c,
+                                                assignees,
+                                            }))
+                                        }
+                                        disabled={saving}
+                                    />
+                                </div>
+                            </>,
+                            document.body,
+                        )}
 
-                            <label className="flex flex-col gap-1.5">
-                                <span style={LABEL}>{td("Due time")}</span>
-                                <input
-                                    type="time"
-                                    value={form.dueTime}
-                                    onChange={(event) =>
-                                        setForm((c) => ({
-                                            ...c,
-                                            dueTime: event.target.value,
-                                        }))
-                                    }
-                                    style={inputStyle}
+                    {/* Linked-records picker, anchored under the "…" menu */}
+                    {linksOpen &&
+                        createPortal(
+                            <>
+                                <div
+                                    role="presentation"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setLinksOpen(false);
+                                    }}
+                                    style={{
+                                        position: "fixed",
+                                        inset: 0,
+                                        zIndex: 59,
+                                    }}
                                 />
-                            </label>
-
-                            <div className="flex flex-col gap-1.5">
-                                <span style={LABEL}>{td("Status")}</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {[...columns]
-                                        .sort((a, b) => a.priority - b.priority)
-                                        .map((column) => {
-                                            const token = statusToken(
-                                                column.slug,
-                                            );
-                                            const active =
-                                                form.boardColumnId === column.id;
+                                <div
+                                    className="tasks-reveal flex flex-col gap-2.5"
+                                    onClick={(event) => event.stopPropagation()}
+                                    style={{
+                                        position: "fixed",
+                                        top: anchor.top,
+                                        left: anchor.left,
+                                        zIndex: 60,
+                                        width: 360,
+                                        padding: 12,
+                                        background: T.WHITE,
+                                        border: `1px solid ${T.BORDER}`,
+                                        borderRadius: 12,
+                                        boxShadow:
+                                            "0 16px 36px rgba(22,41,77,0.16)",
+                                    }}
+                                >
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {RECORD_TABS.map((key) => {
+                                            const def = RECORD_TYPES[key];
+                                            const active = recordType === key;
                                             return (
                                                 <button
-                                                    key={column.id}
+                                                    key={key}
                                                     type="button"
-                                                    onClick={() =>
-                                                        setForm((c) => ({
-                                                            ...c,
-                                                            boardColumnId:
-                                                                active
-                                                                    ? null
-                                                                    : column.id,
-                                                        }))
-                                                    }
-                                                    className="tasks-press inline-flex flex-1 items-center justify-center gap-1.5"
+                                                    onClick={() => {
+                                                        setRecordType(key);
+                                                        setRecordQuery("");
+                                                    }}
+                                                    className="tasks-press inline-flex items-center gap-1.5"
                                                     style={{
-                                                        padding: "7px 10px",
+                                                        padding: "6px 11px",
                                                         borderRadius: 8,
-                                                        fontSize: 12,
+                                                        fontSize: 14,
                                                         fontWeight: 600,
                                                         cursor: "pointer",
                                                         background: active
-                                                            ? token.bg
+                                                            ? T.NAVY
                                                             : T.WHITE,
                                                         color: active
-                                                            ? token.fg
+                                                            ? T.WHITE
                                                             : T.TEXT_MUTED,
-                                                        border: `1px solid ${active ? token.border : T.BORDER}`,
+                                                        border: `1px solid ${active ? T.NAVY : T.BORDER}`,
                                                     }}
                                                 >
-                                                    <span
-                                                        style={{
-                                                            width: 6,
-                                                            height: 6,
-                                                            borderRadius: 999,
-                                                            background:
-                                                                token.dot,
-                                                        }}
-                                                    />
-                                                    {td(column.column_name, {
-                                                        source: "en",
-                                                    })}
-                                                </button>
-                                            );
-                                        })}
-                                </div>
-                            </div>
-
-                            {/* Linked records */}
-                            <div className="flex flex-col gap-2.5">
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <span style={LABEL}>
-                                        {td("Linked records")}
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: 12,
-                                            color: T.TEXT_HINT,
-                                        }}
-                                    >
-                                        {form.links.length
-                                            ? `${form.links.length} ${td("linked")}`
-                                            : td("None yet")}
-                                    </span>
-                                </div>
-
-                                {form.links.length > 0 && (
-                                    <div className="flex flex-wrap gap-[7px]">
-                                        {form.links.map((link) => {
-                                            const def = RECORD_TYPES[link.type];
-                                            const locked = isLocked(link);
-                                            return (
-                                                <span
-                                                    key={`${link.type}-${link.id}`}
-                                                    className="tasks-chip-in inline-flex items-center gap-[7px]"
-                                                    style={{
-                                                        padding:
-                                                            "5px 8px 5px 7px",
-                                                        borderRadius: 8,
-                                                        background: def.iconBg,
-                                                        border: `1px solid ${T.BORDER}`,
-                                                        fontSize: 12,
-                                                        fontWeight: 600,
-                                                        color: T.NAVY,
-                                                    }}
-                                                >
-                                                    <TaskGlyph
-                                                        d={def.d}
+                                                    <TaskRecordIcon
+                                                        type={key}
                                                         size={13}
-                                                        color={def.iconFg}
-                                                        strokeWidth={1.5}
                                                     />
-                                                    {link.name}
-                                                    {locked ? (
-                                                        <span
-                                                            title={td(
-                                                                "Linked from this record and can't be removed here.",
-                                                            )}
-                                                            style={{
-                                                                fontSize: 11,
-                                                                color: T.TEXT_HINT,
-                                                            }}
-                                                        >
-                                                            {td("locked")}
-                                                        </span>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            aria-label={`${td("Remove")} ${link.name}`}
-                                                            onClick={() =>
-                                                                removeLink(link)
-                                                            }
-                                                            style={{
-                                                                display: "flex",
-                                                                background:
-                                                                    "transparent",
-                                                                border: "none",
-                                                                padding: 1,
-                                                                cursor: "pointer",
-                                                            }}
-                                                        >
-                                                            <TaskGlyph
-                                                                d={TASK_ICON.x}
-                                                                size={12}
-                                                                color={
-                                                                    T.TEXT_MUTED
-                                                                }
-                                                                strokeWidth={2}
-                                                            />
-                                                        </button>
-                                                    )}
-                                                </span>
+                                                    {td(def.label)}
+                                                </button>
                                             );
                                         })}
                                     </div>
-                                )}
 
-                                <div className="flex flex-wrap gap-1.5">
-                                    {RECORD_TABS.map((key) => {
-                                        const def = RECORD_TYPES[key];
-                                        const active = recordType === key;
-                                        return (
-                                            <button
-                                                key={key}
-                                                type="button"
-                                                onClick={() => {
-                                                    setRecordType(key);
-                                                    setRecordQuery("");
-                                                }}
-                                                className="tasks-press inline-flex items-center gap-1.5"
-                                                style={{
-                                                    padding: "6px 11px",
-                                                    borderRadius: 8,
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                    cursor: "pointer",
-                                                    background: active
-                                                        ? T.NAVY
-                                                        : T.WHITE,
-                                                    color: active
-                                                        ? T.WHITE
-                                                        : T.TEXT_MUTED,
-                                                    border: `1px solid ${active ? T.NAVY : T.BORDER}`,
-                                                }}
-                                            >
-                                                <TaskGlyph
-                                                    d={def.d}
-                                                    size={13}
-                                                    strokeWidth={1.5}
-                                                />
-                                                {td(def.label)}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div
-                                    style={{
-                                        border: `1px solid ${T.BORDER}`,
-                                        borderRadius: 8,
-                                        overflow: "hidden",
-                                    }}
-                                >
-                                    <input
-                                        value={recordQuery}
-                                        onChange={(event) =>
-                                            setRecordQuery(event.target.value)
-                                        }
-                                        placeholder={`${td("Search")} ${td(RECORD_TYPES[recordType].plural)}`}
-                                        style={{
-                                            width: "100%",
-                                            padding: "9px 12px",
-                                            border: "none",
-                                            borderBottom: `1px solid ${T.BORDER_SOFT}`,
-                                            fontSize: 13,
-                                        }}
-                                    />
                                     <div
                                         style={{
-                                            maxHeight: 150,
-                                            overflowY: "auto",
+                                            border: `1px solid ${T.BORDER}`,
+                                            borderRadius: 8,
+                                            overflow: "hidden",
                                         }}
                                     >
-                                        {recordOptions.map((option) => {
-                                            const def =
-                                                RECORD_TYPES[recordType];
-                                            const picked = form.links.some(
-                                                (link) =>
-                                                    link.type === recordType &&
-                                                    link.id === option.id,
-                                            );
-                                            return (
-                                                <button
-                                                    key={option.id}
-                                                    type="button"
-                                                    onClick={() =>
-                                                        toggleLink(
-                                                            option.id,
-                                                            option.name,
-                                                        )
-                                                    }
-                                                    className="tasks-record-row flex w-full items-center gap-2.5"
-                                                    style={{
-                                                        padding: "9px 12px",
-                                                        border: "none",
-                                                        borderBottom:
-                                                            "1px solid #f2f4f7",
-                                                        background: picked
-                                                            ? T.BLUE_LIGHT
-                                                            : T.WHITE,
-                                                        cursor: "pointer",
-                                                        textAlign: "left",
-                                                    }}
-                                                >
-                                                    <span
-                                                        className="flex flex-shrink-0 items-center justify-center"
+                                        <input
+                                            value={recordQuery}
+                                            onChange={(event) =>
+                                                setRecordQuery(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder={`${td("Search")} ${td(RECORD_TYPES[recordType].plural)}`}
+                                            style={{
+                                                width: "100%",
+                                                padding: "9px 12px",
+                                                border: "none",
+                                                borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                                                fontSize: 15,
+                                            }}
+                                        />
+                                        <div
+                                            style={{
+                                                maxHeight: 180,
+                                                overflowY: "auto",
+                                            }}
+                                        >
+                                            {recordOptions.map((option) => {
+                                                const def =
+                                                    RECORD_TYPES[recordType];
+                                                const picked = form.links.some(
+                                                    (link) =>
+                                                        link.type ===
+                                                            recordType &&
+                                                        link.id === option.id,
+                                                );
+                                                return (
+                                                    <button
+                                                        key={option.id}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            toggleLink(
+                                                                option.id,
+                                                                option.name,
+                                                            )
+                                                        }
+                                                        className="tasks-record-row flex w-full items-center gap-2.5"
                                                         style={{
-                                                            width: 26,
-                                                            height: 26,
-                                                            borderRadius: 6,
-                                                            background:
-                                                                def.iconBg,
+                                                            padding: "9px 12px",
+                                                            border: "none",
+                                                            borderBottom:
+                                                                "1px solid #f2f4f7",
+                                                            background: picked
+                                                                ? T.BLUE_LIGHT
+                                                                : T.WHITE,
+                                                            cursor: "pointer",
+                                                            textAlign: "left",
                                                         }}
                                                     >
-                                                        <TaskGlyph
-                                                            d={def.d}
-                                                            size={14}
-                                                            color={def.iconFg}
-                                                            strokeWidth={1.5}
-                                                        />
-                                                    </span>
-                                                    <span className="flex min-w-0 flex-1 flex-col">
                                                         <span
-                                                            className="truncate"
+                                                            className="flex flex-shrink-0 items-center justify-center"
                                                             style={{
-                                                                fontSize: 14,
-                                                                fontWeight:
-                                                                    picked
-                                                                        ? 600
-                                                                        : 500,
-                                                                color: T.TEXT,
+                                                                width: 26,
+                                                                height: 26,
+                                                                borderRadius: 6,
+                                                                background:
+                                                                    def.iconBg,
                                                             }}
                                                         >
-                                                            {option.name}
+                                                            <TaskRecordIcon
+                                                                type={
+                                                                    recordType
+                                                                }
+                                                                size={14}
+                                                                color={
+                                                                    def.iconFg
+                                                                }
+                                                            />
                                                         </span>
-                                                        {option.meta && (
+                                                        <span className="flex min-w-0 flex-1 flex-col">
                                                             <span
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 12,
-                                                                    color: T.TEXT_MUTED,
+                                                                    fontSize: 16,
+                                                                    fontWeight:
+                                                                        picked
+                                                                            ? 600
+                                                                            : 500,
+                                                                    color: T.TEXT,
                                                                 }}
                                                             >
-                                                                {option.meta}
+                                                                {option.name}
                                                             </span>
+                                                            {option.meta && (
+                                                                <span
+                                                                    className="truncate"
+                                                                    style={{
+                                                                        fontSize: 14,
+                                                                        color: T.TEXT_MUTED,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        option.meta
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        {picked && (
+                                                            <TaskGlyph
+                                                                d={
+                                                                    TASK_ICON.check
+                                                                }
+                                                                size={15}
+                                                                color={T.BLUE}
+                                                            />
                                                         )}
-                                                    </span>
-                                                    {picked && (
-                                                        <TaskGlyph
-                                                            d={TASK_ICON.check}
-                                                            size={15}
-                                                            color={T.BLUE}
-                                                        />
+                                                    </button>
+                                                );
+                                            })}
+                                            {recordOptions.length === 0 && (
+                                                <div
+                                                    style={{
+                                                        padding: "14px 12px",
+                                                        fontSize: 15,
+                                                        color: T.TEXT_HINT,
+                                                    }}
+                                                >
+                                                    {td(
+                                                        "Nothing matches that search.",
                                                     )}
-                                                </button>
-                                            );
-                                        })}
-                                        {recordOptions.length === 0 && (
-                                            <div
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </>,
+                            document.body,
+                        )}
+
+                    {/* Linked-record chips stay visible outside the popover */}
+                    {form.links.length > 0 && (
+                        <div className="flex flex-wrap gap-[7px]">
+                            {form.links.map((link) => {
+                                const def = RECORD_TYPES[link.type];
+                                const locked = isLocked(link);
+                                return (
+                                    <span
+                                        key={`${link.type}-${link.id}`}
+                                        className="tasks-chip-in inline-flex items-center gap-[7px]"
+                                        style={{
+                                            padding: "5px 8px 5px 7px",
+                                            borderRadius: 8,
+                                            background: def.iconBg,
+                                            border: `1px solid ${T.BORDER}`,
+                                            fontSize: 14,
+                                            fontWeight: 600,
+                                            color: T.NAVY,
+                                        }}
+                                    >
+                                        <TaskRecordIcon
+                                            type={link.type}
+                                            size={13}
+                                            color={def.iconFg}
+                                        />
+                                        {link.name}
+                                        {locked ? (
+                                            <span
+                                                title={td(
+                                                    "Linked from this record and can't be removed here.",
+                                                )}
                                                 style={{
-                                                    padding: "14px 12px",
                                                     fontSize: 13,
                                                     color: T.TEXT_HINT,
                                                 }}
                                             >
-                                                {td(
-                                                    "Nothing matches that search.",
-                                                )}
-                                            </div>
+                                                {td("locked")}
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                aria-label={`${td("Remove")} ${link.name}`}
+                                                onClick={() =>
+                                                    setForm((c) => ({
+                                                        ...c,
+                                                        links: c.links.filter(
+                                                            (item) =>
+                                                                !(
+                                                                    item.type ===
+                                                                        link.type &&
+                                                                    item.id ===
+                                                                        link.id
+                                                                ),
+                                                        ),
+                                                    }))
+                                                }
+                                                style={{
+                                                    display: "flex",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    padding: 1,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                <TaskGlyph
+                                                    d={TASK_ICON.x}
+                                                    size={12}
+                                                    color={T.TEXT_MUTED}
+                                                    strokeWidth={2}
+                                                />
+                                            </button>
                                         )}
-                                    </div>
-                                </div>
-                            </div>
+                                    </span>
+                                );
+                            })}
                         </div>
                     )}
+
+                    {/* Checklist — always available, no disclosure */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <span style={MICRO_LABEL}>{td("Checklist")}</span>
+                            <button
+                                type="button"
+                                aria-label={td("Add checklist item")}
+                                title={td("Add checklist item")}
+                                onClick={() =>
+                                    setForm((c) => ({
+                                        ...c,
+                                        checklist: [...c.checklist, ""],
+                                    }))
+                                }
+                                className="tasks-press inline-flex items-center justify-center"
+                                style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 999,
+                                    border: `1px solid ${T.BORDER}`,
+                                    background: T.WHITE,
+                                    color: T.BLUE,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <TaskGlyph
+                                    d={TASK_ICON.plus}
+                                    size={12}
+                                    strokeWidth={2}
+                                />
+                            </button>
+                        </div>
+                        {form.checklist.map((item, index) => (
+                            <div
+                                key={index}
+                                className="flex items-center gap-2"
+                            >
+                                <span
+                                    style={{
+                                        width: 16,
+                                        height: 16,
+                                        borderRadius: 999,
+                                        border: `1.5px solid ${T.NAVY_MID}`,
+                                        flexShrink: 0,
+                                    }}
+                                />
+                                <input
+                                    value={item}
+                                    autoFocus={
+                                        index === form.checklist.length - 1
+                                    }
+                                    onChange={(event) =>
+                                        setForm((c) => {
+                                            const next = [...c.checklist];
+                                            next[index] = event.target.value;
+                                            return { ...c, checklist: next };
+                                        })
+                                    }
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            setForm((c) => ({
+                                                ...c,
+                                                checklist: [...c.checklist, ""],
+                                            }));
+                                        }
+                                    }}
+                                    placeholder={td("Checklist item")}
+                                    style={{
+                                        ...smallInput,
+                                        border: "none",
+                                        borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                                        borderRadius: 0,
+                                        padding: "4px 0",
+                                        fontSize: 16,
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    aria-label={td("Remove item")}
+                                    onClick={() =>
+                                        setForm((c) => ({
+                                            ...c,
+                                            checklist: c.checklist.filter(
+                                                (_, i) => i !== index,
+                                            ),
+                                        }))
+                                    }
+                                    style={{
+                                        display: "flex",
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <TaskGlyph
+                                        d={TASK_ICON.x}
+                                        size={12}
+                                        color={T.TEXT_HINT}
+                                        strokeWidth={2}
+                                    />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Attachments — always available, no disclosure */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <span style={MICRO_LABEL}>{td("Attachments")}</span>
+                            <button
+                                type="button"
+                                aria-label={td("Attach files")}
+                                title={td("Attach files")}
+                                disabled={saving}
+                                onClick={() => fileInputRef.current?.click()}
+                                className="tasks-press inline-flex items-center justify-center"
+                                style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 999,
+                                    border: `1px solid ${T.BORDER}`,
+                                    background: T.WHITE,
+                                    color: T.BLUE,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <TaskGlyph
+                                    d={TASK_ICON.plus}
+                                    size={12}
+                                    strokeWidth={2}
+                                />
+                            </button>
+                        </div>
+
+                        {form.files.length > 0 ? (
+                            <div className="flex flex-col gap-1.5">
+                                {form.files.map((file, index) => (
+                                    <div
+                                        key={`${file.name}-${index}`}
+                                        className="tasks-chip-in flex items-center gap-2.5"
+                                        style={{
+                                            padding: "8px 10px",
+                                            background: T.SURFACE_2,
+                                            border: `1px solid ${T.BORDER_SOFT}`,
+                                            borderRadius: 8,
+                                        }}
+                                    >
+                                        <span
+                                            className="flex flex-shrink-0 items-center justify-center"
+                                            style={{
+                                                width: 26,
+                                                height: 26,
+                                                borderRadius: 6,
+                                                background: T.BLUE_LIGHT,
+                                            }}
+                                        >
+                                            <TaskGlyph
+                                                d={TASK_ICON.file}
+                                                size={13}
+                                                color={T.BLUE_DARK}
+                                                strokeWidth={1.5}
+                                            />
+                                        </span>
+                                        <span
+                                            className="min-w-0 flex-1 truncate"
+                                            style={{
+                                                fontSize: 15,
+                                                fontWeight: 500,
+                                                color: T.TEXT,
+                                            }}
+                                            title={file.name}
+                                        >
+                                            {file.name}
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: 13,
+                                                color: T.TEXT_HINT,
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            {formatFileSize(file.size)}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            aria-label={`${td("Remove")} ${file.name}`}
+                                            onClick={() =>
+                                                setForm((c) => ({
+                                                    ...c,
+                                                    files: c.files.filter(
+                                                        (_, i) => i !== index,
+                                                    ),
+                                                }))
+                                            }
+                                            className="tasks-press"
+                                            style={{
+                                                display: "flex",
+                                                background: "transparent",
+                                                border: "none",
+                                                cursor: "pointer",
+                                                flexShrink: 0,
+                                                padding: 3,
+                                            }}
+                                        >
+                                            <TaskGlyph
+                                                d={TASK_ICON.x}
+                                                size={13}
+                                                color={T.TEXT_MUTED}
+                                                strokeWidth={2}
+                                            />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={saving}
+                                className="tasks-press"
+                                style={{
+                                    padding: "10px",
+                                    borderRadius: 8,
+                                    border: `1px dashed ${T.BORDER}`,
+                                    background: T.SURFACE_2,
+                                    color: T.TEXT_HINT,
+                                    fontSize: 14,
+                                    cursor: "pointer",
+                                    textAlign: "left",
+                                }}
+                            >
+                                {td(
+                                    "No files attached yet — click to add some.",
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div
-                    className="flex items-center justify-end gap-2.5"
+                    className="flex items-center gap-2.5"
                     style={{
-                        padding: "14px 22px",
+                        padding: "14px 24px",
                         borderTop: `1px solid ${T.BORDER}`,
                     }}
                 >
@@ -956,13 +1248,35 @@ export default function TaskFormModal({
                             background: T.WHITE,
                             color: T.TEXT_MUTED,
                             border: `1px solid ${T.BORDER}`,
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 600,
                             cursor: "pointer",
                         }}
                     >
                         {td("Cancel")}
                     </button>
+
+                    <span className="flex-1" />
+
+                    {/* Attach picker itself lives in the Attachments section
+                        above — this input is shared by both entry points. */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        hidden
+                        onChange={(event) => {
+                            const picked = Array.from(event.target.files ?? []);
+                            if (picked.length) {
+                                setForm((c) => ({
+                                    ...c,
+                                    files: [...c.files, ...picked],
+                                }));
+                            }
+                            event.target.value = "";
+                        }}
+                    />
+
                     <button
                         type="button"
                         onClick={submit}
@@ -976,7 +1290,7 @@ export default function TaskFormModal({
                             background: T.BLUE,
                             color: T.WHITE,
                             border: `1px solid ${T.BLUE}`,
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 600,
                             cursor: "pointer",
                             opacity:

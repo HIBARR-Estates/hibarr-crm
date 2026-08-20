@@ -18,6 +18,7 @@ import {
     TaskPriorityStripe,
 } from "./primitives/TaskGlyphs";
 import TaskRowMenu, { type TaskRowAction } from "./primitives/TaskRowMenu";
+import TaskRecordIcon from "./primitives/TaskRecordIcon";
 
 export interface TaskGroup {
     key: string;
@@ -94,11 +95,15 @@ export default function TasksListView({
                     strokeWidth={1.5}
                 />
                 <span
-                    style={{ fontSize: 13, fontWeight: 600, color: T.TEXT_MUTED }}
+                    style={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: T.TEXT_MUTED,
+                    }}
                 >
                     {td("No tasks match these filters")}
                 </span>
-                <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                <span style={{ fontSize: 14, color: T.TEXT_HINT }}>
                     {td("Try clearing a filter or adding a new task.")}
                 </span>
             </div>
@@ -156,49 +161,49 @@ export default function TasksListView({
                                     padding: 0,
                                 }}
                             >
-                            <span
-                                style={{
-                                    display: "flex",
-                                    transform: open
-                                        ? "rotate(0deg)"
-                                        : "rotate(-90deg)",
-                                    transition: "transform 140ms ease",
-                                }}
-                            >
-                                <TaskGlyph
-                                    d={TASK_ICON.chevron}
-                                    size={13}
-                                    color={T.TEXT_HINT}
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        transform: open
+                                            ? "rotate(0deg)"
+                                            : "rotate(-90deg)",
+                                        transition: "transform 140ms ease",
+                                    }}
+                                >
+                                    <TaskGlyph
+                                        d={TASK_ICON.chevron}
+                                        size={13}
+                                        color={T.TEXT_HINT}
+                                    />
+                                </span>
+                                <span
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: 999,
+                                        background: group.dot,
+                                    }}
                                 />
-                            </span>
-                            <span
-                                style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: 999,
-                                    background: group.dot,
-                                }}
-                            />
-                            <span
-                                className="uppercase"
-                                style={{
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    letterSpacing: "0.05em",
-                                    color: group.fg,
-                                }}
-                            >
-                                {td(group.label, { source: "en" })}
-                            </span>
-                            <span
-                                style={{
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    color: T.TEXT_HINT,
-                                }}
-                            >
-                                {group.totalCount ?? group.tasks.length}
-                            </span>
+                                <span
+                                    className="uppercase"
+                                    style={{
+                                        fontSize: 14,
+                                        fontWeight: 700,
+                                        letterSpacing: "0.05em",
+                                        color: group.fg,
+                                    }}
+                                >
+                                    {td(group.label, { source: "en" })}
+                                </span>
+                                <span
+                                    style={{
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                        color: T.TEXT_HINT,
+                                    }}
+                                >
+                                    {group.totalCount ?? group.tasks.length}
+                                </span>
                             </button>
                         </div>
 
@@ -245,7 +250,7 @@ export default function TasksListView({
                                             <span
                                                 className="truncate"
                                                 style={{
-                                                    fontSize: 14,
+                                                    fontSize: 16,
                                                     fontWeight: 600,
                                                     color: vm.titleColor,
                                                     textDecoration:
@@ -264,7 +269,7 @@ export default function TasksListView({
                                         <div
                                             className="flex min-w-0 items-center gap-2"
                                             style={{
-                                                fontSize: 12,
+                                                fontSize: 14,
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >
@@ -286,11 +291,10 @@ export default function TasksListView({
                                             {vm.links.map((link) => {
                                                 const body = (
                                                     <>
-                                                        <TaskGlyph
-                                                            d={link.d}
-                                                            size={12}
+                                                        <TaskRecordIcon
+                                                            type={link.type}
+                                                            size={13}
                                                             color={link.iconFg}
-                                                            strokeWidth={1.5}
                                                         />
                                                         <span className="truncate">
                                                             {link.name}
@@ -347,7 +351,7 @@ export default function TasksListView({
                                         <span
                                             className="truncate"
                                             style={{
-                                                fontSize: 12,
+                                                fontSize: 14,
                                                 fontWeight: 600,
                                                 fontVariantNumeric:
                                                     "tabular-nums",
@@ -358,7 +362,7 @@ export default function TasksListView({
                                         </span>
                                         <span
                                             style={{
-                                                fontSize: 12,
+                                                fontSize: 14,
                                                 color: T.TEXT_HINT,
                                             }}
                                         >

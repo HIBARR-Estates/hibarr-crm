@@ -20,11 +20,22 @@ type InertiaPageComponent = React.ComponentType<any> & {
     layout?: (page: React.ReactNode) => React.ReactNode;
 };
 
+// Vite can only code-split a dynamic import when the path is statically
+// analyzable — a template literal like `./Pages/${name}` isn't, so it needs
+// this glob form instead (the officially supported pattern for Inertia).
+const pageModules = import.meta.glob<{ default: InertiaPageComponent }>(
+    "./Pages/**/*.tsx",
+);
+
 createInertiaApp({
-    // A2: async import so Webpack can emit per-page chunks (requires A1 splitChunks)
     resolve: async (name) => {
-        const module = await import(`./Pages/${name}`);
-        const component = module.default as InertiaPageComponent;
+        const path = `./Pages/${name}.tsx`;
+        const importPage = pageModules[path];
+        if (!importPage) {
+            throw new Error(`Page not found: ${path}`);
+        }
+        const module = await importPage();
+        const component = module.default;
 
         // Always wrap with InnerProviders (which need Inertia context)
         // This ensures TranslationProvider has access to usePage()

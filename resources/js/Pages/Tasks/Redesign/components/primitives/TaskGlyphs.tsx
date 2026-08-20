@@ -71,8 +71,9 @@ export function TaskPriorityPill({ priority }: { priority: PriorityToken }) {
             style={{
                 padding: "2px 9px",
                 borderRadius: 999,
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 600,
+                lineHeight: 1.5,
                 background: priority.bg,
                 color: priority.fg,
                 border: `1px solid ${priority.border}`,
@@ -97,7 +98,12 @@ export function TaskPriorityInline({ priority }: { priority: PriorityToken }) {
     return (
         <span
             className="inline-flex items-center gap-1.5 whitespace-nowrap"
-            style={{ fontSize: 12, fontWeight: 600, color: priority.fg }}
+            style={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.5,
+                color: priority.fg,
+            }}
         >
             <TaskGlyph d={priority.d} size={14} color={priority.color} />
             {td(priority.label)}
@@ -111,7 +117,12 @@ export function TaskCategoryTag({ category }: { category: CategoryToken }) {
     return (
         <span
             className="inline-flex flex-shrink-0 items-center gap-1.5"
-            style={{ fontSize: 12, fontWeight: 600, color: category.fg }}
+            style={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.5,
+                color: category.fg,
+            }}
         >
             <span
                 style={{
@@ -135,8 +146,9 @@ export function TaskStatusPill({ status }: { status: StatusToken }) {
             style={{
                 padding: "4px 11px",
                 borderRadius: 999,
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 600,
+                lineHeight: 1.5,
                 background: status.bg,
                 color: status.fg,
                 border: `1px solid ${status.border}`,

@@ -192,16 +192,17 @@ export function linkedRecordsOf(task: Task): LinkedRecord[] {
         }),
     );
 
-    if (task.project) {
+    (task.developer_projects ?? []).forEach((project) =>
         records.push({
             type: "project",
             typeLabel: RECORD_TYPES.project.label,
-            name: task.project.project_name,
+            name: project.name,
             d: RECORD_TYPES.project.d,
             iconBg: RECORD_TYPES.project.iconBg,
             iconFg: RECORD_TYPES.project.iconFg,
-        });
-    }
+            href: route("developer-projects.show", project.id),
+        }),
+    );
 
     return records;
 }

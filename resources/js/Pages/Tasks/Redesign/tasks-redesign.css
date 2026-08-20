@@ -56,6 +56,97 @@
     background: #f2f4f7 !important;
 }
 
+/* Checkpoint rows reveal their remove button on hover. */
+.tasks-checkpoint:hover {
+    background: #f5f6f8;
+}
+
+.tasks-checkpoint-remove {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.tasks-checkpoint:hover .tasks-checkpoint-remove,
+.tasks-checkpoint-remove:focus-visible {
+    opacity: 1;
+}
+
+/* @mention chip inside a posted comment. */
+.tasks-mention {
+    color: #14538c;
+    font-weight: 600;
+    background: #e8f1fb;
+    padding: 1px 5px;
+    border-radius: 5px;
+}
+
+/* Delete only shows on hover, so the thread stays quiet. */
+.tasks-comment-delete {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.tasks-comment:hover .tasks-comment-delete,
+.tasks-comment-delete:focus-visible {
+    opacity: 1;
+}
+
+/* Hour/minute fields are typed, so the native spinner arrows are noise —
+   they also carry a grey background that fights the flat field styling. */
+.tasks-time-input::-webkit-outer-spin-button,
+.tasks-time-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+.tasks-time-input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* App-wide form CSS marks empty/`:invalid` inputs with a red border, which
+   makes an untouched task form look like it is already failing validation.
+   Inside the redesigned dialog, fields stay neutral and only focus tints. */
+.tasks-modal-panel input,
+.tasks-modal-panel textarea,
+.tasks-modal-panel select,
+.tasks-reveal input,
+.tasks-reveal textarea,
+.tasks-reveal select {
+    border-color: #e2e5ea;
+    box-shadow: none;
+}
+
+.tasks-modal-panel input:invalid,
+.tasks-modal-panel textarea:invalid,
+.tasks-modal-panel select:invalid,
+.tasks-reveal input:invalid,
+.tasks-reveal textarea:invalid,
+.tasks-reveal select:invalid {
+    border-color: #e2e5ea;
+    box-shadow: none;
+}
+
+.tasks-modal-panel input:focus,
+.tasks-modal-panel textarea:focus,
+.tasks-modal-panel select:focus,
+.tasks-reveal input:focus,
+.tasks-reveal textarea:focus,
+.tasks-reveal select:focus {
+    outline: none;
+    border-color: #b8d4f0;
+    box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+/* The borderless title/description keep no chrome at all. */
+.tasks-modal-panel .tasks-bare-input,
+.tasks-modal-panel .tasks-bare-input:focus {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
 /* ── Subtle motion ─────────────────────────────────────────────
    Short, easing-in transitions only; everything here is disabled
    under prefers-reduced-motion at the bottom of this file. */

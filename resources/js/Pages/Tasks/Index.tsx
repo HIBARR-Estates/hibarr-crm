@@ -146,6 +146,8 @@ export interface TasksIndexProps extends PageProps {
     deals: Deal[];
     leads: Lead[];
     properties: Property[];
+    /** Developer projects (the ones with units), for task links. */
+    developerProjects?: Array<{ id: number; name: string }>;
 
     permissions: {
         add_tasks: string;
@@ -172,7 +174,11 @@ interface TasksTableViewProps {
     onView: (task: Task) => void;
     onDelete: (task: Task) => void;
     onDuplicate: (task: Task) => void;
-    onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
+    onStatusChange: (
+        task: Task,
+        newStatus: string,
+        newColumnId: number,
+    ) => void;
 }
 
 const TasksTableView: React.FC<TasksTableViewProps> = ({
@@ -214,11 +220,10 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
             rowSelection={rowSelection}
             paginationData={paginationData}
             onPageChange={(page) => {
-                router.get(
-                    route("tasks.index"),
-                    mergeQueryParams({ page }),
-                    { preserveState: true, preserveScroll: true },
-                );
+                router.get(route("tasks.index"), mergeQueryParams({ page }), {
+                    preserveState: true,
+                    preserveScroll: true,
+                });
             }}
             scroll={{ x: 1000, y: "calc(100vh - 380px)" }}
             size="small"
@@ -509,8 +514,16 @@ const LegacyTasksIndex = ({
                                 onView={handleViewTask}
                                 onDelete={handleDeleteTask}
                                 onDuplicate={handleDuplicateTask}
-                                onStatusChange={(task, newStatus, newColumnId) =>
-                                    handleStatusChange(task.id, newStatus, newColumnId)
+                                onStatusChange={(
+                                    task,
+                                    newStatus,
+                                    newColumnId,
+                                ) =>
+                                    handleStatusChange(
+                                        task.id,
+                                        newStatus,
+                                        newColumnId,
+                                    )
                                 }
                             />
                         ) : (

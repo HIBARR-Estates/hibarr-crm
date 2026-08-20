@@ -2,14 +2,10 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
+import TaskSegmented from "./primitives/TaskSegmented";
 
 export type QuickFilterKey =
-    | "all"
-    | "mine"
-    | "byme"
-    | "open"
-    | "today"
-    | "overdue";
+    "all" | "mine" | "byme" | "open" | "today" | "overdue";
 
 export type GroupMode = "due" | "category" | "none";
 
@@ -53,22 +49,6 @@ const GROUP_MODES: Array<{ key: GroupMode; label: string }> = [
     { key: "none", label: "None" },
 ];
 
-/** Segmented-control shell used by both the quick pills and group-by toggle. */
-function Segmented({ children }: { children: React.ReactNode }) {
-    return (
-        <div
-            className="flex gap-0.5 p-0.5"
-            style={{
-                background: T.BG,
-                border: `1px solid ${T.BORDER}`,
-                borderRadius: 8,
-            }}
-        >
-            {children}
-        </div>
-    );
-}
-
 export default function TasksFilterBar({
     quickFilter,
     onQuickFilter,
@@ -85,46 +65,16 @@ export default function TasksFilterBar({
     return (
         <div>
             <div className="flex flex-wrap items-center gap-2.5 pb-[18px]">
-                <Segmented>
-                    {QUICK_FILTERS.map((pill) => {
-                        const active = quickFilter === pill.key;
-                        return (
-                            <button
-                                key={pill.key}
-                                type="button"
-                                aria-pressed={active}
-                                onClick={() => onQuickFilter(pill.key)}
-                                className="inline-flex items-center gap-1.5"
-                                style={{
-                                    padding: "6px 12px",
-                                    borderRadius: 6,
-                                    border: "none",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    background: active ? T.NAVY : "transparent",
-                                    color: active ? T.WHITE : T.TEXT_MUTED,
-                                    transition:
-                                        "background 120ms ease, color 120ms ease",
-                                }}
-                            >
-                                {td(pill.label)}
-                                <span
-                                    style={{
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        fontVariantNumeric: "tabular-nums",
-                                        color: active
-                                            ? "rgba(255,255,255,0.7)"
-                                            : T.TEXT_HINT,
-                                    }}
-                                >
-                                    {counts[pill.key]}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </Segmented>
+                <TaskSegmented
+                    value={quickFilter}
+                    ariaLabel={td("Task view")}
+                    onChange={onQuickFilter}
+                    options={QUICK_FILTERS.map((pill) => ({
+                        value: pill.key,
+                        label: td(pill.label),
+                        count: counts[pill.key],
+                    }))}
+                />
 
                 <div className="ml-auto flex items-center gap-2.5">
                     {showGroupBy && (
@@ -132,7 +82,7 @@ export default function TasksFilterBar({
                             <span
                                 className="uppercase"
                                 style={{
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: 700,
                                     letterSpacing: "0.05em",
                                     color: T.TEXT_HINT,
@@ -140,35 +90,15 @@ export default function TasksFilterBar({
                             >
                                 {td("Group by")}
                             </span>
-                            <Segmented>
-                                {GROUP_MODES.map((mode) => {
-                                    const active = groupMode === mode.key;
-                                    return (
-                                        <button
-                                            key={mode.key}
-                                            type="button"
-                                            aria-pressed={active}
-                                            onClick={() => onGroupMode(mode.key)}
-                                            style={{
-                                                padding: "6px 12px",
-                                                borderRadius: 6,
-                                                border: "none",
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                cursor: "pointer",
-                                                background: active
-                                                    ? T.NAVY
-                                                    : "transparent",
-                                                color: active
-                                                    ? T.WHITE
-                                                    : T.TEXT_MUTED,
-                                            }}
-                                        >
-                                            {td(mode.label)}
-                                        </button>
-                                    );
-                                })}
-                            </Segmented>
+                            <TaskSegmented
+                                value={groupMode}
+                                ariaLabel={td("Group by")}
+                                onChange={onGroupMode}
+                                options={GROUP_MODES.map((mode) => ({
+                                    value: mode.key,
+                                    label: td(mode.label),
+                                }))}
+                            />
                         </div>
                     )}
 
@@ -183,7 +113,7 @@ export default function TasksFilterBar({
                         style={{
                             padding: "7px 12px",
                             borderRadius: 8,
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: 600,
                             cursor: "pointer",
                             background: hasFilters ? T.BLUE_LIGHT : T.WHITE,
@@ -191,7 +121,11 @@ export default function TasksFilterBar({
                             border: `1px solid ${hasFilters ? T.BLUE_MID : T.BORDER}`,
                         }}
                     >
-                        <TaskGlyph d={TASK_ICON.filter} size={13} strokeWidth={1.5} />
+                        <TaskGlyph
+                            d={TASK_ICON.filter}
+                            size={13}
+                            strokeWidth={1.5}
+                        />
                         {td("Filters")}
                         {hasFilters && (
                             <span
@@ -203,7 +137,7 @@ export default function TasksFilterBar({
                                     borderRadius: 999,
                                     background: T.BLUE,
                                     color: T.WHITE,
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: 700,
                                     fontVariantNumeric: "tabular-nums",
                                 }}

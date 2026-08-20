@@ -116,7 +116,7 @@ export default function TaskRowMenu({
                                     borderRadius: 6,
                                     border: "none",
                                     background: "transparent",
-                                    fontSize: 13,
+                                    fontSize: 15,
                                     fontWeight: 500,
                                     color: action.danger ? T.RED : T.TEXT,
                                     cursor: "pointer",

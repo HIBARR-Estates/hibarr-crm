@@ -80,6 +80,8 @@ export interface Task {
         client_name: string;
         company_name?: string;
     }>;
+    /** Developer projects (the ones with units) linked to this task. */
+    developer_projects?: Array<{ id: number; name: string }>;
     properties?: Array<{
         id: number;
         name: string;

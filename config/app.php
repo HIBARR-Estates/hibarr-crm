@@ -63,6 +63,8 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    'bundler' => env('APP_BUNDLER', 'mix'),
+
     'currency_converter_key' => env('CURRENCY_CONVERTER_KEY'),
 
     /*

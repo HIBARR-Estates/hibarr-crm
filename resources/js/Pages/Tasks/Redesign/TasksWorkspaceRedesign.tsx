@@ -8,6 +8,7 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import { useFilter } from "@/contexts/FilterContext";
 import TaskFormModal, {
     type RecordPool,
     type TaskFormValues,
@@ -20,9 +21,7 @@ import TasksFilterBar, {
     type GroupMode,
     type QuickFilterKey,
 } from "./components/TasksFilterBar";
-import TasksSummaryStrip, {
-    type SummaryClause,
-} from "./components/TasksSummaryStrip";
+import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
 import TasksPagination from "./components/TasksPagination";
 import TasksBulkBar from "./components/TasksBulkBar";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
@@ -32,15 +31,13 @@ import { isLoading } from "@/lib/utils";
 import TasksListView, { type TaskGroup } from "./components/TasksListView";
 import TasksBoardView from "./components/TasksBoardView";
 import TaskDetailModal from "./components/TaskDetailModal";
-import TaskFiltersModal from "./components/TaskFiltersModal";
+import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
 import useTasksFilters, {
     appliedValues,
     hasFilter,
 } from "./hooks/useTasksFilters";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
-import useTaskSavedViews, {
-    type TaskSavedView,
-} from "./hooks/useTaskSavedViews";
+import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
     TASK_BUCKETS,
@@ -56,7 +53,7 @@ import "@/Components/Redesign/redesign.css";
 import "./tasks-redesign.css";
 
 export interface TasksWorkspaceRedesignProps extends TasksIndexProps {
-    savedViews?: TaskSavedView[];
+    savedViews?: SavedView[];
 }
 
 /** Design defaults, matching the handoff's prop defaults. */
@@ -126,6 +123,7 @@ export default function TasksWorkspaceRedesign({
     deals = [],
     leads = [],
     properties = [],
+    developerProjects = [],
     permissions,
     stats,
     savedViews = [],
@@ -141,7 +139,6 @@ export default function TasksWorkspaceRedesign({
     const [quickFilter, setQuickFilter] = useState<QuickFilterKey>("all");
     const [groupMode, setGroupMode] = useState<GroupMode>("due");
     const [addOpen, setAddOpen] = useState(false);
-    const [filtersOpen, setFiltersOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -213,18 +210,57 @@ export default function TasksWorkspaceRedesign({
                 id: property.id,
                 name: property.name ?? property.title ?? "Property",
             })),
-            project: projects.map((project) => ({
+            project: developerProjects.map((project) => ({
                 id: project.id,
-                name: project.project_name,
-                meta: project.project_short_code,
+                name: project.name,
             })),
         }),
-        [deals, leads, properties, projects],
+        [deals, leads, properties, developerProjects],
     );
 
     /** Adds a category inline from the task modal. */
     const [categoryOptions, setCategoryOptions] = useState(categories);
     useEffect(() => setCategoryOptions(categories), [categories]);
+
+    /**
+     * Checklist rows and attachments both need a saved task id, so they're
+     * written after the task itself. Failures here are surfaced in the
+     * console rather than blocking — the task is already saved by then.
+     */
+    const persistExtras = async (
+        taskId: number,
+        checklist: string[],
+        files: File[],
+    ) => {
+        for (const title of checklist) {
+            try {
+                await axios.post(
+                    route("sub-tasks.store"),
+                    { task_id: taskId, title },
+                    { headers: { Accept: "application/json" } },
+                );
+            } catch (error) {
+                console.error("Failed to add checklist item", title, error);
+            }
+        }
+
+        if (files.length > 0) {
+            const payload = new FormData();
+            payload.append("task_id", String(taskId));
+            files.forEach((file) => payload.append("file[]", file));
+            try {
+                await axios.post(route("task-files.store"), payload, {
+                    headers: { Accept: "application/json" },
+                });
+            } catch (error) {
+                console.error("Failed to upload task files", error);
+            }
+        }
+
+        if (checklist.length || files.length) {
+            router.reload({ only: ["kanbanTasks", "tableTasks", "stats"] });
+        }
+    };
 
     const createCategory = async (name: string) => {
         try {
@@ -243,7 +279,6 @@ export default function TasksWorkspaceRedesign({
         }
     };
 
-
     const { applyFilters, activeCount, clearAll } = useTasksFilters({
         status: filters?.status ?? undefined,
         priority: filters?.priority ?? undefined,
@@ -251,11 +286,10 @@ export default function TasksWorkspaceRedesign({
         assigned_by: (filters as Record<string, never> | undefined)
             ?.assigned_by,
         category_id: filters?.category_id ?? undefined,
-        due_date_range: filters?.due_date_range as string | string[] | undefined,
+        due_date_range: filters?.due_date_range as
+            string | string[] | undefined,
         search: filters?.search ?? undefined,
     });
-
-    const savedViewsHook = useTaskSavedViews();
 
     // Registers the tasks route + fields with FilterContext, which
     // UniversalSearchBox in the page header reads for its search navigation.
@@ -271,9 +305,19 @@ export default function TasksWorkspaceRedesign({
                 leads,
                 properties,
             }),
-        [categories, labels, columns, users, projects, deals, leads, properties],
+        [
+            categories,
+            labels,
+            columns,
+            users,
+            projects,
+            deals,
+            leads,
+            properties,
+        ],
     );
     usePageSearchAndFilter({ filterConfig });
+    const { openDrawer } = useFilter();
 
     // ── View models ────────────────────────────────────────────────
     const viewModels = useMemo(
@@ -394,73 +438,12 @@ export default function TasksWorkspaceRedesign({
         return out;
     }, [allGroups, currentPage, pageSize]);
 
-    const summaryClauses: SummaryClause[] = useMemo(() => {
-        const clauses: SummaryClause[] = [];
-
-        const applied = (filters ?? {}) as Record<string, unknown>;
-
-        /** Joins the applied values of one dimension into "a or b or c". */
-        const clause = (
-            key: string,
-            label: string,
-            render: (value: string) => string,
-        ) => {
-            const values = appliedValues(applied[key]);
-            if (values.length === 0) return;
-            clauses.push({
-                label,
-                value: values.map(render).join(` ${td("or")} `),
-            });
-        };
-
-        clause("priority", "priority is", (value) =>
-            td(TASK_PRIORITY[value as TaskPriorityKey]?.label ?? value),
-        );
-        clause("status", "status is", (value) => {
-            const column = columns.find((c) => c.slug === value);
-            return td(column?.column_name ?? value, { source: "en" });
-        });
-        clause("category_id", "category is", (value) => {
-            const category = categories.find((c) => String(c.id) === value);
-            return category?.category_name ?? value;
-        });
-        clause("assigned_to", "assigned to", (value) => {
-            const user = users.find((u) => String(u.id) === value);
-            return user?.name ?? value;
-        });
-        clause("assigned_by", "assigned by", (value) => {
-            const user = users.find((u) => String(u.id) === value);
-            return user?.name ?? value;
-        });
-
-        if (hasFilter(filters?.due_date_range)) {
-            const range = filters?.due_date_range;
-            clauses.push({
-                label: "due is",
-                value:
-                    range === "none"
-                        ? td("No date")
-                        : Array.isArray(range)
-                          ? `${range[0]} → ${range[1]}`
-                          : String(range),
-            });
-        }
-        if (hasFilter(filters?.search)) {
-            clauses.push({
-                label: "text matches",
-                value: String(filters?.search),
-            });
-        }
-        return clauses;
-    }, [filters, columns, categories, users, td]);
-
     const selectedVm =
         visible.find((vm) => vm.id === selectedTaskId) ??
         viewModels.find((vm) => vm.id === selectedTaskId) ??
         null;
 
-    const editingVm =
-        viewModels.find((vm) => vm.id === editingTaskId) ?? null;
+    const editingVm = viewModels.find((vm) => vm.id === editingTaskId) ?? null;
 
     const headline = `${counts.overdue} ${td("overdue")} · ${counts.today} ${td("due today")} · ${counts.open} ${td("open across your records")}`;
 
@@ -487,7 +470,8 @@ export default function TasksWorkspaceRedesign({
         router.reload({
             only: ["kanbanTasks", "tableTasks", "stats", "savedViews"],
             onSuccess: (page) => {
-                const next = (page.props as { kanbanTasks?: Task[] }).kanbanTasks;
+                const next = (page.props as { kanbanTasks?: Task[] })
+                    .kanbanTasks;
                 if (next) setTasks(next);
             },
             onFinish: () => setRefreshing(false),
@@ -700,20 +684,28 @@ export default function TasksWorkspaceRedesign({
                         onGroupMode={setGroupMode}
                         showGroupBy={view === "list"}
                         activeFilterCount={activeCount}
-                        onOpenFilters={() => setFiltersOpen(true)}
+                        onOpenFilters={openDrawer}
                     />
                 </div>
 
-                {/* Applied-filter summary — full-width strip beneath the
-                    white bar, as in the design. */}
-                <TasksSummaryStrip
-                    clauses={summaryClauses}
-                    count={visible.length}
-                    onClearAll={() => {
-                        setQuickFilter("all");
-                        clearAll();
+                {/* Shared active-filter sentence (same as Leads and Deals) — a
+                    flat full-width band (matching Leads), not a floating
+                    card: the band's background/border span the whole sticky
+                    panel, while its text sits in the same 1280/px-7 column
+                    as the header above, so it lines up exactly. */}
+                <div
+                    style={{
+                        background: T.SURFACE_2,
+                        borderTop: `1px solid ${T.BORDER_SOFT}`,
                     }}
-                />
+                >
+                    <div className="mx-auto w-full max-w-[1280px] px-7">
+                        <ActiveFilterSentence
+                            count={visible.length}
+                            onOpenFilters={openDrawer}
+                        />
+                    </div>
+                </div>
             </div>
 
             <div
@@ -728,9 +720,7 @@ export default function TasksWorkspaceRedesign({
                         minHeight: view === "board" ? undefined : 320,
                         // The filter summary strip, when shown, pushes the
                         // board down — account for it in the board's height.
-                        "--tasks-board-offset": summaryClauses.length
-                            ? "328px"
-                            : "290px",
+                        "--tasks-board-offset": "328px",
                     } as React.CSSProperties
                 }
             >
@@ -745,7 +735,10 @@ export default function TasksWorkspaceRedesign({
                             canDelete={permissions?.delete_tasks === "all"}
                             allSelected={allVisibleSelected}
                             onToggleSelectAll={() =>
-                                toggleGroupSelection(visible, !allVisibleSelected)
+                                toggleGroupSelection(
+                                    visible,
+                                    !allVisibleSelected,
+                                )
                             }
                             onSetStatus={bulkSetStatus}
                             onReassign={bulkReassign}
@@ -759,7 +752,9 @@ export default function TasksWorkspaceRedesign({
                             priorityTreatment={PRIORITY_TREATMENT}
                             showRowCategory={SHOW_ROW_CATEGORY}
                             onOpen={(vm) => setSelectedTaskId(vm.id)}
-                            onStatusChange={(vm, slug) => setStatus(vm.id, slug)}
+                            onStatusChange={(vm, slug) =>
+                                setStatus(vm.id, slug)
+                            }
                             isStatusPending={isPending}
                             rowActions={rowActions}
                             selected={selected}
@@ -821,6 +816,13 @@ export default function TasksWorkspaceRedesign({
                         : false
                 }
                 toggling={selectedVm ? isPending(selectedVm.id) : false}
+                people={users}
+                currentUser={{
+                    id: userId,
+                    name: auth.user.name,
+                    image:
+                        users.find((user) => user.id === userId)?.image ?? null,
+                }}
             />
 
             {/* Create */}
@@ -834,10 +836,10 @@ export default function TasksWorkspaceRedesign({
                 }}
                 saving={isCreating}
                 errors={createErrors}
-                categories={categoryOptions}
+                categories={categories}
+                users={users}
                 columns={columns}
                 records={recordPool}
-                onCreateCategory={createCategory}
                 onSubmit={(values: TaskFormValues) =>
                     createTask(
                         {
@@ -847,7 +849,16 @@ export default function TasksWorkspaceRedesign({
                                 id: link.id,
                             })),
                         },
-                        () => setAddOpen(false),
+                        (created) => {
+                            setAddOpen(false);
+                            if (created?.id) {
+                                void persistExtras(
+                                    created.id,
+                                    values.checklist,
+                                    values.files,
+                                );
+                            }
+                        },
                     )
                 }
             />
@@ -863,10 +874,10 @@ export default function TasksWorkspaceRedesign({
                 }}
                 saving={isUpdating}
                 errors={updateErrors}
-                categories={categoryOptions}
+                categories={categories}
+                users={users}
                 columns={columns}
                 records={recordPool}
-                onCreateCategory={createCategory}
                 initial={
                     editingVm
                         ? {
@@ -879,8 +890,8 @@ export default function TasksWorkspaceRedesign({
                               dueTime:
                                   editingVm.task.due_date?.slice(11, 16) ||
                                   "17:00",
-                              priority:
-                                  editingVm.task.priority as TaskPriorityKey,
+                              priority: editingVm.task
+                                  .priority as TaskPriorityKey,
                               assignees: editingVm.people.map((p) => p.id),
                               categoryId: editingVm.task.category?.id ?? null,
                               boardColumnId:
@@ -900,26 +911,26 @@ export default function TasksWorkspaceRedesign({
                                 id: link.id,
                             })),
                         },
-                        () => setEditingTaskId(null),
+                        () => {
+                            setEditingTaskId(null);
+                            void persistExtras(
+                                editingVm.id,
+                                values.checklist,
+                                values.files,
+                            );
+                        },
                     );
                 }}
             />
 
-            <TaskFiltersModal
-                open={filtersOpen}
-                onClose={() => setFiltersOpen(false)}
-                filters={filters ?? {}}
-                tasks={viewModels}
-                columns={columns}
-                categories={categories}
-                users={users}
-                savedViews={savedViews}
-                onApply={(params) => applyFilters(params as never)}
-                onSaveView={(payload, draftFilters) =>
-                    savedViewsHook.createView({ ...payload, filters: draftFilters })
-                }
-                onDeleteView={savedViewsHook.deleteView}
-                savingView={savedViewsHook.saving}
+            {/* Shared filter workbench — same component Leads and Deals use,
+                including its saved-views bar. */}
+            <EntityFilterModal
+                config={filterConfig}
+                entityLabel="tasks"
+                currentCount={visible.length}
+                savedViews
+                savedViewEntity="task"
             />
 
             <DeleteTask

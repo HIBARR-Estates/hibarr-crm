@@ -29,11 +29,13 @@ export const TASK_ICON = {
     prioMedium: "M5 9h14M5 15h14",
     prioLow: "M5 8l7 7 7-7",
     prioLowest: "M4 7l8 7 8-7M4 13l8 7 8-7",
-    inboxEmpty: "M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-4h14l2 4M9 12h6",
+    inboxEmpty:
+        "M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l2-4h14l2 4M9 12h6",
     filter: "M22 3H2l8 9.46V19l4 2v-8.54z",
     list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
     board: "M4 4h6v16H4zM14 4h6v9h-6z",
-    refresh: "M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5",
+    refresh:
+        "M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5",
     plus: "M12 5v14M5 12h14",
     chevron: "m6 9 6 6 6-6",
     x: "M18 6 6 18M6 6l12 12",
@@ -45,12 +47,7 @@ export const TASK_ICON = {
 } as const;
 
 export type TaskPriorityKey =
-    | "urgent"
-    | "highest"
-    | "high"
-    | "medium"
-    | "low"
-    | "lowest";
+    "urgent" | "highest" | "high" | "medium" | "low" | "lowest";
 
 export interface PriorityToken {
     label: string;
@@ -244,7 +241,10 @@ const CATEGORY_PALETTE = Object.values(TASK_CATEGORIES);
 export function categoryToken(name: string | undefined): CategoryToken {
     if (!name) return TASK_CATEGORIES.admin;
 
-    const normalized = name.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const normalized = name
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
     const direct = TASK_CATEGORIES[normalized];
     if (direct) return { ...direct, label: name };
 
@@ -265,11 +265,7 @@ export function categoryToken(name: string | undefined): CategoryToken {
 }
 
 export type TaskBucketKey =
-    | "overdue"
-    | "today"
-    | "upcoming"
-    | "unscheduled"
-    | "done";
+    "overdue" | "today" | "upcoming" | "unscheduled" | "done";
 
 export interface BucketToken {
     key: TaskBucketKey;

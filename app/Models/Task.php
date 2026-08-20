@@ -693,4 +693,13 @@ class Task extends BaseModel
     {
         return $this->morphedByMany(Property::class, 'taskable');
     }
+
+    /**
+     * Developer projects (the ones that hold units) a task is linked to.
+     * Distinct from `project()`, which is the Worksuite delivery project.
+     */
+    public function developerProjects()
+    {
+        return $this->morphedByMany(DeveloperProject::class, 'taskable');
+    }
 }

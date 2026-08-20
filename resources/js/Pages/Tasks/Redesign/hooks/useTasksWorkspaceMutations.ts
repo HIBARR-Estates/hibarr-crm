@@ -38,7 +38,10 @@ interface TaskRequestPayload {
 }
 
 /** Same request shape/date formatting as the Deal/Lead workspace task hooks, applied at the Tasks workspace level. */
-function buildPayload(input: TaskFormInput, dateFormat: string): TaskRequestPayload {
+function buildPayload(
+    input: TaskFormInput,
+    dateFormat: string,
+): TaskRequestPayload {
     const payload: TaskRequestPayload = {
         heading: input.title.trim(),
         description: input.description?.trim() || "",
@@ -98,7 +101,9 @@ export default function useTasksWorkspaceMutations(
     >(route("tasks.store"), "POST");
 
     const createTask = useCallback(
-        (input: TaskFormInput, onSuccess?: () => void) => {
+        // `onSuccess` receives the saved task so callers can chain follow-up
+        // writes that need its id (checklist rows, file uploads).
+        (input: TaskFormInput, onSuccess?: (task?: Task) => void) => {
             if (!input.title.trim()) {
                 setCreateErrors(["Task title is required"]);
                 return;
@@ -109,7 +114,7 @@ export default function useTasksWorkspaceMutations(
                     if (response?.data) {
                         setTasks((prev) => [response.data as Task, ...prev]);
                     }
-                    onSuccess?.();
+                    onSuccess?.(response?.data as Task | undefined);
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);

@@ -2,6 +2,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
+import TaskSegmented from "./primitives/TaskSegmented";
 
 /** Selectable page sizes for both the list and the board columns. */
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
@@ -59,37 +60,28 @@ export default function TasksPagination({
     const from = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
     const to = Math.min(safePage * pageSize, totalItems);
 
+    // Rows-per-page rides the same segmented switcher as list/board and
+    // group-by, so every switcher on the page is literally one component.
     const sizeSelect = (
-        <label className="flex items-center gap-2">
-            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+        <div className="flex items-center gap-2">
+            <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
                 {td("Rows per page")}
             </span>
-            <select
+            <TaskSegmented
                 value={pageSize}
-                onChange={(event) => onPageSizeChange(Number(event.target.value))}
-                style={{
-                    padding: "5px 8px",
-                    borderRadius: 8,
-                    border: `1px solid ${T.BORDER}`,
-                    background: T.WHITE,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: T.TEXT,
-                    cursor: "pointer",
-                }}
-            >
-                {PAGE_SIZE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                        {option}
-                    </option>
-                ))}
-            </select>
-        </label>
+                ariaLabel={td("Rows per page")}
+                onChange={onPageSizeChange}
+                options={PAGE_SIZE_OPTIONS.map((option) => ({
+                    value: option,
+                    label: option,
+                }))}
+            />
+        </div>
     );
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5">
-            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+            <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
                 {td("Showing")}{" "}
                 <strong style={{ color: T.NAVY, fontWeight: 700 }}>
                     {from}–{to}
@@ -105,7 +97,11 @@ export default function TasksPagination({
                 {sizeSelect}
 
                 {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2.5">
+                        <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
+                            {td("Page")} {safePage} {td("of")} {totalPages}
+                        </span>
+                        <div className="flex items-center gap-1">
                         <button
                             type="button"
                             aria-label={td("Previous page")}
@@ -113,7 +109,12 @@ export default function TasksPagination({
                             onClick={() => onPageChange(safePage - 1)}
                             style={navButtonStyle(safePage <= 1)}
                         >
-                            <span style={{ transform: "rotate(90deg)", display: "flex" }}>
+                            <span
+                                style={{
+                                    transform: "rotate(90deg)",
+                                    display: "flex",
+                                }}
+                            >
                                 <TaskGlyph
                                     d={TASK_ICON.chevron}
                                     size={13}
@@ -128,7 +129,7 @@ export default function TasksPagination({
                                     key={`gap-${index}`}
                                     style={{
                                         padding: "0 4px",
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         color: T.TEXT_HINT,
                                     }}
                                 >
@@ -147,8 +148,9 @@ export default function TasksPagination({
                                         height: 30,
                                         padding: "0 8px",
                                         borderRadius: 8,
-                                        fontSize: 12,
-                                        fontWeight: entry === safePage ? 700 : 600,
+                                        fontSize: 14,
+                                        fontWeight:
+                                            entry === safePage ? 700 : 600,
                                         cursor: "pointer",
                                         background:
                                             entry === safePage
@@ -173,7 +175,12 @@ export default function TasksPagination({
                             onClick={() => onPageChange(safePage + 1)}
                             style={navButtonStyle(safePage >= totalPages)}
                         >
-                            <span style={{ transform: "rotate(-90deg)", display: "flex" }}>
+                            <span
+                                style={{
+                                    transform: "rotate(-90deg)",
+                                    display: "flex",
+                                }}
+                            >
                                 <TaskGlyph
                                     d={TASK_ICON.chevron}
                                     size={13}
@@ -181,6 +188,7 @@ export default function TasksPagination({
                                 />
                             </span>
                         </button>
+                        </div>
                     </div>
                 )}
             </div>

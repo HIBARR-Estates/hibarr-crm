@@ -38,7 +38,7 @@ export default function TasksHeader({
                     padding: "5px 10px",
                     borderRadius: 6,
                     border: "none",
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 600,
                     cursor: "pointer",
                     background: active ? T.WHITE : "transparent",
@@ -57,14 +57,17 @@ export default function TasksHeader({
                 <h1
                     className="m-0 font-bold"
                     style={{
-                        fontSize: 19,
+                        fontSize: 21,
                         color: T.NAVY,
                         letterSpacing: "-0.01em",
                     }}
                 >
                     {td("Tasks")}
                 </h1>
-                <p className="m-0" style={{ fontSize: 13, color: T.TEXT_MUTED }}>
+                <p
+                    className="m-0"
+                    style={{ fontSize: 15, color: T.TEXT_MUTED }}
+                >
                     {headline}
                 </p>
             </div>
@@ -93,7 +96,7 @@ export default function TasksHeader({
                         background: T.WHITE,
                         color: T.TEXT_MUTED,
                         border: `1px solid ${T.BORDER}`,
-                        fontSize: 13,
+                        fontSize: 15,
                         fontWeight: 600,
                         cursor: refreshing ? "default" : "pointer",
                         opacity: refreshing ? 0.6 : 1,
@@ -118,7 +121,7 @@ export default function TasksHeader({
                             background: T.BLUE,
                             color: T.WHITE,
                             border: `1px solid ${T.BLUE}`,
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 600,
                             cursor: "pointer",
                         }}

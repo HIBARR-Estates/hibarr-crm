@@ -36,7 +36,7 @@ const barButtonStyle: React.CSSProperties = {
     border: "none",
     background: T.WHITE,
     color: T.NAVY,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
 };
@@ -146,7 +146,11 @@ export default function TasksBulkBar({
             style={{ padding: "8px 12px" }}
             actionsGap={8}
         >
-            <button type="button" style={barButtonStyle} onClick={onToggleSelectAll}>
+            <button
+                type="button"
+                style={barButtonStyle}
+                onClick={onToggleSelectAll}
+            >
                 {allSelected ? td("Deselect all") : td("Select all")}
             </button>
 
@@ -180,7 +184,7 @@ export default function TasksBulkBar({
                                         style={{
                                             padding: "3px 10px",
                                             borderRadius: 999,
-                                            fontSize: 12,
+                                            fontSize: 14,
                                             fontWeight: 600,
                                             background: token.bg,
                                             color: token.fg,
@@ -195,7 +199,9 @@ export default function TasksBulkBar({
                                                 background: token.fg,
                                             }}
                                         />
-                                        {td(column.column_name, { source: "en" })}
+                                        {td(column.column_name, {
+                                            source: "en",
+                                        })}
                                     </span>
                                 </button>
                             );
@@ -234,7 +240,7 @@ export default function TasksBulkBar({
                                     />
                                     <span
                                         className="min-w-0 flex-1 truncate"
-                                        style={{ fontSize: 13, color: T.TEXT }}
+                                        style={{ fontSize: 15, color: T.TEXT }}
                                     >
                                         {user.name}
                                     </span>

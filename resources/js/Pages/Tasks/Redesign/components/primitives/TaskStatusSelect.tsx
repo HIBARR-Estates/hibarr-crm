@@ -57,7 +57,8 @@ export default function TaskStatusSelect({
     }, [open]);
 
     const sorted = [...columns].sort((a, b) => a.priority - b.priority);
-    const current = sorted.find((column) => column.slug === status) ?? sorted[0];
+    const current =
+        sorted.find((column) => column.slug === status) ?? sorted[0];
     const token = statusToken(current?.slug);
     const label = current
         ? td(current.column_name, { source: "en" })
@@ -76,8 +77,9 @@ export default function TaskStatusSelect({
                 style={{
                     padding: "4px 11px",
                     borderRadius: 999,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 600,
+                    lineHeight: 1.5,
                     background: token.bg,
                     color: token.fg,
                     border: `1px solid ${token.border}`,
@@ -136,7 +138,7 @@ export default function TaskStatusSelect({
                             className="uppercase"
                             style={{
                                 padding: "4px 8px 8px",
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: 700,
                                 letterSpacing: "0.05em",
                                 color: T.TEXT_HINT,
@@ -175,8 +177,9 @@ export default function TaskStatusSelect({
                                         style={{
                                             padding: "3px 10px",
                                             borderRadius: 999,
-                                            fontSize: 12,
+                                            fontSize: 14,
                                             fontWeight: 600,
+                                            lineHeight: 1.5,
                                             background: optionToken.bg,
                                             color: optionToken.fg,
                                             border: `1px solid ${optionToken.border}`,

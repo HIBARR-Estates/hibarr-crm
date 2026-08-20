@@ -42,6 +42,7 @@ use App\Services\Reminders\TaskReminderSync;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\Property;
+use App\Models\DeveloperProject;
 use Inertia\Inertia;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
@@ -85,6 +86,7 @@ class TaskController extends AccountBaseController
             'deals',
             'leads',
             'properties',
+            'developerProjects:id,name',
             // Checklist rows for the redesigned task detail modal.
             'subtasks:id,task_id,title,status'
         ])->withCount([
@@ -175,23 +177,36 @@ class TaskController extends AccountBaseController
             });
         }
 
-        // Apply due date range filter
-        if (request()->filled('due_date_range') && is_array(request('due_date_range'))) {
-            $dates = request('due_date_range');
-            if (count($dates) === 2 && $dates[0] && $dates[1]) {
-                $tasksQuery->whereBetween('due_date', [$dates[0], $dates[1]]);
+        // Date ranges arrive either as a `[from, to]` array (legacy drawer) or
+        // as the separate start/end params the shared filter modal writes.
+        $dateRange = function (string $arrayKey, string $startKey, string $endKey): ?array {
+            $range = request($arrayKey);
+            if (is_array($range) && count($range) === 2 && $range[0] && $range[1]) {
+                return [$range[0], $range[1]];
             }
+
+            $start = request($startKey);
+            $end = request($endKey);
+
+            return $start && $end ? [$start, $end] : null;
+        };
+
+        // Apply due date range filter
+        $dueRange = $dateRange('due_date_range', 'due_start_date', 'due_end_date');
+        if ($dueRange !== null) {
+            $tasksQuery->whereBetween('due_date', $dueRange);
         } elseif (request('due_date_range') === 'none') {
             // "No date" option in the redesigned filter modal.
             $tasksQuery->whereNull('due_date');
         }
 
         // Apply created date range filter
-        if (request()->filled('created_date_range') && is_array(request('created_date_range'))) {
-            $dates = request('created_date_range');
-            if (count($dates) === 2 && $dates[0] && $dates[1]) {
-                $tasksQuery->whereBetween('created_at', [$dates[0] . ' 00:00:00', $dates[1] . ' 23:59:59']);
-            }
+        $createdRange = $dateRange('created_date_range', 'created_start_date', 'created_end_date');
+        if ($createdRange !== null) {
+            $tasksQuery->whereBetween('created_at', [
+                $createdRange[0] . ' 00:00:00',
+                $createdRange[1] . ' 23:59:59',
+            ]);
         }
 
         // Apply sorting
@@ -308,6 +323,12 @@ class TaskController extends AccountBaseController
                         'company_name' => $lead->company_name,
                     ];
                 })->toArray(),
+                'developer_projects' => $task->developerProjects->map(function ($project) {
+                    return [
+                        'id' => $project->id,
+                        'name' => $project->name,
+                    ];
+                })->toArray(),
                 'properties' => $task->properties->map(function ($property) {
                     return [
                         'id' => $property->id,
@@ -320,53 +341,6 @@ class TaskController extends AccountBaseController
         // Transform tasks for frontend
         $tableTasks->getCollection()->transform($transformCallback);
         $kanbanTasks = $kanbanTasks->map($transformCallback);
-
-        // Fetch supporting data
-        $projects = Project::allProjects()->map(function ($project) {
-            return [
-                'id' => $project->id,
-                'project_name' => $project->project_name,
-                'project_short_code' => $project->project_short_code,
-            ];
-        });
-
-        $employees = User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null))->map(function ($user) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'image' => $user->image,
-                'designation_name' => $user->designation_name ?? null,
-            ];
-        });
-
-        $taskBoardColumns = TaskboardColumn::orderBy('priority', 'asc')->get()->map(function ($column) {
-            return [
-                'id' => $column->id,
-                'column_name' => $column->column_name,
-                'slug' => $column->slug,
-                'label_color' => $column->label_color,
-                'priority' => $column->priority,
-            ];
-        });
-
-        $categories = TaskCategory::all()->map(function ($category) {
-            return [
-                'id' => $category->id,
-                'category_name' => $category->category_name,
-            ];
-        });
-
-        $labels = TaskLabelList::all()->map(function ($label) {
-            return [
-                'id' => $label->id,
-                'label_name' => $label->label_name,
-                'label_color' => $label->label_color,
-            ];
-        });
-
-        $deals = Deal::select('id', 'name')->get();
-        $leads = Lead::select('id', 'client_name', 'company_name')->get();
-        $properties = Property::select('id', 'title as name')->get();
 
         // Get user permissions
         $permissions = [
@@ -386,32 +360,62 @@ class TaskController extends AccountBaseController
             'category_id' => $categoryIds,
             'labels' => request('labels', []),
             'due_date_range' => request('due_date_range'),
+            'due_start_date' => request('due_start_date'),
+            'due_end_date' => request('due_end_date'),
             'created_date_range' => request('created_date_range'),
+            'created_start_date' => request('created_start_date'),
+            'created_end_date' => request('created_end_date'),
             'search' => request('search'),
         ];
 
         $props = [
             'tableTasks' => $tableTasks,
             'kanbanTasks' => $kanbanTasks,
-            'categories' => $categories,
-            'labels' => $labels,
-            'columns' => $taskBoardColumns,
-            'users' => $employees,
-            'projects' => $projects,
-            'deals' => $deals,
-            'leads' => $leads,
-            'properties' => $properties,
             'filters' => $filters,
             'permissions' => $permissions,
             'stats' => $stats,
+
+            // Modal/filter lookup data can arrive after the task list shell.
+            'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
+            'labels' => Inertia::defer(fn () => $this->taskLabelsForSelect(), 'taskMeta'),
+            'columns' => Inertia::defer(fn () => $this->taskColumnsForSelect(), 'taskMeta'),
+            'users' => Inertia::defer(
+                fn () => $this->taskUsersForSelect($viewPermission),
+                'taskMeta'
+            ),
+            'projects' => Inertia::defer(fn () => $this->taskProjectsForSelect(), 'taskLinkMeta'),
+            'deals' => Inertia::defer(fn () => Deal::select('id', 'name')->get(), 'taskLinkMeta'),
+            'leads' => Inertia::defer(fn () => Lead::select('id', 'client_name', 'company_name')->get(), 'taskLinkMeta'),
+            'properties' => Inertia::defer(fn () => Property::select('id', 'title as name')->get(), 'taskLinkMeta'),
+            'developerProjects' => Inertia::defer(fn () => DeveloperProject::select('id', 'name')->orderBy('name')->get(), 'taskLinkMeta'),
         ];
 
         // Saved views only exist as part of the redesigned tasks workspace.
         if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
-            $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser());
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser(), 'taskViews');
         }
 
         return Inertia::render('Tasks/Index', $props);
+    }
+
+    /**
+     * Anchors a task's reminders to its due date and rebuilds the schedule.
+     *
+     * `reminders` (per-task custom offsets) is deliberately left alone — with
+     * it null, ReminderCreator falls back to the company's configured default
+     * cadence, so every task with a due date gets the default reminders. A
+     * task with no due date has no anchor, which cancels any open reminders.
+     */
+    private function syncTaskReminders(Task $task): void
+    {
+        if ($task->remind_at != $task->due_date) {
+            $task->remind_at = $task->due_date;
+            $task->save();
+        }
+
+        app(TaskReminderSync::class)->syncFromTask(
+            $task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser'])
+        );
     }
 
     /**
@@ -434,8 +438,7 @@ class TaskController extends AccountBaseController
             return;
         }
 
-        $byType = ['deal' => [], 'lead' => [], 'property' => []];
-        $projectId = null;
+        $byType = ['deal' => [], 'lead' => [], 'property' => [], 'project' => []];
 
         foreach ($links as $link) {
             if (!is_array($link)) {
@@ -447,9 +450,7 @@ class TaskController extends AccountBaseController
                 continue;
             }
 
-            if ($type === 'project') {
-                $projectId = $id;
-            } elseif (array_key_exists($type, $byType)) {
+            if (array_key_exists($type, $byType)) {
                 $byType[$type][] = $id;
             }
         }
@@ -457,11 +458,9 @@ class TaskController extends AccountBaseController
         $task->deals()->sync($byType['deal']);
         $task->leads()->sync($byType['lead']);
         $task->properties()->sync($byType['property']);
-
-        if ($task->project_id !== $projectId) {
-            $task->project_id = $projectId;
-            $task->save();
-        }
+        // "Project" means the developer project (the one holding units), not
+        // the Worksuite delivery project on `tasks.project_id`.
+        $task->developerProjects()->sync($byType['project']);
     }
 
     /**
@@ -1271,6 +1270,7 @@ class TaskController extends AccountBaseController
 
         // Multi-record linking from the redesigned task modal.
         $this->syncTaskLinks($task, $request);
+        $this->syncTaskReminders($task);
 
 
         if (!is_null($request->taskId)) {
@@ -1708,6 +1708,7 @@ class TaskController extends AccountBaseController
 
         // Multi-record linking from the redesigned task modal.
         $this->syncTaskLinks($task, $request);
+        $this->syncTaskReminders($task);
 
         // To add custom fields data
         if ($request->custom_fields_data) {
@@ -2141,43 +2142,6 @@ class TaskController extends AccountBaseController
             'assigner' => TaskVisibilityService::formatAssigner($task),
         ];
 
-        // Fetch supporting data for edit/duplicate modals
-        $projects = Project::allProjects()->map(fn($project) => [
-            'id' => $project->id,
-            'project_name' => $project->project_name,
-            'project_short_code' => $project->project_short_code,
-        ]);
-
-        $employees = User::allEmployees(null, true, ($viewTaskPermission == 'all' ? 'all' : null))->map(fn($user) => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'image' => $user->image_url,
-            'designation_name' => $user->employeeDetail?->designation?->name,
-        ]);
-
-        $taskBoardColumns = TaskboardColumn::orderBy('priority', 'asc')->get()->map(fn($column) => [
-            'id' => $column->id,
-            'column_name' => $column->column_name,
-            'slug' => $column->slug,
-            'label_color' => $column->label_color,
-            'priority' => $column->priority,
-        ]);
-
-        $categories = TaskCategory::all()->map(fn($category) => [
-            'id' => $category->id,
-            'category_name' => $category->category_name,
-        ]);
-
-        $labels = TaskLabelList::all()->map(fn($label) => [
-            'id' => $label->id,
-            'label_name' => $label->label_name,
-            'label_color' => $label->label_color,
-        ]);
-
-        $deals = Deal::select('id', 'name')->get();
-        $leads = Lead::select('id', 'client_name', 'company_name')->get();
-        $properties = Property::select('id', 'title as name')->get();
-
         // Get user permissions
         $permissions = [
             'add_tasks' => user()->permission('add_tasks'),
@@ -2188,16 +2152,71 @@ class TaskController extends AccountBaseController
 
         return Inertia::render('Tasks/Show', [
             'task' => $transformedTask,
-            'categories' => $categories,
-            'labels' => $labels,
-            'columns' => $taskBoardColumns,
-            'users' => $employees,
-            'projects' => $projects,
-            'deals' => $deals,
-            'leads' => $leads,
-            'properties' => $properties,
             'permissions' => $permissions,
             'pageTitle' => $pageTitle,
+
+            // Edit/duplicate modal lookup data is nonessential for first paint.
+            'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
+            'labels' => Inertia::defer(fn () => $this->taskLabelsForSelect(), 'taskMeta'),
+            'columns' => Inertia::defer(fn () => $this->taskColumnsForSelect(), 'taskMeta'),
+            'users' => Inertia::defer(
+                fn () => $this->taskUsersForSelect($viewTaskPermission, true),
+                'taskMeta'
+            ),
+            'projects' => Inertia::defer(fn () => $this->taskProjectsForSelect(), 'taskLinkMeta'),
+            'deals' => Inertia::defer(fn () => Deal::select('id', 'name')->get(), 'taskLinkMeta'),
+            'leads' => Inertia::defer(fn () => Lead::select('id', 'client_name', 'company_name')->get(), 'taskLinkMeta'),
+            'properties' => Inertia::defer(fn () => Property::select('id', 'title as name')->get(), 'taskLinkMeta'),
+            'developerProjects' => Inertia::defer(fn () => DeveloperProject::select('id', 'name')->orderBy('name')->get(), 'taskLinkMeta'),
+        ]);
+    }
+
+    private function taskProjectsForSelect()
+    {
+        return Project::allProjects()->map(fn ($project) => [
+            'id' => $project->id,
+            'project_name' => $project->project_name,
+            'project_short_code' => $project->project_short_code,
+        ]);
+    }
+
+    private function taskUsersForSelect(string $viewPermission, bool $useImageUrl = false)
+    {
+        return User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null))->map(fn ($user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'image' => $useImageUrl ? $user->image_url : $user->image,
+            'designation_name' => $useImageUrl
+                ? $user->employeeDetail?->designation?->name
+                : ($user->designation_name ?? null),
+        ]);
+    }
+
+    private function taskColumnsForSelect()
+    {
+        return TaskboardColumn::orderBy('priority', 'asc')->get()->map(fn ($column) => [
+            'id' => $column->id,
+            'column_name' => $column->column_name,
+            'slug' => $column->slug,
+            'label_color' => $column->label_color,
+            'priority' => $column->priority,
+        ]);
+    }
+
+    private function taskCategoriesForSelect()
+    {
+        return TaskCategory::all()->map(fn ($category) => [
+            'id' => $category->id,
+            'category_name' => $category->category_name,
+        ]);
+    }
+
+    private function taskLabelsForSelect()
+    {
+        return TaskLabelList::all()->map(fn ($label) => [
+            'id' => $label->id,
+            'label_name' => $label->label_name,
+            'label_color' => $label->label_color,
         ]);
     }
 
