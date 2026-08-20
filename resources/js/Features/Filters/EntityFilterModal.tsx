@@ -23,7 +23,10 @@ import UtmSection from "./UtmSection";
 import SaveViewPopover from "./SaveViewPopover";
 import ViewsBar from "./ViewsBar";
 import { describeFilters, suggestViewName } from "./filterSummary";
-import useLeadSavedViews, { type LeadSavedView } from "./useLeadSavedViews";
+import useLeadSavedViews, {
+    type LeadSavedView,
+    type SavedViewEntity,
+} from "./useLeadSavedViews";
 import "./entity-filter-modal.css";
 
 const UTM_SECTION = "Campaign (UTM)";
@@ -35,8 +38,10 @@ interface EntityFilterModalProps {
     entityLabel?: string;
     /** Rows currently listed (footer estimate). */
     currentCount?: number;
-    /** Saved views bar — only rendered for entities that support it (leads). */
+    /** Saved views bar — only rendered for entities that support it. */
     savedViews?: boolean;
+    /** Which saved-view route group the bar reads and writes. */
+    savedViewEntity?: SavedViewEntity;
 }
 
 function optionsOf(field: FilterFieldConfig): FilterOption[] {
@@ -52,7 +57,7 @@ function rangeKeysOf(field: FilterFieldConfig): [string, string] {
 
 /**
  * Two-pane filter workbench — mockups 1a, 2a (UTM), 2b/2c (saved views).
- * Shared by Leads and Deals: everything entity-specific comes from the
+ * Shared by Leads, Deals and Tasks: everything entity-specific comes from the
  * FilterConfig. State still flows through FilterContext, so the URL contract
  * and the backend query params are unchanged.
  */
@@ -62,23 +67,22 @@ export default function EntityFilterModal({
     entityLabel = "leads",
     currentCount,
     savedViews: savedViewsEnabled = true,
+    savedViewEntity = "lead",
 }: EntityFilterModalProps) {
-    const {
-        isDrawerOpen,
-        closeDrawer,
-        draftFilters,
-        setFilter,
-        applyFilters,
-    } = useFilter();
+    const { isDrawerOpen, closeDrawer, draftFilters, setFilter, applyFilters } =
+        useFilter();
     const { props } = usePage<any>();
 
     const facets = (props.filterFacets ?? {}) as Record<string, any>;
     const savedViews = (props.savedViews ?? []) as LeadSavedView[];
     const totalRows = facets.total as number | undefined;
 
-    const { saving, createView, updateView, deleteView } = useLeadSavedViews();
+    const { saving, createView, updateView, deleteView } =
+        useLeadSavedViews(savedViewEntity);
     const [savePopoverOpen, setSavePopoverOpen] = useState(false);
-    const [renameTarget, setRenameTarget] = useState<LeadSavedView | null>(null);
+    const [renameTarget, setRenameTarget] = useState<LeadSavedView | null>(
+        null,
+    );
     const [activeViewId, setActiveViewId] = useState<number | null>(null);
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const paneRef = useRef<HTMLDivElement | null>(null);
@@ -201,9 +205,8 @@ export default function EntityFilterModal({
 
     const renderField = (field: FilterFieldConfig) => {
         const value = draftFilters[field.key];
-        const counts = (field.facetKey
-            ? facets[field.facetKey]
-            : undefined) as FacetCounts | undefined;
+        const counts = (field.facetKey ? facets[field.facetKey] : undefined) as
+            FacetCounts | undefined;
         const options = optionsOf(field);
 
         const set = (next: any) => setFilter(field.key, next, field.label);
@@ -284,7 +287,11 @@ export default function EntityFilterModal({
                             start={draftFilters[startKey]}
                             end={draftFilters[endKey]}
                             onChange={(start, end) => {
-                                setFilter(startKey, start, `${field.label} from`);
+                                setFilter(
+                                    startKey,
+                                    start,
+                                    `${field.label} from`,
+                                );
                                 setFilter(endKey, end, `${field.label} to`);
                             }}
                         />
@@ -351,8 +358,7 @@ export default function EntityFilterModal({
     };
 
     const utmFields = useMemo(
-        () =>
-            config.fields.filter((field) => field.section === UTM_SECTION),
+        () => config.fields.filter((field) => field.section === UTM_SECTION),
         [config.fields],
     );
 

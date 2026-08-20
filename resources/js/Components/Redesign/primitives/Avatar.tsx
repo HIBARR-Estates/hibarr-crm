@@ -9,6 +9,12 @@ interface AvatarProps {
     className?: string;
     /** When set, renders the photo instead of initials. */
     src?: string | null;
+    /**
+     * Overrides the `type` palette with an explicit pair — used by the soft
+     * per-person assignee tones in the Tasks workspace.
+     */
+    tone?: { bg: string; fg: string } | null;
+    title?: string;
 }
 
 /**
@@ -22,6 +28,8 @@ export default function Avatar({
     size = 28,
     className,
     src,
+    tone,
+    title,
 }: AvatarProps) {
     const colors: Record<
         AvatarType,
@@ -32,12 +40,15 @@ export default function Avatar({
         watcher: { bg: T.BG, color: T.TEXT_MUTED, border: T.BORDER },
         default: { bg: T.BLUE, color: T.WHITE },
     };
-    const c = colors[type] ?? colors.default;
+    const c = tone
+        ? { bg: tone.bg, color: tone.fg, border: undefined }
+        : (colors[type] ?? colors.default);
     const photoUrl = src?.trim() || null;
 
     return (
         <div
             className={className}
+            title={title}
             style={{
                 width: size,
                 height: size,

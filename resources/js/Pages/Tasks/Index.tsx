@@ -24,7 +24,7 @@ import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
 import useViewPreference from "@/Hooks/useViewPreference";
 
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
@@ -40,6 +40,7 @@ import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import { Task } from "@/Types/Task";
 import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
+import TasksWorkspaceRedesign from "@/Pages/Tasks/Redesign/TasksWorkspaceRedesign";
 
 dayjs.extend(isBetween);
 
@@ -48,11 +49,9 @@ const { Text, Title } = Typography;
 // Deprecated task interface - use @/Types/Task
 // interface Task { ... }
 
-interface TaskCategory {
-    id: number;
-    project_name: string;
-    project_short_code?: string;
-}
+// NOTE: a second `interface TaskCategory { id, project_name }` used to sit
+// here — a mis-copied Project shape. Declaration merging combined it with the
+// real one below, so `categories` was typed as needing project fields too.
 // category?: {
 //     id: number;
 //     category_name: string;
@@ -147,6 +146,8 @@ export interface TasksIndexProps extends PageProps {
     deals: Deal[];
     leads: Lead[];
     properties: Property[];
+    /** Developer projects (the ones with units), for task links. */
+    developerProjects?: Array<{ id: number; name: string }>;
 
     permissions: {
         add_tasks: string;
@@ -173,7 +174,11 @@ interface TasksTableViewProps {
     onView: (task: Task) => void;
     onDelete: (task: Task) => void;
     onDuplicate: (task: Task) => void;
-    onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
+    onStatusChange: (
+        task: Task,
+        newStatus: string,
+        newColumnId: number,
+    ) => void;
 }
 
 const TasksTableView: React.FC<TasksTableViewProps> = ({
@@ -215,11 +220,10 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
             rowSelection={rowSelection}
             paginationData={paginationData}
             onPageChange={(page) => {
-                router.get(
-                    route("tasks.index"),
-                    mergeQueryParams({ page }),
-                    { preserveState: true, preserveScroll: true },
-                );
+                router.get(route("tasks.index"), mergeQueryParams({ page }), {
+                    preserveState: true,
+                    preserveScroll: true,
+                });
             }}
             scroll={{ x: 1000, y: "calc(100vh - 380px)" }}
             size="small"
@@ -227,7 +231,7 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
     );
 };
 
-const TasksIndex = ({
+const LegacyTasksIndex = ({
     tableTasks,
     kanbanTasks = [],
     categories = [],
@@ -510,8 +514,16 @@ const TasksIndex = ({
                                 onView={handleViewTask}
                                 onDelete={handleDeleteTask}
                                 onDuplicate={handleDuplicateTask}
-                                onStatusChange={(task, newStatus, newColumnId) =>
-                                    handleStatusChange(task.id, newStatus, newColumnId)
+                                onStatusChange={(
+                                    task,
+                                    newStatus,
+                                    newColumnId,
+                                ) =>
+                                    handleStatusChange(
+                                        task.id,
+                                        newStatus,
+                                        newColumnId,
+                                    )
                                 }
                             />
                         ) : (
@@ -602,8 +614,20 @@ const TasksIndex = ({
     );
 };
 
-TasksIndex.layout = (page: React.ReactNode) => (
+const Index = (props: TasksIndexProps) => {
+    const page = usePage();
+    const useRedesign =
+        page.props.featureFlags?.["crm.tasks-workspace-redesign"] === true;
+
+    return useRedesign ? (
+        <TasksWorkspaceRedesign {...props} />
+    ) : (
+        <LegacyTasksIndex {...props} />
+    );
+};
+
+Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
 
-export default TasksIndex;
+export default Index;

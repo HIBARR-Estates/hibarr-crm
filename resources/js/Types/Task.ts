@@ -32,6 +32,12 @@ export interface Task {
         label_name: string;
         label_color: string;
     }>;
+    /** Checklist rows, sent by TaskController@index for the redesigned detail modal. */
+    subtasks?: Array<{
+        id: number;
+        title: string;
+        status: "complete" | "incomplete" | string;
+    }>;
     files_count?: number;
     notes_count?: number;
     comments_count?: number;
@@ -74,6 +80,8 @@ export interface Task {
         client_name: string;
         company_name?: string;
     }>;
+    /** Developer projects (the ones with units) linked to this task. */
+    developer_projects?: Array<{ id: number; name: string }>;
     properties?: Array<{
         id: number;
         name: string;
