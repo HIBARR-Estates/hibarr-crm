@@ -56,7 +56,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'gender' => 'nullable|string|in:male,female',
-            
+
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
@@ -68,7 +68,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'lead_category_ids.*' => 'integer|exists:lead_category,id',
             'update_agent_if_exists' => 'nullable|boolean',
             'notify' => 'nullable|boolean',
-            
+
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',
             'utmInfo.source' => 'nullable|string|max:255',
@@ -166,4 +166,3 @@ class CreateOrUpdateContactRequest extends CoreRequest
         ];
     }
 }
-

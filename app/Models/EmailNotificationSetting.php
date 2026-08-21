@@ -16,6 +16,7 @@ use App\Traits\HasCompany;
  * @property Carbon|null $updated_at
  * @property string|null $slug
  * @property-read mixed $icon
+ *
  * @method static Builder|EmailNotificationSetting newModelQuery()
  * @method static Builder|EmailNotificationSetting newQuery()
  * @method static Builder|EmailNotificationSetting query()
@@ -27,16 +28,20 @@ use App\Traits\HasCompany;
  * @method static Builder|EmailNotificationSetting whereSettingName($value)
  * @method static Builder|EmailNotificationSetting whereSlug($value)
  * @method static Builder|EmailNotificationSetting whereUpdatedAt($value)
+ *
  * @property int|null $company_id
  * @property-read Company|null $company
+ *
  * @method static Builder|EmailNotificationSetting whereCompanyId($value)
+ *
  * @property string $send_twilio
+ *
  * @method static Builder|EmailNotificationSetting whereSendTwilio($value)
+ *
  * @mixin Eloquent
  */
 class EmailNotificationSetting extends BaseModel
 {
-
     use HasCompany;
 
     protected $guarded = ['id'];
@@ -260,12 +265,68 @@ class EmailNotificationSetting extends BaseModel
             'send_slack' => 'no',
             'setting_name' => 'Deal Activity Notification',
             'slug' => 'deal-activity-notification',
-        ]
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Deal Package Notification',
+            'slug' => 'deal-package-notification',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Deal Property Notification',
+            'slug' => 'deal-property-notification',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Task Deleted',
+            'slug' => 'task-deleted',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Task Rejected From Review',
+            'slug' => 'task-rejected',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Task Overdue',
+            'slug' => 'task-overdue',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Task Priority Changed',
+            'slug' => 'task-priority-updated',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'setting_name' => 'Sub Task Created',
+            'slug' => 'sub-task-created',
+        ],
+        [
+            'send_email' => 'yes',
+            'send_push' => 'no',
+            'send_slack' => 'no',
+            'send_twilio' => 'no',
+            'setting_name' => 'Partner Network (MLM) Notifications',
+            'slug' => 'mlm-partner-network-notification',
+        ],
     ];
 
     public static function userAssignTask()
     {
         return EmailNotificationSetting::where('slug', 'user-assign-to-task')->first();
     }
-
 }

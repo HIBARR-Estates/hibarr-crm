@@ -137,4 +137,16 @@ return [
         'additionalProjects' => '{1} :count weiteres Projekt|[2,*] :count weitere Projekte',
     ],
 
+    'regards' => 'Mit freundlichen Grüßen',
+    'teamSignature' => 'Das :appName Team',
+    'propertyActivity' => [
+        'subject' => 'Immobilien-Update',
+    ],
+    'exposeReady' => [
+        'subject' => 'Exposé bereit',
+    ],
+    'dealCloseDateApproaching' => [
+        'textNoDate' => 'Das Abschlussdatum für :dealName rückt näher. Prüfen Sie den Deal und aktualisieren Sie bei Bedarf den Zeitplan.',
+    ],
+
 ];

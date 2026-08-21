@@ -35,4 +35,3 @@ return [
         'crm.tasks-workspace-redesign',
     ],
 ];
-

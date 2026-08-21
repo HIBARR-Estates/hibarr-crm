@@ -27,7 +27,7 @@ class TaskCommentMention extends BaseNotification
         $this->taskComment = $taskComment;
         $this->company = $this->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'task-mention-notification')->first();
-
+        $this->initTaskMailRouting();
     }
 
     /**

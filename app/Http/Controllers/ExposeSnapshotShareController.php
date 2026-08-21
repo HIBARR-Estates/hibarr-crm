@@ -14,12 +14,12 @@ class ExposeSnapshotShareController extends Controller
 {
     public function store(Request $request, ExposeSnapshotService $snapshots): JsonResponse
     {
-        if (!FeatureFlags::enabled('crm.expose-share-links')) {
+        if (! FeatureFlags::enabled('crm.expose-share-links')) {
             abort(404);
         }
 
         $validated = $request->validate([
-            'entity_type' => ['required', 'string', 'in:' . implode(',', ExposeSnapshot::ENTITY_TYPES)],
+            'entity_type' => ['required', 'string', 'in:'.implode(',', ExposeSnapshot::ENTITY_TYPES)],
             'entity_id' => ['required', 'integer', 'min:1'],
             'lead_id' => ['required', 'integer', 'min:1'],
             'unit_type_id' => ['required_if:entity_type,unit_type', 'nullable', 'integer', 'min:1'],
@@ -49,7 +49,7 @@ class ExposeSnapshotShareController extends Controller
             Reply::successWithData('Expose share link created', [
                 'data' => [
                     'token' => $token,
-                    'share_url' => $shareBaseUrl . '/' . $token,
+                    'share_url' => $shareBaseUrl.'/'.$token,
                     'snapshot_id' => $snapshot->id,
                     'warnings' => $snapshot->warnings ?? [],
                 ],

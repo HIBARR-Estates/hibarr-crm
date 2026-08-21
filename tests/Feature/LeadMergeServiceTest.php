@@ -2,15 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\CommunicationActivity;
-use App\Models\Deal;
-use App\Models\DealFollowUp;
 use App\Models\Lead;
-use App\Models\LeadFlightItinerary;
 use App\Models\LeadMarketing;
 use App\Models\LeadNote;
-use App\Models\LeadQualification;
-use App\Models\Taskable;
 use App\Services\CrmEventService;
 use App\Services\LeadDuplicateDetectionService;
 use App\Services\LeadMergeService;
@@ -215,6 +209,15 @@ class LeadMergeServiceTest extends TestCase
         $this->assertNotNull($note);
         $this->assertStringContainsString('client_email', (string) $note->details);
         $this->assertStringContainsString('discard@example.com', (string) $note->details);
+
+        $emails = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->where('type', 'email')->get()->keyBy('normalized');
+        $this->assertTrue((bool) $emails['keep@example.com']->is_main);
+        $this->assertFalse((bool) $emails['discard@example.com']->is_main);
+        $this->assertCount(2, $emails);
+
+        $phones = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->where('type', 'phone')->get()->keyBy('normalized');
+        $this->assertTrue((bool) $phones['111']->is_main);
+        $this->assertFalse((bool) $phones['222']->is_main);
     }
 
     public function test_applies_ownership_picks_and_defaults_missing_to_primary(): void
@@ -351,12 +354,13 @@ class LeadMergeServiceTest extends TestCase
         } catch (\RuntimeException $e) {
             $this->assertSame('Forced merge failure', $e->getMessage());
         } finally {
-            Lead::getEventDispatcher()->forget('eloquent.updating: ' . Lead::class);
+            Lead::getEventDispatcher()->forget('eloquent.updating: '.Lead::class);
         }
 
         $this->assertSame($duplicateId, (int) DB::table('deals')->where('name', 'Should Roll Back')->value('lead_id'));
         $this->assertNotNull(Lead::find($duplicateId));
         $this->assertNull(Lead::withTrashed()->find($duplicateId)?->merged_into_lead_id);
+        $this->assertSame(0, DB::table('lead_contact_methods')->count());
     }
 
     public function test_build_review_returns_counts_conflicts_and_ownership_view(): void
@@ -460,6 +464,125 @@ class LeadMergeServiceTest extends TestCase
         $this->assertNotContains($leadId, $ids);
     }
 
+    public function test_merge_seeds_primary_mains_when_lead_had_no_method_rows(): void
+    {
+        $primaryId = $this->insertLead([
+            'client_name' => 'Primary',
+            'client_email' => 'keep@example.com',
+            'mobile' => '111',
+        ]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate',
+            'client_email' => 'keep@example.com',
+            'mobile' => '111',
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $rows = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->get();
+        $this->assertTrue($rows->contains(fn ($row) => $row->type === 'email' && $row->normalized === 'keep@example.com' && (bool) $row->is_main));
+        $this->assertTrue($rows->contains(fn ($row) => $row->type === 'phone' && $row->normalized === '111' && (bool) $row->is_main));
+    }
+
+    public function test_merge_empty_primary_email_becomes_main_not_alternate(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => null, 'mobile' => '111']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'from-dup@example.com', 'mobile' => '111']);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame('from-dup@example.com', Lead::findOrFail($primaryId)->client_email);
+
+        $emails = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->where('type', 'email')->get();
+        $this->assertCount(1, $emails);
+        $this->assertSame('from-dup@example.com', $emails->first()->normalized);
+        $this->assertTrue((bool) $emails->first()->is_main);
+    }
+
+    public function test_merge_dedupes_conflicting_phones_by_normalized_value(): void
+    {
+        $primaryId = $this->insertLead([
+            'client_name' => 'Primary',
+            'client_email' => 'a@example.com',
+            'mobile' => '111',
+            'cell' => '111',
+            'office' => '333',
+        ]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate',
+            'client_email' => 'a@example.com',
+            'mobile' => '222',
+            'cell' => '222',
+            'office' => '333',
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $phones = DB::table('lead_contact_methods')
+            ->where('lead_id', $primaryId)
+            ->where('type', 'phone')
+            ->get()
+            ->keyBy('normalized');
+
+        $this->assertCount(3, $phones);
+        $this->assertTrue((bool) $phones['111']->is_main);
+        $this->assertFalse((bool) $phones['222']->is_main);
+        $this->assertFalse((bool) $phones['333']->is_main);
+    }
+
+    public function test_merge_does_not_persist_invalidated_unique_values_as_methods(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'keep@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'discard@example.com']);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $identifiers = DB::table('lead_contact_methods')->pluck('identifier')->all();
+        foreach ($identifiers as $identifier) {
+            $this->assertStringStartsNotWith('invalid_lead_', (string) $identifier);
+        }
+
+        $trashedEmail = Lead::withTrashed()->findOrFail($duplicateId)->client_email;
+        $this->assertStringStartsWith('invalid_lead_', (string) $trashedEmail);
+    }
+
+    public function test_find_duplicates_via_alternate_contact_method(): void
+    {
+        $leadId = $this->insertLead([
+            'client_name' => 'Source',
+            'client_email' => 'source@example.com',
+            'mobile' => '111',
+        ]);
+        $matchId = $this->insertLead([
+            'client_name' => 'Has Alternate',
+            'client_email' => 'other@example.com',
+            'mobile' => '999',
+        ]);
+        $this->insertLead([
+            'client_name' => 'Unrelated',
+            'client_email' => 'unrelated@example.com',
+            'mobile' => '888',
+        ]);
+
+        DB::table('lead_contact_methods')->insert([
+            'lead_id' => $matchId,
+            'company_id' => $this->companyId,
+            'type' => 'email',
+            'identifier' => 'source@example.com',
+            'normalized' => 'source@example.com',
+            'is_main' => false,
+            'source_field' => 'client_email',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $detector = app(LeadDuplicateDetectionService::class);
+        $ids = $detector->findDuplicates(Lead::findOrFail($leadId))->pluck('id')->all();
+
+        $this->assertContains($matchId, $ids);
+        $this->assertNotContains($leadId, $ids);
+    }
+
     public function test_duplicate_detection_is_not_registered_on_scheduler(): void
     {
         $kernel = file_get_contents(app_path('Console/Kernel.php'));
@@ -496,8 +619,10 @@ class LeadMergeServiceTest extends TestCase
         Schema::dropIfExists('lead_qualifications');
         Schema::dropIfExists('lead_notes');
         Schema::dropIfExists('lead_marketing');
+        Schema::dropIfExists('lead_contact_methods');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('leads');
+        Schema::dropIfExists('users');
         Schema::dropIfExists('companies');
     }
 
@@ -506,6 +631,12 @@ class LeadMergeServiceTest extends TestCase
         Schema::create('companies', function (Blueprint $table) {
             $table->increments('id');
             $table->string('company_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name')->nullable();
             $table->timestamps();
         });
 
@@ -531,6 +662,19 @@ class LeadMergeServiceTest extends TestCase
             $table->unsignedInteger('merged_into_lead_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
+        });
+
+        Schema::create('lead_contact_methods', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('type', 16);
+            $table->string('identifier');
+            $table->string('normalized');
+            $table->boolean('is_main')->default(false);
+            $table->string('source_field', 32)->nullable();
+            $table->timestamps();
+            $table->unique(['lead_id', 'type', 'normalized'], 'lead_contact_methods_lead_type_normalized_unique');
         });
 
         Schema::create('deals', function (Blueprint $table) {

@@ -54,13 +54,12 @@ class StoreRequest extends CoreRequest
      *
      * @return array
      */
-
     public function rules()
     {
-        $rules = array();
+        $rules = [];
 
         $rules['client_name'] = 'required';
-        $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . company()->id;
+        $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,'.company()->id;
         $rules['salutation'] = ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))];
         $rules['gender'] = 'nullable|in:male,female';
         $rules['temperature'] = 'nullable|in:cold,warm,hot';
@@ -95,5 +94,4 @@ class StoreRequest extends CoreRequest
 
         return $attributes;
     }
-
 }

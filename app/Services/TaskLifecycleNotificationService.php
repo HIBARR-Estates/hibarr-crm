@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Task;
-use App\Models\TaskboardColumn;
 use App\Models\User;
 use App\Notifications\TaskLifecycleCompletedNotification;
 use App\Notifications\TaskLifecycleCreatedNotification;
@@ -17,230 +16,228 @@ use Illuminate\Support\Facades\Notification;
 
 class TaskLifecycleNotificationService
 {
-  private const DUE_CACHE_TTL_HOURS = 26;
+    private const DUE_CACHE_TTL_HOURS = 26;
 
-  /**
-   * @var array<string, bool>
-   */
-  private static array $oncePerRequest = [];
+    /**
+     * @var array<string, bool>
+     */
+    private static array $oncePerRequest = [];
 
-  public function isEnabled(): bool
-  {
-    return FeatureFlags::enabled('crm.task-lifecycle-notifications');
-  }
-
-  public function notifyCreated(Task $task, ?int $actorId = null): void
-  {
-    if (!$this->isEnabled()) {
-      return;
+    public function isEnabled(): bool
+    {
+        return FeatureFlags::enabled('crm.task-lifecycle-notifications');
     }
 
-    $this->once('created', $task->id, function () use ($task, $actorId) {
-      $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
-      $actorId = $actorId ?? $task->added_by;
-
-      $recipients = $this->assignees($task)
-        ->filter(fn (User $user) => $actorId === null || (int) $user->id !== (int) $actorId);
-
-      $this->send($recipients, new TaskLifecycleCreatedNotification($task));
-    });
-  }
-
-  public function notifyUpdated(Task $task, ?int $actorId = null): void
-  {
-    if (!$this->isEnabled()) {
-      return;
-    }
-
-    if ($this->wasCompletionTransition($task)) {
-      return;
-    }
-
-    if (!$this->hasMeaningfulChanges($task)) {
-      return;
-    }
-
-    $this->once('updated', $task->id, function () use ($task, $actorId) {
-      $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
-      $actorId = $actorId ?? $task->last_updated_by ?? (user() ? user()->id : null);
-
-      if ($actorId === null) {
-        return;
-      }
-
-      $recipients = $this->assigneesAndAssigner($task)
-        ->filter(fn (User $user) => (int) $user->id !== (int) $actorId);
-
-      $this->send($recipients, new TaskLifecycleUpdatedNotification($task));
-    });
-  }
-
-  public function notifyDue(Task $task): void
-  {
-    if (!$this->isEnabled()) {
-      return;
-    }
-
-    if (!$this->claimDueNotification($task)) {
-      return;
-    }
-
-    $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
-    $recipients = TaskVisibilityService::reminderRecipients($task);
-
-    $this->send($recipients, new TaskLifecycleDueNotification($task));
-  }
-
-  public function notifyCompleted(Task $task, ?int $actorId = null): void
-  {
-    if (!$this->isEnabled()) {
-      return;
-    }
-
-    if (!$this->wasCompletionTransition($task)) {
-      return;
-    }
-
-    $this->once('completed', $task->id, function () use ($task, $actorId) {
-      $task->loadMissing(['createBy', 'addedByUser', 'company', 'boardColumn']);
-      $actorId = $actorId ?? (user() ? user()->id : null);
-
-      $assigner = $this->assigner($task);
-      if ($assigner === null) {
-        return;
-      }
-
-      if ($actorId !== null && (int) $assigner->id === (int) $actorId) {
-        return;
-      }
-
-      $completedBy = $actorId ? User::find($actorId) : null;
-
-      $this->send(
-        collect([$assigner]),
-        new TaskLifecycleCompletedNotification($task, $completedBy)
-      );
-    });
-  }
-
-  public function hasMeaningfulChanges(Task $task): bool
-  {
-    $tracked = [
-      'heading',
-      'description',
-      'due_date',
-      'start_date',
-      'priority',
-      'task_category_id',
-      'project_id',
-      'milestone_id',
-      'board_column_id',
-      'is_private',
-      'billable',
-      'estimate_hours',
-      'estimate_minutes',
-      'dependent_task_id',
-    ];
-
-    foreach ($tracked as $field) {
-      if ($task->wasChanged($field)) {
-        if ($field === 'board_column_id' && $this->wasCompletionTransition($task)) {
-          continue;
+    public function notifyCreated(Task $task, ?int $actorId = null): void
+    {
+        if (! $this->isEnabled()) {
+            return;
         }
 
-        return true;
-      }
+        $this->once('created', $task->id, function () use ($task, $actorId) {
+            $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
+            $actorId = $actorId ?? $task->added_by;
+
+            $recipients = $this->assignees($task)
+                ->filter(fn (User $user) => $actorId === null || (int) $user->id !== (int) $actorId);
+
+            $this->send($recipients, new TaskLifecycleCreatedNotification($task));
+        });
     }
 
-    return false;
-  }
+    public function notifyUpdated(Task $task, ?int $actorId = null): void
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
 
-  public function wasCompletionTransition(Task $task): bool
-  {
-    if (!$task->wasChanged('board_column_id')) {
-      return false;
+        if ($this->wasCompletionTransition($task)) {
+            return;
+        }
+
+        if (! $this->hasMeaningfulChanges($task)) {
+            return;
+        }
+
+        $this->once('updated', $task->id, function () use ($task, $actorId) {
+            $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
+            $actorId = $actorId ?? $task->last_updated_by ?? (user() ? user()->id : null);
+
+            if ($actorId === null) {
+                return;
+            }
+
+            $recipients = $this->assigneesAndAssigner($task)
+                ->filter(fn (User $user) => (int) $user->id !== (int) $actorId);
+
+            $this->send($recipients, new TaskLifecycleUpdatedNotification($task));
+        });
     }
 
-    $task->loadMissing('boardColumn');
+    public function notifyDue(Task $task): void
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
 
-    return $task->boardColumn?->slug === 'done';
-  }
+        if (! $this->claimDueNotification($task)) {
+            return;
+        }
 
-  /**
-   * @return Collection<int, User>
-   */
-  private function assignees(Task $task): Collection
-  {
-    return $task->users->unique('id')->values();
-  }
+        $task->loadMissing(['users', 'createBy', 'addedByUser', 'company']);
+        $recipients = TaskVisibilityService::reminderRecipients($task);
 
-  /**
-   * @return Collection<int, User>
-   */
-  private function assigneesAndAssigner(Task $task): Collection
-  {
-    $recipients = $this->assignees($task);
-    $assigner = $this->assigner($task);
-
-    if ($assigner && !$recipients->contains('id', $assigner->id)) {
-      $recipients = $recipients->push($assigner);
+        $this->send($recipients, new TaskLifecycleDueNotification($task));
     }
 
-    return $recipients->unique('id')->values();
-  }
+    public function notifyCompleted(Task $task, ?int $actorId = null): void
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
 
-  private function assigner(Task $task): ?User
-  {
-    return $task->createBy ?? $task->addedByUser;
-  }
+        if (! $this->wasCompletionTransition($task)) {
+            return;
+        }
 
-  private function claimDueNotification(Task $task): bool
-  {
-    if ($task->due_date === null) {
-      return false;
+        $this->once('completed', $task->id, function () use ($task, $actorId) {
+            $task->loadMissing(['users', 'createBy', 'addedByUser', 'company', 'boardColumn']);
+            $actorId = $actorId ?? (user() ? user()->id : null);
+
+            $recipients = $this->assigneesAndAssigner($task)
+                ->filter(fn (User $user) => $actorId === null || (int) $user->id !== (int) $actorId);
+
+            if ($recipients->isEmpty()) {
+                return;
+            }
+
+            $completedBy = $actorId ? User::find($actorId) : null;
+
+            $this->send(
+                $recipients,
+                new TaskLifecycleCompletedNotification($task, $completedBy)
+            );
+        });
     }
 
-    $task->loadMissing('company');
-    $timezone = $task->company?->timezone ?? config('app.timezone', 'UTC');
-    $dueDateYmd = $task->due_date->copy()->timezone($timezone)->format('Y-m-d');
-    $hash = hash('sha256', "task-lifecycle-due|{$task->id}|{$task->company_id}|{$dueDateYmd}");
+    public function hasMeaningfulChanges(Task $task): bool
+    {
+        $tracked = [
+            'heading',
+            'description',
+            'due_date',
+            'start_date',
+            'priority',
+            'task_category_id',
+            'project_id',
+            'milestone_id',
+            'board_column_id',
+            'is_private',
+            'billable',
+            'estimate_hours',
+            'estimate_minutes',
+            'dependent_task_id',
+        ];
 
-    return Cache::add("task-lifecycle-due:{$hash}", 1, now()->addHours(self::DUE_CACHE_TTL_HOURS));
-  }
+        foreach ($tracked as $field) {
+            if ($task->wasChanged($field)) {
+                if ($field === 'board_column_id' && $this->wasCompletionTransition($task)) {
+                    continue;
+                }
 
-  /**
-   * @param Collection<int, User> $recipients
-   */
-  private function send(Collection $recipients, object $notification): void
-  {
-    if ($recipients->isEmpty()) {
-      return;
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    try {
-      Notification::send($recipients, $notification);
-    } catch (\Throwable $exception) {
-      Log::error('Task lifecycle notification failed.', [
-        'notification' => $notification::class,
-        'error' => $exception->getMessage(),
-      ]);
-    }
-  }
+    public function wasCompletionTransition(Task $task): bool
+    {
+        if (! $task->wasChanged('board_column_id')) {
+            return false;
+        }
 
-  private function once(string $event, int $taskId, callable $callback): void
-  {
-    $key = "{$event}:{$taskId}";
+        $task->loadMissing('boardColumn');
 
-    if (!empty(self::$oncePerRequest[$key])) {
-      return;
+        return $task->boardColumn?->slug === 'done';
     }
 
-    self::$oncePerRequest[$key] = true;
-    $callback();
-  }
+    /**
+     * @return Collection<int, User>
+     */
+    private function assignees(Task $task): Collection
+    {
+        return $task->users->unique('id')->values();
+    }
 
-  public static function resetOncePerRequest(): void
-  {
-    self::$oncePerRequest = [];
-  }
+    /**
+     * @return Collection<int, User>
+     */
+    private function assigneesAndAssigner(Task $task): Collection
+    {
+        $recipients = $this->assignees($task);
+        $assigner = $this->assigner($task);
+
+        if ($assigner && ! $recipients->contains('id', $assigner->id)) {
+            $recipients = $recipients->push($assigner);
+        }
+
+        return $recipients->unique('id')->values();
+    }
+
+    private function assigner(Task $task): ?User
+    {
+        return $task->createBy ?? $task->addedByUser;
+    }
+
+    private function claimDueNotification(Task $task): bool
+    {
+        if ($task->due_date === null) {
+            return false;
+        }
+
+        $task->loadMissing('company');
+        $timezone = $task->company?->timezone ?? config('app.timezone', 'UTC');
+        $dueDateYmd = $task->due_date->copy()->timezone($timezone)->format('Y-m-d');
+        $hash = hash('sha256', "task-lifecycle-due|{$task->id}|{$task->company_id}|{$dueDateYmd}");
+
+        return Cache::add("task-lifecycle-due:{$hash}", 1, now()->addHours(self::DUE_CACHE_TTL_HOURS));
+    }
+
+    /**
+     * @param  Collection<int, User>  $recipients
+     */
+    private function send(Collection $recipients, object $notification): void
+    {
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        try {
+            Notification::send($recipients, $notification);
+        } catch (\Throwable $exception) {
+            Log::error('Task lifecycle notification failed.', [
+                'notification' => $notification::class,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function once(string $event, int $taskId, callable $callback): void
+    {
+        $key = "{$event}:{$taskId}";
+
+        if (! empty(self::$oncePerRequest[$key])) {
+            return;
+        }
+
+        self::$oncePerRequest[$key] = true;
+        $callback();
+    }
+
+    public static function resetOncePerRequest(): void
+    {
+        self::$oncePerRequest = [];
+    }
 }

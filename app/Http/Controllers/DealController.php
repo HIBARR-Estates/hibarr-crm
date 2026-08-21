@@ -1214,6 +1214,7 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealWatchers->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, [], $watcherIds);
         }
 
         // Handle deal participants
@@ -1228,6 +1229,7 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealParticipants->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, [], $participantIds);
         }
 
         if (! is_null($request->product_id) && $request->product_id !== '') {
@@ -1249,6 +1251,14 @@ class DealController extends AccountBaseController
 
             foreach ($linkedProducts as $productModel) {
                 $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+
+                if ($productModel->property) {
+                    app(\App\Services\DealNotificationService::class)->notifyPropertyLinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
             }
         }
 
@@ -1499,7 +1509,33 @@ class DealController extends AccountBaseController
             $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
             $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
 
+            $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
+            $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
+
             $packageRouter->syncDealPackages($deal, $newPackageIds);
+
+            $newPackageNames = Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray();
+            $notificationService = app(\App\Services\DealNotificationService::class);
+
+            if (! empty($addedPackageIds)) {
+                $addedNames = array_values(array_filter(array_map(
+                    fn ($id) => $newPackageNames[$id] ?? null,
+                    $addedPackageIds,
+                )));
+                if (! empty($addedNames)) {
+                    $notificationService->notifyPackageAssigned($deal, $addedNames);
+                }
+            }
+
+            if (! empty($removedPackageIds)) {
+                $removedNames = array_values(array_filter(array_map(
+                    fn ($id) => $oldPackageNames[$id] ?? null,
+                    $removedPackageIds,
+                )));
+                if (! empty($removedNames)) {
+                    $notificationService->notifyPackageRemoved($deal, $removedNames);
+                }
+            }
 
             $sortedNew = $newPackageIds;
             $sortedCurrent = $currentPackageIds;
@@ -1512,19 +1548,23 @@ class DealController extends AccountBaseController
                     $currentPackageIds,
                     $newPackageIds,
                     $oldPackageNames,
-                    Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray()
+                    $newPackageNames
                 );
             }
         }
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $oldWatcherIds = $deal->dealWatchers()->pluck('users.id')->toArray();
             $deal->dealWatchers()->sync($request->deal_watcher);
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, $oldWatcherIds, $request->deal_watcher);
         }
 
         // Handle deal participants
         if ($request->deal_participant && is_array($request->deal_participant)) {
+            $oldParticipantIds = $deal->dealParticipants()->pluck('users.id')->toArray();
             $deal->dealParticipants()->sync($request->deal_participant);
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, $oldParticipantIds, $request->deal_participant);
         }
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
@@ -1534,15 +1574,44 @@ class DealController extends AccountBaseController
             $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
         }
 
-        // Record CRM events for newly linked products
+        // Record CRM events and notifications for product/property changes
         $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
 
-        if (! empty($newProductIds)) {
+        if (! empty($newProductIds) || ! empty($removedProductIds)) {
             $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
-            $newProducts = Product::with('property')->whereIn('id', $newProductIds)->get();
+            $notificationService = app(\App\Services\DealNotificationService::class);
+            $changedProducts = Product::with('property')
+                ->whereIn('id', array_merge($newProductIds, $removedProductIds))
+                ->get()
+                ->keyBy('id');
 
-            foreach ($newProducts as $productModel) {
+            foreach ($newProductIds as $productId) {
+                $productModel = $changedProducts->get($productId);
+                if (! $productModel) {
+                    continue;
+                }
+
                 $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+
+                if ($productModel->property) {
+                    $notificationService->notifyPropertyLinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
+            }
+
+            foreach ($removedProductIds as $productId) {
+                $productModel = $changedProducts->get($productId);
+                if ($productModel?->property) {
+                    $notificationService->notifyPropertyUnlinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
             }
         }
 
@@ -2097,7 +2166,14 @@ class DealController extends AccountBaseController
 
                 case 'change-status':
                     $stage = PipelineStage::find($request->status);
-                    $stageLabel = $stage?->name ?? ('ID '.$request->status);
+                    if ($stage === null) {
+                        return back()->with([
+                            'status' => 'error',
+                            'message' => __('messages.updateFail'),
+                        ]);
+                    }
+
+                    $stageLabel = $stage->name;
                     $editableIds = Deal::whereIn('id', $rowIds)
                         ->where('is_locked', false)
                         ->pluck('id')
@@ -2199,6 +2275,14 @@ class DealController extends AccountBaseController
             return;
         }
 
+        // Mass delete bypasses DealObserver, so capture the affected deals up front
+        // and notify their agents/watchers explicitly (in-app only — mail stays
+        // suppressed by the bulk-action container flag set in bulkAction()).
+        $deals = Deal::query()
+            ->with(['leadAgent.user', 'dealWatchers'])
+            ->whereIn('id', $deletableIds)
+            ->get();
+
         $model = new ReflectionClass('App\Models\Deal');
 
         DB::table('custom_fields_data')
@@ -2207,6 +2291,11 @@ class DealController extends AccountBaseController
             ->delete();
 
         Deal::whereIn('id', $deletableIds)->delete();
+
+        $notificationService = app(\App\Services\DealNotificationService::class);
+        foreach ($deals as $deal) {
+            $notificationService->notifyDealDeleted($deal, user());
+        }
     }
 
     protected function changeBulkStatus($request, ?array $editableIds = null)
@@ -2240,15 +2329,17 @@ class DealController extends AccountBaseController
             return;
         }
 
+        if ($stage === null) {
+            throw new \InvalidArgumentException('Invalid pipeline stage.');
+        }
+
         if ($stage->slug === 'win' || $stage->slug === 'lost') {
             Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
 
         // Iterated rather than a mass update: whereIn()->update() bypasses
-        // DealObserver, which is what stamps stage_entered_at and records the
-        // deal_stage_changed event. Without both, these deals silently drop
-        // out of every dwell-time and funnel metric. Bulk stage moves are tens
-        // of rows, not thousands, so the extra queries are cheap.
+        // DealObserver, which stamps stage_entered_at, records deal_stage_changed,
+        // and notifies agents/watchers (mail suppressed by the bulk-action flag).
         Deal::whereIn('id', $editableIds)
             ->get()
             ->each(fn (Deal $deal) => $deal->update(['pipeline_stage_id' => $newStatus]));
@@ -2724,11 +2815,12 @@ class DealController extends AccountBaseController
         }
 
         $sync = app(MeetingReminderSync::class);
-        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($sync) {
-            $sync->cancelForFollowUp($followUp);
-        });
+        $followUps = DealFollowUp::whereIn('id', $followUpIds)->get();
 
-        DealFollowUp::whereIn('id', $followUpIds)->delete();
+        foreach ($followUps as $followUp) {
+            $sync->cancelForFollowUp($followUp);
+            $followUp->delete();
+        }
     }
 
     /**
@@ -3248,6 +3340,7 @@ class DealController extends AccountBaseController
             'user_id' => auth()->id(),
             'timestamp' => now(),
         ]);
+
 
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);

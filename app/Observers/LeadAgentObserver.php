@@ -4,14 +4,16 @@ namespace App\Observers;
 
 use App\Models\AgentMetric;
 use App\Models\LeadAgent;
-use App\Services\LevelService;
 use App\Services\CycleService;
+use App\Services\LevelService;
+use App\Services\MlmNotificationService;
 
 class LeadAgentObserver
 {
     public function __construct(
         protected LevelService $levelService,
         protected CycleService $cycleService,
+        protected MlmNotificationService $mlmNotifications,
     ) {
     }
 
@@ -61,5 +63,24 @@ class LeadAgentObserver
                 'vsd' => 0,
             ]
         );
+
+        if (! isRunningInConsoleOrSeeding()) {
+            $this->mlmNotifications->afterCommit(function () use ($leadAgent) {
+                $fresh = $leadAgent->fresh(['user', 'parentAgent.user']);
+                if (! $fresh) {
+                    return;
+                }
+
+                $this->mlmNotifications->notifyPartnerNetworkJoined($fresh, user()?->id);
+
+                if ($fresh->parent_agent_id && $fresh->parentAgent) {
+                    $this->mlmNotifications->notifyNewRecruitAdded(
+                        $fresh,
+                        $fresh->parentAgent,
+                        user()?->id,
+                    );
+                }
+            });
+        }
     }
 }

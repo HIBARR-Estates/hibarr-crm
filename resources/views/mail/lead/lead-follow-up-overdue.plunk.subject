@@ -1,0 +1,11 @@
+<!--
+  Plunk subject line for overdue follow-up notifications.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — "Follow-up overdue"
+    appName     — application name (e.g. Hibarr)
+
+  Keep in sync with App\Notifications\LeadFollowUpOverdue
+-->
+{{mailSubject}} - {{appName}}

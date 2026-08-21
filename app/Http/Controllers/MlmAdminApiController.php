@@ -24,6 +24,7 @@ use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\AgentCommissionProfileService;
 use App\Services\MlmCommissionService;
+use App\Services\MlmNotificationService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ class MlmAdminApiController extends AccountBaseController
     protected CycleService $cycleService;
     protected CycleLevelSnapshotService $snapshotService;
     protected AgentCommissionProfileService $commissionProfileService;
+    protected MlmNotificationService $mlmNotifications;
 
     public function __construct(
         HierarchyService $hierarchyService,
@@ -45,7 +47,8 @@ class MlmAdminApiController extends AccountBaseController
         MlmCommissionService $commissionService,
         CycleService $cycleService,
         CycleLevelSnapshotService $snapshotService,
-        AgentCommissionProfileService $commissionProfileService
+        AgentCommissionProfileService $commissionProfileService,
+        MlmNotificationService $mlmNotifications,
     ) {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
@@ -54,6 +57,7 @@ class MlmAdminApiController extends AccountBaseController
         $this->cycleService = $cycleService;
         $this->snapshotService = $snapshotService;
         $this->commissionProfileService = $commissionProfileService;
+        $this->mlmNotifications = $mlmNotifications;
 
         $this->middleware(function ($request, $next) {
             abort_403(!\App\Support\PermissionGates::canManagePartnerNetwork(user()));
@@ -405,10 +409,13 @@ class MlmAdminApiController extends AccountBaseController
             ], 422);
         }
 
+        $commission = $commission->fresh()->load(['deal', 'agent.user', 'level']);
+        $this->mlmNotifications->notifyCommissionPaid($commission, auth()->id());
+
         return response()->json([
             'status' => 'success',
             'message' => 'Commission marked as paid.',
-            'data' => $commission->fresh()->load(['deal', 'agent.user', 'level']),
+            'data' => $commission,
         ]);
     }
 
@@ -419,17 +426,59 @@ class MlmAdminApiController extends AccountBaseController
             'ids.*' => 'integer|exists:mlm_commissions,id',
         ]);
 
-        $count = MlmCommission::where('company_id', company()->id)
+        $commissions = MlmCommission::where('company_id', company()->id)
             ->whereIn('id', $validated['ids'])
             ->where('status', MlmCommissionStatus::Pending->value)
-            ->update([
-                'status' => MlmCommissionStatus::Paid->value,
-                'paid_at' => now(),
-            ]);
+            ->get();
+
+        $count = 0;
+        foreach ($commissions as $commission) {
+            try {
+                $commission->markPaid();
+                $this->mlmNotifications->notifyCommissionPaid(
+                    $commission->fresh()->load(['deal', 'agent.user', 'level']),
+                    auth()->id(),
+                );
+                $count++;
+            } catch (\DomainException) {
+                continue;
+            }
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => "{$count} commission(s) marked as paid.",
+        ]);
+    }
+
+    public function clawbackCommission(Request $request, int $id): JsonResponse
+    {
+        $commission = MlmCommission::where('company_id', company()->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        try {
+            $commission->clawback($validated['reason']);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        $commission = $commission->fresh()->load(['deal', 'agent.user', 'level']);
+        $this->mlmNotifications->notifyCommissionClawback(
+            $commission,
+            $validated['reason'],
+            auth()->id(),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Commission clawed back.',
+            'data' => $commission,
         ]);
     }
 

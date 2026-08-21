@@ -47,7 +47,7 @@ class UnsRoutingTransportTest extends TestCase
         $this->assertSame(1, $client->sendCount);
     }
 
-    public function test_it_throws_when_uns_dispatch_fails(): void
+    public function test_it_falls_back_to_smtp_when_uns_dispatch_fails(): void
     {
         $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
         $transport = new UnsRoutingTransport(
@@ -56,10 +56,10 @@ class UnsRoutingTransportTest extends TestCase
             $fallback
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('UNS email routing failed: unable to dispatch notification.');
+        $result = $transport->send($this->buildMessage(withUnsRoute: true));
 
-        $transport->send($this->buildMessage(withUnsRoute: true));
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(1, $fallback->sendCount);
     }
 
     public function test_it_uses_fallback_transport_when_message_has_attachments(): void

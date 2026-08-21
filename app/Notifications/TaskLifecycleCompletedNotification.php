@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\EntityActivityMailBuilder;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class TaskLifecycleCompletedNotification extends TaskLifecycleBaseNotification
@@ -36,41 +37,88 @@ class TaskLifecycleCompletedNotification extends TaskLifecycleBaseNotification
 
     protected function mailView(): string
     {
-        return 'mail.email';
+        return 'mail.task.activity';
     }
 
     public function toMail($notifiable): MailMessage
     {
         $build = parent::build($notifiable);
-        $url = route('tasks.show', $this->task->id);
-        $url = getDomainSpecificUrl($url, $this->company);
-        $taskShortCode = $this->task->task_short_code ? '#' . $this->task->task_short_code : ' ';
+        $url = getDomainSpecificUrl(route('tasks.show', $this->task->id), $this->company);
+        $taskShortCode = $this->task->task_short_code ? '#'.$this->task->task_short_code : '';
+        $subject = trim(__('email.taskComplete.subject').' '.$taskShortCode);
+        $introText = $this->safeMailText($this->mailIntro($notifiable), 500);
+        $detailHtml = $this->mailDetailHtml($notifiable);
+        $actionText = __('email.taskComplete.action');
 
         $build
-            ->subject(__('email.taskComplete.subject') . $taskShortCode . ' - ' . config('app.name') . '.')
-            ->markdown('mail.email', [
+            ->subject(__('email.taskComplete.subject').$taskShortCode.' - '.config('app.name').'.')
+            ->view('mail.task.activity', [
                 'url' => $url,
-                'content' => $this->mailContent($notifiable),
-                'themeColor' => $this->company->header_color,
-                'actionText' => __('email.taskComplete.action'),
+                'content' => '',
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
+                'subject' => $subject,
+                'badgeLabel' => 'Task Update',
+                'actionText' => $actionText,
+                'introText' => $introText,
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachTaskLifecyclePlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $introText,
+            'badgeLabel' => 'Task Update',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'detailHtml' => $detailHtml,
+            'contentHtml' => '',
+            'actionDescription' => __('Click the button below to view the task details.'),
+            'actionText' => $actionText,
+            'entityUrl' => $url,
+        ]);
 
         parent::resetLocale();
 
         return $build;
     }
 
-    protected function mailContent($notifiable): string
+    protected function mailIntro($notifiable): string
     {
-        $projectTitle = $this->task->project
-            ? __('app.project') . ' - ' . $this->task->project->project_name
-            : '';
         $completedByName = $this->completedBy?->name ?? __('app.system');
 
-        return __('email.taskComplete.subject') . '<br>'
-            . __('email.taskComplete.completedBy') . ': ' . $completedByName . '<br>'
-            . __('app.task') . ': ' . $this->task->heading . '<br>'
-            . $projectTitle;
+        return "{$completedByName} marked a task as completed.";
+    }
+
+    protected function mailDetailHtml($notifiable): string
+    {
+        $meta = $this->task->project
+            ? $this->safeMailText($this->task->project->project_name, 200)
+            : '';
+
+        return EntityActivityMailBuilder::renderDetailBlock(
+            $this->safeMailText($this->task->heading, 200),
+            $meta,
+            __('Task completed.'),
+        );
+    }
+
+    protected function mailContent($notifiable): string
+    {
+        return $this->task->heading;
+    }
+
+    public function toArray($notifiable): array
+    {
+        $this->eventType = $this->eventType();
+
+        return [
+            'id' => $this->task->id,
+            'task_id' => $this->task->id,
+            'heading' => $this->task->heading,
+            'title' => __('email.taskComplete.subject'),
+            'text' => $this->mailIntro($notifiable),
+            'event_type' => $this->eventType,
+            'action_url' => getDomainSpecificUrl(route('tasks.show', $this->task->id), $this->company),
+        ];
     }
 }

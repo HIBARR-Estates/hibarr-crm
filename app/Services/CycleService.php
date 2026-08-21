@@ -50,6 +50,10 @@ class CycleService
         if ($upcomingNowActive) {
             $upcomingNowActive->update(['status' => CycleStatus::Active]);
             $this->snapshotService->snapshotForCycle($upcomingNowActive);
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyCycleStarted($upcomingNowActive->fresh())
+            );
+
             return $upcomingNowActive;
         }
 
@@ -107,6 +111,9 @@ class CycleService
         // If the cycle is immediately active, snapshot levels
         if ($status === CycleStatus::Active) {
             $this->snapshotService->snapshotForCycle($cycle);
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyCycleStarted($cycle->fresh())
+            );
         }
 
         Log::info("CycleService: Generated cycle #{$nextNumber} for company {$companyId} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");;
@@ -205,6 +212,19 @@ class CycleService
         Log::info("CycleService: Completed enrollment {$enrollment->id} for agent {$enrollment->agent_id}" .
             ($levelAchieved ? " (level: {$levelAchieved->name})" : ''));
 
+        $agent = $enrollment->agent()->first();
+        $cycle = $enrollment->cycle()->first();
+
+        if ($agent && $cycle) {
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyCycleCriteriaMet(
+                    $agent->fresh(),
+                    $cycle->fresh(),
+                    $levelAchieved,
+                )
+            );
+        }
+
         // Auto-enroll in the current company cycle
         return $this->autoEnrollInCurrentCycle($enrollment->agent);
     }
@@ -268,6 +288,9 @@ class CycleService
         foreach ($cyclesToActivate as $cycle) {
             $cycle->update(['status' => CycleStatus::Active]);
             $this->snapshotService->snapshotForCycle($cycle);
+            app(MlmNotificationService::class)->afterCommit(
+                fn () => app(MlmNotificationService::class)->notifyCycleStarted($cycle->fresh())
+            );
         }
 
         $stats['cycles_activated'] = $cyclesToActivate->count();
@@ -279,10 +302,18 @@ class CycleService
             ->pluck('id');
 
         if ($completedCycleIds->isNotEmpty()) {
+            $completedCycles = MlmCycle::whereIn('id', $completedCycleIds)->get();
+
             MlmCycle::whereIn('id', $completedCycleIds)
                 ->update(['status' => CycleStatus::Completed]);
 
             $stats['cycles_completed'] = $completedCycleIds->count();
+
+            foreach ($completedCycles as $cycle) {
+                app(MlmNotificationService::class)->afterCommit(
+                    fn () => app(MlmNotificationService::class)->notifyCycleCompleted($cycle->fresh())
+                );
+            }
 
             // 3. Move active enrollments in completed cycles to extended
             $extendedCount = AgentCycleEnrollment::whereIn('cycle_id', $completedCycleIds)

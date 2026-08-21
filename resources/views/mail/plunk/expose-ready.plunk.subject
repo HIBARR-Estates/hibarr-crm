@@ -1,0 +1,5 @@
+<!--
+  Plunk subject line for exposé ready notifications.
+  Variables: mailSubject, appName
+-->
+{{mailSubject}} - {{appName}}

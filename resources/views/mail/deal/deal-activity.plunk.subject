@@ -1,0 +1,9 @@
+<!--
+  Plunk subject line for deal activity notifications.
+  Canonical copy: plunk/entity-activity.plunk.subject
+
+  Variables:
+    mailSubject — activity-specific subject (without app name suffix)
+    appName     — application name (e.g. Hibarr)
+-->
+{{mailSubject}} - {{appName}}

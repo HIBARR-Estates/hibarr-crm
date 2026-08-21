@@ -23,7 +23,8 @@ class MlmCommissionService
         HierarchyService $hierarchyService,
         LevelService $levelService,
         CycleService $cycleService,
-        CycleLevelSnapshotService $snapshotService
+        CycleLevelSnapshotService $snapshotService,
+        protected MlmNotificationService $mlmNotifications,
     ) {
         $this->hierarchyService = $hierarchyService;
         $this->levelService = $levelService;
@@ -47,7 +48,14 @@ class MlmCommissionService
         $records = [];
 
         foreach ($this->preview($deal) as $leg) {
-            $records[] = MlmCommission::create($leg);
+            $record = MlmCommission::create($leg);
+            $records[] = $record;
+
+            if (($leg['type'] ?? null) !== MlmCommissionType::System->value) {
+                $this->mlmNotifications->afterCommit(
+                    fn () => $this->mlmNotifications->notifyCommissionEarned($record->fresh())
+                );
+            }
         }
 
         return $records;
