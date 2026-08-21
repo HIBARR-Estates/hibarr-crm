@@ -24,7 +24,7 @@ class FeatureFlagServiceTest extends TestCase
                 'success' => true,
                 'data' => [
                     'flags' => [
-                        'crm.lead-language-core-field' => true,
+                        'crm.lead-qualification-tab' => true,
                         'sales.per-agent-commission-override' => false,
                     ],
                 ],
@@ -33,13 +33,13 @@ class FeatureFlagServiceTest extends TestCase
 
         $service = app(FeatureFlagService::class);
 
-        $this->assertTrue($service->isEnabled('crm.lead-language-core-field'));
+        $this->assertTrue($service->isEnabled('crm.lead-qualification-tab'));
         $this->assertFalse($service->isEnabled('sales.per-agent-commission-override'));
         $this->assertSame([
-            'crm.lead-language-core-field' => true,
+            'crm.lead-qualification-tab' => true,
             'sales.per-agent-commission-override' => false,
         ], array_intersect_key($service->all(), [
-            'crm.lead-language-core-field' => true,
+            'crm.lead-qualification-tab' => true,
             'sales.per-agent-commission-override' => true,
         ]));
     }
@@ -51,7 +51,7 @@ class FeatureFlagServiceTest extends TestCase
                 'success' => true,
                 'data' => [
                     'flags' => [
-                        'crm.lead-language-core-field' => true,
+                        'crm.deal-view-redesign' => true,
                     ],
                 ],
             ]),
@@ -66,7 +66,7 @@ class FeatureFlagServiceTest extends TestCase
     public function test_api_failure_uses_stale_cache_when_available(): void
     {
         Cache::put('feature_flags:crm:system', [
-            'crm.lead-language-core-field' => true,
+            'crm.lead-qualification-tab' => true,
             'sales.per-agent-commission-override' => true,
         ], 60);
 
@@ -76,7 +76,7 @@ class FeatureFlagServiceTest extends TestCase
 
         $service = app(FeatureFlagService::class);
 
-        $this->assertTrue($service->isEnabled('crm.lead-language-core-field'));
+        $this->assertTrue($service->isEnabled('crm.lead-qualification-tab'));
         $this->assertTrue($service->isEnabled('sales.per-agent-commission-override'));
     }
 
@@ -88,7 +88,7 @@ class FeatureFlagServiceTest extends TestCase
 
         $service = app(FeatureFlagService::class);
 
-        $this->assertFalse($service->isEnabled('crm.lead-language-core-field'));
+        $this->assertFalse($service->isEnabled('crm.lead-qualification-tab'));
         $this->assertFalse($service->isEnabled('sales.per-agent-commission-override'));
         $this->assertFalse($service->forInertia()['sales.bulk-agent-promotion']);
     }
@@ -100,7 +100,7 @@ class FeatureFlagServiceTest extends TestCase
                 'success' => true,
                 'data' => [
                     'flags' => [
-                        'crm.lead-language-core-field' => true,
+                        'crm.lead-qualification-tab' => true,
                         'shell.websocket' => true,
                     ],
                 ],
@@ -110,9 +110,9 @@ class FeatureFlagServiceTest extends TestCase
         $service = app(FeatureFlagService::class);
         $inertiaFlags = $service->forInertia();
 
-        $this->assertArrayHasKey('crm.lead-language-core-field', $inertiaFlags);
+        $this->assertArrayHasKey('crm.lead-qualification-tab', $inertiaFlags);
         $this->assertArrayNotHasKey('shell.websocket', $inertiaFlags);
-        $this->assertTrue($inertiaFlags['crm.lead-language-core-field']);
+        $this->assertTrue($inertiaFlags['crm.lead-qualification-tab']);
     }
 
     public function test_deal_view_redesign_flag_is_exposed_for_inertia(): void

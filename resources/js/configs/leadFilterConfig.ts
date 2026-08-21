@@ -270,37 +270,19 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                     label: country.nicename,
                 })) || [],
         },
-        ...(props.useLeadCoreFields
-            ? [
-                  {
-                      key: "language",
-                      label: "Languages",
-                      type: "multiselect" as const,
-                      control: "pills" as const,
-                      sentence: "language",
-                      section: "Profile",
-                      options:
-                          props.languages?.map((language: any) => ({
-                              value: language.language_code,
-                              label: language.language_name,
-                          })) || [],
-                  },
-              ]
-            : [
-                  {
-                      key: "language_id",
-                      label: "Languages",
-                      type: "multiselect" as const,
-                      control: "pills" as const,
-                      sentence: "language",
-                      section: "Profile",
-                      options:
-                          props.languages?.map((language: any) => ({
-                              value: language.id,
-                              label: language.language_name,
-                          })) || [],
-                  },
-              ]),
+        {
+            key: "language",
+            label: "Languages",
+            type: "multiselect",
+            control: "pills",
+            sentence: "language",
+            section: "Profile",
+            options:
+                props.languages?.map((language: any) => ({
+                    value: language.language_code,
+                    label: language.language_name,
+                })) || [],
+        },
 
         // ── Engagement ───────────────────────────────────────────
         {

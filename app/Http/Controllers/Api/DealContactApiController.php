@@ -547,7 +547,7 @@ class DealContactApiController extends Controller
             $corePayload['occupation'] = $request->input('occupation');
         }
 
-        if ($corePayload !== [] && $coreFieldsService->useCoreFields()) {
+        if ($corePayload !== []) {
             $before = $coreFieldsService->read($lead);
             $coreFieldsService->write($lead, $corePayload);
             $after = $coreFieldsService->read($lead);

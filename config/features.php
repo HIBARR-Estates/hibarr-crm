@@ -5,7 +5,6 @@ return [
     'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 10),
     'known_flags' => [
         'crm.lead-qualification-tab',
-        'crm.lead-language-core-field',
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
