@@ -2,10 +2,8 @@ import DealInformationGatheringForm from "@/Features/Deals/DealInformationGather
 import SaveDealModal from "@/Features/Deals/SaveDeal/SaveDealModal";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import "@/Components/Redesign/redesign.css";
-import {
-    REDESIGN_TOKENS as T,
-    REDESIGN_FONT_STACK,
-} from "@/Components/Redesign/tokens";
+import "./deals-table.css";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -24,14 +22,15 @@ import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import { dealApi } from "@/lib/api/deals";
 import {
     UserOutlined,
-    PlusOutlined,
     DownloadOutlined,
     EditOutlined,
     EyeOutlined,
     DeleteOutlined,
     ImportOutlined,
-    FilterOutlined,
     ReloadOutlined,
+    PlusOutlined,
+    TableOutlined,
+    AppstoreOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { MenuProps, Spin } from "antd";
@@ -43,7 +42,9 @@ import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
 import { User } from "@/Types";
 import AddFollowup from "./Components/Tabs/followups/AddFollowup";
-import DealsModeSwitcher from "@/Components/Kanban/DealsModeSwitcher";
+import EntityListHeader, {
+    type EntityListHeaderViewOption,
+} from "@/Components/Redesign/primitives/EntityListHeader";
 import { useMemo, useState, useCallback } from "react";
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -54,6 +55,11 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
+
+const DEAL_VIEW_OPTIONS: EntityListHeaderViewOption[] = [
+    { value: "table", label: "Table", icon: <TableOutlined style={{ fontSize: 13 }} /> },
+    { value: "kanban", label: "Kanban", icon: <AppstoreOutlined style={{ fontSize: 13 }} /> },
+];
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -80,6 +86,11 @@ interface Pipeline {
     default: number;
 }
 
+export interface DealsStats {
+    active_deals: number;
+    won_this_week: number;
+}
+
 /** S1: Index no longer ships form/filter option arrays (M1/M3 fetch those). */
 export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
@@ -87,6 +98,7 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     boardColumns: BoardColumn[];
     allPipelines: Pipeline[];
     defaultPipeline?: Pipeline | null;
+    stats: DealsStats;
     filters?: {
         lead_pipeline_id?: string;
         pipeline_stage_id?: string;
@@ -112,6 +124,7 @@ const Index = ({
     boardColumns: initialBoardColumns,
     allPipelines: pipelines,
     defaultPipeline,
+    stats,
     filters: pageFilters,
     addLeadPermission = "all",
 }: IndexProps) => {
@@ -236,6 +249,20 @@ const Index = ({
             : rawPipelineFilter
               ? Number(rawPipelineFilter)
               : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
+
+    // Header stats line — named after the selected pipeline when one is
+    // pinned; "all pipelines" has no single name to hang the count on, so
+    // it falls back to a generic phrasing.
+    const headline = useMemo(() => {
+        const activePipeline = pipelines.find(
+            (pipeline) => pipeline.id === activePipelineId,
+        );
+        const activeClause = activePipeline
+            ? `${td("active in the")} ${activePipeline.name} ${td("pipeline")}`
+            : td("active deals");
+
+        return `${stats.active_deals.toLocaleString()} ${activeClause} · ${stats.won_this_week.toLocaleString()} ${td("won this week")}`;
+    }, [stats, pipelines, activePipelineId, td]);
 
     // Bulk update workbench options (stage / agent / watchers).
     const bulkUpdateOptions = useMemo(
@@ -545,31 +572,18 @@ const Index = ({
                         className="w-full"
                     />
                 }
+                mainContentClassName="p-0"
             >
-                <div
-                    className="max-w-[1440px] mx-auto space-y-4"
-                    style={{ fontFamily: REDESIGN_FONT_STACK }}
-                >
-                    <div
-                        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-[10px] border px-4 py-3.5 bg-white"
-                        style={{ borderColor: T.BORDER }}
-                    >
-                        <div className="flex items-center gap-2.5">
-                            <PipelineSelector
-                                pipelines={pipelines}
-                                currentPipelineId={valueLeadPipelineId}
-                                onSelect={handlePipelineChange}
-                                allowAll
-                                variant="chip"
-                            />
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-primary"
-                                onClick={handleCreateDeal}
-                            >
-                                <PlusOutlined style={{ fontSize: 13 }} />
-                                {t("app.deals.actions.add")}
-                            </button>
+                <EntityListHeader
+                    title={t("app.deal")}
+                    subtitle={headline}
+                    viewOptions={DEAL_VIEW_OPTIONS}
+                    viewValue={view}
+                    onViewChange={(next) =>
+                        handleViewChange(next as "kanban" | "table")
+                    }
+                    actions={
+                        <>
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
@@ -578,9 +592,6 @@ const Index = ({
                                 <ImportOutlined style={{ fontSize: 13 }} />
                                 {t("app.import")}
                             </button>
-                        </div>
-
-                        <div className="flex items-center gap-2.5">
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
@@ -593,30 +604,42 @@ const Index = ({
                                 />
                                 {td("Refresh", { source: "en" })}
                             </button>
-                            {/* Advanced Filters Button */}
                             <button
                                 type="button"
-                                className="dr-btn dr-btn-ghost"
-                                onClick={openDrawer}
+                                className="dr-btn dr-btn-primary"
+                                onClick={handleCreateDeal}
                             >
-                                <FilterOutlined style={{ fontSize: 13 }} />
-                                {t("app.filter")}
-                                {activeFilterCount > 0 && (
-                                    <span
-                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
-                                        style={{ background: T.BLUE, color: T.WHITE }}
-                                    >
-                                        {activeFilterCount}
-                                    </span>
-                                )}
+                                <PlusOutlined style={{ fontSize: 13 }} />
+                                {t("app.deals.actions.add")}
                             </button>
-                            <DealsModeSwitcher
-                                view={view}
-                                onChange={handleViewChange}
-                            />
-                        </div>
-                    </div>
+                        </>
+                    }
+                    toolbarLeft={
+                        <PipelineSelector
+                            pipelines={pipelines}
+                            currentPipelineId={valueLeadPipelineId}
+                            onSelect={handlePipelineChange}
+                            allowAll
+                            variant="chip"
+                        />
+                    }
+                    filtersCount={activeFilterCount}
+                    onOpenFilters={openDrawer}
+                    filtersLabel={t("app.filter")}
+                    filterSentence={
+                        <ActiveFilterSentence
+                            count={deals.total}
+                            entityLabel="deals"
+                            onOpenFilters={openDrawer}
+                        />
+                    }
+                    maxWidth={1440}
+                />
 
+                <div
+                    className="max-w-[1440px] mx-auto space-y-4 px-6 py-6"
+                    style={{ fontFamily: REDESIGN_FONT_STACK }}
+                >
                     {/* Bulk actions — full-width bar below the toolbar, table view only. */}
                     {isTableView &&
                         (selectAllMatching || selectedEntities.length > 0) && (
@@ -635,13 +658,6 @@ const Index = ({
                             />
                         )}
 
-                    {/* Quiet active-filter sentence */}
-                    <ActiveFilterSentence
-                        count={deals.total}
-                        entityLabel="deals"
-                        onOpenFilters={openDrawer}
-                    />
-
                     {/* Table View */}
                     {isTableView && (
                         <DataTable<Deal>
@@ -649,6 +665,7 @@ const Index = ({
                             dataSource={deals.data}
                             rowKey="id"
                             rowSelection={rowSelection}
+                            containerClassName="deals-table"
                             paginationData={{
                                 current_page: deals.current_page,
                                 last_page: deals.last_page,

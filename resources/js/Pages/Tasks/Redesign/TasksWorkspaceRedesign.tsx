@@ -1,8 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
+import { Modal, App } from "antd";
+import {
+    CheckCircleOutlined,
+    CopyOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    EyeOutlined,
+    UndoOutlined,
+} from "@ant-design/icons";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
+import TaskCategoryManager from "@/Pages/Settings/TaskCategoryManager";
 import PageLayout from "@/Components/PageLayout";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
@@ -20,6 +32,7 @@ import type { TasksIndexProps } from "@/Pages/Tasks/Index";
 import TasksHeader, { type TasksViewMode } from "./components/TasksHeader";
 import TasksFilterBar, {
     type GroupMode,
+    type QuickFilterCounts,
     type QuickFilterKey,
 } from "./components/TasksFilterBar";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
@@ -29,7 +42,8 @@ import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import TasksListView, { type TaskGroup } from "./components/TasksListView";
+import TasksListView from "./components/TasksListView";
+import { type TaskRowAction } from "./components/primitives/TaskRowMenu";
 import TasksBoardView from "./components/TasksBoardView";
 import TaskDetailModal from "./components/TaskDetailModal";
 import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
@@ -38,15 +52,18 @@ import useTasksFilters, {
     hasFilter,
 } from "./hooks/useTasksFilters";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
+import useTasksServerPagination from "./hooks/useTasksServerPagination";
+import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
+import useTasksWorkspaceUiState from "./hooks/useTasksWorkspaceUiState";
+import { TASK_FORM_DRAFT_KEYS } from "./hooks/tasksWorkspaceUiStore";
+import buildTaskGroups from "./lib/buildTaskGroups";
 import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
 import BulkUpdateModal from "@/Features/BulkActions/BulkUpdateModal";
 import { createTaskBulkUpdateFields } from "./config/taskBulkUpdateFields";
 import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
-    TASK_BUCKETS,
     TASK_PRIORITY,
-    categoryToken,
     type DensityOption,
     type TaskPriorityKey,
 } from "./config/taskDesignTokens";
@@ -89,16 +106,32 @@ function taskLinkRefs(vm: TaskViewModel) {
             id: property.id,
             name: property.name ?? "Property",
         })),
-        ...(task.project
-            ? [
-                  {
-                      type: "project" as const,
-                      id: task.project.id,
-                      name: task.project.project_name,
-                  },
-              ]
-            : []),
+        // "project" here means developer project (the one holding units),
+        // matching syncTaskLinks() on the backend — not task.project, which
+        // is the unrelated Worksuite delivery project.
+        ...(task.developer_projects ?? []).map((project) => ({
+            type: "project" as const,
+            id: project.id,
+            name: project.name,
+        })),
     ];
+}
+
+/** Scoped task permission check — matches legacy TasksKanban / Columns. */
+function hasTaskScopePermission(
+    task: Task,
+    scope: string | undefined,
+    userId: number,
+): boolean {
+    if (scope === "all") return true;
+    if (!scope || scope === "none") return false;
+    const isCreator = task.added_by === userId;
+    const isAssignee =
+        task.users?.some((user) => user.id === userId) ?? false;
+    if (scope === "added") return isCreator;
+    if (scope === "owned") return isAssignee;
+    if (scope === "both") return isCreator || isAssignee;
+    return false;
 }
 
 /** Whether the current user may move/complete this task (change_status scope). */
@@ -108,20 +141,73 @@ function canChangeStatus(
     userId: number,
 ): boolean {
     const scope = permissions?.change_status ?? permissions?.edit_tasks;
-    if (scope === "all") return true;
-    const isAssignee = task.users?.some((user) => user.id === userId) ?? false;
-    const isCreator = task.added_by === userId;
-    if (scope === "added") return isCreator;
-    if (scope === "owned") return isAssignee;
-    if (scope === "both") return isCreator || isAssignee;
-    return true;
+    return hasTaskScopePermission(task, scope, userId);
+}
+
+function canDeleteTask(
+    task: Task,
+    permissions: TasksIndexProps["permissions"],
+    userId: number,
+): boolean {
+    return hasTaskScopePermission(task, permissions?.delete_tasks, userId);
+}
+
+/** Whether the current user may add a comment on this task. */
+function canCommentOnTask(
+    task: Task,
+    permissions: TasksIndexProps["permissions"],
+    userId: number,
+): boolean {
+    return hasTaskScopePermission(
+        task,
+        permissions?.add_task_comments,
+        userId,
+    );
+}
+
+function hasAnyDeletePermission(scope: string | undefined): boolean {
+    return ["all", "added", "owned", "both"].includes(scope ?? "");
+}
+
+/** Form defaults shared by the edit and duplicate modals. */
+function taskFormInitialFromVm(vm: TaskViewModel): Partial<TaskFormValues> {
+    return {
+        title: vm.task.heading,
+        description: vm.descriptionText,
+        startDate: vm.task.start_date?.slice(0, 10) ?? "",
+        dueDate: vm.task.due_date?.slice(0, 10) ?? "",
+        dueTime: vm.task.due_date?.slice(11, 16) || "17:00",
+        priority: vm.task.priority as TaskPriorityKey,
+        assignees: vm.people.map((person) => person.id),
+        categoryId: vm.task.category?.id ?? null,
+        boardColumnId: vm.task.board_column_id ?? null,
+        links: taskLinkRefs(vm),
+    };
+}
+
+/**
+ * Duplicate-modal defaults: everything `taskFormInitialFromVm` carries over
+ * (assignees, linked records), plus the source task's checklist titles —
+ * unlike edit mode, where the form's checklist field only ever adds new
+ * rows, duplicating should recreate the whole checklist on the new task.
+ */
+function taskDuplicateInitialFromVm(
+    vm: TaskViewModel,
+): Partial<TaskFormValues> {
+    return {
+        ...taskFormInitialFromVm(vm),
+        checklist: (vm.task.subtasks ?? []).map((item) => item.title),
+    };
 }
 
 export default function TasksWorkspaceRedesign({
+    tableTasks,
     kanbanTasks = [],
+    taskQuickCounts,
     categories = [],
     labels = [],
     users = [],
+    mentionablePeople,
     columns = [],
     projects = [],
     deals = [],
@@ -129,27 +215,82 @@ export default function TasksWorkspaceRedesign({
     properties = [],
     developerProjects = [],
     permissions,
-    stats,
+    stats = { total: 0, completed: 0, overdue: 0, dueToday: 0 },
     savedViews = [],
     filters,
     auth,
 }: TasksWorkspaceRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { message } = App.useApp();
     const userId = auth.user.id;
+    const isAdmin = useIsAdminRole();
+    const canManageTaskCategories =
+        isAdmin || permissions?.view_task_category === "all";
 
-    const [tasks, setTasks] = useState<Task[]>(kanbanTasks);
+    const [boardTasks, setBoardTasks] = useState<Task[]>(kanbanTasks);
+    const [listTasks, setListTasks] = useState<Task[]>(tableTasks?.data ?? []);
+    const [taskSettingsOpen, setTaskSettingsOpen] = useState(false);
     const [view, setView] = useState<TasksViewMode>("list");
-    const [quickFilter, setQuickFilter] = useState<QuickFilterKey>("all");
     const [groupMode, setGroupMode] = useState<GroupMode>("due");
-    const [addOpen, setAddOpen] = useState(false);
+    const {
+        addOpen,
+        setAddOpen,
+        editingTaskId,
+        setEditingTaskId,
+        duplicatingTaskId,
+        setDuplicatingTaskId,
+    } = useTasksWorkspaceUiState();
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(15);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+    const quickFilter = (
+        (filters as { quick_filter?: string } | undefined)?.quick_filter ??
+        "all"
+    ) as QuickFilterKey;
+
+    const patchTasks = useCallback(
+        (updater: (prev: Task[]) => Task[]) => {
+            setBoardTasks(updater);
+            setListTasks(updater);
+        },
+        [],
+    );
+
+    const { persistPageSize } = usePersistedPageSize({
+        storageKey: "hibarr_tasks_per_page",
+        currentPerPage: tableTasks?.per_page ?? 15,
+        onRestore: (perPage) => {
+            router.get(
+                route("tasks.index"),
+                mergeQueryParams({ page: 1, per_page: perPage }),
+                {
+                    only: ["tableTasks"],
+                    preserveState: true,
+                    preserveScroll: true,
+                },
+            );
+        },
+    });
+
+    const {
+        tableTasks: pagedTableTasks,
+        isPaging,
+        navigateToPage,
+        changePageSize,
+    } = useTasksServerPagination({
+        tableTasks: tableTasks ?? {
+            data: [],
+            current_page: 1,
+            total: 0,
+            per_page: 15,
+            last_page: 1,
+        },
+        onPersistPageSize: persistPageSize,
+    });
 
     /** Board column slugs that count as "done". */
     const completedSlugs = useMemo(
@@ -162,7 +303,7 @@ export default function TasksWorkspaceRedesign({
 
     const { setStatus, isPending } = useTaskStatus((taskId, slug) => {
         const column = columns.find((item) => item.slug === slug);
-        setTasks((prev) =>
+        patchTasks((prev) =>
             prev.map((task) =>
                 task.id === taskId
                     ? {
@@ -189,7 +330,6 @@ export default function TasksWorkspaceRedesign({
         );
     });
 
-    const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
     const {
         createTask,
         isCreating,
@@ -199,7 +339,7 @@ export default function TasksWorkspaceRedesign({
         isUpdating,
         updateErrors,
         clearUpdateErrors,
-    } = useTasksWorkspaceMutations(setTasks, editingTaskId);
+    } = useTasksWorkspaceMutations(patchTasks, editingTaskId);
 
     /** Options for the modal's linked-record picker. */
     const recordPool: RecordPool = useMemo(
@@ -245,6 +385,9 @@ export default function TasksWorkspaceRedesign({
                 );
             } catch (error) {
                 console.error("Failed to add checklist item", title, error);
+                message.error(
+                    td("Failed to save a checklist item. Please try again."),
+                );
             }
         }
 
@@ -258,11 +401,18 @@ export default function TasksWorkspaceRedesign({
                 });
             } catch (error) {
                 console.error("Failed to upload task files", error);
+                message.error(
+                    td("Failed to upload one or more files. Please try again."),
+                );
             }
         }
 
         if (checklist.length || files.length) {
-            router.reload({ only: ["kanbanTasks", "tableTasks", "stats"] });
+            router.reload({
+                only: ["kanbanTasks", "tableTasks", "stats"],
+                preserveState: true,
+                preserveScroll: true,
+            });
         }
     };
 
@@ -308,6 +458,7 @@ export default function TasksWorkspaceRedesign({
                 deals,
                 leads,
                 properties,
+                excludeFields: ["search"],
             }),
         [
             categories,
@@ -324,134 +475,51 @@ export default function TasksWorkspaceRedesign({
     const { openDrawer } = useFilter();
 
     // ── View models ────────────────────────────────────────────────
-    const viewModels = useMemo(
-        () => tasks.map((task) => toTaskViewModel(task, completedSlugs)),
-        [tasks, completedSlugs],
+    const boardViewModels = useMemo(
+        () => boardTasks.map((task) => toTaskViewModel(task, completedSlugs)),
+        [boardTasks, completedSlugs],
     );
 
-    const counts = useMemo(
-        () => ({
-            all: viewModels.length,
-            mine: viewModels.filter((vm) =>
-                vm.task.users?.some((user) => user.id === userId),
-            ).length,
-            byme: viewModels.filter((vm) => vm.task.added_by === userId).length,
-            open: viewModels.filter((vm) => !vm.done).length,
-            today: viewModels.filter((vm) => vm.bucket === "today").length,
-            overdue: viewModels.filter((vm) => vm.bucket === "overdue").length,
-        }),
-        [viewModels, userId],
+    const listViewModels = useMemo(
+        () => listTasks.map((task) => toTaskViewModel(task, completedSlugs)),
+        [listTasks, completedSlugs],
     );
 
-    const visible = useMemo(() => {
-        switch (quickFilter) {
-            case "mine":
-                return viewModels.filter((vm) =>
-                    vm.task.users?.some((user) => user.id === userId),
-                );
-            case "byme":
-                return viewModels.filter((vm) => vm.task.added_by === userId);
-            case "open":
-                return viewModels.filter((vm) => !vm.done);
-            case "today":
-                return viewModels.filter((vm) => vm.bucket === "today");
-            case "overdue":
-                return viewModels.filter((vm) => vm.bucket === "overdue");
-            default:
-                return viewModels;
-        }
-    }, [viewModels, quickFilter, userId]);
+    const counts: QuickFilterCounts = taskQuickCounts ?? {
+        all: stats.total,
+        mine: 0,
+        byme: 0,
+        open: Math.max(0, stats.total - stats.completed),
+        today: stats.dueToday,
+        overdue: stats.overdue,
+        mentioned: 0,
+    };
 
-    // Group the whole filtered set first, so group order and totals are
-    // stable, then page across the grouped sequence.
-    const allGroups: TaskGroup[] = useMemo(() => {
-        if (groupMode === "due") {
-            return TASK_BUCKETS.map((bucket) => ({
-                key: bucket.key,
-                label: bucket.label,
-                dot: bucket.dot,
-                fg: bucket.fg,
-                tasks: visible.filter((vm) => vm.bucket === bucket.key),
-            })).filter((group) => group.tasks.length > 0);
-        }
+    const groups = useMemo(
+        () => buildTaskGroups(listViewModels, groupMode),
+        [listViewModels, groupMode],
+    );
 
-        if (groupMode === "category") {
-            const byCategory = new Map<string, TaskGroup>();
-            visible.forEach((vm) => {
-                const name = vm.task.category?.category_name ?? "Uncategorised";
-                // `name` always a real string ("Uncategorised" as the
-                // fallback), so categoryToken never returns its "no name" null.
-                const token = categoryToken(name)!;
-                if (!byCategory.has(name)) {
-                    byCategory.set(name, {
-                        key: `category-${name}`,
-                        label: token.label,
-                        dot: token.dot,
-                        fg: token.fg,
-                        tasks: [],
-                    });
-                }
-                byCategory.get(name)!.tasks.push(vm);
-            });
-            return Array.from(byCategory.values()).sort(
-                (a, b) => b.tasks.length - a.tasks.length,
-            );
-        }
+    const allViewModels = useMemo(() => {
+        const byId = new Map<number, TaskViewModel>();
+        [...boardViewModels, ...listViewModels].forEach((vm) =>
+            byId.set(vm.id, vm),
+        );
+        return byId;
+    }, [boardViewModels, listViewModels]);
 
-        return visible.length
-            ? [
-                  {
-                      key: "all",
-                      label: "All tasks",
-                      dot: "#9ca3af",
-                      fg: "#5b6472",
-                      tasks: visible,
-                  },
-              ]
-            : [];
-    }, [visible, groupMode]);
+    const selectedVm = selectedTaskId
+        ? (allViewModels.get(selectedTaskId) ?? null)
+        : null;
+    const editingVm = editingTaskId
+        ? (allViewModels.get(editingTaskId) ?? null)
+        : null;
+    const duplicatingVm = duplicatingTaskId
+        ? (allViewModels.get(duplicatingTaskId) ?? null)
+        : null;
 
-    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
-    const currentPage = Math.min(page, totalPages);
-
-    /**
-     * Walks the grouped sequence and keeps only the slice belonging to this
-     * page. A group that straddles a page boundary appears on both, each time
-     * showing just its rows for that page — while its header keeps the group's
-     * full total so the counts stay truthful.
-     */
-    const groups: TaskGroup[] = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        const end = start + pageSize;
-        const out: TaskGroup[] = [];
-        let cursor = 0;
-
-        allGroups.forEach((group) => {
-            const groupStart = cursor;
-            const groupEnd = cursor + group.tasks.length;
-            cursor = groupEnd;
-
-            if (groupEnd <= start || groupStart >= end) return;
-            const from = Math.max(0, start - groupStart);
-            const to = Math.min(group.tasks.length, end - groupStart);
-            out.push({
-                ...group,
-                totalCount: group.tasks.length,
-                tasks: group.tasks.slice(from, to),
-            });
-        });
-
-        return out;
-    }, [allGroups, currentPage, pageSize]);
-
-    const selectedVm =
-        visible.find((vm) => vm.id === selectedTaskId) ??
-        viewModels.find((vm) => vm.id === selectedTaskId) ??
-        null;
-
-    const editingVm = viewModels.find((vm) => vm.id === editingTaskId) ?? null;
-
-    const headline = `${counts.overdue} ${td("overdue")} · ${counts.today} ${td("due today")} · ${counts.open} ${td("open across your records")}`;
+    const openCount = Math.max(0, stats.total - stats.completed);
+    const headline = `${stats.overdue} ${td("overdue")} · ${stats.dueToday} ${td("due today")} · ${openCount} ${td("open across your records")}`;
 
     // ── Actions ────────────────────────────────────────────────────
     const doneColumn = columns.find((column) => column.slug === "done");
@@ -466,19 +534,84 @@ export default function TasksWorkspaceRedesign({
         if (target) setStatus(vm.id, target.slug);
     };
 
-    // Re-seed the local task list whenever the server sends a new page.
+    // Re-seed local lists whenever the server sends fresh data.
     useEffect(() => {
-        setTasks(kanbanTasks);
+        setBoardTasks(kanbanTasks);
     }, [kanbanTasks]);
+
+    useEffect(() => {
+        setListTasks(pagedTableTasks.data);
+    }, [pagedTableTasks]);
+
+    const filterSignature = useMemo(
+        () => JSON.stringify(filters ?? {}),
+        [filters],
+    );
+    const filtersInitialized = useRef(false);
+
+    // Server-side filters change the result set — reset to page 1 in the URL.
+    useEffect(() => {
+        if (!filtersInitialized.current) {
+            filtersInitialized.current = true;
+            return;
+        }
+        router.get(
+            route("tasks.index"),
+            mergeQueryParams({ page: 1 }),
+            {
+                only: [
+                    "tableTasks",
+                    "taskQuickCounts",
+                    "stats",
+                    "kanbanTasks",
+                    "filters",
+                ],
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    }, [filterSignature]);
+
+    const handleQuickFilter = (key: QuickFilterKey) => {
+        router.get(
+            route("tasks.index"),
+            mergeQueryParams({
+                quick_filter: key === "all" ? "" : key,
+                page: 1,
+            }),
+            {
+                only: [
+                    "tableTasks",
+                    "taskQuickCounts",
+                    "stats",
+                    "kanbanTasks",
+                    "filters",
+                ],
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    };
 
     const handleRefresh = () => {
         setRefreshing(true);
         router.reload({
-            only: ["kanbanTasks", "tableTasks", "stats", "savedViews"],
+            only: [
+                "kanbanTasks",
+                "tableTasks",
+                "stats",
+                "savedViews",
+                "taskQuickCounts",
+            ],
+            preserveState: true,
+            preserveScroll: true,
             onSuccess: (page) => {
-                const next = (page.props as { kanbanTasks?: Task[] })
-                    .kanbanTasks;
-                if (next) setTasks(next);
+                const props = page.props as {
+                    kanbanTasks?: Task[];
+                    tableTasks?: typeof tableTasks;
+                };
+                if (props.kanbanTasks) setBoardTasks(props.kanbanTasks);
+                if (props.tableTasks) setListTasks(props.tableTasks.data);
             },
             onFinish: () => setRefreshing(false),
         });
@@ -530,7 +663,8 @@ export default function TasksWorkspaceRedesign({
         });
 
     const allVisibleSelected =
-        visible.length > 0 && visible.every((vm) => selected.has(vm.id));
+        listViewModels.length > 0 &&
+        listViewModels.every((vm) => selected.has(vm.id));
 
     const bulkSetStatus = (column: (typeof columns)[number]) =>
         applyBulkAction(
@@ -541,7 +675,7 @@ export default function TasksWorkspaceRedesign({
             },
             {
                 onSuccess: () => {
-                    setTasks((prev) =>
+                    patchTasks((prev) =>
                         prev.map((task) =>
                             selected.has(task.id)
                                 ? {
@@ -579,7 +713,7 @@ export default function TasksWorkspaceRedesign({
             },
             {
                 onSuccess: () => {
-                    setTasks((prev) =>
+                    patchTasks((prev) =>
                         prev.map((task) =>
                             selected.has(task.id)
                                 ? {
@@ -608,7 +742,7 @@ export default function TasksWorkspaceRedesign({
             { row_ids: selectedIds.join(","), action_type: "delete" },
             {
                 onSuccess: () => {
-                    setTasks((prev) =>
+                    patchTasks((prev) =>
                         prev.filter((task) => !selected.has(task.id)),
                     );
                     setConfirmBulkDelete(false);
@@ -617,11 +751,12 @@ export default function TasksWorkspaceRedesign({
             },
         );
 
-    const rowActions = (vm: TaskViewModel) => {
-        const actions = [
+    const rowActions = (vm: TaskViewModel): TaskRowAction[] => {
+        const actions: TaskRowAction[] = [
             {
                 key: "open",
                 label: "View details",
+                icon: <EyeOutlined />,
                 onSelect: () => setSelectedTaskId(vm.id),
             },
         ];
@@ -630,29 +765,32 @@ export default function TasksWorkspaceRedesign({
             actions.push({
                 key: "toggle-done",
                 label: vm.done ? "Reopen task" : "Mark done",
+                icon: vm.done ? <UndoOutlined /> : <CheckCircleOutlined />,
                 onSelect: () => toggleDone(vm),
             });
             actions.push({
                 key: "edit",
                 label: "Edit task",
+                icon: <EditOutlined />,
                 onSelect: () => setEditingTaskId(vm.id),
             });
+        }
+        if (canAdd(permissions?.add_tasks)) {
             actions.push({
                 key: "duplicate",
                 label: "Duplicate",
-                onSelect: () =>
-                    router.visit(
-                        route("tasks.create", { duplicate_task: vm.id }),
-                    ),
+                icon: <CopyOutlined />,
+                onSelect: () => setDuplicatingTaskId(vm.id),
             });
         }
-        if (permissions?.delete_tasks === "all") {
+        if (canDeleteTask(vm.task, permissions, userId)) {
             actions.push({
                 key: "delete",
                 label: "Delete",
+                icon: <DeleteOutlined />,
                 danger: true,
                 onSelect: () => setDeleteTarget(vm.task),
-            } as (typeof actions)[number]);
+            });
         }
         return actions;
     };
@@ -689,13 +827,12 @@ export default function TasksWorkspaceRedesign({
                         onAddTask={() => setAddOpen(true)}
                         canAddTask={canAdd(permissions?.add_tasks)}
                         headline={headline}
+                        showTaskSettings={canManageTaskCategories}
+                        onOpenTaskSettings={() => setTaskSettingsOpen(true)}
                     />
                     <TasksFilterBar
                         quickFilter={quickFilter}
-                        onQuickFilter={(key) => {
-                            setQuickFilter(key);
-                            setPage(1);
-                        }}
+                        onQuickFilter={handleQuickFilter}
                         counts={counts}
                         groupMode={groupMode}
                         onGroupMode={setGroupMode}
@@ -718,7 +855,7 @@ export default function TasksWorkspaceRedesign({
                 >
                     <div className="mx-auto w-full max-w-[1280px] px-7">
                         <ActiveFilterSentence
-                            count={visible.length}
+                            count={pagedTableTasks.total}
                             entityLabel="tasks"
                             onOpenFilters={openDrawer}
                         />
@@ -734,7 +871,6 @@ export default function TasksWorkspaceRedesign({
                 }`}
                 style={
                     {
-                        background: "#f5f6f8",
                         minHeight: view === "board" ? undefined : 320,
                         // The filter summary strip, when shown, pushes the
                         // board down — account for it in the board's height.
@@ -750,12 +886,14 @@ export default function TasksWorkspaceRedesign({
                             users={users}
                             busy={bulkBusy}
                             canReassign={permissions?.edit_tasks === "all"}
-                            canDelete={permissions?.delete_tasks === "all"}
+                            canDelete={hasAnyDeletePermission(
+                                permissions?.delete_tasks,
+                            )}
                             canBulkUpdate={permissions?.edit_tasks === "all"}
                             allSelected={allVisibleSelected}
                             onToggleSelectAll={() =>
                                 toggleGroupSelection(
-                                    visible,
+                                    listViewModels,
                                     !allVisibleSelected,
                                 )
                             }
@@ -765,32 +903,33 @@ export default function TasksWorkspaceRedesign({
                             onDelete={() => setConfirmBulkDelete(true)}
                             onClear={clearSelection}
                         />
-                        <TasksListView
-                            groups={groups}
-                            columns={columns}
-                            density={DENSITY}
-                            priorityTreatment={PRIORITY_TREATMENT}
-                            showRowCategory={SHOW_ROW_CATEGORY}
-                            onOpen={(vm) => setSelectedTaskId(vm.id)}
-                            onStatusChange={(vm, slug) =>
-                                setStatus(vm.id, slug)
-                            }
-                            isStatusPending={isPending}
-                            rowActions={rowActions}
-                            selected={selected}
-                            onToggleSelect={toggleSelect}
-                            onToggleGroup={toggleGroupSelection}
-                        />
-                        <TasksPagination
-                            page={currentPage}
-                            pageSize={pageSize}
-                            totalItems={visible.length}
-                            onPageChange={setPage}
-                            onPageSizeChange={(size) => {
-                                setPageSize(size);
-                                setPage(1);
-                            }}
-                        />
+                        <div
+                            className={`tasks-list-card${isPaging ? " tasks-list-card--paging" : ""}`}
+                        >
+                            <TasksListView
+                                groups={groups}
+                                columns={columns}
+                                density={DENSITY}
+                                priorityTreatment={PRIORITY_TREATMENT}
+                                showRowCategory={SHOW_ROW_CATEGORY}
+                                onOpen={(vm) => setSelectedTaskId(vm.id)}
+                                onStatusChange={(vm, slug) =>
+                                    setStatus(vm.id, slug)
+                                }
+                                isStatusPending={isPending}
+                                rowActions={rowActions}
+                                selected={selected}
+                                onToggleSelect={toggleSelect}
+                                onToggleGroup={toggleGroupSelection}
+                            />
+                            <TasksPagination
+                                page={pagedTableTasks.current_page}
+                                pageSize={pagedTableTasks.per_page}
+                                totalItems={pagedTableTasks.total}
+                                onPageChange={navigateToPage}
+                                onPageSizeChange={changePageSize}
+                            />
+                        </div>
                     </>
                 ) : (
                     // The board owns the remaining viewport height; only its
@@ -802,7 +941,7 @@ export default function TasksWorkspaceRedesign({
                         }}
                     >
                         <TasksBoardView
-                            tasks={visible}
+                            tasks={boardViewModels}
                             columns={columns}
                             cardMeta={BOARD_CARD_META}
                             canMove={(vm) =>
@@ -812,7 +951,7 @@ export default function TasksWorkspaceRedesign({
                             onMove={(vm, column) =>
                                 setStatus(vm.id, column.slug)
                             }
-                            pageSize={pageSize}
+                            pageSize={pagedTableTasks.per_page}
                         />
                     </div>
                 )}
@@ -835,20 +974,36 @@ export default function TasksWorkspaceRedesign({
                         ? canChangeStatus(selectedVm.task, permissions, userId)
                         : false
                 }
+                canComment={
+                    selectedVm
+                        ? canCommentOnTask(selectedVm.task, permissions, userId)
+                        : false
+                }
+                deleteCommentScope={permissions?.delete_task_comments}
                 toggling={selectedVm ? isPending(selectedVm.id) : false}
-                people={users}
+                people={mentionablePeople ?? users}
                 currentUser={{
                     id: userId,
                     name: auth.user.name,
                     image:
                         users.find((user) => user.id === userId)?.image ?? null,
                 }}
+                onChecklistChange={(taskId, items) =>
+                    patchTasks((prev) =>
+                        prev.map((task) =>
+                            task.id === taskId
+                                ? { ...task, subtasks: items }
+                                : task,
+                        ),
+                    )
+                }
             />
 
             {/* Create */}
             <TaskFormModal
                 open={addOpen}
                 mode="create"
+                draftKey={TASK_FORM_DRAFT_KEYS.create}
                 onClose={() => {
                     if (isCreating) return;
                     clearCreateErrors();
@@ -887,6 +1042,11 @@ export default function TasksWorkspaceRedesign({
             <TaskFormModal
                 open={editingVm !== null}
                 mode="edit"
+                draftKey={
+                    editingVm
+                        ? TASK_FORM_DRAFT_KEYS.edit(editingVm.id)
+                        : undefined
+                }
                 onClose={() => {
                     if (isUpdating) return;
                     clearUpdateErrors();
@@ -899,26 +1059,7 @@ export default function TasksWorkspaceRedesign({
                 columns={columns}
                 records={recordPool}
                 initial={
-                    editingVm
-                        ? {
-                              title: editingVm.task.heading,
-                              description: editingVm.descriptionText,
-                              startDate:
-                                  editingVm.task.start_date?.slice(0, 10) ?? "",
-                              dueDate:
-                                  editingVm.task.due_date?.slice(0, 10) ?? "",
-                              dueTime:
-                                  editingVm.task.due_date?.slice(11, 16) ||
-                                  "17:00",
-                              priority: editingVm.task
-                                  .priority as TaskPriorityKey,
-                              assignees: editingVm.people.map((p) => p.id),
-                              categoryId: editingVm.task.category?.id ?? null,
-                              boardColumnId:
-                                  editingVm.task.board_column_id ?? null,
-                              links: taskLinkRefs(editingVm),
-                          }
-                        : undefined
+                    editingVm ? taskFormInitialFromVm(editingVm) : undefined
                 }
                 onSubmit={(values: TaskFormValues) => {
                     if (!editingVm) return;
@@ -943,12 +1084,56 @@ export default function TasksWorkspaceRedesign({
                 }}
             />
 
+            {/* Duplicate — pre-fills from the source task, saves as a new one. */}
+            <TaskFormModal
+                open={duplicatingVm !== null}
+                mode="create"
+                draftKey={TASK_FORM_DRAFT_KEYS.duplicate}
+                onClose={() => {
+                    if (isCreating) return;
+                    clearCreateErrors();
+                    setDuplicatingTaskId(null);
+                }}
+                saving={isCreating}
+                errors={createErrors}
+                categories={categories}
+                users={users}
+                columns={columns}
+                records={recordPool}
+                initial={
+                    duplicatingVm
+                        ? taskDuplicateInitialFromVm(duplicatingVm)
+                        : undefined
+                }
+                onSubmit={(values: TaskFormValues) =>
+                    createTask(
+                        {
+                            ...values,
+                            links: values.links.map((link) => ({
+                                type: link.type,
+                                id: link.id,
+                            })),
+                        },
+                        (created) => {
+                            setDuplicatingTaskId(null);
+                            if (created?.id) {
+                                void persistExtras(
+                                    created.id,
+                                    values.checklist,
+                                    values.files,
+                                );
+                            }
+                        },
+                    )
+                }
+            />
+
             {/* Shared filter workbench — same component Leads and Deals use,
                 including its saved-views bar. */}
             <EntityFilterModal
                 config={filterConfig}
                 entityLabel="tasks"
-                currentCount={visible.length}
+                currentCount={pagedTableTasks.total}
                 savedViews
                 savedViewEntity="task"
             />
@@ -966,7 +1151,7 @@ export default function TasksWorkspaceRedesign({
                 skipReload
                 onClose={() => setDeleteTarget(null)}
                 onDeleted={(taskId) => {
-                    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+                    patchTasks((prev) => prev.filter((t) => t.id !== taskId));
                     setDeleteTarget(null);
                     setSelectedTaskId(null);
                 }}
@@ -990,7 +1175,18 @@ export default function TasksWorkspaceRedesign({
                 open={bulkUpdateOpen}
                 onClose={(operationSucceeded) => {
                     setBulkUpdateOpen(false);
-                    if (operationSucceeded) clearSelection();
+                    if (operationSucceeded) {
+                        clearSelection();
+                        router.reload({
+                            only: [
+                                "tableTasks",
+                                "taskQuickCounts",
+                                "stats",
+                            ],
+                            preserveState: true,
+                            preserveScroll: true,
+                        });
+                    }
                 }}
                 target={bulkUpdateTarget}
                 fields={bulkUpdateFields}
@@ -998,6 +1194,26 @@ export default function TasksWorkspaceRedesign({
                 entityLabel="task"
                 reloadOnly="kanbanTasks"
             />
+
+            <Modal
+                title={t("modules.tasks.taskCategory")}
+                open={taskSettingsOpen}
+                onCancel={() => {
+                    setTaskSettingsOpen(false);
+                    router.reload({
+                        only: ["categories"],
+                        preserveState: true,
+                        preserveScroll: true,
+                    });
+                }}
+                footer={null}
+                width={640}
+                destroyOnClose
+                maskClosable={false}
+                styles={{ content: { boxShadow: "none" } }}
+            >
+                <TaskCategoryManager />
+            </Modal>
         </PageLayout>
     );
 }

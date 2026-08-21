@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskStatusSelect from "./primitives/TaskStatusSelect";
 import {
     ROW_PADDING,
@@ -11,7 +12,6 @@ import {
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import {
-    TaskAssigneeStack,
     TaskCategoryTag,
     TaskGlyph,
     TaskPriorityPill,
@@ -81,12 +81,7 @@ export default function TasksListView({
         return (
             <div
                 className="flex flex-col items-center gap-2 text-center"
-                style={{
-                    background: T.SURFACE,
-                    border: `1px solid ${T.BORDER}`,
-                    borderRadius: 10,
-                    padding: "40px 20px",
-                }}
+                style={{ padding: "40px 20px" }}
             >
                 <TaskGlyph
                     d={TASK_ICON.inboxEmpty}
@@ -111,14 +106,7 @@ export default function TasksListView({
     }
 
     return (
-        <div
-            style={{
-                background: T.SURFACE,
-                border: `1px solid ${T.BORDER}`,
-                borderRadius: 10,
-                overflow: "hidden",
-            }}
-        >
+        <div className="tasks-list-body">
             {groups.map((group) => {
                 const open = !collapsed.has(group.key);
                 return (
@@ -127,7 +115,6 @@ export default function TasksListView({
                             className="tasks-group-header flex w-full select-none items-center gap-2.5 text-left"
                             style={{
                                 padding: "11px 18px",
-                                background: T.SURFACE_2,
                                 borderTop: `1px solid ${T.BORDER_SOFT}`,
                                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
                             }}
@@ -223,16 +210,14 @@ export default function TasksListView({
                                             onOpen(vm);
                                         }
                                     }}
-                                    className="tasks-row flex cursor-pointer items-center gap-3"
+                                    className={`tasks-row flex cursor-pointer items-center gap-3${
+                                        rowIndex % 2 !== 0
+                                            ? " tasks-row-stripe"
+                                            : ""
+                                    }`}
                                     style={{
                                         padding: `${rowPad} 18px`,
                                         borderBottom: `1px solid ${T.BORDER_SOFT}`,
-                                        // Zebra striping to match the Leads/Deals
-                                        // DataTable (--bg-subtle / gray-50 on odd rows).
-                                        background:
-                                            rowIndex % 2 !== 0
-                                                ? "rgb(249 250 251)"
-                                                : T.SURFACE,
                                     }}
                                 >
                                     <SelectCheckbox
@@ -283,14 +268,17 @@ export default function TasksListView({
                                                     <TaskCategoryTag
                                                         category={vm.category}
                                                     />
-                                                    <span
-                                                        style={{
-                                                            color: T.NAVY_MID,
-                                                            flexShrink: 0,
-                                                        }}
-                                                    >
-                                                        |
-                                                    </span>
+                                                    {(vm.links.length > 0 ||
+                                                        vm.extraLinks > 0) && (
+                                                        <span
+                                                            style={{
+                                                                color: T.NAVY_MID,
+                                                                flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            |
+                                                        </span>
+                                                    )}
                                                 </>
                                             )}
                                             {vm.links.map((link) => {
@@ -379,10 +367,16 @@ export default function TasksListView({
                                         className="flex flex-shrink-0 justify-end"
                                         style={{ width: 56 }}
                                     >
-                                        <TaskAssigneeStack
-                                            people={vm.people}
-                                            size={24}
-                                            max={2}
+                                        <MultiUserIndicator
+                                            users={vm.people.map((person) => ({
+                                                id: person.id,
+                                                name: person.name,
+                                                image_url: person.image ?? undefined,
+                                            }))}
+                                            size="sm"
+                                            maxCount={2}
+                                            showNames={false}
+                                            colorful
                                         />
                                     </div>
 

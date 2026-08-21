@@ -10,6 +10,7 @@ use App\Models\TaskComment;
 use Illuminate\Http\Request;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use App\Services\TaskCommentPermissionService;
 
 class TaskCommentController extends AccountBaseController
 {
@@ -31,18 +32,10 @@ class TaskCommentController extends AccountBaseController
      */
     public function store(StoreTaskComment $request)
     {
+        $task = Task::with('users')->findOrFail($request->taskId);
+        abort_403(! app(TaskCommentPermissionService::class)->canAddComment(user(), $task));
 
-        $this->addPermission = user()->permission('add_task_comments');
-        $task = Task::findOrFail($request->taskId);
-        $taskUsers = $task->users->pluck('id')->toArray();
         $userId = UserService::getUserId();
-
-        abort_403(!(
-            $this->addPermission == 'all'
-            || ($this->addPermission == 'added' && ($task->added_by == user()->id || $task->added_by == $userId))
-            || ($this->addPermission == 'owned' && in_array(user()->id, $taskUsers))
-            || ($this->addPermission == 'added' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id || $task->added_by == $userId))
-        ));
         $comment = new TaskComment();
         $comment->comment = $request->comment;
         $comment->task_id = $request->taskId;
@@ -66,11 +59,7 @@ class TaskCommentController extends AccountBaseController
     public function destroy($id)
     {
         $comment = TaskComment::findOrFail($id);
-        $this->deletePermission = user()->permission('delete_task_comments');
-        $this->userId = UserService::getUserId();
-        $this->clientIds = ClientContact::where('user_id', $this->userId)->pluck('client_id')->toArray();
-
-        abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added') && ($comment->added_by == user()->id || $comment->added_by == $this->userId || in_array($comment->added_by, $this->clientIds))));
+        abort_403(! app(TaskCommentPermissionService::class)->canDeleteComment(user(), $comment));
 
         $comment_task_id = $comment->task_id;
         $comment->delete();

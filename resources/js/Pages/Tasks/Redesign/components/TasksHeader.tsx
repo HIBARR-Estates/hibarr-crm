@@ -1,4 +1,4 @@
-import { ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
@@ -14,6 +14,8 @@ interface TasksHeaderProps {
     onAddTask: () => void;
     canAddTask: boolean;
     headline: string;
+    showTaskSettings?: boolean;
+    onOpenTaskSettings?: () => void;
 }
 
 export default function TasksHeader({
@@ -24,6 +26,8 @@ export default function TasksHeader({
     onAddTask,
     canAddTask,
     headline,
+    showTaskSettings,
+    onOpenTaskSettings,
 }: TasksHeaderProps) {
     const { td } = useTd();
 
@@ -106,6 +110,27 @@ export default function TasksHeader({
                     <ReloadOutlined spin={refreshing} style={{ fontSize: 13 }} />
                     {td("Refresh")}
                 </button>
+
+                {showTaskSettings && (
+                    <button
+                        type="button"
+                        aria-label={td("Task settings")}
+                        title={td("Task settings")}
+                        onClick={onOpenTaskSettings}
+                        className="inline-flex items-center justify-center"
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 8,
+                            background: T.WHITE,
+                            color: T.TEXT_MUTED,
+                            border: `1px solid ${T.BORDER}`,
+                            cursor: "pointer",
+                        }}
+                    >
+                        <SettingOutlined style={{ fontSize: 15 }} />
+                    </button>
+                )}
 
                 {canAddTask && (
                     <button

@@ -31,6 +31,11 @@ interface ModalProps {
     closeAriaLabel?: string;
     /** Overrides the default 520px max-width, e.g. for modals with a rich text editor. */
     maxWidth?: number;
+    /**
+     * Overlay z-index. Defaults to CSS (1100). Pass above Ant's
+     * `zIndexPopupBase` (1300) when this modal opens inside an Ant Modal/Drawer.
+     */
+    zIndex?: number;
 }
 
 export function Modal({
@@ -44,6 +49,7 @@ export function Modal({
     dirty = false,
     closeAriaLabel,
     maxWidth,
+    zIndex,
 }: ModalProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -94,8 +100,8 @@ export function Modal({
     return createPortal(
         <div
             className="modal-overlay redesign-modal-overlay"
-            onClick={dirty ? undefined : onClose}
             role="presentation"
+            style={zIndex !== undefined ? { zIndex } : undefined}
         >
             <div
                 ref={panelRef}
