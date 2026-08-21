@@ -1474,6 +1474,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     });
 
     // ══════════════════════════════════════════════════════════════
+    //  Partners — manage which agents are flagged as partners
+    // ══════════════════════════════════════════════════════════════
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
+    });
+
+    // ══════════════════════════════════════════════════════════════
     //  MLM — Agent Portal Pages (Inertia) & API
     // ══════════════════════════════════════════════════════════════
     Route::prefix('mlm/agent')->name('mlm.agent.')->group(function () {

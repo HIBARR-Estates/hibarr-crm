@@ -16,6 +16,10 @@ interface FormDataSelectorProps {
     disabled?: boolean;
     className?: string;
     mode?: "multiple" | "tags";
+    /** Restrict type="lead-agents" results to agents flagged as partners. */
+    partnersOnly?: boolean;
+    /** Restrict type="lead-agents" results to agents NOT already flagged as partners. */
+    excludePartners?: boolean;
 }
 
 /**
@@ -32,14 +36,18 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     disabled = false,
     className,
     mode,
+    partnersOnly,
+    excludePartners,
 }) => {
     // Memoize params to ensure referential stability and prevent infinite loops
     const params = React.useMemo(
         () => ({
             paginate: false, // Most form selectors don't need pagination
             per_page: 100, // Reasonable limit for dropdown options
+            ...(partnersOnly ? { partner_only: true } : {}),
+            ...(excludePartners ? { exclude_partners: true } : {}),
         }),
-        []
+        [partnersOnly, excludePartners]
     );
 
     // Only fetch data with minimal parameters to reduce unnecessary calls
