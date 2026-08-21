@@ -59,7 +59,9 @@ import {
     REDESIGN_TOKENS as T,
     REDESIGN_FONT_STACK,
 } from "@/Components/Redesign/tokens";
-import EntityListHeader from "@/Components/Redesign/primitives/EntityListHeader";
+import EntityListHeader, {
+    FiltersButton,
+} from "@/Components/Redesign/primitives/EntityListHeader";
 
 /** Rows-per-page preference, remembered per browser across visits. */
 const LEADS_PER_PAGE_STORAGE_KEY = "hibarr_leads_per_page";
@@ -468,6 +470,15 @@ const Index = ({
                                 />
                                 {td("Refresh", { source: "en" })}
                             </button>
+                            {/* Leads has no second toolbar row (no pipeline
+                                selector/quick filters), so Filters sits with
+                                the other actions instead of alone on its own
+                                line. */}
+                            <FiltersButton
+                                count={activeFilterCount}
+                                onClick={openDrawer}
+                                label={t("app.filter")}
+                            />
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-primary"
@@ -478,9 +489,6 @@ const Index = ({
                             </button>
                         </>
                     }
-                    filtersCount={activeFilterCount}
-                    onOpenFilters={openDrawer}
-                    filtersLabel={t("app.filter")}
                     filterSentence={
                         useFilterV2 ? (
                             <ActiveFilterSentence

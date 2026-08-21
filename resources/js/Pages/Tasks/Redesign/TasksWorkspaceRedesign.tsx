@@ -152,6 +152,20 @@ function canDeleteTask(
     return hasTaskScopePermission(task, permissions?.delete_tasks, userId);
 }
 
+/**
+ * Whether the current user has edit access to this task — used for the
+ * checklist (add/toggle/remove), which should follow edit_tasks even when
+ * change_status is configured narrower (canChangeStatus falls back to
+ * edit_tasks only when change_status is unset, not when it's just tighter).
+ */
+function canEditTask(
+    task: Task,
+    permissions: TasksIndexProps["permissions"],
+    userId: number,
+): boolean {
+    return hasTaskScopePermission(task, permissions?.edit_tasks, userId);
+}
+
 /** Whether the current user may add a comment on this task. */
 function canCommentOnTask(
     task: Task,
@@ -241,6 +255,10 @@ export default function TasksWorkspaceRedesign({
         duplicatingTaskId,
         setDuplicatingTaskId,
     } = useTasksWorkspaceUiState();
+    /** Column the Kanban "+" was clicked from — pre-fills the create modal. */
+    const [addBoardColumnId, setAddBoardColumnId] = useState<number | null>(
+        null,
+    );
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -820,7 +838,10 @@ export default function TasksWorkspaceRedesign({
                         onViewChange={setView}
                         onRefresh={handleRefresh}
                         refreshing={refreshing}
-                        onAddTask={() => setAddOpen(true)}
+                        onAddTask={() => {
+                            setAddBoardColumnId(null);
+                            setAddOpen(true);
+                        }}
                         canAddTask={canAdd(permissions?.add_tasks)}
                         headline={headline}
                         showTaskSettings={canManageTaskCategories}
@@ -869,7 +890,7 @@ export default function TasksWorkspaceRedesign({
                     {
                         minHeight: view === "board" ? undefined : 320,
                         // The filter summary strip, when shown, pushes the
-                        // board down — account for it in the board's height.
+                        // board down — account for it in column max-height.
                         "--tasks-board-offset": "328px",
                     } as React.CSSProperties
                 }
@@ -928,15 +949,7 @@ export default function TasksWorkspaceRedesign({
                         </div>
                     </>
                 ) : (
-                    // The board owns the remaining viewport height; only its
-                    // columns scroll, so the page itself stays put.
-                    <div
-                        style={{
-                            height: "calc(100vh - var(--tasks-board-offset))",
-                            minHeight: 380,
-                        }}
-                    >
-                        <TasksBoardView
+                    <TasksBoardView
                             tasks={boardViewModels}
                             columns={columns}
                             cardMeta={BOARD_CARD_META}
@@ -948,8 +961,16 @@ export default function TasksWorkspaceRedesign({
                                 setStatus(vm.id, column.slug)
                             }
                             pageSize={pagedTableTasks.per_page}
+                            rowActions={rowActions}
+                            onAddToColumn={
+                                canAdd(permissions?.add_tasks)
+                                    ? (column) => {
+                                          setAddBoardColumnId(column.id);
+                                          setAddOpen(true);
+                                      }
+                                    : undefined
+                            }
                         />
-                    </div>
                 )}
             </div>
 
@@ -968,6 +989,11 @@ export default function TasksWorkspaceRedesign({
                 canWrite={
                     selectedVm
                         ? canChangeStatus(selectedVm.task, permissions, userId)
+                        : false
+                }
+                canManageChecklist={
+                    selectedVm
+                        ? canEditTask(selectedVm.task, permissions, userId)
                         : false
                 }
                 canComment={
@@ -1000,10 +1026,16 @@ export default function TasksWorkspaceRedesign({
                 open={addOpen}
                 mode="create"
                 draftKey={TASK_FORM_DRAFT_KEYS.create}
+                initial={
+                    addBoardColumnId
+                        ? { boardColumnId: addBoardColumnId }
+                        : undefined
+                }
                 onClose={() => {
                     if (isCreating) return;
                     clearCreateErrors();
                     setAddOpen(false);
+                    setAddBoardColumnId(null);
                 }}
                 saving={isCreating}
                 errors={createErrors}
@@ -1022,6 +1054,7 @@ export default function TasksWorkspaceRedesign({
                         },
                         (created) => {
                             setAddOpen(false);
+                            setAddBoardColumnId(null);
                             if (created?.id) {
                                 void persistExtras(
                                     created.id,

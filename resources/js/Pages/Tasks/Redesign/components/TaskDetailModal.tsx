@@ -28,6 +28,12 @@ interface TaskDetailModalProps {
     onEdit: () => void;
     onToggleDone: () => void;
     canWrite: boolean;
+    /**
+     * Checklist add/toggle/remove — separate from canWrite because it
+     * follows edit_tasks, not the narrower change_status scope canWrite
+     * uses for the done-toggle/edit-task affordances.
+     */
+    canManageChecklist: boolean;
     /** Separate from canWrite — comment permission uses add_task_comments. */
     canComment: boolean;
     toggling: boolean;
@@ -54,6 +60,7 @@ export default function TaskDetailModal({
     onEdit,
     onToggleDone,
     canWrite,
+    canManageChecklist,
     canComment,
     deleteCommentScope,
     toggling,
@@ -498,7 +505,7 @@ export default function TaskDetailModal({
                                         type="button"
                                         aria-label={item.title}
                                         aria-pressed={done}
-                                        disabled={!canWrite}
+                                        disabled={!canManageChecklist}
                                         onClick={() => checkpoints.toggle(item)}
                                         className="flex flex-shrink-0 items-center justify-center"
                                         style={{
@@ -510,7 +517,7 @@ export default function TaskDetailModal({
                                             background: done
                                                 ? T.GREEN
                                                 : T.WHITE,
-                                            cursor: canWrite
+                                            cursor: canManageChecklist
                                                 ? "pointer"
                                                 : "default",
                                         }}
@@ -534,7 +541,7 @@ export default function TaskDetailModal({
                                     >
                                         {item.title}
                                     </span>
-                                    {canWrite && (
+                                    {canManageChecklist && (
                                         <button
                                             type="button"
                                             aria-label={`${td("Remove")} ${item.title}`}
@@ -562,7 +569,7 @@ export default function TaskDetailModal({
                             );
                         })}
 
-                        {canWrite && (
+                        {canManageChecklist && (
                             <div
                                 className="flex items-center gap-2.5"
                                 style={{

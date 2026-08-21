@@ -12,6 +12,43 @@ export interface EntityListHeaderViewOption {
     icon: ReactNode;
 }
 
+export interface FiltersButtonProps {
+    count?: number;
+    onClick: () => void;
+    /** Defaults to the ad-hoc-translated "Filters". */
+    label?: string;
+    className?: string;
+}
+
+/** The Filters icon-button-with-badge, shared so a page can place it
+ * outside `EntityListHeader`'s own toolbar row when its layout calls for it
+ * (e.g. inline with the primary actions instead of a second row). */
+export function FiltersButton({
+    count = 0,
+    onClick,
+    label,
+    className = "dr-btn dr-btn-ghost",
+}: FiltersButtonProps) {
+    const { td } = useTd();
+    return (
+        <button type="button" className={className} onClick={onClick}>
+            <FilterOutlined style={{ fontSize: 13 }} />
+            {label ?? td("Filters")}
+            {count > 0 && (
+                <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
+                    style={{
+                        background: T.BLUE,
+                        color: T.WHITE,
+                    }}
+                >
+                    {count}
+                </span>
+            )}
+        </button>
+    );
+}
+
 export interface EntityListHeaderProps {
     title: string;
     /**
@@ -161,25 +198,12 @@ export default function EntityListHeader({
                     <div className="flex flex-wrap items-center gap-2.5">
                         {toolbarLeft}
                         {onOpenFilters && (
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-ghost ml-auto"
+                            <FiltersButton
+                                count={filtersCount}
                                 onClick={onOpenFilters}
-                            >
-                                <FilterOutlined style={{ fontSize: 13 }} />
-                                {filtersLabel ?? td("Filters")}
-                                {filtersCount > 0 && (
-                                    <span
-                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
-                                        style={{
-                                            background: T.BLUE,
-                                            color: T.WHITE,
-                                        }}
-                                    >
-                                        {filtersCount}
-                                    </span>
-                                )}
-                            </button>
+                                label={filtersLabel}
+                                className="dr-btn dr-btn-ghost ml-auto"
+                            />
                         )}
                     </div>
                 )}
