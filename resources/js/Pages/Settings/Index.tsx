@@ -160,6 +160,7 @@ export default function SettingsIndex({
                 onClose={() => setTaskCategoriesOpen(false)}
                 width={560}
                 destroyOnClose
+                maskClosable={false}
                 styles={{ content: { boxShadow: "none" }, wrapper: { boxShadow: "none" } }}
             >
                 <TaskCategoryManager />

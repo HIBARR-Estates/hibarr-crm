@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import {
+    readTaskFormDraft,
+    writeTaskFormDraft,
+} from "../hooks/tasksWorkspaceUiStore";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -78,6 +82,11 @@ interface TaskFormModalProps {
      * the modal is opened from a deal workspace.
      */
     lockedLinks?: TaskLinkRef[];
+    /**
+     * When set, form values are mirrored to the workspace UI store so a
+     * deferred Inertia reload mid-entry does not wipe the draft.
+     */
+    draftKey?: string;
 }
 
 const DEFAULT_DUE_TIME = "17:00";
@@ -158,12 +167,14 @@ export default function TaskFormModal({
     columns,
     records,
     lockedLinks = [],
+    draftKey,
 }: TaskFormModalProps) {
     const { td } = useTd();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
 
     const [form, setForm] = useState<TaskFormValues>(emptyForm);
+    const [formHydrated, setFormHydrated] = useState(false);
     // Status/priority/category manage their own menus (TaskPillSelect);
     // only these two need an explicit anchored popover.
     const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -177,7 +188,25 @@ export default function TaskFormModal({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            setFormHydrated(false);
+            if (draftKey) {
+                writeTaskFormDraft(draftKey, null);
+            }
+            return;
+        }
+        if (formHydrated) return;
+
+        const saved = draftKey ? readTaskFormDraft(draftKey) : undefined;
+        if (saved) {
+            setForm(saved);
+            setAssigneeOpen(false);
+            setLinksOpen(false);
+            setRecordQuery("");
+            setFormHydrated(true);
+            return;
+        }
+
         const seeded = { ...emptyForm(), ...initial };
         const merged = [...seeded.links];
         lockedLinks.forEach((locked) => {
@@ -191,7 +220,7 @@ export default function TaskFormModal({
             }
         });
         seeded.links = merged;
-        seeded.checklist = [];
+        seeded.checklist = initial?.checklist ?? [];
         seeded.files = [];
         if (
             mode === "create" &&
@@ -204,8 +233,14 @@ export default function TaskFormModal({
         setAssigneeOpen(false);
         setLinksOpen(false);
         setRecordQuery("");
+        setFormHydrated(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, formHydrated]);
+
+    useEffect(() => {
+        if (!open || !draftKey || !formHydrated) return;
+        writeTaskFormDraft(draftKey, form);
+    }, [open, draftKey, form, formHydrated]);
 
     useEffect(() => {
         if (!open || typeof document === "undefined") return undefined;
@@ -371,7 +406,6 @@ export default function TaskFormModal({
         <div
             className="redesign-modal-overlay tasks-modal-overlay"
             role="presentation"
-            onClick={() => !saving && onClose()}
             style={{
                 position: "fixed",
                 inset: 0,

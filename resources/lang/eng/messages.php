@@ -221,6 +221,7 @@ return array(
     'removeMethodText' => 'This will remove the payment method from the list',
     'deleteProduct' => 'You will not be able to recover the deleted product!',
     'deleteTask' => 'You will not be able to recover the deleted task!',
+    'deleteTaskCategory' => 'You will not be able to recover the deleted task category!',
     'markCompleteTask' => 'There is an incomplete sub-task in this task do you want to mark complete!',
     'sendApprovalTask' => 'Do you want to send approval for this task to admin?',
     'approvalmsg' => 'You will not be able to make any changes to the task till the task is reviewed.',

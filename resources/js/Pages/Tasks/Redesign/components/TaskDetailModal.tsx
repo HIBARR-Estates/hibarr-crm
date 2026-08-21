@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
@@ -7,11 +7,13 @@ import { formatDateWithTime } from "@/Components/Redesign/adapters/dateFormat";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
-import { TaskGlyph } from "./primitives/TaskGlyphs";
+import { TaskGlyph, TaskPriorityStripe } from "./primitives/TaskGlyphs";
 import TaskRecordIcon from "./primitives/TaskRecordIcon";
 import TaskCommentsPanel from "./TaskCommentsPanel";
 import useTaskComments from "../hooks/useTaskComments";
-import useTaskCheckpoints from "../hooks/useTaskCheckpoints";
+import useTaskCheckpoints, {
+    type TaskCheckpoint,
+} from "../hooks/useTaskCheckpoints";
 
 interface PersonOption {
     id: number;
@@ -26,10 +28,16 @@ interface TaskDetailModalProps {
     onEdit: () => void;
     onToggleDone: () => void;
     canWrite: boolean;
+    /** Separate from canWrite — comment permission uses add_task_comments. */
+    canComment: boolean;
     toggling: boolean;
     /** Employees available to @mention in comments. */
     people: PersonOption[];
     currentUser: { id: number; name: string; image?: string | null };
+    /** delete_task_comments scope — controls which comments show a delete control. */
+    deleteCommentScope?: string;
+    /** Mirrors checklist add/toggle/remove back into the source task list. */
+    onChecklistChange?: (taskId: number, items: TaskCheckpoint[]) => void;
 }
 
 const LABEL: React.CSSProperties = {
@@ -46,15 +54,26 @@ export default function TaskDetailModal({
     onEdit,
     onToggleDone,
     canWrite,
+    canComment,
+    deleteCommentScope,
     toggling,
     people,
     currentUser,
+    onChecklistChange,
 }: TaskDetailModalProps) {
     const { td } = useTd();
     const [newCheckpoint, setNewCheckpoint] = useState("");
+    const addCheckpointRef = useRef<HTMLInputElement>(null);
 
     const comments = useTaskComments(vm?.id ?? null);
-    const checkpoints = useTaskCheckpoints(vm?.id ?? null, vm?.task.subtasks);
+    const taskId = vm?.id ?? null;
+    const checkpoints = useTaskCheckpoints(
+        taskId,
+        vm?.task.subtasks,
+        taskId !== null
+            ? (items) => onChecklistChange?.(taskId, items)
+            : undefined,
+    );
 
     useEffect(() => {
         if (!vm) return undefined;
@@ -86,11 +105,33 @@ export default function TaskDetailModal({
         (item) => item.status === "complete",
     ).length;
 
+    /** Focuses the always-visible add-item field; if it already has unsaved
+     *  text, that text is committed as a checklist item first so the field
+     *  is clear and ready for the next entry. */
+    const handleAddChecklistClick = () => {
+        if (newCheckpoint.trim()) {
+            void checkpoints.add(newCheckpoint.trim()).then(() => {
+                setNewCheckpoint("");
+                addCheckpointRef.current?.focus();
+            });
+        } else {
+            addCheckpointRef.current?.focus();
+        }
+    };
+
+    /** Commits the in-progress checklist draft — shared by the Enter key and
+     *  the inline save icon that appears once there's something to save. */
+    const submitChecklistDraft = () => {
+        if (!newCheckpoint.trim()) return;
+        void checkpoints
+            .add(newCheckpoint.trim())
+            .then(() => setNewCheckpoint(""));
+    };
+
     return createPortal(
         <div
             className="redesign-modal-overlay tasks-modal-overlay"
             role="presentation"
-            onClick={onClose}
             style={{
                 position: "fixed",
                 inset: 0,
@@ -109,9 +150,11 @@ export default function TaskDetailModal({
                 onClick={(event) => event.stopPropagation()}
                 className="tasks-modal-panel flex w-full overflow-hidden"
                 style={{
-                    minWidth: 880,
-                    maxWidth: 920,
-                    maxHeight: "88vh",
+                    minWidth: 1040,
+                    maxWidth: 1100,
+                    // Fixed, not min/max — comments/checklist scroll inside
+                    // their own regions instead of resizing the modal.
+                    height: 741,
                     background: T.WHITE,
                     borderRadius: 14,
                     boxShadow: "0 20px 50px rgba(22,41,77,0.18)",
@@ -195,9 +238,9 @@ export default function TaskDetailModal({
                                     >
                                         <span
                                             style={{
-                                                width: 6,
-                                                height: 6,
-                                                borderRadius: 999,
+                                                width: 7,
+                                                height: 7,
+                                                borderRadius: 2,
                                                 background: vm.category.dot,
                                             }}
                                         />
@@ -207,6 +250,10 @@ export default function TaskDetailModal({
                             )}
                             <span style={{ color: T.TEXT_HINT }}>·</span>
                             <span className="inline-flex items-center gap-1.5">
+                                <TaskPriorityStripe
+                                    priority={vm.priority}
+                                    size={14}
+                                />
                                 {td(vm.priority.label)} {td("priority")}
                             </span>
                         </div>
@@ -394,7 +441,7 @@ export default function TaskDetailModal({
                         </p>
                         <p
                             style={{
-                                fontSize: 16,
+                                fontSize: 14,
                                 lineHeight: 1.55,
                                 margin: "0 0 20px",
                                 color: vm.descriptionText
@@ -478,7 +525,7 @@ export default function TaskDetailModal({
                                     <span
                                         className="flex-1"
                                         style={{
-                                            fontSize: 15.5,
+                                            fontSize: 13.5,
                                             color: done ? T.TEXT_HINT : T.TEXT,
                                             textDecoration: done
                                                 ? "line-through"
@@ -523,12 +570,41 @@ export default function TaskDetailModal({
                                     color: T.TEXT_HINT,
                                 }}
                             >
-                                <TaskGlyph
-                                    d={TASK_ICON.plus}
-                                    size={15}
-                                    strokeWidth={1.5}
-                                />
+                                <button
+                                    type="button"
+                                    aria-label={td("Add checklist item")}
+                                    onClick={handleAddChecklistClick}
+                                    disabled={checkpoints.saving}
+                                    className="flex flex-shrink-0 items-center justify-center"
+                                    style={{
+                                        width: 15,
+                                        height: 15,
+                                        padding: 0,
+                                        border: "none",
+                                        background: "transparent",
+                                        color: T.TEXT_HINT,
+                                        cursor: checkpoints.saving
+                                            ? "default"
+                                            : "pointer",
+                                    }}
+                                >
+                                    {checkpoints.saving ? (
+                                        <span
+                                            aria-hidden="true"
+                                            className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
+                                            style={{ width: 11, height: 11 }}
+                                        />
+                                    ) : (
+                                        <TaskGlyph
+                                            d={TASK_ICON.plus}
+                                            size={15}
+                                            strokeWidth={1.5}
+                                        />
+                                    )}
+                                </button>
                                 <input
+                                    ref={addCheckpointRef}
+                                    className="tasks-bare-input"
                                     value={newCheckpoint}
                                     disabled={checkpoints.saving}
                                     placeholder={td("Add a checklist item")}
@@ -536,28 +612,50 @@ export default function TaskDetailModal({
                                         setNewCheckpoint(event.target.value)
                                     }
                                     onKeyDown={(event) => {
-                                        if (
-                                            event.key === "Enter" &&
-                                            newCheckpoint.trim()
-                                        ) {
+                                        if (event.key === "Enter") {
                                             event.preventDefault();
-                                            void checkpoints
-                                                .add(newCheckpoint.trim())
-                                                .then(() =>
-                                                    setNewCheckpoint(""),
-                                                );
+                                            submitChecklistDraft();
                                         }
                                     }}
                                     style={{
                                         flex: 1,
                                         border: "none",
                                         outline: "none",
-                                        fontSize: 15.5,
+                                        fontSize: 13.5,
                                         color: T.TEXT,
                                         background: "transparent",
                                         fontFamily: "inherit",
                                     }}
                                 />
+                                {newCheckpoint.trim() && (
+                                    <button
+                                        type="button"
+                                        aria-label={td(
+                                            "Save checklist item",
+                                        )}
+                                        title={td("Save checklist item")}
+                                        onClick={submitChecklistDraft}
+                                        disabled={checkpoints.saving}
+                                        className="flex flex-shrink-0 items-center justify-center"
+                                        style={{
+                                            width: 15,
+                                            height: 15,
+                                            padding: 0,
+                                            border: "none",
+                                            background: "transparent",
+                                            color: T.TEXT_HINT,
+                                            cursor: checkpoints.saving
+                                                ? "default"
+                                                : "pointer",
+                                        }}
+                                    >
+                                        <TaskGlyph
+                                            d={TASK_ICON.enter}
+                                            size={15}
+                                            strokeWidth={1.5}
+                                        />
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -658,14 +756,19 @@ export default function TaskDetailModal({
                 {/* ── Comments rail ────────────────────────────── */}
                 <TaskCommentsPanel
                     comments={comments.comments}
+                    totalCount={comments.totalCount}
                     loading={comments.loading}
+                    loadingMore={comments.loadingMore}
+                    hasMore={comments.hasMore}
                     posting={comments.posting}
                     error={comments.error}
                     people={people}
                     currentUser={currentUser}
-                    canComment={canWrite}
+                    canComment={canComment}
+                    deleteCommentScope={deleteCommentScope}
                     onSubmit={comments.addComment}
                     onDelete={comments.deleteComment}
+                    onLoadMore={comments.loadMore}
                 />
             </div>
         </div>,

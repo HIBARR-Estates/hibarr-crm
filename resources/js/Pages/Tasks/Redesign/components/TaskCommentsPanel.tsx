@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SendOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
+import PeoplePicker from "@/Components/Redesign/primitives/PeoplePicker";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import { assigneeTone } from "../config/taskDesignTokens";
@@ -15,16 +17,28 @@ interface MentionCandidate {
 
 interface TaskCommentsPanelProps {
     comments: TaskCommentRecord[];
+    /** Total comment count on the task — may exceed `comments.length` while
+     *  older pages haven't been fetched yet. */
+    totalCount: number;
     loading: boolean;
+    /** Fetching an older page via `onLoadMore`. */
+    loadingMore: boolean;
+    /** Whether an older page still exists to fetch. */
+    hasMore: boolean;
     posting: boolean;
     error: string | null;
     /** Employees available to @mention. */
     people: MentionCandidate[];
     currentUser: { id: number; name: string; image?: string | null };
     canComment: boolean;
+    /** delete_task_comments scope — controls which comments show a delete control. */
+    deleteCommentScope?: string;
     onSubmit: (comment: string, mentionUserIds: number[]) => Promise<boolean>;
     onDelete: (commentId: number) => void;
+    onLoadMore: () => Promise<void>;
 }
+
+const MAX_INPUT_HEIGHT = 140;
 
 const LABEL: React.CSSProperties = {
     fontSize: 14,
@@ -73,14 +87,19 @@ function extractMentionIds(comment: string): number[] {
  */
 export default function TaskCommentsPanel({
     comments,
+    totalCount,
     loading,
+    loadingMore,
+    hasMore,
     posting,
     error,
     people,
     currentUser,
     canComment,
+    deleteCommentScope,
     onSubmit,
     onDelete,
+    onLoadMore,
 }: TaskCommentsPanelProps) {
     const { td } = useTd();
     const [draft, setDraft] = useState("");
@@ -88,12 +107,75 @@ export default function TaskCommentsPanel({
     const [activeIndex, setActiveIndex] = useState(0);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    /** Tracks an `@` inserted by the button click so it can be undone if the
+     *  picker gets dismissed (blur/Escape) without anyone selected. */
+    const buttonMentionRef = useRef<{ at: number; length: number } | null>(
+        null,
+    );
 
-    // Keep the newest comment in view as the thread grows.
+    // Jump to the newest comment once the initial page has loaded — but not
+    // after "load earlier" prepends older ones (that has its own scroll-
+    // anchoring in handleLoadMore) or on every re-render.
+    const scrolledRef = useRef(false);
     useEffect(() => {
+        if (loading) {
+            scrolledRef.current = false;
+            return;
+        }
+        if (scrolledRef.current) return;
+        scrolledRef.current = true;
         const node = scrollRef.current;
         if (node) node.scrollTop = node.scrollHeight;
-    }, [comments.length]);
+    }, [loading]);
+
+    /** Fetches the previous page while keeping the same comments in view
+     *  (anchored to scroll position, not jumping to the top of the list). */
+    const handleLoadMore = async () => {
+        const node = scrollRef.current;
+        const prevHeight = node?.scrollHeight ?? 0;
+        const prevTop = node?.scrollTop ?? 0;
+        await onLoadMore();
+        window.requestAnimationFrame(() => {
+            if (!node) return;
+            node.scrollTop = node.scrollHeight - prevHeight + prevTop;
+        });
+    };
+
+    // Auto-grow the composer with its content — starts as a single line,
+    // expands up to MAX_INPUT_HEIGHT, then scrolls internally.
+    useEffect(() => {
+        const node = inputRef.current;
+        if (!node) return;
+        node.style.height = "auto";
+        node.style.height = `${Math.min(node.scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    }, [draft]);
+
+    // Consecutive comments from the same author collapse under one
+    // avatar/name/time header, chat-style, instead of repeating it per line.
+    const commentGroups = useMemo(() => {
+        const groups: Array<{
+            user: TaskCommentRecord["user"];
+            is_mine: boolean;
+            items: TaskCommentRecord[];
+        }> = [];
+        for (const comment of comments) {
+            const last = groups[groups.length - 1];
+            const sameAuthor =
+                last &&
+                last.is_mine === comment.is_mine &&
+                (last.user?.id ?? null) === (comment.user?.id ?? null);
+            if (sameAuthor) {
+                last.items.push(comment);
+            } else {
+                groups.push({
+                    user: comment.user,
+                    is_mine: comment.is_mine,
+                    items: [comment],
+                });
+            }
+        }
+        return groups;
+    }, [comments]);
 
     const matches = useMemo(() => {
         if (mentionQuery === null) return [];
@@ -124,7 +206,7 @@ export default function TaskCommentsPanel({
         setActiveIndex(0);
     };
 
-    const insertMention = (person: MentionCandidate) => {
+    const insertMention = (person: { id: number; name: string }) => {
         const input = inputRef.current;
         const caret = input?.selectionStart ?? draft.length;
         const upToCaret = draft.slice(0, caret);
@@ -135,6 +217,7 @@ export default function TaskCommentsPanel({
         const next = draft.slice(0, at) + marker + draft.slice(caret);
         setDraft(next);
         setMentionQuery(null);
+        buttonMentionRef.current = null;
 
         // Put the caret straight after the inserted marker.
         window.requestAnimationFrame(() => {
@@ -144,18 +227,54 @@ export default function TaskCommentsPanel({
         });
     };
 
+    /** Closes the mention picker, quietly removing a still-empty
+     *  button-inserted `@` — typed `@`s and picked mentions are left alone. */
+    const closeMentionDropdown = () => {
+        const pending = buttonMentionRef.current;
+        if (pending && mentionQuery === "" && draft.length === pending.length) {
+            setDraft((prev) =>
+                prev.length === pending.length
+                    ? prev.slice(0, pending.at) + prev.slice(pending.at + 1)
+                    : prev,
+            );
+        }
+        buttonMentionRef.current = null;
+        setMentionQuery(null);
+    };
+
     const submit = async () => {
         const value = draft.trim();
         if (!value || posting) return;
         const ok = await onSubmit(value, extractMentionIds(value));
-        if (ok) setDraft("");
+        if (ok) {
+            setDraft("");
+            window.requestAnimationFrame(() => {
+                const node = scrollRef.current;
+                if (node) node.scrollTop = node.scrollHeight;
+            });
+        }
+    };
+
+    /** Inserts "@" at the caret and opens the mention dropdown, same as typing it. */
+    const handleInsertAtSymbol = () => {
+        const input = inputRef.current;
+        const caret = input?.selectionStart ?? draft.length;
+        const next = draft.slice(0, caret) + "@" + draft.slice(caret);
+        buttonMentionRef.current = { at: caret, length: next.length };
+        setDraft(next);
+        window.requestAnimationFrame(() => {
+            const position = caret + 1;
+            input?.focus();
+            input?.setSelectionRange(position, position);
+            syncMentionQuery(next, position);
+        });
     };
 
     return (
         <div
             className="flex min-h-0 flex-shrink-0 flex-col"
             style={{
-                width: 320,
+                width: 380,
                 borderLeft: `1px solid ${T.BORDER_SOFT}`,
                 background: T.SURFACE_2,
             }}
@@ -178,14 +297,14 @@ export default function TaskCommentsPanel({
                         padding: "1px 7px",
                     }}
                 >
-                    {comments.length}
+                    {totalCount}
                 </span>
             </div>
 
             <div
                 ref={scrollRef}
                 className="min-h-0 flex-1 overflow-y-auto"
-                style={{ padding: "14px 18px" }}
+                style={{ padding: "18px 20px" }}
             >
                 {loading && (
                     <p style={{ fontSize: 15, color: T.TEXT_HINT }}>
@@ -205,21 +324,46 @@ export default function TaskCommentsPanel({
                     </p>
                 )}
 
-                {comments.map((comment) => (
+                {!loading && hasMore && (
+                    <button
+                        type="button"
+                        onClick={() => void handleLoadMore()}
+                        disabled={loadingMore}
+                        className="tasks-press mb-5 block"
+                        style={{
+                            margin: "0 auto 20px",
+                            padding: "5px 12px",
+                            border: `1px solid ${T.BORDER}`,
+                            borderRadius: 999,
+                            background: T.WHITE,
+                            fontSize: 13.5,
+                            fontWeight: 600,
+                            color: T.TEXT_MUTED,
+                            cursor: loadingMore ? "default" : "pointer",
+                            opacity: loadingMore ? 0.6 : 1,
+                        }}
+                    >
+                        {loadingMore
+                            ? td("Loading…")
+                            : td("Load earlier comments")}
+                    </button>
+                )}
+
+                {commentGroups.map((group) => (
                     <div
-                        key={comment.id}
-                        className="tasks-comment mb-4 flex gap-2.5"
+                        key={group.items[0].id}
+                        className="mb-5 flex gap-3"
                     >
                         <Avatar
-                            size={26}
+                            size={32}
                             initials={initialsFromName(
-                                comment.user?.name ?? "?",
+                                group.user?.name ?? "?",
                             )}
-                            src={comment.user?.image}
-                            tone={assigneeTone(comment.user?.id ?? 0)}
+                            src={group.user?.image}
+                            tone={assigneeTone(group.user?.id ?? 0)}
                         />
                         <div className="min-w-0 flex-1">
-                            <div className="mb-0.5 flex flex-wrap items-baseline gap-1.5">
+                            <div className="mb-1 flex items-baseline gap-1.5">
                                 <span
                                     style={{
                                         fontSize: 14.5,
@@ -227,9 +371,9 @@ export default function TaskCommentsPanel({
                                         color: T.TEXT,
                                     }}
                                 >
-                                    {comment.is_mine
+                                    {group.is_mine
                                         ? td("You")
-                                        : (comment.user?.name ?? td("Unknown"))}
+                                        : (group.user?.name ?? td("Unknown"))}
                                 </span>
                                 <span
                                     style={{
@@ -237,39 +381,52 @@ export default function TaskCommentsPanel({
                                         color: T.TEXT_HINT,
                                     }}
                                 >
-                                    · {comment.created_at_human}
+                                    {group.items[0].created_at_human}
                                 </span>
-                                {comment.is_mine && (
-                                    <button
-                                        type="button"
-                                        onClick={() => onDelete(comment.id)}
-                                        className="tasks-comment-delete ml-auto"
-                                        style={{
-                                            background: "transparent",
-                                            border: "none",
-                                            padding: 0,
-                                            fontSize: 14,
-                                            color: T.TEXT_HINT,
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        {td("Delete")}
-                                    </button>
-                                )}
                             </div>
-                            <div
-                                style={{
-                                    fontSize: 15,
-                                    color: T.TEXT_MUTED,
-                                    lineHeight: 1.55,
-                                    overflowWrap: "anywhere",
-                                }}
-                                // Escaped in renderComment; only mention chips
-                                // survive as markup.
-                                dangerouslySetInnerHTML={{
-                                    __html: renderComment(comment.comment),
-                                }}
-                            />
+                            {group.items.map((comment) => (
+                                <div
+                                    key={comment.id}
+                                    className="tasks-comment flex items-start justify-between gap-2"
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 15,
+                                            color: T.TEXT_MUTED,
+                                            lineHeight: 1.65,
+                                            overflowWrap: "anywhere",
+                                        }}
+                                        // Escaped in renderComment; only
+                                        // mention chips survive as markup.
+                                        dangerouslySetInnerHTML={{
+                                            __html: renderComment(
+                                                comment.comment,
+                                            ),
+                                        }}
+                                    />
+                                    {(deleteCommentScope === "all" ||
+                                        (deleteCommentScope === "added" &&
+                                            comment.is_mine)) && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onDelete(comment.id)
+                                            }
+                                            className="tasks-comment-delete flex-shrink-0"
+                                            style={{
+                                                background: "transparent",
+                                                border: "none",
+                                                padding: 0,
+                                                fontSize: 14,
+                                                color: T.TEXT_HINT,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            {td("Delete")}
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
@@ -287,6 +444,10 @@ export default function TaskCommentsPanel({
                     {mentionQuery !== null && matches.length > 0 && (
                         <div
                             className="tasks-reveal"
+                            // Rows are plain <button>s, which steal focus on
+                            // mousedown; without this the textarea's onBlur
+                            // would strip a pending "@" before onPick runs.
+                            onMouseDown={(event) => event.preventDefault()}
                             style={{
                                 position: "absolute",
                                 bottom: "100%",
@@ -298,174 +459,146 @@ export default function TaskCommentsPanel({
                                 borderRadius: 10,
                                 boxShadow: "0 12px 28px rgba(22,41,77,0.14)",
                                 overflow: "hidden",
+                                padding: 4,
                                 zIndex: 5,
                             }}
                         >
-                            {matches.map((person, index) => (
-                                <button
-                                    key={person.id}
-                                    type="button"
-                                    // mousedown fires before the textarea blurs.
-                                    onMouseDown={(event) => {
-                                        event.preventDefault();
-                                        insertMention(person);
-                                    }}
-                                    className="flex w-full items-center gap-2.5"
-                                    style={{
-                                        padding: "8px 10px",
-                                        border: "none",
-                                        background:
-                                            index === activeIndex
-                                                ? T.BLUE_LIGHT
-                                                : "transparent",
-                                        cursor: "pointer",
-                                        textAlign: "left",
-                                    }}
-                                >
-                                    <Avatar
-                                        size={22}
-                                        initials={initialsFromName(person.name)}
-                                        src={person.image}
-                                        tone={assigneeTone(person.id)}
-                                    />
-                                    <span
-                                        className="min-w-0 flex-1 truncate"
-                                        style={{
-                                            fontSize: 15,
-                                            fontWeight: 600,
-                                            color: T.TEXT,
-                                        }}
-                                    >
-                                        {person.name}
-                                    </span>
-                                    {person.designation_name && (
-                                        <span
-                                            style={{
-                                                fontSize: 13,
-                                                color: T.TEXT_HINT,
-                                            }}
-                                        >
-                                            {person.designation_name}
-                                        </span>
-                                    )}
-                                </button>
-                            ))}
+                            <PeoplePicker
+                                people={matches.map((person) => ({
+                                    id: person.id,
+                                    name: person.name,
+                                    designation: person.designation_name,
+                                    image: person.image,
+                                }))}
+                                showSearchInput={false}
+                                remoteFilter
+                                onPick={insertMention}
+                            />
                         </div>
                     )}
 
-                    <div className="flex items-start gap-2">
-                        <Avatar
-                            size={26}
-                            initials={initialsFromName(currentUser.name)}
-                            src={currentUser.image}
-                            tone={assigneeTone(currentUser.id)}
-                        />
-                        <div
-                            className="min-w-0 flex-1"
-                            style={{
-                                border: `1px solid ${T.BORDER}`,
-                                borderRadius: 8,
-                                padding: "8px 10px",
-                                background: T.WHITE,
+                    <div className="flex flex-col gap-2">
+                        <textarea
+                            ref={inputRef}
+                            className="tasks-bare-input"
+                            rows={1}
+                            value={draft}
+                            disabled={posting}
+                            placeholder={td("Reply or @ mention someone")}
+                            onChange={(event) => {
+                                setDraft(event.target.value);
+                                syncMentionQuery(
+                                    event.target.value,
+                                    event.target.selectionStart ?? 0,
+                                );
                             }}
-                        >
-                            <textarea
-                                ref={inputRef}
-                                rows={2}
-                                value={draft}
-                                disabled={posting}
-                                placeholder={td("Add a comment, @ to mention")}
-                                onChange={(event) => {
-                                    setDraft(event.target.value);
-                                    syncMentionQuery(
-                                        event.target.value,
-                                        event.target.selectionStart ?? 0,
-                                    );
-                                }}
-                                onKeyDown={(event) => {
-                                    if (
-                                        mentionQuery !== null &&
-                                        matches.length > 0
-                                    ) {
-                                        if (event.key === "ArrowDown") {
-                                            event.preventDefault();
-                                            setActiveIndex(
-                                                (activeIndex + 1) %
-                                                    matches.length,
-                                            );
-                                            return;
-                                        }
-                                        if (event.key === "ArrowUp") {
-                                            event.preventDefault();
-                                            setActiveIndex(
-                                                (activeIndex -
-                                                    1 +
-                                                    matches.length) %
-                                                    matches.length,
-                                            );
-                                            return;
-                                        }
-                                        if (
-                                            event.key === "Enter" ||
-                                            event.key === "Tab"
-                                        ) {
-                                            event.preventDefault();
-                                            insertMention(matches[activeIndex]);
-                                            return;
-                                        }
-                                        if (event.key === "Escape") {
-                                            event.stopPropagation();
-                                            setMentionQuery(null);
-                                            return;
-                                        }
+                            onKeyDown={(event) => {
+                                if (
+                                    mentionQuery !== null &&
+                                    matches.length > 0
+                                ) {
+                                    if (event.key === "ArrowDown") {
+                                        event.preventDefault();
+                                        setActiveIndex(
+                                            (activeIndex + 1) %
+                                                matches.length,
+                                        );
+                                        return;
+                                    }
+                                    if (event.key === "ArrowUp") {
+                                        event.preventDefault();
+                                        setActiveIndex(
+                                            (activeIndex -
+                                                1 +
+                                                matches.length) %
+                                                matches.length,
+                                        );
+                                        return;
                                     }
                                     if (
-                                        event.key === "Enter" &&
-                                        !event.shiftKey
+                                        event.key === "Enter" ||
+                                        event.key === "Tab"
                                     ) {
                                         event.preventDefault();
-                                        void submit();
+                                        insertMention(matches[activeIndex]);
+                                        return;
                                     }
-                                }}
+                                    if (event.key === "Escape") {
+                                        event.stopPropagation();
+                                        closeMentionDropdown();
+                                        return;
+                                    }
+                                }
+                                if (
+                                    event.key === "Enter" &&
+                                    !event.shiftKey
+                                ) {
+                                    event.preventDefault();
+                                    void submit();
+                                }
+                            }}
+                            onBlur={() => {
+                                if (mentionQuery !== null) {
+                                    closeMentionDropdown();
+                                }
+                            }}
+                            style={{
+                                width: "100%",
+                                maxHeight: MAX_INPUT_HEIGHT,
+                                border: "none",
+                                outline: "none",
+                                resize: "none",
+                                overflowY: "auto",
+                                fontSize: 15,
+                                lineHeight: 1.5,
+                                color: T.TEXT,
+                                background: "transparent",
+                                fontFamily: "inherit",
+                            }}
+                        />
+                        <div className="flex items-center justify-between">
+                            <button
+                                type="button"
+                                aria-label={td("Mention someone")}
+                                title={td("Mention someone")}
+                                onClick={handleInsertAtSymbol}
+                                disabled={posting}
+                                className="tasks-press flex flex-shrink-0 items-center justify-center"
                                 style={{
-                                    width: "100%",
-                                    border: "none",
-                                    outline: "none",
-                                    resize: "none",
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 7,
+                                    background: T.WHITE,
+                                    color: T.TEXT_MUTED,
+                                    border: `1px solid ${T.BORDER}`,
                                     fontSize: 15,
-                                    lineHeight: 1.5,
-                                    color: T.TEXT,
-                                    background: "transparent",
-                                    fontFamily: "inherit",
+                                    fontWeight: 700,
+                                    cursor: posting ? "default" : "pointer",
                                 }}
-                            />
-                            <div className="mt-1.5 flex items-center justify-between gap-2">
-                                <span
-                                    style={{ fontSize: 13, color: T.TEXT_HINT }}
-                                >
-                                    {td("@ to mention")}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => void submit()}
-                                    disabled={!draft.trim() || posting}
-                                    className="tasks-press"
-                                    style={{
-                                        padding: "6px 12px",
-                                        borderRadius: 6,
-                                        background: T.BLUE,
-                                        color: T.WHITE,
-                                        border: "none",
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        opacity:
-                                            !draft.trim() || posting ? 0.45 : 1,
-                                    }}
-                                >
-                                    {posting ? td("Posting…") : td("Comment")}
-                                </button>
-                            </div>
+                            >
+                                @
+                            </button>
+                            <button
+                                type="button"
+                                aria-label={td("Send")}
+                                title={td("Send")}
+                                onClick={() => void submit()}
+                                disabled={!draft.trim() || posting}
+                                className="tasks-press flex flex-shrink-0 items-center justify-center"
+                                style={{
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 999,
+                                    background: T.BLUE,
+                                    color: T.WHITE,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    opacity:
+                                        !draft.trim() || posting ? 0.45 : 1,
+                                }}
+                            >
+                                <SendOutlined style={{ fontSize: 14 }} />
+                            </button>
                         </div>
                     </div>
 

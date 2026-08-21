@@ -657,6 +657,7 @@ export default function WorkspaceTasksTab({
                 onClose={() => setTaskSettingsOpen(false)}
                 width={520}
                 destroyOnClose
+                maskClosable={false}
                 styles={{ content: { boxShadow: "none" }, wrapper: { boxShadow: "none" } }}
             >
                 <TaskCategoryManager />

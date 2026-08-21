@@ -125,6 +125,14 @@ class LeadContactController extends AccountBaseController
             'nextActionDueThisWeekCount' => Inertia::defer(
                 fn () => $this->leadService->countNextActionBucket($request, 'week')
             ),
+            // Header stats line — same filtered/permission-scoped counts as
+            // the toolbar pill, just two more buckets.
+            'nextActionOverdueCount' => Inertia::defer(
+                fn () => $this->leadService->countNextActionBucket($request, 'overdue')
+            ),
+            'hotLeadsCount' => Inertia::defer(
+                fn () => $this->leadService->countByTemperature($request, LeadTemperature::Hot->value)
+            ),
             'meetingTypes' => Inertia::defer(
                 fn () => \App\Models\MeetingType::where('company_id', company()->id)->get(['id', 'name'])
             ),

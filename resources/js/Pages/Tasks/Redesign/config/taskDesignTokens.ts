@@ -44,6 +44,7 @@ export const TASK_ICON = {
     edit: "M18 2l4 4-11 11H7v-4zM3 21h18",
     check: "M20 6 9 17l-5-5",
     download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+    enter: "M9 10 4 15l5 5M20 4v7a4 4 0 0 1-4 4H4",
 } as const;
 
 export type TaskPriorityKey =
@@ -188,83 +189,27 @@ export interface CategoryToken {
 }
 
 /**
- * The design's five reference categories. Real installs define their own
- * `task_categories` rows, so `categoryToken()` matches on name and otherwise
- * assigns a stable colour from this same palette by hashing the name — the
- * category tag stays colourful and consistent without inventing new hues.
+ * Category tags all share this one accent — `task_categories` rows have no
+ * colour of their own, so categories are distinguished by label text only,
+ * not by hue. It's the same blue used for a selected option everywhere else
+ * (status/priority pills), so a chosen category reads as "selected" in the
+ * picker the same way the others do, instead of looking inert.
  */
-export const TASK_CATEGORIES: Record<string, CategoryToken> = {
-    follow_up: {
-        label: "Follow-up",
-        d: TASK_ICON.phone,
-        dot: "#1a6bb5",
-        bg: "#e8f1fb",
-        fg: "#14538c",
-        border: "#b8d4f0",
-    },
-    viewing: {
-        label: "Viewing",
-        d: TASK_ICON.pin,
-        dot: "#0f766e",
-        bg: "#e6f7f5",
-        fg: "#0f766e",
-        border: "#99e2d8",
-    },
-    documents: {
-        label: "Documents",
-        d: TASK_ICON.file,
-        dot: "#16294d",
-        bg: "#e8ecf2",
-        fg: "#16294d",
-        border: "#c7d0de",
-    },
-    payments: {
-        label: "Payments",
-        d: TASK_ICON.euro,
-        dot: "#177a5b",
-        bg: "#e1f5ee",
-        fg: "#177a5b",
-        border: "#9fe1cb",
-    },
-    admin: {
-        label: "Admin",
-        d: TASK_ICON.note,
-        dot: "#b45309",
-        bg: "#fffbeb",
-        fg: "#92400e",
-        border: "#fde68a",
-    },
+const CATEGORY_STYLE = {
+    d: TASK_ICON.note,
+    dot: "#1a6bb5",
+    bg: "#e8f1fb",
+    fg: "#14538c",
+    border: "#b8d4f0",
 };
 
-const CATEGORY_PALETTE = Object.values(TASK_CATEGORIES);
+export const UNCATEGORISED_LABEL = "Uncategorised";
 
 /** Null when the task has no category — callers should omit the tag entirely
- *  rather than inventing one (this used to hard-fall-back to the design's
- *  "Admin" reference category, mislabeling every uncategorised task). */
+ *  rather than inventing one. */
 export function categoryToken(name: string | undefined): CategoryToken | null {
     if (!name) return null;
-
-    const normalized = name
-        .trim()
-        .toLowerCase()
-        .replace(/[\s-]+/g, "_");
-    const direct = TASK_CATEGORIES[normalized];
-    if (direct) return { ...direct, label: name };
-
-    const byLabel = CATEGORY_PALETTE.find(
-        (token) => token.label.toLowerCase() === name.trim().toLowerCase(),
-    );
-    if (byLabel) return byLabel;
-
-    // Stable colour per unseen category name.
-    let hash = 0;
-    for (let i = 0; i < normalized.length; i += 1) {
-        hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0;
-    }
-    return {
-        ...CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length],
-        label: name,
-    };
+    return { label: name, ...CATEGORY_STYLE };
 }
 
 export type TaskBucketKey =

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 export interface TaskCheckpoint {
@@ -11,10 +11,16 @@ export interface TaskCheckpoint {
  * Checkpoints are the task's sub-tasks. The existing SubTaskController
  * endpoints still render Blade partials back, so the returned `view` payload
  * is ignored and local state is patched instead.
+ *
+ * `onItemsChange` (optional) is fired whenever `items` changes, so the caller
+ * can mirror the checklist back into the source task list state — without it,
+ * a delete/add/toggle only lives in this hook's local state and reverts to
+ * the stale list data the next time the same task is reopened.
  */
 export default function useTaskCheckpoints(
     taskId: number | null,
     initial: TaskCheckpoint[] | undefined,
+    onItemsChange?: (items: TaskCheckpoint[]) => void,
 ) {
     const [items, setItems] = useState<TaskCheckpoint[]>(initial ?? []);
     const [saving, setSaving] = useState(false);
@@ -26,6 +32,14 @@ export default function useTaskCheckpoints(
         setError(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [taskId]);
+
+    const onItemsChangeRef = useRef(onItemsChange);
+    useEffect(() => {
+        onItemsChangeRef.current = onItemsChange;
+    });
+    useEffect(() => {
+        onItemsChangeRef.current?.(items);
+    }, [items]);
 
     const toggle = useCallback(async (item: TaskCheckpoint) => {
         const nextStatus =

@@ -44,6 +44,7 @@ use App\Models\Lead;
 use App\Models\Property;
 use App\Models\DeveloperProject;
 use Inertia\Inertia;
+use App\Services\TaskFilterCountsService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
 
@@ -54,10 +55,13 @@ class TaskController extends AccountBaseController
 
     protected $taskService;
 
-    public function __construct(TaskService $taskService)
+    protected TaskFilterCountsService $taskFilterCounts;
+
+    public function __construct(TaskService $taskService, TaskFilterCountsService $taskFilterCounts)
     {
         parent::__construct();
         $this->taskService = $taskService;
+        $this->taskFilterCounts = $taskFilterCounts;
         $this->pageTitle = 'app.menu.tasks';
         $this->middleware(
             function ($request, $next) {
@@ -238,9 +242,23 @@ class TaskController extends AccountBaseController
             $tasksQuery->orderBy('created_at', 'desc');
         }
 
+        $taskQuickCounts = null;
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $taskQuickCounts = $this->taskFilterCounts->quickFilterCounts(
+                clone $tasksQuery,
+                user()->id,
+            );
+            $this->applyTasksQuickFilter($tasksQuery, (string) request('quick_filter', 'all'));
+        }
+
         $kanbanQuery = clone $tasksQuery;
 
         $tableTasks = $tasksQuery->paginate(request('per_page', 15))->withQueryString();
+
+        $stats = \App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')
+            ? $this->taskFilterCounts->workspaceStats(clone $kanbanQuery)
+            : null;
+
         $kanbanTasks = $kanbanQuery->get();
         
         // Ensure kanban tasks also have the counts
@@ -252,22 +270,24 @@ class TaskController extends AccountBaseController
             'completedSubtasks'
         ]);
 
-        // Calculate Stats
-        $stats = [
-            'total' => $kanbanTasks->count(),
-            'completed' => $kanbanTasks->filter(function ($task) {
-                return ($task->boardColumn->slug ?? '') === 'done';
-            })->count(),
-            'overdue' => $kanbanTasks->filter(function ($task) {
-                return $task->due_date 
-                    && $task->due_date->isPast() 
-                    && ($task->boardColumn->slug ?? '') !== 'done';
-            })->count(),
-            'dueToday' => $kanbanTasks->filter(function ($task) {
-                return $task->due_date 
-                    && $task->due_date->isToday();
-            })->count(),
-        ];
+        // Calculate Stats (legacy table/kanban index — collection scan).
+        if ($stats === null) {
+            $stats = [
+                'total' => $kanbanTasks->count(),
+                'completed' => $kanbanTasks->filter(function ($task) {
+                    return ($task->boardColumn->slug ?? '') === 'done';
+                })->count(),
+                'overdue' => $kanbanTasks->filter(function ($task) {
+                    return $task->due_date
+                        && $task->due_date->isPast()
+                        && ($task->boardColumn->slug ?? '') !== 'done';
+                })->count(),
+                'dueToday' => $kanbanTasks->filter(function ($task) {
+                    return $task->due_date
+                        && $task->due_date->isToday();
+                })->count(),
+            ];
+        }
 
         $transformCallback = function ($task) {
             return [
@@ -357,6 +377,9 @@ class TaskController extends AccountBaseController
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
+            'change_status' => user()->permission('change_status'),
+            'add_task_comments' => user()->permission('add_task_comments'),
+            'delete_task_comments' => user()->permission('delete_task_comments'),
             'view_tasks' => $viewPermission,
             'view_task_category' => user()->permission('view_task_category'),
         ];
@@ -377,6 +400,7 @@ class TaskController extends AccountBaseController
             'created_start_date' => request('created_start_date'),
             'created_end_date' => request('created_end_date'),
             'search' => request('search'),
+            'quick_filter' => request('quick_filter', 'all'),
         ];
 
         $props = [
@@ -394,6 +418,12 @@ class TaskController extends AccountBaseController
                 fn () => $this->taskUsersForSelect($viewPermission),
                 'taskMeta'
             ),
+            // Unrestricted by the viewer's own task-visibility scope — anyone
+            // should be able to @mention anyone in task comments.
+            'mentionablePeople' => Inertia::defer(
+                fn () => $this->taskUsersForSelect('all'),
+                'taskMeta'
+            ),
             'projects' => Inertia::defer(fn () => $this->taskProjectsForSelect(), 'taskLinkMeta'),
             'deals' => Inertia::defer(fn () => Deal::select('id', 'name')->get(), 'taskLinkMeta'),
             'leads' => Inertia::defer(fn () => Lead::select('id', 'client_name', 'company_name')->get(), 'taskLinkMeta'),
@@ -404,6 +434,7 @@ class TaskController extends AccountBaseController
         // Saved views only exist as part of the redesigned tasks workspace.
         if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
             $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser(), 'taskViews');
+            $props['taskQuickCounts'] = $taskQuickCounts;
         }
 
         return Inertia::render('Tasks/Index', $props);
@@ -466,12 +497,76 @@ class TaskController extends AccountBaseController
             }
         }
 
-        $task->deals()->sync($byType['deal']);
-        $task->leads()->sync($byType['lead']);
-        $task->properties()->sync($byType['property']);
+        $task->deals()->sync($this->authorizedDealLinkIds($byType['deal']));
+        $task->leads()->sync($this->authorizedLeadLinkIds($byType['lead']));
+        $task->properties()->sync($this->authorizedPropertyLinkIds($byType['property']));
         // "Project" means the developer project (the one holding units), not
         // the Worksuite delivery project on `tasks.project_id`.
-        $task->developerProjects()->sync($byType['project']);
+        $task->developerProjects()->sync($this->authorizedDeveloperProjectLinkIds($byType['project']));
+    }
+
+    /** Deal ids from a links[] payload the current user may actually view. Drops unresolved/unauthorized ids. */
+    private function authorizedDealLinkIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+
+        return Deal::whereIn('id', $ids)->get()
+            ->filter(fn (Deal $deal) => PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules)['canAccess'])
+            ->pluck('id')
+            ->all();
+    }
+
+    /** Lead ids from a links[] payload the current user may actually view. Drops unresolved/unauthorized ids. */
+    private function authorizedLeadLinkIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ];
+
+        return Lead::whereIn('id', $ids)->get()
+            ->filter(fn (Lead $lead) => PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules)['canAccess'])
+            ->pluck('id')
+            ->all();
+    }
+
+    /** Property ids from a links[] payload the current user may actually view (PropertyPolicy). Drops unresolved/unauthorized ids. */
+    private function authorizedPropertyLinkIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return Property::whereIn('id', $ids)->get()
+            ->filter(fn (Property $property) => user()->can('view', $property))
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Developer project ids from a links[] payload. No per-record authorization
+     * policy exists yet for developer projects (see DeveloperProjectController's
+     * constructor); DeveloperProject's own CompanyScope is the enforceable
+     * boundary, so this just drops ids that don't resolve within the company.
+     */
+    private function authorizedDeveloperProjectLinkIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return DeveloperProject::whereIn('id', $ids)->pluck('id')->all();
     }
 
     /**
@@ -2319,6 +2414,46 @@ class TaskController extends AccountBaseController
             'label_name' => $label->label_name,
             'label_color' => $label->label_color,
         ]);
+    }
+
+    /**
+     * Redesigned tasks workspace quick pills (mine / open / overdue …).
+     * Applied after the main filter set, before pagination.
+     */
+    private function applyTasksQuickFilter($query, string $quickFilter): void
+    {
+        if ($quickFilter === '' || $quickFilter === 'all') {
+            return;
+        }
+
+        $userId = user()->id;
+
+        switch ($quickFilter) {
+            case 'mine':
+                $query->whereHas('users', fn ($q) => $q->where('users.id', $userId));
+                break;
+            case 'byme':
+                $query->where('tasks.added_by', $userId);
+                break;
+            case 'open':
+                $query->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
+                break;
+            case 'today':
+                $query->whereDate('due_date', now()->toDateString());
+                break;
+            case 'overdue':
+                $query->whereNotNull('due_date')
+                    ->where('due_date', '<', now())
+                    ->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
+                break;
+            case 'mentioned':
+                if (\Illuminate\Support\Facades\Schema::hasTable('task_participants')) {
+                    $query->whereHas('participants', fn ($q) => $q->where('users.id', $userId));
+                } else {
+                    $query->whereRaw('0 = 1');
+                }
+                break;
+        }
     }
 
     public function storePin(Request $request)
