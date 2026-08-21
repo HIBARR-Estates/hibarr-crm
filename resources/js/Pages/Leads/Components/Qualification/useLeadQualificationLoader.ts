@@ -235,7 +235,18 @@ export default function useLeadQualificationLoader(
 
     const handleStarted = useCallback(
         async (qualification: LeadQualification) => {
+            // Preserve whatever was current before this run — otherwise a run
+            // that never made it into `history` (e.g. one from a rapid
+            // double-start) is silently dropped when it's overwritten here.
+            const previous = currentRef.current;
             setCurrent(qualification);
+            if (previous && previous.id !== qualification.id) {
+                setHistory((prev) =>
+                    prev.some((item) => item.id === previous.id)
+                        ? prev
+                        : [previous, ...prev],
+                );
+            }
             setPhase("inProgress");
             const ok = await loadTreeForQualification(qualification);
             if (!ok && !treeCacheRef.current.get(qualification.template_id)) {
@@ -283,31 +294,44 @@ export default function useLeadQualificationLoader(
         [],
     );
 
+    const resumingIdRef = useRef<number | null>(null);
+    const [resumingId, setResumingId] = useState<number | null>(null);
+
     const resumeQualification = useCallback(
         async (qualification: LeadQualification): Promise<boolean> => {
             if (qualification.status !== "inProgress") {
                 return false;
             }
+            if (resumingIdRef.current === qualification.id) {
+                return false;
+            }
 
-            const previous = currentRef.current;
+            resumingIdRef.current = qualification.id;
+            setResumingId(qualification.id);
+            try {
+                const previous = currentRef.current;
 
-            setHistory((historyPrev) => {
-                const without = historyPrev.filter(
-                    (item) => item.id !== qualification.id,
-                );
-                if (
-                    previous &&
-                    previous.id !== qualification.id &&
-                    !without.some((item) => item.id === previous.id)
-                ) {
-                    return [previous, ...without];
-                }
-                return without;
-            });
-            setCurrent(qualification);
-            setPhase("inProgress");
+                setHistory((historyPrev) => {
+                    const without = historyPrev.filter(
+                        (item) => item.id !== qualification.id,
+                    );
+                    if (
+                        previous &&
+                        previous.id !== qualification.id &&
+                        !without.some((item) => item.id === previous.id)
+                    ) {
+                        return [previous, ...without];
+                    }
+                    return without;
+                });
+                setCurrent(qualification);
+                setPhase("inProgress");
 
-            return loadTreeForQualification(qualification);
+                return await loadTreeForQualification(qualification);
+            } finally {
+                resumingIdRef.current = null;
+                setResumingId(null);
+            }
         },
         [loadTreeForQualification],
     );
@@ -353,6 +377,7 @@ export default function useLeadQualificationLoader(
         handleQualificationUpdated,
         finishQualificationSession,
         resumeQualification,
+        resumingId,
         deleteQualification,
         handleStartNew,
         setCurrent,

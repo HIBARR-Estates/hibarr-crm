@@ -75,6 +75,7 @@ use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\LeadSavedViewController;
+use App\Http\Controllers\ProjectSavedViewController;
 use App\Http\Controllers\TaskSavedViewController;
 use App\Http\Controllers\TaskCommentApiController;
 use App\Http\Controllers\LeadSummaryController;
@@ -1325,6 +1326,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             });
         });
     });
+
+    // Saved filter views for the projects list
+    Route::post('project-saved-views', [ProjectSavedViewController::class, 'store'])->name('project-saved-views.store');
+    Route::patch('project-saved-views/{id}', [ProjectSavedViewController::class, 'update'])->name('project-saved-views.update');
+    Route::delete('project-saved-views/{id}', [ProjectSavedViewController::class, 'destroy'])->name('project-saved-views.destroy');
 
     // ─── Offers ──────────────────────────────────────────────────
     Route::prefix('offers')->name('offers.')->group(function () {

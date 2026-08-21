@@ -1,4 +1,4 @@
-import type { Note } from "@/Types/api/note";
+import type { IntegrationOrigin, Note } from "@/Types/api/note";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { formatDate } from "./dateFormat";
@@ -17,6 +17,7 @@ export interface WorkspaceNotePreview {
     createdAtLabel: string;
     timeLabel: string;
     edited: boolean;
+    integrationOrigin: IntegrationOrigin | null;
 }
 
 function parseNoteDate(value: string | undefined): {
@@ -74,6 +75,7 @@ export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
         createdAtLabel: label,
         timeLabel: date ? relativeNoteLabel(date, label) : label,
         edited: Boolean(note.updated_at && note.updated_at !== note.created_at),
+        integrationOrigin: note.integration_origin ?? null,
     };
 }
 

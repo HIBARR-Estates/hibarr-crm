@@ -15,6 +15,7 @@ return [
         'crm.entity-reminders',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
+        'crm.projects-filters-v2',
         'crm.developer-project-visibility',
         'crm.pipeline-nav-visibility',
         'sales.ai-entity-summary',

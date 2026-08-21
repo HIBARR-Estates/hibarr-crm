@@ -35,6 +35,13 @@ import {
 import { usePermission } from "@/lib/permissionUtils";
 import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
+import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import { describeFilters } from "@/Features/Filters/filterSummary";
+import { useFilter } from "@/contexts/FilterContext";
+import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
+import createProjectFilterConfig from "@/configs/projectFilterConfig";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 // ============================================
 // Types
@@ -69,6 +76,9 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     locations: FilterLocation[];
     constructionStatuses: LookupOption[];
     primaryCategories: LookupOption[];
+    titleDeedTypes?: LookupOption[];
+    unitTypeOptions?: LookupOption[];
+    projectFacilities?: Array<{ name: string; label: string; icon?: string | null }>;
     visibility?: {
         enabled?: boolean;
         canSeeHidden?: boolean;
@@ -152,6 +162,9 @@ const Index = ({
     locations: filterLocations,
     constructionStatuses,
     primaryCategories,
+    titleDeedTypes,
+    unitTypeOptions,
+    projectFacilities,
     visibility,
 }: IndexProps) => {
     const safeFilters =
@@ -168,8 +181,11 @@ const Index = ({
 
     const { t } = useTranslation();
     const { props: pageProps } = usePage<PageProps>();
+    const filtersV2Enabled =
+        pageProps.featureFlags?.["crm.projects-filters-v2"] === true;
     const filtersModalEnabled =
-        pageProps.featureFlags?.["crm.projects-filters-modal"] === true;
+        pageProps.featureFlags?.["crm.projects-filters-modal"] === true ||
+        filtersV2Enabled;
 
     const showHiddenBadge =
         visibility?.enabled === true && visibility?.canSeeHidden === true;
@@ -208,6 +224,44 @@ const Index = ({
     const [priceMin, setPriceMin] = useState(safeFilters.price_min ?? "");
     const [priceMax, setPriceMax] = useState(safeFilters.price_max ?? "");
 
+    // v2 filter workbench (crm.projects-filters-v2) — multi-select fields,
+    // saved views, and the expanded field set. FilterProvider is mounted
+    // app-wide, so useFilter()/usePageSearchAndFilter are safe to call even
+    // when v2 is off; only the JSX below actually renders anything with them.
+    const { draftFilters: v2DraftFilters } = useFilter();
+    const filterConfig = useMemo(
+        () =>
+            createProjectFilterConfig({
+                developers,
+                locations: filterLocations,
+                constructionStatuses,
+                primaryCategories,
+                titleDeedTypes,
+                unitTypeOptions,
+                projectFacilities,
+                visibilityEnabled: visibility?.enabled === true,
+                canSeeHidden: visibility?.canSeeHidden === true,
+                selectedCities: v2DraftFilters.city,
+                excludeFields: ["search"],
+            }),
+        [
+            developers,
+            filterLocations,
+            constructionStatuses,
+            primaryCategories,
+            titleDeedTypes,
+            unitTypeOptions,
+            projectFacilities,
+            visibility,
+            v2DraftFilters.city,
+        ],
+    );
+    const { filter } = usePageSearchAndFilter({ filterConfig });
+    const v2ActiveFilterCount = useMemo(
+        () => describeFilters(filter.config, filter.filters).length,
+        [filter.config, filter.filters],
+    );
+
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const durationDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const priceDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -242,7 +296,7 @@ const Index = ({
     }, [projectToDelete]);
 
     const visitIndex = (
-        params: Record<string, string>,
+        params: Record<string, any>,
         options: Partial<typeof VISIT_OPTIONS> = {},
     ) => {
         router.get(route("developer-projects.index"), params, {
@@ -289,14 +343,25 @@ const Index = ({
         keepSearchFocused.current = true;
         if (searchDebounce.current) clearTimeout(searchDebounce.current);
         searchDebounce.current = setTimeout(() => {
-            visitIndex(buildParams({ search: value }));
+            // Under v2, filters live in the URL (not the legacy per-field
+            // state buildParams reads), so merge into the current query
+            // string instead of reconstructing it from stale local state.
+            visitIndex(
+                filtersV2Enabled
+                    ? mergeQueryParams({ search: value })
+                    : buildParams({ search: value }),
+            );
         }, 380);
     };
 
     const handleSortChange = (value: string) => {
         keepSearchFocused.current = false;
         setSortValue(value);
-        visitIndex(buildParams({ sort: value }));
+        visitIndex(
+            filtersV2Enabled
+                ? mergeQueryParams({ sort: value === "newest" ? "" : value })
+                : buildParams({ sort: value }),
+        );
     };
 
     const handlePriceChange = (
@@ -475,7 +540,10 @@ const Index = ({
     );
 
     const titleResult = useMemo(() => {
-        if (!filtersModalEnabled || !hasActiveFilters) {
+        // v2 has its own quiet filter sentence (ActiveFilterSentence) below
+        // the toolbar; the legacy dynamic-sentence subtitle here is built
+        // from single-value state that v2 never populates, so skip it.
+        if (!filtersModalEnabled || filtersV2Enabled || !hasActiveFilters) {
             return {
                 sentence: "Projects",
                 filterSummary: "",
@@ -505,6 +573,7 @@ const Index = ({
         });
     }, [
         filtersModalEnabled,
+        filtersV2Enabled,
         hasActiveFilters,
         developers,
         developerId,
@@ -539,7 +608,9 @@ const Index = ({
     const goToPage = (page: number) => {
         keepSearchFocused.current = false;
         visitIndex(
-            { ...buildParams(), page: String(page) },
+            filtersV2Enabled
+                ? mergeQueryParams({ page: String(page) })
+                : { ...buildParams(), page: String(page) },
             { replace: false },
         );
     };
@@ -655,13 +726,20 @@ const Index = ({
                                                 <SlidersHorizontal size={14} />
                                             }
                                             onClick={() =>
-                                                setFiltersModalOpen(true)
+                                                filtersV2Enabled
+                                                    ? filter.openDrawer()
+                                                    : setFiltersModalOpen(true)
                                             }
                                         >
                                             Filters
-                                            {activeFilterCount > 0 && (
+                                            {(filtersV2Enabled
+                                                ? v2ActiveFilterCount
+                                                : activeFilterCount) > 0 && (
                                                 <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                                                    {activeFilterCount} active
+                                                    {filtersV2Enabled
+                                                        ? v2ActiveFilterCount
+                                                        : activeFilterCount}{" "}
+                                                    active
                                                 </span>
                                             )}
                                         </Button>
@@ -818,6 +896,13 @@ const Index = ({
                     </div>
 
                     <div className="max-w-screen-xl mx-auto px-7 py-7 pb-12">
+                        {filtersV2Enabled && (
+                            <ActiveFilterSentence
+                                count={projects.total}
+                                entityLabel="projects"
+                                onOpenFilters={filter.openDrawer}
+                            />
+                        )}
                         {(projects.data ?? []).length === 0 ? (
                             <EmptyState
                                 onAdd={canAdd ? handleAdd : undefined}
@@ -876,17 +961,27 @@ const Index = ({
                 canToggleHidden={canToggleHidden}
             />
 
-            {filtersModalEnabled && (
-                <ProjectsFiltersModal
-                    open={filtersModalOpen}
-                    onClose={() => setFiltersModalOpen(false)}
-                    onApply={applyModalFilters}
-                    onReset={resetModalFilters}
-                    initialValues={filterDraft}
-                    developers={developers}
-                    locations={filterLocations}
-                    primaryCategories={primaryCategories}
+            {filtersV2Enabled ? (
+                <EntityFilterModal
+                    config={filterConfig}
+                    entityLabel="projects"
+                    currentCount={projects.total}
+                    savedViews={true}
+                    savedViewEntity="project"
                 />
+            ) : (
+                filtersModalEnabled && (
+                    <ProjectsFiltersModal
+                        open={filtersModalOpen}
+                        onClose={() => setFiltersModalOpen(false)}
+                        onApply={applyModalFilters}
+                        onReset={resetModalFilters}
+                        initialValues={filterDraft}
+                        developers={developers}
+                        locations={filterLocations}
+                        primaryCategories={primaryCategories}
+                    />
+                )
             )}
         </>
     );

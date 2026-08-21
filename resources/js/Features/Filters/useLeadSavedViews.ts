@@ -22,15 +22,16 @@ export interface SaveViewPayload {
 }
 
 /** Entities that expose saved filter views; each owns a matching route group. */
-export type SavedViewEntity = "lead" | "task";
+export type SavedViewEntity = "lead" | "task" | "project";
 
 /**
  * Create/rename/delete saved filter views. Mutations refresh only the
  * `savedViews` prop rather than reloading the whole page.
  *
  * The entity selects the route group (`lead-saved-views.*` /
- * `task-saved-views.*`), so Leads and Tasks share one implementation and one
- * UI. Defaults to leads, which is how every existing caller uses it.
+ * `task-saved-views.*` / `project-saved-views.*`), so each entity shares one
+ * implementation and one UI. Defaults to leads, which is how every existing
+ * caller uses it.
  */
 export default function useLeadSavedViews(entity: SavedViewEntity = "lead") {
     const [saving, setSaving] = useState(false);

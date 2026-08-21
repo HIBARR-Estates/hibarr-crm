@@ -14,6 +14,9 @@ import useViewPreference from "@/Hooks/useViewPreference";
 import { PipelineStage } from "@/Types/api/deals";
 import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import BulkActionSummary, {
+    type BulkActionSummaryData,
+} from "@/Features/BulkActions/BulkActionSummary";
 import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -307,6 +310,10 @@ const Index = ({
             replace: true,
         });
     };
+
+    // Post-action receipt: survives the toast so the operator can read it.
+    const [bulkSummary, setBulkSummary] =
+        useState<BulkActionSummaryData | null>(null);
 
     // Table row selection (pageData keeps selections when paging)
     const [selectAllMatching, setSelectAllMatching] = useState(false);
@@ -631,9 +638,17 @@ const Index = ({
                                 }
                                 updateOptions={bulkUpdateOptions}
                                 optionsLoading={formDataLoading}
+                                onCompleted={setBulkSummary}
                                 clearSelected={clearSelected}
                             />
                         )}
+
+                    {bulkSummary && (
+                        <BulkActionSummary
+                            summary={bulkSummary}
+                            onDismiss={() => setBulkSummary(null)}
+                        />
+                    )}
 
                     {/* Quiet active-filter sentence */}
                     <ActiveFilterSentence

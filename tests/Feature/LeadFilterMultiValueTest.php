@@ -157,6 +157,34 @@ class LeadFilterMultiValueTest extends TestCase
         $this->assertSame($expected, $ids);
     }
 
+    public function test_referrer_filter_matches_any_of_the_selected_partners(): void
+    {
+        $partnerA = $this->insertLead(['client_name' => 'From A', 'referred_by_agent_id' => 3]);
+        $partnerB = $this->insertLead(['client_name' => 'From B', 'referred_by_agent_id' => 5]);
+        $this->insertLead(['client_name' => 'From C', 'referred_by_agent_id' => 9]);
+        $this->insertLead(['client_name' => 'No referrer']);
+
+        $ids = $this->filteredLeadIds(['referred_by_agent_id' => '3,5']);
+
+        sort($ids);
+        $expected = [$partnerA, $partnerB];
+        sort($expected);
+        $this->assertSame($expected, $ids);
+    }
+
+    public function test_referrer_filter_is_ignored_when_empty(): void
+    {
+        $a = $this->insertLead(['client_name' => 'A', 'referred_by_agent_id' => 3]);
+        $b = $this->insertLead(['client_name' => 'B']);
+
+        $ids = $this->filteredLeadIds(['referred_by_agent_id' => '']);
+
+        sort($ids);
+        $expected = [$a, $b];
+        sort($expected);
+        $this->assertSame($expected, $ids);
+    }
+
     /**
      * @param  array<string, string>  $params
      * @return array<int, int>
@@ -227,6 +255,7 @@ class LeadFilterMultiValueTest extends TestCase
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('source_id')->nullable();
             $table->unsignedInteger('lead_lifecycle_status_id')->nullable();
+            $table->unsignedInteger('referred_by_agent_id')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
             $table->unsignedInteger('merged_into_lead_id')->nullable();
             $table->softDeletes();
@@ -298,6 +327,7 @@ class LeadFilterMultiValueTest extends TestCase
             'added_by' => null,
             'source_id' => null,
             'lead_lifecycle_status_id' => null,
+            'referred_by_agent_id' => null,
             'last_updated_by' => null,
             'merged_into_lead_id' => null,
             'deleted_at' => null,

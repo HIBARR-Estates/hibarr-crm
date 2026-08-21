@@ -533,6 +533,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 (run) => run.status === "inProgress",
                             )
                         }
+                        starting={qualification.isStartingFlow}
+                        resumingId={qualification.resumingId}
                         onResumeQualify={(run) => {
                             void (async () => {
                                 const ok =
@@ -620,6 +622,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             showProductTour
                                 ? () => tourRef.current?.restart()
                                 : undefined
+                        }
+                        bannerBusy={
+                            qualification.isStartingFlow ||
+                            qualification.resumingId != null
                         }
                         onBannerPrimary={handleBannerPrimary}
                         onBannerSecondary={
@@ -734,6 +740,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         leadName={lead.client_name ?? td("Lead", { source: "en" })}
                         templates={qualification.templates}
                         loading={qualification.templatesLoading}
+                        selecting={qualification.isStartingFlow}
                         onClose={() => setTemplatePickerOpen(false)}
                         onSelect={(id) => void handleTemplateSelect(id)}
                     />

@@ -42,6 +42,9 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import LeadFilterModal from "@/Features/Filters/EntityFilterModal";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import BulkActionSummary, {
+    type BulkActionSummaryData,
+} from "@/Features/BulkActions/BulkActionSummary";
 import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -116,6 +119,7 @@ const Index = ({
             "genders",
             "age-ranges",
             "temperatures",
+            "lead-agents",
             "lead-utm-sources",
             "lead-utm-mediums",
             "lead-utm-campaigns",
@@ -138,6 +142,7 @@ const Index = ({
                 sources: formData.sources || [],
                 categories: formData.categories || [],
                 employees: formData.employees || [],
+                leadAgents: formData["lead-agents"] || [],
                 countries: formData.countries || [],
                 languages: formData.languages || [],
                 genders: formData.genders || [],
@@ -160,6 +165,24 @@ const Index = ({
                 excludeFields: ["search"],
             }),
         [formData, leadLifecycleStatuses, preferredContactTimes, useLeadCoreFields, useFilterV2],
+    );
+
+    // Post-action receipt: survives the toast so the operator can read it.
+    const [bulkSummary, setBulkSummary] =
+        useState<BulkActionSummaryData | null>(null);
+
+    // Stable identity: the bulk modal resets its draft when the field list
+    // changes, and the field list is derived from these options.
+    const bulkUpdateOptions = useMemo(
+        () => ({
+            categories: formData.categories || [],
+            sources: formData.sources || [],
+            employees: formData.employees || [],
+            temperatures: formData.temperatures || [],
+            leadAgents: formData["lead-agents"] || [],
+            leadLifecycleStatuses,
+        }),
+        [formData, leadLifecycleStatuses],
     );
 
     // Setup search and filter contexts
@@ -489,13 +512,15 @@ const Index = ({
                             onSelectAllMatching={handleSelectAllMatching}
                             clearSelected={clearSelected}
                             optionsLoading={formDataLoading}
-                            updateOptions={{
-                                categories: formData.categories || [],
-                                sources: formData.sources || [],
-                                employees: formData.employees || [],
-                                temperatures: formData.temperatures || [],
-                                leadLifecycleStatuses,
-                            }}
+                            onCompleted={setBulkSummary}
+                            updateOptions={bulkUpdateOptions}
+                        />
+                    )}
+
+                    {bulkSummary && (
+                        <BulkActionSummary
+                            summary={bulkSummary}
+                            onDismiss={() => setBulkSummary(null)}
                         />
                     )}
 

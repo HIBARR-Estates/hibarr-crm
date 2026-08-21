@@ -24,6 +24,12 @@ export interface BulkUpdateFieldDef {
     clearable: boolean;
     /** Shown under the field label, e.g. "Replaces existing categories". */
     hint?: string;
+    /**
+     * Caveat(s) surfaced in the pre-action confirmation when this field is set.
+     * An array renders one bullet per entry — use it when a field carries two
+     * unrelated consequences (e.g. edit semantics *and* an access change).
+     */
+    confirmNote?: string | string[];
     options: FilterOption[];
     /** Request body fragment for the drafted value. */
     toPayload: (value: BulkUpdateValue) => Record<string, unknown>;

@@ -24,6 +24,7 @@ import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
+import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealPeoplePicker, {
     type DealPersonOption,
@@ -585,6 +586,9 @@ export default function WorkspaceTasksTab({
                                     >
                                         {task.title}
                                     </span>
+                                    <IntegrationOriginBadge
+                                        origin={task.integrationOrigin}
+                                    />
                                     <DealPriorityBadge
                                         priority={task.priority}
                                     />

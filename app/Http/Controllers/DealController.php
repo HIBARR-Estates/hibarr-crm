@@ -2136,10 +2136,21 @@ class DealController extends AccountBaseController
 
                     $updated = $this->applyDealBulkUpdateFields($request, $rowIds, $fields);
 
-                    return Reply::success(
+                    return Reply::successWithData(
                         $updated === 0
                             ? 'No deals were updated — locked deals are skipped.'
-                            : __('messages.updateSuccess')
+                            : __('messages.updateSuccess'),
+                        [
+                            'summary' => [
+                                'updated' => $updated,
+                                'skipped' => [
+                                    [
+                                        'count' => max(0, count($rowIds) - $updated),
+                                        'reason' => 'locked and left unchanged',
+                                    ],
+                                ],
+                            ],
+                        ]
                     );
 
                 case 'change-status':

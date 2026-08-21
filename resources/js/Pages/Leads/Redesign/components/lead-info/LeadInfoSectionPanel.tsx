@@ -1,8 +1,9 @@
 import { type ReactNode, useCallback, useMemo, useState } from "react";
-import { message } from "antd";
+import { Input, message, Select } from "antd";
 import { usePage } from "@inertiajs/react";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
+import Badge from "@/Components/Redesign/primitives/Badge";
 import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useFormData } from "@/Hooks/useFormData";
@@ -29,6 +30,7 @@ import {
     LeadTemperatureField,
 } from "./LeadAttributionFields";
 import type { LeadFieldChange } from "../../hooks/useLeadInfoFieldUpdate";
+import useLeadContactMethods from "../../hooks/useLeadContactMethods";
 import type { LeadInfoSectionId } from "../../types";
 
 type AppLanguage = {
@@ -510,6 +512,60 @@ export default function LeadInfoSectionPanel({
                     <LeadPreferredContactTimeField {...attributionFieldProps} />
                 </DetailField>
             </FieldGrid>
+
+            {(canEdit || lead.contact_methods?.some((method) => !method.is_main)) && (
+                <div className="mb-5">
+                    <span className="text-sm text-gray-500">
+                        {td("Additional emails/phones", { source: "en" })}
+                    </span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {lead.contact_methods
+                            ?.filter((method) => !method.is_main)
+                            .map((method) => (
+                                <Badge key={method.id} variant="gray">
+                                    {method.type === "phone"
+                                        ? resolveLeadPhoneDisplay(
+                                              method.identifier,
+                                          ) || method.identifier
+                                        : method.identifier}
+                                    {canEdit && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removeContactMethod(method.id)
+                                            }
+                                            disabled={removingId === method.id}
+                                            aria-label={td("Remove", {
+                                                source: "en",
+                                            })}
+                                            className="leading-none"
+                                            style={{
+                                                border: "none",
+                                                background: "none",
+                                                cursor: "pointer",
+                                                padding: 0,
+                                                color: "inherit",
+                                                opacity:
+                                                    removingId === method.id
+                                                        ? 0.5
+                                                        : 1,
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </Badge>
+                            ))}
+                        {canEdit && (
+                            <AddContactMethodForm
+                                onAdd={addContactMethod}
+                                saving={savingContactMethod}
+                                td={td}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
 
             <DealInfoGroupTitle>{td("Attribution", { source: "en" })}</DealInfoGroupTitle>
             <FieldGrid>
