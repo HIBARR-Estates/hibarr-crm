@@ -324,11 +324,13 @@ const Index = ({
         params.lead_pipeline_id = String(value);
         params.view = view;
 
-        // X2: only refresh list props (+ board columns in kanban); filters drives valueLeadPipelineId
+        // List + header stats share the same filtered query, so both have to
+        // come along with `filters` (the chip's selected pipeline). Kanban
+        // also needs column metadata for the new pipeline.
         router.get(route("deals.index"), params, {
             only: isKanbanView
-                ? ["deals", "boardColumns", "filters"]
-                : ["deals", "filters"],
+                ? ["deals", "boardColumns", "filters", "stats"]
+                : ["deals", "filters", "stats"],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -542,12 +544,13 @@ const Index = ({
     // ── Page-level refresh ──────────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: async () => {
-            // K3: view-aware partial reload — no full window.location.reload
+            // K3: view-aware partial reload — no full window.location.reload.
+            // Stats belong here too: they are pipeline-scoped header counts.
             await new Promise<void>((resolve, reject) => {
                 router.reload({
                     only: isKanbanView
-                        ? ["deals", "boardColumns"]
-                        : ["deals"],
+                        ? ["deals", "boardColumns", "stats"]
+                        : ["deals", "stats"],
                     onSuccess: () => resolve(),
                     onError: (errors) => reject(errors),
                 });

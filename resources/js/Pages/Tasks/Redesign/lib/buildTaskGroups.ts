@@ -1,4 +1,4 @@
-import type { TaskGroup } from "../components/TasksListView";
+import type { TaskGroup } from "../components/list/types";
 import type { GroupMode } from "../components/TasksFilterBar";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import {

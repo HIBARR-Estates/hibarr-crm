@@ -3,45 +3,12 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { TASK_ICON, statusToken } from "../../config/taskDesignTokens";
+import { BOARD_EMPTY_STATE_HEIGHT } from "../../config/boardEmptyCopy";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 import { TaskGlyph } from "../primitives/TaskGlyphs";
 import type { TaskRowAction } from "../primitives/TaskRowMenu";
 import TaskBoardCard from "./TaskBoardCard";
-
-/**
- * Per-column empty-state copy. Keyed by column slug so each lane says
- * something encouraging rather than a flat "no tasks".
- */
-const EMPTY_COPY: Record<string, { line: string; hint: string }> = {
-    to_do: {
-        line: "Nothing waiting here",
-        hint: "A clean backlog is a rare and beautiful thing.",
-    },
-    incomplete: {
-        line: "Nothing waiting here",
-        hint: "A clean backlog is a rare and beautiful thing.",
-    },
-    in_progress: {
-        line: "Nothing in flight",
-        hint: "Drag something over when you're ready to start.",
-    },
-    waiting: {
-        line: "Nobody's blocked",
-        hint: "No one is waiting on anyone. Enjoy it.",
-    },
-    done: {
-        line: "No wins logged yet",
-        hint: "Finish something and watch this fill up.",
-    },
-};
-
-const DEFAULT_EMPTY = {
-    line: "This lane is clear",
-    hint: "Drag a card here to move it.",
-};
-
-/** Every empty lane renders at this height, so the columns line up. */
-const EMPTY_STATE_HEIGHT = 152;
+import TaskBoardEmptyState from "./TaskBoardEmptyState";
 
 /** Reveals the next page of a column's cards when its sentinel scrolls in. */
 function useAutoReveal(
@@ -279,7 +246,7 @@ export default function TaskBoardColumn({
                             // mid-drag.
                             height:
                                 tasks.length === 0
-                                    ? EMPTY_STATE_HEIGHT
+                                    ? BOARD_EMPTY_STATE_HEIGHT
                                     : undefined,
                             flexShrink: 0,
                             fontSize: 14,
@@ -293,48 +260,7 @@ export default function TaskBoardColumn({
                     </div>
                 )}
 
-                {isEmpty && (
-                    <div
-                        className="flex flex-col items-center justify-center gap-2"
-                        style={{
-                            // Fixed so every lane's empty state is the same
-                            // height regardless of how long its copy wraps.
-                            height: EMPTY_STATE_HEIGHT,
-                            flexShrink: 0,
-                            padding: "16px 14px",
-                            border: `1px dashed ${T.BORDER}`,
-                            borderRadius: 10,
-                            background: "#fbfcfd",
-                        }}
-                    >
-                        <TaskGlyph
-                            d={TASK_ICON.inboxEmpty}
-                            size={22}
-                            color={T.NAVY_MID}
-                            strokeWidth={1.5}
-                        />
-                        <span
-                            style={{
-                                fontSize: 15,
-                                fontWeight: 600,
-                                color: T.TEXT_MUTED,
-                                textAlign: "center",
-                            }}
-                        >
-                            {td((EMPTY_COPY[column.slug] ?? DEFAULT_EMPTY).line)}
-                        </span>
-                        <span
-                            style={{
-                                fontSize: 14,
-                                color: T.TEXT_HINT,
-                                textAlign: "center",
-                                lineHeight: 1.45,
-                            }}
-                        >
-                            {td((EMPTY_COPY[column.slug] ?? DEFAULT_EMPTY).hint)}
-                        </span>
-                    </div>
-                )}
+                {isEmpty && <TaskBoardEmptyState slug={column.slug} />}
             </div>
         </div>
     );

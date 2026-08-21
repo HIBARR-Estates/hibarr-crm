@@ -1,4 +1,4 @@
-import type { TaskFormValues } from "../components/TaskFormModal";
+import type { TaskFormValues } from "../adapters/taskFormValues";
 
 /**
  * Module-level UI state for the tasks workspace. Survives Inertia partial
