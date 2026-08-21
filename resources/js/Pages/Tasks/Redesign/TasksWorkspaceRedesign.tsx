@@ -410,8 +410,6 @@ export default function TasksWorkspaceRedesign({
         if (checklist.length || files.length) {
             router.reload({
                 only: ["kanbanTasks", "tableTasks", "stats"],
-                preserveState: true,
-                preserveScroll: true,
             });
         }
     };
@@ -603,8 +601,6 @@ export default function TasksWorkspaceRedesign({
                 "savedViews",
                 "taskQuickCounts",
             ],
-            preserveState: true,
-            preserveScroll: true,
             onSuccess: (page) => {
                 const props = page.props as {
                     kanbanTasks?: Task[];
@@ -1183,8 +1179,6 @@ export default function TasksWorkspaceRedesign({
                                 "taskQuickCounts",
                                 "stats",
                             ],
-                            preserveState: true,
-                            preserveScroll: true,
                         });
                     }
                 }}
@@ -1202,8 +1196,6 @@ export default function TasksWorkspaceRedesign({
                     setTaskSettingsOpen(false);
                     router.reload({
                         only: ["categories"],
-                        preserveState: true,
-                        preserveScroll: true,
                     });
                 }}
                 footer={null}
