@@ -84,11 +84,7 @@ function buildPayload(
  */
 export default function useTasksWorkspaceMutations(
     setTasks: (updater: (prev: Task[]) => Task[]) => void,
-    /** Id of the task currently open in the detail modal, or null. Read directly
-     * (not set imperatively inside updateTask) so the update route is always
-     * correct by the time updateTask actually fires — mirrors how
-     * LeadTaskDetailModal derives its update route from the `task` prop. */
-    selectedTaskId: number | null,
+    editingTaskId: number | null,
 ) {
     const { props } = usePage();
     const dateFormat = `${props.company?.date_format || "d-m-Y"} ${props.company?.time_format || "H:i"}`;
@@ -137,7 +133,7 @@ export default function useTasksWorkspaceMutations(
         TaskRequestPayload,
         Task,
         ApiResponse<Task>
-    >(route("tasks.update", selectedTaskId ?? 0), "PUT");
+    >(route("tasks.update", editingTaskId ?? 0), "PUT");
 
     const updateTask = useCallback(
         (taskId: number, input: TaskFormInput, onSuccess?: () => void) => {

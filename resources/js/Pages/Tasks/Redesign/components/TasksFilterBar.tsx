@@ -4,7 +4,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import TaskSegmented from "./primitives/TaskSegmented";
 
 export type QuickFilterKey =
-    "all" | "mine" | "byme" | "open" | "today" | "overdue";
+    "all" | "mine" | "byme" | "open" | "today" | "overdue" | "mentioned";
 
 export type GroupMode = "due" | "category" | "none";
 
@@ -15,6 +15,7 @@ export interface QuickFilterCounts {
     open: number;
     today: number;
     overdue: number;
+    mentioned: number;
 }
 
 export interface SummaryClause {
@@ -40,6 +41,7 @@ const QUICK_FILTERS: Array<{ key: QuickFilterKey; label: string }> = [
     { key: "open", label: "Open" },
     { key: "today", label: "Due today" },
     { key: "overdue", label: "Overdue" },
+    { key: "mentioned", label: "Mentioned" },
 ];
 
 const GROUP_MODES: Array<{ key: GroupMode; label: string }> = [

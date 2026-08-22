@@ -1,6 +1,7 @@
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
 import { Currency, TFilter } from "@/Types/common";
 import { AuthType } from ".";
+import type { NotificationAlertSettingsState } from "@/contexts/NotificationAlertSettingsContext";
 
 declare module "@inertiajs/core" {
     interface PageProps extends InertiaPageProps {
@@ -31,5 +32,6 @@ declare module "@inertiajs/core" {
             string,
             { name: string; native: string; dir: string; flag: string }
         >;
+        notificationAlertSettings?: NotificationAlertSettingsState | null;
     }
 }

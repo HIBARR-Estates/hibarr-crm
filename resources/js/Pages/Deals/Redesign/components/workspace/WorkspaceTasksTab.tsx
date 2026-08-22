@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
+import { Drawer } from "antd";
+import { SettingOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import TaskCategoryManager from "@/Pages/Settings/TaskCategoryManager";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -19,7 +24,6 @@ import {
     toWorkspaceTaskListItem,
     type WorkspaceTaskListItem,
 } from "../../adapters/taskAdapter";
-import DealAvatar from "../primitives/DealAvatar";
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
@@ -140,55 +144,6 @@ function canAddTasks(
     );
 }
 
-/** v2.2 AssigneeStack (deal-v2-2.jsx:1849-1871) — overlapping avatars, +N cap. */
-function AssigneeStack({
-    people,
-    size = 18,
-    max = 3,
-}: {
-    people: Array<{ id: number; name: string; initials: string }>;
-    size?: number;
-    max?: number;
-}) {
-    if (!people.length) return null;
-    const shown = people.slice(0, max);
-    const overflow = people.length - shown.length;
-    return (
-        <span
-            className="inline-flex items-center"
-            title={people.map((person) => person.name).join(", ")}
-        >
-            {shown.map((person, index) => (
-                <span
-                    key={person.id}
-                    className="flex rounded-full"
-                    style={{
-                        marginLeft: index === 0 ? 0 : -6,
-                        border: `2px solid ${T.WHITE}`,
-                    }}
-                >
-                    <DealAvatar size={size} initials={person.initials} />
-                </span>
-            ))}
-            {overflow > 0 && (
-                <span
-                    className="flex shrink-0 items-center justify-center rounded-full font-bold"
-                    style={{
-                        marginLeft: -6,
-                        width: size,
-                        height: size,
-                        border: `2px solid ${T.WHITE}`,
-                        background: T.BORDER,
-                        color: T.TEXT_MUTED,
-                        fontSize: Math.max(9, size * 0.4),
-                    }}
-                >
-                    +{overflow}
-                </span>
-            )}
-        </span>
-    );
-}
 
 function taskStatusSlug(task: Task): string {
     return (
@@ -237,6 +192,10 @@ export default function WorkspaceTasksTab({
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
     const userId = props.auth?.user?.id;
+    const isAdmin = useIsAdminRole();
+    const canManageTaskCategories =
+        isAdmin || permissions.view_task_category === "all";
+    const [taskSettingsOpen, setTaskSettingsOpen] = useState(false);
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -439,6 +398,16 @@ export default function WorkspaceTasksTab({
                 </div>
 
                 <div className="flex gap-1.5">
+                    {canManageTaskCategories && (
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            icon={<SettingOutlined />}
+                            title={t("modules.tasks.taskCategory")}
+                            aria-label={t("modules.tasks.taskCategory")}
+                            onClick={() => setTaskSettingsOpen(true)}
+                        />
+                    )}
                     {showSelectMode && (
                         <DealButton
                             variant="ghost"
@@ -625,8 +594,17 @@ export default function WorkspaceTasksTab({
                                     )}
                                     {task.assignees.length > 0 && (
                                         <span className="inline-flex items-center gap-1.5">
-                                            <AssigneeStack
-                                                people={task.assignees}
+                                            <MultiUserIndicator
+                                                users={task.assignees.map(
+                                                    (person) => ({
+                                                        id: person.id,
+                                                        name: person.name,
+                                                    }),
+                                                )}
+                                                size="xs"
+                                                maxCount={3}
+                                                showNames={false}
+                                                colorful
                                             />
                                             {task.assignees.length === 1
                                                 ? task.assignees[0].name
@@ -676,6 +654,18 @@ export default function WorkspaceTasksTab({
                 onConfirm={handleBulkDelete}
                 onCancel={() => setConfirmBulkDelete(false)}
             />
+
+            <Drawer
+                title={t("modules.tasks.taskCategory")}
+                open={taskSettingsOpen}
+                onClose={() => setTaskSettingsOpen(false)}
+                width={520}
+                destroyOnClose
+                maskClosable={false}
+                styles={{ content: { boxShadow: "none" }, wrapper: { boxShadow: "none" } }}
+            >
+                <TaskCategoryManager />
+            </Drawer>
         </div>
     );
 }

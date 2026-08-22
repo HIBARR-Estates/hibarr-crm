@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { REDESIGN_TOKENS as T } from "../tokens";
 
 type AvatarType = "agent" | "participant" | "watcher" | "default";
@@ -43,7 +44,12 @@ export default function Avatar({
     const c = tone
         ? { bg: tone.bg, color: tone.fg, border: undefined }
         : (colors[type] ?? colors.default);
-    const photoUrl = src?.trim() || null;
+
+    // A broken/expired photo URL should fall back to the initials, not the
+    // browser's broken-image glyph.
+    const [imgFailed, setImgFailed] = useState(false);
+    useEffect(() => setImgFailed(false), [src]);
+    const photoUrl = !imgFailed && src?.trim() ? src.trim() : null;
 
     return (
         <div
@@ -69,6 +75,7 @@ export default function Avatar({
                 <img
                     src={photoUrl}
                     alt=""
+                    onError={() => setImgFailed(true)}
                     style={{
                         width: "100%",
                         height: "100%",

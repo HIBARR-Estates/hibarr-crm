@@ -42,17 +42,17 @@ import type { Notification, NotificationIcon } from "@/Types/api/notification";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
-    isAlertsMuted,
-    setAlertsMuted,
     isDesktopNotificationSupported,
     getDesktopPermission,
     requestDesktopPermission,
     acknowledgeDropdownNotifications,
     countUnacknowledgedNotifications,
+    isDistinctNotificationBody,
 } from "@/lib/notificationAlerts";
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import { useNotificationAlertSettings } from "@/contexts/NotificationAlertSettingsContext";
 
 dayjs.extend(relativeTime);
 
@@ -119,10 +119,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
         [notification.id, onDismiss],
     );
 
-    const title = notification.title?.trim() ?? "";
-    const body = notification.text?.trim() ?? "";
-    const showBody =
-        body !== "" && body.localeCompare(title, undefined, { sensitivity: "accent" }) !== 0;
+    const showBody = isDistinctNotificationBody(
+        notification.title,
+        notification.text,
+    );
 
     return (
         <motion.div
@@ -227,7 +227,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const [open, setOpen] = useState(false);
     // Bump when acknowledgment changes so badge recalculates without a refetch.
     const [ackVersion, setAckVersion] = useState(0);
-    const [alertsMuted, setAlertsMutedState] = useState(() => isAlertsMuted());
+    const {
+        settings: { alerts_muted: alertsMuted },
+        setAlertsMuted,
+    } = useNotificationAlertSettings();
     const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const { notifications, isLoading, refetch } =
@@ -244,7 +247,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const handleToggleAlerts = useCallback(() => {
         const nextMuted = !alertsMuted;
         setAlertsMuted(nextMuted);
-        setAlertsMutedState(nextMuted);
 
         if (
             !nextMuted &&
@@ -253,7 +255,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         ) {
             requestDesktopPermission();
         }
-    }, [alertsMuted]);
+    }, [alertsMuted, setAlertsMuted]);
 
     const { markAsReadQuiet, markAllAsRead, isMarkingRead } =
         useNotificationMutations();

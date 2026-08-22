@@ -5,8 +5,42 @@
 :root {
     /* Vertical space above the board: app topbar + the sticky Tasks header
        band (title row, filter row) + the board's own top/bottom padding.
-       The board is sized as calc(100vh - this), so only its columns scroll. */
+       Columns grow with their cards and only cap/scroll at this height. */
     --tasks-board-offset: 290px;
+    /* Column header row (dot + title + count + add) — subtract from the cap
+       when computing the card list's max-height. */
+    --tasks-board-column-header: 50px;
+}
+
+/* List card — same shell as .dt-container (Leads/Deals tables): one surface
+   for the grouped rows + pagination footer so bottom corners clip cleanly. */
+.tasks-list-card {
+    background: #fff;
+    border: 1px solid var(--dt-border-color, #e2e5ea);
+    border-radius: 10px;
+    box-shadow: none;
+    overflow: clip;
+    transition: opacity 140ms ease;
+}
+
+.tasks-list-card--paging {
+    opacity: 0.72;
+}
+
+.tasks-list-card .tasks-group-header {
+    background: var(--dt-header-bg, #f8fafc);
+}
+
+.tasks-list-card .tasks-list-body > section:first-child .tasks-group-header {
+    border-top: none !important;
+}
+
+.tasks-list-card .tasks-list-body > section:last-child .tasks-row:last-child {
+    border-bottom: none;
+}
+
+.tasks-list-card .tasks-row-stripe {
+    background: var(--bg-subtle, rgb(249 250 251));
 }
 
 .tasks-row:hover {
@@ -14,7 +48,7 @@
 }
 
 .tasks-group-header:hover {
-    background: #f2f4f7 !important;
+    background: #eef2f6 !important;
 }
 
 .tasks-board-card {

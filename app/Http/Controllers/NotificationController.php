@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Helper\Reply;
+use App\Models\UserNotificationAlertSetting;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class NotificationController extends AccountBaseController
@@ -23,9 +25,10 @@ class NotificationController extends AccountBaseController
     public function index()
     {
         $this->pageTitle = __('app.newNotifications');
-        
+
         return Inertia::render('Notifications/Index', [
             'pageTitle' => $this->pageTitle,
+            'notificationAlertSettings' => Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $this->user->id)),
         ]);
     }
 
@@ -292,6 +295,31 @@ class NotificationController extends AccountBaseController
                 'deleted_count' => $count,
                 'unread_count' => $this->notificationService->getUnreadCount($this->user),
             ],
+        ]);
+    }
+
+    /**
+     * API: Save the current user's in-app notification alert preferences
+     * (notch position, on-screen duration, muted state).
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function apiUpdateAlertSettings(Request $request)
+    {
+        $request->validate([
+            'notch_position' => ['sometimes', 'string', Rule::in(UserNotificationAlertSetting::VALID_POSITIONS)],
+            'notch_duration_ms' => ['sometimes', 'integer', Rule::in(UserNotificationAlertSetting::VALID_DURATIONS_MS)],
+            'alerts_muted' => ['sometimes', 'boolean'],
+        ]);
+
+        $settings = UserNotificationAlertSetting::upsertForUser(
+            (int) $this->user->id,
+            $request->only(['notch_position', 'notch_duration_ms', 'alerts_muted']),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $settings,
         ]);
     }
 }

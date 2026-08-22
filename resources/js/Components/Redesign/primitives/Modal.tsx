@@ -106,6 +106,7 @@ export function Modal({
             style={zIndex ? { zIndex } : undefined}
             onClick={dirty ? undefined : onClose}
             role="presentation"
+            style={zIndex !== undefined ? { zIndex } : undefined}
         >
             <div
                 ref={panelRef}
