@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'support' => 'Support',
 
     // resolution status
@@ -10,7 +10,6 @@ return array(
     'dealWatcher' => 'Deal Watchers',
     'changedBy' => 'Changed By',
     'newLeadSubject' => 'New Lead Contact Created',
-
 
     'recurringParentTask' => 'Primary Task ( Recurring )',
     'pendingTimelog' => 'Pending Timelogs',
@@ -164,7 +163,7 @@ return array(
     'quantityExceed' => 'Quantity Exceed',
     'SorryTheQuantityExceedsFor' => 'Sorry, the quantity exceeds for',
     'doItLater' => 'Do It Later',
-    'months' => array(
+    'months' => [
         'January' => 'January',
         'February' => 'February',
         'March' => 'March',
@@ -177,8 +176,8 @@ return array(
         'October' => 'October',
         'November' => 'November',
         'December' => 'December',
-    ),
-    'menu' => array(
+    ],
+    'menu' => [
         'units' => 'Units',
         'prefixSettings' => 'Prefix Settings',
         'parent_id' => 'Parent',
@@ -239,7 +238,7 @@ return array(
         'invoiceSettings' => 'Invoice Settings',
         'invoiceTemplate' => 'Invoice Template',
         'settings' => 'Settings',
-        'dealAutomations' => 'Deal Automations',
+        'dealAutomations' => 'Automations',
         'crmEventSettings' => 'CRM Event Engine',
         'packages' => 'Packages',
         'leadFiles' => 'Lead Files',
@@ -278,7 +277,8 @@ return array(
         'employeeName' => 'Employee Name',
         'timeSettings' => 'Time Settings',
         'accountSettings' => 'Company Settings',
-        'dealAutomations' => 'Deal Automations',
+        'dealAutomations' => 'Automations',
+        'emailTemplates' => 'Email Templates',
         'moduleSettings' => 'Module Settings',
         'moduleSettingsInstall' => 'Module Install/Update',
         'contacts' => 'Contacts',
@@ -334,26 +334,26 @@ return array(
         'invoicePaymentDetails' => 'Invoice Payment Details',
         'projectCalendar' => 'Project Calendar',
         'customLink' => 'Custom Link',
-        'pusher' => array(
+        'pusher' => [
             'appId' => 'App Id',
             'appKey' => 'App Key',
             'appSecret' => 'App Secret',
             'appCluster' => 'App Cluster',
             'forceTLS' => 'Force TLS',
-        ),
+        ],
         'content' => 'Content',
         'decline' => 'Decline',
         'signed' => 'Signed',
         'download' => 'Download',
         'applyToInvoice' => 'Pay Invoice using Credit Note',
-        'credit-notes' => array(
+        'credit-notes' => [
             'invoiceDate' => 'Invoice Date',
             'invoiceAmount' => 'Invoice Amount',
             'invoiceBalanceDue' => 'Invoice Balance Due',
             'amountToCredit' => 'Amount To Credit',
             'remainingAmount' => 'Remaining Amount',
             'amountCredited' => 'Amount Credited',
-        ),
+        ],
         'creditedInvoices' => 'Invoices Credited',
         'appliedCredits' => 'Applied Credits',
         'ticketFiles' => 'Ticket Files',
@@ -404,7 +404,7 @@ return array(
         'mins' => 'mins',
         'receipt' => 'Receipt',
         'callback' => 'Callback',
-        'socialAuthSettings' => array(
+        'socialAuthSettings' => [
             'google' => 'Google',
             'facebook' => 'Facebook',
             'linkedin' => 'Linkedin',
@@ -422,7 +422,7 @@ return array(
             'keycloakSecret' => 'Keycloak Client Secret',
             'keycloakBaseUrl' => 'Keycloak Base URL',
             'keycloakRealm' => 'Keycloak Realm',
-        ),
+        ],
         'saveSend' => 'Save & Send',
         'saveDraft' => 'Save as Draft',
         'send' => 'Send',
@@ -522,7 +522,7 @@ return array(
         'shiftRotation' => 'Shift Rotation',
         'addAutomateShift' => 'Add Automate Shift',
         'weeklyTimesheets' => 'Weekly Timesheets',
-    ),
+    ],
     'parentId' => 'Parent',
     'childId' => 'Child',
     'language' => 'Language',
@@ -699,59 +699,59 @@ return array(
     'bankaccount' => 'Bank Account',
     'bankaccounts' => 'Bank Accounts',
     'Changestatus' => 'Lead Status',
-    'pusher' => array(
+    'pusher' => [
         'appId' => 'App Id',
         'appKey' => 'App Key',
         'appSecret' => 'App Secret',
         'appCluster' => 'App Cluster',
         'forceTLS' => 'Force TLS',
-    ),
+    ],
     'content' => 'Content',
     'decline' => 'Decline',
     'signed' => 'Signed',
     'download' => 'Download',
     'applyToInvoice' => 'Pay Invoice using Credit Note',
-    'credit-notes' => array(
+    'credit-notes' => [
         'invoiceDate' => 'Invoice Date',
         'invoiceAmount' => 'Invoice Amount',
         'invoiceBalanceDue' => 'Invoice Balance Due',
         'amountToCredit' => 'Amount To Credit',
         'remainingAmount' => 'Remaining Amount',
         'amountCredited' => 'Amount Credited',
-    ),
-    'onesignal' => array(
+    ],
+    'onesignal' => [
         'actionMessage' => 'We\'d like to show you notifications for the latest news and updates.',
         'acceptButtonText' => 'ALLOW',
         'cancelButtonText' => 'NO THANKS',
-        'tip' => array(
-            'state' => array(
+        'tip' => [
+            'state' => [
                 'unsubscribed' => 'Subscribe to notifications',
                 'subscribed' => 'You\'re subscribed to notifications',
                 'blocked' => 'You\'ve blocked notifications',
-            ),
-        ),
-        'message' => array(
+            ],
+        ],
+        'message' => [
             'prenotify' => 'Click to subscribe to notifications',
-            'action' => array(
+            'action' => [
                 'subscribed' => 'Thanks for subscribing!',
                 'resubscribed' => 'You\'re subscribed to notifications',
                 'unsubscribed' => 'You won\'t receive notifications again',
-            ),
-        ),
-        'dialog' => array(
-            'main' => array(
+            ],
+        ],
+        'dialog' => [
+            'main' => [
                 'title' => 'Manage Site Notifications',
-                'button' => array(
+                'button' => [
                     'subscribe' => 'SUBSCRIBE',
                     'unsubscribe' => 'UNSUBSCRIBE',
-                ),
-            ),
-            'blocked' => array(
+                ],
+            ],
+            'blocked' => [
                 'title' => 'Unblock Notifications',
                 'message' => 'Follow these instructions to allow notifications:',
-            ),
-        ),
-    ),
+            ],
+        ],
+    ],
     'creditedInvoices' => 'Invoices Credited',
     'appliedCredits' => 'Applied Credits',
     'ticketFiles' => 'Ticket Files',
@@ -807,7 +807,7 @@ return array(
     'receipt' => 'Receipt',
     'callback' => 'Callback',
     'generalInformation' => 'General Information',
-    'socialAuthSettings' => array(
+    'socialAuthSettings' => [
         'google' => 'Google',
         'facebook' => 'Facebook',
         'linkedin' => 'Linkedin',
@@ -825,7 +825,7 @@ return array(
         'keycloakSecret' => 'Keycloak Client Secret',
         'keycloakBaseUrl' => 'Keycloak Base URL',
         'keycloakRealm' => 'Keycloak Realm',
-    ),
+    ],
     'saveSend' => 'Save & Send',
     'saveMark' => 'Save & Mark as Send',
     'markSent' => 'Mark as Sent',
@@ -978,7 +978,7 @@ return array(
     'stripeSecret' => 'Stripe Secret',
     'stripeWebhookSecret' => 'Stripe Webhook Signing Secret',
     'razorpayWebhookSecret' => 'Razorpay Webhook Signing Secret',
-    'storageSetting' => array(
+    'storageSetting' => [
         'selectStorage' => 'Select Storage',
         'local' => 'Local (Default)',
         'aws_s3' => 'AWS S3 Storage (Amazon Web Services S3)',
@@ -1015,7 +1015,7 @@ return array(
         'storageSuggestion' => '<b>Suggestion:</b> Consider using <a href="https://digitalocean.pxf.io/froiden" target="_blank">DigitalOcean Spaces</a>, <a href="https://aws.amazon.com/s3" target="_blank">AWS S3</a>, <a href="https://wasabi.com" target="_blank">Wasabi</a> or <a href="https://min.io/" target="_blank">Minio</a> Storage for an additional layer of security',
         'localStorageNote' => 'means that the files you upload will be stored on your own server within the <b>public/user-uploads</b> directory.',
         'testMinioSetting' => 'Test Minio Storage Settings',
-    ),
+    ],
     'message' => 'Message',
     'verify' => 'Verify',
     'itemSelected' => 'items selected',
@@ -1213,13 +1213,13 @@ return array(
     'moduleSwitchMessage' => 'Activate or deactivate :name module',
     'updateModule' => 'Update Module',
     'eventMonthlyOn' => 'Monthly on the :week :day',
-    'eventDay' => array(
+    'eventDay' => [
         1 => 'first',
         2 => 'second',
         3 => 'third',
         4 => 'fourth',
         5 => 'last',
-    ),
+    ],
     'thisEvent' => 'This event',
     'allEvent' => 'All events',
     'totalDays' => 'Total Days',
@@ -1348,13 +1348,13 @@ return array(
     'moduleNotifySwitchMessage' => 'This will hide/show new update message on dashboard for :name module',
     'leadContact' => 'Lead Contact',
     'deal' => 'Deals',
-    'commissionStatus' => array(
+    'commissionStatus' => [
         'pending' => 'Pending',
         'approved' => 'Approved',
         'paid' => 'Paid',
-        'cancelled' => 'Cancelled'
-    ),
-    'maritalStatus' => array(
+        'cancelled' => 'Cancelled',
+    ],
+    'maritalStatus' => [
         'single' => 'Single',
         'married' => 'Married',
         'widower' => 'Widower',
@@ -1362,8 +1362,8 @@ return array(
         'separate' => 'Separate',
         'divorced' => 'Divorced',
         'engaged' => 'Engaged',
-        'unmarried' => 'Unmarried'
-    ),
+        'unmarried' => 'Unmarried',
+    ],
     'sku' => 'SKU',
     'host' => 'Host',
     'cancelled' => 'Cancelled',
@@ -1425,7 +1425,7 @@ return array(
             'instagram' => 'Instagram',
             'telegram' => 'Telegram',
         ],
-        'tryAgain'=> 'Try Again',
+        'tryAgain' => 'Try Again',
         'replyToActivity' => 'Reply to Activity',
         'typeYourMessage' => 'Type your message',
         'noInstagramUsername' => 'No Instagram Username',
@@ -1490,8 +1490,8 @@ return array(
 
     'common' => [
         'actions' => [
-            'refresh'      => 'Refresh',
-            'expand_all'   => 'Expand all',
+            'refresh' => 'Refresh',
+            'expand_all' => 'Expand all',
             'collapse_all' => 'Collapse all',
         ],
         'filters' => [
@@ -1500,35 +1500,35 @@ return array(
     ],
 
     'dashboard' => [
-        'good_morning'   => 'Good morning',
+        'good_morning' => 'Good morning',
         'good_afternoon' => 'Good afternoon',
-        'good_evening'   => 'Good evening',
-        'subtitle'       => "Welcome back to your dashboard. Here's what's happening with sales today.",
+        'good_evening' => 'Good evening',
+        'subtitle' => "Welcome back to your dashboard. Here's what's happening with sales today.",
         'stat_text' => [
-            'tasks_completed'    => 'tasks completed',
-            'active_deals'       => 'deals',
+            'tasks_completed' => 'tasks completed',
+            'active_deals' => 'deals',
             'activities_this_week' => 'activities this week',
         ],
     ],
 
     'notifications' => [
-        'title'              => 'Notifications',
+        'title' => 'Notifications',
         'search_placeholder' => 'Search notifications...',
-        'filter_by_type'     => 'Filter by type',
-        'done'               => 'Done',
-        'select'             => 'Select',
-        'actions_label'      => 'Actions',
-        'bulk_delete_title'        => 'Delete Notifications',
-        'bulk_delete_read_title'   => 'Delete Read Notifications',
+        'filter_by_type' => 'Filter by type',
+        'done' => 'Done',
+        'select' => 'Select',
+        'actions_label' => 'Actions',
+        'bulk_delete_title' => 'Delete Notifications',
+        'bulk_delete_read_title' => 'Delete Read Notifications',
         'bulk_delete_read_content' => 'Are you sure you want to delete all read notifications? This action cannot be undone.',
         'filters' => [
-            'all'    => 'All notifications',
+            'all' => 'All notifications',
             'unread' => 'Unread',
-            'read'   => 'Read',
+            'read' => 'Read',
         ],
         'actions' => [
-            'mark_read'      => 'Mark as read',
-            'mark_all_read'  => 'Mark all as read',
+            'mark_read' => 'Mark as read',
+            'mark_all_read' => 'Mark all as read',
             'delete_all_read' => 'Delete all read',
         ],
     ],
@@ -1537,33 +1537,33 @@ return array(
         'search_placeholder' => 'Search leads by name, email, company, mobile, country...',
         'actions' => [
             'change_to_client' => 'Change to Client',
-            'add'              => 'Add Lead',
+            'add' => 'Add Lead',
         ],
     ],
 
     'meetings' => [
-        'my_meetings'           => 'My Meetings',
-        'select_deal_label'       => 'Select Deal',
+        'my_meetings' => 'My Meetings',
+        'select_deal_label' => 'Select Deal',
         'select_deal_placeholder' => 'Search and select a deal...',
-        'select_lead_label'       => 'Select Lead',
+        'select_lead_label' => 'Select Lead',
         'select_lead_placeholder' => 'Search and select a lead...',
-        'entity_type_label'       => 'Schedule meeting for',
-        'entity_type_deal'          => 'Deal',
-        'entity_type_lead'          => 'Lead',
+        'entity_type_label' => 'Schedule meeting for',
+        'entity_type_deal' => 'Deal',
+        'entity_type_lead' => 'Lead',
         'schedule_drawer_title' => 'Schedule Meeting',
         'stats' => [
-            'upcoming'  => 'Upcoming',
+            'upcoming' => 'Upcoming',
             'this_week' => 'This Week',
-            'live_now'  => 'Live Now',
+            'live_now' => 'Live Now',
             'completed' => 'Completed',
         ],
         'sections' => [
             'upcoming' => 'Upcoming Meetings',
-            'past'     => 'Past Meetings',
+            'past' => 'Past Meetings',
         ],
         'empty' => [
             'upcoming' => 'No upcoming meetings scheduled.',
-            'past'     => 'No past meetings found.',
+            'past' => 'No past meetings found.',
         ],
         'actions' => [
             'schedule' => 'Schedule Meeting',
@@ -1586,18 +1586,18 @@ return array(
     ],
 
     'agents' => [
-        'title'              => 'Agents',
+        'title' => 'Agents',
         'search_placeholder' => 'Search agents by name or email...',
         'status' => [
-            'active'   => 'Active',
+            'active' => 'Active',
             'disabled' => 'Disabled',
         ],
         'filters' => [
-            'status'   => 'Status',
+            'status' => 'Status',
             'category' => 'Category',
         ],
         'actions' => [
-            'add'    => 'Add Agent',
+            'add' => 'Add Agent',
             'import' => 'Import',
         ],
     ],
@@ -1607,7 +1607,7 @@ return array(
     'deals' => [
         'search_placeholder' => 'Search deals by title, contact name, email...',
         'actions' => [
-            'add'              => 'Add Deal',
+            'add' => 'Add Deal',
             'schedule_meeting' => 'Schedule Meeting',
         ],
     ],
@@ -1615,35 +1615,35 @@ return array(
     'properties' => [
         'search_placeholder' => 'Search properties by title, area, description...',
         'actions' => [
-            'add'                   => 'Add Property',
+            'add' => 'Add Property',
             'availability_requests' => 'Availability Requests',
-            'edit_access_requests'  => 'Edit Access Requests',
-            'publish_requests'      => 'Publish Requests',
-            'configuration'         => 'Configuration',
+            'edit_access_requests' => 'Edit Access Requests',
+            'publish_requests' => 'Publish Requests',
+            'configuration' => 'Configuration',
         ],
     ],
 
     'mlm' => [
         'title' => 'MLM',
         'admin' => [
-            'dashboard'           => 'MLM Dashboard',
-            'levels'              => 'MLM Levels',
-            'levels_short'        => 'Levels',
-            'level_rules'         => 'Level Rules',
+            'dashboard' => 'MLM Dashboard',
+            'levels' => 'MLM Levels',
+            'levels_short' => 'Levels',
+            'level_rules' => 'Level Rules',
             'commission_settings' => 'Commission Settings',
-            'agent_hierarchy'     => 'Agent Hierarchy',
-            'commission_ledger'   => 'Commission Ledger',
-            'agent_metrics'       => 'Agent Metrics',
-            'level_history'       => 'Level History',
-            'cycle_management'    => 'Cycle Management',
+            'agent_hierarchy' => 'Agent Hierarchy',
+            'commission_ledger' => 'Commission Ledger',
+            'agent_metrics' => 'Agent Metrics',
+            'level_history' => 'Level History',
+            'cycle_management' => 'Cycle Management',
         ],
         'agent' => [
-            'dashboard'   => 'My MLM Dashboard',
+            'dashboard' => 'My MLM Dashboard',
             'commissions' => 'My Commissions',
-            'network'     => 'My Network',
-            'level'       => 'My Level',
-            'uplines'     => 'My Uplines',
-            'deals'       => 'My Deals',
+            'network' => 'My Network',
+            'level' => 'My Level',
+            'uplines' => 'My Uplines',
+            'deals' => 'My Deals',
         ],
     ],
 
@@ -1673,4 +1673,4 @@ return array(
         'reminder_defaults' => 'Reminder Defaults',
         'reminder_ledger' => 'Reminders',
     ],
-);
+];

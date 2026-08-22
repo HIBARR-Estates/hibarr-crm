@@ -295,4 +295,36 @@ class MeetingsController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Manually record/confirm whether the client attended a meeting. Tri-state
+     * (true/false/null) — this is never inferred automatically, only set by a
+     * user after the fact. Same permission rule as reschedule(): the creator,
+     * or a user with 'all' edit permission.
+     */
+    public function confirmAttendance(Request $request, DealFollowUp $followUp)
+    {
+        $this->editFollowUpPermission = user()->permission('edit_lead_follow_up');
+
+        abort_403(!(
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        $request->validate([
+            'client_attended' => 'nullable|boolean',
+        ]);
+
+        // $request->has() is true even for an explicit JSON null, so it can't
+        // distinguish "clear it" from "set true/false" — read the raw value instead.
+        $value = $request->input('client_attended');
+        $followUp->client_attended = $value === null ? null : (bool) $value;
+        $followUp->save();
+
+        return response()->json([
+            'success' => true,
+            'client_attended' => $followUp->client_attended,
+            'message' => 'Attendance updated.',
+        ]);
+    }
+
 }

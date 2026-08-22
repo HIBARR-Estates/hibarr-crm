@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DealAutomationLog extends BaseModel
 {
-    use HasFactory, HasCompany;
+    use HasCompany, HasFactory;
 
     protected $table = 'deal_automation_logs';
 
     protected $fillable = [
         'company_id',
         'deal_id',
+        'lead_id',
         'automation_id',
         'action',
         'executed_at',
@@ -29,6 +30,11 @@ class DealAutomationLog extends BaseModel
     public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class, 'deal_id');
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'lead_id');
     }
 
     public function automation(): BelongsTo

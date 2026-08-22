@@ -26,6 +26,7 @@ use App\Console\Commands\MigrateFilesToExternalStorage;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\RecoverProjectFacilities;
 use App\Console\Commands\RemoveSeenNotification;
+use App\Console\Commands\ProcessAutomationDateTriggers;
 use App\Console\Commands\SendApproachingDealCloseDateNotifications;
 use App\Console\Commands\SendAttendanceReminder;
 use App\Console\Commands\SendAutoFollowUpReminder;
@@ -96,6 +97,7 @@ class Kernel extends ConsoleKernel
         SyncDynamicTranslations::class,
         TestNotificationsCommand::class,
         SendMlmApproachingNotifications::class,
+        ProcessAutomationDateTriggers::class,
     ];
 
     /**
@@ -143,6 +145,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-overdue-task-notifications')->hourly()->withoutOverlapping();
         $schedule->command('send-approaching-deal-close-date-notifications')->dailyAt('08:00');
         $schedule->command('send-mlm-approaching-notifications')->dailyAt('08:15');
+        $schedule->command('deal-automations:process-date-triggers')->dailyAt('08:30')->withoutOverlapping();
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();

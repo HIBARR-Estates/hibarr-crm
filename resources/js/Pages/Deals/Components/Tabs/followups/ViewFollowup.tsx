@@ -320,6 +320,46 @@ const ViewFollowup: React.FC<Props> = ({
     const { td } = useTd();
     const currentUserId = props?.auth?.user?.id;
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
+    const [attendance, setAttendance] = useState<boolean | null | undefined>(
+        followup?.client_attended,
+    );
+    const [attendanceSaving, setAttendanceSaving] = useState(false);
+
+    const handleSetAttendance = async (value: boolean | null) => {
+        if (!followup?.id || attendanceSaving) return;
+
+        // Clicking the already-active option clears it back to unconfirmed —
+        // this is a manual record, not a one-way commit.
+        const nextValue = attendance === value ? null : value;
+
+        setAttendanceSaving(true);
+        try {
+            const csrfToken =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute("content") || "";
+
+            const res = await fetch(
+                `/account/meetings/${followup.id}/confirm-attendance`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "X-CSRF-TOKEN": csrfToken,
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                    body: JSON.stringify({ client_attended: nextValue }),
+                },
+            );
+            const json = await res.json();
+            if (json.success) {
+                setAttendance(json.client_attended);
+            }
+        } finally {
+            setAttendanceSaving(false);
+        }
+    };
 
     const live = isLiveMeeting(followup);
     const elapsedMinutes = getElapsedMinutes(followup);
@@ -567,6 +607,32 @@ const ViewFollowup: React.FC<Props> = ({
                             ) : (
                                 <span className="text-[13px] text-slate-400">--</span>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Client Attendance — manually recorded/confirmed, never inferred */}
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Client Attendance</p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="small"
+                                disabled={attendanceSaving}
+                                onClick={() => handleSetAttendance(true)}
+                                className={`rounded-lg text-[13px] shadow-none ${attendance === true ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ""}`}
+                            >
+                                ✓ Attended
+                            </Button>
+                            <Button
+                                size="small"
+                                disabled={attendanceSaving}
+                                onClick={() => handleSetAttendance(false)}
+                                className={`rounded-lg text-[13px] shadow-none ${attendance === false ? "bg-red-50 text-red-700 border-red-200" : ""}`}
+                            >
+                                ✗ No-show
+                            </Button>
+                            {attendance === null || attendance === undefined ? (
+                                <span className="text-[12px] text-slate-400">Not yet confirmed</span>
+                            ) : null}
                         </div>
                     </div>
 

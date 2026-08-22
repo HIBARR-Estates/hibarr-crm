@@ -10,6 +10,7 @@ enum IntegrationOrigin: string
     case MEETING_BOT = 'meeting_bot';
     case SALLY = 'sally';
     case MAX = 'max';
+    case SYSTEM = 'system';
 
     public function label(): string
     {
@@ -17,6 +18,7 @@ enum IntegrationOrigin: string
             self::MEETING_BOT => 'Meeting Bot',
             self::SALLY => 'Sally',
             self::MAX => 'Max',
+            self::SYSTEM => 'System',
         };
     }
 }

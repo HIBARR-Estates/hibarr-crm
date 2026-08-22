@@ -8,7 +8,9 @@ use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Services\DealActivityEventService;
+use App\Services\DealAutomationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use ReflectionClass;
@@ -132,7 +134,9 @@ trait CustomFieldsTrait
     public function updateCustomFieldData($fields, $company_id = null)
     {
         $isDeal = $this instanceof Deal;
-        $beforeSnapshot = $isDeal ? $this->getCustomFieldsData()->toArray() : [];
+        $isLead = $this instanceof Lead;
+        $tracksCustomFieldChanges = $isDeal || $isLead;
+        $beforeSnapshot = $tracksCustomFieldChanges ? $this->getCustomFieldsData()->toArray() : [];
         $requestedFieldKeys = $this->collectCustomFieldKeysFromPayload($fields);
 
         foreach ($fields as $key => $value) {
@@ -362,25 +366,42 @@ trait CustomFieldsTrait
             }
         }
 
-        if ($isDeal && !empty($requestedFieldKeys)) {
+        if ($tracksCustomFieldChanges && !empty($requestedFieldKeys)) {
             $afterSnapshot = $this->getCustomFieldsData()->toArray();
-            $dealCustomFieldChanges = $this->buildDealCustomFieldChangeEntries(
+            $customFieldChanges = $this->buildDealCustomFieldChangeEntries(
                 $beforeSnapshot,
                 $afterSnapshot,
                 $requestedFieldKeys
             );
 
-            if (!empty($dealCustomFieldChanges)) {
-                Log::info('[CustomFieldsTrait] Recording deal custom field CRM events.', [
-                    'deal_id' => $this->id,
-                    'change_count' => count($dealCustomFieldChanges),
-                    'field_keys' => array_column($dealCustomFieldChanges, 'custom_field_id'),
+            if (!empty($customFieldChanges)) {
+                Log::info('[CustomFieldsTrait] Detected custom field changes.', [
+                    'model' => $isDeal ? 'deal' : 'lead',
+                    'model_id' => $this->id,
+                    'change_count' => count($customFieldChanges),
+                    'field_keys' => array_column($customFieldChanges, 'custom_field_id'),
                 ]);
 
-                app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $dealCustomFieldChanges);
+                // CRM timeline event: Deal-only today (DealActivityEventService::
+                // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
+                // out of scope for wiring up the automation trigger below.
+                if ($isDeal) {
+                    app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
+                }
+
+                // Deal automation trigger 'custom_field_updated' — this is what
+                // actually makes an automation configured with that trigger fire.
+                // process() itself already skips locked deals; no need to
+                // duplicate that check here.
+                if ($isDeal) {
+                    app(DealAutomationService::class)->process($this, 'custom_field_updated');
+                } else {
+                    app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                }
             } else {
-                Log::debug('[CustomFieldsTrait] No deal custom field changes detected after save.', [
-                    'deal_id' => $this->id,
+                Log::debug('[CustomFieldsTrait] No custom field changes detected after save.', [
+                    'model' => $isDeal ? 'deal' : 'lead',
+                    'model_id' => $this->id,
                     'requested_field_keys' => $requestedFieldKeys,
                 ]);
             }

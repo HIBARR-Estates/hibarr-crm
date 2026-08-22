@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Enums\DealActivityType;
 use App\Jobs\DeleteCalendarSyncEventJob;
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\DealFollowUp;
 use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
@@ -52,9 +53,14 @@ class DealFollowUpObserver
             $this->dealActivityEventService->recordFollowUpCreated($dealFollowUp->deal, $dealFollowUp);
 
             Log::info('[DealFollowUpObserver::created] recordFollowUpCreated completed.');
+        } elseif ($dealFollowUp->lead_id && $dealFollowUp->lead) {
+            // Lead follow-up (no deal attached) — same trigger idea as the deal
+            // side, fired through the lead-subject automation flow.
+            $this->dealAutomation->processLead($dealFollowUp->lead, DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED);
         } else {
-            Log::warning('[DealFollowUpObserver::created] No deal relation found — skipping CRM event.', [
+            Log::warning('[DealFollowUpObserver::created] No deal or lead relation found — skipping CRM event.', [
                 'deal_id' => $dealFollowUp->deal_id,
+                'lead_id' => $dealFollowUp->lead_id,
             ]);
         }
 

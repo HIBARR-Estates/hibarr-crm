@@ -748,6 +748,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
+    Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');

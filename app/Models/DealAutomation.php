@@ -15,10 +15,37 @@ class DealAutomation extends BaseModel
     protected $fillable = [
         'name',
         'pipeline_id',
+        'subject_type',
         'trigger',
+        'date_field',
+        'date_recurrence',
         'active',
         'priority',
     ];
+
+    /**
+     * Subject-type constants — which model this automation runs against.
+     */
+    public const SUBJECT_DEAL = 'deal';
+
+    public const SUBJECT_LEAD = 'lead';
+
+    /**
+     * Trigger constants. TRIGGER_DATE_BASED fires from the daily scheduler
+     * (deal-automations:process-date-triggers) when a record's configured date
+     * field matches — birthdays, anniversaries, one-off dates.
+     */
+    public const TRIGGER_DATE_BASED = 'date_based';
+
+    public const TRIGGER_LEAD_FOLLOWUP_CREATED = 'lead_followup_created';
+
+    /**
+     * How a date_based trigger repeats: on the matching month/day every year
+     * (birthdays/anniversaries) or only on the exact date, once ever.
+     */
+    public const DATE_RECURRENCE_YEARLY = 'yearly';
+
+    public const DATE_RECURRENCE_ONCE = 'once';
 
     protected $casts = [
         'active' => 'boolean',
