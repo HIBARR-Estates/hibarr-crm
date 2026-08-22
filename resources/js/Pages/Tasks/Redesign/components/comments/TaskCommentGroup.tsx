@@ -62,10 +62,9 @@ export default function TaskCommentGroup({
                                 lineHeight: 1.65,
                                 overflowWrap: "anywhere",
                             }}
-                            dangerouslySetInnerHTML={{
-                                __html: renderComment(comment.comment),
-                            }}
-                        />
+                        >
+                            {renderComment(comment.comment)}
+                        </div>
                         {canDelete(comment) && (
                             <button
                                 type="button"

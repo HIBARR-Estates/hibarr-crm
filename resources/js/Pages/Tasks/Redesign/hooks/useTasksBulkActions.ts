@@ -54,7 +54,7 @@ export default function useTasksBulkActions({
         },
         unknown,
         ApiResponse<unknown>
-    >("/account/tasks/apply-quick-action", "POST");
+    >(route("tasks.apply_quick_action"), "POST");
     const bulkBusy = isLoading({ status: bulkStatus });
 
     const bulkUpdateFields = useMemo(

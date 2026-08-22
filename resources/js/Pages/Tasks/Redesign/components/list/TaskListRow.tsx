@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -12,6 +13,17 @@ import {
 import TaskRowMenu, { type TaskRowAction } from "../primitives/TaskRowMenu";
 import TaskRecordIcon from "../primitives/TaskRecordIcon";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
+
+const OPEN_BUTTON: CSSProperties = {
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    margin: 0,
+    cursor: "pointer",
+    font: "inherit",
+    color: "inherit",
+    textAlign: "left",
+};
 
 interface TaskListRowProps {
     vm: TaskViewModel;
@@ -46,16 +58,7 @@ export default function TaskListRow({
 
     return (
         <div
-            role="button"
-            tabIndex={0}
-            onClick={onOpen}
-            onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen();
-                }
-            }}
-            className={`tasks-row flex cursor-pointer items-center gap-3${
+            className={`tasks-row flex items-center gap-3${
                 striped ? " tasks-row-stripe" : ""
             }`}
             style={{
@@ -77,7 +80,12 @@ export default function TaskListRow({
                 className="flex flex-1 flex-col gap-0.5"
                 style={{ minWidth: 220 }}
             >
-                <div className="flex min-w-0 items-center gap-2">
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    className="flex min-w-0 items-center gap-2"
+                    style={OPEN_BUTTON}
+                >
                     <span
                         className="truncate"
                         style={{
@@ -92,7 +100,7 @@ export default function TaskListRow({
                     {priorityTreatment === "pill" && (
                         <TaskPriorityPill priority={vm.priority} />
                     )}
-                </div>
+                </button>
 
                 <div
                     className="flex min-w-0 items-center gap-2"
@@ -100,7 +108,14 @@ export default function TaskListRow({
                 >
                     {showRowCategory && vm.category && (
                         <>
-                            <TaskCategoryTag category={vm.category} />
+                            <button
+                                type="button"
+                                onClick={onOpen}
+                                className="inline-flex items-center"
+                                style={OPEN_BUTTON}
+                            >
+                                <TaskCategoryTag category={vm.category} />
+                            </button>
                             {(vm.links.length > 0 || vm.extraLinks > 0) && (
                                 <span
                                     style={{
@@ -128,7 +143,6 @@ export default function TaskListRow({
                             <a
                                 key={`${link.type}-${link.name}`}
                                 href={link.href}
-                                onClick={(event) => event.stopPropagation()}
                                 className="tasks-entity-link inline-flex min-w-0 items-center gap-1.5"
                                 style={{ color: T.TEXT_MUTED }}
                             >
@@ -157,9 +171,11 @@ export default function TaskListRow({
                 </div>
             </div>
 
-            <div
+            <button
+                type="button"
+                onClick={onOpen}
                 className="flex flex-shrink-0 flex-col gap-0.5 text-right"
-                style={{ width: 152 }}
+                style={{ ...OPEN_BUTTON, width: 152 }}
             >
                 <span
                     className="truncate"
@@ -175,7 +191,7 @@ export default function TaskListRow({
                 <span style={{ fontSize: 14, color: T.TEXT_HINT }}>
                     {td(vm.dueSub, { source: "en" })}
                 </span>
-            </div>
+            </button>
 
             <div className="flex flex-shrink-0 justify-end" style={{ width: 56 }}>
                 <MultiUserIndicator
@@ -194,7 +210,6 @@ export default function TaskListRow({
             <div
                 className="flex flex-shrink-0 justify-end"
                 style={{ width: 124 }}
-                onClick={(event) => event.stopPropagation()}
             >
                 <TaskStatusSelect
                     status={vm.statusSlug}

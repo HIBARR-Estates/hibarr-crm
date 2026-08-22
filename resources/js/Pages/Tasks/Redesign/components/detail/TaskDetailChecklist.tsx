@@ -13,7 +13,7 @@ interface TaskDetailChecklistProps {
     canManage: boolean;
     onToggle: (item: TaskCheckpoint) => void;
     onRemove: (id: number) => void;
-    onAdd: (title: string) => Promise<unknown>;
+    onAdd: (title: string) => Promise<boolean>;
 }
 
 export default function TaskDetailChecklist({
@@ -30,20 +30,25 @@ export default function TaskDetailChecklist({
     const inputRef = useRef<HTMLInputElement>(null);
     const doneCount = items.filter((item) => item.status === "complete").length;
 
+    const commitDraft = async (focus: boolean) => {
+        const title = draft.trim();
+        if (!title) {
+            if (focus) inputRef.current?.focus();
+            return;
+        }
+        const added = await onAdd(title);
+        if (added === true) {
+            setDraft("");
+            if (focus) inputRef.current?.focus();
+        }
+    };
+
     const submitDraft = () => {
-        if (!draft.trim()) return;
-        void onAdd(draft.trim()).then(() => setDraft(""));
+        void commitDraft(false);
     };
 
     const handleAddClick = () => {
-        if (draft.trim()) {
-            void onAdd(draft.trim()).then(() => {
-                setDraft("");
-                inputRef.current?.focus();
-            });
-        } else {
-            inputRef.current?.focus();
-        }
+        void commitDraft(true);
     };
 
     return (

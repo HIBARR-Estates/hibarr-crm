@@ -60,7 +60,10 @@ export default function TaskFormChecklist({
                             onChange(next);
                         }}
                         onKeyDown={(event) => {
-                            if (event.key === "Enter") {
+                            if (
+                                event.key === "Enter" &&
+                                !event.nativeEvent.isComposing
+                            ) {
                                 event.preventDefault();
                                 onChange([...items, ""]);
                             }

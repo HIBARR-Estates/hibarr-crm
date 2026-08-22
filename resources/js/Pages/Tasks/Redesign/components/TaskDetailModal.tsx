@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import useTaskComments from "../hooks/useTaskComments";
@@ -31,7 +33,7 @@ interface TaskDetailModalProps {
     toggling: boolean;
     people: PersonOption[];
     currentUser: { id: number; name: string; image?: string | null };
-    deleteCommentScope?: string;
+    deleteCommentScope?: TaskCommentDeleteScope;
     onChecklistChange?: (taskId: number, items: TaskCheckpoint[]) => void;
 }
 
@@ -50,6 +52,7 @@ export default function TaskDetailModal({
     onChecklistChange,
 }: TaskDetailModalProps) {
     const { td } = useTd();
+    const [mentionDropdownOpen, setMentionDropdownOpen] = useState(false);
     const comments = useTaskComments(vm?.id ?? null);
     const taskId = vm?.id ?? null;
     const checkpoints = useTaskCheckpoints(
@@ -64,6 +67,8 @@ export default function TaskDetailModal({
         <TaskModalShell
             open={vm !== null}
             onClose={onClose}
+            closeOnBackdrop
+            onEscape={() => mentionDropdownOpen}
             ariaLabel={vm?.title ?? ""}
             zIndex={48}
             panelClassName="tasks-modal-panel flex w-full overflow-hidden"
@@ -142,6 +147,7 @@ export default function TaskDetailModal({
                         currentUser={currentUser}
                         canComment={canComment}
                         deleteCommentScope={deleteCommentScope}
+                        onMentionOpenChange={setMentionDropdownOpen}
                         onSubmit={comments.addComment}
                         onDelete={comments.deleteComment}
                         onLoadMore={comments.loadMore}

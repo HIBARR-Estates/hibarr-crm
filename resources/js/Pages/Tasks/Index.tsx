@@ -41,6 +41,7 @@ import { Task } from "@/Types/Task";
 import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
 import TasksWorkspaceRedesign from "@/Pages/Tasks/Redesign/TasksWorkspaceRedesign";
+import type { TaskCommentDeleteScope } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
 dayjs.extend(isBetween);
 
@@ -158,7 +159,7 @@ export interface TasksIndexProps extends PageProps {
         delete_tasks: string;
         change_status: string;
         add_task_comments?: string;
-        delete_task_comments?: string;
+        delete_task_comments?: TaskCommentDeleteScope;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
         view_task_category?: string;
     };

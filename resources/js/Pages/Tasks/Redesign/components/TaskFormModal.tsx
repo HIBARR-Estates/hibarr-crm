@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -80,13 +81,22 @@ export default function TaskFormModal({
     const [formHydrated, setFormHydrated] = useState(false);
     const [assigneeOpen, setAssigneeOpen] = useState(false);
     const [linksOpen, setLinksOpen] = useState(false);
-    const [anchor, setAnchor] = useState<{ top: number; left: number }>({
-        top: 0,
-        left: 0,
-    });
     const [recordType, setRecordType] = useState<RecordTypeKey>("lead");
     const [recordQuery, setRecordQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const assigneeTriggerRef = useRef<HTMLButtonElement>(null);
+    const linksTriggerRef = useRef<HTMLButtonElement>(null);
+    const assigneeFloat = useFloatingMenuPosition(
+        assigneeOpen,
+        assigneeTriggerRef,
+        { zIndex: 60, maxHeight: 400 },
+    );
+    const linksFloat = useFloatingMenuPosition(linksOpen, linksTriggerRef, {
+        zIndex: 60,
+        maxHeight: 420,
+    });
+    const assigneePosition = clampMenuLeft(assigneeFloat, 300);
+    const linksPosition = clampMenuLeft(linksFloat, 380);
 
     const patchForm = (patch: Partial<TaskFormValues>) =>
         setForm((current) => ({ ...current, ...patch }));
@@ -182,34 +192,16 @@ export default function TaskFormModal({
         });
     };
 
-    const toggleAssignee = (event: React.MouseEvent<HTMLElement>) => {
+    const toggleAssignee = (event: MouseEvent<HTMLElement>) => {
         event.stopPropagation();
         setLinksOpen(false);
-        if (assigneeOpen) {
-            setAssigneeOpen(false);
-            return;
-        }
-        const rect = event.currentTarget.getBoundingClientRect();
-        setAnchor({
-            top: rect.bottom + 6,
-            left: Math.max(8, Math.min(rect.left, window.innerWidth - 300)),
-        });
-        setAssigneeOpen(true);
+        setAssigneeOpen((open) => !open);
     };
 
-    const toggleLinks = (event: React.MouseEvent<HTMLElement>) => {
+    const toggleLinks = (event: MouseEvent<HTMLElement>) => {
         event.stopPropagation();
         setAssigneeOpen(false);
-        if (linksOpen) {
-            setLinksOpen(false);
-            return;
-        }
-        const rect = event.currentTarget.getBoundingClientRect();
-        setAnchor({
-            top: rect.bottom + 6,
-            left: Math.max(8, Math.min(rect.left, window.innerWidth - 380)),
-        });
-        setLinksOpen(true);
+        setLinksOpen((open) => !open);
     };
 
     const assigneeLabel = (() => {
@@ -346,11 +338,14 @@ export default function TaskFormModal({
                     saving={saving}
                     dateRangeError={dateRangeError}
                     assigneeLabel={assigneeLabel}
+                    assigneeTriggerRef={assigneeTriggerRef}
+                    linksTriggerRef={linksTriggerRef}
                     onToggleAssignee={toggleAssignee}
                     onToggleLinks={toggleLinks}
                 />
 
                 {assigneeOpen &&
+                    assigneePosition &&
                     createPortal(
                         <>
                             <div
@@ -369,10 +364,7 @@ export default function TaskFormModal({
                                 className="tasks-reveal"
                                 onClick={(event) => event.stopPropagation()}
                                 style={{
-                                    position: "fixed",
-                                    top: anchor.top,
-                                    left: anchor.left,
-                                    zIndex: 60,
+                                    ...assigneePosition,
                                     width: 280,
                                     padding: 12,
                                     background: T.WHITE,
@@ -396,7 +388,7 @@ export default function TaskFormModal({
 
                 <TaskFormLinksPopover
                     open={linksOpen}
-                    anchor={anchor}
+                    positionStyle={linksPosition}
                     onClose={() => setLinksOpen(false)}
                     recordType={recordType}
                     onRecordType={(type) => {
@@ -518,4 +510,16 @@ export default function TaskFormModal({
             </div>
         </TaskModalShell>
     );
+}
+
+function clampMenuLeft(
+    style: ReturnType<typeof useFloatingMenuPosition>,
+    menuWidth: number,
+) {
+    if (!style) return null;
+    if (typeof style.left !== "number") return style;
+    return {
+        ...style,
+        left: Math.max(8, Math.min(style.left, window.innerWidth - menuWidth)),
+    };
 }

@@ -1,3 +1,4 @@
+import type { MouseEvent, RefObject } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -27,8 +28,10 @@ interface TaskFormPillsProps {
     saving: boolean;
     dateRangeError: string | null;
     assigneeLabel: string;
-    onToggleAssignee: (event: React.MouseEvent<HTMLElement>) => void;
-    onToggleLinks: (event: React.MouseEvent<HTMLElement>) => void;
+    assigneeTriggerRef: RefObject<HTMLButtonElement | null>;
+    linksTriggerRef: RefObject<HTMLButtonElement | null>;
+    onToggleAssignee: (event: MouseEvent<HTMLElement>) => void;
+    onToggleLinks: (event: MouseEvent<HTMLElement>) => void;
 }
 
 /** One pill dropdown per field, matching the list-view chrome. */
@@ -40,6 +43,8 @@ export default function TaskFormPills({
     saving,
     dateRangeError,
     assigneeLabel,
+    assigneeTriggerRef,
+    linksTriggerRef,
     onToggleAssignee,
     onToggleLinks,
 }: TaskFormPillsProps) {
@@ -73,17 +78,21 @@ export default function TaskFormPills({
         };
     });
 
-    const categoryOptions: PillOption[] = categories.map((category) => {
-        const token = categoryToken(category.category_name)!;
-        return {
-            value: String(category.id),
-            label: category.category_name,
-            bg: token.bg,
-            fg: token.fg,
-            border: token.border,
-            dot: token.dot,
-            square: true,
-        };
+    const categoryOptions: PillOption[] = categories.flatMap((category) => {
+        if (!category.category_name) return [];
+        const token = categoryToken(category.category_name);
+        if (!token) return [];
+        return [
+            {
+                value: String(category.id),
+                label: category.category_name,
+                bg: token.bg,
+                fg: token.fg,
+                border: token.border,
+                dot: token.dot,
+                square: true,
+            },
+        ];
     });
 
     return (
@@ -104,6 +113,7 @@ export default function TaskFormPills({
             />
 
             <button
+                ref={assigneeTriggerRef}
                 type="button"
                 onClick={onToggleAssignee}
                 className="tasks-press inline-flex items-center gap-1.5 whitespace-nowrap"
@@ -171,6 +181,7 @@ export default function TaskFormPills({
             />
 
             <button
+                ref={linksTriggerRef}
                 type="button"
                 onClick={onToggleLinks}
                 className="tasks-press inline-flex items-center gap-1.5 whitespace-nowrap"

@@ -17,6 +17,7 @@ export default function useTaskExtras() {
         checklist: string[],
         files: File[],
     ) => {
+        const failedTitles: string[] = [];
         for (const title of checklist) {
             try {
                 await axios.post(
@@ -26,10 +27,13 @@ export default function useTaskExtras() {
                 );
             } catch (error) {
                 console.error("Failed to add checklist item", title, error);
-                message.error(
-                    td("Failed to save a checklist item. Please try again."),
-                );
+                failedTitles.push(title);
             }
+        }
+        if (failedTitles.length > 0) {
+            message.error(
+                td("Failed to save a checklist item. Please try again."),
+            );
         }
 
         if (files.length > 0) {

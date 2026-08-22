@@ -97,7 +97,7 @@ export default function TaskDetailHeader({
                 <span style={{ color: T.TEXT_HINT }}>·</span>
                 <span className="inline-flex items-center gap-1.5">
                     <TaskPriorityStripe priority={vm.priority} size={14} />
-                    {td(vm.priority.label)} {td("priority")}
+                    {td(`${vm.priority.label} priority`, { source: "en" })}
                 </span>
             </div>
 

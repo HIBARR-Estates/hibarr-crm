@@ -12,6 +12,7 @@ import {
     canAdd,
     canChangeStatus,
     canDeleteTask,
+    canEditTask,
     type TaskPermissionSet,
 } from "../../adapters/taskPermissions";
 import type { TaskRowAction } from "../primitives/TaskRowMenu";
@@ -52,6 +53,8 @@ export function buildTaskRowActions({
             icon: vm.done ? <UndoOutlined /> : <CheckCircleOutlined />,
             onSelect: () => onToggleDone(vm),
         });
+    }
+    if (canEditTask(vm.task, permissions, userId)) {
         actions.push({
             key: "edit",
             label: "Edit task",

@@ -1,4 +1,4 @@
-import type { DragEvent } from "react";
+import type { CSSProperties, DragEvent } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -42,21 +42,23 @@ export default function TaskBoardCard({
     // Cards without a description are shorter — 176 leaves room for a
     // 3-line clamped blurb; without one, 136 fits title + links/footer.
     const minHeight = full && vm.blurb ? 176 : 136;
+    const openButton: CSSProperties = {
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        margin: 0,
+        cursor: draggable ? "grab" : "pointer",
+        font: "inherit",
+        color: "inherit",
+        textAlign: "left",
+        width: "100%",
+    };
 
     return (
         <div
             draggable={draggable}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            role="button"
-            tabIndex={0}
-            onClick={onOpen}
-            onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen();
-                }
-            }}
             className="tasks-board-card flex min-w-0 flex-none flex-col gap-3"
             style={{
                 overflow: "hidden",
@@ -85,22 +87,28 @@ export default function TaskBoardCard({
                         colorful
                     />
                 </div>
-                <span
+                <button
+                    type="button"
+                    onClick={onOpen}
                     className="min-w-0 flex-1 truncate"
                     style={{
+                        ...openButton,
                         fontSize: 14,
                         color: T.TEXT_MUTED,
                         paddingLeft: 5,
                     }}
                 >
                     {vm.people.length === 0 ? td("Unassigned") : vm.peopleLabel}
-                </span>
+                </button>
                 <TaskRowMenu actions={actions} ariaLabel={td("Task actions")} />
             </div>
 
-            <span
+            <button
+                type="button"
+                onClick={onOpen}
                 className="tasks-clamp-2"
                 style={{
+                    ...openButton,
                     fontSize: 16,
                     fontWeight: 700,
                     color: T.NAVY,
@@ -109,19 +117,22 @@ export default function TaskBoardCard({
                 }}
             >
                 {vm.title}
-            </span>
+            </button>
 
             {full && vm.blurb && (
-                <span
+                <button
+                    type="button"
+                    onClick={onOpen}
                     className="tasks-clamp-3 flex-1"
                     style={{
+                        ...openButton,
                         fontSize: 15,
                         color: T.TEXT_MUTED,
                         lineHeight: 1.45,
                     }}
                 >
                     {vm.blurb}
-                </span>
+                </button>
             )}
 
             {full && (
@@ -155,7 +166,6 @@ export default function TaskBoardCard({
                                 key={`${link.type}-${link.name}`}
                                 href={link.href}
                                 draggable={false}
-                                onClick={(event) => event.stopPropagation()}
                                 className="tasks-entity-link flex min-w-0 items-center gap-1.5"
                             >
                                 {body}
@@ -184,7 +194,12 @@ export default function TaskBoardCard({
                 </div>
             )}
 
-            <div className="flex min-w-0 items-center justify-between gap-2.5 pt-0.5">
+            <button
+                type="button"
+                onClick={onOpen}
+                className="flex min-w-0 items-center justify-between gap-2.5 pt-0.5"
+                style={openButton}
+            >
                 <span
                     className="inline-flex min-w-0 items-center gap-1.5 truncate whitespace-nowrap"
                     style={{ fontSize: 14, color: vm.dueColor }}
@@ -197,7 +212,7 @@ export default function TaskBoardCard({
                     {td(vm.dueText, { source: "en" })}
                 </span>
                 <TaskPriorityInline priority={vm.priority} />
-            </div>
+            </button>
         </div>
     );
 }

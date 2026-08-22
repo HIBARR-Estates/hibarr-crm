@@ -3,6 +3,7 @@ import { SendOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import PeoplePicker from "@/Components/Redesign/primitives/PeoplePicker";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import type { TaskCommentRecord } from "../hooks/useTaskComments";
 import { extractMentionIds } from "../lib/commentMarkup";
 import TaskCommentGroup, {
@@ -28,7 +29,8 @@ interface TaskCommentsPanelProps {
     people: MentionCandidate[];
     currentUser: { id: number; name: string; image?: string | null };
     canComment: boolean;
-    deleteCommentScope?: string;
+    deleteCommentScope?: TaskCommentDeleteScope;
+    onMentionOpenChange?: (open: boolean) => void;
     onSubmit: (comment: string, mentionUserIds: number[]) => Promise<boolean>;
     onDelete: (commentId: number) => void;
     onLoadMore: () => Promise<void>;
@@ -52,6 +54,7 @@ export default function TaskCommentsPanel({
     currentUser,
     canComment,
     deleteCommentScope,
+    onMentionOpenChange,
     onSubmit,
     onDelete,
     onLoadMore,
@@ -127,6 +130,12 @@ export default function TaskCommentsPanel({
             )
             .slice(0, 6);
     }, [mentionQuery, people, currentUser.id]);
+
+    const mentionDropdownOpen = mentionQuery !== null && matches.length > 0;
+    useEffect(() => {
+        onMentionOpenChange?.(mentionDropdownOpen);
+        return () => onMentionOpenChange?.(false);
+    }, [mentionDropdownOpen, onMentionOpenChange]);
 
     const syncMentionQuery = (value: string, caret: number) => {
         const upToCaret = value.slice(0, caret);

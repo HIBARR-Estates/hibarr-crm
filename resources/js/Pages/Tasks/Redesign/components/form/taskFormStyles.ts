@@ -1,6 +1,7 @@
+import type { CSSProperties } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
-export const SMALL_INPUT: React.CSSProperties = {
+export const SMALL_INPUT: CSSProperties = {
     padding: "8px 10px",
     border: `1px solid ${T.BORDER}`,
     borderRadius: 8,

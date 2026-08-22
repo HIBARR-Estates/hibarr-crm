@@ -5,13 +5,22 @@ import type { Task } from "@/Types/Task";
  * Kept free of React so list, board, and detail can share the same gates.
  */
 
+/** delete_task_comments is author-or-all — the backend ignores owned/both/none. */
+export type TaskCommentDeleteScope = "all" | "added";
+
+export function asCommentDeleteScope(
+    value: string | undefined,
+): TaskCommentDeleteScope | undefined {
+    return value === "all" || value === "added" ? value : undefined;
+}
+
 export interface TaskPermissionSet {
     add_tasks?: string;
     edit_tasks?: string;
     delete_tasks?: string;
     change_status?: string;
     add_task_comments?: string;
-    delete_task_comments?: string;
+    delete_task_comments?: TaskCommentDeleteScope;
     view_tasks?: string;
     view_task_category?: string;
 }
@@ -35,7 +44,8 @@ export function hasTaskScopePermission(
 ): boolean {
     if (scope === "all") return true;
     if (!scope || scope === "none") return false;
-    const isCreator = task.added_by === userId;
+    const isCreator =
+        task.added_by === userId || task.created_by?.id === userId;
     const isAssignee = task.users?.some((user) => user.id === userId) ?? false;
     if (scope === "added") return isCreator;
     if (scope === "owned") return isAssignee;

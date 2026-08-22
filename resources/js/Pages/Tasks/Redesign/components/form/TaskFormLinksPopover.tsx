@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -14,7 +15,7 @@ const RECORD_TABS: RecordTypeKey[] = ["lead", "deal", "property", "project"];
 
 interface TaskFormLinksPopoverProps {
     open: boolean;
-    anchor: { top: number; left: number };
+    positionStyle: CSSProperties | null;
     onClose: () => void;
     recordType: RecordTypeKey;
     onRecordType: (type: RecordTypeKey) => void;
@@ -28,7 +29,7 @@ interface TaskFormLinksPopoverProps {
 /** Linked-records picker, anchored under the form's "linked items" pill. */
 export default function TaskFormLinksPopover({
     open,
-    anchor,
+    positionStyle,
     onClose,
     recordType,
     onRecordType,
@@ -39,7 +40,7 @@ export default function TaskFormLinksPopover({
     onToggleLink,
 }: TaskFormLinksPopoverProps) {
     const { td } = useTd();
-    if (!open || typeof document === "undefined") return null;
+    if (!open || !positionStyle || typeof document === "undefined") return null;
 
     return createPortal(
         <>
@@ -55,10 +56,7 @@ export default function TaskFormLinksPopover({
                 className="tasks-reveal flex flex-col gap-2.5"
                 onClick={(event) => event.stopPropagation()}
                 style={{
-                    position: "fixed",
-                    top: anchor.top,
-                    left: anchor.left,
-                    zIndex: 60,
+                    ...positionStyle,
                     width: 360,
                     padding: 12,
                     background: T.WHITE,
@@ -105,6 +103,7 @@ export default function TaskFormLinksPopover({
                     <input
                         value={recordQuery}
                         onChange={(event) => onRecordQuery(event.target.value)}
+                        aria-label={`${td("Search")} ${td(RECORD_TYPES[recordType].plural)}`}
                         placeholder={`${td("Search")} ${td(RECORD_TYPES[recordType].plural)}`}
                         style={{
                             width: "100%",
@@ -126,6 +125,7 @@ export default function TaskFormLinksPopover({
                                 <button
                                     key={option.id}
                                     type="button"
+                                    aria-pressed={picked}
                                     onClick={() =>
                                         onToggleLink(option.id, option.name)
                                     }

@@ -33,6 +33,7 @@ import buildTaskGroups from "./lib/buildTaskGroups";
 import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
+    asCommentDeleteScope,
     canAdd,
     canChangeStatus,
     canCommentOnTask,
@@ -586,7 +587,9 @@ export default function TasksWorkspaceRedesign({
                         ? canCommentOnTask(selectedVm.task, permissions, userId)
                         : false
                 }
-                deleteCommentScope={permissions?.delete_task_comments}
+                deleteCommentScope={asCommentDeleteScope(
+                    permissions?.delete_task_comments,
+                )}
                 togglingSelected={
                     selectedVm ? isPending(selectedVm.id) : false
                 }

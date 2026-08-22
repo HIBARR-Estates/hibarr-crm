@@ -17,7 +17,10 @@ function useAutoReveal(
 ): (node: HTMLDivElement | null) => void {
     const observerRef = useRef<IntersectionObserver | null>(null);
     const callbackRef = useRef(onReveal);
-    callbackRef.current = onReveal;
+
+    useEffect(() => {
+        callbackRef.current = onReveal;
+    }, [onReveal]);
 
     useEffect(
         () => () => {

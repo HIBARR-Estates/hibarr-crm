@@ -20,6 +20,7 @@ import {
     type TaskFormValues,
 } from "../../adapters/taskFormValues";
 import { TASK_FORM_DRAFT_KEYS } from "../../hooks/tasksWorkspaceUiStore";
+import type { TaskCommentDeleteScope } from "../../adapters/taskPermissions";
 import type { TaskCheckpoint } from "../../hooks/useTaskCheckpoints";
 import TaskDetailModal from "../TaskDetailModal";
 import TaskFormModal from "../TaskFormModal";
@@ -57,7 +58,7 @@ interface TasksWorkspaceModalsProps {
     canWriteSelected: boolean;
     canManageChecklist: boolean;
     canComment: boolean;
-    deleteCommentScope?: string;
+    deleteCommentScope?: TaskCommentDeleteScope;
     togglingSelected: boolean;
     mentionablePeople: PersonOption[];
     currentUser: { id: number; name: string; image?: string | null };
@@ -291,7 +292,7 @@ export default function TasksWorkspaceModals({
                 }}
                 footer={null}
                 width={640}
-                destroyOnClose
+                destroyOnHidden
                 maskClosable={false}
                 styles={{ content: { boxShadow: "none" } }}
             >
