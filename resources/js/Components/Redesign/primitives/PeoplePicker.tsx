@@ -7,6 +7,7 @@ export interface PersonOption {
     id: number;
     name: string;
     designation?: string;
+    image?: string | null;
 }
 
 interface PeoplePickerProps {
@@ -28,6 +29,12 @@ interface PeoplePickerProps {
     remoteFilter?: boolean;
     /** Fired whenever the search box changes (for remote-directory fetches). */
     onQueryChange?: (query: string) => void;
+    /**
+     * Hides the built-in search box — for callers that already drive
+     * filtering from elsewhere (e.g. an inline `@mention` textarea) and only
+     * want the result list/rows.
+     */
+    showSearchInput?: boolean;
 }
 
 /** Local-list or remote-backed people picker with search. */
@@ -43,6 +50,7 @@ export default function PeoplePicker({
     loading = false,
     remoteFilter = false,
     onQueryChange,
+    showSearchInput = true,
 }: PeoplePickerProps) {
     const [query, setQuery] = useState("");
     const q = query.trim().toLowerCase();
@@ -72,17 +80,23 @@ export default function PeoplePicker({
 
     return (
         <div>
-            <input
-                className="dr-input"
-                type="search"
-                aria-label={placeholder}
-                placeholder={placeholder}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus={autoFocus}
-                disabled={loading && people.length === 0}
-                style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
-            />
+            {showSearchInput && (
+                <input
+                    className="dr-input"
+                    type="search"
+                    aria-label={placeholder}
+                    placeholder={placeholder}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus={autoFocus}
+                    disabled={loading && people.length === 0}
+                    style={{
+                        marginBottom: 6,
+                        fontSize: 12,
+                        padding: "8px 10px",
+                    }}
+                />
+            )}
             <div style={{ maxHeight: 200, overflowY: "auto" }}>
                 {results.length === 0 ? (
                     <div
@@ -116,6 +130,7 @@ export default function PeoplePicker({
                                     type="agent"
                                     size={24}
                                     initials={initialsFromName(person.name)}
+                                    src={person.image}
                                 />
                                 <span
                                     style={{

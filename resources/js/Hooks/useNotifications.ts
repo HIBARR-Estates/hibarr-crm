@@ -231,7 +231,11 @@ export const useNotificationMutations = () => {
 
     const patchUnreadSummaryAfterMark = useCallback(
         (notificationId: string, unreadCount?: number) => {
-            const summaryKey = [route("notifications.api.unread_summary")];
+            // Must match useApiQuery's real cache key ([path, params]) exactly —
+            // setQueryData does exact key matching, unlike invalidateQueries'
+            // prefix matching, so a 1-element key here silently misses the
+            // actual query and the dropdown never re-renders.
+            const summaryKey = [route("notifications.api.unread_summary"), undefined];
             queryClient.setQueryData<NotificationUnreadSummaryResponse>(
                 summaryKey,
                 (old) => {

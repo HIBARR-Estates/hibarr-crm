@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
     danger?: boolean;
     /** Shows a spinner and disables both buttons while the confirmed action is in flight. */
     confirmLoading?: boolean;
+    /** See `Modal` — use above Ant's `zIndexPopupBase` (1300) when nested. */
+    zIndex?: number;
     onConfirm: () => void;
     onCancel: () => void;
 }
@@ -24,23 +26,11 @@ export default function ConfirmDialog({
     cancelLabel = "Cancel",
     danger,
     confirmLoading = false,
+    zIndex,
     onConfirm,
     onCancel,
 }: ConfirmDialogProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
-    const allowBackdropCloseRef = useRef(false);
-
-    useEffect(() => {
-        if (!open) {
-            allowBackdropCloseRef.current = false;
-            return undefined;
-        }
-        allowBackdropCloseRef.current = false;
-        const frame = window.requestAnimationFrame(() => {
-            allowBackdropCloseRef.current = true;
-        });
-        return () => window.cancelAnimationFrame(frame);
-    }, [open]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -68,12 +58,6 @@ export default function ConfirmDialog({
         }
     };
 
-    const handleBackdropMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-        if (e.target !== e.currentTarget) return;
-        if (confirmLoading || !allowBackdropCloseRef.current) return;
-        onCancel();
-    };
-
     const handleConfirm = (e: MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
@@ -84,8 +68,8 @@ export default function ConfirmDialog({
     return createPortal(
         <div
             className="redesign-modal-overlay"
-            onMouseDown={handleBackdropMouseDown}
             role="presentation"
+            style={zIndex !== undefined ? { zIndex } : undefined}
         >
             <div
                 className="modal-panel"

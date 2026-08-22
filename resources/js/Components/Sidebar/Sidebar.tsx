@@ -31,6 +31,7 @@ import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isPermissionAll } from "@/lib/permissionUtils";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 
 interface Pipeline {
     id: number;
@@ -69,6 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     );
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
+    const isAdmin = useIsAdminRole();
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -633,6 +635,28 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                         )}
                     </div>
                 </Dropdown>
+
+                {/* App settings - admin only */}
+                {isAdmin && (
+                    <div
+                        className={`
+                            flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer mb-2
+                            text-slate-300 hover:bg-slate-700/50 hover:text-white
+                            transition-all duration-200
+                            ${collapsed ? "justify-center" : ""}
+                        `}
+                        onClick={() =>
+                            router.visit("/account/settings/overview")
+                        }
+                    >
+                        <SettingOutlined className="text-lg text-slate-400" />
+                        {!collapsed && (
+                            <span className="text-sm font-medium">
+                                {t("app.menu.settings")}
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 {/* Collapse toggle button - always at bottom */}
                 <button

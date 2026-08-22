@@ -396,6 +396,22 @@ class LeadService
     }
 
     /**
+     * Count of leads (current filters + permission scope) at the given
+     * temperature. Same shape as countNextActionBucket() — one indexed COUNT.
+     */
+    public function countByTemperature(Request $request, string $temperature): int
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+        $query->where('temperature', $temperature);
+
+        return $query->count();
+    }
+
+    /**
      * Get dropdown leads (limited for performance)
      */
     public function getDropdownLeads(int $limit = 100): \Illuminate\Support\Collection

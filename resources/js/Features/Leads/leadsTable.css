@@ -22,6 +22,12 @@
         sans-serif !important;
 }
 
+/* Flat, bordered look (matches the Tasks list card) instead of
+   .dt-container's default drop shadow. */
+.leads-table.dt-container {
+    box-shadow: none;
+}
+
 .leads-table .dt-table .ant-table-thead > tr > th {
     background: #f8f9fb !important;
     color: #5b6472 !important;

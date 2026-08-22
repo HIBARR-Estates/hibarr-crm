@@ -25,7 +25,6 @@ return [
         'integrations.zoho-calendar-sync',
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
-        'crm.deals-product-tour',
         'crm.leads-product-tour',
         'crm.deal-info-count-indicator',
         'crm.flight-itinerary-extraction',

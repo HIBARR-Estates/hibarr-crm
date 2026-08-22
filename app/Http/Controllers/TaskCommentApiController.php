@@ -7,10 +7,13 @@ use App\Helper\UserService;
 use App\Models\MentionUser;
 use App\Models\Task;
 use App\Models\TaskComment;
+use App\Models\TaskParticipant;
 use App\Models\User;
+use App\Services\TaskCommentPermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * JSON comment endpoints for the redesigned task detail modal.
@@ -22,7 +25,7 @@ use Illuminate\Http\Request;
  */
 class TaskCommentApiController extends AccountBaseController
 {
-    public function __construct()
+    public function __construct(private TaskCommentPermissionService $commentPermissions)
     {
         parent::__construct();
 
@@ -39,21 +42,45 @@ class TaskCommentApiController extends AccountBaseController
         });
     }
 
-    public function index(int $taskId): JsonResponse
+    /**
+     * Returns the most recent page of comments (or, with `before_id`, the
+     * page immediately older than that comment) — oldest-first within the
+     * page, matching display order. `has_more` tells the frontend whether an
+     * older page still exists to fetch.
+     */
+    public function index(Request $request, int $taskId): JsonResponse
     {
         $task = Task::findOrFail($taskId);
         $this->authorizeView($task);
 
-        $comments = TaskComment::with('user:id,name,image')
+        $perPage = max(1, min(100, (int) $request->integer('per_page', 30)));
+        $beforeId = $request->integer('before_id');
+
+        $query = TaskComment::with('user:id,name,image')
             ->where('task_id', $task->id)
-            ->orderBy('id')
-            ->get()
+            ->orderByDesc('id');
+
+        if ($beforeId) {
+            $query->where('id', '<', $beforeId);
+        }
+
+        $page = $query->limit($perPage + 1)->get();
+        $hasMore = $page->count() > $perPage;
+        $comments = $page->take($perPage)
+            ->reverse()
+            ->values()
             ->map(fn (TaskComment $comment) => $this->present($comment))
             ->all();
 
         return response()->json([
             'status' => 'success',
-            'data' => ['comments' => $comments],
+            'data' => [
+                'comments' => $comments,
+                'has_more' => $hasMore,
+                // Only needed to seed the header count on the first page —
+                // the frontend keeps it in sync itself after that.
+                'total' => $beforeId ? null : TaskComment::where('task_id', $task->id)->count(),
+            ],
         ]);
     }
 
@@ -86,12 +113,8 @@ class TaskCommentApiController extends AccountBaseController
     {
         $comment = TaskComment::findOrFail($id);
 
-        // Author, or anyone with blanket edit rights over tasks.
-        $isAuthor = (int) $comment->user_id === (int) UserService::getUserId()
-            || (int) $comment->user_id === (int) user()->id;
-
-        if (! $isAuthor && user()->permission('edit_tasks') !== 'all') {
-            abort(403);
+        if (! $this->commentPermissions->canDeleteComment(user(), $comment)) {
+            abort_403(true);
         }
 
         MentionUser::where('task_comment_id', $comment->id)->delete();
@@ -126,6 +149,13 @@ class TaskCommentApiController extends AccountBaseController
                 'task_id' => $task->id,
                 'task_comment_id' => $comment->id,
             ]);
+
+            if (Schema::hasTable('task_participants')) {
+                TaskParticipant::firstOrCreate([
+                    'task_id' => $task->id,
+                    'user_id' => $userId,
+                ]);
+            }
         }
 
         event(new TaskCommentMentionEvent($task, $comment, $mentioned));
@@ -140,17 +170,7 @@ class TaskCommentApiController extends AccountBaseController
 
     private function authorizeComment(Task $task): void
     {
-        $permission = user()->permission('add_task_comments');
-        $taskUsers = $task->users->pluck('id')->toArray();
-        $userId = UserService::getUserId();
-        $isOwner = $task->added_by == user()->id || $task->added_by == $userId;
-
-        $allowed = $permission === 'all'
-            || ($permission === 'owned' && in_array(user()->id, $taskUsers))
-            || ($permission === 'added' && ($isOwner || in_array(user()->id, $taskUsers)))
-            || ($permission === 'both' && ($isOwner || in_array(user()->id, $taskUsers)));
-
-        abort_403(! $allowed);
+        abort_403(! $this->commentPermissions->canAddComment(user(), $task));
     }
 
     /**

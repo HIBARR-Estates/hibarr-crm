@@ -231,6 +231,12 @@ class Task extends BaseModel
         return $this->belongsToMany(User::class, 'task_users')->withoutGlobalScope(ActiveScope::class)->using(TaskUser::class);
     }
 
+    /** Users @mentioned in this task's comments — see TaskParticipant. */
+    public function participants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_participants')->using(\App\Models\TaskParticipant::class);
+    }
+
     public function taskUsers(): HasMany
     {
         return $this->hasMany(TaskUser::class, 'task_id');

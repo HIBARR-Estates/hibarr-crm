@@ -1,13 +1,9 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import Avatar from "@/Components/Redesign/primitives/Avatar";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import {
-    assigneeTone,
-    type CategoryToken,
-    type PriorityToken,
-    type StatusToken,
+import type {
+    CategoryToken,
+    PriorityToken,
+    StatusToken,
 } from "../../config/taskDesignTokens";
-import type { TaskPerson } from "../../adapters/taskViewModel";
 
 interface GlyphProps {
     d: string;
@@ -169,69 +165,6 @@ export function TaskStatusPill({ status }: { status: StatusToken }) {
                 }}
             />
             {td(status.label, { source: "en" })}
-        </span>
-    );
-}
-
-/**
- * Overlapping assignee avatars. Reuses the shared `Avatar` primitive (so the
- * user's photo shows when they have one) with the design's soft per-person
- * tone as the initials fallback.
- */
-export function TaskAssigneeStack({
-    people,
-    size = 24,
-    max = 3,
-    overlap = -6,
-}: {
-    people: TaskPerson[];
-    size?: number;
-    max?: number;
-    overlap?: number;
-}) {
-    if (people.length === 0) return null;
-    const shown = people.slice(0, max);
-    const remaining = people.length - shown.length;
-
-    return (
-        <span
-            className="inline-flex items-center"
-            title={people.map((person) => person.name).join(", ")}
-        >
-            {shown.map((person, index) => (
-                <span
-                    key={person.id}
-                    className="flex rounded-full"
-                    style={{
-                        marginLeft: index === 0 ? 0 : overlap,
-                        border: `2px solid ${T.WHITE}`,
-                    }}
-                >
-                    <Avatar
-                        size={size}
-                        initials={person.initials}
-                        src={person.image}
-                        tone={assigneeTone(person.id)}
-                        title={person.name}
-                    />
-                </span>
-            ))}
-            {remaining > 0 && (
-                <span
-                    className="flex flex-shrink-0 items-center justify-center rounded-full font-bold"
-                    style={{
-                        marginLeft: overlap,
-                        width: size,
-                        height: size,
-                        border: `2px solid ${T.WHITE}`,
-                        background: T.BORDER,
-                        color: T.TEXT_MUTED,
-                        fontSize: Math.max(9, size * 0.38),
-                    }}
-                >
-                    +{remaining}
-                </span>
-            )}
         </span>
     );
 }

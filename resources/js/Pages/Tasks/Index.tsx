@@ -41,6 +41,7 @@ import { Task } from "@/Types/Task";
 import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
 import TasksWorkspaceRedesign from "@/Pages/Tasks/Redesign/TasksWorkspaceRedesign";
+import type { TaskCommentDeleteScope } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
 dayjs.extend(isBetween);
 
@@ -142,6 +143,9 @@ export interface TasksIndexProps extends PageProps {
     labels: TaskLabel[];
     columns: TaskboardColumn[];
     users: User[];
+    /** Full company employee list, unrestricted by the viewer's task-visibility
+     *  scope — anyone should be able to @mention anyone in task comments. */
+    mentionablePeople?: User[];
     projects: Project[];
     deals: Deal[];
     leads: Lead[];
@@ -154,13 +158,26 @@ export interface TasksIndexProps extends PageProps {
         edit_tasks: string;
         delete_tasks: string;
         change_status: string;
+        add_task_comments?: string;
+        delete_task_comments?: TaskCommentDeleteScope;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        view_task_category?: string;
     };
     stats: {
         total: number;
         completed: number;
         overdue: number;
         dueToday: number;
+    };
+    /** Quick-pill counts for the redesigned workspace (server-side). */
+    taskQuickCounts?: {
+        all: number;
+        mine: number;
+        byme: number;
+        open: number;
+        today: number;
+        overdue: number;
+        mentioned: number;
     };
 }
 
