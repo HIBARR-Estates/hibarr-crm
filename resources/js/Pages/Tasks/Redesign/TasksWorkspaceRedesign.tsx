@@ -1,75 +1,52 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
-import axios from "axios";
-import { Modal, App } from "antd";
-import {
-    CheckCircleOutlined,
-    CopyOutlined,
-    DeleteOutlined,
-    EditOutlined,
-    EyeOutlined,
-    UndoOutlined,
-} from "@ant-design/icons";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
-import TaskCategoryManager from "@/Pages/Settings/TaskCategoryManager";
 import PageLayout from "@/Components/PageLayout";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
-import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { useFilter } from "@/contexts/FilterContext";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import TaskFormModal, {
-    type RecordPool,
-    type TaskFormValues,
-} from "./components/TaskFormModal";
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import type { Task } from "@/Types/Task";
 import type { TasksIndexProps } from "@/Pages/Tasks/Index";
-import TasksHeader, { type TasksViewMode } from "./components/TasksHeader";
-import TasksFilterBar, {
-    type GroupMode,
-    type QuickFilterCounts,
-    type QuickFilterKey,
-} from "./components/TasksFilterBar";
-import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import type { TasksViewMode } from "./components/TasksHeader";
+import type { GroupMode, QuickFilterCounts, QuickFilterKey } from "./components/TasksFilterBar";
 import TasksPagination from "./components/TasksPagination";
 import TasksBulkBar from "./components/TasksBulkBar";
-import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
-import { useApiMutate } from "@/lib/api/client";
-import type { ApiResponse } from "@/lib/api/types";
-import { isLoading } from "@/lib/utils";
 import TasksListView from "./components/TasksListView";
-import { type TaskRowAction } from "./components/primitives/TaskRowMenu";
 import TasksBoardView from "./components/TasksBoardView";
-import TaskDetailModal from "./components/TaskDetailModal";
-import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
-import useTasksFilters, {
-    appliedValues,
-    hasFilter,
-} from "./hooks/useTasksFilters";
+import TasksWorkspaceChrome from "./components/header/TasksWorkspaceChrome";
+import TasksWorkspaceModals from "./components/workspace/TasksWorkspaceModals";
+import { buildTaskRowActions } from "./components/list/buildTaskRowActions";
+import useTasksFilters from "./hooks/useTasksFilters";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
 import useTasksServerPagination from "./hooks/useTasksServerPagination";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 import useTasksWorkspaceUiState from "./hooks/useTasksWorkspaceUiState";
-import { TASK_FORM_DRAFT_KEYS } from "./hooks/tasksWorkspaceUiStore";
+import useTaskExtras from "./hooks/useTaskExtras";
+import useTaskSelection from "./hooks/useTaskSelection";
+import useTasksBulkActions from "./hooks/useTasksBulkActions";
 import buildTaskGroups from "./lib/buildTaskGroups";
 import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
-import BulkUpdateModal from "@/Features/BulkActions/BulkUpdateModal";
-import { createTaskBulkUpdateFields } from "./config/taskBulkUpdateFields";
-import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
-    TASK_PRIORITY,
-    type DensityOption,
-    type TaskPriorityKey,
-} from "./config/taskDesignTokens";
+    asCommentDeleteScope,
+    canAdd,
+    canChangeStatus,
+    canCommentOnTask,
+    canEditTask,
+    hasAnyDeletePermission,
+} from "./adapters/taskPermissions";
+import {
+    formLinksPayload,
+    toRecordPool,
+    type TaskFormValues,
+} from "./adapters/taskFormValues";
+import { type DensityOption } from "./config/taskDesignTokens";
 
-// Primitives (.dr-btn, .modal-panel, .modal-field …) are styled here — without
-// this import every Redesign modal renders unstyled.
 import "@/Components/Redesign/redesign.css";
 import "./tasks-redesign.css";
 
@@ -77,128 +54,10 @@ export interface TasksWorkspaceRedesignProps extends TasksIndexProps {
     savedViews?: SavedView[];
 }
 
-/** Design defaults, matching the handoff's prop defaults. */
 const DENSITY: DensityOption = "comfortable";
 const PRIORITY_TREATMENT: "stripe" | "pill" = "stripe";
 const SHOW_ROW_CATEGORY = true;
 const BOARD_CARD_META: "full" | "minimal" = "full";
-
-function canAdd(permission: string | undefined): boolean {
-    return ["all", "added", "owned", "both"].includes(permission ?? "");
-}
-
-/** The task's existing links, in the shape the form modal edits. */
-function taskLinkRefs(vm: TaskViewModel) {
-    const task = vm.task;
-    return [
-        ...(task.deals ?? []).map((deal) => ({
-            type: "deal" as const,
-            id: deal.id,
-            name: deal.name,
-        })),
-        ...(task.leads ?? []).map((lead) => ({
-            type: "lead" as const,
-            id: lead.id,
-            name: lead.client_name || lead.company_name || "Lead",
-        })),
-        ...(task.properties ?? []).map((property) => ({
-            type: "property" as const,
-            id: property.id,
-            name: property.name ?? "Property",
-        })),
-        // "project" here means developer project (the one holding units),
-        // matching syncTaskLinks() on the backend — not task.project, which
-        // is the unrelated Worksuite delivery project.
-        ...(task.developer_projects ?? []).map((project) => ({
-            type: "project" as const,
-            id: project.id,
-            name: project.name,
-        })),
-    ];
-}
-
-/** Scoped task permission check — matches legacy TasksKanban / Columns. */
-function hasTaskScopePermission(
-    task: Task,
-    scope: string | undefined,
-    userId: number,
-): boolean {
-    if (scope === "all") return true;
-    if (!scope || scope === "none") return false;
-    const isCreator = task.added_by === userId;
-    const isAssignee =
-        task.users?.some((user) => user.id === userId) ?? false;
-    if (scope === "added") return isCreator;
-    if (scope === "owned") return isAssignee;
-    if (scope === "both") return isCreator || isAssignee;
-    return false;
-}
-
-/** Whether the current user may move/complete this task (change_status scope). */
-function canChangeStatus(
-    task: Task,
-    permissions: TasksIndexProps["permissions"],
-    userId: number,
-): boolean {
-    const scope = permissions?.change_status ?? permissions?.edit_tasks;
-    return hasTaskScopePermission(task, scope, userId);
-}
-
-function canDeleteTask(
-    task: Task,
-    permissions: TasksIndexProps["permissions"],
-    userId: number,
-): boolean {
-    return hasTaskScopePermission(task, permissions?.delete_tasks, userId);
-}
-
-/** Whether the current user may add a comment on this task. */
-function canCommentOnTask(
-    task: Task,
-    permissions: TasksIndexProps["permissions"],
-    userId: number,
-): boolean {
-    return hasTaskScopePermission(
-        task,
-        permissions?.add_task_comments,
-        userId,
-    );
-}
-
-function hasAnyDeletePermission(scope: string | undefined): boolean {
-    return ["all", "added", "owned", "both"].includes(scope ?? "");
-}
-
-/** Form defaults shared by the edit and duplicate modals. */
-function taskFormInitialFromVm(vm: TaskViewModel): Partial<TaskFormValues> {
-    return {
-        title: vm.task.heading,
-        description: vm.descriptionText,
-        startDate: vm.task.start_date?.slice(0, 10) ?? "",
-        dueDate: vm.task.due_date?.slice(0, 10) ?? "",
-        dueTime: vm.task.due_date?.slice(11, 16) || "17:00",
-        priority: vm.task.priority as TaskPriorityKey,
-        assignees: vm.people.map((person) => person.id),
-        categoryId: vm.task.category?.id ?? null,
-        boardColumnId: vm.task.board_column_id ?? null,
-        links: taskLinkRefs(vm),
-    };
-}
-
-/**
- * Duplicate-modal defaults: everything `taskFormInitialFromVm` carries over
- * (assignees, linked records), plus the source task's checklist titles —
- * unlike edit mode, where the form's checklist field only ever adds new
- * rows, duplicating should recreate the whole checklist on the new task.
- */
-function taskDuplicateInitialFromVm(
-    vm: TaskViewModel,
-): Partial<TaskFormValues> {
-    return {
-        ...taskFormInitialFromVm(vm),
-        checklist: (vm.task.subtasks ?? []).map((item) => item.title),
-    };
-}
 
 export default function TasksWorkspaceRedesign({
     tableTasks,
@@ -222,7 +81,6 @@ export default function TasksWorkspaceRedesign({
 }: TasksWorkspaceRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { message } = App.useApp();
     const userId = auth.user.id;
     const isAdmin = useIsAdminRole();
     const canManageTaskCategories =
@@ -241,24 +99,32 @@ export default function TasksWorkspaceRedesign({
         duplicatingTaskId,
         setDuplicatingTaskId,
     } = useTasksWorkspaceUiState();
+    const [addBoardColumnId, setAddBoardColumnId] = useState<number | null>(
+        null,
+    );
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [selected, setSelected] = useState<Set<number>>(() => new Set());
-    const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
     const quickFilter = (
         (filters as { quick_filter?: string } | undefined)?.quick_filter ??
         "all"
     ) as QuickFilterKey;
 
-    const patchTasks = useCallback(
-        (updater: (prev: Task[]) => Task[]) => {
-            setBoardTasks(updater);
-            setListTasks(updater);
-        },
-        [],
-    );
+    const patchTasks = useCallback((updater: (prev: Task[]) => Task[]) => {
+        setBoardTasks(updater);
+        setListTasks(updater);
+    }, []);
+
+    const { persistExtras } = useTaskExtras();
+    const {
+        selected,
+        selectedIds,
+        clearSelection,
+        toggleSelect,
+        toggleGroupSelection,
+        allSelected,
+    } = useTaskSelection();
 
     const { persistPageSize } = usePersistedPageSize({
         storageKey: "hibarr_tasks_per_page",
@@ -292,7 +158,6 @@ export default function TasksWorkspaceRedesign({
         onPersistPageSize: persistPageSize,
     });
 
-    /** Board column slugs that count as "done". */
     const completedSlugs = useMemo(
         () =>
             columns
@@ -341,97 +206,12 @@ export default function TasksWorkspaceRedesign({
         clearUpdateErrors,
     } = useTasksWorkspaceMutations(patchTasks, editingTaskId);
 
-    /** Options for the modal's linked-record picker. */
-    const recordPool: RecordPool = useMemo(
-        () => ({
-            deal: deals.map((deal) => ({ id: deal.id, name: deal.name })),
-            lead: leads.map((lead) => ({
-                id: lead.id,
-                name: lead.client_name || lead.company_name || "Lead",
-                meta: lead.company_name ?? undefined,
-            })),
-            property: properties.map((property) => ({
-                id: property.id,
-                name: property.name ?? property.title ?? "Property",
-            })),
-            project: developerProjects.map((project) => ({
-                id: project.id,
-                name: project.name,
-            })),
-        }),
+    const recordPool = useMemo(
+        () => toRecordPool({ deals, leads, properties, developerProjects }),
         [deals, leads, properties, developerProjects],
     );
 
-    /** Adds a category inline from the task modal. */
-    const [categoryOptions, setCategoryOptions] = useState(categories);
-    useEffect(() => setCategoryOptions(categories), [categories]);
-
-    /**
-     * Checklist rows and attachments both need a saved task id, so they're
-     * written after the task itself. Failures here are surfaced in the
-     * console rather than blocking — the task is already saved by then.
-     */
-    const persistExtras = async (
-        taskId: number,
-        checklist: string[],
-        files: File[],
-    ) => {
-        for (const title of checklist) {
-            try {
-                await axios.post(
-                    route("sub-tasks.store"),
-                    { task_id: taskId, title },
-                    { headers: { Accept: "application/json" } },
-                );
-            } catch (error) {
-                console.error("Failed to add checklist item", title, error);
-                message.error(
-                    td("Failed to save a checklist item. Please try again."),
-                );
-            }
-        }
-
-        if (files.length > 0) {
-            const payload = new FormData();
-            payload.append("task_id", String(taskId));
-            files.forEach((file) => payload.append("file[]", file));
-            try {
-                await axios.post(route("task-files.store"), payload, {
-                    headers: { Accept: "application/json" },
-                });
-            } catch (error) {
-                console.error("Failed to upload task files", error);
-                message.error(
-                    td("Failed to upload one or more files. Please try again."),
-                );
-            }
-        }
-
-        if (checklist.length || files.length) {
-            router.reload({
-                only: ["kanbanTasks", "tableTasks", "stats"],
-            });
-        }
-    };
-
-    const createCategory = async (name: string) => {
-        try {
-            const response = await axios.post(
-                route("taskCategory.store"),
-                { category_name: name },
-                { headers: { Accept: "application/json" } },
-            );
-            const id = response.data?.data?.id ?? response.data?.id;
-            if (!id) return null;
-            const option = { id: Number(id), category_name: name };
-            setCategoryOptions((current) => [...current, option]);
-            return option;
-        } catch {
-            return null;
-        }
-    };
-
-    const { applyFilters, activeCount, clearAll } = useTasksFilters({
+    const { activeCount } = useTasksFilters({
         status: filters?.status ?? undefined,
         priority: filters?.priority ?? undefined,
         assigned_to: filters?.assigned_to ?? undefined,
@@ -443,8 +223,6 @@ export default function TasksWorkspaceRedesign({
         search: filters?.search ?? undefined,
     });
 
-    // Registers the tasks route + fields with FilterContext, which
-    // UniversalSearchBox in the page header reads for its search navigation.
     const filterConfig = useMemo(
         () =>
             createTaskFilterConfig({
@@ -458,26 +236,15 @@ export default function TasksWorkspaceRedesign({
                 properties,
                 excludeFields: ["search"],
             }),
-        [
-            categories,
-            labels,
-            columns,
-            users,
-            projects,
-            deals,
-            leads,
-            properties,
-        ],
+        [categories, labels, columns, users, projects, deals, leads, properties],
     );
     usePageSearchAndFilter({ filterConfig });
     const { openDrawer } = useFilter();
 
-    // ── View models ────────────────────────────────────────────────
     const boardViewModels = useMemo(
         () => boardTasks.map((task) => toTaskViewModel(task, completedSlugs)),
         [boardTasks, completedSlugs],
     );
-
     const listViewModels = useMemo(
         () => listTasks.map((task) => toTaskViewModel(task, completedSlugs)),
         [listTasks, completedSlugs],
@@ -519,7 +286,6 @@ export default function TasksWorkspaceRedesign({
     const openCount = Math.max(0, stats.total - stats.completed);
     const headline = `${stats.overdue} ${td("overdue")} · ${stats.dueToday} ${td("due today")} · ${openCount} ${td("open across your records")}`;
 
-    // ── Actions ────────────────────────────────────────────────────
     const doneColumn = columns.find((column) => column.slug === "done");
     const openColumn =
         columns.find((column) => column.slug === "in_progress") ??
@@ -532,7 +298,6 @@ export default function TasksWorkspaceRedesign({
         if (target) setStatus(vm.id, target.slug);
     };
 
-    // Re-seed local lists whenever the server sends fresh data.
     useEffect(() => {
         setBoardTasks(kanbanTasks);
     }, [kanbanTasks]);
@@ -547,27 +312,22 @@ export default function TasksWorkspaceRedesign({
     );
     const filtersInitialized = useRef(false);
 
-    // Server-side filters change the result set — reset to page 1 in the URL.
     useEffect(() => {
         if (!filtersInitialized.current) {
             filtersInitialized.current = true;
             return;
         }
-        router.get(
-            route("tasks.index"),
-            mergeQueryParams({ page: 1 }),
-            {
-                only: [
-                    "tableTasks",
-                    "taskQuickCounts",
-                    "stats",
-                    "kanbanTasks",
-                    "filters",
-                ],
-                preserveState: true,
-                preserveScroll: true,
-            },
-        );
+        router.get(route("tasks.index"), mergeQueryParams({ page: 1 }), {
+            only: [
+                "tableTasks",
+                "taskQuickCounts",
+                "stats",
+                "kanbanTasks",
+                "filters",
+            ],
+            preserveState: true,
+            preserveScroll: true,
+        });
     }, [filterSignature]);
 
     const handleQuickFilter = (key: QuickFilterKey) => {
@@ -613,183 +373,54 @@ export default function TasksWorkspaceRedesign({
         });
     };
 
-    // ── Bulk actions ───────────────────────────────────────────────
-    // Same endpoint the deal/lead workspace task tabs use.
-    const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
-        {
-            row_ids: string;
-            action_type: string;
-            status?: number;
-            user_id?: number[];
-        },
-        unknown,
-        ApiResponse<unknown>
-    >("/account/tasks/apply-quick-action", "POST");
-    const bulkBusy = isLoading({ status: bulkStatus });
+    const bulk = useTasksBulkActions({
+        columns,
+        categories,
+        users,
+        selected,
+        selectedIds,
+        patchTasks,
+        clearSelection,
+    });
 
-    const selectedIds = Array.from(selected);
-    const clearSelection = () => setSelected(new Set());
+    const allVisibleSelected = allSelected(listViewModels.map((vm) => vm.id));
 
-    const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
-    const bulkUpdateFields = useMemo(
-        () => createTaskBulkUpdateFields({ columns, categories: categoryOptions, users }),
-        [columns, categoryOptions, users],
-    );
-    const bulkUpdateTarget: BulkTarget = {
-        mode: "ids",
-        ids: selectedIds,
-        count: selectedIds.length,
-    };
+    const submitCreate = (values: TaskFormValues, onDone: () => void) =>
+        createTask(
+            { ...values, links: formLinksPayload(values) },
+            (created) => {
+                onDone();
+                if (created?.id) {
+                    void persistExtras(
+                        created.id,
+                        values.checklist,
+                        values.files,
+                    );
+                }
+            },
+        );
 
-    const toggleSelect = (vm: TaskViewModel) =>
-        setSelected((current) => {
-            const next = new Set(current);
-            if (next.has(vm.id)) next.delete(vm.id);
-            else next.add(vm.id);
-            return next;
+    const submitUpdate = (taskId: number, values: TaskFormValues) =>
+        updateTask(
+            taskId,
+            { ...values, links: formLinksPayload(values) },
+            () => {
+                setEditingTaskId(null);
+                void persistExtras(taskId, values.checklist, values.files);
+            },
+        );
+
+    const rowActions = (vm: TaskViewModel) =>
+        buildTaskRowActions({
+            vm,
+            permissions,
+            userId,
+            onOpen: (item) => setSelectedTaskId(item.id),
+            onToggleDone: toggleDone,
+            onEdit: setEditingTaskId,
+            onDuplicate: setDuplicatingTaskId,
+            onDelete: setDeleteTarget,
         });
-
-    const toggleGroupSelection = (items: TaskViewModel[], select: boolean) =>
-        setSelected((current) => {
-            const next = new Set(current);
-            items.forEach((vm) =>
-                select ? next.add(vm.id) : next.delete(vm.id),
-            );
-            return next;
-        });
-
-    const allVisibleSelected =
-        listViewModels.length > 0 &&
-        listViewModels.every((vm) => selected.has(vm.id));
-
-    const bulkSetStatus = (column: (typeof columns)[number]) =>
-        applyBulkAction(
-            {
-                row_ids: selectedIds.join(","),
-                action_type: "change-status",
-                status: column.id,
-            },
-            {
-                onSuccess: () => {
-                    patchTasks((prev) =>
-                        prev.map((task) =>
-                            selected.has(task.id)
-                                ? {
-                                      ...task,
-                                      status: column.slug,
-                                      board_column_id: column.id,
-                                      board_column: {
-                                          id: column.id,
-                                          column_name: column.column_name,
-                                          slug: column.slug,
-                                          label_color: column.label_color,
-                                      },
-                                      completed_on:
-                                          column.slug === "done"
-                                              ? new Date()
-                                                    .toISOString()
-                                                    .slice(0, 10)
-                                              : undefined,
-                                  }
-                                : task,
-                        ),
-                    );
-                    clearSelection();
-                },
-            },
-        );
-
-    const bulkReassign = (assigneeId: number) => {
-        const assignee = users.find((user) => user.id === assigneeId);
-        applyBulkAction(
-            {
-                row_ids: selectedIds.join(","),
-                action_type: "change-assignee",
-                user_id: [assigneeId],
-            },
-            {
-                onSuccess: () => {
-                    patchTasks((prev) =>
-                        prev.map((task) =>
-                            selected.has(task.id)
-                                ? {
-                                      ...task,
-                                      users: assignee
-                                          ? [
-                                                {
-                                                    id: assignee.id,
-                                                    name: assignee.name,
-                                                    image: assignee.image,
-                                                },
-                                            ]
-                                          : [],
-                                  }
-                                : task,
-                        ),
-                    );
-                    clearSelection();
-                },
-            },
-        );
-    };
-
-    const bulkDelete = () =>
-        applyBulkAction(
-            { row_ids: selectedIds.join(","), action_type: "delete" },
-            {
-                onSuccess: () => {
-                    patchTasks((prev) =>
-                        prev.filter((task) => !selected.has(task.id)),
-                    );
-                    setConfirmBulkDelete(false);
-                    clearSelection();
-                },
-            },
-        );
-
-    const rowActions = (vm: TaskViewModel): TaskRowAction[] => {
-        const actions: TaskRowAction[] = [
-            {
-                key: "open",
-                label: "View details",
-                icon: <EyeOutlined />,
-                onSelect: () => setSelectedTaskId(vm.id),
-            },
-        ];
-        if (canChangeStatus(vm.task, permissions, userId)) {
-            // Completion moved here when the row checkbox became a bulk selector.
-            actions.push({
-                key: "toggle-done",
-                label: vm.done ? "Reopen task" : "Mark done",
-                icon: vm.done ? <UndoOutlined /> : <CheckCircleOutlined />,
-                onSelect: () => toggleDone(vm),
-            });
-            actions.push({
-                key: "edit",
-                label: "Edit task",
-                icon: <EditOutlined />,
-                onSelect: () => setEditingTaskId(vm.id),
-            });
-        }
-        if (canAdd(permissions?.add_tasks)) {
-            actions.push({
-                key: "duplicate",
-                label: "Duplicate",
-                icon: <CopyOutlined />,
-                onSelect: () => setDuplicatingTaskId(vm.id),
-            });
-        }
-        if (canDeleteTask(vm.task, permissions, userId)) {
-            actions.push({
-                key: "delete",
-                label: "Delete",
-                icon: <DeleteOutlined />,
-                danger: true,
-                onSelect: () => setDeleteTarget(vm.task),
-            });
-        }
-        return actions;
-    };
 
     return (
         <PageLayout
@@ -803,73 +434,36 @@ export default function TasksWorkspaceRedesign({
             }
             mainContentClassName="p-0"
         >
-            {/* Sticky white header band — page title, view toggle and filter
-                chrome, matching the design's header treatment. */}
-            <div
-                style={{
-                    background: "#ffffff",
-                    borderBottom: "1px solid #e2e5ea",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 15,
+            <TasksWorkspaceChrome
+                view={view}
+                onViewChange={setView}
+                onRefresh={handleRefresh}
+                refreshing={refreshing}
+                onAddTask={() => {
+                    setAddBoardColumnId(null);
+                    setAddOpen(true);
                 }}
-            >
-                <div className="mx-auto w-full max-w-[1280px] px-7 pt-[18px]">
-                    <TasksHeader
-                        view={view}
-                        onViewChange={setView}
-                        onRefresh={handleRefresh}
-                        refreshing={refreshing}
-                        onAddTask={() => setAddOpen(true)}
-                        canAddTask={canAdd(permissions?.add_tasks)}
-                        headline={headline}
-                        showTaskSettings={canManageTaskCategories}
-                        onOpenTaskSettings={() => setTaskSettingsOpen(true)}
-                    />
-                    <TasksFilterBar
-                        quickFilter={quickFilter}
-                        onQuickFilter={handleQuickFilter}
-                        counts={counts}
-                        groupMode={groupMode}
-                        onGroupMode={setGroupMode}
-                        showGroupBy={view === "list"}
-                        activeFilterCount={activeCount}
-                        onOpenFilters={openDrawer}
-                    />
-                </div>
-
-                {/* Shared active-filter sentence (same as Leads and Deals) — a
-                    flat full-width band (matching Leads), not a floating
-                    card: the band's background/border span the whole sticky
-                    panel, while its text sits in the same 1280/px-7 column
-                    as the header above, so it lines up exactly. */}
-                <div
-                    style={{
-                        background: T.SURFACE_2,
-                        borderTop: `1px solid ${T.BORDER_SOFT}`,
-                    }}
-                >
-                    <div className="mx-auto w-full max-w-[1280px] px-7">
-                        <ActiveFilterSentence
-                            count={pagedTableTasks.total}
-                            entityLabel="tasks"
-                            onOpenFilters={openDrawer}
-                        />
-                    </div>
-                </div>
-            </div>
+                canAddTask={canAdd(permissions?.add_tasks)}
+                headline={headline}
+                showTaskSettings={canManageTaskCategories}
+                onOpenTaskSettings={() => setTaskSettingsOpen(true)}
+                quickFilter={quickFilter}
+                onQuickFilter={handleQuickFilter}
+                counts={counts}
+                groupMode={groupMode}
+                onGroupMode={setGroupMode}
+                activeFilterCount={activeCount}
+                onOpenFilters={openDrawer}
+                totalItems={pagedTableTasks.total}
+            />
 
             <div
                 className={`relative mx-auto w-full max-w-[1280px] px-7 pt-[22px] ${
-                    // The board sizes itself to the viewport, so trailing
-                    // padding here would push the page into scrolling.
                     view === "board" ? "pb-4" : "pb-14"
                 }`}
                 style={
                     {
                         minHeight: view === "board" ? undefined : 320,
-                        // The filter summary strip, when shown, pushes the
-                        // board down — account for it in the board's height.
                         "--tasks-board-offset": "328px",
                     } as React.CSSProperties
                 }
@@ -880,7 +474,7 @@ export default function TasksWorkspaceRedesign({
                             count={selected.size}
                             columns={columns}
                             users={users}
-                            busy={bulkBusy}
+                            busy={bulk.bulkBusy}
                             canReassign={permissions?.edit_tasks === "all"}
                             canDelete={hasAnyDeletePermission(
                                 permissions?.delete_tasks,
@@ -889,14 +483,14 @@ export default function TasksWorkspaceRedesign({
                             allSelected={allVisibleSelected}
                             onToggleSelectAll={() =>
                                 toggleGroupSelection(
-                                    listViewModels,
+                                    listViewModels.map((vm) => vm.id),
                                     !allVisibleSelected,
                                 )
                             }
-                            onSetStatus={bulkSetStatus}
-                            onReassign={bulkReassign}
-                            onBulkUpdate={() => setBulkUpdateOpen(true)}
-                            onDelete={() => setConfirmBulkDelete(true)}
+                            onSetStatus={bulk.bulkSetStatus}
+                            onReassign={bulk.bulkReassign}
+                            onBulkUpdate={() => bulk.setBulkUpdateOpen(true)}
+                            onDelete={() => bulk.setConfirmBulkDelete(true)}
                             onClear={clearSelection}
                         />
                         <div
@@ -915,8 +509,13 @@ export default function TasksWorkspaceRedesign({
                                 isStatusPending={isPending}
                                 rowActions={rowActions}
                                 selected={selected}
-                                onToggleSelect={toggleSelect}
-                                onToggleGroup={toggleGroupSelection}
+                                onToggleSelect={(vm) => toggleSelect(vm.id)}
+                                onToggleGroup={(items, select) =>
+                                    toggleGroupSelection(
+                                        items.map((item) => item.id),
+                                        select,
+                                    )
+                                }
                             />
                             <TasksPagination
                                 page={pagedTableTasks.current_page}
@@ -928,35 +527,43 @@ export default function TasksWorkspaceRedesign({
                         </div>
                     </>
                 ) : (
-                    // The board owns the remaining viewport height; only its
-                    // columns scroll, so the page itself stays put.
-                    <div
-                        style={{
-                            height: "calc(100vh - var(--tasks-board-offset))",
-                            minHeight: 380,
-                        }}
-                    >
-                        <TasksBoardView
-                            tasks={boardViewModels}
-                            columns={columns}
-                            cardMeta={BOARD_CARD_META}
-                            canMove={(vm) =>
-                                canChangeStatus(vm.task, permissions, userId)
-                            }
-                            onOpen={(vm) => setSelectedTaskId(vm.id)}
-                            onMove={(vm, column) =>
-                                setStatus(vm.id, column.slug)
-                            }
-                            pageSize={pagedTableTasks.per_page}
-                        />
-                    </div>
+                    <TasksBoardView
+                        tasks={boardViewModels}
+                        columns={columns}
+                        cardMeta={BOARD_CARD_META}
+                        canMove={(vm) =>
+                            canChangeStatus(vm.task, permissions, userId)
+                        }
+                        onOpen={(vm) => setSelectedTaskId(vm.id)}
+                        onMove={(vm, column) => setStatus(vm.id, column.slug)}
+                        pageSize={pagedTableTasks.per_page}
+                        rowActions={rowActions}
+                        onAddToColumn={
+                            canAdd(permissions?.add_tasks)
+                                ? (column) => {
+                                      setAddBoardColumnId(column.id);
+                                      setAddOpen(true);
+                                  }
+                                : undefined
+                        }
+                    />
                 )}
             </div>
 
-            <TaskDetailModal
-                vm={selectedVm}
-                onClose={() => setSelectedTaskId(null)}
-                onEdit={() => {
+            <TasksWorkspaceModals
+                selectedVm={selectedVm}
+                editingVm={editingVm}
+                duplicatingVm={duplicatingVm}
+                addOpen={addOpen}
+                addBoardColumnId={addBoardColumnId}
+                onCloseAdd={() => {
+                    setAddOpen(false);
+                    setAddBoardColumnId(null);
+                }}
+                onCloseEdit={() => setEditingTaskId(null)}
+                onCloseDuplicate={() => setDuplicatingTaskId(null)}
+                onCloseDetail={() => setSelectedTaskId(null)}
+                onEditFromDetail={() => {
                     if (selectedVm) {
                         setSelectedTaskId(null);
                         setEditingTaskId(selectedVm.id);
@@ -965,9 +572,14 @@ export default function TasksWorkspaceRedesign({
                 onToggleDone={() => {
                     if (selectedVm) toggleDone(selectedVm);
                 }}
-                canWrite={
+                canWriteSelected={
                     selectedVm
                         ? canChangeStatus(selectedVm.task, permissions, userId)
+                        : false
+                }
+                canManageChecklist={
+                    selectedVm
+                        ? canEditTask(selectedVm.task, permissions, userId)
                         : false
                 }
                 canComment={
@@ -975,14 +587,19 @@ export default function TasksWorkspaceRedesign({
                         ? canCommentOnTask(selectedVm.task, permissions, userId)
                         : false
                 }
-                deleteCommentScope={permissions?.delete_task_comments}
-                toggling={selectedVm ? isPending(selectedVm.id) : false}
-                people={mentionablePeople ?? users}
+                deleteCommentScope={asCommentDeleteScope(
+                    permissions?.delete_task_comments,
+                )}
+                togglingSelected={
+                    selectedVm ? isPending(selectedVm.id) : false
+                }
+                mentionablePeople={mentionablePeople ?? users}
                 currentUser={{
                     id: userId,
                     name: auth.user.name,
                     image:
-                        users.find((user) => user.id === userId)?.image ?? null,
+                        users.find((user) => user.id === userId)?.image ??
+                        null,
                 }}
                 onChecklistChange={(taskId, items) =>
                     patchTasks((prev) =>
@@ -993,219 +610,55 @@ export default function TasksWorkspaceRedesign({
                         ),
                     )
                 }
-            />
-
-            {/* Create */}
-            <TaskFormModal
-                open={addOpen}
-                mode="create"
-                draftKey={TASK_FORM_DRAFT_KEYS.create}
-                onClose={() => {
-                    if (isCreating) return;
-                    clearCreateErrors();
-                    setAddOpen(false);
-                }}
-                saving={isCreating}
-                errors={createErrors}
+                isCreating={isCreating}
+                isUpdating={isUpdating}
+                createErrors={createErrors}
+                updateErrors={updateErrors}
+                clearCreateErrors={clearCreateErrors}
+                clearUpdateErrors={clearUpdateErrors}
                 categories={categories}
                 users={users}
                 columns={columns}
-                records={recordPool}
-                onSubmit={(values: TaskFormValues) =>
-                    createTask(
-                        {
-                            ...values,
-                            links: values.links.map((link) => ({
-                                type: link.type,
-                                id: link.id,
-                            })),
-                        },
-                        (created) => {
-                            setAddOpen(false);
-                            if (created?.id) {
-                                void persistExtras(
-                                    created.id,
-                                    values.checklist,
-                                    values.files,
-                                );
-                            }
-                        },
-                    )
-                }
-            />
-
-            {/* Edit — every link is removable here; the tasks page owns none. */}
-            <TaskFormModal
-                open={editingVm !== null}
-                mode="edit"
-                draftKey={
-                    editingVm
-                        ? TASK_FORM_DRAFT_KEYS.edit(editingVm.id)
-                        : undefined
-                }
-                onClose={() => {
-                    if (isUpdating) return;
-                    clearUpdateErrors();
-                    setEditingTaskId(null);
-                }}
-                saving={isUpdating}
-                errors={updateErrors}
-                categories={categories}
-                users={users}
-                columns={columns}
-                records={recordPool}
-                initial={
-                    editingVm ? taskFormInitialFromVm(editingVm) : undefined
-                }
-                onSubmit={(values: TaskFormValues) => {
-                    if (!editingVm) return;
-                    updateTask(
-                        editingVm.id,
-                        {
-                            ...values,
-                            links: values.links.map((link) => ({
-                                type: link.type,
-                                id: link.id,
-                            })),
-                        },
-                        () => {
-                            setEditingTaskId(null);
-                            void persistExtras(
-                                editingVm.id,
-                                values.checklist,
-                                values.files,
-                            );
-                        },
-                    );
-                }}
-            />
-
-            {/* Duplicate — pre-fills from the source task, saves as a new one. */}
-            <TaskFormModal
-                open={duplicatingVm !== null}
-                mode="create"
-                draftKey={TASK_FORM_DRAFT_KEYS.duplicate}
-                onClose={() => {
-                    if (isCreating) return;
-                    clearCreateErrors();
-                    setDuplicatingTaskId(null);
-                }}
-                saving={isCreating}
-                errors={createErrors}
-                categories={categories}
-                users={users}
-                columns={columns}
-                records={recordPool}
-                initial={
-                    duplicatingVm
-                        ? taskDuplicateInitialFromVm(duplicatingVm)
-                        : undefined
-                }
-                onSubmit={(values: TaskFormValues) =>
-                    createTask(
-                        {
-                            ...values,
-                            links: values.links.map((link) => ({
-                                type: link.type,
-                                id: link.id,
-                            })),
-                        },
-                        (created) => {
-                            setDuplicatingTaskId(null);
-                            if (created?.id) {
-                                void persistExtras(
-                                    created.id,
-                                    values.checklist,
-                                    values.files,
-                                );
-                            }
-                        },
-                    )
-                }
-            />
-
-            {/* Shared filter workbench — same component Leads and Deals use,
-                including its saved-views bar. */}
-            <EntityFilterModal
-                config={filterConfig}
-                entityLabel="tasks"
-                currentCount={pagedTableTasks.total}
-                savedViews
-                savedViewEntity="task"
-            />
-
-            <DeleteTask
-                open={deleteTarget !== null}
-                task={
-                    deleteTarget
-                        ? {
-                              id: deleteTarget.id,
-                              heading: deleteTarget.heading,
+                recordPool={recordPool}
+                onCreate={(values) => {
+                    const closing = addOpen
+                        ? () => {
+                              setAddOpen(false);
+                              setAddBoardColumnId(null);
                           }
-                        : undefined
-                }
-                skipReload
-                onClose={() => setDeleteTarget(null)}
+                        : () => setDuplicatingTaskId(null);
+                    submitCreate(values, closing);
+                }}
+                onUpdate={submitUpdate}
+                filterConfig={filterConfig}
+                totalItems={pagedTableTasks.total}
+                deleteTarget={deleteTarget}
+                onCloseDelete={() => setDeleteTarget(null)}
                 onDeleted={(taskId) => {
-                    patchTasks((prev) => prev.filter((t) => t.id !== taskId));
+                    patchTasks((prev) => prev.filter((task) => task.id !== taskId));
                     setDeleteTarget(null);
                     setSelectedTaskId(null);
                 }}
-            />
-
-            <ConfirmDialog
-                open={confirmBulkDelete}
-                title={`${td("Delete")} ${selected.size} ${
-                    selected.size === 1 ? td("task") : td("tasks")
-                }?`}
-                message={td("This can't be undone.")}
-                confirmLabel={td("Delete tasks")}
-                cancelLabel={td("Cancel")}
-                danger
-                confirmLoading={bulkBusy}
-                onConfirm={bulkDelete}
-                onCancel={() => setConfirmBulkDelete(false)}
-            />
-
-            <BulkUpdateModal
-                open={bulkUpdateOpen}
-                onClose={(operationSucceeded) => {
-                    setBulkUpdateOpen(false);
+                confirmBulkDelete={bulk.confirmBulkDelete}
+                selectedCount={selected.size}
+                bulkBusy={bulk.bulkBusy}
+                onConfirmBulkDelete={bulk.bulkDelete}
+                onCancelBulkDelete={() => bulk.setConfirmBulkDelete(false)}
+                bulkUpdateOpen={bulk.bulkUpdateOpen}
+                onCloseBulkUpdate={(operationSucceeded) => {
+                    bulk.setBulkUpdateOpen(false);
                     if (operationSucceeded) {
                         clearSelection();
                         router.reload({
-                            only: [
-                                "tableTasks",
-                                "taskQuickCounts",
-                                "stats",
-                            ],
+                            only: ["tableTasks", "taskQuickCounts", "stats"],
                         });
                     }
                 }}
-                target={bulkUpdateTarget}
-                fields={bulkUpdateFields}
-                endpoint={route("tasks.apply_quick_action")}
-                entityLabel="task"
-                reloadOnly="kanbanTasks"
+                bulkUpdateTarget={bulk.bulkUpdateTarget}
+                bulkUpdateFields={bulk.bulkUpdateFields}
+                taskSettingsOpen={taskSettingsOpen}
+                onCloseTaskSettings={() => setTaskSettingsOpen(false)}
             />
-
-            <Modal
-                title={t("modules.tasks.taskCategory")}
-                open={taskSettingsOpen}
-                onCancel={() => {
-                    setTaskSettingsOpen(false);
-                    router.reload({
-                        only: ["categories"],
-                    });
-                }}
-                footer={null}
-                width={640}
-                destroyOnClose
-                maskClosable={false}
-                styles={{ content: { boxShadow: "none" } }}
-            >
-                <TaskCategoryManager />
-            </Modal>
         </PageLayout>
     );
 }

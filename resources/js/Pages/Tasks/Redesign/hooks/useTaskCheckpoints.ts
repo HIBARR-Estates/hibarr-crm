@@ -70,8 +70,8 @@ export default function useTaskCheckpoints(
     }, []);
 
     const add = useCallback(
-        async (title: string) => {
-            if (taskId === null || !title.trim()) return;
+        async (title: string): Promise<boolean> => {
+            if (taskId === null || !title.trim()) return false;
             setSaving(true);
             setError(null);
             try {
@@ -89,7 +89,7 @@ export default function useTaskCheckpoints(
                 );
                 if (!createdId) {
                     setError("Couldn't add that checklist item");
-                    return;
+                    return false;
                 }
                 setItems((prev) => [
                     ...prev,
@@ -99,8 +99,10 @@ export default function useTaskCheckpoints(
                         status: "incomplete",
                     },
                 ]);
+                return true;
             } catch {
                 setError("Couldn't add that checklist item");
+                return false;
             } finally {
                 setSaving(false);
             }

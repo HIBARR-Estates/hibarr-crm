@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SendOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import Avatar from "@/Components/Redesign/primitives/Avatar";
 import PeoplePicker from "@/Components/Redesign/primitives/PeoplePicker";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import { initialsFromName } from "@/Components/Redesign/adapters/initials";
-import { assigneeTone } from "../config/taskDesignTokens";
+import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import type { TaskCommentRecord } from "../hooks/useTaskComments";
+import { extractMentionIds } from "../lib/commentMarkup";
+import TaskCommentGroup, {
+    type TaskCommentGroupData,
+} from "./comments/TaskCommentGroup";
+import { DETAIL_LABEL } from "./primitives/taskUiStyles";
 
 interface MentionCandidate {
     id: number;
@@ -17,69 +20,23 @@ interface MentionCandidate {
 
 interface TaskCommentsPanelProps {
     comments: TaskCommentRecord[];
-    /** Total comment count on the task — may exceed `comments.length` while
-     *  older pages haven't been fetched yet. */
     totalCount: number;
     loading: boolean;
-    /** Fetching an older page via `onLoadMore`. */
     loadingMore: boolean;
-    /** Whether an older page still exists to fetch. */
     hasMore: boolean;
     posting: boolean;
     error: string | null;
-    /** Employees available to @mention. */
     people: MentionCandidate[];
     currentUser: { id: number; name: string; image?: string | null };
     canComment: boolean;
-    /** delete_task_comments scope — controls which comments show a delete control. */
-    deleteCommentScope?: string;
+    deleteCommentScope?: TaskCommentDeleteScope;
+    onMentionOpenChange?: (open: boolean) => void;
     onSubmit: (comment: string, mentionUserIds: number[]) => Promise<boolean>;
     onDelete: (commentId: number) => void;
     onLoadMore: () => Promise<void>;
 }
 
 const MAX_INPUT_HEIGHT = 140;
-
-const LABEL: React.CSSProperties = {
-    fontSize: 14,
-    fontWeight: 700,
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-    color: T.TEXT_MUTED,
-};
-
-/** Escapes user text before it goes into the stored comment HTML. */
-function escapeHtml(value: string): string {
-    return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
-
-/**
- * Renders a stored comment. Mentions were written as `@[Name](id)` markers, so
- * everything else is escaped and only the markers become highlighted chips —
- * comment bodies are never injected as raw HTML.
- */
-function renderComment(comment: string): string {
-    return escapeHtml(comment).replace(
-        /@\[([^\]]+)]\((\d+)\)/g,
-        (_match, name: string) => `<span class="tasks-mention">@${name}</span>`,
-    );
-}
-
-/** Pulls the mentioned user ids back out of a composed comment. */
-function extractMentionIds(comment: string): number[] {
-    const ids = new Set<number>();
-    const pattern = /@\[[^\]]+]\((\d+)\)/g;
-    let match = pattern.exec(comment);
-    while (match !== null) {
-        ids.add(Number(match[1]));
-        match = pattern.exec(comment);
-    }
-    return Array.from(ids);
-}
 
 /**
  * Comments rail on the task detail modal: the thread plus a composer with
@@ -97,6 +54,7 @@ export default function TaskCommentsPanel({
     currentUser,
     canComment,
     deleteCommentScope,
+    onMentionOpenChange,
     onSubmit,
     onDelete,
     onLoadMore,
@@ -107,15 +65,10 @@ export default function TaskCommentsPanel({
     const [activeIndex, setActiveIndex] = useState(0);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    /** Tracks an `@` inserted by the button click so it can be undone if the
-     *  picker gets dismissed (blur/Escape) without anyone selected. */
     const buttonMentionRef = useRef<{ at: number; length: number } | null>(
         null,
     );
 
-    // Jump to the newest comment once the initial page has loaded — but not
-    // after "load earlier" prepends older ones (that has its own scroll-
-    // anchoring in handleLoadMore) or on every re-render.
     const scrolledRef = useRef(false);
     useEffect(() => {
         if (loading) {
@@ -128,8 +81,6 @@ export default function TaskCommentsPanel({
         if (node) node.scrollTop = node.scrollHeight;
     }, [loading]);
 
-    /** Fetches the previous page while keeping the same comments in view
-     *  (anchored to scroll position, not jumping to the top of the list). */
     const handleLoadMore = async () => {
         const node = scrollRef.current;
         const prevHeight = node?.scrollHeight ?? 0;
@@ -141,8 +92,6 @@ export default function TaskCommentsPanel({
         });
     };
 
-    // Auto-grow the composer with its content — starts as a single line,
-    // expands up to MAX_INPUT_HEIGHT, then scrolls internally.
     useEffect(() => {
         const node = inputRef.current;
         if (!node) return;
@@ -150,14 +99,8 @@ export default function TaskCommentsPanel({
         node.style.height = `${Math.min(node.scrollHeight, MAX_INPUT_HEIGHT)}px`;
     }, [draft]);
 
-    // Consecutive comments from the same author collapse under one
-    // avatar/name/time header, chat-style, instead of repeating it per line.
     const commentGroups = useMemo(() => {
-        const groups: Array<{
-            user: TaskCommentRecord["user"];
-            is_mine: boolean;
-            items: TaskCommentRecord[];
-        }> = [];
+        const groups: TaskCommentGroupData[] = [];
         for (const comment of comments) {
             const last = groups[groups.length - 1];
             const sameAuthor =
@@ -188,7 +131,12 @@ export default function TaskCommentsPanel({
             .slice(0, 6);
     }, [mentionQuery, people, currentUser.id]);
 
-    /** Tracks the word right after the caret's nearest unclosed `@`. */
+    const mentionDropdownOpen = mentionQuery !== null && matches.length > 0;
+    useEffect(() => {
+        onMentionOpenChange?.(mentionDropdownOpen);
+        return () => onMentionOpenChange?.(false);
+    }, [mentionDropdownOpen, onMentionOpenChange]);
+
     const syncMentionQuery = (value: string, caret: number) => {
         const upToCaret = value.slice(0, caret);
         const at = upToCaret.lastIndexOf("@");
@@ -197,7 +145,6 @@ export default function TaskCommentsPanel({
             return;
         }
         const fragment = upToCaret.slice(at + 1);
-        // A space ends the mention; so does an already-inserted marker.
         if (/[\s\]]/.test(fragment)) {
             setMentionQuery(null);
             return;
@@ -219,7 +166,6 @@ export default function TaskCommentsPanel({
         setMentionQuery(null);
         buttonMentionRef.current = null;
 
-        // Put the caret straight after the inserted marker.
         window.requestAnimationFrame(() => {
             const position = at + marker.length;
             input?.focus();
@@ -227,8 +173,6 @@ export default function TaskCommentsPanel({
         });
     };
 
-    /** Closes the mention picker, quietly removing a still-empty
-     *  button-inserted `@` — typed `@`s and picked mentions are left alone. */
     const closeMentionDropdown = () => {
         const pending = buttonMentionRef.current;
         if (pending && mentionQuery === "" && draft.length === pending.length) {
@@ -255,7 +199,6 @@ export default function TaskCommentsPanel({
         }
     };
 
-    /** Inserts "@" at the caret and opens the mention dropdown, same as typing it. */
     const handleInsertAtSymbol = () => {
         const input = inputRef.current;
         const caret = input?.selectionStart ?? draft.length;
@@ -269,6 +212,10 @@ export default function TaskCommentsPanel({
             syncMentionQuery(next, position);
         });
     };
+
+    const canDeleteComment = (comment: TaskCommentRecord) =>
+        deleteCommentScope === "all" ||
+        (deleteCommentScope === "added" && comment.is_mine);
 
     return (
         <div
@@ -286,7 +233,7 @@ export default function TaskCommentsPanel({
                     borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
-                <span style={LABEL}>{td("Comments")}</span>
+                <span style={DETAIL_LABEL}>{td("Comments")}</span>
                 <span
                     style={{
                         fontSize: 14,
@@ -350,85 +297,12 @@ export default function TaskCommentsPanel({
                 )}
 
                 {commentGroups.map((group) => (
-                    <div
+                    <TaskCommentGroup
                         key={group.items[0].id}
-                        className="mb-5 flex gap-3"
-                    >
-                        <Avatar
-                            size={32}
-                            initials={initialsFromName(
-                                group.user?.name ?? "?",
-                            )}
-                            src={group.user?.image}
-                            tone={assigneeTone(group.user?.id ?? 0)}
-                        />
-                        <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex items-baseline gap-1.5">
-                                <span
-                                    style={{
-                                        fontSize: 14.5,
-                                        fontWeight: 700,
-                                        color: T.TEXT,
-                                    }}
-                                >
-                                    {group.is_mine
-                                        ? td("You")
-                                        : (group.user?.name ?? td("Unknown"))}
-                                </span>
-                                <span
-                                    style={{
-                                        fontSize: 14,
-                                        color: T.TEXT_HINT,
-                                    }}
-                                >
-                                    {group.items[0].created_at_human}
-                                </span>
-                            </div>
-                            {group.items.map((comment) => (
-                                <div
-                                    key={comment.id}
-                                    className="tasks-comment flex items-start justify-between gap-2"
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 15,
-                                            color: T.TEXT_MUTED,
-                                            lineHeight: 1.65,
-                                            overflowWrap: "anywhere",
-                                        }}
-                                        // Escaped in renderComment; only
-                                        // mention chips survive as markup.
-                                        dangerouslySetInnerHTML={{
-                                            __html: renderComment(
-                                                comment.comment,
-                                            ),
-                                        }}
-                                    />
-                                    {(deleteCommentScope === "all" ||
-                                        (deleteCommentScope === "added" &&
-                                            comment.is_mine)) && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                onDelete(comment.id)
-                                            }
-                                            className="tasks-comment-delete flex-shrink-0"
-                                            style={{
-                                                background: "transparent",
-                                                border: "none",
-                                                padding: 0,
-                                                fontSize: 14,
-                                                color: T.TEXT_HINT,
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {td("Delete")}
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                        group={group}
+                        canDelete={canDeleteComment}
+                        onDelete={onDelete}
+                    />
                 ))}
             </div>
 
@@ -444,9 +318,6 @@ export default function TaskCommentsPanel({
                     {mentionQuery !== null && matches.length > 0 && (
                         <div
                             className="tasks-reveal"
-                            // Rows are plain <button>s, which steal focus on
-                            // mousedown; without this the textarea's onBlur
-                            // would strip a pending "@" before onPick runs.
                             onMouseDown={(event) => event.preventDefault()}
                             style={{
                                 position: "absolute",
@@ -500,17 +371,14 @@ export default function TaskCommentsPanel({
                                     if (event.key === "ArrowDown") {
                                         event.preventDefault();
                                         setActiveIndex(
-                                            (activeIndex + 1) %
-                                                matches.length,
+                                            (activeIndex + 1) % matches.length,
                                         );
                                         return;
                                     }
                                     if (event.key === "ArrowUp") {
                                         event.preventDefault();
                                         setActiveIndex(
-                                            (activeIndex -
-                                                1 +
-                                                matches.length) %
+                                            (activeIndex - 1 + matches.length) %
                                                 matches.length,
                                         );
                                         return;
@@ -529,10 +397,7 @@ export default function TaskCommentsPanel({
                                         return;
                                     }
                                 }
-                                if (
-                                    event.key === "Enter" &&
-                                    !event.shiftKey
-                                ) {
+                                if (event.key === "Enter" && !event.shiftKey) {
                                     event.preventDefault();
                                     void submit();
                                 }

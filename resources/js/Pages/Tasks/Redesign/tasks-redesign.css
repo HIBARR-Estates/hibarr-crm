@@ -5,8 +5,11 @@
 :root {
     /* Vertical space above the board: app topbar + the sticky Tasks header
        band (title row, filter row) + the board's own top/bottom padding.
-       The board is sized as calc(100vh - this), so only its columns scroll. */
+       Columns grow with their cards and only cap/scroll at this height. */
     --tasks-board-offset: 290px;
+    /* Column header row (dot + title + count + add) — subtract from the cap
+       when computing the card list's max-height. */
+    --tasks-board-column-header: 50px;
 }
 
 /* List card — same shell as .dt-container (Leads/Deals tables): one surface
