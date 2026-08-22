@@ -53,6 +53,8 @@ class DealAutomationController extends AccountBaseController
                 'trigger' => $request->trigger ?: null,
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
+                'wait_duration_value' => $this->resolvedWaitDurationValue($request),
+                'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->has('active') ? 1 : 0,
                 'priority' => $request->priority,
             ]);
@@ -99,6 +101,8 @@ class DealAutomationController extends AccountBaseController
                 'trigger' => $request->trigger ?: null,
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
+                'wait_duration_value' => $this->resolvedWaitDurationValue($request),
+                'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->has('active') ? 1 : 0,
                 'priority' => $request->priority,
             ]);
@@ -156,6 +160,7 @@ class DealAutomationController extends AccountBaseController
         $this->dueDateDeltaUnits = AutomationFieldCatalog::DUE_DATE_DELTA_UNITS;
         $this->dateFields = AutomationFieldCatalog::DATE_FIELDS;
         $this->dateRecurrences = AutomationFieldCatalog::DATE_RECURRENCES;
+        $this->waitDurationUnits = AutomationFieldCatalog::WAIT_DURATION_UNITS;
         $this->users = User::allEmployees(null, false);
         $this->metaEventNames = $this->knownMetaEventNames();
     }
@@ -176,6 +181,27 @@ class DealAutomationController extends AccountBaseController
         return $request->trigger === DealAutomation::TRIGGER_DATE_BASED
             ? ($request->trigger_date_recurrence ?: null)
             : null;
+    }
+
+    /**
+     * Wait config: value drives everything — a missing/zero value means "no
+     * wait" and the unit is cleared with it. Unit defaults to days when a
+     * value is set without one.
+     */
+    protected function resolvedWaitDurationValue(Request $request): ?int
+    {
+        return $request->filled('wait_duration_value') ? (int) $request->wait_duration_value : null;
+    }
+
+    protected function resolvedWaitDurationUnit(Request $request): ?string
+    {
+        if (! $request->filled('wait_duration_value')) {
+            return null;
+        }
+
+        return in_array($request->wait_duration_unit, array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))
+            ? $request->wait_duration_unit
+            : 'days';
     }
 
     /**
@@ -220,6 +246,8 @@ class DealAutomationController extends AccountBaseController
             ])],
             'trigger_date_field' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', 'string'],
             'trigger_date_recurrence' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', Rule::in(array_keys(AutomationFieldCatalog::DATE_RECURRENCES))],
+            'wait_duration_value' => 'nullable|integer|min:1|max:3650',
+            'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',
             'conditions' => 'array',
             'actions' => 'required|array|min:1',

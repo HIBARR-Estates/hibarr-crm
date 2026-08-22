@@ -8,6 +8,7 @@ use App\Mail\DealAutomationTemplateEmail;
 use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
+use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
 use App\Models\Lead;
 use App\Models\LeadNote;
@@ -54,7 +55,7 @@ class DealAutomationService
         foreach ($automations as $automation) {
             if ($this->evaluateConditions($deal, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
-                $this->executeActions($deal, $automation);
+                $this->dispatchOrWait($deal, $automation, $trigger);
             }
         }
     }
@@ -72,7 +73,7 @@ class DealAutomationService
         foreach ($automations as $automation) {
             if ($this->evaluateConditions($lead, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
-                $this->executeActions($lead, $automation);
+                $this->dispatchOrWait($lead, $automation, $trigger);
             }
         }
     }
@@ -92,7 +93,113 @@ class DealAutomationService
         }
 
         Log::info("Date-based automation matched: {$automation->name} (ID: {$automation->id})");
+        $this->dispatchOrWait($subject, $automation, DealAutomation::TRIGGER_DATE_BASED);
+    }
+
+    /**
+     * Either execute the automation's actions now, or — when a wait is
+     * configured — queue a pending run for later. Conditions were already
+     * met here; they are checked AGAIN at execution time (see runPending())
+     * because the deal/lead may have changed during the wait.
+     *
+     * Only one pending run per automation+subject can exist at a time, so
+     * triggers that fire on every save (deal_updated etc.) can't stack
+     * duplicates while one is already waiting.
+     */
+    protected function dispatchOrWait(Deal|Lead $subject, DealAutomation $automation, ?string $trigger): void
+    {
+        $waitSeconds = $this->automationWaitSeconds($automation);
+
+        if ($waitSeconds <= 0) {
+            $this->executeActions($subject, $automation);
+
+            return;
+        }
+
+        try {
+            DealAutomationPendingRun::firstOrCreate([
+                'deal_automation_id' => $automation->id,
+                'subject_type' => $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL,
+                'subject_id' => $subject->id,
+            ], [
+                'company_id' => $subject->company_id,
+                'trigger' => $trigger,
+                'run_at' => now()->addSeconds($waitSeconds),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to queue waited automation '{$automation->name}' (ID: {$automation->id})", [
+                'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',
+                'subject_id' => $subject->id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        Log::info("Automation queued to run after wait: {$automation->name} (ID: {$automation->id}), at ".now()->addSeconds($waitSeconds)->toDateTimeString());
+    }
+
+    /**
+     * Execute one pending run: called from the scheduler once run_at is due.
+     * Everything is re-validated here because state may have moved on since
+     * the trigger fired — the automation may have been deactivated or its
+     * conditions may no longer hold; locked deals are skipped like in
+     * process(); deleted subjects simply have their row dropped.
+     */
+    public function runPending(DealAutomationPendingRun $pendingRun): void
+    {
+        $subject = $pendingRun->subject_type === DealAutomation::SUBJECT_LEAD
+            ? Lead::find($pendingRun->subject_id)
+            : Deal::find($pendingRun->subject_id);
+
+        if (! $subject) {
+            Log::info("Dropping pending automation run #{$pendingRun->id}: subject no longer exists");
+
+            return;
+        }
+
+        $automation = $pendingRun->automation;
+
+        if (! $automation || ! $automation->active) {
+            Log::info("Skipping pending automation run #{$pendingRun->id}: automation inactive or missing");
+
+            return;
+        }
+
+        if ($subject instanceof Deal && $subject->is_locked) {
+            Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
+
+            return;
+        }
+
+        if (! $this->evaluateConditions($subject, $automation)) {
+            Log::info("Conditions no longer met after wait for '{$automation->name}' (ID: {$automation->id}) on {$pendingRun->subject_type} {$pendingRun->subject_id}");
+
+            return;
+        }
+
+        Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
         $this->executeActions($subject, $automation);
+    }
+
+    /**
+     * The configured wait in seconds — 0 means "no wait, run immediately".
+     */
+    public function automationWaitSeconds(DealAutomation $automation): int
+    {
+        $value = $automation->wait_duration_value;
+
+        if (! $value || (int) $value < 1) {
+            return 0;
+        }
+
+        $value = (int) $value;
+
+        return match ($automation->wait_duration_unit) {
+            'minutes' => $value * 60,
+            'hours' => $value * 3600,
+            default => $value * 86400,
+        };
     }
 
     /**

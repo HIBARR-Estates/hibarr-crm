@@ -117,6 +117,8 @@
         // that's guaranteed not to touch it.
         const bodyEditorEl = document.getElementById('body-editor');
         if (bodyEditorEl) {
+            const looksLikeFullHtml = (raw) => /<(table|style)\b/i.test(raw || '');
+
             bodyEditorEl.addEventListener('paste', function(e) {
                 if (bodyMode !== 'visual') {
                     return;
@@ -127,8 +129,7 @@
                 }
                 const html = clipboard.getData('text/html') || '';
                 const text = clipboard.getData('text/plain') || '';
-                const looksLikeFullHtml = /<(table|style)\b/i.test(html) || /<(table|style)\b/i.test(text);
-                if (!looksLikeFullHtml) {
+                if (!looksLikeFullHtml(html) && !looksLikeFullHtml(text)) {
                     return;
                 }
                 e.preventDefault();
@@ -138,8 +139,35 @@
                 // tags — a source that syntax-highlights its HTML (rather
                 // than showing raw text) can put "<table"/"<style" in one
                 // flavor but not the other.
-                const raw = /<(table|style)\b/i.test(html) ? html : text;
-                $('#body-html-source').val(raw);
+                $('#body-html-source').val(looksLikeFullHtml(html) ? html : text);
+            }, true);
+
+            // Same trap via drag-and-drop: Quill's drop handling mangles a
+            // full email layout exactly like a paste would, and nothing
+            // else catches it.
+            bodyEditorEl.addEventListener('drop', function(e) {
+                if (bodyMode !== 'visual') {
+                    return;
+                }
+                const dt = e.dataTransfer;
+                if (!dt || !dt.getData) {
+                    return;
+                }
+                let html = '';
+                let text = '';
+                try {
+                    html = dt.getData('text/html') || '';
+                    text = dt.getData('text/plain') || '';
+                } catch (err) {
+                    return;
+                }
+                if (!looksLikeFullHtml(html) && !looksLikeFullHtml(text)) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setBodyMode('html');
+                $('#body-html-source').val(looksLikeFullHtml(html) ? html : text);
             }, true);
         }
 

@@ -7,7 +7,7 @@
             </div>
             <div class="modal-body p-0">
                 <p class="f-12 text-lightest px-3 pt-2 mb-2">
-                    Merge tags (<code>@{{like}}</code> <code>@{{this}}</code>) are shown as-is here — they only resolve to real values when an automation actually sends this template to a deal/lead.
+                    Preview with example values — merge tags (<code>@{{like}}</code> <code>@{{this}}</code>) are filled with sample data here. A real send resolves them from the deal/lead that triggered the automation.
                 </p>
                 <iframe id="preview-modal-frame" title="Email preview" style="width:100%; min-height:520px; border:0; background:#f6f6f6;"></iframe>
             </div>

@@ -62,6 +62,9 @@
                                                 <span class="badge badge-light mb-1">{{ $automation->pipeline->name ?? 'All Pipelines' }}</span>
                                             @endif
                                             <small class="text-muted">When: {{ ucwords(str_replace('_', ' ', $automation->trigger ?? 'Any Update')) }}</small>
+                                            @if($automation->wait_duration_value)
+                                                <small class="text-muted">Wait: {{ $automation->wait_duration_value }} {{ strtolower($automation->wait_duration_unit ?? 'days') }}</small>
+                                            @endif
                                         </div>
                                     </td>
                                     <td>

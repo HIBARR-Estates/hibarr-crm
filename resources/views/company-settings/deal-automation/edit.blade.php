@@ -127,6 +127,23 @@
                     </div>
                 </div>
 
+                {{-- Wait before running: when set, matched automations queue a
+                     pending run and actions execute later from the scheduler --}}
+                <div class="row">
+                    <div class="col-md-3">
+                        <x-forms.number fieldId="wait_duration_value" :fieldLabel="__('Wait Before Running (optional)')" fieldName="wait_duration_value"
+                            :fieldValue="$automation->wait_duration_value ?? ''" fieldHelp="Leave empty to run immediately" />
+                    </div>
+                    <div class="col-md-3" id="wait-unit-col">
+                        <x-forms.select fieldId="wait_duration_unit" :fieldLabel="__('Wait Unit')" fieldName="wait_duration_unit">
+                            @foreach($waitDurationUnits as $key => $label)
+                                <option value="{{ $key }}" {{ ($automation->wait_duration_unit ?? 'days') == $key ? 'selected' : '' }}>{{ __($label) }}</option>
+                            @endforeach
+                        </x-forms.select>
+                    </div>
+                </div>
+                <p class="f-11 text-lightest mt-1">Conditions are checked again when the wait ends — if they no longer hold, nothing runs. While waiting, only one delayed run is kept per deal/lead.</p>
+
                 <hr>
                 <h4 class="mb-3">Conditions</h4>
                 <div id="conditions-container">
@@ -241,6 +258,13 @@
 
                 toggleDateTriggerConfig();
             });
+
+            // Wait unit is only meaningful when a wait value is set
+            function toggleWaitUnit() {
+                $('#wait-unit-col').toggle(!!$('#wait_duration_value').val());
+            }
+
+            $('#wait_duration_value').on('input change', toggleWaitUnit);
 
             // Subject Type (Deal/Lead) Logic — filters which triggers/actions/
             // condition-field groups apply, since lead automations skip pipeline
@@ -693,6 +717,8 @@
             // automation (applySubjectType only fires 'change' when it had to
             // reset the trigger select, so run this explicitly too).
             toggleDateTriggerConfig();
+
+            toggleWaitUnit();
 
             // Forward Only Warning Logic
             $('body').on('change', '.forward-only-check', function() {

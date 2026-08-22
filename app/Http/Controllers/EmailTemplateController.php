@@ -130,7 +130,7 @@ class EmailTemplateController extends AccountBaseController
             $mode = $request->input('mode', EmailTemplate::MODE_CUSTOM);
         }
 
-        $html = EmailTemplate::renderPreviewHtml($body, $subject, $preheader, $mode);
+        $html = EmailTemplate::renderPreviewHtml($body, $subject, $preheader, $mode, resolveSamples: true);
 
         return response()->json([
             'status' => 'success',

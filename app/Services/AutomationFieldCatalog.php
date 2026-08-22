@@ -122,6 +122,15 @@ class AutomationFieldCatalog
     ];
 
     /**
+     * Units an automation's "wait before running" can be expressed in.
+     */
+    public const WAIT_DURATION_UNITS = [
+        'minutes' => 'Minute(s)',
+        'hours' => 'Hour(s)',
+        'days' => 'Day(s)',
+    ];
+
+    /**
      * Who a create_task/create_note action's assignee (task only) or assigner
      * (task + note "created/added by") resolves to at execution time.
      */

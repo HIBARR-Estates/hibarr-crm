@@ -19,6 +19,8 @@ class DealAutomation extends BaseModel
         'trigger',
         'date_field',
         'date_recurrence',
+        'wait_duration_value',
+        'wait_duration_unit',
         'active',
         'priority',
     ];
