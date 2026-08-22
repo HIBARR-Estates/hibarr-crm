@@ -1,6 +1,12 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Input, Pagination as AntPagination, Select } from "antd";
+import {
+    Button,
+    Input,
+    Pagination as AntPagination,
+    Select,
+    Tooltip,
+} from "antd";
 import {
     Plus,
     MapPin,
@@ -9,7 +15,7 @@ import {
     Users,
     X,
     FileText,
-    SlidersHorizontal,
+    CornerDownLeft,
 } from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
@@ -35,10 +41,12 @@ import {
 import { usePermission } from "@/lib/permissionUtils";
 import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import "@/Components/Redesign/redesign.css";
+import EntityListHeader from "@/Components/Redesign/primitives/EntityListHeader";
+import RedesignButton from "@/Components/Redesign/primitives/Button";
 import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
 import { describeFilters } from "@/Features/Filters/filterSummary";
-import { useFilter } from "@/contexts/FilterContext";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createProjectFilterConfig from "@/configs/projectFilterConfig";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
@@ -173,7 +181,7 @@ const Index = ({
         data: [],
         current_page: 1,
         last_page: 1,
-        per_page: 12,
+        per_page: 15,
         total: 0,
         from: 0,
         to: 0,
@@ -226,9 +234,13 @@ const Index = ({
 
     // v2 filter workbench (crm.projects-filters-v2) — multi-select fields,
     // saved views, and the expanded field set. FilterProvider is mounted
-    // app-wide, so useFilter()/usePageSearchAndFilter are safe to call even
-    // when v2 is off; only the JSX below actually renders anything with them.
-    const { draftFilters: v2DraftFilters } = useFilter();
+    // app-wide, so usePageSearchAndFilter is safe to call even when v2 is
+    // off; only the JSX below actually renders anything with it.
+    //
+    // Deliberately NOT deriving this config from live draftFilters (e.g. for
+    // a city->area cascade): usePageSearchAndFilter re-hydrates draftFilters
+    // from the URL every time the config identity changes, so depending on
+    // draftFilters here would reset whatever the user just clicked.
     const filterConfig = useMemo(
         () =>
             createProjectFilterConfig({
@@ -241,7 +253,6 @@ const Index = ({
                 projectFacilities,
                 visibilityEnabled: visibility?.enabled === true,
                 canSeeHidden: visibility?.canSeeHidden === true,
-                selectedCities: v2DraftFilters.city,
                 excludeFields: ["search"],
             }),
         [
@@ -253,7 +264,6 @@ const Index = ({
             unitTypeOptions,
             projectFacilities,
             visibility,
-            v2DraftFilters.city,
         ],
     );
     const { filter } = usePageSearchAndFilter({ filterConfig });
@@ -262,7 +272,6 @@ const Index = ({
         [filter.config, filter.filters],
     );
 
-    const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const durationDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const priceDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchInputRef = useRef<any>(null);
@@ -341,17 +350,21 @@ const Index = ({
     const handleSearchChange = (value: string) => {
         setSearch(value);
         keepSearchFocused.current = true;
-        if (searchDebounce.current) clearTimeout(searchDebounce.current);
-        searchDebounce.current = setTimeout(() => {
-            // Under v2, filters live in the URL (not the legacy per-field
-            // state buildParams reads), so merge into the current query
-            // string instead of reconstructing it from stale local state.
-            visitIndex(
-                filtersV2Enabled
-                    ? mergeQueryParams({ search: value })
-                    : buildParams({ search: value }),
-            );
-        }, 380);
+    };
+
+    // Fires on Enter, clicking the search icon, or clicking the clear ("x")
+    // button — Input.Search calls onSearch with the current (post-clear)
+    // value in all three cases, so clearing the box clears the search too.
+    const submitSearch = (value: string) => {
+        setSearch(value);
+        // Under v2, filters live in the URL (not the legacy per-field state
+        // buildParams reads), so merge into the current query string instead
+        // of reconstructing it from stale local state.
+        visitIndex(
+            filtersV2Enabled
+                ? mergeQueryParams({ search: value })
+                : buildParams({ search: value }),
+        );
     };
 
     const handleSortChange = (value: string) => {
@@ -615,145 +628,107 @@ const Index = ({
         );
     };
 
+    // Legacy modal keeps its dynamic filter-summary sentence; everything
+    // else (v2, and the no-filters-applied case) just shows the count.
+    const headerSubtitle = titleResult.useSubtitle
+        ? titleResult.filterSummary.charAt(0).toUpperCase() +
+          titleResult.filterSummary.slice(1)
+        : `${projects.total.toLocaleString()} projects`;
+
     return (
         <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[{ name: t("app.menu.projects") }]}
-            >
-                <div className="-m-6 min-h-screen bg-slate-50">
-                    <div className="bg-white border-b border-gray-200 px-7 py-3.5 sticky top-0 z-[100]">
-                        <div className="max-w-screen-xl mx-auto">
-                            {/* Row 1: title + search */}
-                            <div className="flex items-start justify-between mb-3 flex-wrap gap-2.5">
-                                <div className="min-w-0 flex-1 pr-2">
-                                    {titleResult.useSubtitle ? (
-                                        <>
-                                            <div className="flex items-baseline gap-2.5">
-                                                <span className="text-[22px] font-bold text-slate-900">
-                                                    Projects
-                                                </span>
-                                                <span className="text-sm text-gray-400 font-normal">
-                                                    {projects.total}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-gray-500 mt-0.5 mb-0 capitalize-first">
-                                                {titleResult.filterSummary
-                                                    .charAt(0)
-                                                    .toUpperCase() +
-                                                    titleResult.filterSummary.slice(
-                                                        1,
-                                                    )}
-                                            </p>
-                                        </>
-                                    ) : (
-                                        <div className="flex items-baseline gap-2.5 flex-wrap">
-                                            <span className="text-[22px] font-bold text-slate-900">
-                                                {titleResult.sentence}
-                                            </span>
-                                            <span className="text-sm text-gray-400 font-normal">
-                                                {projects.total}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                                <Input
-                                    ref={searchInputRef}
-                                    value={search}
-                                    onChange={(e) =>
-                                        handleSearchChange(e.target.value)
-                                    }
-                                    onFocus={() => {
-                                        keepSearchFocused.current = true;
-                                    }}
-                                    onBlur={() => {
-                                        // Delay so onFinish can still refocus after visit
-                                        setTimeout(() => {
-                                            if (
-                                                document.activeElement !==
-                                                searchInputRef.current?.input
-                                            ) {
-                                                keepSearchFocused.current = false;
-                                            }
-                                        }, 0);
-                                    }}
-                                    placeholder="Search projects by name, description…"
-                                    prefix={
-                                        <Search
-                                            size={14}
-                                            className="text-gray-400"
-                                        />
-                                    }
-                                    className="w-56 shrink-0"
-                                    allowClear
+                searchComp={
+                    <Input.Search
+                        ref={searchInputRef}
+                        value={search}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        onSearch={submitSearch}
+                        onFocus={() => {
+                            keepSearchFocused.current = true;
+                        }}
+                        onBlur={() => {
+                            // Delay so onFinish can still refocus after visit
+                            setTimeout(() => {
+                                if (
+                                    document.activeElement !==
+                                    searchInputRef.current?.input
+                                ) {
+                                    keepSearchFocused.current = false;
+                                }
+                            }, 0);
+                        }}
+                        placeholder="Search projects by name, description…"
+                        prefix={
+                            <Search size={14} className="text-gray-400" />
+                        }
+                        suffix={
+                            <Tooltip title="Press Enter to search">
+                                <CornerDownLeft
+                                    size={13}
+                                    className="text-gray-400"
                                 />
-                            </div>
+                            </Tooltip>
+                        }
+                        className="w-full"
+                        allowClear
+                    />
+                }
+                mainContentClassName="p-0"
+            >
+                <EntityListHeader
+                    title={t("app.menu.projects")}
+                    subtitle={headerSubtitle}
+                    actions={
+                        <>
+                            {canAdd && (
+                                <RedesignButton
+                                    variant="primary"
+                                    icon={<Plus size={14} />}
+                                    onClick={handleAdd}
+                                >
+                                    New Project
+                                </RedesignButton>
+                            )}
 
-                            {/* Row 2: actions + sort (+ Filters when flagged) */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                                {canAdd && (
-                                    <Button
-                                        type="primary"
-                                        icon={<Plus size={14} />}
-                                        onClick={handleAdd}
-                                    >
-                                        New Project
-                                    </Button>
-                                )}
+                            <Link
+                                href={route("project-locations.index")}
+                                className="dr-btn dr-btn-ghost"
+                            >
+                                <MapPin size={14} />
+                                Manage Locations
+                            </Link>
 
-                                <Link href={route("project-locations.index")}>
-                                    <Button icon={<MapPin size={14} />}>
-                                        Manage Locations
-                                    </Button>
-                                </Link>
+                            <Link
+                                href={route("developers.index")}
+                                className="dr-btn dr-btn-ghost"
+                            >
+                                <Users size={14} />
+                                Developers
+                            </Link>
 
-                                <Link href={route("developers.index")}>
-                                    <Button icon={<Users size={14} />}>
-                                        Developers
-                                    </Button>
-                                </Link>
+                            <Link
+                                href={route("expose-configuration.show")}
+                                className="dr-btn dr-btn-ghost"
+                            >
+                                <FileText size={14} />
+                                Expose Configuration
+                            </Link>
+                        </>
+                    }
+                    toolbarLeft={
+                        <>
+                            <SortDropdown
+                                value={sortValue}
+                                onChange={handleSortChange}
+                            />
 
-                                <Link href={route("expose-configuration.show")}>
-                                    <Button icon={<FileText size={14} />}>
-                                        Expose Configuration
-                                    </Button>
-                                </Link>
-
-                                <div className="ml-auto flex items-center gap-2">
-                                    {filtersModalEnabled && (
-                                        <Button
-                                            icon={
-                                                <SlidersHorizontal size={14} />
-                                            }
-                                            onClick={() =>
-                                                filtersV2Enabled
-                                                    ? filter.openDrawer()
-                                                    : setFiltersModalOpen(true)
-                                            }
-                                        >
-                                            Filters
-                                            {(filtersV2Enabled
-                                                ? v2ActiveFilterCount
-                                                : activeFilterCount) > 0 && (
-                                                <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                                                    {filtersV2Enabled
-                                                        ? v2ActiveFilterCount
-                                                        : activeFilterCount}{" "}
-                                                    active
-                                                </span>
-                                            )}
-                                        </Button>
-                                    )}
-                                    <SortDropdown
-                                        value={sortValue}
-                                        onChange={handleSortChange}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Row 3: legacy inline filters */}
+                            {/* Legacy inline filters — only when neither the
+                                old nor the v2 filter modal is flagged on. */}
                             {!filtersModalEnabled && (
-                                <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-gray-100 mt-2.5">
+                                <>
                                     <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
                                         Filter:
                                     </span>
@@ -890,19 +865,34 @@ const Index = ({
                                             Clear filters
                                         </button>
                                     )}
-                                </div>
+                                </>
                             )}
-                        </div>
-                    </div>
-
-                    <div className="max-w-screen-xl mx-auto px-7 py-7 pb-12">
-                        {filtersV2Enabled && (
+                        </>
+                    }
+                    filtersCount={
+                        filtersV2Enabled ? v2ActiveFilterCount : activeFilterCount
+                    }
+                    onOpenFilters={
+                        filtersModalEnabled
+                            ? () =>
+                                  filtersV2Enabled
+                                      ? filter.openDrawer()
+                                      : setFiltersModalOpen(true)
+                            : undefined
+                    }
+                    filterSentence={
+                        filtersV2Enabled ? (
                             <ActiveFilterSentence
                                 count={projects.total}
                                 entityLabel="projects"
                                 onOpenFilters={filter.openDrawer}
                             />
-                        )}
+                        ) : undefined
+                    }
+                />
+
+                <div className="min-h-screen bg-slate-50">
+                    <div className="max-w-screen-2xl mx-auto px-7 py-7 pb-12">
                         {(projects.data ?? []).length === 0 ? (
                             <EmptyState
                                 onAdd={canAdd ? handleAdd : undefined}

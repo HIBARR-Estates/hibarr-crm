@@ -23,8 +23,6 @@ interface ProjectFilterProps {
     projectFacilities?: Array<{ name: string; label: string; icon?: string | null }>;
     visibilityEnabled?: boolean;
     canSeeHidden?: boolean;
-    /** Currently-selected cities in the draft filter, so area options can cascade. */
-    selectedCities?: string[] | string | null;
     excludeFields?: string[];
 }
 
@@ -32,38 +30,11 @@ function displayLabel(value: string): string {
     return formatLocationNameForDisplay(value) || snakeToReadable(value) || value;
 }
 
-/** Unique, sorted city options from the raw location list. */
-function cityOptionsFrom(locations: FilterLocation[]) {
+/** Unique, sorted values for one location field ("city" or "area"). */
+function locationOptionsFrom(locations: FilterLocation[], field: "city" | "area") {
     const seen = new Map<string, string>();
     for (const loc of locations) {
-        const raw = loc.city?.trim();
-        if (!raw) continue;
-        const key = raw.toLowerCase();
-        if (!seen.has(key)) seen.set(key, raw);
-    }
-    return Array.from(seen.values())
-        .sort((a, b) => displayLabel(a).localeCompare(displayLabel(b)))
-        .map((raw) => ({ value: raw, label: displayLabel(raw) }));
-}
-
-/** Area options scoped to whichever cities are currently selected. */
-function areaOptionsFrom(locations: FilterLocation[], selectedCities?: string[] | string | null) {
-    const cityKeys = (
-        Array.isArray(selectedCities)
-            ? selectedCities
-            : selectedCities
-              ? String(selectedCities).split(",")
-              : []
-    )
-        .map((c) => c.trim().toLowerCase())
-        .filter(Boolean);
-
-    if (cityKeys.length === 0) return [];
-
-    const seen = new Map<string, string>();
-    for (const loc of locations) {
-        if (!cityKeys.includes((loc.city ?? "").trim().toLowerCase())) continue;
-        const raw = loc.area?.trim();
+        const raw = loc[field]?.trim();
         if (!raw) continue;
         const key = raw.toLowerCase();
         if (!seen.has(key)) seen.set(key, raw);
@@ -112,7 +83,7 @@ export const createProjectFilterConfig = (props: ProjectFilterProps): FilterConf
             sentence: "city",
             section: "Location & Developer",
             placeholder: "Search cities…",
-            options: cityOptionsFrom(locations),
+            options: locationOptionsFrom(locations, "city"),
         },
         {
             key: "area",
@@ -121,8 +92,8 @@ export const createProjectFilterConfig = (props: ProjectFilterProps): FilterConf
             control: "checklist",
             sentence: "area",
             section: "Location & Developer",
-            placeholder: "Select a city first",
-            options: areaOptionsFrom(locations, props.selectedCities),
+            placeholder: "Search areas…",
+            options: locationOptionsFrom(locations, "area"),
         },
 
         // ── Category & Status ────────────────────────────────────

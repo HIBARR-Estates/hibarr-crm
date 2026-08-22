@@ -520,11 +520,11 @@ const Index = ({
                             />
                         ) : undefined
                     }
-                    maxWidth={1560}
+                    // maxWidth={1560}
                 />
 
                 <div
-                    className="max-w-[1560px] mx-auto space-y-4 px-6 py-6"
+                    className="max-w-screen-2xl mx-auto space-y-4 px-6 py-6"
                     style={{ fontFamily: REDESIGN_FONT_STACK }}
                 >
                     {/* Bulk actions — appear once a row is selected, full-width

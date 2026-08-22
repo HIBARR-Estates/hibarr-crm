@@ -643,11 +643,11 @@ const Index = ({
                             onOpenFilters={openDrawer}
                         />
                     }
-                    maxWidth={1440}
+                    // maxWidth={1440}
                 />
 
                 <div
-                    className="max-w-[1440px] mx-auto space-y-4 px-6 py-6"
+                    className="max-w-screen-2xl mx-auto space-y-4 px-6 py-6"
                     style={{ fontFamily: REDESIGN_FONT_STACK }}
                 >
                     {/* Bulk actions — full-width bar below the toolbar, table view only. */}
@@ -675,13 +675,6 @@ const Index = ({
                             onDismiss={() => setBulkSummary(null)}
                         />
                     )}
-
-                    {/* Quiet active-filter sentence */}
-                    <ActiveFilterSentence
-                        count={deals.total}
-                        entityLabel="deals"
-                        onOpenFilters={openDrawer}
-                    />
 
                     {/* Table View */}
                     {isTableView && (
