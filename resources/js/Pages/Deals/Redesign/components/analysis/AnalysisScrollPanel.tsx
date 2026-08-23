@@ -85,8 +85,8 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
     if (sections.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-400">
-                <p className="text-sm">No analysis steps configured.</p>
-                <p className="text-xs italic">Add steps in pipeline settings to get started.</p>
+                <p className="text-sm">{td("No analysis steps configured.", { source: "en" })}</p>
+                <p className="text-xs italic">{td("Add steps in pipeline settings to get started.", { source: "en" })}</p>
             </div>
         );
     }

@@ -293,7 +293,9 @@ export default function WorkspaceMeetingsTab({
                                                     onChange={() =>
                                                         toggleSelect(meeting.id)
                                                     }
-                                                    label={`Select meeting ${meeting.title}`}
+                                                    label={t("pages.deals.common.select_meeting", {
+                                                        title: meeting.title,
+                                                    })}
                                                 />
                                             </div>
                                         )}
@@ -307,9 +309,13 @@ export default function WorkspaceMeetingsTab({
                                                       )
                                             }
                                             aria-label={
-                                                selectMode
-                                                    ? `Select meeting ${meeting.title}`
-                                                    : `Open meeting — ${meeting.title}`
+                                                    selectMode
+                                                        ? t("pages.deals.common.select_meeting", {
+                                                              title: meeting.title,
+                                                          })
+                                                        : t("pages.deals.common.open_meeting", {
+                                                              title: meeting.title,
+                                                          })
                                             }
                                             className="flex min-w-0 flex-1 cursor-pointer gap-3.5 border-none bg-transparent p-0 text-left"
                                             style={{ color: T.TEXT }}
@@ -405,7 +411,7 @@ export default function WorkspaceMeetingsTab({
                                                     {meeting.timeRangeLabel} ·{" "}
                                                     {meeting.durationMinutes}{" "}
                                                     {t("pages.deals.workspace.meetings.min_label")} ·{" "}
-                                                    {td(meeting.locationDisplay)}
+                                                    {td(meeting.locationDisplay, { source: "en" })}
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span

@@ -36,7 +36,7 @@ export default function useDealNoteCreate(dealId: number) {
                 input.text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
                     .length > 0;
             if (!hasText) {
-                setErrors(["Please enter note details"]);
+                setErrors([t("pages.deals.workspace.notes.validation.details_required")]);
                 return;
             }
 
@@ -64,7 +64,7 @@ export default function useDealNoteCreate(dealId: number) {
                             return;
                         }
 
-                        setErrors(["Failed to save note"]);
+                        setErrors([t("pages.deals.workspace.notes.messages.save_failed")]);
                     },
                     onError: (errorResponse) => {
                         const formatted = errorFormatter(errorResponse);
@@ -74,7 +74,7 @@ export default function useDealNoteCreate(dealId: number) {
                         setErrors(
                             responseErrors.length > 0
                                 ? responseErrors
-                                : [formatted.message || "Failed to save note"],
+                                : [formatted.message || t("pages.deals.workspace.notes.messages.save_failed")],
                         );
                     },
                 },

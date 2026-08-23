@@ -25,6 +25,7 @@ export function OverviewColumnHeader({
     onAdd,
     addActive,
 }: OverviewColumnHeaderProps) {
+    const { t } = useTranslation();
     return (
         <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center">
             <span />
@@ -41,7 +42,7 @@ export function OverviewColumnHeader({
             <div className="flex justify-end">
                 {onAdd && (
                     <DealButton variant="ghost" size="sm" onClick={onAdd}>
-                        {addActive ? "Cancel" : addLabel}
+                        {addActive ? t("pages.deals.common.cancel") : addLabel}
                     </DealButton>
                 )}
             </div>

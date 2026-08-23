@@ -215,7 +215,11 @@ export default function WorkspaceFilesTab({
                         key={file.id}
                         name={file.name}
                         sizeLabel={file.sizeLabel}
-                        uploadedLabel={file.uploadedLabel}
+                        uploadedLabel={
+                            file.uploadedLabel === "recently"
+                                ? t("pages.deals.common.recently")
+                                : file.uploadedLabel
+                        }
                         uploadedPrefix={t(
                             "pages.deals.workspace.files.uploaded_label",
                         )}
@@ -239,8 +243,8 @@ export default function WorkspaceFilesTab({
                 title={t("pages.deals.common.delete")}
                 message={
                     deleteFile
-                        ? `Are you sure you want to delete ${deleteFile.filename}? This action cannot be undone.`
-                        : "Are you sure you want to delete this file? This action cannot be undone."
+                        ? t("pages.deals.workspace.files.delete_confirm_message")
+                        : t("pages.deals.workspace.files.delete_confirm_message")
                 }
                 confirmLabel={t("pages.deals.common.delete")}
                 danger

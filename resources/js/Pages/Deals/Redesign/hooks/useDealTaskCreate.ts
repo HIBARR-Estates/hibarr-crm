@@ -4,6 +4,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 import {
@@ -37,6 +38,7 @@ interface CreateTaskRequest {
 }
 
 export default function useDealTaskCreate(dealId: number) {
+    const { t } = useTranslation();
     const { props } = usePage();
     const [errors, setErrors] = useState<string[]>([]);
     const { setTasks } = useDealWorkspace();
@@ -51,7 +53,7 @@ export default function useDealTaskCreate(dealId: number) {
         (input: DealTaskCreateInput, onSuccess?: () => void) => {
             const title = input.title.trim();
             if (!title) {
-                setErrors(["Task title is required"]);
+                setErrors([t("pages.deals.workspace.tasks.validation.title_required")]);
                 return;
             }
 
@@ -111,12 +113,12 @@ export default function useDealTaskCreate(dealId: number) {
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to create task"],
+                            : [formatted.message || t("pages.deals.workspace.tasks.messages.create_failed")],
                     );
                 },
             });
         },
-        [dealId, mutate, props.auth?.user?.id, props.company, setTasks],
+        [dealId, mutate, props.auth?.user?.id, props.company, setTasks, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

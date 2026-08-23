@@ -3,6 +3,8 @@ import { Button } from "antd";
 import { Sparkles } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type {
     EntitySummaryChip,
     EntitySummaryEntityType,
@@ -62,6 +64,9 @@ export default function EntityAiSummaryHeader({
     isStale = false,
     isHeuristic = false,
 }: EntityAiSummaryHeaderProps) {
+    const { t } = useTranslation();
+    const { td } = useTd();
+
     const timestampLabel = generatedAt
         ? `generated ${dayjs(generatedAt).fromNow()}`
         : null;
@@ -73,6 +78,20 @@ export default function EntityAiSummaryHeader({
 
     if (variant === "redesign") {
         const sparkIcon = <Sparkles width={15} height={15} strokeWidth={2} />;
+        const redesignTimestampLabel = generatedAt
+            ? t("pages.entity_summary.generated_at", {
+                  time: dayjs(generatedAt).fromNow(),
+              })
+            : null;
+        const redesignRiskLabel = riskLevel
+            ? t("pages.entity_summary.risk_label", {
+                  level: t(`pages.entity_summary.risk.${riskLevel}`),
+              })
+            : null;
+        const emptyPromptKey =
+            entityType === "deal"
+                ? "pages.entity_summary.empty_prompt_deal"
+                : "pages.entity_summary.empty_prompt_lead";
 
         if (!hasSummary) {
             // Not toggleable — there's no detail to expand into until a
@@ -93,11 +112,11 @@ export default function EntityAiSummaryHeader({
                         </span>
                         {loading ? (
                             <span className="entity-ai-summary-header__status-line">
-                                Generating summary…
+                                {t("pages.entity_summary.generating_summary")}
                             </span>
                         ) : (
                             <span className="entity-ai-summary-header__status-line entity-ai-summary-header__status-line--muted">
-                                {`Generate an AI summary to see key facts, risk signals, and a suggested next step for this ${entityType}.`}
+                                {t(emptyPromptKey)}
                             </span>
                         )}
                     </span>
@@ -107,7 +126,9 @@ export default function EntityAiSummaryHeader({
                         disabled={loading}
                         onClick={onRegenerate}
                     >
-                        {loading ? "Generating…" : "Generate summary"}
+                        {loading
+                            ? t("pages.entity_summary.generating")
+                            : t("pages.entity_summary.generate_summary")}
                     </button>
                 </div>
             );
@@ -136,34 +157,42 @@ export default function EntityAiSummaryHeader({
                         <span className="entity-ai-summary-header__title-text">
                             {title}
                         </span>
-                        {riskLevel && riskLabel && (
+                        {riskLevel && redesignRiskLabel && (
                             <span
                                 className={`entity-ai-summary-risk-pill ${RISK_BADGE[riskLevel]}`}
                             >
-                                {riskLabel}
+                                {redesignRiskLabel}
                             </span>
                         )}
                         {isStale && (
                             <span className="entity-ai-summary-stale-pill">
-                                Out of date
+                                {t("pages.entity_summary.out_of_date")}
                             </span>
                         )}
                         {isHeuristic && (
                             <span className="entity-ai-summary-heuristic-pill">
-                                Fallback
+                                {t("pages.entity_summary.fallback")}
                             </span>
                         )}
-                        {(timestampLabel || shownConfidence) && (
+                        {(redesignTimestampLabel || shownConfidence) && (
                             <span className="entity-ai-summary-header__timestamp entity-ai-summary-header__timestamp--redesign">
-                                {timestampLabel}
-                                {timestampLabel && shownConfidence ? " · " : ""}
-                                {shownConfidence ? `confidence ${shownConfidence}` : ""}
+                                {redesignTimestampLabel}
+                                {redesignTimestampLabel && shownConfidence
+                                    ? " · "
+                                    : ""}
+                                {shownConfidence
+                                    ? t("pages.entity_summary.confidence_label", {
+                                          level: t(
+                                              `pages.entity_summary.confidence.${shownConfidence}`,
+                                          ),
+                                      })
+                                    : ""}
                             </span>
                         )}
                     </span>
                     {statusLine && (
                         <span className="entity-ai-summary-header__status-line">
-                            {statusLine}
+                            {td(statusLine, { source: "en" })}
                         </span>
                     )}
                     {collapsed && chips.length > 0 && (
@@ -173,7 +202,8 @@ export default function EntityAiSummaryHeader({
                                     key={chip.id}
                                     className={`entity-ai-summary-mini-pill ${CHIP_TONE_CLASS[chip.tone] ?? ""}`}
                                 >
-                                    {chip.label}: {chip.value}
+                                    {td(chip.label, { source: "en" })}:{" "}
+                                    {td(chip.value, { source: "en" })}
                                 </span>
                             ))}
                         </span>
