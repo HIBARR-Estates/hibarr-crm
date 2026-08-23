@@ -30,7 +30,6 @@ import {
     GiftOutlined,
     HomeOutlined,
     DollarOutlined,
-    PictureOutlined,
     InfoCircleOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
@@ -54,8 +53,11 @@ import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
 import { usePermission } from "@/lib/permissionUtils";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { HtmlRenderer } from "@/Components/ContentRenderer";
 
-const { Text, Paragraph } = Typography;
+const { Paragraph } = Typography;
+
+const DESCRIPTION_PREVIEW_LENGTH = 320;
 
 // ============================================
 // Props
@@ -121,6 +123,16 @@ const formatOfferValue = (offer: Offer) =>
         ? `${offer.value}%`
         : Number(offer.value).toLocaleString("en-GB");
 
+const formatArea = (value: number | null | undefined): string =>
+    value != null ? `${Number(value).toLocaleString()} m²` : "-";
+
+const stripHtml = (html: string): string =>
+    html
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
 // ── Mini helpers ────────────────────────────────────────────────────────────
 
 const SpecRow: React.FC<{ label: string; value: string }> = ({
@@ -135,22 +147,73 @@ const SpecRow: React.FC<{ label: string; value: string }> = ({
     </div>
 );
 
+/** Compact label/value row for sidebar fact lists */
+const SpecFact: React.FC<{ label: string; value: string }> = ({
+    label,
+    value,
+}) => (
+    <div className="flex items-baseline justify-between gap-3 border-b border-gray-50 pb-2 last:border-b-0 last:pb-0">
+        <span className="text-[10px] uppercase tracking-wide text-gray-400">
+            {label}
+        </span>
+        <span className="text-right text-xs font-medium text-gray-800">
+            {value}
+        </span>
+    </div>
+);
+
 const FeatureTags: React.FC<{
     label: string;
     items: string[];
     color: string;
 }> = ({ label, items, color }) => (
-    <div className="flex flex-wrap items-center gap-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide mr-1">
-            {label}:
+    <div className="flex flex-col gap-1.5">
+        <span className="text-[10px] uppercase tracking-wide text-gray-400">
+            {label}
         </span>
-        {items.map((item) => (
-            <Tag key={item} color={color} className="!text-[11px] !m-0">
-                {item}
-            </Tag>
-        ))}
+        <div className="flex flex-wrap gap-1">
+            {items.map((item) => (
+                <Tag key={item} color={color} className="!m-0 !text-[11px]">
+                    {item}
+                </Tag>
+            ))}
+        </div>
     </div>
 );
+
+const UnitTypeDescription: React.FC<{ html: string }> = ({ html }) => {
+    const [expanded, setExpanded] = useState(false);
+    const plainLength = stripHtml(html).length;
+    const needsTruncate = plainLength > DESCRIPTION_PREVIEW_LENGTH;
+
+    return (
+        <div className="mt-4 border-t border-gray-100 pt-4">
+            <div className="mb-2 text-[10px] uppercase tracking-wide text-gray-400">
+                Summary
+            </div>
+            <HtmlRenderer
+                content={html}
+                className="text-sm text-gray-700 [&_p]:mb-2.5 [&_p:last-child]:mb-0"
+                maxLength={
+                    needsTruncate && !expanded
+                        ? DESCRIPTION_PREVIEW_LENGTH
+                        : undefined
+                }
+                showFullContent={expanded || !needsTruncate}
+            />
+            {needsTruncate && (
+                <Button
+                    type="link"
+                    size="small"
+                    className="!mt-1 !h-auto !px-0"
+                    onClick={() => setExpanded((prev) => !prev)}
+                >
+                    {expanded ? "Show less" : "Show more"}
+                </Button>
+            )}
+        </div>
+    );
+};
 
 // ── UnitTypeCard ─────────────────────────────────────────────────────────────
 
@@ -187,6 +250,11 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
         ut.furniture_status,
         FURNITURE_STATUS_OPTIONS,
     );
+    const hasFeatures =
+        viewLabels.length > 0 ||
+        styleLabels.length > 0 ||
+        outsideLabels.length > 0 ||
+        insideLabels.length > 0;
     const imageAssets = getImageAssets(ut);
     const imageUrls = imageAssets
         .map((asset) => getAssetUrl(asset)!)
@@ -381,7 +449,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             ellipsis={{ rows: 2 }}
                             className="!mb-0 !text-xs text-gray-600"
                         >
-                            {ut.description}
+                            {stripHtml(ut.description)}
                         </Paragraph>
                     )}
                 </div>
@@ -435,6 +503,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 onCancel={onToggle}
                 footer={null}
                 width={1080}
+                destroyOnClose
                 title={
                     <div className="flex flex-col gap-2 pr-8">
                         <UnitSoldOutBadge
@@ -492,12 +561,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                             <div className="flex flex-col gap-y-3">
                                 <Card size="small" className="!rounded-2xl">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
                                             <div className="text-xs uppercase tracking-wide text-gray-400">
                                                 Starting price
                                             </div>
-                                            <div className="text-2xl font-semibold text-gray-900 mt-1">
+                                            <div className="mt-1 text-2xl font-semibold text-gray-900">
                                                 {ut.starting_price != null
                                                     ? formatPrice(
                                                           ut.starting_price,
@@ -506,27 +575,31 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                     : "-"}
                                             </div>
                                         </div>
-                                        <Tag
-                                            color={categoryColor(
-                                                ut.primary_category,
-                                            )}
-                                            className="!m-0"
-                                        >
-                                            {snakeToReadable(
-                                                ut.primary_category,
-                                            )}
-                                        </Tag>
+                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                            <Tag
+                                                color={categoryColor(
+                                                    ut.primary_category,
+                                                )}
+                                                className="!m-0"
+                                            >
+                                                {snakeToReadable(
+                                                    ut.primary_category,
+                                                )}
+                                            </Tag>
+                                            <span className="max-w-[140px] text-right text-sm font-medium capitalize leading-snug text-gray-800">
+                                                {ut.property_type
+                                                    ? snakeToReadable(
+                                                          ut.property_type,
+                                                      )
+                                                    : "—"}
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
                                         <SpecRow
                                             label="Reference"
                                             value={ut.reference_code || "-"}
-                                        />
-
-                                        <SpecRow
-                                            label="Photos"
-                                            value={String(imageUrls.length)}
                                         />
                                         <SpecRow
                                             label="Offers"
@@ -568,17 +641,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 title="Overview"
                                 className="!rounded-2xl"
                             >
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                    <SpecRow
-                                        label="Property Type"
-                                        value={
-                                            ut.property_type
-                                                ? snakeToReadable(
-                                                      ut.property_type,
-                                                  )
-                                                : "-"
-                                        }
-                                    />
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                     <SpecRow label="Floor" value={floorLabel} />
                                     <SpecRow
                                         label="Furniture"
@@ -594,35 +657,18 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                 : "-"
                                         }
                                     />
-                                    <SpecRow
-                                        label="Living Area"
-                                        value={
-                                            ut.living_area_sqm != null
-                                                ? `${Number(ut.living_area_sqm).toLocaleString()} m²`
-                                                : "-"
-                                        }
-                                    />
-                                    <SpecRow
-                                        label="Terrace / Balcony"
-                                        value={
-                                            ut.terrace_balcony_sqm != null
-                                                ? `${Number(ut.terrace_balcony_sqm).toLocaleString()} m²`
-                                                : "-"
-                                        }
-                                    />
                                 </div>
 
                                 {ut.description && (
-                                    <Paragraph className="!mb-0 !mt-4 whitespace-pre-wrap text-sm text-gray-700">
-                                        {ut.description}
-                                    </Paragraph>
+                                    <UnitTypeDescription
+                                        html={ut.description}
+                                    />
                                 )}
                             </Card>
+                        </div>
 
-                            {(viewLabels.length > 0 ||
-                                styleLabels.length > 0 ||
-                                outsideLabels.length > 0 ||
-                                insideLabels.length > 0) && (
+                        <div className="flex flex-col gap-y-4">
+                            {hasFeatures && (
                                 <Card
                                     size="small"
                                     title="Features"
@@ -660,21 +706,14 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     </div>
                                 </Card>
                             )}
-                        </div>
 
-                        <div className="flex flex-col gap-y-4">
                             <Card
                                 size="small"
-                                title={
-                                    <span className="flex items-center gap-2">
-                                        <PictureOutlined />
-                                        Media & facts
-                                    </span>
-                                }
+                                title="Rooms & dimensions"
                                 className="!rounded-2xl"
                             >
-                                <div className="flex flex-col gap-y-3">
-                                    <SpecRow
+                                <div className="flex flex-col gap-y-2">
+                                    <SpecFact
                                         label="Bedrooms"
                                         value={
                                             ut.bedrooms != null
@@ -682,7 +721,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                 : "-"
                                         }
                                     />
-                                    <SpecRow
+                                    <SpecFact
                                         label="Bathrooms"
                                         value={
                                             ut.bathrooms != null
@@ -690,15 +729,36 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                 : "-"
                                         }
                                     />
-                                    <SpecRow
+                                    <SpecFact
                                         label="Total Area"
-                                        value={
-                                            ut.total_area_sqm != null
-                                                ? `${Number(ut.total_area_sqm).toLocaleString()} m²`
-                                                : "-"
-                                        }
+                                        value={formatArea(ut.total_area_sqm)}
                                     />
-                                    <SpecRow
+                                    <SpecFact
+                                        label="Living Area"
+                                        value={formatArea(ut.living_area_sqm)}
+                                    />
+                                    <SpecFact
+                                        label="Terrace / Balcony"
+                                        value={formatArea(
+                                            ut.terrace_balcony_sqm,
+                                        )}
+                                    />
+                                    {ut.plot_size_sqm != null && (
+                                        <SpecFact
+                                            label="Plot Size"
+                                            value={formatArea(ut.plot_size_sqm)}
+                                        />
+                                    )}
+                                </div>
+                            </Card>
+
+                            <Card
+                                size="small"
+                                title="Legal & restrictions"
+                                className="!rounded-2xl"
+                            >
+                                <div className="flex flex-col gap-y-2">
+                                    <SpecFact
                                         label="Military Distance"
                                         value={
                                             ut.military_base_distance_km != null
@@ -706,7 +766,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                 : "-"
                                         }
                                     />
-                                    <SpecRow
+                                    <SpecFact
                                         label="Restrictions"
                                         value={
                                             ut.has_restrictions
@@ -728,7 +788,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 className="!rounded-2xl"
                             >
                                 {offerCount > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 mb-3">
+                                    <div className="mb-3 flex flex-wrap gap-1.5">
                                         {ut.offers!.map((offer) => (
                                             <Tag
                                                 key={offer.id}
