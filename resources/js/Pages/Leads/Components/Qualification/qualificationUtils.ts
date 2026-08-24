@@ -121,9 +121,22 @@ export const stripHtmlTags = (html: string): string =>
         .replace(/\s+/g, " ")
         .trim();
 
-/** Prepare resolved script text for HTML rendering (preserve line breaks). */
-export const toQualificationHtml = (text: string): string =>
-    (text ?? "").replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+/** True when the text already has block-level HTML (paragraphs, headings, lists, quotes). */
+const HAS_BLOCK_HTML = /<(p|div|h[1-6]|ul|ol|li|blockquote)[\s>]/i;
+
+/**
+ * Prepare resolved script text for HTML rendering. Plain text (no block
+ * markup) gets its line breaks turned into `<br />` so it still reads in
+ * paragraphs; already-rich HTML is left alone — its own block tags (and the
+ * CSS spacing on them) carry the layout, and converting stray whitespace
+ * between tags to `<br />` would double up the gap those tags already add.
+ */
+export const toQualificationHtml = (text: string): string => {
+    const normalized = (text ?? "").replace(/\r\n/g, "\n");
+    return HAS_BLOCK_HTML.test(normalized)
+        ? normalized
+        : normalized.replace(/\n/g, "<br />");
+};
 
 export const matchOptionByStoredValue = (
     segment: Segment | undefined,

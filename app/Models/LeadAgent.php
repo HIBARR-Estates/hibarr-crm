@@ -46,6 +46,7 @@ class LeadAgent extends BaseModel
 
     protected $table = 'lead_agents';
     protected $guarded = ['id'];
+    protected $casts = ['is_partner' => 'boolean'];
 
     public function user(): BelongsTo
     {
@@ -55,6 +56,14 @@ class LeadAgent extends BaseModel
     public function leads(): HasMany
     {
         return $this->hasMany(Deal::class, 'agent_id');
+    }
+
+    /**
+     * Leads this agent (as a partner) referred in — see referred_by_agent_id.
+     */
+    public function referredLeads(): HasMany
+    {
+        return $this->hasMany(Lead::class, 'referred_by_agent_id');
     }
 
     public function category(): BelongsTo

@@ -406,7 +406,7 @@ export const OUTCOME_LIFECYCLE_STATUS_KEY: Record<QualificationOutcome, string> 
     bookMeeting: "qualified",
     inviteWebinar: "nurturing",
     callback: "callback",
-    noFit: "not_fit",
+    noFit: "lost",
 };
 
 /** Past-tense labels for completed qualification review surfaces. */

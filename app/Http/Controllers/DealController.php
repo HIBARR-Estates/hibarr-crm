@@ -107,6 +107,10 @@ class DealController extends AccountBaseController
         // Use shared query builder for table view (paginated)
         $dealsQuery = $this->getDealsQuery($request);
 
+        // Header stats reflect the same filtered/permission-scoped set as
+        // the table — snapshot before sorting/pagination narrow it further.
+        $stats = $this->getDealsStats(clone $dealsQuery);
+
         // Apply sorting if specified
         if ($request->filled('sort_by')) {
             $sortBy = $request->sort_by;
@@ -179,6 +183,7 @@ class DealController extends AccountBaseController
             'boardColumns' => $boardColumns,
             'allPipelines' => $this->pipelines,
             'defaultPipeline' => $this->defaultPipeline,
+            'stats' => $stats,
             'filters' => $request->only([
                 'lead_pipeline_id',
                 'pipeline_stage_id',
@@ -282,6 +287,28 @@ class DealController extends AccountBaseController
         PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
 
         return $dealsQuery;
+    }
+
+    /**
+     * Header stats (active count, won this week) for the deals list —
+     * computed from the same filtered/permission-scoped query the table
+     * uses, before sorting/pagination narrow it further.
+     */
+    protected function getDealsStats($baseQuery): array
+    {
+        $activeDeals = (clone $baseQuery)
+            ->whereNull('deals.outcome_status')
+            ->count();
+
+        $wonThisWeek = (clone $baseQuery)
+            ->where('deals.outcome_status', OutcomeStatus::Won->value)
+            ->whereRaw('COALESCE(deals.won_at, deals.updated_at) >= ?', [now()->startOfWeek()])
+            ->count();
+
+        return [
+            'active_deals' => $activeDeals,
+            'won_this_week' => $wonThisWeek,
+        ];
     }
 
     /**
@@ -608,6 +635,7 @@ class DealController extends AccountBaseController
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
+            'view_task_category' => user()->permission('view_task_category'),
         ];
 
         $dealWithCustomFields = $deal->toArray();
@@ -1955,17 +1983,11 @@ class DealController extends AccountBaseController
     public function destroy($id)
     {
         $deal = Deal::with('leadAgent', 'leadAgent.user')->findOrFail($id);
+        // delete_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function ($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-
-                return $isAgent || $isWatcher;
-            },
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'delete_deals', $deal, $dealRules);
@@ -2136,10 +2158,21 @@ class DealController extends AccountBaseController
 
                     $updated = $this->applyDealBulkUpdateFields($request, $rowIds, $fields);
 
-                    return Reply::success(
+                    return Reply::successWithData(
                         $updated === 0
                             ? 'No deals were updated — locked deals are skipped.'
-                            : __('messages.updateSuccess')
+                            : __('messages.updateSuccess'),
+                        [
+                            'summary' => [
+                                'updated' => $updated,
+                                'skipped' => [
+                                    [
+                                        'count' => max(0, count($rowIds) - $updated),
+                                        'reason' => 'locked and left unchanged',
+                                    ],
+                                ],
+                            ],
+                        ]
                     );
 
                 case 'change-status':
@@ -2835,13 +2868,21 @@ class DealController extends AccountBaseController
             abort_403(__('messages.permissionDenied'));
         }
 
-        // Update each record individually so model observers fire (notifications, reminders).
-        $followUps = DealFollowUp::whereIn('id', $followUpIds)->get();
-
-        foreach ($followUps as $followUp) {
+        // Update the status per-record (not a mass update) so DealFollowUp
+        // observers and calendar sync run for each one. There is deliberately
+        // no completed_at write here: no migration ever created that column,
+        // so the old "if completed" branch made every bulk completion fail.
+        // updated_at is the stamp.
+        $sync = app(MeetingReminderSync::class);
+        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($newStatus, $sync) {
             $followUp->status = $newStatus;
+            $followUp->updated_at = now();
             $followUp->save();
-        }
+
+            if (in_array($newStatus, ['completed', 'cancelled'])) {
+                $sync->cancelForFollowUp($followUp);
+            }
+        });
     }
 
     public function proposals()
@@ -2991,12 +3032,12 @@ class DealController extends AccountBaseController
 
         if (count($rowIds) > \App\Support\DealExportFields::MAX_ROWS) {
             return response(
-                'Export is limited to ' . number_format(\App\Support\DealExportFields::MAX_ROWS) . ' deals. Narrow your filters or selection and try again.',
+                'Export is limited to '.number_format(\App\Support\DealExportFields::MAX_ROWS).' deals. Narrow your filters or selection and try again.',
                 422
             );
         }
 
-        $filename = 'deals-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $filename = 'deals-export-'.now()->format('Y-m-d-H-i-s').'.'.$format;
         $writerType = $format === 'csv'
             ? \Maatwebsite\Excel\Excel::CSV
             : \Maatwebsite\Excel\Excel::XLSX;
@@ -3311,8 +3352,6 @@ class DealController extends AccountBaseController
             'timestamp' => now(),
         ]);
 
-        $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $request->added_by == user()->id)));
 
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);
@@ -3328,6 +3367,9 @@ class DealController extends AccountBaseController
 
             return Reply::error('Follow-up not found');
         }
+
+        $this->editPermission = user()->permission('edit_lead_follow_up');
+        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
 
         try {
             Log::info('Calling triggerFollowUpAutomation', [

@@ -118,6 +118,14 @@ class LeadContactController extends AccountBaseController
             'nextActionDueThisWeekCount' => Inertia::defer(
                 fn () => $this->leadService->countNextActionBucket($request, 'week')
             ),
+            // Header stats line — same filtered/permission-scoped counts as
+            // the toolbar pill, just two more buckets.
+            'nextActionOverdueCount' => Inertia::defer(
+                fn () => $this->leadService->countNextActionBucket($request, 'overdue')
+            ),
+            'hotLeadsCount' => Inertia::defer(
+                fn () => $this->leadService->countByTemperature($request, LeadTemperature::Hot->value)
+            ),
             'meetingTypes' => Inertia::defer(
                 fn () => \App\Models\MeetingType::where('company_id', company()->id)->get(['id', 'name'])
             ),
@@ -1449,12 +1457,30 @@ class LeadContactController extends AccountBaseController
                     return Reply::error(__('messages.updateFail') ?: 'Select at least one field to update.');
                 }
 
+                // Leads that already have a referrer keep it (write-once).
+                // Counted before the update, and reported separately from the
+                // permission skips so the summary can name each reason.
+                $referrerKept = in_array('referred_by_agent_id', $fields, true)
+                    ? Lead::whereIn('id', $rowIds)->whereNotNull('referred_by_agent_id')->count()
+                    : 0;
+
                 $error = $this->applyBulkUpdateFields($request, $rowIds, $fields);
                 if ($error !== null) {
                     return Reply::error($error);
                 }
 
-                return Reply::success($this->bulkUpdateSuccessMessage($skipped));
+                return Reply::successWithData(
+                    $this->bulkUpdateSuccessMessage($skipped + $referrerKept),
+                    [
+                        'summary' => [
+                            'updated' => count($rowIds),
+                            'skipped' => [
+                                ['count' => $skipped, 'reason' => 'skipped (no access)'],
+                                ['count' => $referrerKept, 'reason' => 'kept their existing referrer'],
+                            ],
+                        ],
+                    ]
+                );
 
             case 'change_category':
             case 'change_source':
@@ -1491,10 +1517,18 @@ class LeadContactController extends AccountBaseController
                     return Reply::error(__('messages.somethingWentWrong'));
                 }
 
-                return Reply::success(
+                return Reply::successWithData(
                     $skipped > 0
                         ? ((__('messages.deleteSuccess') ?: 'Deleted successfully.')." ({$skipped} skipped)")
-                        : (__('messages.deleteSuccess') ?: 'Deleted successfully.')
+                        : (__('messages.deleteSuccess') ?: 'Deleted successfully.'),
+                    [
+                        'summary' => [
+                            'deleted' => count($rowIds),
+                            'skipped' => [
+                                ['count' => $skipped, 'reason' => 'skipped (no access)'],
+                            ],
+                        ],
+                    ]
                 );
 
             default:
@@ -1638,6 +1672,41 @@ class LeadContactController extends AccountBaseController
                     Lead::whereIn('id', $rowIds)->update(['lead_lifecycle_status_id' => $statusId]);
                     break;
 
+                case 'added_by':
+                    // Admin-only: 'added by' drives the `added` permission
+                    // scope, so reassigning it changes who can see the lead.
+                    if (! $this->userIsAdmin()) {
+                        return __('messages.permissionDenied');
+                    }
+
+                    $addedBy = (int) $request->input('added_by');
+                    if (! User::whereKey($addedBy)->exists()) {
+                        return __('messages.userNotFound');
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['added_by' => $addedBy]);
+                    break;
+
+                case 'referred_by_agent_id':
+                    // Admin-only, and write-once: the referrer drives partner
+                    // commission attribution (see LeadObserver::saving). Only
+                    // leads without one are filled — the whereNull enforces the
+                    // same invariant the observer would, which a mass update
+                    // bypasses.
+                    if (! $this->userIsAdmin()) {
+                        return __('messages.permissionDenied');
+                    }
+
+                    $referrerId = (int) $request->input('referred_by_agent_id');
+                    if (! LeadAgent::whereKey($referrerId)->exists()) {
+                        return __('messages.updateFail') ?: 'Selected referrer is invalid.';
+                    }
+
+                    Lead::whereIn('id', $rowIds)
+                        ->whereNull('referred_by_agent_id')
+                        ->update(['referred_by_agent_id' => $referrerId]);
+                    break;
+
                 case 'has_joined_the_whatsapp_group':
                     if (! $request->has('has_joined_the_whatsapp_group')) {
                         return __('messages.updateFail') ?: 'WhatsApp group value required.';
@@ -1659,6 +1728,11 @@ class LeadContactController extends AccountBaseController
         }
 
         return null;
+    }
+
+    private function userIsAdmin(): bool
+    {
+        return in_array('admin', user_roles() ?? [], true);
     }
 
     private function bulkUpdateSuccessMessage(int $skipped): string

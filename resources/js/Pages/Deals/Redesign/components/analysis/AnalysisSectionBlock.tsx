@@ -1,4 +1,5 @@
 import { forwardRef, useMemo } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
@@ -31,6 +32,7 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
     onFieldUpdate,
     onFieldChange,
 }, ref) => {
+    const { td } = useTd();
     const { deal } = useDealWorkspace();
 
     const progress = useMemo(() => {
@@ -68,11 +70,11 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0 pr-4">
                     <h2 className="text-base font-semibold text-slate-900 leading-snug">
-                        {section.title}
+                        {td(section.title, { source: "en" })}
                     </h2>
                     {section.guideText && (
                         <p className="text-xs mt-0.5 leading-relaxed text-slate-500">
-                            {section.guideText}
+                            {td(section.guideText, { source: "en" })}
                         </p>
                     )}
                 </div>

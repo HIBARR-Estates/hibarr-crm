@@ -101,7 +101,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to update meeting"],
+                            : [formatted.message || t("pages.deals.workspace.meetings.messages.update_failed")],
                     );
                 },
             });

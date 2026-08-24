@@ -34,13 +34,15 @@ function formatMoney(amount: number, symbol: string) {
  * data-dependent rows are skeletons. */
 function OffersSkeleton({
     columnLabels,
+    loadingAria,
 }: {
     columnLabels: { offer: string; property: string; type: string; original: string; discount: string };
+    loadingAria: string;
 }) {
     return (
         <div
             role="status"
-            aria-label="Loading offers"
+            aria-label={loadingAria}
             className="mb-2.5 overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white"
         >
             <table className="dr-table">
@@ -152,6 +154,7 @@ export default function WorkspaceOffersTab({
 
             {isInitialLoading ? (
                 <OffersSkeleton
+                    loadingAria={t("pages.deals.workspace.offers.loading_aria")}
                     columnLabels={{
                         offer: t("pages.deals.workspace.offers.col_offer"),
                         property: t("pages.deals.workspace.offers.col_property"),

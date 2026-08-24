@@ -7,6 +7,8 @@ interface TemplatePickerModalProps {
     leadName: string;
     templates: PublishedTemplate[];
     loading: boolean;
+    /** True while a picked template is being started — cards stay visible but stop responding. */
+    selecting?: boolean;
     onClose: () => void;
     onSelect: (templateId: string) => void;
 }
@@ -16,6 +18,7 @@ export default function TemplatePickerModal({
     leadName,
     templates,
     loading,
+    selecting,
     onClose,
     onSelect,
 }: TemplatePickerModalProps) {
@@ -75,6 +78,12 @@ export default function TemplatePickerModal({
                                 key={template.id}
                                 type="button"
                                 className="v2-template-card"
+                                disabled={selecting}
+                                style={
+                                    selecting
+                                        ? { opacity: 0.6, cursor: "not-allowed" }
+                                        : undefined
+                                }
                                 onClick={() => onSelect(template.id)}
                             >
                                 <div

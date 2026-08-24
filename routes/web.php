@@ -75,6 +75,9 @@ use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\LeadSavedViewController;
+use App\Http\Controllers\ProjectSavedViewController;
+use App\Http\Controllers\TaskSavedViewController;
+use App\Http\Controllers\TaskCommentApiController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
@@ -469,6 +472,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/waiting-approval', [TaskController::class, 'waitingApproval'])->name('tasks.waiting-approval');
     Route::get('tasks/show-waiting-approval-change-status-modal', [TaskController::class, 'statusReason'])->name('tasks.show_status_reason_modal');
     Route::post('tasks/store-status-reason', [TaskController::class, 'storeStatusReason'])->name('tasks.store_comment_on_change_status');
+
+    // JSON comments + @mentions for the redesigned task detail modal
+    Route::get('tasks/{task}/comments', [TaskCommentApiController::class, 'index'])->name('tasks.comments.index');
+    Route::post('tasks/{task}/comments', [TaskCommentApiController::class, 'store'])->name('tasks.comments.store');
+    Route::delete('task-comments/{id}', [TaskCommentApiController::class, 'destroy'])->name('tasks.comments.destroy');
+
+    // Saved filter views for the redesigned tasks workspace
+    Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');
+    Route::patch('task-saved-views/{id}', [TaskSavedViewController::class, 'update'])->name('task-saved-views.update');
+    Route::delete('task-saved-views/{id}', [TaskSavedViewController::class, 'destroy'])->name('task-saved-views.destroy');
 
     Route::group(['prefix' => 'tasks'], function () {
 
@@ -1314,6 +1327,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         });
     });
 
+    // Saved filter views for the projects list
+    Route::post('project-saved-views', [ProjectSavedViewController::class, 'store'])->name('project-saved-views.store');
+    Route::patch('project-saved-views/{id}', [ProjectSavedViewController::class, 'update'])->name('project-saved-views.update');
+    Route::delete('project-saved-views/{id}', [ProjectSavedViewController::class, 'destroy'])->name('project-saved-views.destroy');
+
     // ─── Offers ──────────────────────────────────────────────────
     Route::prefix('offers')->name('offers.')->group(function () {
         Route::get('/', [App\Http\Controllers\OfferController::class, 'index'])->name('index');
@@ -1453,6 +1471,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::post('cycles/{cycleId}/enrollments/{enrollmentId}/force-complete', [App\Http\Controllers\MlmAdminApiController::class, 'forceCompleteEnrollment'])->name('cycles.force_complete_enrollment');
             Route::post('cycles/{id}/resnapshot', [App\Http\Controllers\MlmAdminApiController::class, 'resnapshot'])->name('cycles.resnapshot');
         });
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    //  Partners — manage which agents are flagged as partners
+    // ══════════════════════════════════════════════════════════════
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
     });
 
     // ══════════════════════════════════════════════════════════════

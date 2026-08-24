@@ -24,7 +24,6 @@ import {
     EyeOutlined,
     DeleteOutlined,
     ImportOutlined,
-    FilterOutlined,
     ReloadOutlined,
     MergeCellsOutlined,
     SettingOutlined,
@@ -42,6 +41,9 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import LeadFilterModal from "@/Features/Filters/EntityFilterModal";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import BulkActionSummary, {
+    type BulkActionSummaryData,
+} from "@/Features/BulkActions/BulkActionSummary";
 import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -60,6 +62,9 @@ import {
     REDESIGN_TOKENS as T,
     REDESIGN_FONT_STACK,
 } from "@/Components/Redesign/tokens";
+import EntityListHeader, {
+    FiltersButton,
+} from "@/Components/Redesign/primitives/EntityListHeader";
 
 /** Rows-per-page preference, remembered per browser across visits. */
 const LEADS_PER_PAGE_STORAGE_KEY = "hibarr_leads_per_page";
@@ -76,6 +81,8 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     }>;
     meetingTypes?: Array<{ id: number; name: string; color?: string }>;
     nextActionDueThisWeekCount?: number;
+    nextActionOverdueCount?: number;
+    hotLeadsCount?: number;
     taskBoardColumns?: TaskboardColumn[];
     preferredContactTimes?: Array<{ value: string; label: string }>;
 }
@@ -86,11 +93,34 @@ const Index = ({
     leadLifecycleStatuses = [],
     meetingTypes = [],
     nextActionDueThisWeekCount,
+    nextActionOverdueCount,
+    hotLeadsCount,
     taskBoardColumns = [],
     preferredContactTimes = [],
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+
+    // Header stats line — each piece is deferred server-side, so the line
+    // only appears once every count has actually arrived; no partial or
+    // placeholder line for a value that isn't computed yet.
+    const headline = useMemo(() => {
+        if (
+            nextActionOverdueCount == null ||
+            nextActionDueThisWeekCount == null ||
+            hotLeadsCount == null
+        ) {
+            return null;
+        }
+
+        return `${leads.total.toLocaleString()} ${td("leads")} · ${nextActionOverdueCount.toLocaleString()} ${td("next actions overdue")} · ${nextActionDueThisWeekCount.toLocaleString()} ${td("due this week")} · ${hotLeadsCount.toLocaleString()} ${td("hot leads")}`;
+    }, [
+        leads.total,
+        nextActionOverdueCount,
+        nextActionDueThisWeekCount,
+        hotLeadsCount,
+        td,
+    ]);
     const { props: pageProps } = usePage<PageProps>();
     const useLeadCoreFields =
         pageProps.featureFlags?.["crm.lead-language-core-field"] === true;
@@ -116,6 +146,7 @@ const Index = ({
             "genders",
             "age-ranges",
             "temperatures",
+            "lead-agents",
             "lead-utm-sources",
             "lead-utm-mediums",
             "lead-utm-campaigns",
@@ -138,6 +169,7 @@ const Index = ({
                 sources: formData.sources || [],
                 categories: formData.categories || [],
                 employees: formData.employees || [],
+                leadAgents: formData["lead-agents"] || [],
                 countries: formData.countries || [],
                 languages: formData.languages || [],
                 genders: formData.genders || [],
@@ -160,6 +192,24 @@ const Index = ({
                 excludeFields: ["search"],
             }),
         [formData, leadLifecycleStatuses, preferredContactTimes, useLeadCoreFields, useFilterV2],
+    );
+
+    // Post-action receipt: survives the toast so the operator can read it.
+    const [bulkSummary, setBulkSummary] =
+        useState<BulkActionSummaryData | null>(null);
+
+    // Stable identity: the bulk modal resets its draft when the field list
+    // changes, and the field list is derived from these options.
+    const bulkUpdateOptions = useMemo(
+        () => ({
+            categories: formData.categories || [],
+            sources: formData.sources || [],
+            employees: formData.employees || [],
+            temperatures: formData.temperatures || [],
+            leadAgents: formData["lead-agents"] || [],
+            leadLifecycleStatuses,
+        }),
+        [formData, leadLifecycleStatuses],
     );
 
     // Setup search and filter contexts
@@ -378,35 +428,13 @@ const Index = ({
                 filterSection={
                     useFilterV2 ? undefined : <ContextualActiveFilters />
                 }
+                mainContentClassName="p-0"
             >
-                <div
-                    className="max-w-[1560px] mx-auto space-y-4"
-                    style={{ fontFamily: REDESIGN_FONT_STACK }}
-                >
-                    <div
-                        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-[10px] border px-4 py-3.5 bg-white"
-                        style={{ borderColor: T.BORDER }}
-                    >
-                        <div className="flex items-center gap-2.5">
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-primary"
-                                onClick={handleCreateLead}
-                            >
-                                <PlusOutlined style={{ fontSize: 13 }} />
-                                {t("app.leads.actions.add")}
-                            </button>
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-ghost"
-                                onClick={handleImportLeads}
-                            >
-                                <ImportOutlined style={{ fontSize: 13 }} />
-                                {t("app.import")}
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-2.5">
+                <EntityListHeader
+                    title={t("app.menu.lead")}
+                    subtitle={headline}
+                    actions={
+                        <>
                             {typeof nextActionDueThisWeekCount === "number" &&
                                 nextActionDueThisWeekCount > 0 && (
                                     <button
@@ -448,6 +476,14 @@ const Index = ({
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
+                                onClick={handleImportLeads}
+                            >
+                                <ImportOutlined style={{ fontSize: 13 }} />
+                                {t("app.import")}
+                            </button>
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
                                 onClick={refresh}
                                 disabled={isRefreshing}
                             >
@@ -457,26 +493,40 @@ const Index = ({
                                 />
                                 {td("Refresh", { source: "en" })}
                             </button>
-                            {/* Advanced Filters Button */}
+                            {/* Leads has no second toolbar row (no pipeline
+                                selector/quick filters), so Filters sits with
+                                the other actions instead of alone on its own
+                                line. */}
+                            <FiltersButton
+                                count={activeFilterCount}
+                                onClick={openDrawer}
+                                label={t("app.filter")}
+                            />
                             <button
                                 type="button"
-                                className="dr-btn dr-btn-ghost"
-                                onClick={openDrawer}
+                                className="dr-btn dr-btn-primary"
+                                onClick={handleCreateLead}
                             >
-                                <FilterOutlined style={{ fontSize: 13 }} />
-                                {t("app.filter")}
-                                {useFilterV2 && activeFilterCount > 0 && (
-                                    <span
-                                        className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold"
-                                        style={{ background: T.BLUE, color: T.WHITE }}
-                                    >
-                                        {activeFilterCount}
-                                    </span>
-                                )}
+                                <PlusOutlined style={{ fontSize: 13 }} />
+                                {t("app.leads.actions.add")}
                             </button>
-                        </div>
-                    </div>
+                        </>
+                    }
+                    filterSentence={
+                        useFilterV2 ? (
+                            <ActiveFilterSentence
+                                count={leads.total}
+                                onOpenFilters={openDrawer}
+                            />
+                        ) : undefined
+                    }
+                    // maxWidth={1560}
+                />
 
+                <div
+                    className="max-w-screen-2xl mx-auto space-y-4 px-6 py-6"
+                    style={{ fontFamily: REDESIGN_FONT_STACK }}
+                >
                     {/* Bulk actions — appear once a row is selected, full-width
                         below the toolbar. "Select all matching" lives inside it. */}
                     {(selectAllMatching || selectedEntities.length > 0) && (
@@ -489,21 +539,15 @@ const Index = ({
                             onSelectAllMatching={handleSelectAllMatching}
                             clearSelected={clearSelected}
                             optionsLoading={formDataLoading}
-                            updateOptions={{
-                                categories: formData.categories || [],
-                                sources: formData.sources || [],
-                                employees: formData.employees || [],
-                                temperatures: formData.temperatures || [],
-                                leadLifecycleStatuses,
-                            }}
+                            onCompleted={setBulkSummary}
+                            updateOptions={bulkUpdateOptions}
                         />
                     )}
 
-                    {/* 3c — quiet active-filter sentence */}
-                    {useFilterV2 && (
-                        <ActiveFilterSentence
-                            count={leads.total}
-                            onOpenFilters={openDrawer}
+                    {bulkSummary && (
+                        <BulkActionSummary
+                            summary={bulkSummary}
+                            onDismiss={() => setBulkSummary(null)}
                         />
                     )}
 

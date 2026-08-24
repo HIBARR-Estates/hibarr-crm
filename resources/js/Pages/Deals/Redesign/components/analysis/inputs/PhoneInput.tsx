@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 import { ANALYSIS_COUNTRIES } from "../data/countries";
@@ -18,6 +19,7 @@ function parse(value: string): { dial: string; number: string } {
 }
 
 export default function PhoneInput({ value, onChange }: PhoneInputProps) {
+    const { td } = useTd();
     const { dial, number } = parse(value);
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -82,7 +84,7 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search country..."
+                                placeholder={td("Search country...", { source: "en" })}
                                 className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
                             />
                         </div>
@@ -111,7 +113,7 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                 type="text"
                 inputMode="tel"
                 value={number}
-                placeholder="Enter number..."
+                placeholder={td("Enter number...", { source: "en" })}
                 onChange={(e) => update(dial, e.target.value.replace(/[^0-9 \-()]/g, ""))}
                 className="flex-1 min-w-0 h-10 bg-white border border-slate-200 rounded-r-xl px-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors"
                 style={{ color: T.TEXT }}

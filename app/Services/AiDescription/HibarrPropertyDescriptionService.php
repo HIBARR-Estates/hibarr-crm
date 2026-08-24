@@ -96,7 +96,8 @@ You are a professional real estate copywriter specialising in North Cyprus (TRNC
 
 Rules:
 - Write a compelling property listing description in English.
-- Length: 150-300 words.
+- Length: 90-160 words across 2-3 short paragraphs (not one long block).
+- Separate each paragraph with a blank line so the copy is easy to scan.
 - Tone: professional, warm, and inviting - suitable for an international buyer audience.
 - Highlight key selling points based on the provided details.
 - Mention location and lifestyle benefits when the city/area is known.
@@ -205,7 +206,7 @@ PROMPT;
                 throw new \RuntimeException('AI description generation returned an invalid response.');
             }
 
-            return $completion;
+            return $this->toEditorHtml($completion);
         }
         catch (\Illuminate\Http\Client\ConnectionException $e) {
             Log::error('AI Property Description connection timeout', ['message' => $e->getMessage()]);
@@ -342,5 +343,37 @@ PROMPT;
         }
 
         return $current;
+    }
+
+    /**
+     * Convert plain-text AI output into short HTML paragraphs for the rich-text editor.
+     * Leaves existing HTML untouched.
+     */
+    private function toEditorHtml(string $text): string
+    {
+        $text = trim($text);
+
+        if ($text === '') {
+            return '';
+        }
+
+        if (preg_match('/<\/?[a-z][\s\S]*>/i', $text) === 1) {
+            return $text;
+        }
+
+        $parts = preg_split("/\n\s*\n/", $text) ?: [$text];
+        $paragraphs = [];
+
+        foreach ($parts as $part) {
+            $normalized = trim((string) preg_replace("/\s*\n\s*/", ' ', (string) $part));
+
+            if ($normalized === '') {
+                continue;
+            }
+
+            $paragraphs[] = '<p>' . e($normalized) . '</p>';
+        }
+
+        return $paragraphs === [] ? '' : implode("\n", $paragraphs);
     }
 }

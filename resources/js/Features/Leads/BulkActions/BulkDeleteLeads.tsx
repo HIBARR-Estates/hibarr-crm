@@ -11,12 +11,15 @@ import { getCurrentQueryParams } from "@/lib/inertiaQuery";
 import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
 import { fmt } from "@/Features/Filters/controls";
+import type { BulkActionSummaryData } from "@/Features/BulkActions/BulkActionSummary";
 
 interface Props extends IModalProps {
     target: BulkTarget;
+    /** Receipt for the list view once the delete lands. */
+    onCompleted?: (summary: BulkActionSummaryData) => void;
 }
 
-const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target }) => {
+const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target, onCompleted }) => {
     const { mutate: bulkDelete, status } = useApiMutate<
         Record<string, unknown>,
         any,
@@ -33,8 +36,21 @@ const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target }) => {
         delete payload.per_page;
 
         bulkDelete(payload, {
-            onSuccess: () => {
+            onSuccess: (response) => {
+                const result = response as {
+                    summary?: {
+                        deleted?: number;
+                        skipped?: Array<{ count: number; reason: string }>;
+                    };
+                };
+
                 message.success("Leads deleted successfully");
+                onCompleted?.({
+                    verb: "deleted",
+                    entityLabel: "leads",
+                    count: result?.summary?.deleted ?? target.count,
+                    skipped: result?.summary?.skipped ?? [],
+                });
                 onClose(true);
                 router.reload({ only: ["leads"] });
             },

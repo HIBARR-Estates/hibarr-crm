@@ -33,6 +33,7 @@ class LeadService
         'category_id',
         'lead_owner_id',
         'added_by_id',
+        'referred_by_agent_id',
         'lifecycle_status_id',
         'qualification_segment_key',
         'qualification_answer_values',
@@ -396,6 +397,22 @@ class LeadService
     }
 
     /**
+     * Count of leads (current filters + permission scope) at the given
+     * temperature. Same shape as countNextActionBucket() — one indexed COUNT.
+     */
+    public function countByTemperature(Request $request, string $temperature): int
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+        $query->where('temperature', $temperature);
+
+        return $query->count();
+    }
+
+    /**
      * Get dropdown leads (limited for performance)
      */
     public function getDropdownLeads(int $limit = 100): \Illuminate\Support\Collection
@@ -545,6 +562,13 @@ class LeadService
 
         if ($request->filled('added_by_id')) {
             $query->whereIn('added_by', $this->toValueArray($request->get('added_by_id')));
+        }
+
+        if ($request->filled('referred_by_agent_id')) {
+            $query->whereIn(
+                'referred_by_agent_id',
+                $this->toValueArray($request->get('referred_by_agent_id'))
+            );
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {

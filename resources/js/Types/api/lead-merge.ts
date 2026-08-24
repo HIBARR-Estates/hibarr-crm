@@ -1,3 +1,5 @@
+import type { LeadContactMethod } from "./leads";
+
 export type LeadMergeOwnershipFieldKey =
     | "lead_owner"
     | "added_by"
@@ -16,6 +18,7 @@ export interface LeadMergeSummary {
     client_whatsapp: string | null;
     client_telegram: string | null;
     client_instagram: string | null;
+    contact_methods: LeadContactMethod[];
 }
 
 export interface LeadMergeContactConflict {

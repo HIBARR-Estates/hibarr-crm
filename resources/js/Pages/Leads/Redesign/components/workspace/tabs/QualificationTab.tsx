@@ -39,6 +39,10 @@ interface QualificationTabProps {
     onResumeQualify?: (qualification: LeadQualification) => void;
     onDeleteQualify?: (qualification: LeadQualification) => Promise<boolean> | boolean;
     canStart?: boolean;
+    /** True while a new call is being created — disables the start action and shows a spinner. */
+    starting?: boolean;
+    /** id of the call currently being resumed, if any. */
+    resumingId?: number | null;
 }
 
 type BarTone = "positive" | "attention" | "neutral" | "negative" | "muted";
@@ -144,6 +148,8 @@ export default function QualificationTab({
     onResumeQualify,
     onDeleteQualify,
     canStart,
+    starting,
+    resumingId,
 }: QualificationTabProps) {
     const { td } = useTd();
     const calls = useMemo(
@@ -210,6 +216,8 @@ export default function QualificationTab({
                     <Button
                         variant="primary"
                         icon={<Icon name="phone" size={14} />}
+                        loading={starting}
+                        disabled={starting}
                         onClick={onStartQualify}
                     >
                         {td("New qualification call", { source: "en" })}
@@ -263,8 +271,9 @@ export default function QualificationTab({
                             size="sm"
                             variant="primary"
                             icon={<Icon name="phone" size={13} />}
-                            style={{ width: "100%" }}
-                            disabled={!canStart}
+                            style={{ width: "100%", minHeight: 36 }}
+                            disabled={!canStart || starting}
+                            loading={starting}
                             title={
                                 canStart
                                     ? undefined
@@ -332,6 +341,7 @@ export default function QualificationTab({
                     key={selected.id}
                     call={selected}
                     abandonedCount={abandonedCount}
+                    resuming={resumingId === selected.id}
                     onResume={
                         onResumeQualify ? () => onResumeQualify(selected) : undefined
                     }
@@ -376,19 +386,12 @@ function CallRow({
         <button
             type="button"
             onClick={onSelect}
-            className="w-full text-left flex gap-2.5 px-4 py-3"
+            className="w-full text-left flex px-4 py-3"
             style={{
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 background: active ? T.BLUE_LIGHT : "transparent",
             }}
         >
-            <span
-                className="rounded-sm shrink-0"
-                style={{
-                    width: 3,
-                    background: active ? T.BLUE : "transparent",
-                }}
-            />
             <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-2 flex-wrap">
                     <Badge variant={PILL_TONE[tone]}>{label}</Badge>
@@ -422,11 +425,13 @@ function CallRow({
 function CallDetail({
     call,
     abandonedCount,
+    resuming,
     onResume,
     onDelete,
 }: {
     call: LeadQualification;
     abandonedCount: number;
+    resuming?: boolean;
     onResume?: () => void;
     onDelete?: () => Promise<boolean> | boolean;
 }) {
@@ -560,6 +565,7 @@ function CallDetail({
             <StatusBar
                 call={call}
                 when={when}
+                resuming={resuming}
                 onResume={onResume}
                 onDelete={onDelete ? () => setConfirmDeleteOpen(true) : undefined}
             />
@@ -731,11 +737,13 @@ function CallDetail({
 function StatusBar({
     call,
     when,
+    resuming,
     onResume,
     onDelete,
 }: {
     call: LeadQualification;
     when: string;
+    resuming?: boolean;
     onResume?: () => void;
     onDelete?: () => void;
 }) {
@@ -798,6 +806,8 @@ function StatusBar({
                     size="sm"
                     variant="primary"
                     icon={<Icon name="phone" size={13} />}
+                    loading={resuming}
+                    disabled={resuming}
                     onClick={onResume}
                 >
                     {td("Resume call", { source: "en" })}

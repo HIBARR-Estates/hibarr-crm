@@ -1,4 +1,5 @@
 import type { Task } from "@/Types/api/tasks";
+import type { IntegrationOrigin } from "@/Types/api/note";
 import { parseTaskDateTime } from "@/lib/taskDateTime";
 import { formatDateWithTime } from "./dateFormat";
 import { initialsFromName } from "./initials";
@@ -11,6 +12,7 @@ export interface WorkspaceTaskPreview {
     dueDate: Date | null;
     dueDateLabel: string;
     isOpen: boolean;
+    integrationOrigin: IntegrationOrigin | null;
 }
 
 export interface WorkspaceTaskAssignee {
@@ -67,6 +69,7 @@ export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
         dueDate,
         dueDateLabel: formatDueDate(dueDate),
         isOpen: isOpenTask(task),
+        integrationOrigin: task.integration_origin ?? null,
     };
 }
 

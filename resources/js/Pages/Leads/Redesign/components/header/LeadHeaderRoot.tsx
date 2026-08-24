@@ -40,6 +40,8 @@ interface LeadHeaderRootProps {
     onBannerPrimary: () => void;
     onBannerSecondary?: () => void;
     onBannerViewAnswers?: () => void;
+    /** True while a qualification call is being started/resumed — disables the banner's primary CTA. */
+    bannerBusy?: boolean;
     dealCount?: number;
 }
 
@@ -63,6 +65,7 @@ export default function LeadHeaderRoot({
     onBannerPrimary,
     onBannerSecondary,
     onBannerViewAnswers,
+    bannerBusy = false,
     dealCount = 0,
 }: LeadHeaderRootProps) {
     const { td } = useTd();
@@ -164,6 +167,7 @@ export default function LeadHeaderRoot({
                         answered={qualificationAnswered}
                         total={qualificationTotal}
                         dealCount={dealCount}
+                        busy={bannerBusy}
                         onPrimary={onBannerPrimary}
                         onSecondary={onBannerSecondary}
                         onViewAnswers={onBannerViewAnswers}

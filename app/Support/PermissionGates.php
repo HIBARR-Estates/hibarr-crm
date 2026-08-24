@@ -11,6 +11,8 @@ class PermissionGates
 {
     public const MANAGE_PARTNER_NETWORK = 'manage_partner_network';
 
+    public const MANAGE_PARTNERS = 'manage_partners';
+
     public const MANAGE_OFFERS = 'manage_offers';
 
     /** Privileged property inventory management (view/edit any listing). Not publish-request approval. */
@@ -35,6 +37,11 @@ class PermissionGates
     public static function canManagePartnerNetwork(User $user): bool
     {
         return self::allows($user, self::MANAGE_PARTNER_NETWORK);
+    }
+
+    public static function canManagePartners(User $user): bool
+    {
+        return self::allows($user, self::MANAGE_PARTNERS);
     }
 
     public static function canManageOffers(User $user): bool

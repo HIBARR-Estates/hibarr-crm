@@ -79,7 +79,6 @@ function DealViewRedesignInner(props: DealShowProps) {
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
     const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
-    const showProductTour = featureFlags?.["crm.deals-product-tour"] === true;
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
@@ -337,14 +336,12 @@ function DealViewRedesignInner(props: DealShowProps) {
                 onClose={() => setAddNoteOpen(false)}
                 dealId={deal.id}
             />
-            {showProductTour && (
-                <ProductTour
-                    ref={tourRef}
-                    tourId={DEAL_TOUR_ID}
-                    steps={dealTourSteps}
-                    labels={DEAL_TOUR_LABELS}
-                />
-            )}
+            <ProductTour
+                ref={tourRef}
+                tourId={DEAL_TOUR_ID}
+                steps={dealTourSteps}
+                labels={DEAL_TOUR_LABELS}
+            />
 
             <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
@@ -358,11 +355,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
                         onOpenAnalysis={showAnalysis ? analysis.open : undefined}
-                        onReplayGuide={
-                            showProductTour
-                                ? () => tourRef.current?.restart()
-                                : undefined
-                        }
+                        onReplayGuide={() => tourRef.current?.restart()}
                     />
 
                     <div className="">

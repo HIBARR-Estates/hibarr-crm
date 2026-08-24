@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { REDESIGN_TOKENS as T } from "../tokens";
 
 type AvatarType = "agent" | "participant" | "watcher" | "default";
@@ -9,6 +10,12 @@ interface AvatarProps {
     className?: string;
     /** When set, renders the photo instead of initials. */
     src?: string | null;
+    /**
+     * Overrides the `type` palette with an explicit pair — used by the soft
+     * per-person assignee tones in the Tasks workspace.
+     */
+    tone?: { bg: string; fg: string } | null;
+    title?: string;
 }
 
 /**
@@ -22,6 +29,8 @@ export default function Avatar({
     size = 28,
     className,
     src,
+    tone,
+    title,
 }: AvatarProps) {
     const colors: Record<
         AvatarType,
@@ -32,12 +41,20 @@ export default function Avatar({
         watcher: { bg: T.BG, color: T.TEXT_MUTED, border: T.BORDER },
         default: { bg: T.BLUE, color: T.WHITE },
     };
-    const c = colors[type] ?? colors.default;
-    const photoUrl = src?.trim() || null;
+    const c = tone
+        ? { bg: tone.bg, color: tone.fg, border: undefined }
+        : (colors[type] ?? colors.default);
+
+    // A broken/expired photo URL should fall back to the initials, not the
+    // browser's broken-image glyph.
+    const [imgFailed, setImgFailed] = useState(false);
+    useEffect(() => setImgFailed(false), [src]);
+    const photoUrl = !imgFailed && src?.trim() ? src.trim() : null;
 
     return (
         <div
             className={className}
+            title={title}
             style={{
                 width: size,
                 height: size,
@@ -58,6 +75,7 @@ export default function Avatar({
                 <img
                     src={photoUrl}
                     alt=""
+                    onError={() => setImgFailed(true)}
                     style={{
                         width: "100%",
                         height: "100%",

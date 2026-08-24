@@ -497,7 +497,7 @@ export default function DealInfoSectionPanel({
                                             {td(consent.name, { source: "en" })}
                                         </td>
                                         <td className="text-[#5b6472]">
-                                            {td(consent.description)}
+                                            {td(consent.description, { source: "en" })}
                                         </td>
                                         <td>
                                             <span

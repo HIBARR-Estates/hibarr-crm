@@ -9,6 +9,7 @@ import { CompanyDateTimeProvider } from "@/Components/CompanyDateTimeProvider";
 import NotificationAlertProvider from "@/Components/NotificationAlertProvider";
 import { NotificationAlertBridgeMount } from "@/Hooks/useNotificationAlertBridge";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import { NotificationAlertSettingsProvider } from "@/contexts/NotificationAlertSettingsContext";
 
 function NotificationAlertsGate({
     children,
@@ -54,9 +55,11 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
                     <UserTimezoneCapture />
                     <CompanyDateTimeProvider>
                         <FilterProvider>
-                            <NotificationAlertsGate>
-                                {children}
-                            </NotificationAlertsGate>
+                            <NotificationAlertSettingsProvider>
+                                <NotificationAlertsGate>
+                                    {children}
+                                </NotificationAlertsGate>
+                            </NotificationAlertSettingsProvider>
                         </FilterProvider>
                     </CompanyDateTimeProvider>
                 </AntdConfigProvider>

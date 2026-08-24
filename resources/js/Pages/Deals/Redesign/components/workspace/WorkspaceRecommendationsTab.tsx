@@ -215,7 +215,9 @@ export default function WorkspaceRecommendationsTab({
                                         className="text-base font-bold"
                                         style={{ color: T.NAVY }}
                                     >
-                                        {item.priceLabel}
+                                        {item.priceLabel === "N/A"
+                                            ? t("pages.deals.common.not_available")
+                                            : item.priceLabel}
                                     </div>
                                 </div>
 
@@ -235,7 +237,9 @@ export default function WorkspaceRecommendationsTab({
                                     className="mb-1 text-xs capitalize"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
-                                    {metaParts.join(" · ")}
+                                    {metaParts
+                                        .map((part) => td(part ?? "", { source: "en" }))
+                                        .join(" · ")}
                                 </div>
                             )}
 

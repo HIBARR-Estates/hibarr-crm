@@ -26,6 +26,7 @@ export const modules = [
     "developers",
     "developer_projects",
     "partner_network",
+    "partners",
     "offers",
     "properties",
 ] as const;
@@ -193,6 +194,7 @@ export const permissions = {
     "edit_product": "all",
     "manage_offers": "all",
     "manage_partner_network": "all",
+    "manage_partners": "all",
     "manage_properties": "all",
     "manage_property_configuration": "all",
     "manage_property_publish_requests": "all",

@@ -16,6 +16,7 @@ import {
     type BulkUpdateOptionsInput,
 } from "./bulkUpdateConfig";
 import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
+import type { BulkActionSummaryData } from "@/Features/BulkActions/BulkActionSummary";
 
 type TLeadBulkAction = "bulk_update" | "delete" | "merge" | "export";
 
@@ -28,6 +29,8 @@ interface Props {
     onSelectAllMatching: () => void;
     clearSelected: () => void;
     updateOptions?: BulkUpdateOptionsInput;
+    /** Receipt for the list view once an action lands. */
+    onCompleted?: (summary: BulkActionSummaryData) => void;
     optionsLoading?: boolean;
 }
 
@@ -43,19 +46,22 @@ const BulkLeadActionSelector: React.FC<Props> = ({
     onSelectAllMatching,
     clearSelected,
     updateOptions = {},
+    onCompleted,
     optionsLoading = false,
 }) => {
     const { td } = useTd();
     const { hasPermission } = usePermission();
 
-    const updateFields = useMemo(
-        () => createLeadBulkUpdateFields(updateOptions),
-        [updateOptions],
-    );
-
     const canEdit = hasPermission("edit_lead");
     const canDelete = hasPermission("delete_lead");
-    const canExport = useIsAdminRole();
+    const isAdmin = useIsAdminRole();
+    const canExport = isAdmin;
+
+    // Admin-only fields (added by / referrer) ride in the same workbench.
+    const updateFields = useMemo(
+        () => createLeadBulkUpdateFields({ ...updateOptions, isAdmin }),
+        [updateOptions, isAdmin],
+    );
     const canMergeLeads = useLeadMergeAccess();
     const canMerge =
         canMergeLeads &&
@@ -131,6 +137,7 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                     endpoint={route("lead-contact.apply_quick_action")}
                     entityLabel="lead"
                     reloadOnly="leads"
+                    onCompleted={onCompleted}
                     optionsLoading={optionsLoading}
                 />
             ) : null}
@@ -140,6 +147,7 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                     target={target}
                     onClose={onClose}
                     open={action === "delete"}
+                    onCompleted={onCompleted}
                 />
             ) : null}
 

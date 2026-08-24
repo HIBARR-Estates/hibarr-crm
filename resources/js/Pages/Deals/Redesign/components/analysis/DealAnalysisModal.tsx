@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
@@ -39,6 +40,7 @@ export default function DealAnalysisModal({
     const { deal, setDeal } = useDealWorkspace();
     const { props } = usePage<any>();
     const { td } = useTd();
+    const { t } = useTranslation();
     const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
     const { canEdit: baseCanEdit, isWatcherOnly } = useDealPermissions(deal);
     // Pure watchers are view-only on analysis (same as tasks/meetings/notes).
@@ -380,7 +382,7 @@ export default function DealAnalysisModal({
                             type="button"
                             className="text-slate-400 hover:text-slate-600"
                             onClick={() => failedKeys.forEach((f) => dismissError(f.key))}
-                            aria-label="Dismiss"
+                            aria-label={t("pages.deals.common.dismiss")}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

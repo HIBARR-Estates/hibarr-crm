@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import useTranslation from "@/Hooks/useTranslation";
 import type {
     DealSummaryPayload,
     EntitySummaryEntityType,
@@ -17,6 +18,7 @@ interface UseEntityAiSummaryResult {
     summary: EntitySummaryPayload | null;
     loading: boolean;
     error: string | null;
+    errorFromApi: boolean;
     isStale: boolean;
     regenerate: () => Promise<void>;
     generate: () => Promise<void>;
@@ -55,11 +57,13 @@ export default function useEntityAiSummary({
     entityId,
     initialSummary = null,
 }: UseEntityAiSummaryOptions): UseEntityAiSummaryResult {
+    const { t } = useTranslation();
     const [summary, setSummary] = useState<EntitySummaryPayload | null>(
         initialSummary ?? null,
     );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorFromApi, setErrorFromApi] = useState(false);
     const [isStale, setIsStale] = useState<boolean>(
         Boolean(initialSummary?.meta?.is_stale),
     );
@@ -84,6 +88,7 @@ export default function useEntityAiSummary({
         setSummary(initialSummary ?? null);
         setIsStale(Boolean(initialSummary?.meta?.is_stale));
         setError(null);
+        setErrorFromApi(false);
         setLoading(false);
         inFlightRef.current = false;
     }, [entityType, entityId, initialSummary]);
@@ -136,6 +141,7 @@ export default function useEntityAiSummary({
         inFlightRef.current = true;
         setLoading(true);
         setError(null);
+        setErrorFromApi(false);
 
         try {
             const endpoints = summaryEndpoints(entityType, entityId);
@@ -164,20 +170,26 @@ export default function useEntityAiSummary({
                     applySummary(payload.summary);
                 }
 
-                setError(
-                    payload?.message ||
-                        (err.response?.status === 429
-                            ? "Too many requests. Please wait and try again."
-                            : "Failed to generate AI summary. Please try again."),
-                );
+                if (payload?.message) {
+                    setError(payload.message);
+                    setErrorFromApi(true);
+                } else {
+                    setError(
+                        err.response?.status === 429
+                            ? t("pages.entity_summary.error.too_many_requests")
+                            : t("pages.entity_summary.error.generate_failed"),
+                    );
+                    setErrorFromApi(false);
+                }
             } else {
-                setError("Failed to generate AI summary. Please try again.");
+                setError(t("pages.entity_summary.error.generate_failed"));
+                setErrorFromApi(false);
             }
             setLoading(false);
         } finally {
             inFlightRef.current = false;
         }
-    }, [applySummary, entityId, entityType]);
+    }, [applySummary, entityId, entityType, t]);
 
     const generate = regenerate;
 
@@ -185,6 +197,7 @@ export default function useEntityAiSummary({
         summary,
         loading,
         error,
+        errorFromApi,
         isStale,
         regenerate,
         generate,

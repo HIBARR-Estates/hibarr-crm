@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PasswordInputProps {
     value: string;
@@ -8,6 +9,7 @@ interface PasswordInputProps {
 }
 
 export default function PasswordInput({ value, disabled, onChange, onBlur }: PasswordInputProps) {
+    const { td } = useTd();
     const [show, setShow] = useState(false);
 
     return (
@@ -18,7 +20,7 @@ export default function PasswordInput({ value, disabled, onChange, onBlur }: Pas
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
-                placeholder="Enter value…"
+                placeholder={td("Enter value…", { source: "en" })}
                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors pr-10 disabled:opacity-40"
             />
             <button

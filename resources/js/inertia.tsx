@@ -20,11 +20,38 @@ type InertiaPageComponent = React.ComponentType<any> & {
     layout?: (page: React.ReactNode) => React.ReactNode;
 };
 
+// This entry is compiled by both bundlers (webpack.mix.js and vite.config.mjs
+// both point at it — see CLAUDE.md), so the page resolver has to work under
+// each. Vite can only code-split a dynamic import when the path is statically
+// analyzable — a template literal like `./Pages/${name}` isn't, so it needs
+// this glob form (the officially supported pattern for Inertia). Webpack/Mix
+// doesn't understand `import.meta.glob` at all: it replaces `import.meta`
+// with a plain `{}`, so calling `.glob` on it throws immediately at module
+// load and takes the whole app down — that's the "{}.glob is not a function"
+// crash on any Mix-bundled (APP_BUNDLER=mix) deploy. `import.meta.env` only
+// exists under Vite, so it's a safe way to pick the right resolver per
+// bundler; the untaken ternary branch is never evaluated at runtime, so the
+// glob call itself is never reached under Mix.
+const isVite = typeof import.meta.env !== "undefined";
+const pageModules = isVite
+    ? import.meta.glob<{ default: InertiaPageComponent }>("./Pages/**/*.tsx")
+    : null;
+
 createInertiaApp({
-    // A2: async import so Webpack can emit per-page chunks (requires A1 splitChunks)
     resolve: async (name) => {
-        const module = await import(`./Pages/${name}`);
-        const component = module.default as InertiaPageComponent;
+        const module = pageModules
+            ? await (() => {
+                  const path = `./Pages/${name}.tsx`;
+                  const importPage = pageModules[path];
+                  if (!importPage) {
+                      throw new Error(`Page not found: ${path}`);
+                  }
+                  return importPage();
+              })()
+            : ((await import(
+                  `./Pages/${name}`
+              )) as { default: InertiaPageComponent });
+        const component = module.default;
 
         // Always wrap with InnerProviders (which need Inertia context)
         // This ensures TranslationProvider has access to usePage()

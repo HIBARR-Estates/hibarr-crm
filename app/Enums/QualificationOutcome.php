@@ -15,7 +15,7 @@ enum QualificationOutcome: string
             self::BookMeeting => 'qualified',
             self::InviteWebinar => 'nurturing',
             self::Callback => 'callback',
-            self::NoFit => 'not_fit',
+            self::NoFit => 'lost',
         };
     }
 }

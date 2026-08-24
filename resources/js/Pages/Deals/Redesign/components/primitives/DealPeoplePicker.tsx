@@ -95,22 +95,9 @@ export default function DealPeoplePicker({
         people.length === 0 &&
         !query.trim();
 
-    // Stable i18n fallbacks when lang keys not yet present.
-    const unavailableLabel =
-        t("pages.deals.header.team.employees_unavailable") ===
-        "pages.deals.header.team.employees_unavailable"
-            ? "Employee directory is unavailable. You may not have permission to view employees."
-            : t("pages.deals.header.team.employees_unavailable");
-    const noneAvailableLabel =
-        t("pages.deals.header.team.no_employees_available") ===
-        "pages.deals.header.team.no_employees_available"
-            ? "No employees available to assign"
-            : t("pages.deals.header.team.no_employees_available");
-    const noneLeftLabel =
-        t("pages.deals.header.team.no_employees_left") ===
-        "pages.deals.header.team.no_employees_left"
-            ? "No employees left to add"
-            : t("pages.deals.header.team.no_employees_left");
+    const unavailableLabel = t("pages.deals.header.team.employees_unavailable");
+    const noneAvailableLabel = t("pages.deals.header.team.no_employees_available");
+    const noneLeftLabel = t("pages.deals.header.team.no_employees_left");
 
     return (
         <PeoplePicker
