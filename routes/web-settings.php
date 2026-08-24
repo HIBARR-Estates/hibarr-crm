@@ -65,11 +65,15 @@ use App\Http\Controllers\EntityReminderDefaultController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\UpdateAppController;
+use App\Http\Controllers\SettingsOverviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function () {
 
     Route::post('profile/change-language', [ProfileController::class, 'changeLanguage'])->name('profile.change_language');
+
+    /* Admin-only React settings hub (entity setting cards) */
+    Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
 
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);

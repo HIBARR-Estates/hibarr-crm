@@ -1965,6 +1965,7 @@ return array(
     ),
     'taskCategory' => array(
         'addTaskCategory' => 'Add Task Category',
+        'editTaskCategory' => 'Edit Task Category',
         'categoryName' => 'Category Name',
         'manageTaskCategory' => 'Manage Task Category',
         'taskCategory' => 'Task Category',

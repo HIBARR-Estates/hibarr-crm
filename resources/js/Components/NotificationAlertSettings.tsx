@@ -1,15 +1,8 @@
 import type { CSSProperties } from "react";
-import { useState } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import {
-    getNotchDurationMs,
-    getNotchPosition,
-    NOTCH_DURATIONS_MS,
-    setNotchDurationMs,
-    setNotchPosition,
-    type NotchPosition,
-} from "@/lib/notificationAlerts";
+import { NOTCH_DURATIONS_MS, type NotchPosition } from "@/lib/notificationAlerts";
+import { useNotificationAlertSettings } from "@/contexts/NotificationAlertSettingsContext";
 
 const POSITIONS: { value: NotchPosition; label: string }[] = [
     { value: "top-left", label: "Top left" },
@@ -23,12 +16,11 @@ const POSITIONS: { value: NotchPosition; label: string }[] = [
 /** Position + dismiss timing for in-app alert toasts (top of notification dropdown). */
 export default function NotificationAlertSettings() {
     const { td } = useTd();
-    const [position, setPositionState] = useState<NotchPosition>(() =>
-        getNotchPosition(),
-    );
-    const [durationMs, setDurationMsState] = useState(() =>
-        getNotchDurationMs(),
-    );
+    const {
+        settings: { notch_position: position, notch_duration_ms: durationMs },
+        setNotchPosition,
+        setNotchDurationMs,
+    } = useNotificationAlertSettings();
 
     return (
         <div style={{ width: 280 }} onClick={(e) => e.stopPropagation()}>
@@ -57,10 +49,7 @@ export default function NotificationAlertSettings() {
                         <button
                             key={p.value}
                             type="button"
-                            onClick={() => {
-                                setNotchPosition(p.value);
-                                setPositionState(p.value);
-                            }}
+                            onClick={() => setNotchPosition(p.value)}
                             style={{
                                 appearance: "none",
                                 fontFamily: "inherit",
@@ -131,10 +120,7 @@ export default function NotificationAlertSettings() {
                         <button
                             key={ms}
                             type="button"
-                            onClick={() => {
-                                setNotchDurationMs(ms);
-                                setDurationMsState(ms);
-                            }}
+                            onClick={() => setNotchDurationMs(ms)}
                             style={{
                                 appearance: "none",
                                 flex: 1,

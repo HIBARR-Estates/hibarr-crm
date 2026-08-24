@@ -12,6 +12,7 @@ import BulkActionBar from "../primitives/BulkActionBar";
 import Button from "../primitives/Button";
 import ConfirmDialog from "../primitives/ConfirmDialog";
 import Icon from "../primitives/Icon";
+import IntegrationOriginBadge from "../primitives/IntegrationOriginBadge";
 import SelectCheckbox from "../primitives/SelectCheckbox";
 import { REDESIGN_TOKENS as T } from "../tokens";
 
@@ -79,6 +80,14 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
             else next.add(id);
             return next;
         });
+    const openOrSelectNote = (id: number) => {
+        if (selectMode) {
+            toggleSelect(id);
+            return;
+        }
+        setOpenInEdit(false);
+        setSelectedNoteId(id);
+    };
     const exitSelect = () => {
         setSelectMode(false);
         setSelected(new Set());
@@ -198,14 +207,7 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                 <div className="mb-[7px] flex items-center justify-between gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            if (selectMode) {
-                                                toggleSelect(note.id);
-                                                return;
-                                            }
-                                            setOpenInEdit(false);
-                                            setSelectedNoteId(note.id);
-                                        }}
+                                        onClick={() => openOrSelectNote(note.id)}
                                         aria-label={
                                             selectMode
                                                 ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
@@ -270,6 +272,9 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                         </span>
                                     </button>
                                     <div className="flex items-center gap-2">
+                                        <IntegrationOriginBadge
+                                            origin={note.integrationOrigin}
+                                        />
                                         <span
                                             className="shrink-0 text-[12px]"
                                             style={{ color: T.TEXT_MUTED }}
@@ -306,7 +311,20 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                     </div>
                                 </div>
                                 <div
-                                    className="min-w-0 rounded-md px-3 py-2.5"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => openOrSelectNote(note.id)}
+                                    onKeyDown={(event) => {
+                                        if (event.key !== "Enter" && event.key !== " ") return;
+                                        event.preventDefault();
+                                        openOrSelectNote(note.id);
+                                    }}
+                                    aria-label={
+                                        selectMode
+                                            ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
+                                            : `${t("pages.deals.common.open_note")}: ${note.title || note.authorName}`
+                                    }
+                                    className="min-w-0 cursor-pointer rounded-md px-3 py-2.5"
                                     style={{ background: T.SURFACE_2 }}
                                 >
                                     <div

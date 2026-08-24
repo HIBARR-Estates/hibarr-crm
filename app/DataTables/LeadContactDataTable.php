@@ -241,6 +241,7 @@ class LeadContactDataTable extends BaseDataTable
                 $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                     ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%');
                 LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
+                LeadSearchQuery::applyContactMethodMatch($query, $safeTerm);
             });
         }
 

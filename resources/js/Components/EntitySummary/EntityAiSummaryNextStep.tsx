@@ -1,3 +1,5 @@
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { EntitySummaryNextStep } from "@/Types/entity-summary";
 import { nextStepButtonLabel } from "./summaryActions";
 
@@ -10,27 +12,41 @@ interface EntityAiSummaryNextStepProps {
     actionable: boolean;
 }
 
+function urgencyLabel(
+    urgency: EntitySummaryNextStep["urgency"],
+    t: (key: string) => string,
+): string {
+    const key = `pages.entity_summary.urgency.${urgency}`;
+    const translated = t(key);
+    return translated === key ? urgency.replace(/_/g, " ") : translated;
+}
+
 export default function EntityAiSummaryNextStep({
     nextStep,
     onAction,
     actionable,
 }: EntityAiSummaryNextStepProps) {
+    const { t } = useTranslation();
+    const { td } = useTd();
+
     if (nextStep.action_type === "NO_ACTION_NEEDED") {
         return null;
     }
-
-    const urgencyLabel = nextStep.urgency.replace(/_/g, " ");
 
     return (
         <footer className="entity-ai-summary-next-step">
             <div className="entity-ai-summary-next-step__body">
                 <p className="entity-ai-summary-next-step__label">
-                    Suggested next step · {urgencyLabel}
+                    {t("pages.entity_summary.suggested_next_step", {
+                        urgency: urgencyLabel(nextStep.urgency, t),
+                    })}
                 </p>
-                <p className="entity-ai-summary-next-step__text">{nextStep.label}</p>
+                <p className="entity-ai-summary-next-step__text">
+                    {td(nextStep.label, { source: "en" })}
+                </p>
                 {nextStep.rationale && (
                     <p className="entity-ai-summary-next-step__rationale">
-                        {nextStep.rationale}
+                        {td(nextStep.rationale, { source: "en" })}
                     </p>
                 )}
             </div>
@@ -40,14 +56,14 @@ export default function EntityAiSummaryNextStep({
                     className="entity-ai-summary-next-step__button"
                     onClick={onAction}
                 >
-                    {nextStepButtonLabel(nextStep)}
+                    {nextStepButtonLabel(nextStep, t)}
                 </button>
             ) : (
                 <span
                     className="entity-ai-summary-next-step__manual"
-                    title="This is a manual step — there's no in-app action for it."
+                    title={t("pages.entity_summary.manual_step_tooltip")}
                 >
-                    Manual step
+                    {t("pages.entity_summary.manual_step")}
                 </span>
             )}
         </footer>

@@ -1,0 +1,11 @@
+<!--
+  Plunk subject line for lead deleted notifications.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — "Lead removed from pipeline"
+    appName     — application name (e.g. Hibarr)
+
+  Keep in sync with App\Notifications\LeadDeleted
+-->
+{{mailSubject}} - {{appName}}

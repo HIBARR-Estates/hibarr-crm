@@ -73,7 +73,7 @@ class MlmCommission extends BaseModel
     // ── Status Transitions ───────────────────────────────────────
 
     /**
-     * Mark the commission as paid.
+     * Mark the commission as paid (admin acceptance / payout).
      *
      * @throws \DomainException
      */
@@ -95,7 +95,7 @@ class MlmCommission extends BaseModel
     }
 
     /**
-     * Revert the commission with a reason.
+     * Revert a pending commission with a reason.
      *
      * @throws \DomainException
      */
@@ -112,6 +112,29 @@ class MlmCommission extends BaseModel
 
         if ($updated !== 1) {
             throw new \DomainException('Only pending commissions can be reverted.');
+        }
+
+        $this->refresh();
+    }
+
+    /**
+     * Claw back a previously paid commission.
+     *
+     * @throws \DomainException
+     */
+    public function clawback(string $reason): void
+    {
+        $updated = static::query()
+            ->whereKey($this->getKey())
+            ->where('status', MlmCommissionStatus::Paid->value)
+            ->update([
+                'status' => MlmCommissionStatus::Reverted->value,
+                'reverted_at' => now(),
+                'reverted_reason' => $reason,
+            ]);
+
+        if ($updated !== 1) {
+            throw new \DomainException('Only paid commissions can be clawed back.');
         }
 
         $this->refresh();

@@ -37,16 +37,26 @@ enum PreferredContactTime: string
             return [];
         }
 
+        if ($raw instanceof self) {
+            return [$raw->value];
+        }
+
         if (is_string($raw)) {
             $trimmed = trim($raw);
+            if ($trimmed === '') {
+                return [];
+            }
+
             if (
                 (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{'))
                 && ($decoded = json_decode($trimmed, true)) !== null
                 && is_array($decoded)
             ) {
                 $raw = $decoded;
+            } elseif (str_contains($raw, ',')) {
+                $raw = explode(',', $raw);
             } else {
-                $raw = str_contains($raw, ',') ? explode(',', $raw) : [$raw];
+                $raw = [$raw];
             }
         }
 

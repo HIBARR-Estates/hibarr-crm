@@ -22,6 +22,8 @@ import {
     type BulkUpdateValue as DraftValue,
 } from "./bulkUpdateFields";
 import type { BulkTarget } from "./bulkTarget";
+import type { BulkActionSummaryData } from "./BulkActionSummary";
+import BulkActionConfirm from "./BulkActionConfirm";
 import { buildBulkTargetPayload } from "./bulkTarget";
 
 interface Props {
@@ -36,6 +38,10 @@ interface Props {
     entityLabel: string;
     /** Inertia prop to refresh after a successful update. */
     reloadOnly: string;
+    /** Receipt for the list view once the update lands. */
+    onCompleted?: (summary: BulkActionSummaryData) => void;
+    /** Entity-wide caveat for the confirmation step, e.g. locked rows. */
+    actionNote?: string;
     optionsLoading?: boolean;
 }
 
@@ -103,6 +109,8 @@ export default function BulkUpdateModal({
     endpoint,
     entityLabel,
     reloadOnly,
+    onCompleted,
+    actionNote,
     optionsLoading = false,
 }: Props) {
     const { td } = useTd();
@@ -116,10 +124,12 @@ export default function BulkUpdateModal({
         sections[0]?.name ?? null,
     );
     const [draft, setDraft] = useState<Record<string, DraftValue>>({});
+    const [confirming, setConfirming] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         setDraft({});
+        setConfirming(false);
         setActiveSection(sections[0]?.name ?? null);
     }, [open, sections]);
 
@@ -213,17 +223,64 @@ export default function BulkUpdateModal({
         return payload;
     };
 
+    // Everything a reviewer should know before committing: the caveats of the
+    // fields they touched, plus the fact that "all matching" reaches rows that
+    // are not on screen.
+    const confirmNotes = useMemo(() => {
+        const notes = pendingFields.flatMap((field) =>
+            field.confirmNote
+                ? ([] as string[]).concat(field.confirmNote)
+                : [],
+        );
+
+        if (target.mode === "all_matching") {
+            notes.unshift(
+                td(
+                    `This applies to every ${entityLabel} matching the current filters, not just the rows on this page.`,
+                    { source: "en" },
+                ),
+            );
+        }
+
+        if (actionNote) notes.push(actionNote);
+
+        return notes;
+    }, [pendingFields, target.mode, entityLabel, actionNote, td]);
+
     const handleSubmit = () => {
+        if (!buildPayload()) return;
+        setConfirming(true);
+    };
+
+    const runUpdate = () => {
         const payload = buildPayload();
         if (!payload) return;
 
         bulkUpdate(payload, {
             suppressSuccessToast: true,
             onSuccess: (response) => {
+                const result = response as {
+                    message?: string;
+                    summary?: {
+                        updated?: number;
+                        skipped?: Array<{ count: number; reason: string }>;
+                    };
+                };
+
                 message.success(
-                    (response as { message?: string })?.message ||
-                        td(`Updated ${countPhrase}`, { source: "en" }),
+                    result?.message || td(`Updated ${countPhrase}`, { source: "en" }),
                 );
+
+                // The toast goes away; the receipt above the list does not.
+                onCompleted?.({
+                    verb: td("updated", { source: "en" }),
+                    entityLabel: `${entityLabel}s`,
+                    count: result?.summary?.updated ?? target.count,
+                    changes: summaries,
+                    skipped: result?.summary?.skipped ?? [],
+                });
+
+                setConfirming(false);
                 onClose(true);
                 router.reload({ only: [reloadOnly] });
             },
@@ -233,12 +290,13 @@ export default function BulkUpdateModal({
                         ?.response?.data?.message ||
                     td(`Failed to update ${entityLabel}s`, { source: "en" });
                 message.error(detail);
+                setConfirming(false);
             },
         });
     };
 
     const handleClose = () => {
-        if (loading) return;
+        if (loading || confirming) return;
         onClose();
     };
 
@@ -502,13 +560,27 @@ export default function BulkUpdateModal({
                         >
                             {loading
                                 ? td("Updating…", { source: "en" })
-                                : td(`Update ${countPhrase}`, {
+                                : td(`Review ${countPhrase}`, {
                                       source: "en",
                                   })}
                         </button>
                     </div>
                 </footer>
             </div>
+
+            <BulkActionConfirm
+                open={confirming}
+                count={target.count}
+                entityLabel={
+                    target.count === 1 ? entityLabel : `${entityLabel}s`
+                }
+                changes={summaries}
+                notes={confirmNotes}
+                confirmLabel={td(`Update ${countPhrase}`, { source: "en" })}
+                loading={loading}
+                onConfirm={runUpdate}
+                onCancel={() => setConfirming(false)}
+            />
         </Modal>
     );
 }

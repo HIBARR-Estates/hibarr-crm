@@ -114,22 +114,35 @@ class LeadPreferredContactTimeTest extends TestCase
         $this->assertSame([$morningId], $ids);
     }
 
-    public function test_sync_preferred_contact_times_persists_all_values(): void
+    public function test_json_array_in_scalar_column_does_not_throw_on_load(): void
     {
-        Schema::table('leads', function (Blueprint $table) {
-            $table->json('preferred_contact_times')->nullable();
-        });
-
-        $leadId = $this->insertLead(['client_name' => 'Multi Time Lead']);
+        $leadId = $this->insertLead([
+            'client_name' => 'OL Multi',
+            'preferred_contact_time' => '["morning","evening"]',
+        ]);
 
         $lead = Lead::findOrFail($leadId);
-        $lead->syncPreferredContactTimes(['morning', 'evening']);
+
+        $this->assertInstanceOf(PreferredContactTime::class, $lead->preferred_contact_time);
+        $this->assertSame(PreferredContactTime::Morning, $lead->preferred_contact_time);
+        $this->assertSame(['morning', 'evening'], $lead->preferred_contact_times);
+
+        $array = $lead->toArray();
+        $this->assertSame(PreferredContactTime::Morning, $array['preferred_contact_time']);
+        $this->assertSame(['morning', 'evening'], $array['preferred_contact_times']);
+    }
+
+    public function test_sync_preferred_contact_times_keeps_scalar_and_array_in_sync(): void
+    {
+        $leadId = $this->insertLead(['client_name' => 'Sync Test']);
+        $lead = Lead::findOrFail($leadId);
+
+        $lead->syncPreferredContactTimes(['evening', 'morning']);
         $lead->save();
 
         $fresh = Lead::findOrFail($leadId);
-
-        $this->assertSame(['morning', 'evening'], $fresh->preferred_contact_times);
-        $this->assertSame(PreferredContactTime::Morning, $fresh->preferred_contact_time);
+        $this->assertSame(['evening', 'morning'], $fresh->preferred_contact_times);
+        $this->assertSame(PreferredContactTime::Evening, $fresh->preferred_contact_time);
     }
 
     public function test_normalize_list_accepts_json_encoded_array_string(): void
@@ -169,6 +182,7 @@ class LeadPreferredContactTimeTest extends TestCase
             $table->string('client_name');
             $table->string('client_email')->nullable();
             $table->string('preferred_contact_time')->nullable();
+            $table->json('preferred_contact_times')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();

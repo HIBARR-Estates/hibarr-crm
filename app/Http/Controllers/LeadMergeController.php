@@ -112,6 +112,11 @@ class LeadMergeController extends AccountBaseController
             'client_whatsapp' => $lead->client_whatsapp,
             'client_telegram' => $lead->client_telegram,
             'client_instagram' => $lead->client_instagram,
+            'contact_methods' => $lead->contactMethods()
+                ->orderByDesc('is_main')
+                ->orderBy('type')
+                ->orderBy('id')
+                ->get(['id', 'type', 'identifier', 'normalized', 'is_main', 'source_field']),
         ];
     }
 

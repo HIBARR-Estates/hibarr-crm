@@ -66,7 +66,7 @@ export default function AnalysisSectionNavigator({
                     return (
                         <AnalysisSectionNavItem
                             key={section.id}
-                            title={section.title}
+                            title={td(section.title, { source: "en" })}
                             filled={p.filled}
                             total={p.total}
                             isActive={activeSection === section.id}

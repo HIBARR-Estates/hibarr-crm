@@ -23,6 +23,7 @@ class SubTaskAssigneeAdded extends BaseNotification
         $this->subTask = $subTask;
         $this->company = $this->subTask->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'user-assign-to-task')->first();
+        $this->initTaskMailRouting();
     }
 
     /**

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\DealOfferApplication;
-use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\Offer;
 use App\Models\Product;
@@ -17,7 +16,9 @@ class DealPropertyService
         private DealValueResolver $dealValueResolver,
         private PackagePipelineRouterService $packageRouter,
         private PackageRoutingFieldCatalog $routingFieldCatalog,
+        private DealNotificationService $notificationService,
     ) {}
+
     /**
      * Get all properties attached to a deal (via products), including applied offer applications.
      */
@@ -78,6 +79,11 @@ class DealPropertyService
 
         $deal->products()->attach($product->id);
         app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
+        $this->notificationService->notifyPropertyLinked(
+            $deal,
+            $this->propertyLabel($property, $product),
+            $property->id,
+        );
         $deal = $deal->fresh(['products', 'packages', 'company']);
         $this->dealValueResolver->resolveAndPersist($deal);
         $this->packageRouter->attemptRoutingFromDealState(
@@ -94,6 +100,8 @@ class DealPropertyService
      */
     public function detachProperty(Deal $deal, int $productId): array
     {
+        $product = Product::with('property')->find($productId);
+
         DealOfferApplication::where('deal_id', $deal->id)
             ->where('product_id', $productId)
             ->delete();
@@ -114,6 +122,14 @@ class DealPropertyService
             $newPropertyNames
         );
 
+        if ($product?->property) {
+            $this->notificationService->notifyPropertyUnlinked(
+                $deal,
+                $this->propertyLabel($product->property, $product),
+                (int) $product->property->id,
+            );
+        }
+
         $this->dealValueResolver->resolveAndPersist($deal);
 
         return ['status' => 'success', 'message' => 'Property detached successfully.'];
@@ -123,7 +139,7 @@ class DealPropertyService
      * Create a new Property from a DeveloperProjectUnitType, with field overrides,
      * then attach it to the deal. Applies selected offers immediately.
      *
-     * @param array $offerIds IDs of active offers the agent has selected for this property.
+     * @param  array  $offerIds  IDs of active offers the agent has selected for this property.
      */
     public function createFromUnitType(Deal $deal, int $unitTypeId, array $overrides, array $offerIds = []): array
     {
@@ -176,9 +192,14 @@ class DealPropertyService
 
         $deal->products()->attach($product->id);
         app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
+        $this->notificationService->notifyPropertyLinked(
+            $deal,
+            $this->propertyLabel($property, $product),
+            $property->id,
+        );
 
         // Apply selected offers immediately
-        if (!empty($offerIds)) {
+        if (! empty($offerIds)) {
             $validOfferIds = $unitType->activeOffers()
                 ->whereIn('offers.id', $offerIds)
                 ->pluck('offers.id');
@@ -187,20 +208,20 @@ class DealPropertyService
 
             foreach ($validOfferIds as $offerId) {
                 $offer = Offer::find($offerId);
-                if (!$offer) {
+                if (! $offer) {
                     continue;
                 }
 
                 DealOfferApplication::create([
-                    'deal_id'             => $deal->id,
-                    'offer_id'            => $offerId,
-                    'product_id'          => $product->id,
-                    'resolved_from_type'  => DeveloperProjectUnitType::class,
-                    'resolved_from_id'    => $unitType->id,
-                    'original_amount'     => $originalAmount,
-                    'discount_amount'     => $offer->computeDiscount($originalAmount),
-                    'offer_type'          => $offer->type->value,
-                    'offer_value'         => $offer->value,
+                    'deal_id' => $deal->id,
+                    'offer_id' => $offerId,
+                    'product_id' => $product->id,
+                    'resolved_from_type' => DeveloperProjectUnitType::class,
+                    'resolved_from_id' => $unitType->id,
+                    'original_amount' => $originalAmount,
+                    'discount_amount' => $offer->computeDiscount($originalAmount),
+                    'offer_type' => $offer->type->value,
+                    'offer_value' => $offer->value,
                 ]);
             }
         }
@@ -224,9 +245,9 @@ class DealPropertyService
             ->where('is_published', true)
             ->where(function ($q) use ($query) {
                 $q->where('title', 'like', "%{$query}%")
-                  ->orWhere('city', 'like', "%{$query}%")
-                  ->orWhere('area', 'like', "%{$query}%")
-                  ->orWhere('property_type', 'like', "%{$query}%");
+                    ->orWhere('city', 'like', "%{$query}%")
+                    ->orWhere('area', 'like', "%{$query}%")
+                    ->orWhere('property_type', 'like', "%{$query}%");
             })
             ->select('id', 'title', 'property_type', 'sale_type', 'price', 'city', 'area', 'status', 'photos', 'bedrooms', 'bathrooms')
             ->limit(20)
@@ -267,12 +288,19 @@ class DealPropertyService
 
         $product = Product::create([
             'company_id' => $property->company_id,
-            'name' => $property->title ?? 'Property #' . $property->id,
+            'name' => $property->title ?? 'Property #'.$property->id,
             'price' => is_array($property->price) ? ($property->price['amount'] ?? 0) : $property->price,
         ]);
 
         $property->update(['product_id' => $product->id]);
 
         return $product;
+    }
+
+    private function propertyLabel(?Property $property, Product $product): string
+    {
+        $label = trim((string) ($property?->title ?? $property?->reference_code ?? $product->name ?? ''));
+
+        return $label !== '' ? $label : 'Property';
     }
 }

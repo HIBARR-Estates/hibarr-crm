@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyAvailabilityRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
 
@@ -14,6 +15,7 @@ class AvailabilityEscalationReminder extends BaseNotification
     {
         $this->availabilityRequest = $availabilityRequest->load(['property', 'requestingAgent']);
         $this->company = $availabilityRequest->property->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
@@ -36,19 +38,45 @@ class AvailabilityEscalationReminder extends BaseNotification
             'action' => 'deny',
         ]);
 
-        return $build
-            ->subject("REMINDER: Pending Availability Request - {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},")
-            ->line('You have an availability request that has been pending for over 8 business hours and has been escalated to admin.')
-            ->line('')
-            ->line("**Property:** {$property->display_title}")
-            ->line("**Reference:** {$property->reference_code}")
-            ->line("**Requesting Agent:** {$requestingAgent->name}")
-            ->line("**Requested At:** {$this->availabilityRequest->created_at->format('M d, Y H:i')}")
-            ->line('')
-            ->line('Please respond to this request as soon as possible.')
-            ->action('Approve Request', $approveUrl)
-            ->line("[Deny Request]({$denyUrl})");
+        $subject = "REMINDER: Pending Availability Request - {$property->display_title}";
+        $introText = 'You have an availability request that has been pending for over 8 business hours and has been escalated to admin.';
+        $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+            PropertyRequestMailPresenter::propertyMeta($property, false),
+            PropertyRequestMailPresenter::line('Requesting Agent', $requestingAgent->name),
+            PropertyRequestMailPresenter::line('Requested At', $this->availabilityRequest->created_at->format('M d, Y H:i')),
+            'Please respond to this request as soon as possible.',
+            PropertyRequestMailPresenter::denyLink($denyUrl),
+        );
+
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Availability Reminder',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => 'Approve this availability check using the button below.',
+                'actionText' => 'Approve Request',
+                'url' => $approveUrl,
+            ]);
+
+        $this->attachPropertyRequestPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => 'Availability Reminder',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $contentHtml,
+            'actionDescription' => 'Approve this availability check using the button below.',
+            'actionText' => 'Approve Request',
+            'entityUrl' => $approveUrl,
+            'footerNote' => '',
+        ]);
+
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array

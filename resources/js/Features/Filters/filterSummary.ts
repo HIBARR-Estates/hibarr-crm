@@ -17,11 +17,19 @@ function optionsOf(field: FilterFieldConfig) {
     return options ?? [];
 }
 
+/** "todo" -> "Todo" — option labels can come straight from user data
+ *  (e.g. a board column's raw name), so the sentence can't assume they're
+ *  already capitalized. */
+function capitalize(text: string): string {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function labelFor(field: FilterFieldConfig, value: any): string {
     const match = optionsOf(field).find(
         (option) => String(option.value) === String(value),
     );
-    return match ? String(match.label) : String(value);
+    return capitalize(match ? String(match.label) : String(value));
 }
 
 /** "A", "A or B", "one of 4" */
@@ -55,7 +63,7 @@ export function describeFilters(
     for (const field of config.fields) {
         if (field.hidden || consumed.has(field.key)) continue;
 
-        const noun = field.sentence ?? field.label.toLowerCase();
+        const noun = capitalize(field.sentence ?? field.label.toLowerCase());
 
         // Date range spans two keys.
         if (field.control === "datePresets") {

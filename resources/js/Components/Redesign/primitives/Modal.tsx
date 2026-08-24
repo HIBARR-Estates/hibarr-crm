@@ -31,6 +31,14 @@ interface ModalProps {
     closeAriaLabel?: string;
     /** Overrides the default 520px max-width, e.g. for modals with a rich text editor. */
     maxWidth?: number;
+    /**
+     * Lifts this dialog above another that is already open. The CSS default
+     * (1100) sits well below an antd Modal, which this app renders at 1400
+     * (zIndexPopupBase is raised to 1300 in providers/antd/utils.ts, plus
+     * antd's own +100 container offset), so a dialog opened from inside one
+     * must say so explicitly or it renders underneath.
+     */
+    zIndex?: number;
 }
 
 export function Modal({
@@ -44,6 +52,7 @@ export function Modal({
     dirty = false,
     closeAriaLabel,
     maxWidth,
+    zIndex,
 }: ModalProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -94,6 +103,7 @@ export function Modal({
     return createPortal(
         <div
             className="modal-overlay redesign-modal-overlay"
+            style={zIndex !== undefined ? { zIndex } : undefined}
             onClick={dirty ? undefined : onClose}
             role="presentation"
         >

@@ -231,6 +231,12 @@ class Task extends BaseModel
         return $this->belongsToMany(User::class, 'task_users')->withoutGlobalScope(ActiveScope::class)->using(TaskUser::class);
     }
 
+    /** Users @mentioned in this task's comments — see TaskParticipant. */
+    public function participants(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_participants')->using(\App\Models\TaskParticipant::class);
+    }
+
     public function taskUsers(): HasMany
     {
         return $this->hasMany(TaskUser::class, 'task_id');
@@ -692,5 +698,14 @@ class Task extends BaseModel
     public function properties()
     {
         return $this->morphedByMany(Property::class, 'taskable');
+    }
+
+    /**
+     * Developer projects (the ones that hold units) a task is linked to.
+     * Distinct from `project()`, which is the Worksuite delivery project.
+     */
+    public function developerProjects()
+    {
+        return $this->morphedByMany(DeveloperProject::class, 'taskable');
     }
 }

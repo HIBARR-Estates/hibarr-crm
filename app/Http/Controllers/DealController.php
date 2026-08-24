@@ -3,82 +3,79 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\DealNotesDataTable;
+use App\DataTables\DealsDataTable;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
-use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
+use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
-use App\Services\CalendarSyncDispatcher;
-use App\Services\DealFilters;
-use App\Services\Reminders\MeetingReminderSync;
-use App\Scopes\ActiveScope;
-use App\Notifications\MeetingLinkGenerationFailed;
-use ReflectionClass;
-use Illuminate\Support\Facades\DB;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
 use App\Http\Requests\CommonRequest;
-use App\Http\Requests\FollowUp\StoreRequest as FollowUpStoreRequest;
 use App\Http\Requests\Deal\PatchRequest;
+use App\Http\Requests\Deal\StageChangeRequest;
 use App\Http\Requests\Deal\StoreRequest;
 use App\Http\Requests\Deal\UpdateRequest;
-use App\Http\Requests\Deal\StageChangeRequest;
+use App\Http\Requests\FollowUp\StoreRequest as FollowUpStoreRequest;
 use App\Imports\DealImport;
 use App\Jobs\ImportDealJob;
-use App\Models\GdprSetting;
+use App\Models\CommunicationActivity;
+use App\Models\CustomField;
+use App\Models\CustomFieldCategory;
+use App\Models\CustomFieldGroup;
 use App\Models\Deal;
-use App\Models\LeadAgent;
-use App\Models\LeadCategory;
-use App\Models\LeadCustomForm;
+use App\Models\DealAutomation;
 use App\Models\DealFollowUp;
 use App\Models\DealHistory;
 use App\Models\DealNote;
+use App\Models\GdprSetting;
 use App\Models\Lead;
+use App\Models\LeadAgent;
+use App\Models\LeadCategory;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
 use App\Models\LeadSource;
-use App\Models\PipelineStage;
 use App\Models\LeadStatus;
+use App\Models\Package;
+use App\Models\PipelineStage;
 use App\Models\Product;
-use App\Models\CustomField;
-use App\Models\CustomFieldGroup;
-use App\Models\CustomFieldCategory;
-use App\Models\DealAutomation;
 use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
 use App\Models\User;
-use App\Models\Package;
-use App\Models\CommunicationActivity;
-use App\Traits\ImportExcel;
-use App\Traits\DealAutomationTrait;
-use App\Traits\DealFormDataTrait;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
-use GuzzleHttp\Client;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
-use App\Services\MeetingVisibilityService;
-use App\Services\PermissionService;
+use App\Notifications\MeetingLinkGenerationFailed;
+use App\Scopes\ActiveScope;
+use App\Services\CalendarSyncDispatcher;
+use App\Services\Deal\DealOutcomeService;
+use App\Services\DealAgentAssignmentService;
+use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
-use App\Services\DealAgentAssignmentService;
+use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
+use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
-use App\Services\Deal\DealOutcomeService;
-use App\Enums\OutcomeStatus;
+use App\Services\Reminders\MeetingReminderSync;
+use App\Traits\DealAutomationTrait;
+use App\Traits\ImportExcel;
+use Carbon\Carbon;
+use GuzzleHttp\Client;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use ReflectionClass;
 
 class DealController extends AccountBaseController
 {
-
-    use ImportExcel;
-    use DealAutomationTrait;
     use \App\Traits\DealFormDataTrait;
+    use DealAutomationTrait;
+    use ImportExcel;
 
     public function __construct()
     {
@@ -86,7 +83,7 @@ class DealController extends AccountBaseController
         $this->pageTitle = 'app.menu.deal';
 
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('leads', $this->user->modules));
+            abort_403(! in_array('leads', $this->user->modules));
 
             $this->viewLeadPermission = user()->permission('view_deals');
             $this->viewEmployeePermission = user()->permission('view_employees');
@@ -109,17 +106,21 @@ class DealController extends AccountBaseController
 
         // Use shared query builder for table view (paginated)
         $dealsQuery = $this->getDealsQuery($request);
-        
+
+        // Header stats reflect the same filtered/permission-scoped set as
+        // the table — snapshot before sorting/pagination narrow it further.
+        $stats = $this->getDealsStats(clone $dealsQuery);
+
         // Apply sorting if specified
         if ($request->filled('sort_by')) {
             $sortBy = $request->sort_by;
             $sortDirection = $request->get('sort_direction', 'asc');
-            
+
             // Validate sort direction
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
+            if (! in_array($sortDirection, ['asc', 'desc'])) {
                 $sortDirection = 'asc';
             }
-            
+
             // Map frontend sort fields to database columns
             $sortMapping = [
                 'name' => 'deals.name',
@@ -128,7 +129,7 @@ class DealController extends AccountBaseController
                 'created_at' => 'deals.created_at',
                 'updated_at' => 'deals.updated_at',
             ];
-            
+
             if (isset($sortMapping[$sortBy])) {
                 $dealsQuery->orderBy($sortMapping[$sortBy], $sortDirection);
             } else {
@@ -139,7 +140,7 @@ class DealController extends AccountBaseController
             // Default sorting when no sort is specified
             $dealsQuery->orderBy('deals.created_at', 'desc');
         }
-        
+
         $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));
 
         // S3: do not hydrate per-row custom_fields_data — SaveDealModal fetches on edit (M4).
@@ -182,6 +183,7 @@ class DealController extends AccountBaseController
             'boardColumns' => $boardColumns,
             'allPipelines' => $this->pipelines,
             'defaultPipeline' => $this->defaultPipeline,
+            'stats' => $stats,
             'filters' => $request->only([
                 'lead_pipeline_id',
                 'pipeline_stage_id',
@@ -222,37 +224,37 @@ class DealController extends AccountBaseController
             'products:id,name',
             'packages:id,name',
         ])
-        ->select(
-            'deals.id',
-            'deals.name',
-            'deals.lead_id',
-            'deals.lead_pipeline_id',
-            'deals.agent_id',
-            'deals.added_by',
-            'deals.next_follow_up',
-            'deals.value',
-            'deals.manual_value',
-            'deals.calculated_value',
-            'deals.value_source',
-            'deals.pipeline_stage_id',
-            'deals.created_at',
-            'deals.close_date',
-            'deals.updated_at',
-            'deals.currency_id',
-            'deals.category_id',
-            'deals.is_locked'
-        )
-        ->withCount([
-            'tasks as tasks_count',
-            'followups as meetings_count',
-            'communicationActivities as activities_count'
-        ]);
+            ->select(
+                'deals.id',
+                'deals.name',
+                'deals.lead_id',
+                'deals.lead_pipeline_id',
+                'deals.agent_id',
+                'deals.added_by',
+                'deals.next_follow_up',
+                'deals.value',
+                'deals.manual_value',
+                'deals.calculated_value',
+                'deals.value_source',
+                'deals.pipeline_stage_id',
+                'deals.created_at',
+                'deals.close_date',
+                'deals.updated_at',
+                'deals.currency_id',
+                'deals.category_id',
+                'deals.is_locked'
+            )
+            ->withCount([
+                'tasks as tasks_count',
+                'followups as meetings_count',
+                'communicationActivities as activities_count',
+            ]);
 
         // If specific stage is requested (for kanban column)
         if ($pipelineStageId) {
             $dealsQuery->where('deals.pipeline_stage_id', $pipelineStageId);
         }
-        
+
         // Pipeline/stage are the page's own context, so they stay here; every
         // other filter is shared with the kanban columns (DealFilters).
         $dealFilters = app(DealFilters::class);
@@ -261,7 +263,7 @@ class DealController extends AccountBaseController
             $dealsQuery->whereIn('deals.lead_pipeline_id', $pipelines);
         }
 
-        if (!$pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
+        if (! $pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
             $dealsQuery->whereIn('deals.pipeline_stage_id', $stages);
         }
 
@@ -270,21 +272,43 @@ class DealController extends AccountBaseController
         // Apply permission-based filtering
         $dealRules = [
             'added' => 'deals.added_by',
-            'owned' => function($q, $user) {
-                $q->where(function($query) use ($user) {
-                    $query->whereHas('leadAgent', function($q) use ($user) {
+            'owned' => function ($q, $user) {
+                $q->where(function ($query) use ($user) {
+                    $query->whereHas('leadAgent', function ($q) use ($user) {
                         $q->where('user_id', $user->id);
-                    })->orWhereHas('dealParticipants', function($q) use ($user) {
+                    })->orWhereHas('dealParticipants', function ($q) use ($user) {
                         $q->where('users.id', $user->id);
-                    })->orWhereHas('dealWatchers', function($q) use ($user) {
+                    })->orWhereHas('dealWatchers', function ($q) use ($user) {
                         $q->where('users.id', $user->id);
                     });
                 });
-            }
+            },
         ];
         PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
 
         return $dealsQuery;
+    }
+
+    /**
+     * Header stats (active count, won this week) for the deals list —
+     * computed from the same filtered/permission-scoped query the table
+     * uses, before sorting/pagination narrow it further.
+     */
+    protected function getDealsStats($baseQuery): array
+    {
+        $activeDeals = (clone $baseQuery)
+            ->whereNull('deals.outcome_status')
+            ->count();
+
+        $wonThisWeek = (clone $baseQuery)
+            ->where('deals.outcome_status', OutcomeStatus::Won->value)
+            ->whereRaw('COALESCE(deals.won_at, deals.updated_at) >= ?', [now()->startOfWeek()])
+            ->count();
+
+        return [
+            'active_deals' => $activeDeals,
+            'won_this_week' => $wonThisWeek,
+        ];
     }
 
     /**
@@ -303,29 +327,29 @@ class DealController extends AccountBaseController
             // Apply permission-based filtering
             $dealRules = [
                 'added' => 'deals.added_by',
-                'owned' => function($q, $user) {
-                    $q->where(function($query) use ($user) {
-                        $query->whereHas('leadAgent', function($q) use ($user) {
+                'owned' => function ($q, $user) {
+                    $q->where(function ($query) use ($user) {
+                        $query->whereHas('leadAgent', function ($q) use ($user) {
                             $q->where('user_id', $user->id);
-                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                        })->orWhereHas('dealParticipants', function ($q) use ($user) {
                             $q->where('users.id', $user->id);
-                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        })->orWhereHas('dealWatchers', function ($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
                     });
-                }
+                },
             ];
             PermissionService::applyScope($q, user(), 'view_deals', $dealRules);
         }])
-        ->where('lead_pipeline_id', $pipelineId)
-        ->with('userSetting')
-        ->orderBy('priority', 'asc')
-        ->get();
+            ->where('lead_pipeline_id', $pipelineId)
+            ->with('userSetting')
+            ->orderBy('priority', 'asc')
+            ->get();
 
         // Calculate total value per column
         foreach ($boardColumns as $column) {
             $totalValueQuery = Deal::where('pipeline_stage_id', $column->id);
-            
+
             if ($pipelineId) {
                 $totalValueQuery->where('lead_pipeline_id', $pipelineId);
             }
@@ -336,17 +360,17 @@ class DealController extends AccountBaseController
             // Apply permission-based filtering
             $dealRules = [
                 'added' => 'added_by',
-                'owned' => function($q, $user) {
-                    $q->where(function($query) use ($user) {
-                        $query->whereHas('leadAgent', function($q) use ($user) {
+                'owned' => function ($q, $user) {
+                    $q->where(function ($query) use ($user) {
+                        $query->whereHas('leadAgent', function ($q) use ($user) {
                             $q->where('user_id', $user->id);
-                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                        })->orWhereHas('dealParticipants', function ($q) use ($user) {
                             $q->where('users.id', $user->id);
-                        })->orWhereHas('dealWatchers', function($q) use ($user) {
+                        })->orWhereHas('dealWatchers', function ($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
                     });
-                }
+                },
             ];
             PermissionService::applyScope($totalValueQuery, user(), 'view_deals', $dealRules);
 
@@ -363,14 +387,14 @@ class DealController extends AccountBaseController
     public function getKanbanDeals(Request $request)
     {
         $pipelineStageId = $request->pipeline_stage_id;
-        
-        if (!$pipelineStageId) {
+
+        if (! $pipelineStageId) {
             return Reply::dataOnly(['deals' => ['data' => [], 'next_page_url' => null]]);
         }
 
         $dealsQuery = $this->getDealsQuery($request, $pipelineStageId);
         $dealsQuery->orderBy('deals.created_at', 'desc');
-        
+
         $deals = $dealsQuery->paginate(10);
 
         // Transform deals to include custom fields
@@ -503,31 +527,31 @@ class DealController extends AccountBaseController
             'currency',
             'products' => function ($query) {
                 $query->select('products.id', 'products.name')
-                      ->with(['property' => function ($pq) {
-                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
-                          $pq->with(['developerProject' => function ($dpq) {
-                              $dpq->select('id', 'name', 'availability_link');
-                          }]);
-                      }]);
+                    ->with(['property' => function ($pq) {
+                        $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
+                        $pq->with(['developerProject' => function ($dpq) {
+                            $dpq->select('id', 'name', 'availability_link');
+                        }]);
+                    }]);
             },
             'packages:id,name,value',
             'hibarrFields',
             'offerApplications.offer',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
-                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
-                      ->with('employeeDetail.designation:id,name')
-                      ->where('users.status', '!=', 'deactive')
-                      ->orderBy('users.name');
+                    ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                    ->with('employeeDetail.designation:id,name')
+                    ->where('users.status', '!=', 'deactive')
+                    ->orderBy('users.name');
             },
             'dealParticipants' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
-                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
-                      ->with('employeeDetail.designation:id,name')
-                      ->where('users.status', '!=', 'deactive')
-                      ->orderBy('users.name');
+                    ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                    ->with('employeeDetail.designation:id,name')
+                    ->where('users.status', '!=', 'deactive')
+                    ->orderBy('users.name');
             },
-            'leadFlightItineraries'
+            'leadFlightItineraries',
         ])->findOrFail($id);
         $this->loadDataForView();
 
@@ -541,11 +565,11 @@ class DealController extends AccountBaseController
         if ($deal->contact) {
             $deal->contact->withCustomFields();
             $leadCustomFieldsData = $deal->contact->getCustomFieldsData()->toArray();
-            $leadContactGroup     = $deal->contact->getCustomFieldGroupsWithFields();
-            $leadCustomFields     = $leadContactGroup ? ($leadContactGroup->fields ?? []) : [];
+            $leadContactGroup = $deal->contact->getCustomFieldGroupsWithFields();
+            $leadCustomFields = $leadContactGroup ? ($leadContactGroup->fields ?? []) : [];
         } else {
             $leadCustomFieldsData = [];
-            $leadCustomFields     = [];
+            $leadCustomFields = [];
         }
 
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
@@ -558,7 +582,7 @@ class DealController extends AccountBaseController
 
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if (request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -611,6 +635,7 @@ class DealController extends AccountBaseController
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
+            'view_task_category' => user()->permission('view_task_category'),
         ];
 
         $dealWithCustomFields = $deal->toArray();
@@ -668,7 +693,7 @@ class DealController extends AccountBaseController
             // The rest are still deferred, but split into explicit groups so a
             // slow query in one group no longer blocks the others either.
             'proposals' => Inertia::defer(function () use ($dealId) {
-                if (!in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
+                if (! in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
                     return collect();
                 }
 
@@ -738,17 +763,18 @@ class DealController extends AccountBaseController
                     $script = \App\Models\PipelineAnalysisScript::with('items')
                         ->where('pipeline_id', $deal->lead_pipeline_id)
                         ->first();
-                    if (!$script) {
+                    if (! $script) {
                         return ['items' => []];
                     }
+
                     return [
                         'items' => $script->items->values()->map(fn ($i) => [
-                            'id'             => $i->id,
-                            'type'           => $i->type,
-                            'item_key'       => $i->item_key,
+                            'id' => $i->id,
+                            'type' => $i->type,
+                            'item_key' => $i->item_key,
                             'label_override' => $i->label_override,
-                            'guide_text'     => $i->guide_text,
-                            'position'       => $i->position,
+                            'guide_text' => $i->guide_text,
+                            'position' => $i->position,
                         ]),
                     ];
                 }, 'formMeta'),
@@ -935,7 +961,7 @@ class DealController extends AccountBaseController
 
     private function formatCustomFieldConditionValue(CustomField $customField, mixed $value): mixed
     {
-        if (in_array($customField->type, ['select', 'radio', 'checkbox'], true) && !empty($customField->values)) {
+        if (in_array($customField->type, ['select', 'radio', 'checkbox'], true) && ! empty($customField->values)) {
             $options = $customField->values;
 
             if (is_string($options) && (str_starts_with($options, '[') || str_starts_with($options, '{'))) {
@@ -955,11 +981,12 @@ class DealController extends AccountBaseController
                         if ((string) $optionValue === (string) $value && $optionLabel !== null && $optionLabel !== '') {
                             return $optionLabel;
                         }
+
                         continue;
                     }
 
                     // Associative map of value => label.
-                    if (!$isList && (string) $key === (string) $value) {
+                    if (! $isList && (string) $key === (string) $value) {
                         return $option;
                     }
 
@@ -986,7 +1013,7 @@ class DealController extends AccountBaseController
             'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
 
         $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
             ->where('deal_id', $id)
@@ -1018,7 +1045,7 @@ class DealController extends AccountBaseController
     {
         $this->notes = DealNote::where('deal_id', $dealId)->orderBy('created_at', 'desc')->get();
         $viewNotesPermission = user()->permission('view_deal_note');
-        abort_403(!($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
+        abort_403(! ($viewNotesPermission == 'all' || $viewNotesPermission == 'added' || $viewNotesPermission == 'both' || $viewNotesPermission == 'owned'));
 
         if (user()->permission('view_deal_note') == 'added') {
             $this->notes = $this->notes->where('added_by', user()->id);
@@ -1037,7 +1064,7 @@ class DealController extends AccountBaseController
     public function create()
     {
         $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $this->employees = User::allEmployees(null, true);
 
@@ -1047,8 +1074,8 @@ class DealController extends AccountBaseController
             $q->where('status', 'active');
         })->get();
 
-        $this->stage = (request()->has('column_id') && !is_null(request()->column_id)) ? PipelineStage::find(request()->column_id) : null;
-        $this->contactID = (request()->has('contact_id') && !is_null(request()->contact_id)) ? request()->contact_id : null;
+        $this->stage = (request()->has('column_id') && ! is_null(request()->column_id)) ? PipelineStage::find(request()->column_id) : null;
+        $this->contactID = (request()->has('contact_id') && ! is_null(request()->contact_id)) ? request()->contact_id : null;
 
         $this->leadAgentArray = $this->leadAgents->pluck('user_id')->toArray();
 
@@ -1058,7 +1085,7 @@ class DealController extends AccountBaseController
             })->first()->id;
         }
 
-        $deal = new Deal();
+        $deal = new Deal;
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
 
         if ($getCustomFieldGroupsWithFields) {
@@ -1105,14 +1132,14 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * @param StoreRequest $request
      * @return array|void
+     *
      * @throws RelatedResourceNotFoundException
      */
     public function store(StoreRequest $request)
     {
         $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $lead = $request->lead_contact ? Lead::find($request->lead_contact) : null;
         $explicitAgentId = $request->filled('agent_id') ? (int) $request->agent_id : null;
@@ -1123,7 +1150,7 @@ class DealController extends AccountBaseController
             $request->filled('category_id') ? (int) $request->category_id : null
         );
 
-        $deal = new Deal();
+        $deal = new Deal;
         $deal->name = $request->name;
         $deal->lead_id = $request->lead_contact;
         $deal->next_follow_up = 'yes';
@@ -1164,7 +1191,7 @@ class DealController extends AccountBaseController
             $packageIds = $packageRouter->normalizePackageIds($request->package_id);
             $packageRouter->syncDealPackages($deal, $packageIds);
 
-            if (!empty($packageIds)) {
+            if (! empty($packageIds)) {
                 app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
                     $deal,
                     [],
@@ -1187,6 +1214,7 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealWatchers->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, [], $watcherIds);
         }
 
         // Handle deal participants
@@ -1201,16 +1229,17 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealParticipants->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, [], $participantIds);
         }
 
-        if (!is_null($request->product_id) && $request->product_id !== '') {
+        if (! is_null($request->product_id) && $request->product_id !== '') {
 
             $products = is_array($request->product_id)
                 ? $request->product_id
                 : [$request->product_id];
 
             foreach ($products as $product) {
-                $leadProduct = new LeadProduct();
+                $leadProduct = new LeadProduct;
                 $leadProduct->deal_id = $deal->id;
                 $leadProduct->product_id = $product;
                 $leadProduct->save();
@@ -1222,6 +1251,14 @@ class DealController extends AccountBaseController
 
             foreach ($linkedProducts as $productModel) {
                 $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+
+                if ($productModel->property) {
+                    app(\App\Services\DealNotificationService::class)->notifyPropertyLinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
             }
         }
 
@@ -1261,16 +1298,16 @@ class DealController extends AccountBaseController
         $redirectUrl = urldecode($request->redirect_url);
 
         if ($request->add_more === 'true') {
-            Log::info('Deal saved with add_more=true, deal ID: ' . $deal->id);
+            Log::info('Deal saved with add_more=true, deal ID: '.$deal->id);
             // Return fresh form HTML for add more functionality
             $html = $this->create();
+
             // return Reply::successWithData(__('messages.recordSaved'), ['html' => $html, 'add_more' => true]);
             return back()->with([
                 'status' => 'success',
-                'message' => __('messages.dealSaved')
+                'message' => __('messages.dealSaved'),
             ]);
         }
-
 
         if ($redirectUrl == '') {
             $redirectUrl = route('deals.index');
@@ -1282,24 +1319,24 @@ class DealController extends AccountBaseController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
         $this->deal = Deal::with([
-            'currency', 
-            'leadAgent', 
-            'leadAgent.user', 
-            'products', 
+            'currency',
+            'leadAgent',
+            'leadAgent.user',
+            'products',
             'packages',
-            'leadStage', 
+            'leadStage',
             'dealWatchers' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
-                      ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
-                      ->with('employeeDetail.designation:id,name')
-                      ->orderBy('users.name');
-            }
+                    ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
+                    ->with('employeeDetail.designation:id,name')
+                    ->orderBy('users.name');
+            },
         ])->findOrFail($id)->withCustomFields();
 
         $this->productIds = $this->deal->products->pluck('id')->toArray();
@@ -1315,14 +1352,14 @@ class DealController extends AccountBaseController
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $this->deal, $dealRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if (request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
         }
 
-        $this->tab = (!is_null(request('tab'))) ? request('tab') : null;
+        $this->tab = (! is_null(request('tab'))) ? request('tab') : null;
         // Filter out active employees
         $activeEmployees = $this->employees->filter(function ($employee) {
             return $employee->status !== 'deactive';
@@ -1330,7 +1367,7 @@ class DealController extends AccountBaseController
 
         // Get the selected employees who are deal watchers
         $selectedEmployees = $this->deal->dealWatchers->pluck('id')->toArray();
-        
+
         // Include any deactivated employees who are watchers
         $deactivatedWatchers = $this->deal->dealWatchers->where('status', 'deactive');
         if ($deactivatedWatchers->isNotEmpty()) {
@@ -1381,9 +1418,9 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * @param UpdateRequest $request
-     * @param int $id
+     * @param  int  $id
      * @return array|void
+     *
      * @throws RelatedResourceNotFoundException
      */
     public function update(UpdateRequest $request, $id)
@@ -1394,6 +1431,7 @@ class DealController extends AccountBaseController
             if ($request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.dealLocked'));
             }
+
             return Reply::error(__('messages.dealLocked'));
         }
 
@@ -1406,14 +1444,14 @@ class DealController extends AccountBaseController
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if (request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
         }
 
-        if (!is_null($request->agent_id)) {
+        if (! is_null($request->agent_id)) {
             // $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
             // ensures that the check is done direclty on the LeadAgent model
             $leadAgent = LeadAgent::find($request->agent_id);
@@ -1439,11 +1477,11 @@ class DealController extends AccountBaseController
         // TODO: Einstein sync issue - comment these two lines for now
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
-        
+
         // Debug logging
-        Log::info('Deal update - strategy_accepted: ' . ($deal->strategy_accepted ? 'true' : 'false'));
-        Log::info('Deal update - downpayment_confirmed: ' . ($deal->downpayment_confirmed ? 'true' : 'false'));
-        
+        Log::info('Deal update - strategy_accepted: '.($deal->strategy_accepted ? 'true' : 'false'));
+        Log::info('Deal update - downpayment_confirmed: '.($deal->downpayment_confirmed ? 'true' : 'false'));
+
         $customFieldsUpdated = false;
         // To add custom fields data
         if ($request->custom_fields_data) {
@@ -1471,7 +1509,33 @@ class DealController extends AccountBaseController
             $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
             $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
 
+            $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
+            $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
+
             $packageRouter->syncDealPackages($deal, $newPackageIds);
+
+            $newPackageNames = Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray();
+            $notificationService = app(\App\Services\DealNotificationService::class);
+
+            if (! empty($addedPackageIds)) {
+                $addedNames = array_values(array_filter(array_map(
+                    fn ($id) => $newPackageNames[$id] ?? null,
+                    $addedPackageIds,
+                )));
+                if (! empty($addedNames)) {
+                    $notificationService->notifyPackageAssigned($deal, $addedNames);
+                }
+            }
+
+            if (! empty($removedPackageIds)) {
+                $removedNames = array_values(array_filter(array_map(
+                    fn ($id) => $oldPackageNames[$id] ?? null,
+                    $removedPackageIds,
+                )));
+                if (! empty($removedNames)) {
+                    $notificationService->notifyPackageRemoved($deal, $removedNames);
+                }
+            }
 
             $sortedNew = $newPackageIds;
             $sortedCurrent = $currentPackageIds;
@@ -1484,19 +1548,23 @@ class DealController extends AccountBaseController
                     $currentPackageIds,
                     $newPackageIds,
                     $oldPackageNames,
-                    Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray()
+                    $newPackageNames
                 );
             }
         }
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $oldWatcherIds = $deal->dealWatchers()->pluck('users.id')->toArray();
             $deal->dealWatchers()->sync($request->deal_watcher);
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, $oldWatcherIds, $request->deal_watcher);
         }
 
         // Handle deal participants
         if ($request->deal_participant && is_array($request->deal_participant)) {
+            $oldParticipantIds = $deal->dealParticipants()->pluck('users.id')->toArray();
             $deal->dealParticipants()->sync($request->deal_participant);
+            app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, $oldParticipantIds, $request->deal_participant);
         }
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
@@ -1506,15 +1574,44 @@ class DealController extends AccountBaseController
             $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
         }
 
-        // Record CRM events for newly linked products
+        // Record CRM events and notifications for product/property changes
         $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
 
-        if (!empty($newProductIds)) {
+        if (! empty($newProductIds) || ! empty($removedProductIds)) {
             $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
-            $newProducts = Product::with('property')->whereIn('id', $newProductIds)->get();
+            $notificationService = app(\App\Services\DealNotificationService::class);
+            $changedProducts = Product::with('property')
+                ->whereIn('id', array_merge($newProductIds, $removedProductIds))
+                ->get()
+                ->keyBy('id');
 
-            foreach ($newProducts as $productModel) {
+            foreach ($newProductIds as $productId) {
+                $productModel = $changedProducts->get($productId);
+                if (! $productModel) {
+                    continue;
+                }
+
                 $dealActivityEventService->recordProductLinked($deal, $productModel, $productModel->property);
+
+                if ($productModel->property) {
+                    $notificationService->notifyPropertyLinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
+            }
+
+            foreach ($removedProductIds as $productId) {
+                $productModel = $changedProducts->get($productId);
+                if ($productModel?->property) {
+                    $notificationService->notifyPropertyUnlinked(
+                        $deal,
+                        trim((string) ($productModel->property->title ?? $productModel->property->reference_code ?? $productModel->name ?? '')) ?: 'Property',
+                        (int) $productModel->property->id,
+                    );
+                }
             }
         }
 
@@ -1527,8 +1624,8 @@ class DealController extends AccountBaseController
         // (e.g. at the 0 they're created with) after a plain PUT.
         app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
 
-        if (!$deal->wasChanged() && $customFieldsUpdated) {
-             app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+        if (! $deal->wasChanged() && $customFieldsUpdated) {
+            app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
 
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
@@ -1548,8 +1645,7 @@ class DealController extends AccountBaseController
             );
         }
 
-        $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
-
+        $redirectTo = (! is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealUpdateAutomation($request, $deal);
@@ -1582,7 +1678,7 @@ class DealController extends AccountBaseController
      */
     public function updateOutcome(\Illuminate\Http\Request $request, $id, DealOutcomeService $outcomes)
     {
-        abort_403(!in_array('admin', user_roles()));
+        abort_403(! in_array('admin', user_roles()));
 
         $validated = $request->validate([
             'outcome_status' => ['present', 'nullable', Rule::in(OutcomeStatus::toArray())],
@@ -1594,7 +1690,7 @@ class DealController extends AccountBaseController
         $result = $outcomes->apply(
             $deal,
             $validated['outcome_status'] ? OutcomeStatus::from($validated['outcome_status']) : null,
-            $validated['reason'] ?: 'Outcome changed manually by ' . user()->name,
+            $validated['reason'] ?: 'Outcome changed manually by '.user()->name,
         );
 
         return response()->json([
@@ -1651,7 +1747,7 @@ class DealController extends AccountBaseController
         $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
         $editPermission = user()->permission('edit_deals');
 
-        abort_403(!(
+        abort_403(! (
             $editPermission == 'all'
             || ($editPermission == 'added' && $deal->added_by == user()->id)
             || ($editPermission == 'owned' && $hasTeamAccess)
@@ -1660,17 +1756,17 @@ class DealController extends AccountBaseController
 
         // Get validated data
         $validatedData = $request->validated();
-        
+
         // Start database transaction
         DB::beginTransaction();
-        
+
         try {
             $customFieldsUpdated = false;
             // 4. Handle Custom Fields
             if (array_key_exists('custom_fields', $validatedData) || $request->hasFile('custom_fields')) {
                 // Get regular custom field values
                 $customFieldsData = $validatedData['custom_fields'] ?? [];
-                
+
                 // Merge file uploads into custom fields data
                 // Files uploaded as custom_fields[field_X] or custom_fields[field_X][0], [1], etc. for multiple
                 if ($request->hasFile('custom_fields')) {
@@ -1688,15 +1784,15 @@ class DealController extends AccountBaseController
                                         $uploadedFiles[] = $file;
                                     }
                                 }
-                                if (!empty($uploadedFiles)) {
+                                if (! empty($uploadedFiles)) {
                                     $customFieldsData[$fieldKey] = $uploadedFiles;
                                 }
                             }
                         }
                     }
                 }
-                
-                if (!empty($customFieldsData)) {
+
+                if (! empty($customFieldsData)) {
                     $deal->updateCustomFieldData($customFieldsData);
                     $customFieldsUpdated = true;
                 }
@@ -1716,7 +1812,7 @@ class DealController extends AccountBaseController
                 'reminders' => 'reminders',
                 'probability' => 'probability',
                 'note' => 'note',
-                'agent_id' => 'agent_id', //can be null
+                'agent_id' => 'agent_id', // can be null
                 'lead_id' => 'lead_id',
                 'category_id' => 'category_id',
                 'source_id' => 'source_id',
@@ -1747,16 +1843,16 @@ class DealController extends AccountBaseController
                 $dealUpdates['next_follow_up'] = Carbon::parse("$date $time")->format('Y-m-d H:i:s');
             }
 
-            if (!empty($dealUpdates)) {
+            if (! empty($dealUpdates)) {
                 $deal->update($dealUpdates);
-                if (!$deal->wasChanged() && $customFieldsUpdated) {
-                     app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                if (! $deal->wasChanged() && $customFieldsUpdated) {
+                    app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
                 }
                 if (array_key_exists('remind_at', $dealUpdates) || array_key_exists('reminders', $dealUpdates)) {
                     app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
                 }
             } elseif ($customFieldsUpdated) {
-                 app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
             }
 
             // 2. Update Lead (Contact) Fields
@@ -1790,12 +1886,12 @@ class DealController extends AccountBaseController
                         }
                     }
 
-                    if (!empty($leadUpdates)) {
+                    if (! empty($leadUpdates)) {
                         $lead->update($leadUpdates);
                     }
                 }
             }
-            
+
             // 3. Handle Products
             $productsUpdated = false;
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
@@ -1804,7 +1900,7 @@ class DealController extends AccountBaseController
                 app(DealOfferService::class)->applyOffersToDeal($deal);
             }
 
-            if (!$productsUpdated && (
+            if (! $productsUpdated && (
                 array_key_exists('value', $validatedData)
                 || array_key_exists('manual_value', $validatedData)
                 || array_key_exists('value_source', $validatedData)
@@ -1812,19 +1908,18 @@ class DealController extends AccountBaseController
                 app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
             }
 
-            
             // Handle tags if provided
             if (array_key_exists('tags', $validatedData)) {
                 // This assumes you have a tags relationship and tagging system
                 // You might need to implement this based on your tagging system
                 // $deal->syncTags($validatedData['tags']);
             }
-            
+
             // Log the update in deal history
             $this->logDealHistory($deal, 'Deal updated via quick fix', $dealUpdates);
-            
+
             DB::commit();
-            
+
             // Return JSON response for AJAX requests (like QuickFixModal)
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
@@ -1833,30 +1928,30 @@ class DealController extends AccountBaseController
                     'data' => $this->loadFullDeal($deal->id),
                 ]);
             }
-            
+
             return back()->with([
                 'status' => 'success',
-                'message' => __('messages.dealUpdateSuccess')
+                'message' => __('messages.dealUpdateSuccess'),
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'An error occurred while updating the deal.',
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ], 500);
             }
-            
+
             return back()->with([
                 'status' => 'error',
-                'message' => __('messages.errorOccurred')
+                'message' => __('messages.errorOccurred'),
             ]);
         }
     }
-    
+
     /**
      * Log deal history for tracking changes
      */
@@ -1870,40 +1965,34 @@ class DealController extends AccountBaseController
                 'details' => json_encode([
                     'changed_fields' => array_keys($changes),
                     'timestamp' => now(),
-                    'user_name' => user()->name
-                ])
+                    'user_name' => user()->name,
+                ]),
             ]);
         } catch (\Exception $e) {
             // Log the error but don't fail the main operation
-            Log::warning('Failed to log deal history: ' . $e->getMessage());
+            Log::warning('Failed to log deal history: '.$e->getMessage());
         }
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $deal = Deal::with('leadAgent', 'leadAgent.user')->findOrFail($id);
+        // delete_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'delete_deals', $deal, $dealRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if (request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -1914,6 +2003,7 @@ class DealController extends AccountBaseController
             if (request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.dealLocked'));
             }
+
             return Reply::error(__('messages.dealLocked'));
         }
 
@@ -1934,7 +2024,6 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * @param CommonRequest $request
      * @return array
      */
     public function changeStatus(CommonRequest $request)
@@ -1948,7 +2037,7 @@ class DealController extends AccountBaseController
         $this->editPermission = user()->permission('edit_deals');
         $this->changeLeadStatusPermission = user()->permission('change_deal_stages');
 
-        abort_403(!(($this->editPermission == 'all' || ($this->editPermission == 'added' && $deal->added_by == user()->id)) || $this->changeLeadStatusPermission == 'all'));
+        abort_403(! (($this->editPermission == 'all' || ($this->editPermission == 'added' && $deal->added_by == user()->id)) || $this->changeLeadStatusPermission == 'all'));
 
         $deal->status_id = $request->statusID;
         $deal->save();
@@ -1960,8 +2049,7 @@ class DealController extends AccountBaseController
 
     /**
      * Change the assigned agent for a single deal
-     * 
-     * @param Request $request
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function changeAgent(Request $request)
@@ -1981,21 +2069,21 @@ class DealController extends AccountBaseController
 
         // Check permission - allow if user has 'all' permission or added the deal
         // abort_403(!(
-        //     $this->editPermission == 'all' || 
+        //     $this->editPermission == 'all' ||
         //     ($this->editPermission == 'added' && $deal->added_by == user()->id) ||
         //     ($this->editPermission == 'both' && ($deal->added_by == user()->id || $deal->agent_id == user()->id))
         // ));
 
         $oldAgentId = $deal->agent_id;
-        
+
         if ($request->agent_id) {
             $agent = LeadAgent::find($request->agent_id);
-            
+
             // If agent has a specific category, try to find matching agent for deal's category
             if ($agent && $deal->category_id) {
                 $agentsWithSameUser = LeadAgent::where('user_id', $agent->user_id)->get();
                 $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
-                
+
                 if ($matchingAgent) {
                     $deal->agent_id = $matchingAgent->id;
                 } else {
@@ -2007,7 +2095,7 @@ class DealController extends AccountBaseController
         } else {
             $deal->agent_id = null;
         }
-        
+
         $deal->save();
 
         // Log history if agent changed
@@ -2022,7 +2110,7 @@ class DealController extends AccountBaseController
         $deal->load('leadAgent.user');
 
         return Reply::successWithData(__('messages.updateSuccess'), [
-            'deal' => $deal
+            'deal' => $deal,
         ]);
     }
 
@@ -2043,20 +2131,20 @@ class DealController extends AccountBaseController
                     $deletableIds = $deals->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
                     $records = $deals->map(function (Deal $deal) {
                         return [
-                            'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
+                            'label' => 'Deleted: '.($deal->name ?? ('#'.$deal->id)),
                             'url' => '',
                         ];
                     })->values()->all();
 
                     $this->deleteRecords($request, $deletableIds);
 
-                    if (user() && !empty($records)) {
+                    if (user() && ! empty($records)) {
                         user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
                     }
 
                     return back()->with([
                         'status' => 'success',
-                        'message' => __('messages.deleteSuccess')
+                        'message' => __('messages.deleteSuccess'),
                     ]);
 
                 case 'bulk_update':
@@ -2070,15 +2158,33 @@ class DealController extends AccountBaseController
 
                     $updated = $this->applyDealBulkUpdateFields($request, $rowIds, $fields);
 
-                    return Reply::success(
+                    return Reply::successWithData(
                         $updated === 0
                             ? 'No deals were updated — locked deals are skipped.'
-                            : __('messages.updateSuccess')
+                            : __('messages.updateSuccess'),
+                        [
+                            'summary' => [
+                                'updated' => $updated,
+                                'skipped' => [
+                                    [
+                                        'count' => max(0, count($rowIds) - $updated),
+                                        'reason' => 'locked and left unchanged',
+                                    ],
+                                ],
+                            ],
+                        ]
                     );
 
                 case 'change-status':
                     $stage = PipelineStage::find($request->status);
-                    $stageLabel = $stage?->name ?? ('ID ' . $request->status);
+                    if ($stage === null) {
+                        return back()->with([
+                            'status' => 'error',
+                            'message' => __('messages.updateFail'),
+                        ]);
+                    }
+
+                    $stageLabel = $stage->name;
                     $editableIds = Deal::whereIn('id', $rowIds)
                         ->where('is_locked', false)
                         ->pluck('id')
@@ -2088,48 +2194,48 @@ class DealController extends AccountBaseController
                     $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
                     $records = $deals->map(function (Deal $deal) use ($stageLabel) {
                         return [
-                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $stageLabel . ')',
+                            'label' => ($deal->name ?? ('#'.$deal->id)).' ('.$stageLabel.')',
                             'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
                         ];
                     })->values()->all();
 
                     $this->changeBulkStatus($request, $editableIds);
 
-                    if (user() && !empty($records)) {
+                    if (user() && ! empty($records)) {
                         user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
                     }
 
                     return back()->with([
                         'status' => 'success',
-                        'message' => __('messages.updateSuccess')
+                        'message' => __('messages.updateSuccess'),
                     ]);
 
                 case 'change-deal-agents':
                     $leadAgent = LeadAgent::with('user')->find($request->agent);
-                    $agentLabel = $leadAgent?->user?->name ?? ('ID ' . $request->agent);
+                    $agentLabel = $leadAgent?->user?->name ?? ('ID '.$request->agent);
                     $eligibleDeals = $this->eligibleDealsForAgentChange($rowIds);
                     $records = $eligibleDeals->map(function (Deal $deal) use ($agentLabel) {
                         return [
-                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $agentLabel . ')',
+                            'label' => ($deal->name ?? ('#'.$deal->id)).' ('.$agentLabel.')',
                             'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
                         ];
                     })->values()->all();
 
                     $this->changeAgentStatus($request, $eligibleDeals);
 
-                    if (user() && !empty($records)) {
+                    if (user() && ! empty($records)) {
                         user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-deal-agents', count($records), $records));
                     }
 
                     return back()->with([
                         'status' => 'success',
-                        'message' => __('messages.updateSuccess')
+                        'message' => __('messages.updateSuccess'),
                     ]);
 
                 default:
                     return back()->with([
                         'status' => 'error',
-                        'message' => __('messages.selectAction')
+                        'message' => __('messages.selectAction'),
                     ]);
             }
         } finally {
@@ -2180,6 +2286,14 @@ class DealController extends AccountBaseController
             return;
         }
 
+        // Mass delete bypasses DealObserver, so capture the affected deals up front
+        // and notify their agents/watchers explicitly (in-app only — mail stays
+        // suppressed by the bulk-action container flag set in bulkAction()).
+        $deals = Deal::query()
+            ->with(['leadAgent.user', 'dealWatchers'])
+            ->whereIn('id', $deletableIds)
+            ->get();
+
         $model = new ReflectionClass('App\Models\Deal');
 
         DB::table('custom_fields_data')
@@ -2188,6 +2302,11 @@ class DealController extends AccountBaseController
             ->delete();
 
         Deal::whereIn('id', $deletableIds)->delete();
+
+        $notificationService = app(\App\Services\DealNotificationService::class);
+        foreach ($deals as $deal) {
+            $notificationService->notifyDealDeleted($deal, user());
+        }
     }
 
     protected function changeBulkStatus($request, ?array $editableIds = null)
@@ -2195,7 +2314,7 @@ class DealController extends AccountBaseController
         $canEditDeals = user()->permission('edit_deals') == 'all';
         $canChangeStages = user()->permission('change_deal_stages') == 'all';
 
-        abort_403(!($canEditDeals || $canChangeStages));
+        abort_403(! ($canEditDeals || $canChangeStages));
 
         $newStatus = $request->status;
 
@@ -2221,15 +2340,17 @@ class DealController extends AccountBaseController
             return;
         }
 
+        if ($stage === null) {
+            throw new \InvalidArgumentException('Invalid pipeline stage.');
+        }
+
         if ($stage->slug === 'win' || $stage->slug === 'lost') {
             Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
 
         // Iterated rather than a mass update: whereIn()->update() bypasses
-        // DealObserver, which is what stamps stage_entered_at and records the
-        // deal_stage_changed event. Without both, these deals silently drop
-        // out of every dwell-time and funnel metric. Bulk stage moves are tens
-        // of rows, not thousands, so the extra queries are cheap.
+        // DealObserver, which stamps stage_entered_at, records deal_stage_changed,
+        // and notifies agents/watchers (mail suppressed by the bulk-action flag).
         Deal::whereIn('id', $editableIds)
             ->get()
             ->each(fn (Deal $deal) => $deal->update(['pipeline_stage_id' => $newStatus]));
@@ -2342,15 +2463,14 @@ class DealController extends AccountBaseController
     }
 
     /**
-     *
-     * @param int $leadID
+     * @param  int  $leadID
      * @return void
      */
     public function followUpCreate($dealID)
     {
         $this->addPermission = user()->permission('add_lead_follow_up');
 
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $this->dealID = $dealID;
         $this->deal = Deal::findOrFail($dealID);
@@ -2363,21 +2483,21 @@ class DealController extends AccountBaseController
         $tab = request('tab');
         $this->activeTab = $tab ?: 'overview';
         $this->view = 'leads.ajax.follow-up';
-        $dataTable = new LeadFollowupDataTable();
+        $dataTable = new LeadFollowupDataTable;
 
         return $dataTable->render('leads.show', $this->data);
     }
 
     /**
-     * @param FollowUpStoreRequest $request
      * @return array|void
+     *
      * @throws RelatedResourceNotFoundException
      */
     public function followUpStore(FollowUpStoreRequest $request)
     {
         $this->addPermission = user()->permission('add_lead_follow_up');
 
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $deal = null;
         $lead = null;
@@ -2412,7 +2532,7 @@ class DealController extends AccountBaseController
 
         $browserTimezone = $request->timezone;
 
-        if (!$browserTimezone) {
+        if (! $browserTimezone) {
             $browserTimezone = company()->timezone ?? 'UTC';
             \Log::warning('Browser timezone not provided in follow-up request, using company timezone', [
                 'deal_id' => $request->deal_id,
@@ -2423,7 +2543,7 @@ class DealController extends AccountBaseController
 
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
-            $request->next_follow_up_date . ' ' . $request->start_time,
+            $request->next_follow_up_date.' '.$request->start_time,
             $browserTimezone
         )->setTimezone('UTC');
 
@@ -2431,7 +2551,7 @@ class DealController extends AccountBaseController
         $customReminders = $request->reminders ?? [];
         $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->lead_id = $lead?->id;
         $followUp->deal_id = $deal?->id;
         $followUp->meeting_type_id = $request->meeting_type_id;
@@ -2515,7 +2635,7 @@ class DealController extends AccountBaseController
     {
         $this->follow = DealFollowUp::findOrFail($id);
         $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $this->follow->added_by == user()->id)));
+        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $this->follow->added_by == user()->id)));
 
         return view('leads.followup.edit', $this->data);
     }
@@ -2541,7 +2661,7 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::findOrFail($request->id);
         $this->editPermission = user()->permission('edit_lead_follow_up');
 
-        abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
+        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
 
         if ($this->deal->next_follow_up != 'yes') {
             return Reply::error(__('messages.leadFollowUpRestricted'));
@@ -2560,8 +2680,8 @@ class DealController extends AccountBaseController
         // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
         // Prefer browser timezone from request, fallback to company timezone if not provided
         $browserTimezone = $request->input('timezone');
-        
-        if (!$browserTimezone) {
+
+        if (! $browserTimezone) {
             // Fallback to company timezone if browser timezone not provided
             $browserTimezone = company()->timezone ?? 'UTC';
             \Log::warning('Browser timezone not provided in follow-up update request, using company timezone', [
@@ -2570,10 +2690,10 @@ class DealController extends AccountBaseController
                 'company_timezone' => $browserTimezone,
             ]);
         }
-        
+
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
-            $request->next_follow_up_date . ' ' . $request->start_time,
+            $request->next_follow_up_date.' '.$request->start_time,
             $browserTimezone
         )->setTimezone('UTC'); // Convert from browser/company timezone to UTC for database storage
         // Assign Carbon instance directly - Laravel will handle the conversion
@@ -2587,10 +2707,10 @@ class DealController extends AccountBaseController
         $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
         $followUp->remind_time = $firstCustomReminder['time'];
         $followUp->remind_type = $firstCustomReminder['type'];
-        
+
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
-        
+
         if ($request->has('participants') && is_array($request->participants)) {
             $followUp->participants = MeetingVisibilityService::ensureCreatorIsParticipant(
                 $request->participants,
@@ -2611,20 +2731,20 @@ class DealController extends AccountBaseController
         // Try to trigger follow-up automation for update - if this fails, continue anyway
         try {
             $this->triggerFollowUpAutomation($followUp);
-            Log::info("Follow-up automation triggered successfully during update", [
+            Log::info('Follow-up automation triggered successfully during update', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
             ]);
         } catch (\Exception $e) {
-            Log::error("Follow-up automation failed during update - continuing without meeting link", [
+            Log::error('Follow-up automation failed during update - continuing without meeting link', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             // Send notification to responsible agent
             $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
-            
+
             // Continue without throwing exception - follow-up is already updated
         }
 
@@ -2639,7 +2759,7 @@ class DealController extends AccountBaseController
     {
         $followUp = DealFollowUp::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead_follow_up');
-        abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $followUp->added_by == user()->id)));
+        abort_403(! ($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $followUp->added_by == user()->id)));
 
         app(MeetingReminderSync::class)->cancelForFollowUp($followUp);
 
@@ -2651,7 +2771,6 @@ class DealController extends AccountBaseController
     /**
      * Apply quick actions to multiple follow-ups
      *
-     * @param Request $request
      * @return array
      */
     public function applyFollowUpQuickAction(Request $request)
@@ -2662,7 +2781,7 @@ class DealController extends AccountBaseController
 
                 return back()->with([
                     'status' => 'success',
-                    'message' => __('messages.deleteSuccess')
+                    'message' => __('messages.deleteSuccess'),
                 ]);
 
             case 'change-status':
@@ -2670,13 +2789,13 @@ class DealController extends AccountBaseController
 
                 return back()->with([
                     'status' => 'success',
-                    'message' => __('messages.updateSuccess')
+                    'message' => __('messages.updateSuccess'),
                 ]);
 
             default:
                 return back()->with([
                     'status' => 'error',
-                    'message' => __('messages.selectAction')
+                    'message' => __('messages.selectAction'),
                 ]);
         }
     }
@@ -2684,21 +2803,21 @@ class DealController extends AccountBaseController
     /**
      * Delete multiple follow-up records
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return void
      */
     protected function deleteFollowUpRecords($request)
     {
         $this->deletePermission = user()->permission('delete_lead_follow_up');
-        
+
         $followUpIds = explode(',', $request->row_ids);
-        
+
         // Check permissions for each follow-up
         if ($this->deletePermission == 'added') {
             $followUps = DealFollowUp::whereIn('id', $followUpIds)
                 ->where('added_by', user()->id)
                 ->get();
-                
+
             if ($followUps->count() !== count($followUpIds)) {
                 abort_403(__('messages.permissionDenied'));
             }
@@ -2707,23 +2826,24 @@ class DealController extends AccountBaseController
         }
 
         $sync = app(MeetingReminderSync::class);
-        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($sync) {
-            $sync->cancelForFollowUp($followUp);
-        });
+        $followUps = DealFollowUp::whereIn('id', $followUpIds)->get();
 
-        DealFollowUp::whereIn('id', $followUpIds)->delete();
+        foreach ($followUps as $followUp) {
+            $sync->cancelForFollowUp($followUp);
+            $followUp->delete();
+        }
     }
 
     /**
      * Change status of multiple follow-ups
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return void
      */
     protected function changeBulkFollowUpStatus($request)
     {
         $this->editPermission = user()->permission('edit_lead_follow_up');
-        
+
         $followUpIds = explode(',', $request->row_ids);
         $newStatus = $request->status;
 
@@ -2731,16 +2851,16 @@ class DealController extends AccountBaseController
         // (scheduled|completed|cancelled) — selecting it wrote an empty string
         // or threw, depending on the connection's strict mode.
         $validStatuses = ['scheduled', 'completed', 'cancelled'];
-        if (!in_array($newStatus, $validStatuses)) {
+        if (! in_array($newStatus, $validStatuses)) {
             abort(422, __('Invalid status provided'));
         }
-        
+
         // Check permissions for each follow-up
         if ($this->editPermission == 'added') {
             $followUps = DealFollowUp::whereIn('id', $followUpIds)
                 ->where('added_by', user()->id)
                 ->get();
-                
+
             if ($followUps->count() !== count($followUpIds)) {
                 abort_403(__('messages.permissionDenied'));
             }
@@ -2748,20 +2868,28 @@ class DealController extends AccountBaseController
             abort_403(__('messages.permissionDenied'));
         }
 
-        // Update the status. There is deliberately no completed_at write here:
-        // no migration ever created that column, so the old "if completed"
-        // branch made every bulk completion fail. updated_at is the stamp.
-        DealFollowUp::whereIn('id', $followUpIds)->update([
-            'status' => $newStatus,
-            'updated_at' => now()
-        ]);
+        // Update the status per-record (not a mass update) so DealFollowUp
+        // observers and calendar sync run for each one. There is deliberately
+        // no completed_at write here: no migration ever created that column,
+        // so the old "if completed" branch made every bulk completion fail.
+        // updated_at is the stamp.
+        $sync = app(MeetingReminderSync::class);
+        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($newStatus, $sync) {
+            $followUp->status = $newStatus;
+            $followUp->updated_at = now();
+            $followUp->save();
+
+            if (in_array($newStatus, ['completed', 'cancelled'])) {
+                $sync->cancelForFollowUp($followUp);
+            }
+        });
     }
 
     public function proposals()
     {
         $viewPermission = user()->permission('view_lead_proposals');
 
-        abort_403(!in_array($viewPermission, ['all', 'added']));
+        abort_403(! in_array($viewPermission, ['all', 'added']));
 
         $tab = request('tab');
         $this->activeTab = $tab ?: 'overview';
@@ -2773,7 +2901,7 @@ class DealController extends AccountBaseController
 
     public function gdpr()
     {
-        $dataTable = new LeadGDPRDataTable();
+        $dataTable = new LeadGDPRDataTable;
         $tab = request('tab');
         $this->activeTab = $tab ?: 'gdpr';
         $this->view = 'leads.ajax.gdpr';
@@ -2793,7 +2921,6 @@ class DealController extends AccountBaseController
             ->where('id', $request->consentId)
             ->first();
 
-
         return view('leads.gdpr.consent-form', $this->data);
     }
 
@@ -2808,7 +2935,7 @@ class DealController extends AccountBaseController
         }
 
         // Saving Consent Data
-        $newConsentLead = new PurposeConsentLead();
+        $newConsentLead = new PurposeConsentLead;
         $newConsentLead->deal_id = $deal->id;
         $newConsentLead->purpose_consent_id = $consent->id;
         $newConsentLead->status = trim($request->status);
@@ -2822,10 +2949,10 @@ class DealController extends AccountBaseController
 
     public function importLead()
     {
-        $this->pageTitle = __('app.importExcel') . ' ' . __('app.menu.deal');
+        $this->pageTitle = __('app.importExcel').' '.__('app.menu.deal');
 
         $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         // Get all pipelines for the dropdown
         $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
@@ -2905,12 +3032,12 @@ class DealController extends AccountBaseController
 
         if (count($rowIds) > \App\Support\DealExportFields::MAX_ROWS) {
             return response(
-                'Export is limited to ' . number_format(\App\Support\DealExportFields::MAX_ROWS) . ' deals. Narrow your filters or selection and try again.',
+                'Export is limited to '.number_format(\App\Support\DealExportFields::MAX_ROWS).' deals. Narrow your filters or selection and try again.',
                 422
             );
         }
 
-        $filename = 'deals-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $filename = 'deals-export-'.now()->format('Y-m-d-H-i-s').'.'.$format;
         $writerType = $format === 'csv'
             ? \Maatwebsite\Excel\Excel::CSV
             : \Maatwebsite\Excel\Excel::XLSX;
@@ -2929,11 +3056,11 @@ class DealController extends AccountBaseController
     {
         $this->applyImportResourceLimits();
         $this->addPermission = user()->permission('add_deals');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $export = new \App\Exports\DealSampleExport(company()->id);
-        $filename = 'deal-sample-import-' . now()->format('Y-m-d') . '.xlsx';
-        
+        $filename = 'deal-sample-import-'.now()->format('Y-m-d').'.xlsx';
+
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
     }
 
@@ -2963,10 +3090,10 @@ class DealController extends AccountBaseController
 
     public function notes()
     {
-        $dataTable = new DealNotesDataTable();
+        $dataTable = new DealNotesDataTable;
         $viewPermission = user()->permission('view_deal_note');
 
-        abort_403(!($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both' || $viewPermission == 'owned'));
+        abort_403(! ($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both' || $viewPermission == 'owned'));
 
         $tab = request('tab');
         $this->activeTab = $tab ?: 'profile';
@@ -2992,7 +3119,7 @@ class DealController extends AccountBaseController
         ]);
 
         $editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(!in_array($editPermission, ['all', 'added']));
+        abort_403(! in_array($editPermission, ['all', 'added']));
 
         $leadFollowUp = DealFollowUp::findOrFail($request->id);
 
@@ -3026,7 +3153,6 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * @param CommonRequest $request
      * @return array
      */
     public function changeStage(CommonRequest $request)
@@ -3047,7 +3173,7 @@ class DealController extends AccountBaseController
         $this->editPermission = user()->permission('edit_deals');
         $this->changeLeadStatusPermission = user()->permission('change_deal_stages');
 
-        abort_403(!(($this->editPermission == 'all' || ($this->editPermission == 'added' && $deal->added_by == user()->id)) || $this->changeLeadStatusPermission == 'all'));
+        abort_403(! (($this->editPermission == 'all' || ($this->editPermission == 'added' && $deal->added_by == user()->id)) || $this->changeLeadStatusPermission == 'all'));
 
         $deal->pipeline_stage_id = $request->statusID;
         $deal->save();
@@ -3087,7 +3213,7 @@ class DealController extends AccountBaseController
             $selectedAgent = null;
             $data = [];
 
-            if (!is_null($deal)) {
+            if (! is_null($deal)) {
                 $selectedAgent = $leadCategory->enabledAgents->firstWhere('id', $deal->agent_id);
 
                 if ($selectedAgent && $selectedAgent->user->status === 'deactive') {
@@ -3096,7 +3222,7 @@ class DealController extends AccountBaseController
             }
 
             foreach ($activeAgents as $agent) {
-                $selected = !is_null($deal) && $agent->id == $deal->agent_id;
+                $selected = ! is_null($deal) && $agent->id == $deal->agent_id;
 
                 $data[] = view('components.user-option', [
                     'user' => $agent->user,
@@ -3138,18 +3264,19 @@ class DealController extends AccountBaseController
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $deal->update();
 
-        if (!empty($request->description)) {
-            $dealNote = new DealNote();
+        if (! empty($request->description)) {
+            $dealNote = new DealNote;
             $dealNote->title = $request->title;
             $dealNote->deal_id = $request->dealId;
             $dealNote->details = $request->description;
             $dealNote->save();
-        };
+        }
 
         $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::success(__('messages.updateSuccess'));
     }
+
     /**
      * Get custom field categories for the lead module.
      *
@@ -3165,9 +3292,9 @@ class DealController extends AccountBaseController
                 ->orderBy('id', 'asc')
                 ->get();
         }
+
         return collect();
     }
-
 
     /**
      * Safely convert company date format to Y-m-d format
@@ -3179,7 +3306,7 @@ class DealController extends AccountBaseController
             if (empty($date)) {
                 return null;
             }
-            
+
             // Try multiple date formats to handle different input formats
             $possibleFormats = [
                 company()->date_format, // Company's configured format
@@ -3189,7 +3316,7 @@ class DealController extends AccountBaseController
                 'd/m/Y',               // Alternative format
                 'm/d/Y',               // Alternative US format
             ];
-            
+
             foreach ($possibleFormats as $format) {
                 try {
                     $parsedDate = \Carbon\Carbon::createFromFormat($format, $date);
@@ -3201,18 +3328,20 @@ class DealController extends AccountBaseController
                     continue;
                 }
             }
-            
+
             // If none of the above formats work, log the error
-            Log::error('Date conversion error: Unable to parse date in any expected format - Date: ' . $date . ' - Company format: ' . company()->date_format);
+            Log::error('Date conversion error: Unable to parse date in any expected format - Date: '.$date.' - Company format: '.company()->date_format);
+
             return null;
-            
+
         } catch (\Exception $e) {
-            Log::error('Date conversion error: ' . $e->getMessage() . ' - Date: ' . $date);
+            Log::error('Date conversion error: '.$e->getMessage().' - Date: '.$date);
+
             return null;
         }
     }
 
-    /** 
+    /**
      * Generate Meeting Link
      */
     public function generateMeetingLink(Request $request)
@@ -3223,8 +3352,6 @@ class DealController extends AccountBaseController
             'timestamp' => now(),
         ]);
 
-        $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(!($this->editPermission == 'all' || ($this->editPermission == 'added' && $request->added_by == user()->id)));
 
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);
@@ -3232,25 +3359,29 @@ class DealController extends AccountBaseController
         Log::info('Follow-up found', [
             'followup_id' => $followUpId,
             'followup_exists' => $followUp ? true : false,
-            'followup_location' => $followUp ? $followUp->location : null
+            'followup_location' => $followUp ? $followUp->location : null,
         ]);
 
-        if (!$followUp) {
+        if (! $followUp) {
             Log::error('Follow-up not found', ['followupId' => $followUpId]);
+
             return Reply::error('Follow-up not found');
         }
+
+        $this->editPermission = user()->permission('edit_lead_follow_up');
+        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
 
         try {
             Log::info('Calling triggerFollowUpAutomation', [
                 'followup_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
-                'location' => $followUp->location
+                'location' => $followUp->location,
             ]);
 
             $meetingResponse = $this->triggerFollowUpAutomation($followUp);
-            
+
             Log::info('triggerFollowUpAutomation response', [
-                'response' => $meetingResponse
+                'response' => $meetingResponse,
             ]);
 
             $meetingLink = $meetingResponse['meeting_link'] ?? null;
@@ -3261,12 +3392,12 @@ class DealController extends AccountBaseController
         } catch (\Exception $e) {
             Log::error('Error in generateMeetingLink', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Send notification to responsible agent
             $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
-            
+
             return Reply::error($e->getMessage());
         }
     }
@@ -3279,7 +3410,7 @@ class DealController extends AccountBaseController
         try {
             // Get the responsible agent
             $agent = null;
-            
+
             if ($followUp->deal && $followUp->deal->agent_id) {
                 $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
                 if ($leadAgent) {
@@ -3287,40 +3418,40 @@ class DealController extends AccountBaseController
                 }
             }
 
-            if (!$agent && $followUp->lead_id) {
+            if (! $agent && $followUp->lead_id) {
                 $lead = Lead::find($followUp->lead_id);
                 if ($lead?->lead_owner) {
                     $agent = \App\Models\User::find($lead->lead_owner);
                 }
             }
-            
+
             // If no agent found, try to get the deal watcher
-            if (!$agent && $followUp->deal && $followUp->deal->deal_watcher) {
+            if (! $agent && $followUp->deal && $followUp->deal->deal_watcher) {
                 $agent = \App\Models\User::find($followUp->deal->deal_watcher);
             }
-            
+
             // If still no agent, get the user who created the follow-up
-            if (!$agent) {
+            if (! $agent) {
                 $agent = \App\Models\User::find($followUp->added_by);
             }
-            
+
             if ($agent) {
                 $agent->notify(new MeetingLinkGenerationFailed($followUp, $agent, $errorMessage));
-                
-                Log::info("Meeting link generation failure notification sent to agent", [
+
+                Log::info('Meeting link generation failure notification sent to agent', [
                     'follow_up_id' => $followUp->id,
                     'deal_id' => $followUp->deal_id,
                     'agent_id' => $agent->id,
                     'agent_email' => $agent->email,
                 ]);
             } else {
-                Log::warning("No agent found to notify about meeting link generation failure", [
+                Log::warning('No agent found to notify about meeting link generation failure', [
                     'follow_up_id' => $followUp->id,
                     'deal_id' => $followUp->deal_id,
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error("Failed to send meeting link generation failure notification", [
+            Log::error('Failed to send meeting link generation failure notification', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
                 'error' => $e->getMessage(),
@@ -3328,6 +3459,4 @@ class DealController extends AccountBaseController
 
         }
     }
-
-
 }

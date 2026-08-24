@@ -137,4 +137,16 @@ return [
         'additionalProjects' => '{1} :count proje daha|[2,*] :count proje daha',
     ],
 
+    'regards' => 'Saygılarımızla',
+    'teamSignature' => ':appName Ekibi',
+    'propertyActivity' => [
+        'subject' => 'Mülk güncellemesi',
+    ],
+    'exposeReady' => [
+        'subject' => 'Exposé hazır',
+    ],
+    'dealCloseDateApproaching' => [
+        'textNoDate' => ':dealName için kapanış tarihi yaklaşıyor. Anlaşmayı gözden geçirin ve gerekirse zaman çizelgesini güncelleyin.',
+    ],
+
 ];

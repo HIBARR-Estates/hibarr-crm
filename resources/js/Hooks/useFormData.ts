@@ -56,6 +56,8 @@ type FormDataParams = {
     search?: string;
     paginate?: boolean;
     enabled?: boolean;
+    partner_only?: boolean;
+    exclude_partners?: boolean;
 };
 
 export const useFormData = <T = any>(
@@ -84,8 +86,23 @@ export const useFormData = <T = any>(
             cleanParams.paginate = params.paginate ? "true" : "false";
         }
 
+        if (params.partner_only) {
+            cleanParams.partner_only = "true";
+        }
+
+        if (params.exclude_partners) {
+            cleanParams.exclude_partners = "true";
+        }
+
         return cleanParams;
-    }, [params.page, params.per_page, params.search, params.paginate]);
+    }, [
+        params.page,
+        params.per_page,
+        params.search,
+        params.paginate,
+        params.partner_only,
+        params.exclude_partners,
+    ]);
 
     // Use useApiQuery as requested
     const {

@@ -20,6 +20,9 @@ const ALLOWED_TAGS = [
     "em",
     "i",
     "u",
+    "s",
+    "strike",
+    "del",
     "h1",
     "h2",
     "h3",
@@ -35,7 +38,10 @@ const ALLOWED_TAGS = [
     "div",
 ];
 
-const ALLOWED_ATTR = ["href", "target", "rel", "class", "title"];
+// `style` is needed for alignment (most rich-text editors, including OL's,
+// emit `text-align` as inline style or a `ql-align-*` class — both are
+// covered here, see the matching CSS in lead-redesign.css).
+const ALLOWED_ATTR = ["href", "target", "rel", "class", "title", "style"];
 
 /**
  * Renders OL qualification script bodies as sanitized rich text.

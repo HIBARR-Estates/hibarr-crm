@@ -137,4 +137,16 @@ return [
         'additionalProjects' => ':count проект|:count проекта|:count проектов',
     ],
 
+    'regards' => 'С уважением',
+    'teamSignature' => 'Команда :appName',
+    'propertyActivity' => [
+        'subject' => 'Обновление объекта',
+    ],
+    'exposeReady' => [
+        'subject' => 'Exposé готов',
+    ],
+    'dealCloseDateApproaching' => [
+        'textNoDate' => 'Приближается дата закрытия сделки :dealName. Проверьте сделку и при необходимости обновите сроки.',
+    ],
+
 ];

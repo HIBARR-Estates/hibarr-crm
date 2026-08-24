@@ -22,6 +22,7 @@ class TaskCompletedClient extends BaseNotification
         $this->task = $task;
         $this->company = $this->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'task-completed')->first();
+        $this->initTaskMailRouting();
     }
 
     /**

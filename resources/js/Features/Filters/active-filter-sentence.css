@@ -5,10 +5,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
-    background: #f8f9fb;
-    border: 1px solid #eef0f3;
-    border-radius: 10px;
+    padding: 11px 0;
     flex-wrap: wrap;
 }
 .lfs__dot {
@@ -19,7 +16,7 @@
     flex: none;
 }
 .lfs__text {
-    font-size: 13px;
+    font-size: 14px;
     color: #5b6472;
     line-height: 1.5;
     min-width: 0;
@@ -39,11 +36,11 @@
     border-bottom-color: #1a6bb5;
 }
 .lfs__sep {
-    font-size: 13px;
+    font-size: 14px;
     color: #9ca3af;
 }
 .lfs__count {
-    font-size: 13px;
+    font-size: 14px;
     color: #374151;
     white-space: nowrap;
 }
@@ -58,17 +55,18 @@
 .lfs__action {
     border: none;
     background: none;
-    color: #5b6472;
-    font-size: 12.5px;
+    color: #1a6bb5;
+    font-size: 13.5px;
+    font-weight: 600;
     font-family: inherit;
     cursor: pointer;
     padding: 0;
     white-space: nowrap;
 }
 .lfs__action:hover {
-    color: #1a6bb5;
+    text-decoration: underline;
 }
-.lfs__action--danger:hover {
+.lfs__action--danger {
     color: #b91c1c;
 }
 .lfs__divider {

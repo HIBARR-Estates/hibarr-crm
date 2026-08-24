@@ -26,9 +26,19 @@ import { LeadLifecycleStatus } from "@/Types/qualification";
 
 import { ILeadFlightItinerary } from './lead-flight-itinerary';
 
+export interface LeadContactMethod {
+    id: number;
+    type: "email" | "phone";
+    identifier: string;
+    normalized: string;
+    is_main: boolean;
+    source_field?: "client_email" | "mobile" | "cell" | "office" | null;
+}
+
 export interface Lead {
     id: number;
     lead_flight_itineraries?: ILeadFlightItinerary[];
+    contact_methods?: LeadContactMethod[];
     added_by?: User | null;
     lead_owner?: User | null;
     client_id?: number | null;
@@ -38,7 +48,7 @@ export interface Lead {
     gender_value?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
     preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
-    preferred_contact_times?: ("morning" | "afternoon" | "evening")[];
+    preferred_contact_times?: ("morning" | "afternoon" | "evening")[] | null;
     category_id?: number | null;
     category_ids?: number[];
     source_id?: number | null;
@@ -155,7 +165,7 @@ export interface CreateLeadFormData {
     gender?: "male" | "female" | null;
     temperature?: "cold" | "warm" | "hot" | null;
     preferred_contact_time?: "morning" | "afternoon" | "evening" | null;
-    preferred_contact_times?: ("morning" | "afternoon" | "evening")[];
+    preferred_contact_times?: ("morning" | "afternoon" | "evening")[] | null;
     client_name: string;
     client_email: string;
     mobile?: string;

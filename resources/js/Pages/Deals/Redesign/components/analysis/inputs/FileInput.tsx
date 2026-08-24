@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface FileInputProps {
     value: string;
@@ -7,6 +8,7 @@ interface FileInputProps {
 }
 
 export default function FileInput({ value, disabled, onFileSelect }: FileInputProps) {
+    const { td } = useTd();
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
 
@@ -43,8 +45,8 @@ export default function FileInput({ value, disabled, onFileSelect }: FileInputPr
                 <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="text-sm text-slate-500 font-medium">{displayName ? "Replace file" : "Upload file"}</span>
-                <span className="text-xs text-slate-400">or drag and drop</span>
+                <span className="text-sm text-slate-500 font-medium">{displayName ? td("Replace file", { source: "en" }) : td("Upload file", { source: "en" })}</span>
+                <span className="text-xs text-slate-400">{td("or drag and drop", { source: "en" })}</span>
             </div>
             <input
                 ref={inputRef}

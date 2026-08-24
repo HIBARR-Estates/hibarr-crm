@@ -66,6 +66,7 @@ use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadContactFileController;
+use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
 use App\Http\Controllers\LeadFileController;
 use App\Http\Controllers\LeadFlightItineraryController;
@@ -74,6 +75,9 @@ use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\LeadSavedViewController;
+use App\Http\Controllers\ProjectSavedViewController;
+use App\Http\Controllers\TaskSavedViewController;
+use App\Http\Controllers\TaskCommentApiController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
@@ -469,6 +473,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/show-waiting-approval-change-status-modal', [TaskController::class, 'statusReason'])->name('tasks.show_status_reason_modal');
     Route::post('tasks/store-status-reason', [TaskController::class, 'storeStatusReason'])->name('tasks.store_comment_on_change_status');
 
+    // JSON comments + @mentions for the redesigned task detail modal
+    Route::get('tasks/{task}/comments', [TaskCommentApiController::class, 'index'])->name('tasks.comments.index');
+    Route::post('tasks/{task}/comments', [TaskCommentApiController::class, 'store'])->name('tasks.comments.store');
+    Route::delete('task-comments/{id}', [TaskCommentApiController::class, 'destroy'])->name('tasks.comments.destroy');
+
+    // Saved filter views for the redesigned tasks workspace
+    Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');
+    Route::patch('task-saved-views/{id}', [TaskSavedViewController::class, 'update'])->name('task-saved-views.update');
+    Route::delete('task-saved-views/{id}', [TaskSavedViewController::class, 'destroy'])->name('task-saved-views.destroy');
+
     Route::group(['prefix' => 'tasks'], function () {
 
         Route::post('recurring-task/apply-quick-action', [RecurringTaskController::class, 'applyQuickAction'])->name('recurring-task.apply_quick_action');
@@ -658,6 +672,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates');
     Route::post('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates.find');
     Route::get('lead-contact/{lead}/merge-review/{duplicate}', [LeadMergeController::class, 'review'])->name('lead-contact.merge-review');
+
+    Route::get('lead-contact/{lead}/contact-methods', [LeadContactMethodController::class, 'index'])->name('lead-contact.contact-methods.index');
+    Route::post('lead-contact/{lead}/contact-methods', [LeadContactMethodController::class, 'store'])->name('lead-contact.contact-methods.store');
+    Route::patch('lead-contact/{lead}/contact-methods/{contact_method}', [LeadContactMethodController::class, 'update'])->name('lead-contact.contact-methods.update');
+    Route::delete('lead-contact/{lead}/contact-methods/{contact_method}', [LeadContactMethodController::class, 'destroy'])->name('lead-contact.contact-methods.destroy');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
@@ -1308,6 +1327,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         });
     });
 
+    // Saved filter views for the projects list
+    Route::post('project-saved-views', [ProjectSavedViewController::class, 'store'])->name('project-saved-views.store');
+    Route::patch('project-saved-views/{id}', [ProjectSavedViewController::class, 'update'])->name('project-saved-views.update');
+    Route::delete('project-saved-views/{id}', [ProjectSavedViewController::class, 'destroy'])->name('project-saved-views.destroy');
+
     // ─── Offers ──────────────────────────────────────────────────
     Route::prefix('offers')->name('offers.')->group(function () {
         Route::get('/', [App\Http\Controllers\OfferController::class, 'index'])->name('index');
@@ -1412,6 +1436,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::post('commissions/{id}/mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'markCommissionPaid'])->name('commissions.mark_paid');
             Route::post('commissions/bulk-mark-paid', [App\Http\Controllers\MlmAdminApiController::class, 'bulkMarkPaid'])->name('commissions.bulk_mark_paid');
             Route::post('commissions/{id}/revert', [App\Http\Controllers\MlmAdminApiController::class, 'revertCommission'])->name('commissions.revert');
+            Route::post('commissions/{id}/clawback', [App\Http\Controllers\MlmAdminApiController::class, 'clawbackCommission'])->name('commissions.clawback');
             Route::get('commissions/export', [App\Http\Controllers\MlmAdminApiController::class, 'exportCommissions'])->name('commissions.export');
 
             // Agent Metrics
@@ -1449,6 +1474,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     });
 
     // ══════════════════════════════════════════════════════════════
+    //  Partners — manage which agents are flagged as partners
+    // ══════════════════════════════════════════════════════════════
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
+    });
+
+    // ══════════════════════════════════════════════════════════════
     //  MLM — Agent Portal Pages (Inertia) & API
     // ══════════════════════════════════════════════════════════════
     Route::prefix('mlm/agent')->name('mlm.agent.')->group(function () {
@@ -1475,6 +1509,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
             Route::get('downlines', [App\Http\Controllers\MlmAgentController::class, 'downlineListApi'])->name('downline_list');
             Route::post('invites', [App\Http\Controllers\MlmAgentController::class, 'sendInviteApi'])->name('send_invite');
             Route::get('invites', [App\Http\Controllers\MlmAgentController::class, 'getInvitesApi'])->name('invites');
+            Route::post('commissions/{id}/dispute', [App\Http\Controllers\MlmAgentController::class, 'disputeCommissionApi'])->name('commissions.dispute');
         });
     });
 });

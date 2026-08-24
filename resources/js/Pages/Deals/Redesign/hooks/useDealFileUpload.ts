@@ -147,7 +147,7 @@ export default function useDealFileUpload(dealId: number) {
                 }
 
                 throw new Error(
-                    body?.message || "Failed to save uploaded files",
+                    body?.message || t("pages.deals.workspace.files.messages.save_failed"),
                 );
             } catch (error) {
                 if (

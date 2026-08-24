@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\LeadSearchQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -24,13 +25,15 @@ class DealFilters
     public function apply(Builder $query, Request $request): void
     {
         if ($request->filled('search')) {
-            $term = '%'.$request->get('search').'%';
-            $query->where(function ($q) use ($term) {
+            $search = (string) $request->get('search');
+            $term = '%'.$search.'%';
+            $query->where(function ($q) use ($term, $search) {
                 $q->where('deals.name', 'like', $term)
-                    ->orWhereHas('contact', function ($cq) use ($term) {
+                    ->orWhereHas('contact', function ($cq) use ($term, $search) {
                         $cq->where('client_name', 'like', $term)
                             ->orWhere('client_email', 'like', $term)
                             ->orWhere('company_name', 'like', $term);
+                        LeadSearchQuery::applyContactMethodMatch($cq, $search);
                     });
             });
         }

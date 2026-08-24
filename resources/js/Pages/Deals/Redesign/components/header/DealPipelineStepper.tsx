@@ -138,13 +138,17 @@ function RequirementConditionRows({
     openFieldLabel?: string;
     doneLabel?: string;
 }) {
+    const { td } = useTd();
+
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {requirements.map((condition, i) => {
-                const label =
+                const rawLabel =
                     condition.label?.trim() || humanizeField(condition.field);
-                const opLabel =
+                const label = td(rawLabel, { source: "en" });
+                const rawOpLabel =
                     OPERATOR_LABEL[condition.operator] ?? condition.operator;
+                const opLabel = td(rawOpLabel, { source: "en" });
                 const showValue =
                     condition.operator !== "exists" &&
                     condition.operator !== "changed";
@@ -421,16 +425,8 @@ export default function DealPipelineStepper({
         (stage) => stage.id === pendingStageId,
     );
 
-    const openFieldLabel =
-        t("pages.deals.header.pipeline.open_field") ===
-        "pages.deals.header.pipeline.open_field"
-            ? "Open"
-            : t("pages.deals.header.pipeline.open_field");
-    const doneLabel =
-        t("pages.deals.header.pipeline.requirement_done") ===
-        "pages.deals.header.pipeline.requirement_done"
-            ? "Done"
-            : t("pages.deals.header.pipeline.requirement_done");
+    const openFieldLabel = t("pages.deals.header.pipeline.open_field");
+    const doneLabel = t("pages.deals.header.pipeline.requirement_done");
 
     return (
         <div

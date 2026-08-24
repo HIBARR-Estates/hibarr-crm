@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 import { ANALYSIS_COUNTRIES } from "../data/countries";
@@ -10,6 +11,8 @@ interface CountrySelectInputProps {
 }
 
 export default function CountrySelectInput({ value, placeholder = "Select a country", onChange }: CountrySelectInputProps) {
+    const { td } = useTd();
+    const resolvedPlaceholder = td(placeholder, { source: "en" });
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const containerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +52,7 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
                         <span style={{ color: T.TEXT }}>{selected.name}</span>
                     </>
                 ) : (
-                    <span style={{ color: T.TEXT_HINT }}>{placeholder}</span>
+                    <span style={{ color: T.TEXT_HINT }}>{resolvedPlaceholder}</span>
                 )}
                 <svg
                     className={`w-4 h-4 ml-auto shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
@@ -71,7 +74,7 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search countries..."
+                            placeholder={td("Search countries...", { source: "en" })}
                             className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
                         />
                     </div>
@@ -94,7 +97,7 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
                             </button>
                         ))}
                         {filtered.length === 0 && (
-                            <p className="text-xs px-3 py-3" style={{ color: T.TEXT_HINT }}>No countries found.</p>
+                            <p className="text-xs px-3 py-3" style={{ color: T.TEXT_HINT }}>{td("No countries found.", { source: "en" })}</p>
                         )}
                     </div>
                 </div>

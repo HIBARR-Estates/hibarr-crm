@@ -80,31 +80,39 @@ export default function useDealMeetingCreate(deal: Deal) {
 
             if (!dealHasAgent(deal)) {
                 validationErrors.push(
-                    "This deal has no agent assigned. Please assign an agent before booking a meeting.",
+                    t("pages.deals.workspace.meetings.validation.no_agent"),
                 );
             }
 
             if (!input.meetingTypeId) {
-                validationErrors.push("Please select a meeting type.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_meeting_type"),
+                );
             }
 
             if (!input.date) {
-                validationErrors.push("Please select a meeting date.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_date"),
+                );
             }
 
             if (!input.startTime) {
-                validationErrors.push("Please select a start time.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_start_time"),
+                );
             } else if (
                 input.date &&
                 !isMeetingStartInFuture(input.date, input.startTime)
             ) {
                 validationErrors.push(
-                    "Start time must be at least 5 minutes in the future.",
+                    t("pages.deals.workspace.meetings.validation.start_time_future"),
                 );
             }
 
             if (!input.platform) {
-                validationErrors.push("Please select a platform.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_platform"),
+                );
             }
 
             if (
@@ -112,7 +120,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 !canUseZohoMeeting(props.auth?.user?.email)
             ) {
                 validationErrors.push(
-                    "Zoho Meeting is only available for @hibarr.de email accounts.",
+                    t("pages.deals.workspace.meetings.validation.zoho_email_only"),
                 );
             }
 
@@ -121,7 +129,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 input.participants.length === 0
             ) {
                 validationErrors.push(
-                    "At least one participant is required for Zoho Meeting.",
+                    t("pages.deals.workspace.meetings.validation.participants_required"),
                 );
             }
 
@@ -130,7 +138,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 !input.meetingLink.trim()
             ) {
                 validationErrors.push(
-                    "Please paste a meeting link from your video provider.",
+                    t("pages.deals.workspace.meetings.validation.paste_meeting_link"),
                 );
             }
 
@@ -138,7 +146,9 @@ export default function useDealMeetingCreate(deal: Deal) {
                 requiresPhysicalLocationDetail(input.platform) &&
                 !input.locationDetail.trim()
             ) {
-                validationErrors.push("Please enter the meeting location.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.enter_location"),
+                );
             }
 
             if (validationErrors.length > 0) {
@@ -187,7 +197,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to schedule meeting"],
+                            : [formatted.message || t("pages.deals.workspace.meetings.messages.schedule_failed")],
                     );
                 },
             });

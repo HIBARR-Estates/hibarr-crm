@@ -32,6 +32,8 @@ interface AgentPickerProps {
     searchPlaceholder?: string;
     loadingLabel?: string;
     emptyLabel?: string;
+    /** Omit agents already flagged as partners (for "add partner" flows). */
+    excludePartners?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export default function AgentPicker({
     searchPlaceholder = "Search agents…",
     loadingLabel = "Loading…",
     emptyLabel = "No agents match",
+    excludePartners,
 }: AgentPickerProps) {
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
@@ -53,6 +56,7 @@ export default function AgentPicker({
         search: debouncedSearch,
         per_page: 20,
         paginate: false,
+        ...(excludePartners ? { exclude_partners: true } : {}),
     });
     const agents = ((data as LeadAgentRecord[] | undefined) ?? []).filter(
         (option) => !exclude.includes(option.id),

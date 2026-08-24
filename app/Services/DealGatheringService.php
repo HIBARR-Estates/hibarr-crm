@@ -2,30 +2,29 @@
 
 namespace App\Services;
 
+use App\Enums\DealUpdateType;
 use App\Helper\Files;
+use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\Lead;
-use App\Models\LeadPipeline;
 use App\Models\Package;
-use App\Models\CustomFieldCategory;
-use App\Models\CustomFieldGroup;
-use App\Models\Currency;
+use App\Models\Product;
+use App\Models\Property;
 use App\Models\User;
-use Illuminate\Support\Str;
-use App\Enums\DealUpdateType;
-use App\Notifications\BaseNotification;
-use App\Notifications\LeadAgentAssigned;
 use App\Support\LeadSearchQuery;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 class DealGatheringService
 {
     protected DealNotificationService $notificationService;
+
     protected DealAutomationService $dealAutomationService;
+
     protected DealValueResolver $dealValueResolver;
+
     protected FileStorageService $fileStorageService;
+
     protected PipelineScopeResolverService $scopeResolver;
+
     protected PackagePipelineRouterService $packageRouter;
 
     public function __construct(
@@ -51,11 +50,12 @@ class DealGatheringService
     {
         return Lead::query()
             ->where(function ($leadQuery) use ($query) {
-                $term = '%' . $query . '%';
+                $term = '%'.$query.'%';
                 $leadQuery->where('client_name', 'like', $term)
                     ->orWhere('client_email', 'like', $term)
                     ->orWhere('company_name', 'like', $term);
                 LeadSearchQuery::applyMobileMatch($leadQuery, $query);
+                LeadSearchQuery::applyContactMethodMatch($leadQuery, $query);
             })
             ->limit(10)
             ->get();
@@ -121,7 +121,7 @@ class DealGatheringService
             $leadData['source_id'] = $existing->source_id;
         }
 
-        if (!empty($data['referral'])) {
+        if (! empty($data['referral'])) {
             $leadData['note'] = $data['referral'];
         } elseif ($existing) {
             $leadData['note'] = $existing->note;
@@ -137,25 +137,25 @@ class DealGatheringService
     {
         $deal->update([
             'lead_id' => $newLead->id,
-            'name' => 'New Deal - ' . $newLead->client_name,
+            'name' => 'New Deal - '.$newLead->client_name,
         ]);
-        
+
         return $deal;
     }
 
     /**
      * Initialize a Deal for a Lead
-     * 
-     * @param Lead $lead The lead to associate with the deal
-     * @param int|null $pipelineId Optional pipeline ID. If null, uses default pipeline.
+     *
+     * @param  Lead  $lead  The lead to associate with the deal
+     * @param  int|null  $pipelineId  Optional pipeline ID. If null, uses default pipeline.
      */
     public function initializeDeal(Lead $lead, ?int $pipelineId = null)
     {
-        $dealName = 'New Deal - ' . $lead->client_name;
-        
+        $dealName = 'New Deal - '.$lead->client_name;
+
         // Get the pipeline ID: use provided, or fall back to default
         $leadPipelineId = $pipelineId;
-        if (!$leadPipelineId) {
+        if (! $leadPipelineId) {
             $defaultPipeline = \App\Models\LeadPipeline::where('default', 1)->first();
             $leadPipelineId = $defaultPipeline?->id ?? 1;
         }
@@ -165,7 +165,7 @@ class DealGatheringService
             ->orderBy('priority', 'asc')
             ->first();
         $pipelineStageId = $firstStage?->id ?? 1;
-        
+
         $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
             null,
             $lead->lead_owner ? (int) $lead->lead_owner : null,
@@ -209,11 +209,11 @@ class DealGatheringService
                 // Handle basic deal details
                 $cleanData = [];
                 $fillable = [
-                    'name', 'manual_value', 'value_source', 'close_date', 'category_id', 'agent_id', 
-                    'lead_id', 'lead_pipeline_id', 'pipeline_stage_id', 
-                    'note', 'next_follow_up', 'status', 'currency_id'
+                    'name', 'manual_value', 'value_source', 'close_date', 'category_id', 'agent_id',
+                    'lead_id', 'lead_pipeline_id', 'pipeline_stage_id',
+                    'note', 'next_follow_up', 'status', 'currency_id',
                 ];
-                
+
                 // Handle new currency format: { amount, currency }
                 if (array_key_exists('value', $data) && is_array($data['value']) && (isset($data['value']['amount']) || isset($data['value']['currency']))) {
                     // Only update value if amount is explicitly provided
@@ -224,23 +224,23 @@ class DealGatheringService
                         }
                     }
                     // If amount is not provided, don't update the value field (preserve existing value)
-                    
+
                     // Handle currency update
                     $currencyCode = isset($data['value']['currency']) && is_string($data['value']['currency'])
                         ? strtoupper($data['value']['currency'])
                         : null;
-                    
+
                     // Find currency_id from currency_code
                     if ($currencyCode) {
                         $currency = Currency::where('currency_code', $currencyCode)
                             ->where('company_id', $deal->company_id)
                             ->first();
-                        
+
                         if ($currency) {
                             $cleanData['currency_id'] = $currency->id;
                         }
                     }
-                    
+
                     // Process other fillable fields (excluding value and currency_id which we already handled)
                     foreach ($fillable as $field) {
                         if ($field !== 'value' && $field !== 'currency_id' && array_key_exists($field, $data)) {
@@ -262,7 +262,7 @@ class DealGatheringService
 
                 // When the user explicitly provides a value, treat it as a manual override
                 // unless they also explicitly sent a value_source in the same request
-                if (isset($cleanData['manual_value']) && !array_key_exists('value_source', $data)) {
+                if (isset($cleanData['manual_value']) && ! array_key_exists('value_source', $data)) {
                     $cleanData['value_source'] = 'manual';
                 }
 
@@ -270,16 +270,54 @@ class DealGatheringService
                     $cleanData['value_source'] = $this->dealValueResolver->normalizeSource($cleanData['value_source']);
                 }
 
-                if (!empty($cleanData)) {
+                if (! empty($cleanData)) {
                     $deal->update($cleanData);
                     $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
 
                 // Handle relationships
                 if (array_key_exists('product_id', $data)) {
-                    $deal->products()->sync($data['product_id']);
+                    $oldProductIds = $deal->products()->pluck('products.id')->map(fn ($id) => (int) $id)->all();
+                    $newProductIds = array_values(array_unique(array_map(
+                        'intval',
+                        is_array($data['product_id']) ? $data['product_id'] : [$data['product_id']],
+                    )));
+
+                    $deal->products()->sync($newProductIds);
                     $deal = $deal->fresh(['products', 'packages', 'company']);
                     $this->dealValueResolver->resolveAndPersist($deal);
+
+                    $addedProductIds = array_diff($newProductIds, $oldProductIds);
+                    $removedProductIds = array_diff($oldProductIds, $newProductIds);
+
+                    if ($addedProductIds !== [] || $removedProductIds !== []) {
+                        $changedProducts = Product::with('property')
+                            ->whereIn('id', array_merge($addedProductIds, $removedProductIds))
+                            ->get()
+                            ->keyBy('id');
+
+                        foreach ($addedProductIds as $productId) {
+                            $product = $changedProducts->get($productId);
+                            if ($product?->property) {
+                                $this->notificationService->notifyPropertyLinked(
+                                    $deal,
+                                    $this->propertyLabel($product->property, $product),
+                                    (int) $product->property->id,
+                                );
+                            }
+                        }
+
+                        foreach ($removedProductIds as $productId) {
+                            $product = $changedProducts->get($productId);
+                            if ($product?->property) {
+                                $this->notificationService->notifyPropertyUnlinked(
+                                    $deal,
+                                    $this->propertyLabel($product->property, $product),
+                                    (int) $product->property->id,
+                                );
+                            }
+                        }
+                    }
                 }
 
                 if (array_key_exists('package_id', $data)) {
@@ -303,16 +341,16 @@ class DealGatheringService
                     $newPackageNames = Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray();
 
                     // Send notifications for package changes
-                    if (!empty($addedPackageIds)) {
+                    if (! empty($addedPackageIds)) {
                         $addedNames = array_values(array_filter(array_map(fn ($id) => $newPackageNames[$id] ?? null, $addedPackageIds)));
-                        if (!empty($addedNames)) {
+                        if (! empty($addedNames)) {
                             $this->notificationService->notifyPackageAssigned($deal, $addedNames);
                         }
                     }
 
-                    if (!empty($removedPackageIds)) {
+                    if (! empty($removedPackageIds)) {
                         $removedNames = array_values(array_filter(array_map(fn ($id) => $oldPackageNames[$id] ?? null, $removedPackageIds)));
-                        if (!empty($removedNames)) {
+                        if (! empty($removedNames)) {
                             $this->notificationService->notifyPackageRemoved($deal, $removedNames);
                         }
                     }
@@ -348,23 +386,7 @@ class DealGatheringService
                         $newWatcherNames
                     );
 
-                    $addedWatcherIds = array_values(array_diff($newWatcherIds, $oldWatcherIds));
-                    if (user()) {
-                        $addedWatcherIds = array_values(array_filter(
-                            $addedWatcherIds,
-                            static fn (int $userId) => $userId !== user()->id
-                        ));
-                    }
-
-                    if (!empty($addedWatcherIds)) {
-                        $addedWatchers = User::whereIn('id', $addedWatcherIds)->get();
-                        if ($addedWatchers->isNotEmpty()) {
-                            Notification::send(
-                                $addedWatchers,
-                                BaseNotification::applySuppressionFromContainer(new LeadAgentAssigned($deal))
-                            );
-                        }
-                    }
+                    $this->notificationService->notifyWatchersChanged($deal, $oldWatcherIds, $newWatcherIds);
                 }
 
                 if (array_key_exists('deal_participant', $data)) {
@@ -385,6 +407,8 @@ class DealGatheringService
                         $oldParticipantNames,
                         $newParticipantNames
                     );
+
+                    $this->notificationService->notifyParticipantsChanged($deal, $oldParticipantIds, $newParticipantIds);
                 }
 
                 $this->attemptFieldTriggerRouting($deal, $data);
@@ -398,16 +422,16 @@ class DealGatheringService
                     'nationality', 'occupation', 'date_of_birth', 'age', 'languages',
                 ];
                 $contactData = array_intersect_key($data, array_flip($allowedContactFields));
-                if (!empty($contactData) && $deal->contact) {
+                if (! empty($contactData) && $deal->contact) {
                     $promotedFields = ['nationality', 'occupation', 'date_of_birth', 'age', 'languages'];
                     $promotedData = array_intersect_key($contactData, array_flip($promotedFields));
                     $regularData = array_diff_key($contactData, array_flip($promotedFields));
 
-                    if (!empty($regularData)) {
+                    if (! empty($regularData)) {
                         $deal->contact->update($regularData);
                     }
 
-                    if (!empty($promotedData)) {
+                    if (! empty($promotedData)) {
                         /** @var \App\Services\LeadCoreFieldsService $coreFields */
                         $coreFields = app(\App\Services\LeadCoreFieldsService::class);
                         if ($coreFields->useCoreFields()) {
@@ -445,7 +469,7 @@ class DealGatheringService
                     'reservation_agreement',
                     'sales_contract',
                 ];
-                
+
                 foreach ($data as $key => $value) {
                     if (in_array($key, $fileFields) && $value instanceof \Illuminate\Http\UploadedFile) {
                         // Get existing file to delete if exists
@@ -491,7 +515,7 @@ class DealGatheringService
                         $hibarrData[$key] = $value;
                     }
                 }
-                
+
                 $deal->hibarrFields()->updateOrCreate(
                     ['deal_id' => $deal->id],
                     $hibarrData
@@ -563,11 +587,18 @@ class DealGatheringService
         // If triggers matched and synced a package but pipeline routing was skipped
         // (e.g. already on the target pipeline), still attempt a route when exactly
         // one package is linked.
-        if (!$routed && !$packageExplicitlySelected) {
+        if (! $routed && ! $packageExplicitlySelected) {
             $deal = $deal->fresh(['packages', 'company']);
             if ($deal->packages->count() === 1) {
                 $this->packageRouter->routeDeal($deal);
             }
         }
+    }
+
+    private function propertyLabel(?Property $property, Product $product): string
+    {
+        $label = trim((string) ($property?->title ?? $property?->reference_code ?? $product->name ?? ''));
+
+        return $label !== '' ? $label : 'Property';
     }
 }

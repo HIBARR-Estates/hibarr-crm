@@ -2,9 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Http\Request;
-use App\Support\FeatureFlags;
+use App\Models\UserNotificationAlertSetting;
 use App\Services\I18nTranslationService;
+use App\Support\FeatureFlags;
+use Inertia\Inertia;
+use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -71,6 +73,9 @@ class HandleInertiaRequests extends Middleware
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
                 : config('app.name'),
             'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            'notificationAlertSettings' => fn () => $request->user()
+                ? Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $request->user()->id))
+                : null,
             // Permissions/modules live on auth.*; sidebar keeps only sidebar-specific extras.
             'sidebar' => [
                 'unreadMessagesCount' => fn () => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,

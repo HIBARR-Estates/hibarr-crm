@@ -1,0 +1,8 @@
+/* Deals Table — design-system overrides.
+ *
+ * Flat, bordered look (matches the Tasks list card) instead of
+ * .dt-container's default drop shadow.
+ */
+.deals-table.dt-container {
+    box-shadow: none;
+}

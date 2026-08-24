@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PropertyPublishRequest;
+use App\Support\PropertyRequestMailPresenter;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -14,12 +15,17 @@ class PublishRequestSubmitted extends BaseNotification
 
     public function __construct(PropertyPublishRequest $publishRequest)
     {
-        $this->publishRequest = $publishRequest;
+        $this->publishRequest = $publishRequest->load(['property', 'requestingAgent']);
         $this->company = $publishRequest->property?->company ?? null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable): array
     {
+        if (! $this->publishRequest->property || ! $this->publishRequest->requestingAgent) {
+            return ['database'];
+        }
+
         return ['database', 'mail'];
     }
 
@@ -28,19 +34,50 @@ class PublishRequestSubmitted extends BaseNotification
         $property = $this->publishRequest->property;
         $agent = $this->publishRequest->requestingAgent;
 
+        if (! $property || ! $agent) {
+            return $this->build($notifiable);
+        }
+
         $build = $this->build($notifiable);
 
-        return $build
-            ->subject("Publish Request: {$property->display_title}")
-            ->greeting("Hello {$notifiable->name},")
-            ->line("{$agent->name} has requested to publish a property.")
-            ->line("**Property:** {$property->display_title}")
-            ->line("**Reference Code:** {$property->reference_code}")
-            ->when($this->publishRequest->message, function ($mail) {
-                return $mail->line("**Agent's Note:** {$this->publishRequest->message}");
-            })
-            ->action('Review Publish Requests', $this->modifyUrl(route('publish-requests.index')))
-            ->line('Please review and approve or reject this request.');
+        $subject = "Publish Request: {$property->display_title}";
+        $introText = "{$agent->name} has requested to publish a property.";
+        $contentHtml = PropertyRequestMailPresenter::joinBlocks(
+            PropertyRequestMailPresenter::propertyMeta($property, false),
+            PropertyRequestMailPresenter::line("Agent's Note", $this->publishRequest->message),
+            'Please review and approve or reject this request.',
+        );
+        $actionUrl = $this->modifyUrl(route('publish-requests.index'));
+
+        $build
+            ->subject($subject.' - '.config('app.name'))
+            ->view('mail.property.request', [
+                'subject' => $subject,
+                'badgeLabel' => 'Publish Request',
+                'notifiableName' => $notifiable->name,
+                'introText' => $introText,
+                'content' => $contentHtml,
+                'actionDescription' => 'Review pending publish requests in the CRM.',
+                'actionText' => 'Review Publish Requests',
+                'url' => $actionUrl,
+            ]);
+
+        $this->attachPropertyRequestPlunk($build, [
+            'mailSubject' => $subject,
+            'preheader' => $this->safePreheader($introText),
+            'badgeLabel' => 'Publish Request',
+            'notifiableName' => $notifiable->name,
+            'introText' => $introText,
+            'contentHtml' => $contentHtml,
+            'actionDescription' => 'Review pending publish requests in the CRM.',
+            'actionText' => 'Review Publish Requests',
+            'entityUrl' => $actionUrl,
+            'footerNote' => '',
+        ]);
+
+        parent::resetLocale();
+
+        return $build;
     }
 
     public function toArray($notifiable): array

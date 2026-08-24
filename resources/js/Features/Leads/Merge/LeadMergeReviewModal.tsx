@@ -6,11 +6,13 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatMobileForDisplay } from "@/lib/utils";
+import Badge from "@/Components/Redesign/primitives/Badge";
 import type { IModalProps } from "@/Types/common";
 import type {
     LeadMergeReviewResponse,
     LeadMergeSummary,
 } from "@/Types/api/lead-merge";
+import type { LeadContactMethod } from "@/Types/api/leads";
 
 interface Props extends IModalProps {
     primaryId: number;
@@ -42,6 +44,30 @@ function displayContactValue(field: string, value: unknown): string {
         return formatMobileForDisplay(value) || "—";
     }
     return String(value);
+}
+
+function formatContactMethodValue(method: LeadContactMethod): string {
+    return method.type === "phone"
+        ? formatMobileForDisplay(method.identifier) || method.identifier
+        : method.identifier;
+}
+
+/** Union of both leads' contact methods, deduped by type+normalized — what the merged lead will end up with. */
+function unionContactMethods(
+    primary: LeadContactMethod[],
+    duplicate: LeadContactMethod[],
+): LeadContactMethod[] {
+    const byKey = new Map<string, LeadContactMethod>();
+
+    [...primary, ...duplicate].forEach((method) => {
+        const key = `${method.type}:${method.normalized}`;
+        const existing = byKey.get(key);
+        if (!existing || (method.is_main && !existing.is_main)) {
+            byKey.set(key, method);
+        }
+    });
+
+    return Array.from(byKey.values());
 }
 
 const OWNERSHIP_LABELS: Record<string, string> = {
@@ -109,6 +135,22 @@ const LeadSummaryColumn: React.FC<{
                     },
                 )}
             </dl>
+            {summary.contact_methods.some((method) => !method.is_main) && (
+                <div className="mt-2 border-t border-[#f0f0f0] pt-2">
+                    <span className="text-xs text-gray-500">
+                        {td("Additional contact points", { source: "en" })}
+                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                        {summary.contact_methods
+                            .filter((method) => !method.is_main)
+                            .map((method) => (
+                                <Badge key={method.id} variant="gray">
+                                    {formatContactMethodValue(method)}
+                                </Badge>
+                            ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -211,6 +253,27 @@ export default function LeadMergeReviewModal({
                         showIcon
                         message={`${td("Lead", { source: "en" })} #${duplicateId} (${data.duplicate.client_name}) ${td("will be discarded — its records move to", { source: "en" })} ${td("lead", { source: "en" })} #${primaryId} (${data.primary.client_name}).`}
                     />
+
+                    {(() => {
+                        const merged = unionContactMethods(
+                            data.primary.contact_methods,
+                            data.duplicate.contact_methods,
+                        );
+                        const emailCount = merged.filter(
+                            (m) => m.type === "email",
+                        ).length;
+                        const phoneCount = merged.filter(
+                            (m) => m.type === "phone",
+                        ).length;
+
+                        return (
+                            <Alert
+                                type="info"
+                                showIcon
+                                message={`${td("After merging, the kept lead will have", { source: "en" })} ${emailCount} ${td("email(s) and", { source: "en" })} ${phoneCount} ${td("phone number(s) across both leads.", { source: "en" })}`}
+                            />
+                        );
+                    })()}
 
                     <div className="grid grid-cols-2 gap-4">
                         <LeadSummaryColumn
