@@ -109,11 +109,19 @@ const getAssetUrl = (asset?: DeveloperProjectUnitTypeAsset): string | null =>
 
 const getImageAssets = (
     unitType: DeveloperProjectUnitType,
-): DeveloperProjectUnitTypeAsset[] =>
-    (unitType.assets ?? []).filter(
+): DeveloperProjectUnitTypeAsset[] => {
+    const images = (unitType.assets ?? []).filter(
         (asset): asset is DeveloperProjectUnitTypeAsset =>
             asset.asset_type === "image" && !!getAssetUrl(asset),
     );
+
+    return [...images].sort((a, b) => {
+        const aCover = (a.tags ?? []).includes("cover") ? 0 : 1;
+        const bCover = (b.tags ?? []).includes("cover") ? 0 : 1;
+        if (aCover !== bCover) return aCover - bCover;
+        return (a.order ?? 0) - (b.order ?? 0);
+    });
+};
 
 const getUnitTypeTitle = (unitType: DeveloperProjectUnitType) =>
     generatePropertySubtitle(unitType) ?? unitType.display_label ?? "Unit Type";

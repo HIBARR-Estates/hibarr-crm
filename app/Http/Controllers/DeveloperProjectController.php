@@ -276,7 +276,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
+        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'thumbnail', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);

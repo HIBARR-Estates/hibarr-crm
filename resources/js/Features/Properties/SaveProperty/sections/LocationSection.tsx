@@ -84,10 +84,21 @@ const LocationSection: React.FC<LocationSectionProps> = ({
         }));
     }, [selectedCity, enumValues?.areas_by_city]);
 
-    // Clear area when city changes
+    // Clear area only when the user changes city (not on initial hydrate).
+    const previousCityRef = useRef<string | undefined | null>(undefined);
+    const hydratedRef = useRef(false);
     useEffect(() => {
+        if (!hydratedRef.current) {
+            if (selectedCity != null && selectedCity !== "") {
+                previousCityRef.current = selectedCity;
+                hydratedRef.current = true;
+            }
+            return;
+        }
+        if (previousCityRef.current === selectedCity) return;
+        previousCityRef.current = selectedCity;
         form.setFieldValue("area", undefined);
-    }, [selectedCity]);
+    }, [selectedCity, form]);
 
     // Auto-fill distance fields from city defaults (only empty fields)
     const isInitialCity = useRef(true);
