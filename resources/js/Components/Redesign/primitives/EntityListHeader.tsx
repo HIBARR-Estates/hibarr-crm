@@ -53,16 +53,20 @@ export interface EntityListHeaderProps {
     title: string;
     /**
      * Summary/stats line under the title (e.g. "106 active deals · £182,400
-     * pipeline value"). Omit — don't pass a placeholder — when the entity
-     * has no equivalent metric to show; the line is skipped entirely rather
-     * than rendering an empty or fabricated value.
+     * pipeline value"). Pass a `<Deferred>` node when the copy depends on
+     * deferred counts. Omit when the entity has no equivalent metric.
      */
-    subtitle?: string | null;
+    subtitle?: ReactNode;
     viewOptions?: EntityListHeaderViewOption[];
     viewValue?: string;
     onViewChange?: (value: string) => void;
     /** Right-aligned buttons rendered after the view toggle (Import, Refresh, Add, ...). */
     actions?: ReactNode;
+    /**
+     * Optional controls rendered immediately before `actions` in the title
+     * row (e.g. the Leads-only "Due this week" chip). Other lists omit this.
+     */
+    leadingActions?: ReactNode;
     /**
      * Second row, left side — a pipeline selector, quick filters, whatever
      * the entity needs. The row itself is only rendered when this or
@@ -99,6 +103,7 @@ export default function EntityListHeader({
     viewValue,
     onViewChange,
     actions,
+    leadingActions,
     toolbarLeft,
     filtersCount = 0,
     onOpenFilters,
@@ -190,6 +195,7 @@ export default function EntityListHeader({
                                 })}
                             </div>
                         )}
+                        {leadingActions}
                         {actions}
                     </div>
                 </div>

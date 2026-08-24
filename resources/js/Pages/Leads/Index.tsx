@@ -14,7 +14,7 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
-import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
+import { Lead } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 
 import {
@@ -30,12 +30,11 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps } from "antd";
+import {  MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
@@ -432,9 +431,43 @@ const Index = ({
             >
                 <EntityListHeader
                     title={t("app.menu.lead")}
-                    subtitle={headline}
-                    actions={
-                        <>
+                    subtitle={
+                        <Deferred
+                            data={[
+                                "nextActionOverdueCount",
+                                "nextActionDueThisWeekCount",
+                                "hotLeadsCount",
+                            ]}
+                            fallback={
+                                <span
+                                    className="inline-block rounded"
+                                    style={{
+                                        width: 420,
+                                        height: 15,
+                                        background: T.SKELETON,
+                                    }}
+                                    aria-hidden
+                                />
+                            }
+                        >
+                            {headline}
+                        </Deferred>
+                    }
+                    leadingActions={
+                        <Deferred
+                            data="nextActionDueThisWeekCount"
+                            fallback={
+                                <span
+                                    className="inline-block rounded-md"
+                                    style={{
+                                        width: 168,
+                                        height: 36,
+                                        background: T.SKELETON,
+                                    }}
+                                    aria-hidden
+                                />
+                            }
+                        >
                             {typeof nextActionDueThisWeekCount === "number" &&
                                 nextActionDueThisWeekCount > 0 && (
                                     <button
@@ -450,11 +483,17 @@ const Index = ({
                                             color: T.NAVY,
                                         }}
                                     >
-                                        <ClockCircleOutlined style={{ fontSize: 14 }} />
+                                        <ClockCircleOutlined
+                                            style={{ fontSize: 14 }}
+                                        />
                                         {td("Due this week", { source: "en" })} ·{" "}
                                         {nextActionDueThisWeekCount}
                                     </button>
                                 )}
+                        </Deferred>
+                    }
+                    actions={
+                        <>
                             {canManageQualificationMapping && (
                                 <Link
                                     href={route(
