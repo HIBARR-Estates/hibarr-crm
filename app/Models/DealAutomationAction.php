@@ -35,6 +35,8 @@ class DealAutomationAction extends BaseModel
         'due_date_delta_value',
         'due_date_delta_unit',
         'due_time',
+        'wait_duration_value',
+        'wait_duration_unit',
     ];
 
     protected $casts = [
@@ -43,6 +45,7 @@ class DealAutomationAction extends BaseModel
         'recipient_user_ids' => 'array',
         'meta_event_value' => 'float',
         'due_date_delta_value' => 'integer',
+        'wait_duration_value' => 'integer',
     ];
 
     /**

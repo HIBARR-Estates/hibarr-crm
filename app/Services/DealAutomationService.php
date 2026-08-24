@@ -15,6 +15,7 @@ use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Traits\RecordsCrmEvents;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -111,6 +112,21 @@ class DealAutomationService
         $waitSeconds = $this->automationWaitSeconds($automation);
 
         if ($waitSeconds <= 0) {
+            // The wait path below is naturally deduped by DealAutomationPendingRun's
+            // unique index, but immediate execution has no such guard — two
+            // near-simultaneous saves for the same deal/lead (a double form
+            // submit, two requests firing close together) each independently
+            // match conditions and would otherwise both run the full action
+            // list, creating duplicate tasks/notes/stage-transitions. A short
+            // per-(automation, subject) lock closes that gap without affecting
+            // genuinely distinct re-triggers seconds apart.
+            if (! $this->claimImmediateRun($subject, $automation)) {
+                $label = $subject instanceof Lead ? "Lead ID: {$subject->id}" : "Deal ID: {$subject->id}";
+                Log::info("Skipping duplicate immediate run for '{$automation->name}' (ID: {$automation->id}) — already ran moments ago for {$label}.");
+
+                return;
+            }
+
             $this->executeActions($subject, $automation);
 
             return;
@@ -137,6 +153,24 @@ class DealAutomationService
         }
 
         Log::info("Automation queued to run after wait: {$automation->name} (ID: {$automation->id}), at ".now()->addSeconds($waitSeconds)->toDateTimeString());
+    }
+
+    /**
+     * Claims a short window for this (automation, subject) pair — true the
+     * first time it's called within the window, false for any repeat call
+     * while the lock is held. Guards dispatchOrWait()'s immediate-execution
+     * path against near-simultaneous duplicate triggers (double form submit,
+     * two requests racing) actually running the action list twice. 5 seconds
+     * is comfortably longer than any realistic double-submit gap but short
+     * enough that a genuinely distinct later re-trigger for the same subject
+     * is never suppressed.
+     */
+    protected function claimImmediateRun(Deal|Lead $subject, DealAutomation $automation): bool
+    {
+        $subjectType = $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL;
+        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}";
+
+        return Cache::add($key, true, now()->addSeconds(5));
     }
 
     /**
@@ -179,7 +213,7 @@ class DealAutomationService
         }
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
-        $this->executeActions($subject, $automation);
+        $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
     }
 
     /**
@@ -187,15 +221,20 @@ class DealAutomationService
      */
     public function automationWaitSeconds(DealAutomation $automation): int
     {
-        $value = $automation->wait_duration_value;
+        return $this->computeWaitSeconds($automation->wait_duration_value, $automation->wait_duration_unit);
+    }
 
-        if (! $value || (int) $value < 1) {
+    /**
+     * Shared by the automation-level wait (before any action runs) and a
+     * mid-sequence "wait" action step — same unit vocabulary, same rounding.
+     */
+    protected function computeWaitSeconds(?int $value, ?string $unit): int
+    {
+        if (! $value || $value < 1) {
             return 0;
         }
 
-        $value = (int) $value;
-
-        return match ($automation->wait_duration_unit) {
+        return match ($unit) {
             'minutes' => $value * 60,
             'hours' => $value * 3600,
             default => $value * 86400,
@@ -256,12 +295,57 @@ class DealAutomationService
     }
 
     /**
-     * Execute actions defined in the automation.
+     * Execute actions defined in the automation, starting at $resumeFromActionId
+     * (inclusive) when resuming a run a "wait" step previously paused — null
+     * starts from the first action, matching all pre-existing callers.
+     *
+     * A "wait" action_type mid-sequence stops execution here and queues a
+     * pending run for the next action instead of performing anything itself;
+     * the rest of the sequence resumes later via
+     * deal-automations:process-pending-runs, same mechanism the automation's
+     * own pre-actions wait already uses.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation): void
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): void
     {
+        $actions = $automation->actions->sortBy('id')->values();
+
+        $startIndex = 0;
+        if ($resumeFromActionId !== null) {
+            $found = $actions->search(fn ($a) => $a->id === $resumeFromActionId);
+            // Not found means the automation was edited (actions deleted +
+            // recreated with new ids) while this subject was mid-wait — fall
+            // back to running the current sequence from the top rather than
+            // silently dropping the rest. Matches this service's existing
+            // philosophy of always operating on current state, never a
+            // snapshot (see runPending()'s condition re-check for the same
+            // reasoning).
+            $startIndex = $found === false ? 0 : $found;
+        }
+
         // NOTE: A general rule of thumb should be that actions should save quietly, so that there is no recursive loop
-        foreach ($automation->actions as $action) {
+        for ($i = $startIndex; $i < $actions->count(); $i++) {
+            $action = $actions[$i];
+
+            if (($action->action_type ?? null) === 'wait') {
+                $waitSeconds = $this->computeWaitSeconds($action->wait_duration_value, $action->wait_duration_unit);
+                $nextAction = $actions->get($i + 1);
+
+                if ($waitSeconds > 0 && $nextAction) {
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds);
+                    $this->logAction(
+                        $subject,
+                        $automation,
+                        "Waiting {$action->wait_duration_value} {$action->wait_duration_unit} before continuing",
+                        DealAutomationLog::STATUS_SUCCESS,
+                        'wait',
+                    );
+
+                    return; // remaining actions resume later
+                }
+
+                continue; // no wait configured, or nothing left after it — no-op, keep going
+            }
+
             $this->performAction($subject, $action, $automation);
         }
 
@@ -273,6 +357,36 @@ class DealAutomationService
         // MLM: Fire DealWonEvent when outcome_status changes to 'won'
         if ($subject->wasChanged('outcome_status') && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $subject->is_locked) {
             $this->fireDealWonEvent($subject);
+        }
+    }
+
+    /**
+     * Queue a pending run resuming at $resumeActionId — used when a "wait"
+     * action step is hit mid-sequence. Safe to firstOrCreate (not update) on
+     * the (automation, subject_type, subject_id) unique key: by the time this
+     * runs, any pre-existing row for this subject was already deleted by
+     * ProcessAutomationPendingRuns before it called into runPending(), which
+     * is what leads here — see that command's own "delete first" comment.
+     */
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds): void
+    {
+        try {
+            DealAutomationPendingRun::firstOrCreate([
+                'deal_automation_id' => $automation->id,
+                'subject_type' => $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL,
+                'subject_id' => $subject->id,
+            ], [
+                'company_id' => $subject->company_id,
+                'resume_action_id' => $resumeActionId,
+                'run_at' => now()->addSeconds($waitSeconds),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to queue automation resume '{$automation->name}' (ID: {$automation->id})", [
+                'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',
+                'subject_id' => $subject->id,
+                'resume_action_id' => $resumeActionId,
+                'exception' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -396,7 +510,7 @@ class DealAutomationService
                 $deal->saveQuietly(); // Bypass observer to prevent cascading
                 $description = 'Stage transition: '.implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. ".implode(', ', $changes));
-                $this->logAction($deal, $automation, $description);
+                $this->logAction($deal, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'stage');
 
                 // Record CRM events for automation-driven changes
                 if ($originalStageId != $targetStageId) {
@@ -464,7 +578,7 @@ class DealAutomationService
 
         $description = "Set {$fieldName} = {$fieldValue}";
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description);
+        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'field');
 
         // Record CRM event for automation-driven field change
         $this->recordCrmEvent($subject instanceof Lead ? 'lead_updated' : 'deal_updated', $subject, [
@@ -489,7 +603,7 @@ class DealAutomationService
 
         $description = 'Deal locked';
         Log::info("Action executed for Deal ID: {$deal->id}. {$description}");
-        $this->logAction($deal, $automation, $description);
+        $this->logAction($deal, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'lock');
 
         // Record CRM event for automation-driven deal lock
         $this->recordCrmEvent('deal_updated', $deal, [
@@ -517,7 +631,7 @@ class DealAutomationService
 
         if (! $template) {
             Log::warning("SendEmail action missing email template for {$label}");
-            $this->logAction($subject, $automation, 'Email skipped: template not found');
+            $this->logAction($subject, $automation, 'Email skipped: template not found', DealAutomationLog::STATUS_SKIPPED, 'email');
 
             return;
         }
@@ -526,7 +640,7 @@ class DealAutomationService
 
         if (empty($recipients)) {
             Log::warning("SendEmail action skipped for {$label}. No recipients resolved.");
-            $this->logAction($subject, $automation, 'Email skipped: no recipients resolved');
+            $this->logAction($subject, $automation, 'Email skipped: no recipients resolved', DealAutomationLog::STATUS_SKIPPED, 'email');
             $this->recordAutomationOutcomeEvent($subject, $automation, false, [
                 'action' => 'automation_email_failed',
                 'comment' => 'Automation email skipped: no recipients resolved',
@@ -585,7 +699,7 @@ class DealAutomationService
         $description = "Email using template \"{$template->name}\" — ".implode('; ', $descriptionParts);
 
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description);
+        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email');
 
         $this->recordAutomationOutcomeEvent($subject, $automation, ! empty($sent), [
             'action' => empty($failed) ? 'automation_email_sent' : 'automation_email_partial_failure',
@@ -739,19 +853,19 @@ class DealAutomationService
 
             $description2 = "Task created: \"{$title}\"".($assigneeUserId ? " (assigned to user #{$assigneeUserId})" : '');
             Log::info("Action executed for {$label}. {$description2}");
-            $this->logAction($subject, $automation, $description2);
+            $this->logAction($subject, $automation, $description2, DealAutomationLog::STATUS_SUCCESS, 'task');
 
-            $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-                'action' => 'automation_task_created',
-                'comment' => "Task created by automation: {$title}",
-                'task_id' => $task->id,
-                'task_heading' => $title,
-            ]);
+            // No success CRM event recorded here on purpose — TaskService::createTask()
+            // already records its own "Task added" event as a side effect of the
+            // creation itself (recordTaskCreated()/'task_added' metadata), and this
+            // runs on a real (non-quiet) save so that event fires normally. Adding
+            // a second "Task created by automation" event here duplicated every
+            // automation-created task in the CRM timeline.
         } catch (\Exception $e) {
             Log::error("Failed to create automation task for {$label}", [
                 'exception' => $e->getMessage(),
             ]);
-            $this->logAction($subject, $automation, "Task creation failed: {$e->getMessage()}");
+            $this->logAction($subject, $automation, "Task creation failed: {$e->getMessage()}", DealAutomationLog::STATUS_FAILED, 'task');
 
             $this->recordAutomationOutcomeEvent($subject, $automation, false, [
                 'action' => 'automation_task_creation_failed',
@@ -804,7 +918,7 @@ class DealAutomationService
 
         if (empty($details)) {
             Log::warning("CreateNote action missing content for {$label}");
-            $this->logAction($subject, $automation, 'Note skipped: no content');
+            $this->logAction($subject, $automation, 'Note skipped: no content', DealAutomationLog::STATUS_SKIPPED, 'note');
 
             return;
         }
@@ -828,19 +942,35 @@ class DealAutomationService
 
             $description = 'Note created'.($title !== '' ? ": \"{$title}\"" : '');
             Log::info("Action executed for {$label}. {$description}");
-            $this->logAction($subject, $automation, $description);
+            $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'note');
 
-            $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-                'action' => 'automation_note_created',
-                'comment' => 'Note added by automation: '.($title !== '' ? $title : 'Untitled'),
-                'note_id' => $note->id,
-                'note_title' => $note->title,
-            ], $subject instanceof Lead ? 'lead_note_added' : 'deal_note_added');
+            // Deal notes get a "Note added" CRM event for free from
+            // DealNoteObserver::created() as a side effect of this (non-quiet)
+            // save — but ONLY when it's not running in console and a user()
+            // is present (its own gate: `if (!isRunningInConsoleOrSeeding())
+            // { if (user()) {...} }`). That's true for an immediate automation
+            // firing inside a real web request, but NOT for one resumed by
+            // deal-automations:process-pending-runs / process-date-triggers
+            // (both run via artisan, i.e. console) — so this only skips the
+            // redundant event when we know the observer's will actually fire;
+            // otherwise it's the only thing that logs the note at all.
+            // LeadNoteObserver has no CRM-event equivalent in any context (it
+            // only sends notifications), so lead notes always need this event.
+            $dealObserverWillLogIt = $subject instanceof Deal && ! isRunningInConsoleOrSeeding() && user();
+
+            if ($subject instanceof Lead || ! $dealObserverWillLogIt) {
+                $this->recordAutomationOutcomeEvent($subject, $automation, true, [
+                    'action' => 'automation_note_created',
+                    'comment' => 'Note added by automation: '.($title !== '' ? $title : 'Untitled'),
+                    'note_id' => $note->id,
+                    'note_title' => $note->title,
+                ], $subject instanceof Lead ? 'lead_note_added' : 'deal_note_added');
+            }
         } catch (\Exception $e) {
             Log::error("Failed to create automation note for {$label}", [
                 'exception' => $e->getMessage(),
             ]);
-            $this->logAction($subject, $automation, "Note creation failed: {$e->getMessage()}");
+            $this->logAction($subject, $automation, "Note creation failed: {$e->getMessage()}", DealAutomationLog::STATUS_FAILED, 'note');
 
             $this->recordAutomationOutcomeEvent($subject, $automation, false, [
                 'action' => 'automation_note_creation_failed',
@@ -866,7 +996,7 @@ class DealAutomationService
 
         if ($eventName === '') {
             Log::warning("MetaConversion action missing event name for {$label}");
-            $this->logAction($subject, $automation, 'Meta Conversion skipped: no event name');
+            $this->logAction($subject, $automation, 'Meta Conversion skipped: no event name', DealAutomationLog::STATUS_SKIPPED, 'meta');
 
             return;
         }
@@ -877,7 +1007,7 @@ class DealAutomationService
 
         $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description);
+        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta');
 
         $this->recordAutomationOutcomeEvent($subject, $automation, true, [
             'action' => 'automation_meta_conversion_queued',
@@ -1075,8 +1205,13 @@ class DealAutomationService
     /**
      * Log an automation action execution.
      */
-    protected function logAction(Deal|Lead $subject, ?DealAutomation $automation, string $description): void
-    {
+    protected function logAction(
+        Deal|Lead $subject,
+        ?DealAutomation $automation,
+        string $description,
+        string $status = DealAutomationLog::STATUS_SUCCESS,
+        ?string $channel = null,
+    ): void {
         if (! $automation) {
             return;
         }
@@ -1088,6 +1223,8 @@ class DealAutomationService
                 'lead_id' => $subject instanceof Lead ? $subject->id : null,
                 'automation_id' => $automation->id,
                 'action' => $description,
+                'status' => $status,
+                'channel' => $channel,
                 'executed_at' => now(),
             ]);
         } catch (\Exception $e) {

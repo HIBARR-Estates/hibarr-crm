@@ -12,12 +12,22 @@ class DealAutomationLog extends BaseModel
 
     protected $table = 'deal_automation_logs';
 
+    public const STATUS_SUCCESS = 'success';
+
+    public const STATUS_FAILED = 'failed';
+
+    public const STATUS_SKIPPED = 'skipped';
+
+    public const CHANNELS = ['stage', 'field', 'lock', 'email', 'task', 'note', 'meta', 'wait'];
+
     protected $fillable = [
         'company_id',
         'deal_id',
         'lead_id',
         'automation_id',
         'action',
+        'status',
+        'channel',
         'executed_at',
     ];
 

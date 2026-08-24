@@ -1,3 +1,19 @@
+@php
+    // Whether to render the body exactly as-is vs. wrap it in the generic
+    // shell/card below. Deliberately NOT content-sniffed (a stray <table> or
+    // <style> tag inside otherwise-simple content used to trip a "looks like
+    // a full design" heuristic and dump the whole body unstyled/unbounded)
+    // — matching how transactional ESPs (Postmark, Resend, Mailgun) decide
+    // this: one unambiguous signal, "did the author provide a complete
+    // document." Paste a full <html>...</html> body to take over 100% of the
+    // design, including the outer shell below; anything else (plain
+    // paragraphs/lists, or a fragment that merely contains a table/style tag
+    // without being a full document) gets the safe default layout.
+    $bodyIsCompleteDocument = \App\Models\EmailTemplate::bodyIsCompleteHtmlDocument($bodyHtml ?? '');
+@endphp
+@if($bodyIsCompleteDocument)
+{!! $bodyHtml !!}
+@else
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,14 +26,9 @@
 </head>
 <body style="margin: 0; padding: 0; background-color: #f6f6f6; font-family: Arial, sans-serif;">
     @include('mail.partials.preheader', ['preheader' => $preheader ?? null])
-    @php
-        $bodyLooksLikeFullHtml = \App\Models\EmailTemplate::bodyLooksLikeFullHtml($bodyHtml ?? '');
-    @endphp
     {{-- $isPreview is only ever passed by EmailTemplateController@preview — never by
-         DealAutomationTemplateEmail — so this banner can never leak into a real send.
-         Only relevant when we're actually using the generic wrapper below — a
-         self-contained HTML body skips it, so there's no "generic wrapper" to warn about. --}}
-    @if(!empty($isPreview) && ($templateMode ?? null) === 'plunk_body' && !$bodyLooksLikeFullHtml)
+         DealAutomationTemplateEmail — so this banner can never leak into a real send. --}}
+    @if(!empty($isPreview) && ($templateMode ?? null) === 'plunk_body')
         <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f6f6f6">
             <tr>
                 <td align="center" style="padding: 10px 0 0;">
@@ -32,28 +43,19 @@
             </tr>
         </table>
     @endif
-    {{-- A body that already brings its own <table>-based layout/<style> block
-         (a fully custom-designed email, e.g. pasted from an external tool)
-         is used as-is — wrapping it in another 600px/padded card would
-         double-box a design that's already complete. Simple Quill-authored
-         bodies (the common case: paragraphs, lists, a link or two) still get
-         the generic centered card so they don't render as unstyled raw text. --}}
-    @if($bodyLooksLikeFullHtml)
-        {!! $bodyHtml !!}
-    @else
-        <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f6f6f6">
-            <tr>
-                <td align="center" style="padding: 20px 0;">
-                    <table width="600" border="0" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 600px; background-color: #ffffff;">
-                        <tr>
-                            <td style="padding: 30px; color: #333333; font-size: 14px; line-height: 1.6;">
-                                {!! $bodyHtml !!}
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    @endif
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f6f6f6">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" border="0" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 600px; background-color: #ffffff;">
+                    <tr>
+                        <td style="padding: 30px; color: #333333; font-size: 14px; line-height: 1.6;">
+                            {!! $bodyHtml !!}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
+@endif

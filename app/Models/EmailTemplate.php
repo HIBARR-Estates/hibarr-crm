@@ -92,12 +92,10 @@ class EmailTemplate extends BaseModel
     /**
      * Whether $html already looks like a complete, self-styled HTML fragment
      * (its own <table>-based layout and/or <style> block) rather than the
-     * simple paragraphs/lists/etc. the Quill body editor produces. Used to
-     * (a) skip the generic 600px/padding wrapper in
-     * mail.deal-automation-template so a fully custom-designed email renders
-     * exactly as authored, and (b) default the edit form's Body field into
-     * raw HTML-source mode instead of the Visual (Quill) editor — Quill has
-     * no <table>/<style> blots and parses its *own* starting innerHTML
+     * simple paragraphs/lists/etc. the Quill body editor produces. Used only
+     * to default the classic edit form's Body field into raw HTML-source
+     * mode instead of the Visual (Quill) editor — Quill has no <table>/<style>
+     * blots and parses its *own* starting innerHTML
      * through the same sanitizing pipeline as a paste, so it would mangle
      * this on every page load, not just on paste.
      */

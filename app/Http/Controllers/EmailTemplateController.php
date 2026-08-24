@@ -20,9 +20,15 @@ class EmailTemplateController extends AccountBaseController
         });
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $this->templates = EmailTemplate::orderBy('name')->get();
+        $templates = EmailTemplate::withCount('automationActions')->orderBy('name')->get();
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return Reply::dataOnly(['status' => 'success', 'data' => $templates]);
+        }
+
+        $this->templates = $templates;
 
         return view('company-settings.email-templates', $this->data);
     }
@@ -52,7 +58,7 @@ class EmailTemplateController extends AccountBaseController
     {
         $request->validate($this->validationRules());
 
-        EmailTemplate::create([
+        $template = EmailTemplate::create([
             'company_id' => company()->id,
             'name' => $request->name,
             'mode' => $request->mode === EmailTemplate::MODE_PLUNK_BODY ? EmailTemplate::MODE_PLUNK_BODY : EmailTemplate::MODE_CUSTOM,
@@ -62,6 +68,10 @@ class EmailTemplateController extends AccountBaseController
             'plunk_template_id' => $request->plunk_template_id ?: null,
             'variable_mappings' => $this->parseVariableMappings($request),
         ]);
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return Reply::successWithData(__('messages.recordSaved'), ['data' => $template]);
+        }
 
         return Reply::redirect(route('email-templates.index'), __('messages.recordSaved'));
     }
@@ -89,6 +99,10 @@ class EmailTemplateController extends AccountBaseController
             'plunk_template_id' => $request->plunk_template_id ?: null,
             'variable_mappings' => $this->parseVariableMappings($request),
         ]);
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return Reply::successWithData(__('messages.updateSuccess'), ['data' => $template]);
+        }
 
         return Reply::redirect(route('email-templates.index'), __('messages.updateSuccess'));
     }

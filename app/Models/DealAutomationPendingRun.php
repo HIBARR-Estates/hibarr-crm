@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $subject_type DealAutomation::SUBJECT_DEAL|SUBJECT_LEAD
  * @property int $subject_id
  * @property string|null $trigger
+ * @property int|null $resume_action_id The action to resume at when this run
+ *   was queued mid-sequence by a "wait" step, rather than the automation's
+ *   own pre-actions wait — null means start from the first action.
  * @property \Illuminate\Support\Carbon $run_at
  */
 class DealAutomationPendingRun extends BaseModel
@@ -32,6 +35,7 @@ class DealAutomationPendingRun extends BaseModel
         'subject_type',
         'subject_id',
         'trigger',
+        'resume_action_id',
         'run_at',
     ];
 

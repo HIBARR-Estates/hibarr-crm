@@ -4,10 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\DealAutomation;
-use App\Models\DealAutomationAction;
+use App\Models\DealAutomationLog;
 use App\Models\EmailTemplate;
 use App\Models\LeadPipeline;
-use App\Models\MetaConversionTrigger;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Services\AutomationFieldCatalog;
@@ -25,6 +24,26 @@ class DealAutomationController extends AccountBaseController
         $this->middleware(function ($request, $next) {
             return user()->permission('manage_company_setting') !== 'all' ? redirect()->route('profile-settings.index') : $next($request);
         });
+    }
+
+    /**
+     * List automations with conditions/actions eager-loaded — used by the
+     * React Settings/Automation UI. No Blade view owns this route name (the
+     * classic list page is SettingsController::deal_automations), so a
+     * non-JSON hit just redirects there.
+     */
+    public function index(Request $request)
+    {
+        $automations = DealAutomation::with(['conditions', 'actions.targetStage', 'actions.emailTemplate'])
+            ->orderBy('priority')
+            ->orderBy('name')
+            ->get();
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return Reply::dataOnly(['status' => 'success', 'data' => $automations]);
+        }
+
+        return redirect()->route('company-settings.deal_automations');
     }
 
     public function create()
@@ -63,6 +82,12 @@ class DealAutomationController extends AccountBaseController
             $this->syncActions($automation, $request, $subjectType);
 
             DB::commit();
+
+            if ($request->wantsJson() || $request->expectsJson()) {
+                return Reply::successWithData(__('messages.recordSaved'), [
+                    'data' => $automation->load(['conditions', 'actions.targetStage', 'actions.emailTemplate']),
+                ]);
+            }
 
             return Reply::redirect(route('company-settings.deal_automations'), __('messages.recordSaved'));
 
@@ -115,6 +140,12 @@ class DealAutomationController extends AccountBaseController
 
             DB::commit();
 
+            if ($request->wantsJson() || $request->expectsJson()) {
+                return Reply::successWithData(__('messages.updateSuccess'), [
+                    'data' => $automation->load(['conditions', 'actions.targetStage', 'actions.emailTemplate']),
+                ]);
+            }
+
             return Reply::redirect(route('company-settings.deal_automations'), __('messages.updateSuccess'));
 
         } catch (\Exception $e) {
@@ -141,6 +172,56 @@ class DealAutomationController extends AccountBaseController
     }
 
     /**
+     * Paginated, filterable run history for the React Run History screen.
+     */
+    public function logs(Request $request)
+    {
+        $query = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
+            ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('channel'), fn ($q) => $q->where('channel', $request->channel))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('executed_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to))
+            ->orderByDesc('executed_at');
+
+        return Reply::dataOnly(['status' => 'success', 'data' => $query->paginate($request->integer('per_page', 25))]);
+    }
+
+    /**
+     * Aggregate run stats — company-wide, or scoped to one automation via
+     * ?automation_id=. Used by Overview.tsx (no id) and AutomationDetail.tsx
+     * (with id).
+     */
+    public function stats(Request $request)
+    {
+        $base = DealAutomationLog::query()
+            ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id));
+
+        $totalRuns = (clone $base)->count();
+        $successCount = (clone $base)->where('status', DealAutomationLog::STATUS_SUCCESS)->count();
+        $lastRun = (clone $base)->orderByDesc('executed_at')->value('executed_at');
+
+        $daily = (clone $base)
+            ->where('executed_at', '>=', now()->subDays(6)->startOfDay())
+            ->selectRaw('DATE(executed_at) as day, COUNT(*) as total')
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $chart = collect(range(6, 0))->map(function ($daysAgo) use ($daily) {
+            $date = now()->subDays($daysAgo)->format('Y-m-d');
+
+            return ['day' => $date, 'value' => (int) ($daily[$date] ?? 0)];
+        })->values();
+
+        return Reply::dataOnly(['status' => 'success', 'data' => [
+            'total_runs' => $totalRuns,
+            'success_rate' => $totalRuns > 0 ? round($successCount / $totalRuns * 100, 1) : null,
+            'last_run_at' => $lastRun,
+            'runs_last_7_days' => $chart,
+        ]]);
+    }
+
+    /**
      * Data shared by create()/edit(): pipelines/stages for deal-subject actions,
      * the merge-field catalog for the condition builder, and available templates.
      */
@@ -162,7 +243,7 @@ class DealAutomationController extends AccountBaseController
         $this->dateRecurrences = AutomationFieldCatalog::DATE_RECURRENCES;
         $this->waitDurationUnits = AutomationFieldCatalog::WAIT_DURATION_UNITS;
         $this->users = User::allEmployees(null, false);
-        $this->metaEventNames = $this->knownMetaEventNames();
+        $this->metaEventNames = AutomationFieldCatalog::knownMetaEventNames();
     }
 
     /**
@@ -202,27 +283,6 @@ class DealAutomationController extends AccountBaseController
         return in_array($request->wait_duration_unit, array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))
             ? $request->wait_duration_unit
             : 'days';
-    }
-
-    /**
-     * Event names already in use somewhere — either a pipeline-stage Meta
-     * Conversion trigger, or another automation's meta_conversion action —
-     * so the action editor can offer them as a picker instead of the user
-     * having to remember/retype an existing event name exactly.
-     *
-     * @return array<int, string>
-     */
-    protected function knownMetaEventNames(): array
-    {
-        return MetaConversionTrigger::query()
-            ->pluck('event_name')
-            ->merge(DealAutomationAction::query()->whereNotNull('meta_event_name')->pluck('meta_event_name'))
-            ->map(fn ($name) => trim((string) $name))
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
     }
 
     /**
@@ -269,9 +329,16 @@ class DealAutomationController extends AccountBaseController
             'actions.*.assigner_user_id' => 'required_if:actions.*.assigner_type,specific_user|nullable|exists:users,id',
             'actions.*.due_date_delta_value' => 'nullable|integer|min:1|max:3650',
             'actions.*.due_date_delta_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::DUE_DATE_DELTA_UNITS))],
-            'actions.*.due_time' => 'nullable|date_format:H:i',
+            // Browsers' native <input type="time"> can hand back either
+            // "H:i" or "H:i:s" (seconds present or not, depending on
+            // browser/OS) — accept both rather than fighting it; downstream
+            // consumption (DealAutomationService::performCreateTask() via
+            // Carbon::parse()) already handles either format fine.
+            'actions.*.due_time' => 'nullable|date_format:H:i,H:i:s',
             'actions.*.meta_event_name' => 'required_if:actions.*.action_type,meta_conversion|nullable|string|max:255',
             'actions.*.meta_event_value' => 'nullable|numeric|min:0',
+            'actions.*.wait_duration_value' => 'nullable|integer|min:1|max:3650',
+            'actions.*.wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
         ];
     }
 
@@ -309,6 +376,7 @@ class DealAutomationController extends AccountBaseController
             $isSendEmail = $actionType === 'send_email';
             $isCreateTask = $actionType === 'create_task';
             $isMetaConversion = $actionType === 'meta_conversion';
+            $isWait = $actionType === 'wait';
             $recipientTypes = $isSendEmail ? array_values((array) ($action['recipient_types'] ?? ['client'])) : null;
 
             $automation->actions()->create([
@@ -337,6 +405,12 @@ class DealAutomationController extends AccountBaseController
                 'due_time' => $isCreateTask ? ($action['due_time'] ?? null) : null,
                 'meta_event_name' => $isMetaConversion ? ($action['meta_event_name'] ?? null) : null,
                 'meta_event_value' => $isMetaConversion ? ($action['meta_event_value'] ?? null) : null,
+                'wait_duration_value' => $isWait ? ($action['wait_duration_value'] ?? null) : null,
+                'wait_duration_unit' => $isWait && ! empty($action['wait_duration_value'])
+                    ? (in_array($action['wait_duration_unit'] ?? null, array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))
+                        ? $action['wait_duration_unit']
+                        : 'days')
+                    : null,
             ]);
         }
     }

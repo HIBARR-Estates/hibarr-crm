@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -9,7 +10,7 @@ import {
     CalendarIcon,
     CheckSquareIcon,
 } from "../../Components/icons";
-import { FileTextOutlined, BellOutlined } from "@ant-design/icons";
+import { FileTextOutlined, BellOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
 
 interface EntitySettingCard {
@@ -32,6 +33,16 @@ export default function SettingsIndex({
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
 
     const cards: EntitySettingCard[] = [
+        {
+            key: "automation",
+            icon: <ThunderboltOutlined />,
+            iconBg: "bg-indigo-50",
+            iconColor: "text-indigo-500",
+            title: t("app.menu.automation"),
+            description: t("app.settingsHub.automationDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("settings-automation.index")),
+        },
         {
             key: "leads",
             icon: <PersonIcon />,

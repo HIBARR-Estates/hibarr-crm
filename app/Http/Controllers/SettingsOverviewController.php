@@ -6,9 +6,9 @@ use Inertia\Inertia;
 
 /**
  * Admin-only React settings hub — one card per entity (leads, deals,
- * meetings, tasks, notes, reminders). Individual settings views (e.g. task
- * categories) render inline as a drawer on this page rather than as
- * separate full-page routes.
+ * meetings, tasks, notes, reminders, automation). Most individual settings
+ * views (e.g. task categories) render inline as a drawer on this page;
+ * larger ones (e.g. automation) get their own full-page route instead.
  */
 class SettingsOverviewController extends AccountBaseController
 {

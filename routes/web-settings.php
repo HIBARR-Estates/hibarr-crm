@@ -4,6 +4,7 @@
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
+use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
 use App\Http\Controllers\ContractSettingController;
 use App\Http\Controllers\CrmEventSettingController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\MessageSettingController;
+use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
 use App\Http\Controllers\NotificationSettingController;
 use App\Http\Controllers\OfflinePaymentSettingController;
@@ -75,6 +77,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
+
+    /* Automation settings — email templates + trigger-based automations */
+    Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
 
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);
@@ -322,6 +327,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
+    Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
+    Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
     Route::resource('deal-automations', DealAutomationController::class);
 
     // Email Templates (used by deal automation "Send Email" actions)
@@ -329,6 +336,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('email-templates/plunk-templates', [EmailTemplateController::class, 'plunkTemplates'])->name('email-templates.plunk-templates');
     Route::get('email-templates/create-modal', [EmailTemplateController::class, 'createModal'])->name('email-templates.create-modal');
     Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
+
+    // Meta Events (used by deal automation "Meta Conversion" actions)
+    Route::resource('meta-events', MetaEventController::class)->except(['show', 'create', 'edit']);
 
     // CRM Event Engine Settings
     Route::get('company-settings/crm-events', [SettingsController::class, 'crm_events'])->name('company-settings.crm_events');

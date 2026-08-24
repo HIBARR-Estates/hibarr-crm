@@ -105,10 +105,12 @@ class AutomationFieldCatalog
      * Action types valid for each automation subject type — stage_transition/lock_deal
      * only make sense for a Deal (pipeline stage, commission-affecting lock). Tasks
      * and notes attach to either a Deal or a Lead, so both subject types get them.
+     * "wait" pauses the sequence and resumes at the next step later — see
+     * DealAutomationService::executeActions()/queueResume().
      */
-    public const DEAL_ACTION_TYPES = ['stage_transition', 'set_field_value', 'lock_deal', 'send_email', 'create_task', 'create_note', 'meta_conversion'];
+    public const DEAL_ACTION_TYPES = ['stage_transition', 'set_field_value', 'lock_deal', 'send_email', 'create_task', 'create_note', 'meta_conversion', 'wait'];
 
-    public const LEAD_ACTION_TYPES = ['set_field_value', 'send_email', 'create_task', 'create_note', 'meta_conversion'];
+    public const LEAD_ACTION_TYPES = ['set_field_value', 'send_email', 'create_task', 'create_note', 'meta_conversion', 'wait'];
 
     /**
      * Units a create_task action's due-date delta can be expressed in — the
@@ -196,5 +198,54 @@ class AutomationFieldCatalog
         $group = CustomFieldGroup::where('model', 'App\Models\Lead')->first();
 
         return $group ? CustomField::where('custom_field_group_id', $group->id)->get() : collect([]);
+    }
+
+    /**
+     * {id, name} option lists for every lead field that's backed by a real
+     * lookup table (not a fixed enum) — used to populate the condition
+     * builder's Value picker instead of a free-text box. Fixed enums
+     * (gender, contact type, age range) don't need a DB round trip and are
+     * hardcoded client-side instead (config/builderFields.ts).
+     *
+     * @return array<string, Collection>
+     */
+    public static function leadLookups(): array
+    {
+        return [
+            'leadCategories' => \App\Models\LeadCategory::orderBy('category_name')
+                ->get(['id', 'category_name as name']),
+            'leadSources' => \App\Models\LeadSource::orderBy('sort_order')
+                ->get(['id', 'type as name']),
+            'leadLifecycleStatuses' => \App\Models\LeadLifecycleStatus::orderBy('sort_order')
+                ->get(['id', 'label as name']),
+            'leadAgents' => \App\Models\LeadAgent::with('user:id,name')
+                ->get()
+                ->map(fn ($agent) => [
+                    'id' => $agent->id,
+                    'name' => $agent->user?->name,
+                ])
+                ->values(),
+        ];
+    }
+
+    /**
+     * Event names already in use somewhere — either a pipeline-stage Meta
+     * Conversion trigger, or another automation's meta_conversion action —
+     * so an action editor can offer them as a picker instead of the user
+     * having to remember/retype an existing event name exactly.
+     *
+     * @return array<int, string>
+     */
+    public static function knownMetaEventNames(): array
+    {
+        return \App\Models\MetaConversionTrigger::query()
+            ->pluck('event_name')
+            ->merge(\App\Models\DealAutomationAction::query()->whereNotNull('meta_event_name')->pluck('meta_event_name'))
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 }
