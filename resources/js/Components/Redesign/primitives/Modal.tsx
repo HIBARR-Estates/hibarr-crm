@@ -103,10 +103,9 @@ export function Modal({
     return createPortal(
         <div
             className="modal-overlay redesign-modal-overlay"
-            style={zIndex ? { zIndex } : undefined}
+            style={zIndex !== undefined ? { zIndex } : undefined}
             onClick={dirty ? undefined : onClose}
             role="presentation"
-            style={zIndex !== undefined ? { zIndex } : undefined}
         >
             <div
                 ref={panelRef}

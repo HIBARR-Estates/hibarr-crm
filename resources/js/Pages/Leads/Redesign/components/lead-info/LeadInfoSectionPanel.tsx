@@ -8,6 +8,7 @@ import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import {
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
@@ -62,6 +63,93 @@ function FieldGrid({ children }: { children: ReactNode }) {
     );
 }
 
+function AddContactMethodForm({
+    onAdd,
+    saving,
+    td,
+}: {
+    onAdd: (type: "email" | "phone", identifier: string) => Promise<void>;
+    saving: boolean;
+    td: TdFn;
+}) {
+    const [open, setOpen] = useState(false);
+    const [type, setType] = useState<"email" | "phone">("email");
+    const [identifier, setIdentifier] = useState("");
+
+    const reset = () => {
+        setIdentifier("");
+        setType("email");
+        setOpen(false);
+    };
+
+    const submit = async () => {
+        const value = identifier.trim();
+        if (!value) return;
+        try {
+            await onAdd(type, value);
+            reset();
+        } catch {
+            // Hook already surfaces the error toast.
+        }
+    };
+
+    if (!open) {
+        return (
+            <DealButton
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpen(true)}
+            >
+                {td("Add", { source: "en" })}
+            </DealButton>
+        );
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <Select
+                value={type}
+                onChange={(value: "email" | "phone") => setType(value)}
+                options={[
+                    { value: "email", label: td("Email", { source: "en" }) },
+                    { value: "phone", label: td("Phone", { source: "en" }) },
+                ]}
+                style={{ width: 110 }}
+                disabled={saving}
+            />
+            <Input
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder={
+                    type === "email"
+                        ? td("Email address", { source: "en" })
+                        : td("Phone number", { source: "en" })
+                }
+                disabled={saving}
+                onPressEnter={submit}
+                style={{ width: 200 }}
+            />
+            <DealButton
+                variant="primary"
+                size="sm"
+                loading={saving}
+                onClick={submit}
+                disabled={!identifier.trim()}
+            >
+                {td("Save", { source: "en" })}
+            </DealButton>
+            <DealButton
+                variant="ghost"
+                size="sm"
+                disabled={saving}
+                onClick={reset}
+            >
+                {td("Cancel", { source: "en" })}
+            </DealButton>
+        </div>
+    );
+}
+
 export default function LeadInfoSectionPanel({
     sectionId,
     lead,
@@ -76,6 +164,12 @@ export default function LeadInfoSectionPanel({
     const { t } = useTranslation();
     const { td } = useTd();
     const { props } = usePage<any>();
+    const {
+        removingId,
+        addContactMethod,
+        removeContactMethod,
+        saving: savingContactMethod,
+    } = useLeadContactMethods();
 
     const [isEditing, setIsEditing] = useState(false);
     const [pendingChanges, setPendingChanges] = useState<
