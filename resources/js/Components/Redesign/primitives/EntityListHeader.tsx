@@ -53,11 +53,10 @@ export interface EntityListHeaderProps {
     title: string;
     /**
      * Summary/stats line under the title (e.g. "106 active deals · £182,400
-     * pipeline value"). Omit — don't pass a placeholder — when the entity
-     * has no equivalent metric to show; the line is skipped entirely rather
-     * than rendering an empty or fabricated value.
+     * pipeline value"). Pass a `<Deferred>` node when the copy depends on
+     * deferred counts. Omit when the entity has no equivalent metric.
      */
-    subtitle?: string | null;
+    subtitle?: ReactNode;
     viewOptions?: EntityListHeaderViewOption[];
     viewValue?: string;
     onViewChange?: (value: string) => void;

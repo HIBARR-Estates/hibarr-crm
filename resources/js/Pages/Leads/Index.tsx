@@ -408,28 +408,66 @@ const Index = ({
             >
                 <EntityListHeader
                     title={t("app.menu.lead")}
-                    subtitle={headline}
+                    subtitle={
+                        <Deferred
+                            data={[
+                                "nextActionOverdueCount",
+                                "nextActionDueThisWeekCount",
+                                "hotLeadsCount",
+                            ]}
+                            fallback={
+                                <span
+                                    className="inline-block rounded"
+                                    style={{
+                                        width: 420,
+                                        height: 15,
+                                        background: T.SKELETON,
+                                    }}
+                                    aria-hidden
+                                />
+                            }
+                        >
+                            {headline}
+                        </Deferred>
+                    }
                     leadingActions={
-                        typeof nextActionDueThisWeekCount === "number" &&
-                        nextActionDueThisWeekCount > 0 && (
-                            <button
-                                type="button"
-                                onClick={handleDueThisWeekClick}
-                                className="inline-flex items-center rounded-md font-semibold cursor-pointer"
-                                style={{
-                                    gap: 7,
-                                    padding: "9px 14px",
-                                    fontSize: 14,
-                                    border: `1px solid ${T.NAVY_MID}`,
-                                    background: T.NAVY_SOFT,
-                                    color: T.NAVY,
-                                }}
-                            >
-                                <ClockCircleOutlined style={{ fontSize: 14 }} />
-                                {td("Due this week", { source: "en" })} ·{" "}
-                                {nextActionDueThisWeekCount}
-                            </button>
-                        )
+                        <Deferred
+                            data="nextActionDueThisWeekCount"
+                            fallback={
+                                <span
+                                    className="inline-block rounded-md"
+                                    style={{
+                                        width: 168,
+                                        height: 36,
+                                        background: T.SKELETON,
+                                    }}
+                                    aria-hidden
+                                />
+                            }
+                        >
+                            {typeof nextActionDueThisWeekCount === "number" &&
+                                nextActionDueThisWeekCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleDueThisWeekClick}
+                                        className="inline-flex items-center rounded-md font-semibold cursor-pointer"
+                                        style={{
+                                            gap: 7,
+                                            padding: "9px 14px",
+                                            fontSize: 14,
+                                            border: `1px solid ${T.NAVY_MID}`,
+                                            background: T.NAVY_SOFT,
+                                            color: T.NAVY,
+                                        }}
+                                    >
+                                        <ClockCircleOutlined
+                                            style={{ fontSize: 14 }}
+                                        />
+                                        {td("Due this week", { source: "en" })} ·{" "}
+                                        {nextActionDueThisWeekCount}
+                                    </button>
+                                )}
+                        </Deferred>
                     }
                     actions={
                         <>
