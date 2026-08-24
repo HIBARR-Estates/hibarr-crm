@@ -64,6 +64,11 @@ export interface EntityListHeaderProps {
     /** Right-aligned buttons rendered after the view toggle (Import, Refresh, Add, ...). */
     actions?: ReactNode;
     /**
+     * Optional controls rendered immediately before `actions` in the title
+     * row (e.g. the Leads-only "Due this week" chip). Other lists omit this.
+     */
+    leadingActions?: ReactNode;
+    /**
      * Second row, left side — a pipeline selector, quick filters, whatever
      * the entity needs. The row itself is only rendered when this or
      * `onOpenFilters` is provided.
@@ -99,6 +104,7 @@ export default function EntityListHeader({
     viewValue,
     onViewChange,
     actions,
+    leadingActions,
     toolbarLeft,
     filtersCount = 0,
     onOpenFilters,
@@ -190,6 +196,7 @@ export default function EntityListHeader({
                                 })}
                             </div>
                         )}
+                        {leadingActions}
                         {actions}
                     </div>
                 </div>

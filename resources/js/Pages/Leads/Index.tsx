@@ -14,7 +14,7 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
-import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
+import { Lead } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 
 import {
@@ -30,12 +30,11 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps } from "antd";
+import {  MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
@@ -410,28 +409,30 @@ const Index = ({
                 <EntityListHeader
                     title={t("app.menu.lead")}
                     subtitle={headline}
+                    leadingActions={
+                        typeof nextActionDueThisWeekCount === "number" &&
+                        nextActionDueThisWeekCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleDueThisWeekClick}
+                                className="inline-flex items-center rounded-md font-semibold cursor-pointer"
+                                style={{
+                                    gap: 7,
+                                    padding: "9px 14px",
+                                    fontSize: 14,
+                                    border: `1px solid ${T.NAVY_MID}`,
+                                    background: T.NAVY_SOFT,
+                                    color: T.NAVY,
+                                }}
+                            >
+                                <ClockCircleOutlined style={{ fontSize: 14 }} />
+                                {td("Due this week", { source: "en" })} ·{" "}
+                                {nextActionDueThisWeekCount}
+                            </button>
+                        )
+                    }
                     actions={
                         <>
-                            {typeof nextActionDueThisWeekCount === "number" &&
-                                nextActionDueThisWeekCount > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={handleDueThisWeekClick}
-                                        className="inline-flex items-center rounded-md font-semibold cursor-pointer"
-                                        style={{
-                                            gap: 7,
-                                            padding: "9px 14px",
-                                            fontSize: 14,
-                                            border: `1px solid ${T.NAVY_MID}`,
-                                            background: T.NAVY_SOFT,
-                                            color: T.NAVY,
-                                        }}
-                                    >
-                                        <ClockCircleOutlined style={{ fontSize: 14 }} />
-                                        {td("Due this week", { source: "en" })} ·{" "}
-                                        {nextActionDueThisWeekCount}
-                                    </button>
-                                )}
                             {canManageQualificationMapping && (
                                 <Link
                                     href={route(
