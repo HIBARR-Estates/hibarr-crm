@@ -128,9 +128,9 @@ pipeline {
 
                             mv $REMOTE_ENV_TMP $BUILD_PATH/.env
 
-                            # --- Stationary File Fix ---
+                            # --- bootstrap/cache only for build; storage becomes shared symlink in Step 2 ---
                             mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
-                            chmod -R 775 bootstrap/cache storage
+                            chmod -R 775 bootstrap/cache || true
                             # ----------------------------
 
                             # Run Build via Makefile
@@ -155,16 +155,23 @@ pipeline {
                             # Create the symlink using the absolute path
                             ln -sfn /home/$TARGET_USER/shared/user-uploads $BUILD_PATH/public/user-uploads
 
+                            # Durable file cache/sessions/logs across atomic releases
+                            bash $BUILD_PATH/scripts/link-shared-storage.sh \
+                                /home/$TARGET_USER/shared/storage \
+                                $BUILD_PATH \
+                                $LIVE_LINK
+
+                            echo 'Step 2b: Permission Guard (shared storage + bootstrap/cache)...'
+                            bash $BUILD_PATH/scripts/fix-storage-permissions.sh $BUILD_PATH $TARGET_USER
+
                             echo 'Step 3: Database & Finalization...'
                             make finalize-deploy
 
                             echo 'Step 4: Atomic Switch...'
                             ln -sfn $BUILD_PATH $LIVE_LINK
 
-                            echo 'Step 5: Permission Guard (The Fix)...'
-                            # Force the group to www-data so Nginx can write to logs/cache
-                            sudo chown -R $TARGET_USER:www-data $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
-                            sudo chmod -R 775 $BUILD_PATH/storage $BUILD_PATH/bootstrap/cache || true
+                            echo 'Step 5: Re-apply Permission Guard after switch...'
+                            bash $BUILD_PATH/scripts/fix-storage-permissions.sh $BUILD_PATH $TARGET_USER
 
                             echo 'Step 6: Production Optimization...'
                             cd $LIVE_LINK
@@ -172,8 +179,12 @@ pipeline {
                             php artisan route:cache
                             php artisan view:cache
 
-                            # Reload PHP-FPM to clear OPcache
-                            sudo systemctl reload php8.3-fpm || true
+                            # Reload PHP-FPM to clear OPcache (staging=8.2, production=8.3)
+                            if [ "$ENV_NAME" = "production" ]; then
+                                sudo systemctl reload php8.3-fpm || true
+                            else
+                                sudo systemctl reload php8.2-fpm || true
+                            fi
 
                             echo 'Step 7: gRPC Server Restart...'
                             # Restart RoadRunner gRPC server if service exists

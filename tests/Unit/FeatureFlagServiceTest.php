@@ -174,4 +174,25 @@ class FeatureFlagServiceTest extends TestCase
         $this->assertArrayHasKey('crm.lead-ai-summary', $inertiaFlags);
         $this->assertTrue($inertiaFlags['crm.lead-ai-summary']);
     }
+
+    public function test_cache_write_failure_still_returns_api_flags(): void
+    {
+        Http::fake([
+            '*/shared/flags*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'flags' => [
+                        'crm.lead-language-core-field' => true,
+                    ],
+                ],
+            ]),
+        ]);
+
+        Cache::shouldReceive('get')->andReturn(null);
+        Cache::shouldReceive('put')->andThrow(new \RuntimeException('Permission denied'));
+
+        $service = app(FeatureFlagService::class);
+
+        $this->assertTrue($service->isEnabled('crm.lead-language-core-field'));
+    }
 }

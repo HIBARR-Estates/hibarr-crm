@@ -33,6 +33,7 @@ class LeadService
         'category_id',
         'lead_owner_id',
         'added_by_id',
+        'referred_by_agent_id',
         'lifecycle_status_id',
         'qualification_segment_key',
         'qualification_answer_values',
@@ -561,6 +562,13 @@ class LeadService
 
         if ($request->filled('added_by_id')) {
             $query->whereIn('added_by', $this->toValueArray($request->get('added_by_id')));
+        }
+
+        if ($request->filled('referred_by_agent_id')) {
+            $query->whereIn(
+                'referred_by_agent_id',
+                $this->toValueArray($request->get('referred_by_agent_id'))
+            );
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {

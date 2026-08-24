@@ -347,8 +347,16 @@ class FormDataService
             ->where('status', 'enabled')
             ->whereHas('user', fn($q) => $q->where('status', 'active'));
 
+        if ($request->boolean('partner_only')) {
+            $query->where('is_partner', true);
+        }
+
+        if ($request->boolean('exclude_partners')) {
+            $query->where('is_partner', false);
+        }
+
         if ($request->filled('search')) {
-            $query->whereHas('user', fn($q) => 
+            $query->whereHas('user', fn($q) =>
                 $q->where('name', 'like', '%' . $request->get('search') . '%')
             );
         }

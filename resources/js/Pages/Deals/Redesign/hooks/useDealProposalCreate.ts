@@ -66,10 +66,14 @@ export default function useDealProposalCreate(deal: Deal) {
 
             const validationErrors: string[] = [];
             if (!property) {
-                validationErrors.push("Property is required");
+                validationErrors.push(
+                    t("pages.deals.workspace.offers.validation.property_required"),
+                );
             }
             if (!amountValue) {
-                validationErrors.push("Offer amount is required");
+                validationErrors.push(
+                    t("pages.deals.workspace.offers.validation.amount_required"),
+                );
             }
 
             if (validationErrors.length > 0) {
@@ -120,7 +124,7 @@ export default function useDealProposalCreate(deal: Deal) {
                     setErrors(
                         flatErrors.length > 0
                             ? flatErrors.map(String)
-                            : ["Failed to save offer"],
+                            : [t("pages.deals.workspace.offers.messages.save_failed")],
                     );
                 },
                 onFinish: () => setIsSaving(false),

@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Form, Select, Input, InputNumber, Row, Col, Alert } from "antd";
+import { Form, Select, Input, InputNumber, Row, Col } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { CityLookupValue, PropertyEnumValues } from "@/Types";
-import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
-import { DeveloperProject } from "@/Types/developerProject";
+import type { DeveloperProject } from "@/Types/developerProject";
 
 const { TextArea } = Input;
 
 interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
     enumValues?: PropertyEnumValues;
+    /** Kept for call-site compatibility; location hydrate happens in the parent modal. */
     project?: DeveloperProject | null;
 }
 
@@ -23,13 +23,11 @@ interface ConstructionProjectLocationSectionProps {
  */
 const ConstructionProjectLocationSection: React.FC<
     ConstructionProjectLocationSectionProps
-> = ({ form, enumValues, project }) => {
-    const { props } = usePage<any>();
-
-    // Watch city value for area filtering
+> = ({ form, enumValues }) => {
     const selectedCity = Form.useWatch("city", form);
+    const previousCityRef = useRef<string | undefined | null>(undefined);
+    const hydratedRef = useRef(false);
 
-    // City select options
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
         return cities.map((c) => ({
@@ -38,7 +36,6 @@ const ConstructionProjectLocationSection: React.FC<
         }));
     }, [enumValues?.cities]);
 
-    // Area options filtered by selected city
     const areaOptions = useMemo(() => {
         if (!selectedCity || !enumValues?.areas_by_city) return [];
         const areas = enumValues.areas_by_city[selectedCity] || [];
@@ -48,20 +45,32 @@ const ConstructionProjectLocationSection: React.FC<
         }));
     }, [selectedCity, enumValues?.areas_by_city]);
 
-    // Clear area when city changes (but not on initial form population)
-    const isInitialCity = useRef(true);
+    // On real user city changes: clear area/address/coords and fill empty distance defaults.
+    // Do not re-apply the saved project area (that caused "reset to wrong address").
     useEffect(() => {
-        if (isInitialCity.current) {
-            isInitialCity.current = false;
+        if (!hydratedRef.current) {
+            if (selectedCity != null && selectedCity !== "") {
+                previousCityRef.current = selectedCity;
+                hydratedRef.current = true;
+            }
             return;
         }
-        form.setFieldValue(
-            "area",
-            project?.location?.area ? project?.location?.area : undefined,
-        );
 
-        // Auto-fill distance fields from city defaults (only empty fields)
+        if (previousCityRef.current === selectedCity) {
+            return;
+        }
+
+        previousCityRef.current = selectedCity;
+
+        form.setFieldsValue({
+            area: undefined,
+            address: undefined,
+            latitude: undefined,
+            longitude: undefined,
+        });
+
         if (!selectedCity || !enumValues?.cities) return;
+
         const cityObj = enumValues.cities.find(
             (c: CityLookupValue) => c.name === selectedCity,
         );
@@ -77,11 +86,10 @@ const ConstructionProjectLocationSection: React.FC<
                 }
             }
         });
-    }, [selectedCity, enumValues?.cities, project?.location?.area, form]);
+    }, [selectedCity, enumValues?.cities, form]);
 
     return (
         <Row gutter={[16, 0]}>
-            {/* City */}
             <Col xs={24} md={12}>
                 <Form.Item name="city" label="City">
                     <Select
@@ -94,21 +102,14 @@ const ConstructionProjectLocationSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Area / District */}
             <Col xs={24} md={12}>
-                <Form.Item
-                    name="area"
-                    label="Area / District"
-                    initialValue={project?.location?.area}
-                >
+                <Form.Item name="area" label="Area / District">
                     <Select
                         options={areaOptions}
                         placeholder={
                             selectedCity
                                 ? "Select area"
-                                : project?.location?.area
-                                  ? project?.location?.area
-                                  : "Select city first"
+                                : "Select city first"
                         }
                         allowClear
                         showSearch
@@ -118,7 +119,6 @@ const ConstructionProjectLocationSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Address */}
             <Col span={24}>
                 <Form.Item name="address" label="Full Address">
                     <TextArea
@@ -128,7 +128,6 @@ const ConstructionProjectLocationSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Latitude */}
             <Col xs={12} md={6}>
                 <Form.Item
                     name="latitude"
@@ -136,9 +135,6 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            // min: -90,
-                            // max: 90,
-                            // message: "Must be between -90 and 90",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },
@@ -152,7 +148,6 @@ const ConstructionProjectLocationSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Longitude */}
             <Col xs={12} md={6}>
                 <Form.Item
                     name="longitude"
@@ -160,9 +155,6 @@ const ConstructionProjectLocationSection: React.FC<
                     rules={[
                         {
                             type: "number",
-                            // min: -180,
-                            // max: 180,
-                            // message: "Must be between -180 and 180",
                             transform: (v: string) =>
                                 v ? Number(v) : undefined,
                         },
@@ -176,16 +168,12 @@ const ConstructionProjectLocationSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Map URL */}
             <Col xs={24} md={12}>
                 <Form.Item name="map_url" label="Map URL">
                     <Input placeholder="Google Maps link" />
                 </Form.Item>
             </Col>
 
-            {/* ======================== */}
-            {/* Distance Fields */}
-            {/* ======================== */}
             <Col span={24}>
                 <div className="mt-2 mb-2 border-t pt-3">
                     <span className="text-sm font-medium text-gray-700">

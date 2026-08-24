@@ -63,7 +63,7 @@ export function describeFilters(
     for (const field of config.fields) {
         if (field.hidden || consumed.has(field.key)) continue;
 
-        const noun = field.sentence ?? field.label.toLowerCase();
+        const noun = capitalize(field.sentence ?? field.label.toLowerCase());
 
         // Date range spans two keys.
         if (field.control === "datePresets") {

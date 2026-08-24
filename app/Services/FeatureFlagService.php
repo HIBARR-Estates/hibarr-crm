@@ -57,8 +57,8 @@ class FeatureFlagService
         $fetched = $this->fetchFromApi($sessionId);
 
         if ($fetched !== null) {
-            Cache::put($cacheKey, $fetched, $cacheTtl);
-            Cache::put($this->lastGoodCacheKey($sessionId), $fetched, now()->addDay());
+            $this->rememberFlags($cacheKey, $fetched, $cacheTtl);
+            $this->rememberFlags($this->lastGoodCacheKey($sessionId), $fetched, now()->addDay());
 
             return $this->resolved = $fetched;
         }
@@ -240,5 +240,24 @@ class FeatureFlagService
     private function lastGoodCacheKey(string $sessionId): string
     {
         return $this->cacheKey($sessionId) . ':last_good';
+    }
+
+    /**
+     * Soft-fail cache writes so file-permission slips never 500 request paths
+     * (e.g. lead merge) that only need to read feature flags.
+     *
+     * @param array<string, bool> $flags
+     * @param \DateTimeInterface|\DateInterval|int|null $ttl
+     */
+    private function rememberFlags(string $key, array $flags, $ttl): void
+    {
+        try {
+            Cache::put($key, $flags, $ttl);
+        } catch (\Throwable $exception) {
+            Log::warning('FeatureFlagService: Failed to write feature flag cache', [
+                'key' => $key,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

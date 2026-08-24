@@ -19,6 +19,7 @@ import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/Deal
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
 import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import DealMenuSelect from "@/Pages/Deals/Redesign/components/primitives/DealMenuSelect";
 import DealPeoplePicker, {
     type DealPersonOption,
@@ -558,6 +559,9 @@ export default function TasksTab({
                                     >
                                         {task.title}
                                     </span>
+                                    <IntegrationOriginBadge
+                                        origin={task.integrationOrigin}
+                                    />
                                     <DealPriorityBadge
                                         priority={task.priority}
                                     />

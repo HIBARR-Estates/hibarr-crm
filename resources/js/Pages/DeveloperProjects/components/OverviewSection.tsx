@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Card, Empty } from "antd";
-import { DataTable } from "@/Components/DataTable";
-import type { TableColumnsType } from "antd";
+import { Button } from "antd";
 import {
     Building2,
     CheckCircle2,
@@ -18,8 +16,11 @@ import type {
     Statistics,
     ImageItem,
 } from "../Show";
-import { generatePropertySubtitle, snakeToReadable } from "../../../lib/utils";
+import type { ProjectDistances } from "@/Types/developerProject";
+import { formatLocationNameForDisplay } from "../../../lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { HtmlRenderer } from "@/Components/ContentRenderer";
+import { DISTANCE_FIELDS } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 
 // ── Currency icon ─────────────────────────────────────────────────────────
 const CURRENCY_ICONS: Record<string, React.ReactNode> = {
@@ -28,6 +29,15 @@ const CURRENCY_ICONS: Record<string, React.ReactNode> = {
     USD: <DollarSign size={22} />,
     TRY: <TurkishLira size={22} />,
 };
+
+const DESCRIPTION_PREVIEW_LENGTH = 360;
+
+const stripHtml = (html: string): string =>
+    html
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 const StatCard: React.FC<{
@@ -48,6 +58,44 @@ const StatCard: React.FC<{
     </div>
 );
 
+const ProjectDescription: React.FC<{ html: string }> = ({ html }) => {
+    const [expanded, setExpanded] = useState(false);
+    const { td } = useTd();
+    const plainLength = stripHtml(html).length;
+    const needsTruncate = plainLength > DESCRIPTION_PREVIEW_LENGTH;
+
+    return (
+        <div>
+            <HtmlRenderer
+                content={html}
+                className="text-sm leading-7 text-gray-600 [&_p]:mb-3 [&_p:last-child]:mb-0"
+                maxLength={
+                    needsTruncate && !expanded
+                        ? DESCRIPTION_PREVIEW_LENGTH
+                        : undefined
+                }
+                showFullContent={expanded || !needsTruncate}
+            />
+            {needsTruncate && (
+                <Button
+                    type="link"
+                    size="small"
+                    className="!mt-1 !h-auto !px-0"
+                    onClick={() => setExpanded((prev) => !prev)}
+                >
+                    {td(expanded ? "Show less" : "Show more", { source: "en" })}
+                </Button>
+            )}
+        </div>
+    );
+};
+
+const formatDistance = (value: number | null | undefined): string | null => {
+    if (value == null || Number.isNaN(Number(value))) return null;
+    const num = Number(value);
+    return Number.isInteger(num) ? `${num} km` : `${num.toFixed(1)} km`;
+};
+
 // ── Props ─────────────────────────────────────────────────────────────────
 interface OverviewSectionProps {
     project: ShowProps["project"];
@@ -59,14 +107,27 @@ interface OverviewSectionProps {
 const OverviewSection: React.FC<OverviewSectionProps> = ({
     project,
     statistics,
-    unitTypesSummary,
     imagesByTag,
 }) => {
     const [imgError, setImgError] = useState(false);
     const { td } = useTd();
 
-    // Pick the first available project-source image, then any image
+    // Prefer cover/thumbnail, then any project-source gallery image
     const heroImage = useMemo(() => {
+        const thumbnailUrl =
+            project.thumbnail?.url ?? project.thumbnail?.external_url ?? null;
+        if (thumbnailUrl) return thumbnailUrl;
+
+        const coverAsset = (project.assets ?? []).find(
+            (asset) =>
+                asset.asset_type === "image" &&
+                (asset.tags ?? []).includes("cover") &&
+                (asset.url || asset.external_url),
+        );
+        if (coverAsset) {
+            return coverAsset.url ?? coverAsset.external_url ?? null;
+        }
+
         if (!imagesByTag) return null;
         for (const images of Object.values(imagesByTag)) {
             const src = images.find((img) => img.source === "project");
@@ -76,88 +137,44 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             if (images.length > 0) return images[0].url;
         }
         return null;
-    }, [imagesByTag]);
+    }, [imagesByTag, project.assets, project.thumbnail]);
 
-    const formatPrice = (price: number | null) => {
-        if (!price) return "-";
-        return new Intl.NumberFormat("en-GB", {
-            style: "currency",
-            currency: "GBP",
-            maximumFractionDigits: 0,
-        }).format(price);
-    };
+    const location = project.location;
+    const distances = (project.distances ?? {}) as ProjectDistances;
+    const distanceRows = DISTANCE_FIELDS.map((field) => {
+        const formatted = formatDistance(
+            distances[field.key as keyof ProjectDistances],
+        );
+        return formatted
+            ? { key: field.key, label: field.label, value: formatted }
+            : null;
+    }).filter(Boolean) as { key: string; label: string; value: string }[];
 
-    const formatRange = (min: number | null, max: number | null) => {
-        if (min === null && max === null) return "-";
-        if (min === max || max === null) return `${min}`;
-        if (min === null) return `${max}`;
-        return `${min} - ${max}`;
-    };
+    const addressText =
+        location?.full_address ||
+        location?.address?.street ||
+        null;
 
-    const columns: TableColumnsType<UnitTypeSummary> = [
-        {
-            title: "Name",
-            dataIndex: "name",
-            key: "name",
-            render: (_, record) => (
-                <span className="text-gray-800">
-                    {generatePropertySubtitle(record)}
-                </span>
-            ),
-        },
-        {
-            title: "Property Type",
-            dataIndex: "type",
-            key: "type",
-            render: (type: string) => (
-                <span className="text-gray-800">{snakeToReadable(type)}</span>
-            ),
-        },
-        {
-            title: "Quantity",
-            dataIndex: "quantity",
-            key: "quantity",
-            align: "center",
-        },
-        {
-            title: "Bedrooms",
-            key: "bedrooms",
-            align: "center",
-            render: (_, record) =>
-                formatRange(record.bedrooms.min, record.bedrooms.max),
-        },
-        {
-            title: "Bathrooms",
-            key: "bathrooms",
-            align: "center",
-            render: (_, record) =>
-                formatRange(record.bathrooms.min, record.bathrooms.max),
-        },
-        {
-            title: "Area (m²)",
-            key: "area",
-            align: "center",
-            render: (_, record) =>
-                formatRange(record.area.min, record.area.max),
-        },
-        {
-            title: "Price",
-            key: "price",
-            render: (_, record) => {
-                if (!record.price.min) return "-";
-                if (record.price.min === record.price.max)
-                    return formatPrice(record.price.min);
-                return `From ${formatPrice(record.price.min)}`;
-            },
-        },
-    ];
+    const hasLocationBlock =
+        Boolean(location?.name) ||
+        Boolean(addressText) ||
+        Boolean(location?.map_url) ||
+        distanceRows.length > 0;
 
     return (
         <div className="flex flex-col gap-6">
-            {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
-                {/* Stat Cards */}
+                {/* Stat cards — price first (LTR importance) */}
                 <div className="flex flex-wrap gap-3 mb-9">
+                    <StatCard
+                        icon={
+                            CURRENCY_ICONS[
+                                statistics.starting_price_currency
+                            ] ?? <PoundSterling size={22} />
+                        }
+                        value={statistics.starting_price_formatted ?? "-"}
+                        label={td("Starting Price", { source: "en" })}
+                    />
                     <StatCard
                         icon={<Building2 size={22} />}
                         value={`${statistics.total_units}`}
@@ -177,25 +194,17 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                         }
                         label={td("Sold %", { source: "en" })}
                     />
-                    <StatCard
-                        icon={
-                            CURRENCY_ICONS[statistics.starting_price_currency] ?? (
-                                <PoundSterling size={22} />
-                            )
-                        }
-                        value={statistics.starting_price_formatted ?? "-"}
-                        label={td("Starting Price", { source: "en" })}
-                    />
                 </div>
 
                 {/* Description with floated hero image */}
                 <div className="clearfix">
-                    {/* Hero image — floated right so text wraps around and under */}
                     {heroImage && !imgError ? (
                         <div className="mb-4 rounded-xl overflow-hidden shadow-lg w-full min-h-52 md:float-right md:ml-6 md:w-2/5">
                             <img
                                 src={heroImage}
                                 alt={project.name}
+                                loading="lazy"
+                                decoding="async"
                                 onError={() => setImgError(true)}
                                 className="w-full h-full object-cover block min-h-52"
                             />
@@ -203,29 +212,71 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     ) : null}
 
                     {project.description ? (
-                        <p className="text-sm leading-7 text-gray-600">
-                            {td(project.description)}
-                        </p>
+                        <ProjectDescription html={project.description} />
                     ) : null}
 
                     <div className="clear-both" />
                 </div>
-            </div>
 
-            {/* ── Units Table ──────────────────────────────────────────── */}
-            {/* <Card title="Units">
-                {unitTypesSummary.length > 0 ? (
-                    <DataTable
-                        columns={columns}
-                        dataSource={unitTypesSummary}
-                        rowKey="type"
-                        size="small"
-                        scroll={{ x: "max-content" }}
-                    />
-                ) : (
-                    <Empty description="No unit types added to this project" />
+                {/* Location & proximity — visible to all viewers */}
+                {hasLocationBlock && (
+                    <div className="mt-8 border-t border-gray-100 pt-6">
+                        <div className="mb-4 flex items-center gap-2">
+                            <MapPin size={16} className="text-[#1a2a6c]" />
+                            <h3 className="text-sm font-semibold text-slate-900">
+                                {td("Location & proximity", { source: "en" })}
+                            </h3>
+                        </div>
+
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex flex-col gap-1.5">
+                                {location?.name && (
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {formatLocationNameForDisplay(
+                                            location.name,
+                                        )}
+                                    </p>
+                                )}
+                                {addressText && (
+                                    <p className="text-sm text-gray-600">
+                                        {addressText}
+                                    </p>
+                                )}
+                                {location?.map_url && (
+                                    <a
+                                        href={location.map_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-blue-600 hover:text-blue-800 w-fit"
+                                    >
+                                        {td("Open in maps", { source: "en" })}
+                                    </a>
+                                )}
+                            </div>
+
+                            {distanceRows.length > 0 && (
+                                <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:min-w-[320px]">
+                                    {distanceRows.map((row) => (
+                                        <div
+                                            key={row.key}
+                                            className="flex flex-col gap-0.5"
+                                        >
+                                            <span className="text-[10px] uppercase tracking-wide text-gray-400">
+                                                {td(row.label, {
+                                                    source: "en",
+                                                })}
+                                            </span>
+                                            <span className="text-sm font-medium text-gray-800">
+                                                {row.value}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 )}
-            </Card> */}
+            </div>
         </div>
     );
 };

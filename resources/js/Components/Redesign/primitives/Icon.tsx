@@ -279,6 +279,16 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <line x1="7" y1="7" x2="7.01" y2="7" />
         </>
     ),
+    bot: (
+        <>
+            <path d="M12 8V4H8" />
+            <rect x="4" y="8" width="16" height="12" rx="2" />
+            <path d="M2 14h2" />
+            <path d="M20 14h2" />
+            <circle cx="9" cy="13" r="1" />
+            <circle cx="15" cy="13" r="1" />
+        </>
+    ),
 };
 
 interface IconProps {

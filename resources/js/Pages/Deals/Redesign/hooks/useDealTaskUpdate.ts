@@ -4,6 +4,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 import {
@@ -33,6 +34,7 @@ interface UpdateTaskRequest {
 }
 
 export default function useDealTaskUpdate(task: Task) {
+    const { t } = useTranslation();
     const { props } = usePage();
     const [errors, setErrors] = useState<string[]>([]);
     const { setTasks } = useDealWorkspace();
@@ -47,7 +49,7 @@ export default function useDealTaskUpdate(task: Task) {
         (input: DealTaskUpdateInput, onSuccess?: () => void) => {
             const title = input.title.trim();
             if (!title) {
-                setErrors(["Task title is required"]);
+                setErrors([t("pages.deals.workspace.tasks.validation.title_required")]);
                 return;
             }
 
@@ -105,12 +107,12 @@ export default function useDealTaskUpdate(task: Task) {
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to update task"],
+                            : [formatted.message || t("pages.deals.workspace.tasks.messages.update_failed")],
                     );
                 },
             });
         },
-        [mutate, props.company, setTasks],
+        [mutate, props.company, setTasks, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

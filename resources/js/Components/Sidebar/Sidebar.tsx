@@ -14,6 +14,7 @@ import {
     ClockCircleOutlined,
     ApartmentOutlined,
     TeamOutlined,
+    UsergroupAddOutlined,
     HistoryOutlined,
     GiftOutlined,
 } from "@ant-design/icons";
@@ -67,6 +68,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     );
     const canManagePartnerNetwork = isPermissionAll(
         props.auth?.permissions?.manage_partner_network,
+    );
+    const canManagePartners = isPermissionAll(
+        props.auth?.permissions?.manage_partners,
     );
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
@@ -249,6 +253,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.reports"),
             icon: <HistoryOutlined />,
             href: "/account/agent-reports",
+        },
+        {
+            key: "partners",
+            label: t("app.menu.partners"),
+            icon: <UsergroupAddOutlined />,
+            href: "/account/partners",
+            hidden: !canManagePartners,
         },
         {
             key: "mlm",

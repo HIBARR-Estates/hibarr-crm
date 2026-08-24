@@ -69,18 +69,26 @@ export default function DealEditMeetingModal({
 
         const validationErrors: string[] = [];
         if (!form.meetingTypeId) {
-            validationErrors.push("Please select a meeting type.");
+            validationErrors.push(
+                t("pages.deals.workspace.meetings.validation.select_meeting_type"),
+            );
         }
-        if (!form.date) validationErrors.push("Please select a meeting date.");
+        if (!form.date) {
+            validationErrors.push(
+                t("pages.deals.workspace.meetings.validation.select_date"),
+            );
+        }
         if (!form.startTime) {
-            validationErrors.push("Please select a start time.");
+            validationErrors.push(
+                t("pages.deals.workspace.meetings.validation.select_start_time"),
+            );
         }
         if (
             requiresMeetingParticipants(form.platform) &&
             form.participants.length === 0
         ) {
             validationErrors.push(
-                "At least one participant is required for Zoho Meeting.",
+                t("pages.deals.workspace.meetings.validation.participants_required"),
             );
         }
 
@@ -89,7 +97,7 @@ export default function DealEditMeetingModal({
             !form.meetingLink.trim()
         ) {
             validationErrors.push(
-                "Please paste a meeting link from your video provider.",
+                t("pages.deals.workspace.meetings.validation.paste_meeting_link"),
             );
         }
 
@@ -97,7 +105,9 @@ export default function DealEditMeetingModal({
             requiresPhysicalLocationDetail(form.platform) &&
             !form.locationDetail.trim()
         ) {
-            validationErrors.push("Please enter the meeting location.");
+            validationErrors.push(
+                t("pages.deals.workspace.meetings.validation.enter_location"),
+            );
         }
 
         if (validationErrors.length > 0) {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 import { ANALYSIS_CURRENCIES } from "../data/currencies";
@@ -20,6 +21,7 @@ function fmt(raw: string): string {
 }
 
 export default function CurrencyInput({ value, placeholder, onChange }: CurrencyInputProps) {
+    const { td } = useTd();
     const { code, amount } = parse(value);
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -87,7 +89,7 @@ export default function CurrencyInput({ value, placeholder, onChange }: Currency
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search currency..."
+                                placeholder={td("Search currency...", { source: "en" })}
                                 className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
                             />
                         </div>

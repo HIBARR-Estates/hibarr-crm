@@ -104,7 +104,7 @@ export default function EntityListHeader({
     onOpenFilters,
     filtersLabel,
     filterSentence,
-    maxWidth = 1440,
+    maxWidth = 1536,
     sticky = false,
 }: EntityListHeaderProps) {
     const { td } = useTd();
@@ -122,7 +122,7 @@ export default function EntityListHeader({
             }}
         >
             <div
-                className="mx-auto w-full px-6 pt-[18px] pb-4 space-y-4"
+                className="mx-auto w-full px-6 pt-[18px] pb-4 space-y-4 max-w-screen-2xl"
                 style={{ maxWidth, fontFamily: REDESIGN_FONT_STACK }}
             >
                 <div className="flex flex-wrap items-start justify-between gap-6">

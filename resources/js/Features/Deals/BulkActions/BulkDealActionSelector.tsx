@@ -9,6 +9,7 @@ import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { usePermission } from "@/lib/permissionUtils";
 import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
+import type { BulkActionSummaryData } from "@/Features/BulkActions/BulkActionSummary";
 import {
     createDealBulkUpdateFields,
     type DealBulkUpdateOptionsInput,
@@ -26,6 +27,8 @@ interface Props {
     onSelectAllMatching: () => void;
     clearSelected: () => void;
     updateOptions?: DealBulkUpdateOptionsInput;
+    /** Receipt for the list view once an action lands. */
+    onCompleted?: (summary: BulkActionSummaryData) => void;
     optionsLoading?: boolean;
 }
 
@@ -40,6 +43,7 @@ const BulkDealActionSelector: React.FC<Props> = ({
     onSelectAllMatching,
     clearSelected,
     updateOptions = {},
+    onCompleted,
     optionsLoading = false,
 }) => {
     const { td } = useTd();
@@ -111,6 +115,10 @@ const BulkDealActionSelector: React.FC<Props> = ({
                     endpoint={route("deals.apply_quick_action")}
                     entityLabel="deal"
                     reloadOnly="deals"
+                    onCompleted={onCompleted}
+                    actionNote={td("Locked deals are skipped.", {
+                        source: "en",
+                    })}
                     optionsLoading={optionsLoading}
                 />
             ) : null}

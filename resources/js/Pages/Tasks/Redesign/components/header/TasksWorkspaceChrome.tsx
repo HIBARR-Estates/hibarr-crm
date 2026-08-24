@@ -57,7 +57,7 @@ export default function TasksWorkspaceChrome({
                 zIndex: 15,
             }}
         >
-            <div className="mx-auto w-full max-w-[1280px] px-7 pt-[18px]">
+            <div className="mx-auto w-full max-w-screen-2xl px-7 pt-[18px]">
                 <TasksHeader
                     view={view}
                     onViewChange={onViewChange}
@@ -87,7 +87,7 @@ export default function TasksWorkspaceChrome({
                     borderTop: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
-                <div className="mx-auto w-full max-w-[1280px] px-7">
+                <div className="mx-auto w-full max-w-screen-2xl px-7">
                     <ActiveFilterSentence
                         count={totalItems}
                         entityLabel="tasks"

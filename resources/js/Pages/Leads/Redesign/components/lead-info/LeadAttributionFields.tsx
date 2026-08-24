@@ -146,6 +146,7 @@ export function LeadReferrerField({
         <>
             <FormDataSelector
                 type="lead-agents"
+                partnersOnly
                 value={pending?.id ?? null}
                 onSelect={(value, entity) =>
                     setPending({

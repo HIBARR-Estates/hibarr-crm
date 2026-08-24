@@ -142,7 +142,11 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function index(Request $request)
     {
-        $filtersModalEnabled = FeatureFlags::enabled('crm.projects-filters-modal');
+        $filtersV2Enabled = FeatureFlags::enabled('crm.projects-filters-v2');
+        // v2's field set relies on the city/area location filtering path, so
+        // enabling v2 alone (without also flipping the older flag) must still
+        // get it rather than silently falling back to location_id filtering.
+        $filtersModalEnabled = FeatureFlags::enabled('crm.projects-filters-modal') || $filtersV2Enabled;
 
         $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'thumbnail', 'assets'])
             ->withCount('properties')
@@ -157,6 +161,15 @@ class DeveloperProjectController extends AccountBaseController
             'search', 'sort',
             'developer_id', 'construction_status', 'primary_category',
             'payment_plan_duration', 'price_min', 'price_max',
+            // v2 additions — absent/no-op under the legacy UI.
+            'title_deed_type', 'unit_types',
+            'completion_start', 'completion_end',
+            'min_number_of_phases', 'max_number_of_phases',
+            'min_total_units', 'max_total_units',
+            'min_payment_plan_duration', 'max_payment_plan_duration',
+            'min_starting_price', 'max_starting_price',
+            'downpayment_type', 'rental_guarantee', 'is_hidden',
+            'facilities',
         ];
 
         if ($filtersModalEnabled) {
@@ -199,7 +212,7 @@ class DeveloperProjectController extends AccountBaseController
             ->orderBy('label')
             ->get();
 
-        return Inertia::render('DeveloperProjects/Index', [
+        $props = [
             'pageTitle' => 'Construction Projects',
             'projects' => $projects,
             'developers' => $developers,
@@ -212,7 +225,50 @@ class DeveloperProjectController extends AccountBaseController
                 'canSeeHidden' => DeveloperProjectVisibility::canSeeHiddenProjects(),
                 'canToggleHidden' => DeveloperProjectVisibility::canToggleProjectHidden(),
             ],
-        ]);
+        ];
+
+        if ($filtersV2Enabled) {
+            $props['titleDeedTypes'] = collect(DeveloperProject::TITLE_DEED_TYPE_LABELS)
+                ->map(fn ($label, $value) => ['name' => $value, 'label' => $label])
+                ->values();
+            $props['unitTypeOptions'] = collect(DeveloperProject::UNIT_TYPE_LABELS)
+                ->map(fn ($label, $value) => ['name' => $value, 'label' => $label])
+                ->values();
+            $props['projectFacilities'] = \App\Models\ProjectFacility::where('company_id', user()->company_id)
+                ->select('name', 'label', 'icon')
+                ->orderBy('label')
+                ->get();
+            $props['savedViews'] = Inertia::defer(fn () => $this->projectSavedViewsForUser());
+        }
+
+        return Inertia::render('DeveloperProjects/Index', $props);
+    }
+
+    /**
+     * Saved filter views the current user may open: their own plus team-shared.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function projectSavedViewsForUser(): array
+    {
+        $userId = (int) user()->id;
+
+        return \App\Models\ProjectSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (\App\Models\ProjectSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**
@@ -220,7 +276,7 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function show(Request $request, $id)
     {
-        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
+        $project = DeveloperProject::with(['location', 'exposeConfig', 'properties.assets', 'developer', 'assets', 'thumbnail', 'unitTypes.assets', 'unitTypes.offers', 'offers'])
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);

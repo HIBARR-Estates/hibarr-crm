@@ -36,9 +36,15 @@ export default function useDealMeetingReschedule(followupId: number | null) {
             if (!followupId) return;
 
             const validationErrors: string[] = [];
-            if (!input.date) validationErrors.push("Please select a date.");
+            if (!input.date) {
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_date"),
+                );
+            }
             if (!input.startTime) {
-                validationErrors.push("Please select a start time.");
+                validationErrors.push(
+                    t("pages.deals.workspace.meetings.validation.select_start_time"),
+                );
             }
 
             if (validationErrors.length > 0) {
@@ -100,10 +106,10 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                     return;
                 }
 
-                setErrors([json.message || "Failed to reschedule meeting"]);
+                setErrors([json.message || t("pages.deals.workspace.meetings.messages.reschedule_failed")]);
             } catch (error) {
                 const formatted = errorFormatter(error);
-                setErrors([formatted.message || "Failed to reschedule meeting"]);
+                setErrors([formatted.message || t("pages.deals.workspace.meetings.messages.reschedule_failed")]);
             } finally {
                 setIsSubmitting(false);
             }

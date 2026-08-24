@@ -350,7 +350,7 @@ export default function WorkspaceItineraryTab({
                     </div>
                     <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
                         {t(
-                            "Track the client's inspection-trip flights and airport transfers here.",
+                            t("pages.flight_itinerary.empty_hint"),
                         )}
                     </div>
                 </div>

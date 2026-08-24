@@ -32,6 +32,7 @@ class LeadFilterFacetsService
             'lead_source' => $this->countBy('source_id'),
             'lead_owner_id' => $this->countBy('lead_owner'),
             'added_by_id' => $this->countBy('added_by'),
+            'referred_by_agent_id' => $this->countBy('referred_by_agent_id'),
             'gender' => $this->countBy('gender'),
             'age_range' => $this->countBy('age_range'),
             'category_id' => $this->countCategories(),
