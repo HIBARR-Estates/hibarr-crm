@@ -40,9 +40,16 @@ import {
     formLinksPayload,
     type TaskFormValues,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import { afterUpdateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
 type TaskFilter = "open" | "done" | "all";
+
+interface TaskCategoryOption {
+    id: number;
+    category_name: string;
+}
 
 interface EmployeeRecord {
     id: number;
@@ -237,6 +244,9 @@ export default function TasksTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
+    const taskCategories =
+        (props as { taskCategories?: TaskCategoryOption[] }).taskCategories ??
+        [];
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -272,6 +282,7 @@ export default function TasksTab({
         updateErrors: updateRedesignedTaskErrors,
         clearUpdateErrors: clearUpdateRedesignedErrors,
     } = useTasksWorkspaceMutations(setRedesignedTasks, editingTaskId);
+    const { persistExtras } = useTaskExtras();
 
     const employeeOptions: DealPersonOption[] = useMemo(
         () =>
@@ -706,7 +717,7 @@ export default function TasksTab({
                         mode="edit"
                         editingTask={editingTask as unknown as RedesignedTask | null}
                         columns={taskBoardColumns}
-                        categories={[]}
+                        categories={taskCategories}
                         users={employeeOptions.map((employee) => ({
                             id: employee.id,
                             name: employee.name,
@@ -734,7 +745,12 @@ export default function TasksTab({
                                         values.boardColumnId ?? undefined,
                                     links: formLinksPayload(values),
                                 },
-                                () => setEditingTaskId(null),
+                                afterUpdateTaskFormSubmit(
+                                    editingTaskId,
+                                    values,
+                                    persistExtras,
+                                    () => setEditingTaskId(null),
+                                ),
                             );
                         }}
                     />

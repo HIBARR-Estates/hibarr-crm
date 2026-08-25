@@ -38,7 +38,6 @@ class TaskPresenter
         'properties',
         'developerProjects:id,name',
         'subtasks:id,task_id,title,status',
-        'files:id,task_id,filename,size',
     ];
 
     public const COUNTS = [
@@ -49,9 +48,9 @@ class TaskPresenter
         'completedSubtasks',
     ];
 
-    public static function present(Task $task): array
+    public static function present(Task $task, bool $includeFiles = false): array
     {
-        return [
+        $payload = [
             'id' => $task->id,
             'heading' => $task->heading,
             'description' => $task->description,
@@ -91,14 +90,6 @@ class TaskPresenter
                     'status' => $subtask->status,
                 ])->toArray()
                 : [],
-            'files' => $task->relationLoaded('files')
-                ? $task->files->map(fn ($file) => [
-                    'id' => $file->id,
-                    'filename' => $file->filename,
-                    'size' => (int) $file->size,
-                    'download_url' => route('task_files.download', md5((string) $file->id)),
-                ])->toArray()
-                : [],
             'files_count' => $task->files_count ?? 0,
             'notes_count' => $task->notes_count ?? 0,
             'comments_count' => $task->comments_count ?? 0,
@@ -135,5 +126,27 @@ class TaskPresenter
                 ];
             })->toArray(),
         ];
+
+        if ($includeFiles && $task->relationLoaded('files')) {
+            $payload['files'] = self::serializeFiles($task);
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Permission-scoped file payloads — only call after the caller has
+     * eager-loaded `files` with view_task_files === 'added' filtering applied.
+     *
+     * @return array<int, array{id: int, filename: string, size: int, download_url: string}>
+     */
+    public static function serializeFiles(Task $task): array
+    {
+        return $task->files->map(fn ($file) => [
+            'id' => $file->id,
+            'filename' => $file->filename,
+            'size' => (int) $file->size,
+            'download_url' => route('task_files.download', md5((string) $file->id)),
+        ])->toArray();
     }
 }

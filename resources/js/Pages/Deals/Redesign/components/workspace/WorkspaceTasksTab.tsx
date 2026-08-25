@@ -29,6 +29,8 @@ import {
     formLinksPayload,
     type TaskFormValues,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import { afterUpdateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 import {
     toWorkspaceTaskListItem,
@@ -46,6 +48,11 @@ import DealPeoplePicker, {
 import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import DealPriorityBadge from "../primitives/DealPriorityBadge";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+
+interface TaskCategoryOption {
+    id: number;
+    category_name: string;
+}
 
 type TaskFilter = "open" | "done" | "all";
 
@@ -201,6 +208,9 @@ export default function WorkspaceTasksTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
+    const taskCategories =
+        (props as { taskCategories?: TaskCategoryOption[] }).taskCategories ??
+        [];
     const userId = props.auth?.user?.id;
     const isAdmin = useIsAdminRole();
     const canManageTaskCategories =
@@ -241,6 +251,7 @@ export default function WorkspaceTasksTab({
         updateErrors: updateRedesignedTaskErrors,
         clearUpdateErrors: clearUpdateRedesignedErrors,
     } = useTasksWorkspaceMutations(setRedesignedTasks, editingTaskId);
+    const { persistExtras } = useTaskExtras();
 
     const employeeOptions: DealPersonOption[] = useMemo(
         () =>
@@ -725,7 +736,7 @@ export default function WorkspaceTasksTab({
                         mode="edit"
                         editingTask={editingTask as unknown as RedesignedTask | null}
                         columns={taskBoardColumns}
-                        categories={[]}
+                        categories={taskCategories}
                         users={employeeOptions.map((employee) => ({
                             id: employee.id,
                             name: employee.name,
@@ -753,7 +764,12 @@ export default function WorkspaceTasksTab({
                                         values.boardColumnId ?? undefined,
                                     links: formLinksPayload(values),
                                 },
-                                () => setEditingTaskId(null),
+                                afterUpdateTaskFormSubmit(
+                                    editingTaskId,
+                                    values,
+                                    persistExtras,
+                                    () => setEditingTaskId(null),
+                                ),
                             );
                         }}
                     />

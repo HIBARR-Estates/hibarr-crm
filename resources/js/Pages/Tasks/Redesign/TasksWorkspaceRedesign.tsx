@@ -47,6 +47,10 @@ import {
     toRecordPool,
     type TaskFormValues,
 } from "./adapters/taskFormValues";
+import {
+    afterCreateTaskFormSubmit,
+    afterUpdateTaskFormSubmit,
+} from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
 
 import "@/Components/Redesign/redesign.css";
@@ -315,8 +319,18 @@ export default function TasksWorkspaceRedesign({
         [...boardViewModels, ...listViewModels].forEach((vm) =>
             byId.set(vm.id, vm),
         );
+        if (
+            openTaskId &&
+            openTask &&
+            !byId.has(openTaskId)
+        ) {
+            byId.set(
+                openTaskId,
+                toTaskViewModel(openTask, completedSlugs),
+            );
+        }
         return byId;
-    }, [boardViewModels, listViewModels]);
+    }, [boardViewModels, listViewModels, openTaskId, openTask, completedSlugs]);
 
     // /tasks/create, /tasks/{id} and /tasks/{id}/edit (TaskController::
     // create/show/edit, redesign flag on) all render this same page with
@@ -469,6 +483,7 @@ export default function TasksWorkspaceRedesign({
         selectedIds,
         selectAllMatching,
         matchingTotal: pagedTableTasks.total,
+        filters: filters as Record<string, unknown> | undefined,
         patchTasks,
         clearSelection,
     });
@@ -478,26 +493,16 @@ export default function TasksWorkspaceRedesign({
     const submitCreate = (values: TaskFormValues, onDone: () => void) =>
         createTask(
             { ...values, links: formLinksPayload(values) },
-            (created) => {
-                onDone();
-                if (created?.id) {
-                    void persistExtras(
-                        created.id,
-                        values.checklist,
-                        values.files,
-                    );
-                }
-            },
+            afterCreateTaskFormSubmit(values, persistExtras, onDone),
         );
 
     const submitUpdate = (taskId: number, values: TaskFormValues) =>
         updateTask(
             taskId,
             { ...values, links: formLinksPayload(values) },
-            () => {
-                setEditingTaskId(null);
-                void persistExtras(taskId, values.checklist, values.files);
-            },
+            afterUpdateTaskFormSubmit(taskId, values, persistExtras, () =>
+                setEditingTaskId(null),
+            ),
         );
 
     const rowActions = (vm: TaskViewModel) =>

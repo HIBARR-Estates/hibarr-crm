@@ -1,4 +1,5 @@
-import { usePage } from "@inertiajs/react";
+import { Deferred, usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AddTaskModal, {
     type AddTaskFormState,
@@ -6,8 +7,11 @@ import AddTaskModal, {
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
 import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import { afterCreateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealTaskCreate from "../../hooks/useDealTaskCreate";
 
 interface TaskCategoryOption {
@@ -32,6 +36,7 @@ export default function DealAddTaskModal({
     dealAgentUserId,
 }: DealAddTaskModalProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { createTask, isCreating, errors, clearErrors } =
         useDealTaskCreate(dealId);
 
@@ -39,12 +44,14 @@ export default function DealAddTaskModal({
     // form instead — see TasksTab.tsx (Leads) for the same pairing pattern.
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
     const { props } = usePage();
+    const { setTasks } = useDealWorkspace();
+    const { persistExtras } = useTaskExtras();
     const {
         createTask: createRedesignedTask,
         isCreating: isCreatingRedesigned,
         createErrors: redesignedErrors,
         clearCreateErrors: clearRedesignedErrors,
-    } = useTasksWorkspaceMutations(() => {}, null);
+    } = useTasksWorkspaceMutations(setTasks, null);
 
     const handleClose = () => {
         if (isCreating || isCreatingRedesigned) return;
@@ -70,47 +77,58 @@ export default function DealAddTaskModal({
 
     if (useRedesignedTasks) {
         return (
-            <TaskRedesignFormModal
-                open={open}
-                mode="create"
-                columns={
-                    (props.taskBoardColumns as unknown as
-                        | TaskboardColumn[]
-                        | undefined) ?? []
-                }
-                categories={
-                    (props.categories as unknown as
-                        | TaskCategoryOption[]
-                        | undefined) ?? []
-                }
-                lockedLinks={[
-                    { type: "deal", id: dealId, name: dealName || "Deal" },
-                ]}
-                saving={isCreatingRedesigned}
-                errors={redesignedErrors}
-                onClose={handleClose}
-                onSubmit={(values) =>
-                    createRedesignedTask(
+            <Deferred data="taskCategories" fallback={null}>
+                <TaskRedesignFormModal
+                    open={open}
+                    mode="create"
+                    columns={
+                        (props.taskBoardColumns as unknown as
+                            | TaskboardColumn[]
+                            | undefined) ?? []
+                    }
+                    categories={
+                        (props.taskCategories as unknown as
+                            | TaskCategoryOption[]
+                            | undefined) ?? []
+                    }
+                    lockedLinks={[
                         {
-                            title: values.title,
-                            startDate: values.startDate,
-                            dueDate: values.dueDate,
-                            dueTime: values.dueTime,
-                            priority: values.priority,
-                            description: values.description,
-                            assignees: values.assignees.length
-                                ? values.assignees
-                                : dealAgentUserId
-                                  ? [dealAgentUserId]
-                                  : [],
-                            categoryId: values.categoryId,
-                            boardColumnId: values.boardColumnId ?? undefined,
-                            links: formLinksPayload(values),
+                            type: "deal",
+                            id: dealId,
+                            name: dealName || td("Deal", { source: "en" }),
                         },
-                        handleClose,
-                    )
-                }
-            />
+                    ]}
+                    saving={isCreatingRedesigned}
+                    errors={redesignedErrors}
+                    onClose={handleClose}
+                    onSubmit={(values) =>
+                        createRedesignedTask(
+                            {
+                                title: values.title,
+                                startDate: values.startDate,
+                                dueDate: values.dueDate,
+                                dueTime: values.dueTime,
+                                priority: values.priority,
+                                description: values.description,
+                                assignees: values.assignees.length
+                                    ? values.assignees
+                                    : dealAgentUserId
+                                      ? [dealAgentUserId]
+                                      : [],
+                                categoryId: values.categoryId,
+                                boardColumnId:
+                                    values.boardColumnId ?? undefined,
+                                links: formLinksPayload(values),
+                            },
+                            afterCreateTaskFormSubmit(
+                                values,
+                                persistExtras,
+                                handleClose,
+                            ),
+                        )
+                    }
+                />
+            </Deferred>
         );
     }
 

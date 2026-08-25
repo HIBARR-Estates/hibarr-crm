@@ -28,7 +28,7 @@ function syncUrl(state: TasksUrlState) {
     } else {
         target.searchParams.delete("view");
     }
-    window.history.replaceState({}, "", target.toString());
+    window.history.replaceState(window.history.state, "", target.toString());
 }
 
 /**

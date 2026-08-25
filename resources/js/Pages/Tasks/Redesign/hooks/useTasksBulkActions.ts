@@ -7,6 +7,7 @@ import type { Task } from "@/Types/Task";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { createTaskBulkUpdateFields } from "../config/taskBulkUpdateFields";
 import {
+    buildBulkFilterScope,
     buildBulkTargetPayload,
     type BulkTarget,
 } from "@/Features/BulkActions/bulkTarget";
@@ -32,6 +33,8 @@ interface UseTasksBulkActionsArgs {
     selectAllMatching: boolean;
     /** Total rows matching the current filters (from the paginator), used when selectAllMatching is set. */
     matchingTotal: number;
+    /** Active list filters — included in all-matching bulk POST bodies. */
+    filters?: Record<string, unknown>;
     patchTasks: (updater: (prev: Task[]) => Task[]) => void;
     clearSelection: () => void;
 }
@@ -51,11 +54,17 @@ export default function useTasksBulkActions({
     selectedIds,
     selectAllMatching,
     matchingTotal,
+    filters,
     patchTasks,
     clearSelection,
 }: UseTasksBulkActionsArgs) {
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
     const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+
+    const bulkFilterScope = useMemo(
+        () => buildBulkFilterScope(filters),
+        [filters],
+    );
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         {
@@ -89,7 +98,7 @@ export default function useTasksBulkActions({
     const bulkSetStatus = (column: TaskboardColumn) =>
         applyBulkAction(
             {
-                ...buildBulkTargetPayload(target),
+                ...buildBulkTargetPayload(target, bulkFilterScope),
                 action_type: "change-status",
                 status: column.id,
             },
@@ -132,7 +141,7 @@ export default function useTasksBulkActions({
         const assignee = users.find((user) => user.id === assigneeId);
         applyBulkAction(
             {
-                ...buildBulkTargetPayload(target),
+                ...buildBulkTargetPayload(target, bulkFilterScope),
                 action_type: "change-assignee",
                 user_id: [assigneeId],
             },
@@ -169,7 +178,7 @@ export default function useTasksBulkActions({
 
     const bulkDelete = () =>
         applyBulkAction(
-            { ...buildBulkTargetPayload(target), action_type: "delete" },
+            { ...buildBulkTargetPayload(target, bulkFilterScope), action_type: "delete" },
             {
                 onSuccess: () => {
                     if (selectAllMatching) {

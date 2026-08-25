@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { Deferred, router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
 import {
@@ -57,8 +57,10 @@ import useLeadDuplicates from "./hooks/useLeadDuplicates";
 import type { Task as RedesignedTask } from "@/Types/Task";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
 import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import { afterCreateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
 import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
@@ -188,6 +190,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     // a no-op (this page's task list is patched via addTask, same as the
     // old flow already does) since it only needs the created task back.
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
+    const { persistExtras } = useTaskExtras();
     const {
         createTask: createRedesignedTask,
         isCreating: isCreatingRedesignedTask,
@@ -871,46 +874,58 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             />
 
             {useRedesignedTasks ? (
-                <TaskRedesignFormModal
-                    open={addTaskOpen}
-                    mode="create"
-                    columns={props.taskBoardColumns ?? []}
-                    categories={props.categories ?? []}
-                    lockedLinks={[
-                        {
-                            type: "lead",
-                            id: lead.id,
-                            name: lead.client_name || "Lead",
-                        },
-                    ]}
-                    saving={isCreatingRedesignedTask}
-                    errors={createRedesignedTaskErrors}
-                    onClose={() => {
-                        setAddTaskOpen(false);
-                        clearCreateRedesignedErrors();
-                    }}
-                    onSubmit={(values) =>
-                        createRedesignedTask(
+                <Deferred data="taskCategories" fallback={null}>
+                    <TaskRedesignFormModal
+                        open={addTaskOpen}
+                        mode="create"
+                        columns={props.taskBoardColumns ?? []}
+                        categories={props.taskCategories ?? []}
+                        lockedLinks={[
                             {
-                                title: values.title,
-                                startDate: values.startDate,
-                                dueDate: values.dueDate,
-                                dueTime: values.dueTime,
-                                priority: values.priority,
-                                description: values.description,
-                                assignees: values.assignees,
-                                categoryId: values.categoryId,
-                                boardColumnId:
-                                    values.boardColumnId ?? undefined,
-                                links: formLinksPayload(values),
+                                type: "lead",
+                                id: lead.id,
+                                name: lead.client_name || "Lead",
                             },
-                            (task) => {
-                                if (task) addTask(task as unknown as Parameters<typeof addTask>[0]);
-                                setAddTaskOpen(false);
-                            },
-                        )
-                    }
-                />
+                        ]}
+                        saving={isCreatingRedesignedTask}
+                        errors={createRedesignedTaskErrors}
+                        onClose={() => {
+                            setAddTaskOpen(false);
+                            clearCreateRedesignedErrors();
+                        }}
+                        onSubmit={(values) =>
+                            createRedesignedTask(
+                                {
+                                    title: values.title,
+                                    startDate: values.startDate,
+                                    dueDate: values.dueDate,
+                                    dueTime: values.dueTime,
+                                    priority: values.priority,
+                                    description: values.description,
+                                    assignees: values.assignees,
+                                    categoryId: values.categoryId,
+                                    boardColumnId:
+                                        values.boardColumnId ?? undefined,
+                                    links: formLinksPayload(values),
+                                },
+                                afterCreateTaskFormSubmit(
+                                    values,
+                                    persistExtras,
+                                    (task) => {
+                                        if (task) {
+                                            addTask(
+                                                task as unknown as Parameters<
+                                                    typeof addTask
+                                                >[0],
+                                            );
+                                        }
+                                        setAddTaskOpen(false);
+                                    },
+                                ),
+                            )
+                        }
+                    />
+                </Deferred>
             ) : (
                 <AddTaskModal
                     open={addTaskOpen}

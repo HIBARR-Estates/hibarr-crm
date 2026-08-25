@@ -43,8 +43,8 @@ use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
-use App\Support\TaskPresenter;
 use App\Support\LeadExportFields;
+use App\Support\TaskPresenter;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +133,10 @@ class LeadContactController extends AccountBaseController
             // Next Action click-through: TaskDetailModal's status dropdown.
             'taskBoardColumns' => Inertia::defer(
                 fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()
+            ),
+            'taskCategories' => Inertia::defer(
+                fn () => \App\Models\TaskCategory::all(),
+                'taskMeta'
             ),
             'preferredContactTimes' => Inertia::defer(
                 fn () => collect(PreferredContactTime::cases())->map(
