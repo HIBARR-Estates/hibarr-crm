@@ -31,6 +31,16 @@ import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import useLeadTaskStatus from "../../../hooks/useLeadTaskStatus";
 import LeadTaskDetailModal from "../LeadTaskDetailModal";
+import type { Task as RedesignedTask } from "@/Types/Task";
+import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
+import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import TaskRedesignDetailModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignDetailModal";
+import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
+import {
+    formLinksPayload,
+    type TaskFormValues,
+} from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
 type TaskFilter = "open" | "done" | "all";
 
@@ -236,6 +246,32 @@ export default function TasksTab({
     const { tasks, setTasks } = useLeadWorkspace();
     const selectedTask =
         tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+    // Behind crm.tasks-workspace-redesign: opening a task shows the
+    // redesigned detail popup (comments, activity log, checklist,
+    // attachments) instead of the older combined view/edit modal, with a
+    // separate edit form the same way the main Tasks workspace does it.
+    // The backend's tasks() query for this tab already serializes through
+    // TaskPresenter behind this same flag (LeadContactController::show()).
+    const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
+    const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+    const editingTask =
+        tasks.find((task) => task.id === editingTaskId) ?? null;
+    const setRedesignedTasks = (
+        updater: (prev: RedesignedTask[]) => RedesignedTask[],
+    ) =>
+        setTasks(
+            (prev) =>
+                updater(
+                    prev as unknown as RedesignedTask[],
+                ) as unknown as typeof prev,
+        );
+    const {
+        updateTask: updateRedesignedTask,
+        isUpdating: isUpdatingRedesignedTask,
+        updateErrors: updateRedesignedTaskErrors,
+        clearUpdateErrors: clearUpdateRedesignedErrors,
+    } = useTasksWorkspaceMutations(setRedesignedTasks, editingTaskId);
 
     const employeeOptions: DealPersonOption[] = useMemo(
         () =>
@@ -625,12 +661,92 @@ export default function TasksTab({
                 })
             )}
 
-            <LeadTaskDetailModal
-                task={selectedTask}
-                taskBoardColumns={taskBoardColumns}
-                permissions={permissions}
-                onClose={() => setSelectedTaskId(null)}
-            />
+            {useRedesignedTasks ? (
+                <>
+                    <TaskRedesignDetailModal
+                        task={selectedTask as unknown as RedesignedTask | null}
+                        columns={taskBoardColumns}
+                        permissions={permissions as unknown as TaskPermissionSet}
+                        currentUser={{
+                            id: props.auth?.user?.id ?? 0,
+                            name: props.auth?.user?.name ?? "",
+                            image: props.auth?.user?.image_url,
+                        }}
+                        people={employeeOptions.map((employee) => ({
+                            id: employee.id,
+                            name: employee.name,
+                        }))}
+                        toggling={
+                            selectedTask ? isPending(selectedTask.id) : false
+                        }
+                        onClose={() => setSelectedTaskId(null)}
+                        onEdit={() => {
+                            if (selectedTaskId) setEditingTaskId(selectedTaskId);
+                        }}
+                        onToggleDone={() => {
+                            if (!selectedTask) return;
+                            const done = isTaskDone(
+                                selectedTask,
+                                taskBoardColumns,
+                            );
+                            const target = done
+                                ? taskBoardColumns.find(
+                                      (column) =>
+                                          column.slug === "in_progress" ||
+                                          column.slug === "to_do",
+                                  )
+                                : taskBoardColumns.find(
+                                      (column) => column.slug === "done",
+                                  );
+                            if (target) setStatus(selectedTask.id, target.slug);
+                        }}
+                    />
+                    <TaskRedesignFormModal
+                        open={editingTaskId !== null}
+                        mode="edit"
+                        editingTask={editingTask as unknown as RedesignedTask | null}
+                        columns={taskBoardColumns}
+                        categories={[]}
+                        users={employeeOptions.map((employee) => ({
+                            id: employee.id,
+                            name: employee.name,
+                        }))}
+                        saving={isUpdatingRedesignedTask}
+                        errors={updateRedesignedTaskErrors}
+                        onClose={() => {
+                            setEditingTaskId(null);
+                            clearUpdateRedesignedErrors();
+                        }}
+                        onSubmit={(values: TaskFormValues) => {
+                            if (!editingTaskId) return;
+                            updateRedesignedTask(
+                                editingTaskId,
+                                {
+                                    title: values.title,
+                                    startDate: values.startDate,
+                                    dueDate: values.dueDate,
+                                    dueTime: values.dueTime,
+                                    priority: values.priority,
+                                    description: values.description,
+                                    assignees: values.assignees,
+                                    categoryId: values.categoryId,
+                                    boardColumnId:
+                                        values.boardColumnId ?? undefined,
+                                    links: formLinksPayload(values),
+                                },
+                                () => setEditingTaskId(null),
+                            );
+                        }}
+                    />
+                </>
+            ) : (
+                <LeadTaskDetailModal
+                    task={selectedTask}
+                    taskBoardColumns={taskBoardColumns}
+                    permissions={permissions}
+                    onClose={() => setSelectedTaskId(null)}
+                />
+            )}
 
             <DealConfirmDialog
                 open={confirmBulkDelete}

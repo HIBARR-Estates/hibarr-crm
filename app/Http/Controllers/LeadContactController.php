@@ -43,6 +43,7 @@ use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
+use App\Support\TaskPresenter;
 use App\Support\LeadExportFields;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
@@ -367,10 +368,26 @@ class LeadContactController extends AccountBaseController
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
                 ->get(), 'workspace'),
-            'tasks' => Inertia::defer(fn () => $leadContact->tasks()
-                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
-                ->orderBy('id', 'desc')
-                ->get(), 'workspace'),
+            // Behind crm.tasks-workspace-redesign, eager-load + serialize
+            // through the same TaskPresenter the redesigned Tasks workspace
+            // uses, so this tab's tasks can open in those modals (checklist/
+            // attachments/activity need that shape) — off, the narrower
+            // relation set and raw model serialization this tab always used.
+            'tasks' => Inertia::defer(function () use ($leadContact) {
+                if (FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+                    return $leadContact->tasks()
+                        ->with(TaskPresenter::RELATIONS)
+                        ->withCount(TaskPresenter::COUNTS)
+                        ->orderBy('id', 'desc')
+                        ->get()
+                        ->map(fn ($task) => TaskPresenter::present($task));
+                }
+
+                return $leadContact->tasks()
+                    ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+            }, 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',

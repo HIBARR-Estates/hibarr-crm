@@ -47,6 +47,7 @@ use Inertia\Inertia;
 use App\Services\TaskFilterCountsService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
+use App\Support\TaskPresenter;
 
 class TaskController extends AccountBaseController
 {
@@ -56,38 +57,6 @@ class TaskController extends AccountBaseController
     protected $taskService;
 
     protected TaskFilterCountsService $taskFilterCounts;
-
-    /**
-     * Relations `presentTask()` reads. Kept in one place so the list view
-     * (`index()`) and the create/update responses (`store()`, `update()`)
-     * always hand the frontend the same Task shape — they used to diverge
-     * (raw `toFrontendArray()` vs. a hand-built array), which is why linked
-     * records and attachments could vanish right after saving until the next
-     * full list reload replaced the mismatched shape.
-     */
-    private const TASK_FRONTEND_RELATIONS = [
-        'project:id,project_name,project_short_code',
-        'users:id,name,image',
-        'createBy:id,name,image',
-        'addedByUser:id,name,image',
-        'category:id,category_name',
-        'labels',
-        'boardColumn:id,column_name,slug,label_color',
-        'deals',
-        'leads',
-        'properties',
-        'developerProjects:id,name',
-        'subtasks:id,task_id,title,status',
-        'files:id,task_id,filename,size',
-    ];
-
-    private const TASK_FRONTEND_COUNTS = [
-        'files',
-        'notes',
-        'comments',
-        'subtasks',
-        'completedSubtasks',
-    ];
 
     public function __construct(TaskService $taskService, TaskFilterCountsService $taskFilterCounts)
     {
@@ -282,8 +251,8 @@ class TaskController extends AccountBaseController
         // Quick filter applied separately below, after quickFilterCounts()
         // has had a chance to count each option against the un-narrowed set.
         $tasksQuery = $this->filteredTasksQuery(applyQuickFilter: false)
-            ->with(self::TASK_FRONTEND_RELATIONS)
-            ->withCount(self::TASK_FRONTEND_COUNTS);
+            ->with(TaskPresenter::RELATIONS)
+            ->withCount(TaskPresenter::COUNTS);
 
         // Recompute the same parsed values filteredTasksQuery() used, only
         // to echo them back in the `filters` response prop below.
@@ -333,7 +302,7 @@ class TaskController extends AccountBaseController
         $kanbanTasks = $kanbanQuery->get();
         
         // Ensure kanban tasks also have the counts
-        $kanbanTasks->loadCount(self::TASK_FRONTEND_COUNTS);
+        $kanbanTasks->loadCount(TaskPresenter::COUNTS);
 
         // Calculate Stats (legacy table/kanban index — collection scan).
         if ($stats === null) {
@@ -449,8 +418,8 @@ class TaskController extends AccountBaseController
 
             $alreadyLoaded = $kanbanTasks->contains('id', $openTaskId);
             if (!$alreadyLoaded) {
-                $openTask = Task::with(self::TASK_FRONTEND_RELATIONS)
-                    ->withCount(self::TASK_FRONTEND_COUNTS)
+                $openTask = Task::with(TaskPresenter::RELATIONS)
+                    ->withCount(TaskPresenter::COUNTS)
                     ->find($openTaskId);
                 $props['openTask'] = $openTask ? $this->presentTask($openTask) : null;
             }
@@ -603,98 +572,16 @@ class TaskController extends AccountBaseController
     }
 
     /**
-     * The one Task -> frontend array shape, used by index()'s list/board
-     * payload and by store()/update()'s create/update responses. Callers
-     * must eager-load self::TASK_FRONTEND_RELATIONS (+ withCount on
-     * self::TASK_FRONTEND_COUNTS) first — this method only reads what's
-     * already loaded, it doesn't lazy-load anything itself.
+     * The one Task -> frontend array shape — moved to App\Support\TaskPresenter
+     * so the classic Dashboard, and the Deal/Lead workspace task tabs, can
+     * hand the same shape to the redesigned Tasks modals (behind the same
+     * crm.tasks-workspace-redesign flag) without re-deriving it. Callers must
+     * eager-load TaskPresenter::RELATIONS (+ withCount on TaskPresenter::COUNTS)
+     * first — present() only reads what's already loaded.
      */
     private function presentTask(Task $task): array
     {
-        return [
-            'id' => $task->id,
-            'heading' => $task->heading,
-            'description' => $task->description,
-            'due_date' => Task::wallClockString($task->due_date),
-            'start_date' => Task::wallClockString($task->start_date),
-            'priority' => $task->priority,
-            'status' => $task->boardColumn->slug ?? 'to_do',
-            'board_column_id' => $task->board_column_id,
-            'completed_on' => Task::wallClockString($task->completed_on),
-            'project' => $task->project ? [
-                'id' => $task->project->id,
-                'project_name' => $task->project->project_name,
-                'project_short_code' => $task->project->project_short_code,
-            ] : null,
-            'category' => $task->category ? [
-                'id' => $task->category->id,
-                'category_name' => $task->category->category_name,
-            ] : null,
-            'users' => $task->users->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'image' => $user->image,
-                ];
-            })->toArray(),
-            'labels' => $task->labels->map(function ($label) {
-                return [
-                    'id' => $label->id,
-                    'label_name' => $label->label_name,
-                    'label_color' => $label->label_color,
-                ];
-            })->toArray(),
-            'subtasks' => $task->relationLoaded('subtasks')
-                ? $task->subtasks->map(fn ($subtask) => [
-                    'id' => $subtask->id,
-                    'title' => $subtask->title,
-                    'status' => $subtask->status,
-                ])->toArray()
-                : [],
-            'files' => $task->relationLoaded('files')
-                ? $task->files->map(fn ($file) => [
-                    'id' => $file->id,
-                    'filename' => $file->filename,
-                    'size' => (int) $file->size,
-                    'download_url' => route('task_files.download', md5((string) $file->id)),
-                ])->toArray()
-                : [],
-            'files_count' => $task->files_count ?? 0,
-            'notes_count' => $task->notes_count ?? 0,
-            'comments_count' => $task->comments_count ?? 0,
-            'subtasks_count' => $task->subtasks_count ?? 0,
-            'completed_subtasks_count' => $task->completed_subtasks_count ?? 0,
-            'created_at' => $task->created_at->toISOString(),
-            'updated_at' => $task->updated_at->toISOString(),
-            'added_by' => $task->added_by,
-            'assigner' => TaskVisibilityService::formatAssigner($task),
-            'created_by' => TaskVisibilityService::formatAssigner($task),
-            'deals' => $task->deals->map(function ($deal) {
-                return [
-                    'id' => $deal->id,
-                    'name' => $deal->name,
-                ];
-            })->toArray(),
-            'leads' => $task->leads->map(function ($lead) {
-                return [
-                    'id' => $lead->id,
-                    'client_name' => $lead->client_name,
-                    'company_name' => $lead->company_name,
-                ];
-            })->toArray(),
-            'developer_projects' => $task->developerProjects->map(function ($project) {
-                return [
-                    'id' => $project->id,
-                    'name' => $project->name,
-                ];
-            })->toArray(),
-            'properties' => $task->properties->map(function ($property) {
-                return [
-                    'id' => $property->id,
-                    'name' => $property->title,
-                ];
-            })->toArray(),
-        ];
+        return TaskPresenter::present($task);
     }
 
     /**
@@ -739,6 +626,23 @@ class TaskController extends AccountBaseController
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
         abort_403(!$access['canAccess']);
+
+        // Behind crm.tasks-workspace-redesign, eager-load + serialize through
+        // the same TaskPresenter the redesigned Tasks workspace uses, so this
+        // tab's tasks can open in those modals — off, the narrower relation
+        // set and raw toFrontendArray() serialization this tab always used.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $tasks = $deal->tasks()
+                ->with(TaskPresenter::RELATIONS)
+                ->withCount(TaskPresenter::COUNTS)
+                ->orderBy('id', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $tasks->map(fn (Task $task) => TaskPresenter::present($task))->values(),
+            ]);
+        }
 
         $tasks = $deal->tasks()
             ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
@@ -1498,7 +1402,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            $task->load(self::TASK_FRONTEND_RELATIONS)->loadCount(self::TASK_FRONTEND_COUNTS);
+            $task->load(TaskPresenter::RELATIONS)->loadCount(TaskPresenter::COUNTS);
 
             return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $this->presentTask($task)]);
 
@@ -1955,7 +1859,7 @@ class TaskController extends AccountBaseController
             // multi-link `links` payload is synced separately here.
             $this->syncTaskLinks($task, $request);
 
-            $task->load(self::TASK_FRONTEND_RELATIONS)->loadCount(self::TASK_FRONTEND_COUNTS);
+            $task->load(TaskPresenter::RELATIONS)->loadCount(TaskPresenter::COUNTS);
 
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,

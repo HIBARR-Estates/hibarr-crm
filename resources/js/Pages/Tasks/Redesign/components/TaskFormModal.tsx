@@ -376,6 +376,13 @@ export default function TaskFormModal({
                                 onClick={(event) => event.stopPropagation()}
                                 style={{
                                     ...assigneePosition,
+                                    // assigneePosition's maxHeight (400, see
+                                    // useFloatingMenuPosition above) caps the
+                                    // box but doesn't clip its own content —
+                                    // without this, a long employee list
+                                    // spills out past the rounded background
+                                    // instead of scrolling.
+                                    overflowY: "auto",
                                     width: 280,
                                     padding: 12,
                                     background: T.WHITE,
