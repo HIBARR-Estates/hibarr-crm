@@ -2246,7 +2246,13 @@ class TaskController extends AccountBaseController
             $this->userId = $userId;
             $this->clientIds = ClientContact::where('user_id', $userId)->pluck('client_id')->toArray();
             $this->breakMinutes = ProjectTimeLogBreak::taskBreakMinutes($this->task->id);
-            
+            $this->task->withCustomFields();
+            $getCustomFieldGroupsWithFields = $this->task->getCustomFieldGroupsWithFields();
+
+            if ($getCustomFieldGroupsWithFields) {
+                $this->fields = $getCustomFieldGroupsWithFields->fields;
+            }
+
             $tab = request('view');
             switch ($tab) {
                 case 'sub_task':
