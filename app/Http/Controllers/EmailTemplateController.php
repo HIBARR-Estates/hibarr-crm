@@ -81,7 +81,7 @@ class EmailTemplateController extends AccountBaseController
 
     public function edit($id)
     {
-        $this->template = EmailTemplate::findOrFail($id);
+        $this->template = $this->findCompanyTemplate($id);
         $this->shareFieldCatalog();
 
         return view('company-settings.email-template.edit', $this->data);
@@ -89,7 +89,7 @@ class EmailTemplateController extends AccountBaseController
 
     public function update(Request $request, $id)
     {
-        $template = EmailTemplate::findOrFail($id);
+        $template = $this->findCompanyTemplate($id);
 
         $request->validate($this->validationRules());
 
@@ -112,7 +112,7 @@ class EmailTemplateController extends AccountBaseController
 
     public function destroy($id)
     {
-        EmailTemplate::destroy($id);
+        $this->findCompanyTemplate($id)->delete();
 
         return Reply::success(__('messages.deleteSuccess'));
     }
@@ -135,7 +135,7 @@ class EmailTemplateController extends AccountBaseController
         ]);
 
         if ($request->filled('template_id')) {
-            $template = EmailTemplate::findOrFail($request->template_id);
+            $template = $this->findCompanyTemplate($request->template_id);
             $subject = $template->subject;
             $preheader = $template->preheader;
             $body = (string) ($template->body ?? '');
@@ -245,5 +245,10 @@ class EmailTemplateController extends AccountBaseController
         }
 
         return $mappings;
+    }
+
+    protected function findCompanyTemplate(int|string $id): EmailTemplate
+    {
+        return EmailTemplate::where('company_id', company()->id)->findOrFail($id);
     }
 }

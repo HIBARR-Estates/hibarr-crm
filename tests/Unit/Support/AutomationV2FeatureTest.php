@@ -67,7 +67,7 @@ class AutomationV2FeatureTest extends TestCase
             'active' => true,
         ]);
 
-        AutomationV2Feature::deactivateIfUnsupported($automation);
+        AutomationV2Feature::warnIfUnsupported($automation);
 
         $this->assertTrue($automation->active);
     }

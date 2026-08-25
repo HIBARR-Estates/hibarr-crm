@@ -70,7 +70,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const { t } = useTranslation();
     const { td } = useTd();
     const { catalog, templates, metaEvents } = useAutomationWorkspace();
-    const { createAutomation, updateAutomation, savingId } = useAutomationMutations();
+    const { createAutomation, updateAutomation, isSaving } = useAutomationMutations();
 
     const [name, setName] = useState(automation?.name ?? t("app.automation.untitledAutomation"));
     const [subjectType, setSubjectType] = useState<SubjectType>(automation?.subject_type ?? "deal");
@@ -88,7 +88,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
         automation?.actions?.length ? automation.actions : [newAction(subjectType)],
     );
 
-    const isSaving = savingId === (automation?.id ?? "new");
+    const saveInProgress = isSaving(automation?.id ?? "new");
 
     const allowedTriggers = useMemo(
         () => (Object.keys(TRIGGER_SUBJECT) as TriggerKey[]).filter((k) => {
@@ -162,7 +162,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
             wait_duration_value: waitMode === "wait" && waitValue ? Number(waitValue) : null,
             wait_duration_unit: waitMode === "wait" && waitValue ? waitUnit : null,
             priority: Number(priority) || 0,
-            active: active ? 1 : undefined,
+            active: active ? 1 : 0,
             conditions: conditions.filter((c) => c.field).map((c) => ({ field: c.field, operator: c.operator, value: c.value })),
             actions: actions.map((a) => ({ ...a })),
         };
@@ -214,7 +214,16 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             {t("app.automation.automationFor")}
                             <SearchableSelect
                                 value={subjectType}
-                                onChange={(value) => setSubjectType(value as SubjectType)}
+                                onChange={(value) => {
+                                    const next = value as SubjectType;
+                                    setSubjectType(next);
+                                    setPipelineId(null);
+                                    setTrigger(null);
+                                    setDateField(null);
+                                    setDateRecurrence(null);
+                                    setConditions([]);
+                                    setActions([newAction(next)]);
+                                }}
                                 options={[
                                     { value: "deal", label: t("app.automation.deals") },
                                     { value: "lead", label: t("app.automation.leads") },
@@ -238,7 +247,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                     <Button variant="ghost" onClick={onBack}>
                         {t("app.cancel")}
                     </Button>
-                    <Button variant="primary" loading={isSaving} onClick={handleSave} disabled={!name.trim() || actions.length === 0}>
+                    <Button variant="primary" loading={saveInProgress} onClick={handleSave} disabled={!name.trim() || actions.length === 0}>
                         {t("app.automation.saveAutomation")}
                     </Button>
                 </div>

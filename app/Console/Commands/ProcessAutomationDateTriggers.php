@@ -5,12 +5,15 @@ namespace App\Console\Commands;
 use App\Models\Company;
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationLog;
 use App\Models\Lead;
+use App\Models\LeadPipeline;
 use App\Services\DealAutomationService;
 use App\Services\FieldResolverService;
 use App\Support\AutomationV2Feature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class ProcessAutomationDateTriggers extends Command
@@ -31,26 +34,16 @@ class ProcessAutomationDateTriggers extends Command
             return Command::SUCCESS;
         }
 
-        $automations = DealAutomation::query()
-            ->where('active', true)
-            ->where('trigger', DealAutomation::TRIGGER_DATE_BASED)
-            ->with(['conditions', 'actions.emailTemplate'])
-            ->get()
-            ->filter(fn ($automation) => ! empty($automation->date_field));
-
-        if ($automations->isEmpty()) {
-            return Command::SUCCESS;
-        }
-
-        Company::active()->chunk(50, function ($companies) use ($automations, $automationService, $fieldResolver) {
+        Company::active()->chunk(50, function ($companies) use ($automationService, $fieldResolver) {
             foreach ($companies as $company) {
-                // The automation service and TaskService read date formats and
-                // ids through the company() helper, which is session-backed and
-                // empty under the scheduler — bind it for this company's pass.
                 session(['company' => $company]);
 
-                // "Today" in the company's own timezone — a client's birthday
-                // is their local calendar day, not the server's.
+                $automations = $this->automationsForCompany((int) $company->id);
+
+                if ($automations->isEmpty()) {
+                    continue;
+                }
+
                 $today = now($company->timezone ?: 'UTC')->startOfDay();
 
                 foreach ($automations as $automation) {
@@ -60,6 +53,32 @@ class ProcessAutomationDateTriggers extends Command
         });
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @return Collection<int, DealAutomation>
+     */
+    protected function automationsForCompany(int $companyId): Collection
+    {
+        $pipelineIds = LeadPipeline::query()
+            ->where('company_id', $companyId)
+            ->pluck('id');
+
+        return DealAutomation::query()
+            ->where('active', true)
+            ->where('trigger', DealAutomation::TRIGGER_DATE_BASED)
+            ->with(['conditions', 'actions.emailTemplate'])
+            ->where(function ($query) use ($pipelineIds) {
+                $query->where('subject_type', DealAutomation::SUBJECT_LEAD)
+                    ->orWhereIn('pipeline_id', $pipelineIds)
+                    ->orWhere(function ($dealAnyPipeline) {
+                        $dealAnyPipeline
+                            ->where('subject_type', DealAutomation::SUBJECT_DEAL)
+                            ->whereNull('pipeline_id');
+                    });
+            })
+            ->get()
+            ->filter(fn ($automation) => ! empty($automation->date_field));
     }
 
     protected function runForCompany(
@@ -95,7 +114,7 @@ class ProcessAutomationDateTriggers extends Command
 
                 $anchorDate = $this->parseAnchorDate($rawValue);
 
-                if (! $anchorDate || ! $this->matchesScheduledDay($anchorDate, $today, $isYearly)) {
+                if (! $anchorDate || ! $this->matchesScheduledDay($anchorDate, $today, $isYearly, $automation, $record)) {
                     continue;
                 }
 
@@ -118,11 +137,6 @@ class ProcessAutomationDateTriggers extends Command
         }
     }
 
-    /**
-     * FieldResolverService returns raw column strings (via getRawOriginal),
-     * custom-field DB strings, or cast Carbon instances depending on the field
-     * — normalize all three to a Carbon or null.
-     */
     protected function parseAnchorDate(mixed $value): ?Carbon
     {
         if ($value instanceof \Carbon\CarbonInterface) {
@@ -140,10 +154,6 @@ class ProcessAutomationDateTriggers extends Command
         return null;
     }
 
-    /**
-     * Yearly matches month/day regardless of year (Feb 29 birthdays only fire
-     * in leap years); once requires the exact date to land on the check day.
-     */
     protected function matchesToday(Carbon $anchorDate, Carbon $today, bool $yearly): bool
     {
         return $yearly
@@ -152,14 +162,42 @@ class ProcessAutomationDateTriggers extends Command
     }
 
     /**
-     * Today, plus yesterday when the scheduler missed the matching calendar day.
+     * Today, plus yesterday when the scheduler missed the matching calendar day
+     * and no run was logged for this subject/automation in the last two days.
      */
-    protected function matchesScheduledDay(Carbon $anchorDate, Carbon $today, bool $yearly): bool
-    {
+    protected function matchesScheduledDay(
+        Carbon $anchorDate,
+        Carbon $today,
+        bool $yearly,
+        DealAutomation $automation,
+        Deal|Lead $subject
+    ): bool {
         if ($this->matchesToday($anchorDate, $today, $yearly)) {
             return true;
         }
 
-        return $this->matchesToday($anchorDate, $today->copy()->subDay(), $yearly);
+        $yesterday = $today->copy()->subDay();
+        if (! $this->matchesToday($anchorDate, $yesterday, $yearly)) {
+            return false;
+        }
+
+        return ! $this->recentlyRanDateAutomation($automation, $subject, $today);
+    }
+
+    protected function recentlyRanDateAutomation(DealAutomation $automation, Deal|Lead $subject, Carbon $today): bool
+    {
+        $since = $today->copy()->subDays(2)->startOfDay();
+
+        $query = DealAutomationLog::query()
+            ->where('automation_id', $automation->id)
+            ->where('executed_at', '>=', $since);
+
+        if ($subject instanceof Deal) {
+            $query->where('deal_id', $subject->id);
+        } else {
+            $query->where('lead_id', $subject->id);
+        }
+
+        return $query->exists();
     }
 }

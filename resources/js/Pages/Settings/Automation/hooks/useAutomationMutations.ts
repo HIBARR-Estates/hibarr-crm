@@ -1,29 +1,46 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { Automation } from "../types";
 import { useAutomationWorkspace } from "../context/AutomationWorkspaceContext";
 
+type PendingKey = number | "new";
+
+/** Track each in-flight mutation independently so one finish does not clear others. */
+function usePendingKeys() {
+    const pendingRef = useRef<Set<PendingKey>>(new Set());
+    const [, bump] = useState(0);
+
+    const add = useCallback((key: PendingKey) => {
+        pendingRef.current.add(key);
+        bump((n) => n + 1);
+    }, []);
+
+    const remove = useCallback((key: PendingKey) => {
+        pendingRef.current.delete(key);
+        bump((n) => n + 1);
+    }, []);
+
+    const isPending = useCallback((key: PendingKey) => pendingRef.current.has(key), []);
+
+    return { add, remove, isPending };
+}
+
 /**
  * Automation create/update/delete/toggle-status mutations, wired to the
  * DealAutomationController JSON endpoints (see AutomationSettingController's
  * docblock — same validation/model code as the classic Blade builder).
- *
- * Unlike useDealNoteMutations (one useApiMutate instance per fixed record
- * id), these calls target an *arbitrary* row from a list (any automation id
- * can be toggled/deleted from AutomationsList/Overview), so the id is a
- * per-call argument rather than baked into the hook at instantiation time —
- * axios is used directly instead of useApiMutate for that reason.
  */
 export default function useAutomationMutations() {
     const { t } = useTranslation();
     const { setAutomations } = useAutomationWorkspace();
-    const [savingId, setSavingId] = useState<number | "new" | null>(null);
+    const { add, remove, isPending } = usePendingKeys();
 
     const createAutomation = useCallback(
         async (payload: Record<string, unknown>): Promise<Automation | null> => {
-            setSavingId("new");
+            const key: PendingKey = "new";
+            add(key);
             try {
                 const res = await axios.post(route("deal-automations.store"), payload, {
                     headers: { Accept: "application/json" },
@@ -40,15 +57,15 @@ export default function useAutomationMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return null;
             } finally {
-                setSavingId(null);
+                remove(key);
             }
         },
-        [setAutomations, t],
+        [add, remove, setAutomations, t],
     );
 
     const updateAutomation = useCallback(
         async (id: number, payload: Record<string, unknown>): Promise<Automation | null> => {
-            setSavingId(id);
+            add(id);
             try {
                 const res = await axios.put(route("deal-automations.update", id), payload, {
                     headers: { Accept: "application/json" },
@@ -65,15 +82,15 @@ export default function useAutomationMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return null;
             } finally {
-                setSavingId(null);
+                remove(id);
             }
         },
-        [setAutomations, t],
+        [add, remove, setAutomations, t],
     );
 
     const deleteAutomation = useCallback(
         async (id: number): Promise<boolean> => {
-            setSavingId(id);
+            add(id);
             try {
                 const res = await axios.delete(route("deal-automations.destroy", id), {
                     headers: { Accept: "application/json" },
@@ -89,18 +106,15 @@ export default function useAutomationMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return false;
             } finally {
-                setSavingId(null);
+                remove(id);
             }
         },
-        [setAutomations, t],
+        [add, remove, setAutomations, t],
     );
 
-    // deal-automations.change-status doesn't return the updated row (just a
-    // success/message body) — the switch flip always succeeds or throws, so
-    // we patch `active` from the requested value rather than from a response.
     const toggleStatus = useCallback(
         async (id: number, nextActive: boolean): Promise<boolean> => {
-            setSavingId(id);
+            add(id);
             try {
                 const res = await axios.post(
                     route("deal-automations.change-status"),
@@ -119,11 +133,20 @@ export default function useAutomationMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return false;
             } finally {
-                setSavingId(null);
+                remove(id);
             }
         },
-        [setAutomations, t],
+        [add, remove, setAutomations, t],
     );
 
-    return { createAutomation, updateAutomation, deleteAutomation, toggleStatus, savingId };
+    const savingId = isPending("new") ? "new" : null;
+
+    return {
+        createAutomation,
+        updateAutomation,
+        deleteAutomation,
+        toggleStatus,
+        isSaving: isPending,
+        savingId,
+    };
 }

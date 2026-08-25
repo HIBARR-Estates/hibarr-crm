@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -12,6 +12,7 @@ import {
     InputNumber,
     Form,
     Avatar,
+    message,
 } from "antd";
 import "./followup-modal.css";
 import {
@@ -319,17 +320,23 @@ const ViewFollowup: React.FC<Props> = ({
     const { props } = usePage<any>();
     const { td } = useTd();
     const currentUserId = props?.auth?.user?.id;
+    const permissions = props?.permissions ?? {};
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [attendance, setAttendance] = useState<boolean | null | undefined>(
         followup?.client_attended,
     );
     const [attendanceSaving, setAttendanceSaving] = useState(false);
+    const attendanceFollowupIdRef = useRef<number | undefined>(followup?.id);
+
+    useEffect(() => {
+        attendanceFollowupIdRef.current = followup?.id;
+        setAttendance(followup?.client_attended);
+    }, [followup?.id, followup?.client_attended]);
 
     const handleSetAttendance = async (value: boolean | null) => {
         if (!followup?.id || attendanceSaving) return;
 
-        // Clicking the already-active option clears it back to unconfirmed —
-        // this is a manual record, not a one-way commit.
+        const requestFollowupId = followup.id;
         const nextValue = attendance === value ? null : value;
 
         setAttendanceSaving(true);
@@ -340,7 +347,7 @@ const ViewFollowup: React.FC<Props> = ({
                     ?.getAttribute("content") || "";
 
             const res = await fetch(
-                `/account/meetings/${followup.id}/confirm-attendance`,
+                `/account/meetings/${requestFollowupId}/confirm-attendance`,
                 {
                     method: "POST",
                     headers: {
@@ -352,12 +359,33 @@ const ViewFollowup: React.FC<Props> = ({
                     body: JSON.stringify({ client_attended: nextValue }),
                 },
             );
-            const json = await res.json();
-            if (json.success) {
-                setAttendance(json.client_attended);
+
+            if (attendanceFollowupIdRef.current !== requestFollowupId) {
+                return;
+            }
+
+            let json: { success?: boolean; client_attended?: boolean | null; message?: string } = {};
+            try {
+                json = await res.json();
+            } catch {
+                message.error("Could not read attendance response.");
+                return;
+            }
+
+            if (!res.ok || !json.success) {
+                message.error(json.message || "Could not update attendance.");
+                return;
+            }
+
+            setAttendance(json.client_attended);
+        } catch {
+            if (attendanceFollowupIdRef.current === requestFollowupId) {
+                message.error("Could not update attendance.");
             }
         } finally {
-            setAttendanceSaving(false);
+            if (attendanceFollowupIdRef.current === requestFollowupId) {
+                setAttendanceSaving(false);
+            }
         }
     };
 
@@ -367,6 +395,12 @@ const ViewFollowup: React.FC<Props> = ({
     const effectiveDuration =
         followup?.effective_duration ?? followup?.duration ?? DEFAULT_DURATION;
     const isCreator = followup?.added_by?.id === currentUserId;
+    const canEditAttendance =
+        permissions.edit_lead_follow_up === "all" ||
+        (permissions.edit_lead_follow_up === "added" && isCreator);
+    const meetingHasStarted =
+        !!followup?.next_follow_up_date &&
+        !dayjs.utc(followup.next_follow_up_date).local().isAfter(dayjs());
 
     const featureEnabled =
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
@@ -613,6 +647,7 @@ const ViewFollowup: React.FC<Props> = ({
                     {/* Client Attendance — manually recorded/confirmed, never inferred */}
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Client Attendance</p>
+                        {canEditAttendance && meetingHasStarted ? (
                         <div className="flex items-center gap-2">
                             <Button
                                 size="small"
@@ -634,6 +669,19 @@ const ViewFollowup: React.FC<Props> = ({
                                 <span className="text-[12px] text-slate-400">Not yet confirmed</span>
                             ) : null}
                         </div>
+                        ) : (
+                        <div className="text-[13px] text-slate-600">
+                            {attendance === true && "Attended"}
+                            {attendance === false && "No-show"}
+                            {(attendance === null || attendance === undefined) && (
+                                <span className="text-slate-400">
+                                    {canEditAttendance && !meetingHasStarted
+                                        ? "Available after the meeting time"
+                                        : "Not yet confirmed"}
+                                </span>
+                            )}
+                        </div>
+                        )}
                     </div>
 
                     {/* Meeting Summary */}

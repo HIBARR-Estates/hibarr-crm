@@ -35,7 +35,7 @@ class DealAutomationTemplateEmail extends Mailable
 
     public function build()
     {
-        $fromEmail = config('mail.mailers.smtp.username') ?? config('mail.from.address');
+        $fromEmail = config('mail.mailers.smtp.username') ?: config('mail.from.address');
         $fromName = config('mail.from.name');
 
         $mail = $this->from($fromEmail, $fromName)

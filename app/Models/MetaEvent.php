@@ -8,8 +8,8 @@ use Illuminate\Support\Collection;
 
 /**
  * A company-managed Meta Conversion API event definition — name + a default
- * value — offered as a picker in a deal_automations "meta_conversion"
- * action instead of free-typing both fields every time.
+ * value — offered as a picker in a deal_automations "meta_conversion" action
+ * instead of free-typing both fields every time.
  */
 class MetaEvent extends BaseModel
 {
@@ -39,9 +39,24 @@ class MetaEvent extends BaseModel
     public static function allWithUsage(): Collection
     {
         $events = self::orderBy('name')->get();
+        $companyId = (int) company()->id;
+        $pipelineIds = LeadPipeline::query()
+            ->where('company_id', $companyId)
+            ->pluck('id');
 
         $usageByEventName = DealAutomationAction::where('action_type', 'meta_conversion')
             ->whereNotNull('meta_event_name')
+            ->whereHas('automation', function ($query) use ($pipelineIds) {
+                $query->where(function ($scoped) use ($pipelineIds) {
+                    $scoped->where('subject_type', DealAutomation::SUBJECT_LEAD)
+                        ->orWhereIn('pipeline_id', $pipelineIds)
+                        ->orWhere(function ($dealAnyPipeline) {
+                            $dealAnyPipeline
+                                ->where('subject_type', DealAutomation::SUBJECT_DEAL)
+                                ->whereNull('pipeline_id');
+                        });
+                });
+            })
             ->with('automation:id,name')
             ->get(['id', 'deal_automation_id', 'meta_event_name'])
             ->groupBy('meta_event_name');

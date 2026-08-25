@@ -662,7 +662,7 @@
                 if (!el) {
                     return;
                 }
-                insertTagAtCursor(el, '{{' + tag + '}}');
+                insertTagAtCursor(el, '@{{' + tag + '}}');
             });
 
             function insertTagAtCursor(el, text) {

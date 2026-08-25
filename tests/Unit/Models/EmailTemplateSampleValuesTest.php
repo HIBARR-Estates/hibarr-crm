@@ -27,7 +27,7 @@ class EmailTemplateSampleValuesTest extends TestCase
         $this->assertSame('Jane Doe', EmailTemplate::sampleValueFor('client_name'));
         $this->assertSame('+49 151 234 5678', EmailTemplate::sampleValueFor('lead_mobile'));
         $this->assertSame('€250,000', EmailTemplate::sampleValueFor('dealValue'));
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}|.+/', EmailTemplate::sampleValueFor('created_at'));
+        $this->assertMatchesRegularExpression('/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/', EmailTemplate::sampleValueFor('created_at'));
     }
 
     public function test_unknown_tag_falls_back_to_readable_label()

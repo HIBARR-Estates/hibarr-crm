@@ -119,8 +119,7 @@ class EmailTemplate extends BaseModel
             return false;
         }
 
-        return preg_match('/\.hm\b|@media\s/i', $html) === 1
-            || preg_match('/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/', $html) === 1;
+        return preg_match('/\.hm\b|@media\s/i', $html) === 1;
     }
 
     /**

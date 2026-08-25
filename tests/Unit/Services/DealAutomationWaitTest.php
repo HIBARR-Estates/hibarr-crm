@@ -34,9 +34,11 @@ class DealAutomationWaitTest extends TestCase
 
     public function test_zero_or_negative_wait_means_run_immediately()
     {
-        $automation = new DealAutomation(['wait_duration_value' => 0, 'wait_duration_unit' => 'days']);
+        $zero = new DealAutomation(['wait_duration_value' => 0, 'wait_duration_unit' => 'days']);
+        $negative = new DealAutomation(['wait_duration_value' => -3, 'wait_duration_unit' => 'days']);
 
-        $this->assertSame(0, $this->service()->automationWaitSeconds($automation));
+        $this->assertSame(0, $this->service()->automationWaitSeconds($zero));
+        $this->assertSame(0, $this->service()->automationWaitSeconds($negative));
     }
 
     public function test_wait_seconds_resolve_each_unit()

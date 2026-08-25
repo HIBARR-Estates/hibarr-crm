@@ -112,11 +112,11 @@ export default function SettingsIndex({
 
     return (
         <PageLayout
-            title={pageTitle}
             breadcrumbs={[{ name: pageTitle }]}
             config={{ showTitle: true }}
         >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="max-w-screen-2xl mx-auto w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cards.map((card) => (
                     <div
                         key={card.key}
@@ -173,6 +173,7 @@ export default function SettingsIndex({
                         </div>
                     </div>
                 ))}
+                </div>
             </div>
 
             <Drawer

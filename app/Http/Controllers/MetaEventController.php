@@ -63,7 +63,7 @@ class MetaEventController extends AccountBaseController
 
     public function update(Request $request, $id)
     {
-        $event = MetaEvent::findOrFail($id);
+        $event = MetaEvent::where('company_id', company()->id)->findOrFail($id);
 
         $request->validate($this->validationRules($event->id));
 
@@ -82,7 +82,7 @@ class MetaEventController extends AccountBaseController
 
     public function destroy($id)
     {
-        MetaEvent::findOrFail($id)->delete();
+        MetaEvent::where('company_id', company()->id)->findOrFail($id)->delete();
 
         return Reply::success(__('messages.deleteSuccess'));
     }

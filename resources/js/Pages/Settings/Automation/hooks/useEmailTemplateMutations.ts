@@ -1,20 +1,42 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { EmailTemplate } from "../types";
 import { useAutomationWorkspace } from "../context/AutomationWorkspaceContext";
 
+type PendingKey = number | "new";
+
+function usePendingKeys() {
+    const pendingRef = useRef<Set<PendingKey>>(new Set());
+    const [, bump] = useState(0);
+
+    const add = useCallback((key: PendingKey) => {
+        pendingRef.current.add(key);
+        bump((n) => n + 1);
+    }, []);
+
+    const remove = useCallback((key: PendingKey) => {
+        pendingRef.current.delete(key);
+        bump((n) => n + 1);
+    }, []);
+
+    const isPending = useCallback((key: PendingKey) => pendingRef.current.has(key), []);
+
+    return { add, remove, isPending };
+}
+
 /** Email template create/update/delete mutations — same shape/reasoning as
  * useAutomationMutations, wired to EmailTemplateController's JSON endpoints. */
 export default function useEmailTemplateMutations() {
     const { t } = useTranslation();
     const { setTemplates } = useAutomationWorkspace();
-    const [savingId, setSavingId] = useState<number | "new" | null>(null);
+    const { add, remove, isPending } = usePendingKeys();
 
     const createTemplate = useCallback(
         async (payload: Record<string, unknown>): Promise<EmailTemplate | null> => {
-            setSavingId("new");
+            const key: PendingKey = "new";
+            add(key);
             try {
                 const res = await axios.post(route("email-templates.store"), payload, {
                     headers: { Accept: "application/json" },
@@ -31,15 +53,15 @@ export default function useEmailTemplateMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return null;
             } finally {
-                setSavingId(null);
+                remove(key);
             }
         },
-        [setTemplates, t],
+        [add, remove, setTemplates, t],
     );
 
     const updateTemplate = useCallback(
         async (id: number, payload: Record<string, unknown>): Promise<EmailTemplate | null> => {
-            setSavingId(id);
+            add(id);
             try {
                 const res = await axios.put(route("email-templates.update", id), payload, {
                     headers: { Accept: "application/json" },
@@ -61,15 +83,15 @@ export default function useEmailTemplateMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return null;
             } finally {
-                setSavingId(null);
+                remove(id);
             }
         },
-        [setTemplates, t],
+        [add, remove, setTemplates, t],
     );
 
     const deleteTemplate = useCallback(
         async (id: number): Promise<boolean> => {
-            setSavingId(id);
+            add(id);
             try {
                 const res = await axios.delete(route("email-templates.destroy", id), {
                     headers: { Accept: "application/json" },
@@ -85,11 +107,11 @@ export default function useEmailTemplateMutations() {
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 return false;
             } finally {
-                setSavingId(null);
+                remove(id);
             }
         },
-        [setTemplates, t],
+        [add, remove, setTemplates, t],
     );
 
-    return { createTemplate, updateTemplate, deleteTemplate, savingId };
+    return { createTemplate, updateTemplate, deleteTemplate, isSaving: isPending, savingId: isPending("new") ? "new" : null };
 }

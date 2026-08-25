@@ -81,7 +81,7 @@ class DealAutomationController extends AccountBaseController
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
-                'active' => $request->has('active') ? 1 : 0,
+                'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
             ]);
 
@@ -137,7 +137,7 @@ class DealAutomationController extends AccountBaseController
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
-                'active' => $request->has('active') ? 1 : 0,
+                'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
             ]);
 
@@ -195,7 +195,9 @@ class DealAutomationController extends AccountBaseController
             ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to))
             ->orderByDesc('executed_at');
 
-        return Reply::dataOnly(['status' => 'success', 'data' => $query->paginate($request->integer('per_page', 25))]);
+        $perPage = min(max($request->integer('per_page', 25), 1), 100);
+
+        return Reply::dataOnly(['status' => 'success', 'data' => $query->paginate($perPage)]);
     }
 
     /**
@@ -323,6 +325,9 @@ class DealAutomationController extends AccountBaseController
             'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',
             'conditions' => 'array',
+            'conditions.*.field' => 'required|string|max:255',
+            'conditions.*.operator' => ['required', Rule::in(['=', '>', '<', 'contains', 'exists', 'changed'])],
+            'conditions.*.value' => 'nullable|string|max:65535',
             'actions' => 'required|array|min:1',
             'actions.*.action_type' => ['required', Rule::in($allowedActionTypes)],
             'actions.*.target_stage_id' => 'required_if:actions.*.action_type,stage_transition|nullable|exists:pipeline_stages,id',

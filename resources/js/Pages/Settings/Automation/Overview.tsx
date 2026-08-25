@@ -41,9 +41,8 @@ export default function Overview({
     const { t } = useTranslation();
     const { automations, automationsLoading, automationStats } = useAutomationWorkspace();
     const { toggleStatus } = useAutomationMutations();
-    const { stats } = useAutomationStats();
+    const { stats, loading: statsLoading } = useAutomationStats();
     const { logs, loading: logsLoading } = useAutomationLogs({});
-    const statsLoading = stats === null;
 
     const activeCount = automations.filter((a) => a.active).length;
     const pausedCount = automations.length - activeCount;

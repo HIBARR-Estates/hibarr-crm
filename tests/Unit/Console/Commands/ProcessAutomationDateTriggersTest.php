@@ -3,7 +3,10 @@
 namespace Tests\Unit\Console\Commands;
 
 use App\Console\Commands\ProcessAutomationDateTriggers;
+use App\Models\DealAutomation;
+use App\Models\Lead;
 use Illuminate\Support\Carbon;
+use Mockery;
 use Tests\TestCase;
 
 class ProcessAutomationDateTriggersTest extends TestCase
@@ -15,6 +18,12 @@ class ProcessAutomationDateTriggersTest extends TestCase
         parent::setUp();
 
         $this->command = app(ProcessAutomationDateTriggers::class);
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 
     public function test_yearly_matches_month_and_day_only()
@@ -36,17 +45,31 @@ class ProcessAutomationDateTriggersTest extends TestCase
         $this->assertFalse($this->invokeMatches($anchor, Carbon::parse('2027-05-12'), false));
     }
 
-    public function test_scheduled_day_includes_one_day_grace_for_missed_scheduler_run()
+    public function test_scheduled_day_includes_one_day_grace_when_not_recently_ran()
     {
         $anchor = Carbon::parse('1990-05-12');
         $dayAfter = Carbon::parse('2026-05-13');
+        $automation = new DealAutomation(['id' => 1]);
+        $subject = new Lead(['id' => 99]);
 
-        $this->assertTrue($this->invokeScheduledDay($anchor, $dayAfter, true));
-        $this->assertFalse($this->invokeScheduledDay($anchor, Carbon::parse('2026-05-14'), true));
+        $command = Mockery::mock(ProcessAutomationDateTriggers::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $command->shouldReceive('recentlyRanDateAutomation')->andReturn(false);
 
-        $onceAnchor = Carbon::parse('2026-05-12');
-        $this->assertTrue($this->invokeScheduledDay($onceAnchor, Carbon::parse('2026-05-13'), false));
-        $this->assertFalse($this->invokeScheduledDay($onceAnchor, Carbon::parse('2026-05-14'), false));
+        $this->assertTrue($this->invokeScheduledDay($command, $anchor, $dayAfter, true, $automation, $subject));
+        $this->assertFalse($this->invokeScheduledDay($command, $anchor, Carbon::parse('2026-05-14'), true, $automation, $subject));
+    }
+
+    public function test_scheduled_day_skips_grace_when_recently_ran()
+    {
+        $anchor = Carbon::parse('1990-05-12');
+        $dayAfter = Carbon::parse('2026-05-13');
+        $automation = new DealAutomation(['id' => 1]);
+        $subject = new Lead(['id' => 99]);
+
+        $command = Mockery::mock(ProcessAutomationDateTriggers::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $command->shouldReceive('recentlyRanDateAutomation')->andReturn(true);
+
+        $this->assertFalse($this->invokeScheduledDay($command, $anchor, $dayAfter, true, $automation, $subject));
     }
 
     public function test_parses_raw_column_strings_and_carbon_instances()
@@ -70,9 +93,15 @@ class ProcessAutomationDateTriggersTest extends TestCase
         return $this->invokeProtected($this->command, 'matchesToday', [$anchor, $today, $yearly]);
     }
 
-    protected function invokeScheduledDay(Carbon $anchor, Carbon $today, bool $yearly): bool
-    {
-        return $this->invokeProtected($this->command, 'matchesScheduledDay', [$anchor, $today, $yearly]);
+    protected function invokeScheduledDay(
+        ProcessAutomationDateTriggers $command,
+        Carbon $anchor,
+        Carbon $today,
+        bool $yearly,
+        DealAutomation $automation,
+        Lead $subject
+    ): bool {
+        return $this->invokeProtected($command, 'matchesScheduledDay', [$anchor, $today, $yearly, $automation, $subject]);
     }
 
     private function invokeProtected(object $object, string $method, array $args = []): mixed

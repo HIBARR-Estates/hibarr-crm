@@ -35,7 +35,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 export default function TemplateEditor({ template, onBack }: TemplateEditorProps) {
     const { t } = useTranslation();
     const { catalog } = useAutomationWorkspace();
-    const { createTemplate, updateTemplate, savingId } = useEmailTemplateMutations();
+    const { createTemplate, updateTemplate, isSaving } = useEmailTemplateMutations();
 
     const [name, setName] = useState(template?.name ?? t("app.automation.untitledTemplate"));
     const [mode, setMode] = useState<"custom" | "plunk_body">(template?.mode ?? "custom");
@@ -47,7 +47,7 @@ export default function TemplateEditor({ template, onBack }: TemplateEditorProps
     const [mappings, setMappings] = useState<VariableMapping[]>(template?.variable_mappings ?? []);
     const [frameHeight, setFrameHeight] = useState(480);
 
-    const isSaving = savingId === (template?.id ?? "new");
+    const saveInProgress = isSaving(template?.id ?? "new");
     const fieldGroups = useMemo(() => (catalog ? conditionFieldGroups("deal", catalog) : []), [catalog]);
     const mergeGroups = useMemo(() => (catalog ? mergeTagGroups("deal", catalog) : []), [catalog]);
     const subjectRef = useRef<HTMLInputElement | null>(null);
@@ -142,7 +142,7 @@ export default function TemplateEditor({ template, onBack }: TemplateEditorProps
                     <Button variant="ghost" onClick={onBack}>
                         {t("app.cancel")}
                     </Button>
-                    <Button variant="primary" loading={isSaving} onClick={handleSave} disabled={!name.trim() || !subject.trim()}>
+                    <Button variant="primary" loading={saveInProgress} onClick={handleSave} disabled={!name.trim() || !subject.trim()}>
                         {t("app.automation.saveTemplate")}
                     </Button>
                 </div>

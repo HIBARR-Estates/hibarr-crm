@@ -2,15 +2,24 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { AutomationStatsSummary } from "../types";
 
+const emptyStats: AutomationStatsSummary = {
+    total_runs: 0,
+    success_rate: null,
+    last_run_at: null,
+    runs_last_7_days: [],
+};
+
 /** Fetch against deal-automations.stats — company-wide (no id) for
  * Overview.tsx, or scoped to one automation for AutomationDetail.tsx. */
 export default function useAutomationStats(automationId?: number) {
     const [stats, setStats] = useState<AutomationStatsSummary | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setError(null);
 
         axios
             .get(route("deal-automations.stats"), {
@@ -18,7 +27,13 @@ export default function useAutomationStats(automationId?: number) {
                 params: automationId ? { automation_id: automationId } : undefined,
             })
             .then((res) => {
-                if (!cancelled) setStats(res.data?.data ?? null);
+                if (!cancelled) setStats(res.data?.data ?? emptyStats);
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setStats(emptyStats);
+                    setError("failed");
+                }
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -29,5 +44,5 @@ export default function useAutomationStats(automationId?: number) {
         };
     }, [automationId]);
 
-    return { stats, loading };
+    return { stats, loading, error };
 }

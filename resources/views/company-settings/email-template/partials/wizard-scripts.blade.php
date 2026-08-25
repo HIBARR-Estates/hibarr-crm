@@ -91,16 +91,21 @@
                 if (quill) {
                     quill.setContents([]);
                     quill.clipboard.dangerouslyPasteHTML(0, $('#body-html-source').val() || '', 'silent');
+                    $('#body-html-source').addClass('d-none');
+                    $('#body-html-source-help').addClass('d-none');
+                    $('#body-editor').removeClass('d-none');
+                    $('#body-editor').siblings('.ql-toolbar').removeClass('d-none');
+                } else {
+                    $('#body-editor').addClass('d-none');
+                    $('#body-editor').siblings('.ql-toolbar').addClass('d-none');
+                    $('#body-html-source').removeClass('d-none');
+                    $('#body-html-source-help').removeClass('d-none');
                 }
-                $('#body-html-source').addClass('d-none');
-                $('#body-html-source-help').addClass('d-none');
-                $('#body-editor').removeClass('d-none');
-                $('#body-editor').siblings('.ql-toolbar').removeClass('d-none');
             }
 
-            bodyMode = mode;
-            $('#body-mode-visual-btn').toggleClass('active', mode === 'visual');
-            $('#body-mode-html-btn').toggleClass('active', mode === 'html');
+            bodyMode = quillArray['#body-editor'] && mode === 'visual' ? 'visual' : 'html';
+            $('#body-mode-visual-btn').toggleClass('active', bodyMode === 'visual');
+            $('#body-mode-html-btn').toggleClass('active', bodyMode === 'html');
         }
 
         $('#body-mode-visual-btn').click(function() { setBodyMode('visual'); });

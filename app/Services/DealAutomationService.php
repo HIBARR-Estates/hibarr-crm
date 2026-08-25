@@ -56,7 +56,7 @@ class DealAutomationService
 
         foreach ($automations as $automation) {
             if (! AutomationV2Feature::supportsAutomation($automation)) {
-                AutomationV2Feature::deactivateIfUnsupported($automation);
+                AutomationV2Feature::warnIfUnsupported($automation);
 
                 continue;
             }
@@ -84,7 +84,7 @@ class DealAutomationService
 
         foreach ($automations as $automation) {
             if (! AutomationV2Feature::supportsAutomation($automation)) {
-                AutomationV2Feature::deactivateIfUnsupported($automation);
+                AutomationV2Feature::warnIfUnsupported($automation);
 
                 continue;
             }
@@ -254,9 +254,8 @@ class DealAutomationService
         }
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
-        $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
 
-        return true;
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
     }
 
     /**
@@ -359,8 +358,11 @@ class DealAutomationService
      * the rest of the sequence resumes later via
      * deal-automations:process-pending-runs, same mechanism the automation's
      * own pre-actions wait already uses.
+     *
+     * @return bool True when the full action list finished; false when a wait
+     *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): void
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): bool
     {
         $actions = $automation->actions->sortBy('id')->values();
 
@@ -399,7 +401,7 @@ class DealAutomationService
                         'wait',
                     );
 
-                    return; // remaining actions resume later
+                    return false; // remaining actions resume later
                 }
 
                 continue; // no wait configured, or nothing left after it — no-op, keep going
@@ -409,7 +411,7 @@ class DealAutomationService
         }
 
         if (! ($subject instanceof Deal)) {
-            return;
+            return true;
         }
 
         // After the actions we then emit the necessary events, such as mlm engine DealWonEvent. This is because we save the dealModel quietly to avoid cascades because we do support an array of actions that will cannot afford to trigger the deal observer as this will lead to recursive updates ...
@@ -417,20 +419,19 @@ class DealAutomationService
         if ($subject->wasChanged('outcome_status') && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $subject->is_locked) {
             $this->fireDealWonEvent($subject);
         }
+
+        return true;
     }
 
     /**
      * Queue a pending run resuming at $resumeActionId — used when a "wait"
-     * action step is hit mid-sequence. Safe to firstOrCreate (not update) on
-     * the (automation, subject_type, subject_id) unique key: by the time this
-     * runs, any pre-existing row for this subject was already deleted by
-     * ProcessAutomationPendingRuns before it called into runPending(), which
-     * is what leads here — see that command's own "delete first" comment.
+     * action step is hit mid-sequence. updateOrCreate refreshes run_at and
+     * resume_action_id when the same subject is already waiting.
      */
     protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds): void
     {
         try {
-            DealAutomationPendingRun::firstOrCreate([
+            DealAutomationPendingRun::updateOrCreate([
                 'deal_automation_id' => $automation->id,
                 'subject_type' => $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL,
                 'subject_id' => $subject->id,
@@ -967,7 +968,9 @@ class DealAutomationService
             $due->setTime($time->hour, $time->minute, $time->second);
         }
 
-        return $due->format(company()->date_format.' '.company()->time_format);
+        return $due->format(
+            (company()?->date_format ?? 'Y-m-d').' '.(company()?->time_format ?? 'H:i')
+        );
     }
 
     /**

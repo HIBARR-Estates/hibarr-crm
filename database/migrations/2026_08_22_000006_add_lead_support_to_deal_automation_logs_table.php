@@ -15,11 +15,24 @@ return new class extends Migration
         // as run. Each step checks before applying so a retry is safe.
         $existingForeignKeys = $this->existingForeignKeyColumns();
 
-        if (! in_array('deal_id', $existingForeignKeys)) {
+        if (Schema::hasColumn('deal_automation_logs', 'deal_id')) {
+            if (in_array('deal_id', $existingForeignKeys, true)) {
+                Schema::table('deal_automation_logs', function (Blueprint $table) {
+                    $table->dropForeign(['deal_id']);
+                });
+            }
+
             Schema::table('deal_automation_logs', function (Blueprint $table) {
                 $table->unsignedBigInteger('deal_id')->nullable()->change();
-                $table->foreign('deal_id')->references('id')->on('deals')->onDelete('cascade');
             });
+
+            $existingForeignKeys = $this->existingForeignKeyColumns();
+
+            if (! in_array('deal_id', $existingForeignKeys, true)) {
+                Schema::table('deal_automation_logs', function (Blueprint $table) {
+                    $table->foreign('deal_id')->references('id')->on('deals')->onDelete('cascade');
+                });
+            }
         }
 
         // leads.id is a plain unsignedInteger (increments()), not bigint — must match.

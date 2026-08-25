@@ -74,9 +74,9 @@ class AutomationV2Feature
 
     /**
      * When v2 is off, automations that only work with v2 would otherwise stay
-     * "active" in the DB but never run — deactivate them on first encounter.
+     * "active" in the DB but never run — log once when encountered.
      */
-    public static function deactivateIfUnsupported(DealAutomation $automation): void
+    public static function warnIfUnsupported(DealAutomation $automation): void
     {
         if (self::enabled() || ! $automation->active) {
             return;
@@ -86,11 +86,8 @@ class AutomationV2Feature
             return;
         }
 
-        DealAutomation::whereKey($automation->id)->update(['active' => false]);
-        $automation->active = false;
-
         Log::warning(
-            "Deactivated automation '{$automation->name}' (ID: {$automation->id}) — requires ".self::FLAG.'.'
+            "Skipping automation '{$automation->name}' (ID: {$automation->id}) — requires ".self::FLAG.'.'
         );
     }
 }

@@ -37,7 +37,7 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
     const { t } = useTranslation();
     const { td } = useTd();
     const { templates, templatesLoading, catalog } = useAutomationWorkspace();
-    const { deleteTemplate } = useEmailTemplateMutations();
+    const { deleteTemplate, isSaving } = useEmailTemplateMutations();
     const [query, setQuery] = useState("");
     const [mode, setMode] = useState<ModeFilter>("all");
 
@@ -109,7 +109,7 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
                         description={
                             templates.length === 0
                                 ? t("app.automation.noTemplatesYetDescription")
-                                : t("app.automation.noAutomationsFoundDescription")
+                                : t("app.automation.noTemplatesFoundDescription")
                         }
                     />
                 </div>
@@ -117,7 +117,9 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
 
             <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
                 {templatesLoading && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
-                {!templatesLoading && filtered.map((tpl) => (
+                {!templatesLoading && filtered.map((tpl) => {
+                    const deleting = isSaving(tpl.id);
+                    return (
                     <div key={tpl.id} className="rounded-[10px] border bg-white p-4 flex flex-col" style={{ borderColor: T.BORDER }}>
                         <div className="flex items-center justify-between mb-2.5">
                             <Badge variant={tpl.mode === "plunk_body" ? "teal" : "blue"}>
@@ -132,6 +134,7 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
                                             label: t("app.delete"),
                                             danger: true,
                                             onClick: () => {
+                                                if (deleting) return;
                                                 if (window.confirm(td("Delete this template? This can't be undone."))) {
                                                     deleteTemplate(tpl.id);
                                                 }
@@ -143,7 +146,8 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
                                 <button
                                     type="button"
                                     aria-label={t("app.automation.moreActions")}
-                                    className="rounded-[7px] border-0 bg-transparent cursor-pointer flex"
+                                    disabled={deleting}
+                                    className="rounded-[7px] border-0 bg-transparent cursor-pointer flex disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{ padding: 5, color: T.TEXT_HINT }}
                                 >
                                     <Icon name="more-vertical" size={16} />
@@ -194,7 +198,8 @@ export default function TemplatesList({ onOpenEditor, onNewTemplate }: Templates
                             </button>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

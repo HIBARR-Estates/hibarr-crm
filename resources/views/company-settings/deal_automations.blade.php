@@ -90,7 +90,7 @@
                                                 @elseif($action->action_type === 'create_task')
                                                     <i class="fa fa-check-square text-primary"></i>
                                                     Create task <strong>{{ $action->title ?: 'Automated Task' }}</strong>
-                                                    (assign: {{ $action->assignee_type === 'specific_user' ? ($action->assigneeUser->name ?? 'Unknown User') : 'Lead Owner' }})
+                                                    (assign: {{ $action->assignee_type === 'specific_user' ? ($action->assigneeUser->name ?? 'Unknown User') : (\App\Services\AutomationFieldCatalog::ASSIGNMENT_TYPES[$action->assignee_type]['label'] ?? $action->assignee_type ?? 'Lead Owner') }})
                                                 @elseif($action->action_type === 'create_note')
                                                     <i class="fa fa-sticky-note text-primary"></i>
                                                     Create note

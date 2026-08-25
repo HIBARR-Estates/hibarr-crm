@@ -19,6 +19,8 @@ interface LogsMeta {
     total: number;
 }
 
+const emptyMeta: LogsMeta = { currentPage: 1, lastPage: 1, total: 0 };
+
 /** Paginated/filtered fetch against deal-automations.logs — fired on-demand
  * (mount / filter change), never blocking the page's own first paint since
  * it isn't part of the Inertia deferred-prop bundle. */
@@ -26,10 +28,12 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
     const [logs, setLogs] = useState<RunLogEntry[]>([]);
     const [meta, setMeta] = useState<LogsMeta | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setError(null);
 
         axios
             .get(route("deal-automations.logs"), {
@@ -54,8 +58,14 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
                               lastPage: paginated.last_page,
                               total: paginated.total,
                           }
-                        : null,
+                        : emptyMeta,
                 );
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setLogs([]);
+                setMeta(emptyMeta);
+                setError("failed");
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -74,5 +84,5 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
         filters.refreshKey,
     ]);
 
-    return { logs, meta, loading };
+    return { logs, meta, loading, error };
 }
