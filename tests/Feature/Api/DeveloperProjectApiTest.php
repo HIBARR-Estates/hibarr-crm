@@ -329,6 +329,10 @@ class DeveloperProjectApiTest extends TestCase
                 $table->string('reference_code', 50)->nullable();
                 $table->text('description')->nullable();
                 $table->unsignedBigInteger('project_location_id')->nullable();
+                $table->string('map_url', 2048)->nullable();
+                $table->decimal('latitude', 10, 7)->nullable();
+                $table->decimal('longitude', 10, 7)->nullable();
+                $table->json('address')->nullable();
                 $table->string('google_drive_link', 500)->nullable();
                 $table->string('availability_link', 500)->nullable();
                 $table->decimal('starting_price', 12, 2)->nullable();
@@ -357,6 +361,14 @@ class DeveloperProjectApiTest extends TestCase
             if (!Schema::hasColumn('developer_projects', 'slug')) {
                 Schema::table('developer_projects', function (Blueprint $table) {
                     $table->string('slug', 255)->nullable()->after('name');
+                });
+            }
+            if (!Schema::hasColumn('developer_projects', 'map_url')) {
+                Schema::table('developer_projects', function (Blueprint $table) {
+                    $table->string('map_url', 2048)->nullable()->after('project_location_id');
+                    $table->decimal('latitude', 10, 7)->nullable()->after('map_url');
+                    $table->decimal('longitude', 10, 7)->nullable()->after('latitude');
+                    $table->json('address')->nullable()->after('longitude');
                 });
             }
             DB::table('developer_projects')->delete();

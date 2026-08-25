@@ -68,6 +68,9 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Resolve or create a canonical project location for city+area.
+     *
+     * Only city/area/name are written on the shared location. Map pins
+     * (address, lat/lng, map_url) live on developer_projects.
      */
     private function resolveCanonicalProjectLocation(Request $request, ?ProjectLocation $currentLocation = null): ?ProjectLocation
     {
@@ -84,29 +87,12 @@ class DeveloperProjectController extends AccountBaseController
 
         $name = $this->formatLocationName($city, $area);
 
-        $address = $request->has('address') ? $request->input('address') : ($currentLocation->address ?? null);
-        if (is_string($address)) {
-            $address = ['street' => $address];
-        }
-
         $payload = [
             'company_id' => user()->company_id,
             'city' => $city,
             'area' => $area,
             'name' => $name,
         ];
-
-        if ($address !== null) {
-            $payload['address'] = $address;
-        }
-
-        foreach (['latitude', 'longitude', 'map_url'] as $field) {
-            if ($request->has($field)) {
-                $payload[$field] = $request->input($field);
-            } elseif ($currentLocation && array_key_exists($field, $currentLocation->getAttributes())) {
-                $payload[$field] = $currentLocation->{$field};
-            }
-        }
 
         $normalizedCity = strtolower($city ?? '');
         $normalizedArea = strtolower($area ?? '');
@@ -132,6 +118,53 @@ class DeveloperProjectController extends AccountBaseController
 
             return ProjectLocation::create($payload);
         });
+    }
+
+    /**
+     * Extract per-project map pin fields from the request.
+     *
+     * @return array<string, mixed>
+     */
+    private function extractProjectPinFields(Request $request): array
+    {
+        $pins = [];
+
+        if ($request->has('map_url')) {
+            $pins['map_url'] = $request->input('map_url');
+        }
+
+        if ($request->has('latitude')) {
+            $pins['latitude'] = $request->input('latitude');
+        }
+
+        if ($request->has('longitude')) {
+            $pins['longitude'] = $request->input('longitude');
+        }
+
+        if ($request->has('address')) {
+            $address = $request->input('address');
+            if (is_string($address)) {
+                $address = $address !== '' ? ['street' => $address] : null;
+            }
+            $pins['address'] = $address;
+        }
+
+        return $pins;
+    }
+
+    /**
+     * Serialize a project for JSON replies with pin-overlaid nested location.
+     *
+     * @param  list<string>  $relations
+     * @return array<string, mixed>
+     */
+    private function projectPayloadForReply(DeveloperProject $project, array $relations = ['location', 'developer']): array
+    {
+        $project->loadMissing($relations);
+        $data = $project->toArray();
+        $data['location'] = $project->locationForApi();
+
+        return $data;
     }
 
     /**
@@ -346,9 +379,12 @@ class DeveloperProjectController extends AccountBaseController
                 ->get();
         }
 
+        $projectPayload = $project->toArray();
+        $projectPayload['location'] = $project->locationForApi();
+
         return Inertia::render('DeveloperProjects/Show', [
             'pageTitle' => $project->name,
-            'project' => $project,
+            'project' => $projectPayload,
             'statistics' => [
                 'total_units' => $totalUnits,
                 'unit_count' => $unitCount,
@@ -704,9 +740,9 @@ class DeveloperProjectController extends AccountBaseController
             }
         }
 
-        // Handle location with canonical city+area uniqueness.
+        // Handle location with canonical city+area uniqueness (shared area row only).
         $locationId = $request->project_location_id;
-        if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
+        if ($request->filled('city') || $request->filled('area')) {
             $location = $this->resolveCanonicalProjectLocation($request);
             $locationId = $location?->id;
         }
@@ -754,6 +790,8 @@ class DeveloperProjectController extends AccountBaseController
             'reminders' => $request->reminders,
         ];
 
+        $createPayload = array_merge($createPayload, $this->extractProjectPinFields($request));
+
         if (
             DeveloperProjectVisibility::enabled()
             && DeveloperProjectVisibility::canToggleProjectHidden()
@@ -767,7 +805,7 @@ class DeveloperProjectController extends AccountBaseController
         app(\App\Services\Reminders\DeveloperProjectReminderSync::class)->syncFromProject($project->fresh());
 
         return Reply::successWithData('Construction project created successfully', [
-            'data' => $project->load(['location', 'developer']),
+            'data' => $this->projectPayloadForReply($project->fresh()),
         ]);
     }
 
@@ -844,8 +882,8 @@ class DeveloperProjectController extends AccountBaseController
             }
         }
 
-        // Handle location with canonical city+area uniqueness.
-        if ($request->hasAny(['city', 'area', 'address', 'latitude', 'longitude', 'map_url'])) {
+        // Handle shared location by city+area only (pins are stored on the project).
+        if ($request->hasAny(['city', 'area'])) {
             $currentLocation = $project->location;
             $location = $this->resolveCanonicalProjectLocation($request, $currentLocation);
 
@@ -872,7 +910,10 @@ class DeveloperProjectController extends AccountBaseController
             $updateFields[] = 'is_hidden';
         }
 
-        $updatePayload = $request->only($updateFields);
+        $updatePayload = array_merge(
+            $request->only($updateFields),
+            $this->extractProjectPinFields($request)
+        );
 
         // Protect existing facilities from being cleared when the field is
         // omitted by a collapsed form section on the frontend.
@@ -889,7 +930,10 @@ class DeveloperProjectController extends AccountBaseController
         app(\App\Services\Reminders\DeveloperProjectReminderSync::class)->syncFromProject($project->fresh());
 
         return Reply::successWithData('Construction project updated successfully', [
-            'data' => $project->fresh(['location', 'exposeConfig', 'developer']),
+            'data' => $this->projectPayloadForReply(
+                $project->fresh(),
+                ['location', 'exposeConfig', 'developer']
+            ),
         ]);
     }
 

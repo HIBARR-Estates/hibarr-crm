@@ -217,6 +217,13 @@ export default function UnitTypePropertyView({
     onGenerateExpose,
 }: UnitTypePropertyViewProps) {
     const location = developerProject.location;
+    const effectiveAddress =
+        developerProject.address ??
+        (location?.address && typeof location.address === "object"
+            ? location.address
+            : null);
+    const effectiveMapUrl =
+        developerProject.map_url ?? location?.map_url ?? null;
 
     return (
         <div className="unit-type-property-view">
@@ -780,21 +787,22 @@ export default function UnitTypePropertyView({
                                     <div className="font-semibold text-gray-900">
                                         {formatLocationNameForDisplay(location.name)}
                                     </div>
-                                    {location.address && (
+                                    {effectiveAddress && (
                                         <div className="text-sm text-gray-500 mt-1">
                                             {[
-                                                location.address.city,
-                                                location.address.state,
-                                                location.address.country,
+                                                effectiveAddress.street,
+                                                effectiveAddress.city,
+                                                effectiveAddress.state,
+                                                effectiveAddress.country,
                                             ]
                                                 .filter(Boolean)
                                                 .join(", ")}
                                         </div>
                                     )}
-                                    {location.map_url && (
+                                    {effectiveMapUrl && (
                                         <Button
                                             type="link"
-                                            href={location.map_url}
+                                            href={effectiveMapUrl}
                                             target="_blank"
                                             className="mt-2 p-0"
                                             icon={<EnvironmentOutlined />}
