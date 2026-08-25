@@ -123,4 +123,38 @@ class MeetingEmailPresenterTest extends TestCase
         $this->assertStringContainsString('30 minutes', $message);
         $this->assertStringContainsString('scheduled', $message);
     }
+
+    public function test_it_omits_join_link_for_phone_meetings_even_when_stale_link_exists(): void
+    {
+        $lead = Lead::factory()->create(['client_name' => 'Client Person']);
+
+        $followUp = new DealFollowUp();
+        $followUp->lead_id = $lead->id;
+        $followUp->location = 'phone';
+        $followUp->next_follow_up_date = now()->addMinutes(15);
+        $followUp->meeting_link = 'https://meet.example.com/stale';
+        $followUp->save();
+
+        $presenter = new MeetingEmailPresenter($followUp->fresh(['lead']));
+
+        $this->assertSame('', $presenter->meetingLink());
+        $this->assertSame('', $presenter->joinMeetingHtml());
+    }
+
+    public function test_it_keeps_join_link_for_video_meetings(): void
+    {
+        $lead = Lead::factory()->create(['client_name' => 'Client Person']);
+
+        $followUp = new DealFollowUp();
+        $followUp->lead_id = $lead->id;
+        $followUp->location = 'zoom';
+        $followUp->next_follow_up_date = now()->addMinutes(15);
+        $followUp->meeting_link = 'https://zoom.us/j/123';
+        $followUp->save();
+
+        $presenter = new MeetingEmailPresenter($followUp->fresh(['lead']));
+
+        $this->assertSame('https://zoom.us/j/123', $presenter->meetingLink());
+        $this->assertStringContainsString('https://zoom.us/j/123', $presenter->joinMeetingHtml());
+    }
 }
