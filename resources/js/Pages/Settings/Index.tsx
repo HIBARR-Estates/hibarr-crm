@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -31,6 +31,11 @@ export default function SettingsIndex({
 }) {
     const { t } = useTranslation();
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
+    const pageProps = usePage().props as {
+        featureFlags?: Record<string, boolean>;
+    };
+    const automationV2Enabled =
+        pageProps.featureFlags?.["crm.automation-v2"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -41,7 +46,12 @@ export default function SettingsIndex({
             title: t("app.menu.automation"),
             description: t("app.settingsHub.automationDesc"),
             connected: true,
-            onOpen: () => router.visit(route("settings-automation.index")),
+            onOpen: () =>
+                router.visit(
+                    automationV2Enabled
+                        ? route("settings-automation.index")
+                        : route("company-settings.deal_automations"),
+                ),
         },
         {
             key: "leads",

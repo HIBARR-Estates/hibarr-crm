@@ -36,6 +36,19 @@ class ProcessAutomationDateTriggersTest extends TestCase
         $this->assertFalse($this->invokeMatches($anchor, Carbon::parse('2027-05-12'), false));
     }
 
+    public function test_scheduled_day_includes_one_day_grace_for_missed_scheduler_run()
+    {
+        $anchor = Carbon::parse('1990-05-12');
+        $dayAfter = Carbon::parse('2026-05-13');
+
+        $this->assertTrue($this->invokeScheduledDay($anchor, $dayAfter, true));
+        $this->assertFalse($this->invokeScheduledDay($anchor, Carbon::parse('2026-05-14'), true));
+
+        $onceAnchor = Carbon::parse('2026-05-12');
+        $this->assertTrue($this->invokeScheduledDay($onceAnchor, Carbon::parse('2026-05-13'), false));
+        $this->assertFalse($this->invokeScheduledDay($onceAnchor, Carbon::parse('2026-05-14'), false));
+    }
+
     public function test_parses_raw_column_strings_and_carbon_instances()
     {
         $parsed = $this->invokeProtected($this->command, 'parseAnchorDate', ['1990-05-12']);
@@ -55,6 +68,11 @@ class ProcessAutomationDateTriggersTest extends TestCase
     protected function invokeMatches(Carbon $anchor, Carbon $today, bool $yearly): bool
     {
         return $this->invokeProtected($this->command, 'matchesToday', [$anchor, $today, $yearly]);
+    }
+
+    protected function invokeScheduledDay(Carbon $anchor, Carbon $today, bool $yearly): bool
+    {
+        return $this->invokeProtected($this->command, 'matchesScheduledDay', [$anchor, $today, $yearly]);
     }
 
     private function invokeProtected(object $object, string $method, array $args = []): mixed

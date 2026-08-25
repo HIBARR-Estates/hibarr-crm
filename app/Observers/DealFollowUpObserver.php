@@ -41,27 +41,28 @@ class DealFollowUpObserver
      */
     public function created(DealFollowUp $dealFollowUp): void
     {
-        // deal automation trigger
-        if ($dealFollowUp->deal) {
-            $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
+        if (! isRunningInConsoleOrSeeding() && ! isSeedingData()) {
+            if ($dealFollowUp->deal) {
+                $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');
 
-            Log::info('[DealFollowUpObserver::created] About to call recordFollowUpCreated.', [
-                'deal_id' => $dealFollowUp->deal->id,
-                'followup_id' => $dealFollowUp->id,
-            ]);
+                Log::info('[DealFollowUpObserver::created] About to call recordFollowUpCreated.', [
+                    'deal_id' => $dealFollowUp->deal->id,
+                    'followup_id' => $dealFollowUp->id,
+                ]);
 
-            $this->dealActivityEventService->recordFollowUpCreated($dealFollowUp->deal, $dealFollowUp);
+                $this->dealActivityEventService->recordFollowUpCreated($dealFollowUp->deal, $dealFollowUp);
 
-            Log::info('[DealFollowUpObserver::created] recordFollowUpCreated completed.');
-        } elseif ($dealFollowUp->lead_id && $dealFollowUp->lead) {
-            // Lead follow-up (no deal attached) — same trigger idea as the deal
-            // side, fired through the lead-subject automation flow.
-            $this->dealAutomation->processLead($dealFollowUp->lead, DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED);
-        } else {
-            Log::warning('[DealFollowUpObserver::created] No deal or lead relation found — skipping CRM event.', [
-                'deal_id' => $dealFollowUp->deal_id,
-                'lead_id' => $dealFollowUp->lead_id,
-            ]);
+                Log::info('[DealFollowUpObserver::created] recordFollowUpCreated completed.');
+            } elseif ($dealFollowUp->lead_id && $dealFollowUp->lead) {
+                // Lead follow-up (no deal attached) — same trigger idea as the deal
+                // side, fired through the lead-subject automation flow.
+                $this->dealAutomation->processLead($dealFollowUp->lead, DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED);
+            } else {
+                Log::warning('[DealFollowUpObserver::created] No deal or lead relation found — skipping CRM event.', [
+                    'deal_id' => $dealFollowUp->deal_id,
+                    'lead_id' => $dealFollowUp->lead_id,
+                ]);
+            }
         }
 
         if (isSeedingData()) {

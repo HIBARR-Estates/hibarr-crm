@@ -10,6 +10,7 @@ use App\Models\MetaEvent;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Services\AutomationFieldCatalog;
+use App\Support\AutomationV2Feature;
 use Inertia\Inertia;
 
 /**
@@ -28,12 +29,15 @@ class AutomationSettingController extends AccountBaseController
 
         $this->middleware(function ($request, $next) {
             abort_403(user()->permission('manage_company_setting') !== 'all');
+
             return $next($request);
         });
     }
 
     public function index()
     {
+        abort_403(! AutomationV2Feature::enabled());
+
         return Inertia::render('Settings/Automation/Index', [
             'pageTitle' => __('app.menu.automation'),
 

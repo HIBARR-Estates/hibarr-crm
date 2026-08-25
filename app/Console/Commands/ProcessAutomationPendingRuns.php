@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Company;
 use App\Services\DealAutomationService;
+use App\Support\AutomationV2Feature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -22,6 +23,20 @@ class ProcessAutomationPendingRuns extends Command
 
     public function handle(DealAutomationService $automationService): int
     {
+        if (! AutomationV2Feature::enabled()) {
+            // Drop due rows so waits queued while v2 was enabled do not pile up
+            // indefinitely or fire in a burst when the flag is turned back on.
+            $dropped = \App\Models\DealAutomationPendingRun::query()
+                ->where('run_at', '<=', now())
+                ->delete();
+
+            if ($dropped > 0) {
+                Log::info("Dropped {$dropped} due automation pending run(s) — crm.automation-v2 is disabled.");
+            }
+
+            return Command::SUCCESS;
+        }
+
         Company::active()->chunk(50, function ($companies) use ($automationService) {
             foreach ($companies as $company) {
                 // Actions read date formats and ids through the company()
@@ -37,14 +52,10 @@ class ProcessAutomationPendingRuns extends Command
                     ->get();
 
                 foreach ($due as $pendingRun) {
-                    // Delete first: the unique index frees up immediately, so a
-                    // trigger firing mid-execution can queue a fresh run rather
-                    // than colliding with this one; a crash mid-action loses one
-                    // pass instead of re-firing actions forever.
-                    $pendingRun->delete();
-
                     try {
-                        $automationService->runPending($pendingRun);
+                        if ($automationService->runPending($pendingRun)) {
+                            $pendingRun->delete();
+                        }
                     } catch (\Throwable $e) {
                         Log::error("Waited automation run #{$pendingRun->id} failed", [
                             'automation_id' => $pendingRun->deal_automation_id,

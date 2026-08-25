@@ -14,6 +14,7 @@ use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -54,6 +55,12 @@ class DealAutomationService
         $automations = $this->getAutomations($deal->lead_pipeline_id, $trigger, DealAutomation::SUBJECT_DEAL);
 
         foreach ($automations as $automation) {
+            if (! AutomationV2Feature::supportsAutomation($automation)) {
+                AutomationV2Feature::deactivateIfUnsupported($automation);
+
+                continue;
+            }
+
             if ($this->evaluateConditions($deal, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
                 $this->dispatchOrWait($deal, $automation, $trigger);
@@ -67,11 +74,21 @@ class DealAutomationService
      */
     public function processLead(Lead $lead, ?string $trigger = null): void
     {
+        if (! AutomationV2Feature::enabled()) {
+            return;
+        }
+
         Log::info("Processing automations for Lead ID: {$lead->id}, Trigger: ".($trigger ?? 'None'));
 
         $automations = $this->getAutomations(null, $trigger, DealAutomation::SUBJECT_LEAD);
 
         foreach ($automations as $automation) {
+            if (! AutomationV2Feature::supportsAutomation($automation)) {
+                AutomationV2Feature::deactivateIfUnsupported($automation);
+
+                continue;
+            }
+
             if ($this->evaluateConditions($lead, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
                 $this->dispatchOrWait($lead, $automation, $trigger);
@@ -87,6 +104,10 @@ class DealAutomationService
      */
     public function runDateBased(Deal|Lead $subject, DealAutomation $automation): void
     {
+        if (! AutomationV2Feature::enabled()) {
+            return;
+        }
+
         if (! $this->evaluateConditions($subject, $automation)) {
             Log::info("Date-based automation conditions not met: {$automation->name} (ID: {$automation->id})");
 
@@ -109,7 +130,9 @@ class DealAutomationService
      */
     protected function dispatchOrWait(Deal|Lead $subject, DealAutomation $automation, ?string $trigger): void
     {
-        $waitSeconds = $this->automationWaitSeconds($automation);
+        $waitSeconds = AutomationV2Feature::enabled()
+            ? $this->automationWaitSeconds($automation)
+            : 0;
 
         if ($waitSeconds <= 0) {
             // The wait path below is naturally deduped by DealAutomationPendingRun's
@@ -118,9 +141,9 @@ class DealAutomationService
             // submit, two requests firing close together) each independently
             // match conditions and would otherwise both run the full action
             // list, creating duplicate tasks/notes/stage-transitions. A short
-            // per-(automation, subject) lock closes that gap without affecting
-            // genuinely distinct re-triggers seconds apart.
-            if (! $this->claimImmediateRun($subject, $automation)) {
+            // per-(automation, subject, trigger) lock closes double-submit gaps
+            // without blocking a different trigger for the same record.
+            if (AutomationV2Feature::enabled() && ! $this->claimImmediateRun($subject, $automation, $trigger)) {
                 $label = $subject instanceof Lead ? "Lead ID: {$subject->id}" : "Deal ID: {$subject->id}";
                 Log::info("Skipping duplicate immediate run for '{$automation->name}' (ID: {$automation->id}) — already ran moments ago for {$label}.");
 
@@ -158,19 +181,17 @@ class DealAutomationService
     /**
      * Claims a short window for this (automation, subject) pair — true the
      * first time it's called within the window, false for any repeat call
-     * while the lock is held. Guards dispatchOrWait()'s immediate-execution
-     * path against near-simultaneous duplicate triggers (double form submit,
-     * two requests racing) actually running the action list twice. 5 seconds
-     * is comfortably longer than any realistic double-submit gap but short
-     * enough that a genuinely distinct later re-trigger for the same subject
-     * is never suppressed.
+     * while the lock is held. Scoped by trigger so deal_created followed by
+     * deal_updated within the window both run; only duplicate calls for the
+     * same trigger are suppressed.
      */
-    protected function claimImmediateRun(Deal|Lead $subject, DealAutomation $automation): bool
+    protected function claimImmediateRun(Deal|Lead $subject, DealAutomation $automation, ?string $trigger): bool
     {
         $subjectType = $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL;
-        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}";
+        $triggerKey = $trigger ?? 'any';
+        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}:{$triggerKey}";
 
-        return Cache::add($key, true, now()->addSeconds(5));
+        return Cache::add($key, true, now()->addSeconds(2));
     }
 
     /**
@@ -180,7 +201,27 @@ class DealAutomationService
      * conditions may no longer hold; locked deals are skipped like in
      * process(); deleted subjects simply have their row dropped.
      */
-    public function runPending(DealAutomationPendingRun $pendingRun): void
+    public function runPending(DealAutomationPendingRun $pendingRun): bool
+    {
+        if (! AutomationV2Feature::enabled()) {
+            return true;
+        }
+
+        $processingKey = "deal_automation_pending_run:{$pendingRun->id}";
+        if (! Cache::add($processingKey, true, now()->addMinutes(10))) {
+            Log::info("Skipping pending automation run #{$pendingRun->id}: already being processed.");
+
+            return false;
+        }
+
+        try {
+            return $this->executePendingRun($pendingRun);
+        } finally {
+            Cache::forget($processingKey);
+        }
+    }
+
+    protected function executePendingRun(DealAutomationPendingRun $pendingRun): bool
     {
         $subject = $pendingRun->subject_type === DealAutomation::SUBJECT_LEAD
             ? Lead::find($pendingRun->subject_id)
@@ -189,7 +230,7 @@ class DealAutomationService
         if (! $subject) {
             Log::info("Dropping pending automation run #{$pendingRun->id}: subject no longer exists");
 
-            return;
+            return true;
         }
 
         $automation = $pendingRun->automation;
@@ -197,23 +238,25 @@ class DealAutomationService
         if (! $automation || ! $automation->active) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: automation inactive or missing");
 
-            return;
+            return true;
         }
 
         if ($subject instanceof Deal && $subject->is_locked) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
 
-            return;
+            return true;
         }
 
         if (! $this->evaluateConditions($subject, $automation)) {
             Log::info("Conditions no longer met after wait for '{$automation->name}' (ID: {$automation->id}) on {$pendingRun->subject_type} {$pendingRun->subject_id}");
 
-            return;
+            return true;
         }
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
         $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
+
+        return true;
     }
 
     /**
@@ -253,12 +296,24 @@ class DealAutomationService
      */
     protected function getAutomations(?int $pipelineId, ?string $trigger, string $subjectType = DealAutomation::SUBJECT_DEAL)
     {
+        if (! AutomationV2Feature::enabled() && $subjectType !== DealAutomation::SUBJECT_DEAL) {
+            return DealAutomation::query()->whereRaw('0 = 1')->get();
+        }
+
         return DealAutomation::where('active', true)
             ->where('subject_type', $subjectType)
             ->when($subjectType === DealAutomation::SUBJECT_DEAL, function ($query) use ($pipelineId) {
-                $query->where(function ($q) use ($pipelineId) {
-                    $q->whereNull('pipeline_id')->orWhere('pipeline_id', $pipelineId);
-                });
+                if (AutomationV2Feature::usesLegacyDealPipelineScope()) {
+                    // Legacy exact match, but keep null pipeline_id rows — they
+                    // may have been created under v2 as "all pipelines".
+                    $query->where(function ($q) use ($pipelineId) {
+                        $q->where('pipeline_id', $pipelineId)->orWhereNull('pipeline_id');
+                    });
+                } else {
+                    $query->where(function ($q) use ($pipelineId) {
+                        $q->whereNull('pipeline_id')->orWhere('pipeline_id', $pipelineId);
+                    });
+                }
             })
             ->where(function ($query) use ($trigger) {
                 $query->where('trigger', $trigger)
@@ -327,6 +382,10 @@ class DealAutomationService
             $action = $actions[$i];
 
             if (($action->action_type ?? null) === 'wait') {
+                if (! AutomationV2Feature::enabled()) {
+                    continue;
+                }
+
                 $waitSeconds = $this->computeWaitSeconds($action->wait_duration_value, $action->wait_duration_unit);
                 $nextAction = $actions->get($i + 1);
 
@@ -433,6 +492,12 @@ class DealAutomationService
     protected function performAction(Deal|Lead $subject, $action, ?DealAutomation $automation = null): void
     {
         $actionType = $action->action_type ?? 'stage_transition';
+
+        if (! AutomationV2Feature::supportsActionType($actionType)) {
+            Log::info("Skipping action type '{$actionType}' — automation v2 is disabled.");
+
+            return;
+        }
 
         if ($subject instanceof Lead) {
             match ($actionType) {

@@ -10,6 +10,7 @@ use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Services\AutomationFieldCatalog;
+use App\Support\AutomationV2Feature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,10 @@ class DealAutomationController extends AccountBaseController
      */
     public function index(Request $request)
     {
+        if ($request->wantsJson() || $request->expectsJson()) {
+            abort_403(! AutomationV2Feature::enabled());
+        }
+
         $automations = DealAutomation::with(['conditions', 'actions.targetStage', 'actions.emailTemplate'])
             ->orderBy('priority')
             ->orderBy('name')
@@ -56,6 +61,8 @@ class DealAutomationController extends AccountBaseController
 
     public function store(Request $request)
     {
+        $this->assertLegacyAutomationRequest($request);
+
         $subjectType = $request->subject_type === DealAutomation::SUBJECT_LEAD
             ? DealAutomation::SUBJECT_LEAD
             : DealAutomation::SUBJECT_DEAL;
@@ -108,6 +115,8 @@ class DealAutomationController extends AccountBaseController
 
     public function update(Request $request, $id)
     {
+        $this->assertLegacyAutomationRequest($request);
+
         $automation = DealAutomation::findOrFail($id);
 
         $subjectType = $request->subject_type === DealAutomation::SUBJECT_LEAD
@@ -176,6 +185,8 @@ class DealAutomationController extends AccountBaseController
      */
     public function logs(Request $request)
     {
+        abort_403(! AutomationV2Feature::enabled());
+
         $query = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
@@ -194,6 +205,8 @@ class DealAutomationController extends AccountBaseController
      */
     public function stats(Request $request)
     {
+        abort_403(! AutomationV2Feature::enabled());
+
         $base = DealAutomationLog::query()
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id));
 
@@ -412,6 +425,38 @@ class DealAutomationController extends AccountBaseController
                         : 'days')
                     : null,
             ]);
+        }
+    }
+
+    /**
+     * When automation v2 is off, reject create/update payloads that use v2-only
+     * subject types, triggers, waits, or action types — legacy Blade UI stays
+     * on deal stage/set-field/lock automations only.
+     */
+    protected function assertLegacyAutomationRequest(Request $request): void
+    {
+        if (AutomationV2Feature::enabled()) {
+            return;
+        }
+
+        $subjectType = $request->subject_type === DealAutomation::SUBJECT_LEAD
+            ? DealAutomation::SUBJECT_LEAD
+            : DealAutomation::SUBJECT_DEAL;
+
+        abort_403($subjectType !== DealAutomation::SUBJECT_DEAL);
+
+        abort_403(in_array($request->trigger, [
+            'lead_created',
+            'lead_updated',
+            DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
+            DealAutomation::TRIGGER_DATE_BASED,
+        ], true));
+
+        abort_403($request->filled('wait_duration_value'));
+
+        foreach ($request->input('actions', []) as $action) {
+            $type = $action['action_type'] ?? 'stage_transition';
+            abort_403(! AutomationV2Feature::supportsActionType($type));
         }
     }
 }

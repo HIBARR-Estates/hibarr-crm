@@ -8,6 +8,7 @@ use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Services\DealAutomationService;
 use App\Services\FieldResolverService;
+use App\Support\AutomationV2Feature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -16,10 +17,9 @@ class ProcessAutomationDateTriggers extends Command
 {
     /**
      * Fires once per day per active date_based automation subject match —
-     * there is deliberately no extra "already ran" tracking: a yearly trigger
-     * only ever matches one calendar day per year, and 'once' matches exactly
-     * one day ever. If the scheduler is down on the matching day, that firing
-     * is skipped for the year.
+     * yearly triggers match month/day; once requires the exact date. If the
+     * daily scheduler was down on the matching day, a one-day grace window
+     * (yesterday) is checked so a missed run is not lost entirely.
      */
     protected $signature = 'deal-automations:process-date-triggers';
 
@@ -27,6 +27,10 @@ class ProcessAutomationDateTriggers extends Command
 
     public function handle(DealAutomationService $automationService, FieldResolverService $fieldResolver): int
     {
+        if (! AutomationV2Feature::enabled()) {
+            return Command::SUCCESS;
+        }
+
         $automations = DealAutomation::query()
             ->where('active', true)
             ->where('trigger', DealAutomation::TRIGGER_DATE_BASED)
@@ -91,7 +95,7 @@ class ProcessAutomationDateTriggers extends Command
 
                 $anchorDate = $this->parseAnchorDate($rawValue);
 
-                if (! $anchorDate || ! $this->matchesToday($anchorDate, $today, $isYearly)) {
+                if (! $anchorDate || ! $this->matchesScheduledDay($anchorDate, $today, $isYearly)) {
                     continue;
                 }
 
@@ -138,12 +142,24 @@ class ProcessAutomationDateTriggers extends Command
 
     /**
      * Yearly matches month/day regardless of year (Feb 29 birthdays only fire
-     * in leap years); once requires the exact date to land on today.
+     * in leap years); once requires the exact date to land on the check day.
      */
     protected function matchesToday(Carbon $anchorDate, Carbon $today, bool $yearly): bool
     {
         return $yearly
             ? ($anchorDate->month === $today->month && $anchorDate->day === $today->day)
             : $anchorDate->isSameDay($today);
+    }
+
+    /**
+     * Today, plus yesterday when the scheduler missed the matching calendar day.
+     */
+    protected function matchesScheduledDay(Carbon $anchorDate, Carbon $today, bool $yearly): bool
+    {
+        if ($this->matchesToday($anchorDate, $today, $yearly)) {
+            return true;
+        }
+
+        return $this->matchesToday($anchorDate, $today->copy()->subDay(), $yearly);
     }
 }

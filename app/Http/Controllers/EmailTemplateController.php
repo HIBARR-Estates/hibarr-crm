@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Models\EmailTemplate;
 use App\Services\AutomationFieldCatalog;
 use App\Services\Notifications\UnsClient;
+use App\Support\AutomationV2Feature;
 use Illuminate\Http\Request;
 
 class EmailTemplateController extends AccountBaseController
@@ -16,6 +17,8 @@ class EmailTemplateController extends AccountBaseController
         $this->pageTitle = 'app.menu.emailTemplates';
         $this->activeSettingMenu = 'email_templates';
         $this->middleware(function ($request, $next) {
+            abort_403(! AutomationV2Feature::enabled());
+
             return user()->permission('manage_company_setting') !== 'all' ? redirect()->route('profile-settings.index') : $next($request);
         });
     }
