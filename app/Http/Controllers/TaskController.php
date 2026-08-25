@@ -2223,29 +2223,13 @@ class TaskController extends AccountBaseController
             ? __('app.task') . ' #' . $task->task_short_code 
             : __('app.task');
 
-        // Legacy openRightModal / jQuery AJAX only — not Inertia visits (they also send X-Requested-With).
-        if (request()->ajax() && ! request()->header('X-Inertia')) {
-            $this->task = $task->loadMissing([
-                'approvedTimeLogs',
-                'approvedTimeLogs.user',
-                'approvedTimeLogs.activeBreak',
-                'activeTimerAll',
-                'activeTimerAll.activeBreak',
-                'activeTimerAll.breaks',
-                'userActiveTimer',
-                'userActiveTimer.activeBreak',
-                'timeLogged',
-                'dependentTask',
-            ]);
+        // Handle AJAX requests for legacy support
+        if (request()->ajax()) {
+            $this->task = $task;
             $this->viewTaskCommentPermission = $viewTaskCommentPermission;
             $this->viewTaskNotePermission = $viewTaskNotePermission;
-            $this->viewUnassignedTasksPermission = $viewUnassignedTasksPermission;
             $this->taskSettings = TaskSetting::first();
             $this->status = TaskboardColumn::where('id', $task->board_column_id)->first();
-            $this->taskUsers = $taskUsers;
-            $this->userId = $userId;
-            $this->clientIds = ClientContact::where('user_id', $userId)->pluck('client_id')->toArray();
-            $this->breakMinutes = ProjectTimeLogBreak::taskBreakMinutes($this->task->id);
             
             $tab = request('view');
             switch ($tab) {

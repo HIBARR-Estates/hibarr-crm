@@ -191,7 +191,7 @@
                 </div>
 
                 @php
-                    $totalMinutes = $task->timeLogged->sum('total_minutes') - ($breakMinutes ?? 0);
+                    $totalMinutes = $task->timeLogged->sum('total_minutes') - $breakMinutes;
                     $timeLog = \Carbon\CarbonInterval::formatHuman($totalMinutes);
                 @endphp
 

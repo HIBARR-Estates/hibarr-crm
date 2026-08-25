@@ -101,11 +101,7 @@ class MeetingIcsBuilder
             $lines[] = trim((string) $followUp->remark);
         }
 
-        if (
-            MeetingLocation::supportsJoinLink($followUp->location ?? null)
-            && ! empty($followUp->meeting_link)
-            && filter_var($followUp->meeting_link, FILTER_VALIDATE_URL)
-        ) {
+        if (! empty($followUp->meeting_link) && filter_var($followUp->meeting_link, FILTER_VALIDATE_URL)) {
             $lines[] = 'Join: '.$followUp->meeting_link;
         }
 
@@ -114,11 +110,7 @@ class MeetingIcsBuilder
 
     private static function resolveLocation(DealFollowUp $followUp): string
     {
-        if (
-            MeetingLocation::supportsJoinLink($followUp->location ?? null)
-            && ! empty($followUp->meeting_link)
-            && filter_var($followUp->meeting_link, FILTER_VALIDATE_URL)
-        ) {
+        if (! empty($followUp->meeting_link) && filter_var($followUp->meeting_link, FILTER_VALIDATE_URL)) {
             return $followUp->meeting_link;
         }
 

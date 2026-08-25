@@ -84,22 +84,20 @@ class MlmEventNotification extends BaseNotification
         $detailHtml = $this->detailHtml();
         $content = $detailHtml !== '' ? '' : $this->translate('body');
 
-        $viewData = [
-            'url' => $url,
-            'content' => $content,
-            'detailHtml' => $detailHtml,
-            'preheader' => $this->safePreheader($introText),
-            'subject' => $subject,
-            'actionText' => $actionText,
-            'introText' => $introText,
-            'footerNote' => $footerNote,
-            'notifiableName' => $notifiable->name,
-            'badgeLabel' => __('email.mlm.badge'),
-        ];
-
         $build
             ->subject($subject.' - '.config('app.name'))
-            ->view('mail.mlm.event', $viewData);
+            ->view('mail.mlm.event', [
+                'url' => $url,
+                'content' => $content,
+                'detailHtml' => $detailHtml,
+                'preheader' => $this->safePreheader($introText),
+                'subject' => $subject,
+                'actionText' => $actionText,
+                'introText' => $introText,
+                'footerNote' => $footerNote,
+                'notifiableName' => $notifiable->name,
+                'badgeLabel' => __('email.mlm.badge'),
+            ]);
 
         $this->attachEntityActivityPlunk($build, [
             'mailSubject' => $subject,

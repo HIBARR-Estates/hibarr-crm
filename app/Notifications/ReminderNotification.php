@@ -211,11 +211,9 @@ class ReminderNotification extends BaseNotification
             'starts_now' => $startsNow,
         ];
 
-        if (\App\Support\MeetingLocation::supportsJoinLink($followUp->location ?? null)) {
-            $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
-            if ($meetingLink !== null) {
-                $payload['meeting_link'] = $meetingLink;
-            }
+        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+        if ($meetingLink !== null) {
+            $payload['meeting_link'] = $meetingLink;
         }
 
         return array_filter(

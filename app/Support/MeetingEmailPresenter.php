@@ -111,10 +111,6 @@ class MeetingEmailPresenter
 
     public function meetingLink(): string
     {
-        if (! MeetingLocation::supportsJoinLink($this->followUp->location ?? null)) {
-            return '';
-        }
-
         $link = trim((string) ($this->followUp->meeting_link ?? ''));
         if ($link === '' || ! filter_var($link, FILTER_VALIDATE_URL)) {
             return '';
