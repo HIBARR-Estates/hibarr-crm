@@ -3,12 +3,22 @@ import { router, usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import type { Lead } from "@/Types/api/leads";
+import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import AddTaskModal from "@/Components/Redesign/modals/AddTaskModal";
 import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
 import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadTaskCreate from "@/Pages/Leads/Redesign/hooks/useLeadTaskCreate";
+import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
+import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
+import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
 import useLeadIndexMeetingCreate from "./useLeadIndexMeetingCreate";
 import ScheduleNextStepModal from "./ScheduleNextStepModal";
+
+interface TaskCategoryOption {
+    id: number;
+    category_name: string;
+}
 
 type Step = "choose" | "task" | "meeting";
 
@@ -53,6 +63,19 @@ export default function ScheduleNextStepFlow({
         clearErrors: clearTaskErrors,
     } = useLeadTaskCreate(leadId);
 
+    // Behind crm.tasks-workspace-redesign, "Add task" here opens the same
+    // redesigned form the Tasks workspace and Lead/Deal workspace tabs use
+    // — see DealAddTaskModal.tsx for the identical pairing pattern.
+    // createRedesignedTask's own setTasks patch is a no-op: this flow
+    // already refreshes via reloadLeads() on success, same as the old path.
+    const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
+    const {
+        createTask: createRedesignedTask,
+        isCreating: isCreatingRedesignedTask,
+        createErrors: createRedesignedTaskErrors,
+        clearCreateErrors: clearCreateRedesignedErrors,
+    } = useTasksWorkspaceMutations(() => {}, null);
+
     const {
         createMeeting,
         isCreating: meetingCreating,
@@ -72,6 +95,7 @@ export default function ScheduleNextStepFlow({
 
     const handleClose = () => {
         clearTaskErrors();
+        clearCreateRedesignedErrors();
         clearMeetingErrors();
         onClose();
     };
@@ -98,7 +122,62 @@ export default function ScheduleNextStepFlow({
                 leadName={lead?.client_name}
             />
 
-            <AddTaskModal
+            {useRedesignedTasks ? (
+                <TaskRedesignFormModal
+                    open={Boolean(lead) && step === "task"}
+                    mode="create"
+                    columns={
+                        (props.taskBoardColumns as unknown as
+                            | TaskboardColumn[]
+                            | undefined) ?? []
+                    }
+                    categories={
+                        (props.categories as unknown as
+                            | TaskCategoryOption[]
+                            | undefined) ?? []
+                    }
+                    lockedLinks={
+                        lead
+                            ? [
+                                  {
+                                      type: "lead",
+                                      id: lead.id,
+                                      name: lead.client_name || "Lead",
+                                  },
+                              ]
+                            : []
+                    }
+                    saving={isCreatingRedesignedTask}
+                    errors={createRedesignedTaskErrors}
+                    onClose={handleClose}
+                    onSubmit={(values) =>
+                        createRedesignedTask(
+                            {
+                                title: values.title,
+                                startDate: values.startDate,
+                                dueDate: values.dueDate,
+                                dueTime: values.dueTime,
+                                priority: values.priority,
+                                description: values.description,
+                                assignees: values.assignees.length
+                                    ? values.assignees
+                                    : leadOwnerId
+                                      ? [leadOwnerId]
+                                      : [],
+                                categoryId: values.categoryId,
+                                boardColumnId:
+                                    values.boardColumnId ?? undefined,
+                                links: formLinksPayload(values),
+                            },
+                            () => {
+                                handleClose();
+                                reloadLeads();
+                            },
+                        )
+                    }
+                />
+            ) : (
+                <AddTaskModal
                 open={Boolean(lead) && step === "task"}
                 onClose={handleClose}
                 saving={taskCreating}
@@ -145,7 +224,8 @@ export default function ScheduleNextStepFlow({
                         source: "en",
                     }),
                 }}
-            />
+                />
+            )}
 
             <ScheduleMeetingModal
                 open={Boolean(lead) && step === "meeting"}
