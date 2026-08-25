@@ -132,7 +132,10 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         // already in place rather than reading it stale.
         $this->makeFollowUp(1, endedMinutesAgo: 30);
 
-        $this->service->pendingForUser($this->agent());
+        $this->assertNull(
+            $this->service->pendingForUser($this->agent()),
+            'A meeting that ended before activation was stamped must not be eligible on the same call.'
+        );
 
         $company = Company::query()->find(10);
         $this->assertNotNull(

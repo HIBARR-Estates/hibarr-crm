@@ -93,9 +93,6 @@ class DealFollowUp extends BaseModel
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
         'duration',  // Meeting duration in minutes (nullable, defaults to 30)
-        'attendance_outcome',
-        'attendance_outcome_logged_at',
-        'attendance_outcome_logged_by',
     ];
 
     protected $casts = [

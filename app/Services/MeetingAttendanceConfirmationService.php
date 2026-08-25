@@ -9,6 +9,7 @@ use App\Models\DealFollowUp;
 use App\Models\DealNote;
 use App\Models\User;
 use App\Support\MeetingAttendanceConfirmationFeature;
+use Illuminate\Support\Facades\DB;
 
 class MeetingAttendanceConfirmationService
 {
@@ -49,9 +50,13 @@ class MeetingAttendanceConfirmationService
         // since duration is per-row and defaults in PHP, not SQL.
         $candidates = DealFollowUp::query()
             ->whereNull('attendance_outcome_logged_at')
-            ->where('status', '!=', 'cancelled')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'cancelled');
+            })
             ->whereNotNull('next_follow_up_date')
             ->where('next_follow_up_date', '<=', now())
+            ->where('next_follow_up_date', '>=', $activatedAt)
             ->where(function ($query) use ($user, $companyId) {
                 $query->whereHas('deal', function ($dealQuery) use ($user, $companyId) {
                     $dealQuery->where('company_id', $companyId)
@@ -89,27 +94,41 @@ class MeetingAttendanceConfirmationService
     ): DealFollowUp {
         $trimmedNote = $note !== null ? trim($note) : '';
 
-        $followUp->attendance_outcome = $outcome->value;
-        $followUp->attendance_outcome_logged_at = now();
-        $followUp->attendance_outcome_logged_by = $user->id;
-        $followUp->status = $outcome->followUpStatus();
-        $followUp->save();
+        return DB::transaction(function () use ($followUp, $user, $outcome, $trimmedNote) {
+            $loggedAt = now();
 
-        $deal = $followUp->deal ?? ($followUp->deal_id ? Deal::find($followUp->deal_id) : null);
-        if (!$deal) {
+            $claimed = DealFollowUp::query()
+                ->whereKey($followUp->id)
+                ->whereNull('attendance_outcome_logged_at')
+                ->update([
+                    'attendance_outcome' => $outcome->value,
+                    'attendance_outcome_logged_at' => $loggedAt,
+                    'attendance_outcome_logged_by' => $user->id,
+                    'status' => $outcome->followUpStatus(),
+                ]);
+
+            if ($claimed === 0) {
+                return $followUp->fresh();
+            }
+
+            $followUp->refresh();
+
+            $deal = $followUp->deal ?? ($followUp->deal_id ? Deal::find($followUp->deal_id) : null);
+            if (!$deal) {
+                return $followUp;
+            }
+
+            $createdNote = $trimmedNote !== '' ? $this->createNote($deal, $followUp, $trimmedNote) : null;
+
+            $this->dealActivityEventService->recordMeetingOutcomeLogged(
+                $deal,
+                $followUp,
+                $outcome,
+                $createdNote?->id
+            );
+
             return $followUp;
-        }
-
-        $createdNote = $trimmedNote !== '' ? $this->createNote($deal, $followUp, $trimmedNote) : null;
-
-        $this->dealActivityEventService->recordMeetingOutcomeLogged(
-            $deal,
-            $followUp,
-            $outcome,
-            $createdNote?->id
-        );
-
-        return $followUp;
+        });
     }
 
     /**
