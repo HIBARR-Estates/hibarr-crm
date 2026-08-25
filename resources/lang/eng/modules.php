@@ -570,6 +570,7 @@ return array(
         'fileActivity' => 'File is uploaded by ',
         'subTaskCreateActivity' => 'Sub task is created by ',
         'subTaskUpdateActivity' => 'Sub task is updated by ',
+        'assigneeActivity' => 'Task assignees updated by ',
         'history' => 'History',
         'defaultTaskStatus' => 'Default Task Status',
         'billable' => 'Billable',

@@ -57,6 +57,38 @@ class TaskController extends AccountBaseController
 
     protected TaskFilterCountsService $taskFilterCounts;
 
+    /**
+     * Relations `presentTask()` reads. Kept in one place so the list view
+     * (`index()`) and the create/update responses (`store()`, `update()`)
+     * always hand the frontend the same Task shape — they used to diverge
+     * (raw `toFrontendArray()` vs. a hand-built array), which is why linked
+     * records and attachments could vanish right after saving until the next
+     * full list reload replaced the mismatched shape.
+     */
+    private const TASK_FRONTEND_RELATIONS = [
+        'project:id,project_name,project_short_code',
+        'users:id,name,image',
+        'createBy:id,name,image',
+        'addedByUser:id,name,image',
+        'category:id,category_name',
+        'labels',
+        'boardColumn:id,column_name,slug,label_color',
+        'deals',
+        'leads',
+        'properties',
+        'developerProjects:id,name',
+        'subtasks:id,task_id,title,status',
+        'files:id,task_id,filename,size',
+    ];
+
+    private const TASK_FRONTEND_COUNTS = [
+        'files',
+        'notes',
+        'comments',
+        'subtasks',
+        'completedSubtasks',
+    ];
+
     public function __construct(TaskService $taskService, TaskFilterCountsService $taskFilterCounts)
     {
         parent::__construct();
@@ -72,36 +104,56 @@ class TaskController extends AccountBaseController
         );
     }
 
-    public function index()
+    /**
+     * Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
+     * legacy links) or a comma-joined string (the redesigned filter modal —
+     * FilterContext.tsx's applyFilters() joins multiselect values with "," so
+     * its own URL parser can read them back). Mirrors LeadService::toValueArray().
+     */
+    private function taskFilterAsList($value): array
+    {
+        if (!is_array($value)) {
+            $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
+        }
+
+        return array_values(array_filter(
+            array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
+            fn ($item) => $item !== null && $item !== '' && $item !== 'all'
+        ));
+    }
+
+    /** Date ranges arrive as a `[from, to]` array (legacy) or separate start/end params (redesigned modal). */
+    private function taskFilterDateRange(string $arrayKey, string $startKey, string $endKey): ?array
+    {
+        $range = request($arrayKey);
+        if (is_array($range) && count($range) === 2 && $range[0] && $range[1]) {
+            return [$range[0], $range[1]];
+        }
+
+        $start = request($startKey);
+        $end = request($endKey);
+
+        return $start && $end ? [$start, $end] : null;
+    }
+
+    /**
+     * The exact Task query index() lists from (visibility scope + every
+     * filter + quick filter), minus eager loads/sorting/pagination. Reused
+     * by bulk actions' "select all matching filters" so that set can never
+     * drift from what the user is actually looking at.
+     *
+     * $applyQuickFilter is false when the caller (index()) still needs the
+     * pre-quick-filter query to compute each quick filter option's own
+     * count — narrowing by the currently active one first would make every
+     * other option's badge count against an already-filtered set.
+     */
+    private function filteredTasksQuery(bool $applyQuickFilter = true): \Illuminate\Database\Eloquent\Builder
     {
         $viewPermission = user()->permission('view_tasks');
-
         abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        // Fetch tasks based on permission
-        $tasksQuery = Task::with([
-            'project:id,project_name,project_short_code', 
-            'users:id,name,image', 
-            'createBy:id,name,image',
-            'addedByUser:id,name,image',
-            'category:id,category_name', 
-            'labels', 
-            'boardColumn:id,column_name,slug,label_color',
-            'deals',
-            'leads',
-            'properties',
-            'developerProjects:id,name',
-            // Checklist rows for the redesigned task detail modal.
-            'subtasks:id,task_id,title,status'
-        ])->withCount([
-            'files',
-            'notes',
-            'comments',
-            'subtasks',
-            'completedSubtasks'
-        ]);
+        $tasksQuery = Task::query();
 
-        // Apply permission-based filtering (assigner OR assignee for restricted scopes)
         if ($viewPermission === 'none') {
             abort_403(true);
         }
@@ -110,7 +162,6 @@ class TaskController extends AccountBaseController
             TaskVisibilityService::scopeVisibleToUser($tasksQuery, user()->id);
         }
 
-        // Apply search filter
         if (request()->filled('search')) {
             $searchTerm = request('search');
             $tasksQuery->where(function ($query) use ($searchTerm) {
@@ -119,26 +170,7 @@ class TaskController extends AccountBaseController
             });
         }
 
-        // Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
-        // legacy links) or a comma-joined string (the redesigned filter modal —
-        // FilterContext.tsx's applyFilters() joins multiselect values with "," so
-        // its own URL parser can read them back). Mirrors
-        // LeadService::toValueArray(), which the redesigned Leads filters already
-        // rely on — without the explode() branch, picking 2+ options silently
-        // matched nothing because "todo,in_review" was queried as one literal value.
-        $asList = function ($value): array {
-            if (!is_array($value)) {
-                $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
-            }
-
-            return array_values(array_filter(
-                array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
-                fn ($item) => $item !== null && $item !== '' && $item !== 'all'
-            ));
-        };
-
-        // Apply status filter
-        $statuses = $asList(request('status'));
+        $statuses = $this->taskFilterAsList(request('status'));
         if (!empty($statuses)) {
             if (in_array('pending', $statuses, true)) {
                 $tasksQuery->pending();
@@ -149,33 +181,28 @@ class TaskController extends AccountBaseController
             }
         }
 
-        // Apply priority filter
-        $priorities = $asList(request('priority'));
+        $priorities = $this->taskFilterAsList(request('priority'));
         if (!empty($priorities)) {
             $tasksQuery->whereIn('priority', $priorities);
         }
 
-        // Apply project filter
         if (request()->filled('project_id') && request('project_id') !== 'all') {
             $tasksQuery->where('project_id', request('project_id'));
         }
 
-        // Apply category filter
-        $categoryIds = $asList(request('category_id'));
+        $categoryIds = $this->taskFilterAsList(request('category_id'));
         if (!empty($categoryIds)) {
             $tasksQuery->whereIn('task_category_id', $categoryIds);
         }
 
-        // Apply assignee filter
-        $assignedTo = $asList(request('assigned_to'));
+        $assignedTo = $this->taskFilterAsList(request('assigned_to'));
         if (!empty($assignedTo)) {
             $tasksQuery->whereHas('users', function ($query) use ($assignedTo) {
                 $query->whereIn('users.id', $assignedTo);
             });
         }
 
-        // Apply assigner filter — whoever created/added the task.
-        $assignedBy = $asList(request('assigned_by'));
+        $assignedBy = $this->taskFilterAsList(request('assigned_by'));
         if (!empty($assignedBy)) {
             $tasksQuery->where(function ($query) use ($assignedBy) {
                 $query->whereIn('tasks.added_by', $assignedBy)
@@ -183,39 +210,21 @@ class TaskController extends AccountBaseController
             });
         }
 
-        // Apply labels filter
-        $labelIds = $asList(request('labels'));
+        $labelIds = $this->taskFilterAsList(request('labels'));
         if (!empty($labelIds)) {
             $tasksQuery->whereHas('labels', function ($query) use ($labelIds) {
                 $query->whereIn('id', $labelIds);
             });
         }
 
-        // Date ranges arrive either as a `[from, to]` array (legacy drawer) or
-        // as the separate start/end params the shared filter modal writes.
-        $dateRange = function (string $arrayKey, string $startKey, string $endKey): ?array {
-            $range = request($arrayKey);
-            if (is_array($range) && count($range) === 2 && $range[0] && $range[1]) {
-                return [$range[0], $range[1]];
-            }
-
-            $start = request($startKey);
-            $end = request($endKey);
-
-            return $start && $end ? [$start, $end] : null;
-        };
-
-        // Apply due date range filter
-        $dueRange = $dateRange('due_date_range', 'due_start_date', 'due_end_date');
+        $dueRange = $this->taskFilterDateRange('due_date_range', 'due_start_date', 'due_end_date');
         if ($dueRange !== null) {
             $tasksQuery->whereBetween('due_date', $dueRange);
         } elseif (request('due_date_range') === 'none') {
-            // "No date" option in the redesigned filter modal.
             $tasksQuery->whereNull('due_date');
         }
 
-        // Apply created date range filter
-        $createdRange = $dateRange('created_date_range', 'created_start_date', 'created_end_date');
+        $createdRange = $this->taskFilterDateRange('created_date_range', 'created_start_date', 'created_end_date');
         if ($createdRange !== null) {
             $tasksQuery->whereBetween('created_at', [
                 $createdRange[0] . ' 00:00:00',
@@ -223,10 +232,72 @@ class TaskController extends AccountBaseController
             ]);
         }
 
+        if ($applyQuickFilter && \App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $this->applyTasksQuickFilter($tasksQuery, (string) request('quick_filter', 'all'));
+        }
+
+        return $tasksQuery;
+    }
+
+    private const MAX_BULK_MATCHING_IDS = 2000;
+
+    /**
+     * Resolves a bulk action's target ids — either the explicit `row_ids`
+     * CSV the client already had selected, or (when `select_all_matching`
+     * is set) every id matching the current filters, re-run server-side via
+     * filteredTasksQuery() so the set matches what's on screen exactly.
+     *
+     * @throws \RuntimeException if a select_all_matching set is too large —
+     *   truncating silently would apply the action to fewer tasks than the
+     *   user was told were selected, which is worse than just refusing.
+     */
+    private function resolveBulkTaskIds(Request $request): array
+    {
+        if ($request->boolean('select_all_matching')) {
+            $ids = $this->filteredTasksQuery()
+                ->orderBy('id')
+                ->limit(self::MAX_BULK_MATCHING_IDS + 1)
+                ->pluck('id')
+                ->all();
+
+            if (count($ids) > self::MAX_BULK_MATCHING_IDS) {
+                throw new \RuntimeException(sprintf(
+                    'Bulk actions are limited to %s tasks at a time — narrow your filters and try again.',
+                    number_format(self::MAX_BULK_MATCHING_IDS)
+                ));
+            }
+
+            return $ids;
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', (string) $request->row_ids))));
+    }
+
+    public function index($openTaskId = null, string $openMode = 'detail', bool $openCreate = false)
+    {
+        $viewPermission = user()->permission('view_tasks');
+
+        abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
+
+        // Quick filter applied separately below, after quickFilterCounts()
+        // has had a chance to count each option against the un-narrowed set.
+        $tasksQuery = $this->filteredTasksQuery(applyQuickFilter: false)
+            ->with(self::TASK_FRONTEND_RELATIONS)
+            ->withCount(self::TASK_FRONTEND_COUNTS);
+
+        // Recompute the same parsed values filteredTasksQuery() used, only
+        // to echo them back in the `filters` response prop below.
+        $statuses = $this->taskFilterAsList(request('status'));
+        $priorities = $this->taskFilterAsList(request('priority'));
+        $categoryIds = $this->taskFilterAsList(request('category_id'));
+        $assignedTo = $this->taskFilterAsList(request('assigned_to'));
+        $assignedBy = $this->taskFilterAsList(request('assigned_by'));
+        $labelIds = $this->taskFilterAsList(request('labels'));
+
         // Apply sorting
         $sortField = request('sort_by', 'created_at');
         $sortDirection = request('sort_direction', 'desc');
-        
+
         // Map frontend field names to database field names
         $fieldMapping = [
             'heading' => 'heading',
@@ -262,13 +333,7 @@ class TaskController extends AccountBaseController
         $kanbanTasks = $kanbanQuery->get();
         
         // Ensure kanban tasks also have the counts
-        $kanbanTasks->loadCount([
-            'files',
-            'notes',
-            'comments',
-            'subtasks',
-            'completedSubtasks'
-        ]);
+        $kanbanTasks->loadCount(self::TASK_FRONTEND_COUNTS);
 
         // Calculate Stats (legacy table/kanban index — collection scan).
         if ($stats === null) {
@@ -289,84 +354,7 @@ class TaskController extends AccountBaseController
             ];
         }
 
-        $transformCallback = function ($task) {
-            return [
-                'id' => $task->id,
-                'heading' => $task->heading,
-                'description' => $task->description,
-                'due_date' => Task::wallClockString($task->due_date),
-                'start_date' => Task::wallClockString($task->start_date),
-                'priority' => $task->priority,
-                'status' => $task->boardColumn->slug ?? 'to_do',
-                'board_column_id' => $task->board_column_id,
-                'completed_on' => Task::wallClockString($task->completed_on),
-                'project' => $task->project ? [
-                    'id' => $task->project->id,
-                    'project_name' => $task->project->project_name,
-                    'project_short_code' => $task->project->project_short_code,
-                ] : null,
-                'category' => $task->category ? [
-                    'id' => $task->category->id,
-                    'category_name' => $task->category->category_name,
-                ] : null,
-                'users' => $task->users->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'image' => $user->image,
-                    ];
-                })->toArray(),
-                'labels' => $task->labels->map(function ($label) {
-                    return [
-                        'id' => $label->id,
-                        'label_name' => $label->label_name,
-                        'label_color' => $label->label_color,
-                    ];
-                })->toArray(),
-                'subtasks' => $task->relationLoaded('subtasks')
-                    ? $task->subtasks->map(fn ($subtask) => [
-                        'id' => $subtask->id,
-                        'title' => $subtask->title,
-                        'status' => $subtask->status,
-                    ])->toArray()
-                    : [],
-                'files_count' => $task->files_count ?? 0,
-                'notes_count' => $task->notes_count ?? 0,
-                'comments_count' => $task->comments_count ?? 0,
-                'subtasks_count' => $task->subtasks_count ?? 0,
-                'completed_subtasks_count' => $task->completed_subtasks_count ?? 0,
-                'created_at' => $task->created_at->toISOString(),
-                'updated_at' => $task->updated_at->toISOString(),
-                'added_by' => $task->added_by,
-                'assigner' => TaskVisibilityService::formatAssigner($task),
-                'created_by' => TaskVisibilityService::formatAssigner($task),
-                'deals' => $task->deals->map(function ($deal) {
-                    return [
-                        'id' => $deal->id,
-                        'name' => $deal->name,
-                    ];
-                })->toArray(),
-                'leads' => $task->leads->map(function ($lead) {
-                    return [
-                        'id' => $lead->id,
-                        'client_name' => $lead->client_name,
-                        'company_name' => $lead->company_name,
-                    ];
-                })->toArray(),
-                'developer_projects' => $task->developerProjects->map(function ($project) {
-                    return [
-                        'id' => $project->id,
-                        'name' => $project->name,
-                    ];
-                })->toArray(),
-                'properties' => $task->properties->map(function ($property) {
-                    return [
-                        'id' => $property->id,
-                        'name' => $property->title,
-                    ];
-                })->toArray(),
-            ];
-        };
+        $transformCallback = fn ($task) => $this->presentTask($task);
 
         // Transform tasks for frontend
         $tableTasks->getCollection()->transform($transformCallback);
@@ -409,6 +397,12 @@ class TaskController extends AccountBaseController
             'filters' => $filters,
             'permissions' => $permissions,
             'stats' => $stats,
+            // Same wall-clock convention as due_date/start_date (Task::wallClockString)
+            // — the "today/overdue/upcoming" grouping compares due dates against this,
+            // and comparing a wall-clock due date against the browser's real tz-aware
+            // `new Date()` put tasks in the wrong bucket for anyone whose browser
+            // timezone doesn't match the one due dates are already expressed in.
+            'now' => Task::wallClockString(now()),
 
             // Modal/filter lookup data can arrive after the task list shell.
             'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
@@ -435,6 +429,31 @@ class TaskController extends AccountBaseController
         if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
             $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser(), 'taskViews');
             $props['taskQuickCounts'] = $taskQuickCounts;
+        }
+
+        // /tasks/{id}, /tasks/{id}/edit and /tasks/create (show()/edit()/
+        // create(), redesign flag on) all render this same page with one of
+        // these set, instead of redirecting to a ?task= query param or a
+        // standalone page — so the URL stays /tasks/{id}, /tasks/{id}/edit
+        // or /tasks/create. The task may not match the default filters/sort,
+        // so hand its data over directly rather than making the frontend
+        // re-fetch it.
+        if ($openCreate) {
+            $props['openCreate'] = true;
+        }
+
+        if ($openTaskId) {
+            $openTaskId = (int) $openTaskId;
+            $props['openTaskId'] = $openTaskId;
+            $props['openMode'] = $openMode;
+
+            $alreadyLoaded = $kanbanTasks->contains('id', $openTaskId);
+            if (!$alreadyLoaded) {
+                $openTask = Task::with(self::TASK_FRONTEND_RELATIONS)
+                    ->withCount(self::TASK_FRONTEND_COUNTS)
+                    ->find($openTaskId);
+                $props['openTask'] = $openTask ? $this->presentTask($openTask) : null;
+            }
         }
 
         return Inertia::render('Tasks/Index', $props);
@@ -570,6 +589,101 @@ class TaskController extends AccountBaseController
     }
 
     /**
+     * The one Task -> frontend array shape, used by index()'s list/board
+     * payload and by store()/update()'s create/update responses. Callers
+     * must eager-load self::TASK_FRONTEND_RELATIONS (+ withCount on
+     * self::TASK_FRONTEND_COUNTS) first — this method only reads what's
+     * already loaded, it doesn't lazy-load anything itself.
+     */
+    private function presentTask(Task $task): array
+    {
+        return [
+            'id' => $task->id,
+            'heading' => $task->heading,
+            'description' => $task->description,
+            'due_date' => Task::wallClockString($task->due_date),
+            'start_date' => Task::wallClockString($task->start_date),
+            'priority' => $task->priority,
+            'status' => $task->boardColumn->slug ?? 'to_do',
+            'board_column_id' => $task->board_column_id,
+            'completed_on' => Task::wallClockString($task->completed_on),
+            'project' => $task->project ? [
+                'id' => $task->project->id,
+                'project_name' => $task->project->project_name,
+                'project_short_code' => $task->project->project_short_code,
+            ] : null,
+            'category' => $task->category ? [
+                'id' => $task->category->id,
+                'category_name' => $task->category->category_name,
+            ] : null,
+            'users' => $task->users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'image' => $user->image,
+                ];
+            })->toArray(),
+            'labels' => $task->labels->map(function ($label) {
+                return [
+                    'id' => $label->id,
+                    'label_name' => $label->label_name,
+                    'label_color' => $label->label_color,
+                ];
+            })->toArray(),
+            'subtasks' => $task->relationLoaded('subtasks')
+                ? $task->subtasks->map(fn ($subtask) => [
+                    'id' => $subtask->id,
+                    'title' => $subtask->title,
+                    'status' => $subtask->status,
+                ])->toArray()
+                : [],
+            'files' => $task->relationLoaded('files')
+                ? $task->files->map(fn ($file) => [
+                    'id' => $file->id,
+                    'filename' => $file->filename,
+                    'size' => (int) $file->size,
+                    'download_url' => route('task_files.download', md5((string) $file->id)),
+                ])->toArray()
+                : [],
+            'files_count' => $task->files_count ?? 0,
+            'notes_count' => $task->notes_count ?? 0,
+            'comments_count' => $task->comments_count ?? 0,
+            'subtasks_count' => $task->subtasks_count ?? 0,
+            'completed_subtasks_count' => $task->completed_subtasks_count ?? 0,
+            'created_at' => $task->created_at->toISOString(),
+            'updated_at' => $task->updated_at->toISOString(),
+            'added_by' => $task->added_by,
+            'assigner' => TaskVisibilityService::formatAssigner($task),
+            'created_by' => TaskVisibilityService::formatAssigner($task),
+            'deals' => $task->deals->map(function ($deal) {
+                return [
+                    'id' => $deal->id,
+                    'name' => $deal->name,
+                ];
+            })->toArray(),
+            'leads' => $task->leads->map(function ($lead) {
+                return [
+                    'id' => $lead->id,
+                    'client_name' => $lead->client_name,
+                    'company_name' => $lead->company_name,
+                ];
+            })->toArray(),
+            'developer_projects' => $task->developerProjects->map(function ($project) {
+                return [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                ];
+            })->toArray(),
+            'properties' => $task->properties->map(function ($property) {
+                return [
+                    'id' => $property->id,
+                    'name' => $property->title,
+                ];
+            })->toArray(),
+        ];
+    }
+
+    /**
      * Saved filter views the current user may open: their own plus team-shared.
      *
      * @return array<int, array<string, mixed>>
@@ -634,10 +748,21 @@ class TaskController extends AccountBaseController
         app()->instance('suppress_bulk_notifications', true);
 
         try {
-            $ids = $request->filled('row_ids')
-                ? explode(',', $request->row_ids)
-                : [];
-            $ids = array_values(array_filter(array_map('intval', $ids)));
+            try {
+                $ids = $this->resolveBulkTaskIds($request);
+            } catch (\RuntimeException $e) {
+                return Reply::error($e->getMessage());
+            }
+
+            if ($ids === []) {
+                return Reply::error('Select at least one task.');
+            }
+
+            // deleteRecords()/changeBulkStatus()/changeMilestones() each
+            // re-read row_ids off the request directly instead of taking
+            // $ids as a parameter — write the resolved set back so a
+            // select_all_matching request reaches them the same way.
+            $request->merge(['row_ids' => implode(',', $ids)]);
             $records = [];
 
             switch ($request->action_type) {
@@ -1196,6 +1321,18 @@ class TaskController extends AccountBaseController
      */
     public function create()
     {
+        // The redesigned workspace has no standalone create page — /tasks/create
+        // renders the list/board view with the Add Task popup pre-opened instead,
+        // so the URL stays /tasks/create. Only for the plain "duplicate/from
+        // project" case this route already supported; a non-AJAX GET here is
+        // never form-submitted directly, so a coarse add_tasks check is enough.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !request()->ajax()) {
+            $addPermission = user()->permission('add_tasks');
+            abort_403(!in_array($addPermission, ['all', 'added']));
+
+            return $this->index(openCreate: true);
+        }
+
         $this->pageTitle = __('app.addTask');
 
         $this->addPermission = user()->permission('add_tasks');
@@ -1347,7 +1484,9 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray()]);
+            $task->load(self::TASK_FRONTEND_RELATIONS)->loadCount(self::TASK_FRONTEND_COUNTS);
+
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $this->presentTask($task)]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1614,6 +1753,14 @@ class TaskController extends AccountBaseController
             )
         );
 
+        // The redesigned workspace has no standalone edit page — /tasks/{id}/edit
+        // renders the list/board view with the Edit Task popup pre-opened for
+        // this task instead, so the URL stays /tasks/{id}/edit. The permission
+        // check above already gates this; only the render target changes.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !request()->ajax()) {
+            return $this->index((int) $id, openMode: 'edit');
+        }
+
         $getCustomFieldGroupsWithFields = $this->task->getCustomFieldGroupsWithFields();
 
         if ($getCustomFieldGroupsWithFields) {
@@ -1794,9 +1941,11 @@ class TaskController extends AccountBaseController
             // multi-link `links` payload is synced separately here.
             $this->syncTaskLinks($task, $request);
 
+            $task->load(self::TASK_FRONTEND_RELATIONS)->loadCount(self::TASK_FRONTEND_COUNTS);
+
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,
-                'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray(),
+                'data' => $this->presentTask($task),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 
@@ -2216,6 +2365,17 @@ class TaskController extends AccountBaseController
 
         if (!$task->project_id || ($task->project_id && $task->project->project_admin != $userId)) {
             abort_403($viewUnassignedTasksPermission == 'none' && count($taskUsers) == 0 && ((is_null($task->mentionTask)) && in_array($userId, $mentionUser)));
+        }
+
+        // The redesigned workspace has no standalone task page — /tasks/{id}
+        // renders the exact same list/board view index() does, plus that
+        // task's detail popup pre-opened, so the URL stays /tasks/{id}
+        // rather than redirecting to a ?task= query param. The permission
+        // checks above already gate this specific task; index($openTaskId)
+        // trusts that and only additionally resolves+authorizes its own
+        // default-filtered listing as normal.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            return $this->index((int) $task->id);
         }
 
         // Build page title

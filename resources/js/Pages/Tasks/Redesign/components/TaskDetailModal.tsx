@@ -4,6 +4,7 @@ import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import useTaskComments from "../hooks/useTaskComments";
+import useTaskActivity from "../hooks/useTaskActivity";
 import useTaskCheckpoints, {
     type TaskCheckpoint,
 } from "../hooks/useTaskCheckpoints";
@@ -11,6 +12,7 @@ import TaskModalShell from "./primitives/TaskModalShell";
 import TaskCommentsPanel from "./TaskCommentsPanel";
 import TaskDetailHeader from "./detail/TaskDetailHeader";
 import TaskDetailLinks from "./detail/TaskDetailLinks";
+import TaskDetailAttachments from "./detail/TaskDetailAttachments";
 import TaskDetailChecklist from "./detail/TaskDetailChecklist";
 import TaskDetailFooter from "./detail/TaskDetailFooter";
 import { DETAIL_LABEL } from "./primitives/taskUiStyles";
@@ -54,6 +56,7 @@ export default function TaskDetailModal({
     const { td } = useTd();
     const [mentionDropdownOpen, setMentionDropdownOpen] = useState(false);
     const comments = useTaskComments(vm?.id ?? null);
+    const activity = useTaskActivity(vm?.id ?? null);
     const taskId = vm?.id ?? null;
     const checkpoints = useTaskCheckpoints(
         taskId,
@@ -67,7 +70,6 @@ export default function TaskDetailModal({
         <TaskModalShell
             open={vm !== null}
             onClose={onClose}
-            closeOnBackdrop
             onEscape={() => mentionDropdownOpen}
             ariaLabel={vm?.title ?? ""}
             zIndex={48}
@@ -84,13 +86,15 @@ export default function TaskDetailModal({
             {vm && (
                 <>
                     <div className="flex min-w-0 flex-1 flex-col">
-                        <TaskDetailHeader vm={vm} onClose={onClose} />
+                        <TaskDetailHeader vm={vm} />
 
                         <div
                             className="min-h-0 flex-1 overflow-y-auto"
                             style={{ padding: "20px 22px" }}
                         >
-                            <TaskDetailLinks links={vm.links} />
+                            <TaskDetailLinks links={vm.allLinks} />
+
+                            <TaskDetailAttachments files={vm.task.files ?? []} />
 
                             <p style={{ ...DETAIL_LABEL, margin: "0 0 10px" }}>
                                 {td("Description")}
@@ -107,6 +111,8 @@ export default function TaskDetailModal({
                                         ? "normal"
                                         : "italic",
                                     whiteSpace: "pre-wrap",
+                                    overflowWrap: "anywhere",
+                                    wordBreak: "break-word",
                                 }}
                             >
                                 {vm.descriptionText ||
@@ -137,6 +143,7 @@ export default function TaskDetailModal({
 
                     <TaskCommentsPanel
                         comments={comments.comments}
+                        activity={activity.entries}
                         totalCount={comments.totalCount}
                         loading={comments.loading}
                         loadingMore={comments.loadingMore}
@@ -151,6 +158,7 @@ export default function TaskDetailModal({
                         onSubmit={comments.addComment}
                         onDelete={comments.deleteComment}
                         onLoadMore={comments.loadMore}
+                        onClose={onClose}
                     />
                 </>
             )}

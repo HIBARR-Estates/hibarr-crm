@@ -16,6 +16,11 @@ interface UserOption {
 
 interface TasksBulkBarProps {
     count: number;
+    /** Total rows matching the current filters — from the paginator. */
+    matchingTotal: number;
+    /** True once selection targets every row matching the filters, not just the loaded page. */
+    selectAllMatching: boolean;
+    onSelectAllMatching: () => void;
     columns: TaskboardColumn[];
     users: UserOption[];
     busy: boolean;
@@ -122,6 +127,9 @@ function BarMenu({
  */
 export default function TasksBulkBar({
     count,
+    matchingTotal,
+    selectAllMatching,
+    onSelectAllMatching,
     columns,
     users,
     busy,
@@ -140,12 +148,19 @@ export default function TasksBulkBar({
 
     if (count === 0) return null;
 
+    // Only offer once a real selection exists, and only if more rows match
+    // the filters than are currently selected.
+    const showSelectAllMatching =
+        !selectAllMatching && count > 0 && matchingTotal > count;
+
     return (
         <BulkActionBar
             count={count}
             onClear={onClear}
             clearLabel={td("Clear")}
-            selectedLabel={`${count} ${td("selected")}`}
+            selectedLabel={`${count} ${
+                selectAllMatching ? td("matching selected") : td("selected")
+            }`}
             style={{ padding: "8px 12px" }}
             actionsGap={8}
         >
@@ -156,6 +171,33 @@ export default function TasksBulkBar({
             >
                 {allSelected ? td("Deselect all") : td("Select all")}
             </button>
+
+            {showSelectAllMatching ? (
+                <button
+                    type="button"
+                    style={barButtonStyle}
+                    onClick={onSelectAllMatching}
+                >
+                    {td("Select all")} {matchingTotal.toLocaleString()}
+                </button>
+            ) : null}
+
+            {selectAllMatching ? (
+                <span
+                    className="inline-flex items-center"
+                    style={{
+                        padding: "5px 11px",
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: T.WHITE,
+                        color: T.NAVY,
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {td("All matching filters")}
+                </span>
+            ) : null}
 
             <BarMenu label={td("Set status")} disabled={busy}>
                 {(close) =>

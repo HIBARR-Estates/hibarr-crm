@@ -57,8 +57,12 @@ export default function useTaskCheckpoints(
                 subTaskId: item.id,
                 status: nextStatus,
             });
-        } catch {
-            setError("Couldn't update that checklist item");
+        } catch (err) {
+            const message =
+                axios.isAxiosError(err) && err.response?.data?.message
+                    ? String(err.response.data.message)
+                    : "Couldn't update that checklist item";
+            setError(message);
             setItems((prev) =>
                 prev.map((entry) =>
                     entry.id === item.id

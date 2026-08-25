@@ -169,6 +169,16 @@ export interface TasksIndexProps extends PageProps {
         overdue: number;
         dueToday: number;
     };
+    /** Server "now" as a wall-clock string, same convention as due_date — the due-date grouping's reference point. */
+    now?: string;
+    /** Set by /tasks/{id} or /tasks/{id}/edit (TaskController::show/edit) so the URL stays as typed instead of redirecting to ?task=. */
+    openTaskId?: number;
+    /** "detail" (default) opens the view popup, "edit" opens the edit form for openTaskId. */
+    openMode?: "detail" | "edit";
+    /** Only sent when openTaskId's task isn't already in tableTasks/kanbanTasks (e.g. outside the default filters). */
+    openTask?: Task;
+    /** Set by /tasks/create (TaskController::create) — opens the Add Task popup instead of redirecting. */
+    openCreate?: boolean;
     /** Quick-pill counts for the redesigned workspace (server-side). */
     taskQuickCounts?: {
         all: number;

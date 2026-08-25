@@ -8,13 +8,9 @@ import { TaskGlyph, TaskPriorityStripe } from "../primitives/TaskGlyphs";
 
 interface TaskDetailHeaderProps {
     vm: TaskViewModel;
-    onClose: () => void;
 }
 
-export default function TaskDetailHeader({
-    vm,
-    onClose,
-}: TaskDetailHeaderProps) {
+export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
     const { td } = useTd();
     const task = vm.task;
     const assigner = task.created_by ?? task.assigner;
@@ -28,43 +24,27 @@ export default function TaskDetailHeader({
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
             }}
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <h2
-                        className="m-0"
-                        style={{
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: T.NAVY,
-                            lineHeight: 1.3,
-                            textDecoration: vm.titleDecoration,
-                        }}
-                    >
-                        {vm.title}
-                    </h2>
-                </div>
-                <button
-                    type="button"
-                    aria-label={td("Close")}
-                    onClick={onClose}
-                    style={{
-                        display: "flex",
-                        padding: 4,
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        color: T.TEXT_MUTED,
-                    }}
-                >
-                    <TaskGlyph d={TASK_ICON.x} size={17} strokeWidth={1.5} />
-                </button>
-            </div>
+            <h2
+                className="m-0 min-w-0"
+                style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: T.NAVY,
+                    lineHeight: 1.3,
+                    textDecoration: vm.titleDecoration,
+                }}
+            >
+                {vm.title}
+            </h2>
 
             <div
                 className="flex flex-wrap items-center gap-[7px]"
                 style={{ marginTop: 12, fontSize: 15, color: T.TEXT_MUTED }}
             >
-                <span className="inline-flex items-center gap-1.5">
+                <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{ color: vm.status.fg, fontWeight: 600 }}
+                >
                     <span
                         style={{
                             width: 6,
@@ -95,7 +75,10 @@ export default function TaskDetailHeader({
                     </>
                 )}
                 <span style={{ color: T.TEXT_HINT }}>·</span>
-                <span className="inline-flex items-center gap-1.5">
+                <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{ color: vm.priority.fg, fontWeight: 600 }}
+                >
                     <TaskPriorityStripe priority={vm.priority} size={14} />
                     {td(`${vm.priority.label} priority`, { source: "en" })}
                 </span>
@@ -122,6 +105,7 @@ export default function TaskDetailHeader({
                     d={TASK_ICON.calendar}
                     size={13}
                     strokeWidth={1.5}
+                    style={{ marginTop: 4, marginBottom: 4 }}
                 />
                 {task.due_date ? (
                     <>

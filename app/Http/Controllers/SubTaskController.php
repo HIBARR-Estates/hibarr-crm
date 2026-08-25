@@ -9,6 +9,7 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use Illuminate\Support\Facades\Log;
 
 class SubTaskController extends AccountBaseController
 {
@@ -96,17 +97,26 @@ class SubTaskController extends AccountBaseController
 
     public function changeStatus(Request $request)
     {
-        $subTask = SubTask::findOrFail($request->subTaskId);
-        $subTask->status = $request->status;
-        $subTask->save();
+        try {
+            $subTask = SubTask::findOrFail($request->subTaskId);
+            $subTask->status = $request->status;
+            $subTask->save();
 
-        $this->task = Task::with(['subtasks', 'subtasks.files'])->findOrFail($subTask->task_id);
-        $this->logTaskActivity($this->task->id, user()->id, 'subTaskUpdateActivity', $this->task ->board_column_id, $subTask->id);
+            $this->task = Task::with(['subtasks', 'subtasks.files'])->findOrFail($subTask->task_id);
+            $this->logTaskActivity($this->task->id, user()->id, 'subTaskUpdateActivity', $this->task ->board_column_id, $subTask->id);
 
-        $view = view('tasks.sub_tasks.show', $this->data)->render();
+            $view = view('tasks.sub_tasks.show', $this->data)->render();
 
+            return Reply::successWithData(__('messages.updateSuccess'), ['view' => $view]);
+        } catch (\Exception $e) {
+            Log::error('SubTaskController::changeStatus failed', [
+                'subTaskId' => $request->subTaskId,
+                'status' => $request->status,
+                'error' => $e->getMessage(),
+            ]);
 
-        return Reply::successWithData('messages.updateSuccess', ['view' => $view]);
+            return response()->json(Reply::error($e->getMessage()), 500);
+        }
     }
 
     /**

@@ -476,6 +476,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/{task}/comments', [TaskCommentApiController::class, 'index'])->name('tasks.comments.index');
     Route::post('tasks/{task}/comments', [TaskCommentApiController::class, 'store'])->name('tasks.comments.store');
     Route::delete('task-comments/{id}', [TaskCommentApiController::class, 'destroy'])->name('tasks.comments.destroy');
+    Route::get('tasks/{task}/activity', [TaskCommentApiController::class, 'activity'])->name('tasks.activity.index');
 
     // Saved filter views for the redesigned tasks workspace
     Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');

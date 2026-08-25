@@ -97,6 +97,7 @@ const createTaskFilterConfig = (
             key: "project_id",
             label: "Project",
             type: "select",
+            control: "select",
             section: "Category",
             sentence: "project",
             options:

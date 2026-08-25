@@ -58,6 +58,8 @@ export interface TaskViewModel {
     dueBorder: string;
     people: TaskPerson[];
     peopleLabel: string;
+    /** Full linked-record list, unlike `links` below which caps at 2 for compact cards. */
+    allLinks: LinkedRecord[];
     links: LinkedRecord[];
     extraLinks: number;
     titleColor: string;
@@ -267,6 +269,7 @@ export function toTaskViewModel(
                 : people.length > 1
                   ? `${people[0].name} +${people.length - 1}`
                   : people[0].name,
+        allLinks,
         links: allLinks.slice(0, 2),
         extraLinks: Math.max(0, allLinks.length - 2),
         titleColor: done ? "#9ca3af" : "#1a1f2e",
