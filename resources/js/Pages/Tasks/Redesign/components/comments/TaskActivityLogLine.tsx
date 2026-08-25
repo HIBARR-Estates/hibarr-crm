@@ -15,13 +15,13 @@ export default function TaskActivityLogLine({
 
     return (
         <div
-            className="mb-2 flex items-center gap-1.5"
+            className="mb-2 flex flex-col gap-0.5"
             style={{ fontSize: 12, lineHeight: 1.4, color: T.TEXT_HINT }}
         >
             <span style={{ overflowWrap: "anywhere" }}>
                 {td(taskActivityText(entry), { source: "en" })}
             </span>
-            <span style={{ flexShrink: 0 }}>· {entry.created_at_human}</span>
+            <span>{entry.created_at_human}</span>
         </div>
     );
 }

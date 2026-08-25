@@ -87,7 +87,8 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
             <span
                 className="inline-flex items-center gap-1.5 whitespace-nowrap"
                 style={{
-                    marginTop: 10,
+                    marginTop: 14,
+                    marginBottom: 4,
                     padding: "4px 11px",
                     borderRadius: 999,
                     fontSize: 14,

@@ -589,6 +589,20 @@ class TaskController extends AccountBaseController
     }
 
     /**
+     * True for a legacy jQuery fragment fetch (Deals/Leads/Projects/the
+     * dashboard all still call show()/create()/edit() this way for a Blade
+     * partial) — false for a normal browser navigation *or* an Inertia
+     * client visit. request()->ajax() alone can't tell these apart: Inertia's
+     * client is built on axios, which sets the same X-Requested-With header
+     * a legacy $.ajax() call does. X-Inertia is the one header only Inertia
+     * itself sends, so its presence is what actually distinguishes them.
+     */
+    private function isLegacyAjaxFragmentRequest(): bool
+    {
+        return request()->ajax() && !request()->header('X-Inertia');
+    }
+
+    /**
      * The one Task -> frontend array shape, used by index()'s list/board
      * payload and by store()/update()'s create/update responses. Callers
      * must eager-load self::TASK_FRONTEND_RELATIONS (+ withCount on
@@ -1324,9 +1338,9 @@ class TaskController extends AccountBaseController
         // The redesigned workspace has no standalone create page — /tasks/create
         // renders the list/board view with the Add Task popup pre-opened instead,
         // so the URL stays /tasks/create. Only for the plain "duplicate/from
-        // project" case this route already supported; a non-AJAX GET here is
+        // project" case this route already supported; a fresh GET here is
         // never form-submitted directly, so a coarse add_tasks check is enough.
-        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !request()->ajax()) {
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !$this->isLegacyAjaxFragmentRequest()) {
             $addPermission = user()->permission('add_tasks');
             abort_403(!in_array($addPermission, ['all', 'added']));
 
@@ -1757,7 +1771,7 @@ class TaskController extends AccountBaseController
         // renders the list/board view with the Edit Task popup pre-opened for
         // this task instead, so the URL stays /tasks/{id}/edit. The permission
         // check above already gates this; only the render target changes.
-        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !request()->ajax()) {
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !$this->isLegacyAjaxFragmentRequest()) {
             return $this->index((int) $id, openMode: 'edit');
         }
 
@@ -2374,7 +2388,7 @@ class TaskController extends AccountBaseController
         // checks above already gate this specific task; index($openTaskId)
         // trusts that and only additionally resolves+authorizes its own
         // default-filtered listing as normal.
-        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && !$this->isLegacyAjaxFragmentRequest()) {
             return $this->index((int) $task->id);
         }
 
