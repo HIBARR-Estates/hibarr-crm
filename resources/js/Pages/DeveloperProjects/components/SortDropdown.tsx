@@ -1,4 +1,5 @@
-import { Select } from "antd";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { SORT_OPTIONS } from "../constants/projects";
 
 interface SortDropdownProps {
@@ -7,16 +8,19 @@ interface SortDropdownProps {
 }
 
 const SortDropdown: React.FC<SortDropdownProps> = ({ value, onChange }) => {
-
     return (
         <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Sort by</span>
-            <Select
+            <span
+                className="text-xs font-medium whitespace-nowrap"
+                style={{ color: T.TEXT_MUTED }}
+            >
+                Sort by
+            </span>
+            <MenuSelect
                 value={value}
-                onChange={onChange}
+                onChange={(next) => onChange(String(next))}
                 options={SORT_OPTIONS}
-                style={{ width: 190 }}
-                size="middle"
+                width={190}
             />
         </div>
     );

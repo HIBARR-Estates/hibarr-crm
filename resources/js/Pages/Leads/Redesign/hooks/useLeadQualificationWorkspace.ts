@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import type {
@@ -23,6 +23,9 @@ export default function useLeadQualificationWorkspace(
 ) {
     const loader = useLeadQualificationLoader(lead.id, { enabled, seed });
     const [isStartingFlow, setIsStartingFlow] = useState(false);
+    // Ref, not state: a second click firing before the `isStartingFlow`
+    // re-render lands would otherwise read a stale `false` and slip through.
+    const startingRef = useRef(false);
     const [templates, setTemplates] = useState<PublishedTemplate[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
@@ -83,7 +86,7 @@ export default function useLeadQualificationWorkspace(
 
     const startQualificationScript = useCallback(
         async (templateId?: string | null): Promise<boolean> => {
-            if (!enabled || isStartingFlow) return flowActive;
+            if (!enabled || startingRef.current) return flowActive;
             if (flowActive) return true;
 
             const targetId = templateId ?? selectedTemplateId;
@@ -97,6 +100,7 @@ export default function useLeadQualificationWorkspace(
                 return false;
             }
 
+            startingRef.current = true;
             setIsStartingFlow(true);
             try {
                 const qualification =
@@ -117,13 +121,13 @@ export default function useLeadQualificationWorkspace(
                 message.error("Failed to start qualification script");
                 return false;
             } finally {
+                startingRef.current = false;
                 setIsStartingFlow(false);
             }
         },
         [
             enabled,
             flowActive,
-            isStartingFlow,
             lead.id,
             loader.handleStarted,
             loader.qualificationService,

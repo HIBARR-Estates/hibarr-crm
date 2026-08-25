@@ -12,6 +12,9 @@ import useViewPreference from "@/Hooks/useViewPreference";
 import { PipelineStage } from "@/Types/api/deals";
 import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
+import BulkActionSummary, {
+    type BulkActionSummaryData,
+} from "@/Features/BulkActions/BulkActionSummary";
 import { describeFilters } from "@/Features/Filters/filterSummary";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -337,6 +340,10 @@ const Index = ({
         });
     };
 
+    // Post-action receipt: survives the toast so the operator can read it.
+    const [bulkSummary, setBulkSummary] =
+        useState<BulkActionSummaryData | null>(null);
+
     // Table row selection (pageData keeps selections when paging)
     const [selectAllMatching, setSelectAllMatching] = useState(false);
     const exitSelectAllMatching = useCallback(
@@ -636,11 +643,11 @@ const Index = ({
                             onOpenFilters={openDrawer}
                         />
                     }
-                    maxWidth={1440}
+                    // maxWidth={1440}
                 />
 
                 <div
-                    className="max-w-[1440px] mx-auto space-y-4 px-6 py-6"
+                    className="max-w-screen-2xl mx-auto space-y-4 px-6 py-6"
                     style={{ fontFamily: REDESIGN_FONT_STACK }}
                 >
                     {/* Bulk actions — full-width bar below the toolbar, table view only. */}
@@ -657,9 +664,17 @@ const Index = ({
                                 }
                                 updateOptions={bulkUpdateOptions}
                                 optionsLoading={formDataLoading}
+                                onCompleted={setBulkSummary}
                                 clearSelected={clearSelected}
                             />
                         )}
+
+                    {bulkSummary && (
+                        <BulkActionSummary
+                            summary={bulkSummary}
+                            onDismiss={() => setBulkSummary(null)}
+                        />
+                    )}
 
                     {/* Table View */}
                     {isTableView && (

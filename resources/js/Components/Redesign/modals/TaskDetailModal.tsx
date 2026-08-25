@@ -8,6 +8,7 @@ import type { Task } from "@/Types/api/tasks";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -291,6 +292,7 @@ export default function TaskDetailModal({
                 {overdue && (
                     <span className="dr-pill dr-pill-red">{labels.overdue}</span>
                 )}
+                <IntegrationOriginBadge origin={task.integration_origin} size={15} />
             </div>
 
             {editing ? (

@@ -41,6 +41,7 @@ import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { compressImagesForUpload } from "@/lib/compressImageForUpload";
 
 const { Text, Title } = Typography;
 
@@ -48,7 +49,7 @@ const { Text, Title } = Typography;
 // Tag definitions (same as DeveloperProjectUnitTypeAsset::AVAILABLE_TAGS)
 // ────────────────────────────────────────────────────────────
 const ASSET_TAGS: Record<string, string> = {
-    cover: "Cover Photo",
+    cover: "Cover Photo (card / hero)",
     interior: "Interior",
     exterior: "Exterior",
     "floor-plan": "Floor Plan",
@@ -253,20 +254,20 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
     const handleUpload = useCallback(async () => {
         if (!uploadService || !unitTypeId || !projectId) return;
 
-        const files: File[] = [];
+        const rawFiles: File[] = [];
         for (const f of uploadFileList) {
             if (f.originFileObj) {
-                files.push(f.originFileObj as File);
+                rawFiles.push(f.originFileObj as File);
             }
         }
 
-        if (files.length === 0) {
+        if (rawFiles.length === 0) {
             messageApi.warning("Please select photos to upload");
             return;
         }
 
         // Initialise statuses
-        const initialStatuses: FileUploadStatus[] = files.map((file, i) => ({
+        const initialStatuses: FileUploadStatus[] = rawFiles.map((file, i) => ({
             fileId: `file-${i}-${file.name}`,
             fileName: file.name,
             progress: 0,
@@ -278,13 +279,21 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
         const successfulUploads: IUploadResponseItem[] = [];
 
         try {
+            const files = await compressImagesForUpload(rawFiles);
+
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const fileId = `file-${i}-${file.name}`;
+                const fileId = `file-${i}-${rawFiles[i].name}`;
 
                 setUploadStatuses((prev) =>
                     prev.map((s) =>
-                        s.fileId === fileId ? { ...s, status: "uploading" } : s,
+                        s.fileId === fileId
+                            ? {
+                                  ...s,
+                                  fileName: file.name,
+                                  status: "uploading",
+                              }
+                            : s,
                     ),
                 );
 
@@ -770,7 +779,8 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                             Click or drag photos here
                         </p>
                         <p className="ant-upload-hint text-xs">
-                            JPG, PNG, GIF, WebP — up to 50 MB each
+                            JPG, PNG, GIF, WebP — up to 50 MB each. Large images
+                            are auto-resized for the web.
                         </p>
                     </Upload.Dragger>
                 ) : (

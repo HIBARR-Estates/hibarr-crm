@@ -9,7 +9,7 @@ class QualificationOutcomePolicy
 {
     /**
      * Highest-priority lifecycle wins when multiple outcomes are selected.
-     * bookMeeting (qualified) > inviteWebinar (nurturing) > callback > noFit (not_fit)
+     * bookMeeting (qualified) > inviteWebinar (nurturing) > callback > noFit (lost)
      *
      * @var list<QualificationOutcome>
      */

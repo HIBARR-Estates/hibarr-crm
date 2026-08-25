@@ -527,7 +527,7 @@ export default function TasksWorkspaceRedesign({
             />
 
             <div
-                className={`relative mx-auto w-full max-w-[1280px] px-7 pt-[22px] ${
+                className={`relative mx-auto w-full max-w-screen-2xl px-7 pt-[22px] ${
                     view === "board" ? "pb-4" : "pb-14"
                 }`}
                 style={

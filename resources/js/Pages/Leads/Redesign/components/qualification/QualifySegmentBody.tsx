@@ -68,43 +68,6 @@ function NumberBadge({
     );
 }
 
-function InstructionCard({
-    text,
-    translateScript,
-}: {
-    text: string;
-    translateScript: (text: string) => string;
-}) {
-    const localized = useDynamicTranslation(text, { source: "en" });
-    const html = translateScript(localized);
-
-    return (
-        <div
-            className="flex items-start gap-2.5 rounded-md px-3 py-2.5 my-3 border border-amber-200"
-            style={{ background: "#fffbeb" }}
-        >
-            <svg
-                className="w-4 h-4 shrink-0 mt-0.5"
-                style={{ color: "#d97706" }}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-            >
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"
-                />
-            </svg>
-            <QualificationScriptHtml
-                html={html}
-                className="text-xs leading-relaxed flex-1"
-            />
-        </div>
-    );
-}
-
 function ScriptBlock({
     text,
     translateScript,
@@ -162,10 +125,27 @@ export default function QualifySegmentBody({
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
             {kind === "instruction" ? (
-                <InstructionCard
-                    text={currentSegment.label}
-                    translateScript={flow.translateScript}
-                />
+                <div className="mb-7">
+                    <p
+                        className="text-xs font-semibold uppercase tracking-wider mb-2"
+                        style={{ color: T.TEXT_MUTED }}
+                    >
+                        {td("Instruction", { source: "en" })}
+                    </p>
+                    <ScriptBlock
+                        text={currentSegment.label}
+                        translateScript={flow.translateScript}
+                    />
+                    <p
+                        className="text-sm mt-2"
+                        style={{ color: "#b45309" }}
+                    >
+                        {td(
+                            "Don't read this to the lead — this is an instruction.",
+                            { source: "en" },
+                        )}
+                    </p>
+                </div>
             ) : kind === "say" ? (
                 <div className="mb-7">
                     <p

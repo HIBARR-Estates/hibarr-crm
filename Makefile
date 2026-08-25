@@ -156,12 +156,16 @@ rr-status-service:
 
 ensure-storage:
 	@echo "Ensuring storage structure exists..."
+	mkdir -p bootstrap/cache
 	mkdir -p storage/framework/cache/data
 	mkdir -p storage/framework/sessions
 	mkdir -p storage/framework/views
 	mkdir -p storage/logs
-	# We use || true because in some builds the folder might be owned by www-data
-	chmod -R 775 storage bootstrap/cache || true
+	mkdir -p storage/app/public
+	# setgid dirs + group-writable files (works when storage is a shared symlink)
+	# || true: some paths may be owned by www-data during local/web builds
+	find storage bootstrap/cache -type d -exec chmod 2775 {} \; || true
+	find storage bootstrap/cache -type f -exec chmod 664 {} \; || true
 
 queue-restart:
 	php artisan queue:restart

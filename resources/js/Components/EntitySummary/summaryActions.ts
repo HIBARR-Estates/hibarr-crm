@@ -138,27 +138,30 @@ export function executeSummaryAction({
  * actually does in-app, not what the human should ultimately achieve. Advice-
  * only actions never reach here (no button is rendered for them).
  */
-export function nextStepButtonLabel(nextStep: EntitySummaryNextStep): string {
+export function nextStepButtonLabel(
+    nextStep: EntitySummaryNextStep,
+    t: (key: string) => string,
+): string {
     switch (nextStep.action_type) {
         case "OPEN_DEAL":
-            return "Open deal";
+            return t("pages.entity_summary.next_step.open_deal");
         case "REVIEW_DEALS":
-            return "Review deals";
+            return t("pages.entity_summary.next_step.review_deals");
         case "CREATE_TASK":
-            return "Create task";
+            return t("pages.entity_summary.next_step.create_task");
         case "SCHEDULE_CALL":
         case "CONTACT_LEAD":
-            return "Schedule meeting";
+            return t("pages.entity_summary.next_step.schedule_meeting");
         case "QUALIFY_LEAD":
-            return "Open qualification";
+            return t("pages.entity_summary.next_step.open_qualification");
         // The CRM can't SEND a document request; the honest in-app action is
         // reviewing which documents are on file / outstanding.
         case "REQUEST_DOCUMENTS":
-            return "Review documents";
+            return t("pages.entity_summary.next_step.review_documents");
         case "ADVANCE_STAGE":
-            return "Advance stage";
+            return t("pages.entity_summary.next_step.advance_stage");
         case "REVIEW_STALE_DEAL":
-            return "Review timeline";
+            return t("pages.entity_summary.next_step.review_timeline");
         default:
             return nextStep.label;
     }

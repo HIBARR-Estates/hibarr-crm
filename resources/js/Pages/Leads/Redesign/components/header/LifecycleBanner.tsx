@@ -14,6 +14,8 @@ interface LifecycleBannerProps {
     answered?: number;
     total?: number;
     dealCount?: number;
+    /** True while a qualification call is being started/resumed. */
+    busy?: boolean;
     onPrimary: () => void;
     onSecondary?: () => void;
     onViewAnswers?: () => void;
@@ -29,6 +31,7 @@ export default function LifecycleBanner({
     answered = 0,
     total = 0,
     dealCount = 0,
+    busy = false,
     onPrimary,
     onSecondary,
     onViewAnswers,
@@ -36,6 +39,9 @@ export default function LifecycleBanner({
     const { td } = useTd();
     const config = LIFECYCLE_BANNER_CONFIG[mode];
     const hint = description ?? "";
+    const primaryLabel = busy
+        ? td("Starting…", { source: "en" })
+        : td(config.primaryCta.label, { source: "en" });
 
     if (mode === "qualified") {
         return (
@@ -327,9 +333,11 @@ export default function LifecycleBanner({
                 <button
                     type="button"
                     className="v2-btn v2-btn-solid"
+                    disabled={busy}
+                    style={busy ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label, { source: "en" })}
+                    {primaryLabel}
                 </button>
             </div>
         );
@@ -374,9 +382,11 @@ export default function LifecycleBanner({
                 <button
                     type="button"
                     className="v2-btn v2-btn-ghost"
+                    disabled={busy}
+                    style={busy ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label, { source: "en" })}
+                    {primaryLabel}
                 </button>
             </div>
         );
@@ -424,14 +434,16 @@ export default function LifecycleBanner({
             <button
                 type="button"
                 className={isFresh ? "v2-btn v2-btn-primary" : "v2-btn"}
-                style={
-                    isFresh
+                disabled={busy}
+                style={{
+                    ...(isFresh
                         ? undefined
-                        : { background: "var(--lr-white)", color: "var(--lr-navy)" }
-                }
+                        : { background: "var(--lr-white)", color: "var(--lr-navy)" }),
+                    ...(busy ? { opacity: 0.6, cursor: "not-allowed" } : undefined),
+                }}
                 onClick={onPrimary}
             >
-                {td(config.primaryCta.label, { source: "en" })}
+                {primaryLabel}
             </button>
         </div>
     );

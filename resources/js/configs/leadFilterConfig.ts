@@ -196,6 +196,21 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 })) || [],
         },
         {
+            key: "referred_by_agent_id",
+            label: "Referrer",
+            type: "multiselect",
+            control: "checklist",
+            facetKey: "referred_by_agent_id",
+            sentence: "referrer",
+            section: "Assignment & Source",
+            placeholder: "Search partners…",
+            options:
+                props.leadAgents?.map((agent: any) => ({
+                    value: agent.id,
+                    label: agent.user?.name || agent.name || `#${agent.id}`,
+                })) || [],
+        },
+        {
             key: "added_by_id",
             label: "Added by",
             type: "multiselect",

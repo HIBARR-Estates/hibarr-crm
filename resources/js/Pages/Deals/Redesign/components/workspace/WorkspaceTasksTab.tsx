@@ -28,6 +28,7 @@ import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
+import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealPeoplePicker, {
     type DealPersonOption,
@@ -513,6 +514,11 @@ export default function WorkspaceTasksTab({
                         task.dueDate != null &&
                         task.dueDate.getTime() < Date.now();
 
+                    const displayTitle =
+                        task.title === "Untitled task"
+                            ? t("pages.deals.common.untitled_task")
+                            : task.title;
+
                     return (
                         <article
                             key={task.id}
@@ -524,7 +530,9 @@ export default function WorkspaceTasksTab({
                                     <DealSelectCheckbox
                                         checked={selected.has(task.id)}
                                         onChange={() => toggleSelect(task.id)}
-                                        label={`Select task ${task.title}`}
+                                        label={t("pages.deals.common.select_task", {
+                                            title: displayTitle,
+                                        })}
                                     />
                                 </div>
                             )}
@@ -538,8 +546,12 @@ export default function WorkspaceTasksTab({
                                 }
                                 aria-label={
                                     selectMode
-                                        ? `Select task ${task.title}`
-                                        : `Open task — ${task.title}`
+                                        ? t("pages.deals.common.select_task", {
+                                              title: displayTitle,
+                                          })
+                                        : t("pages.deals.common.open_task", {
+                                              title: displayTitle,
+                                          })
                                 }
                                 className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
                             >
@@ -552,8 +564,11 @@ export default function WorkspaceTasksTab({
                                                 : "none",
                                         }}
                                     >
-                                        {task.title}
+                                        {displayTitle}
                                     </span>
+                                    <IntegrationOriginBadge
+                                        origin={task.integrationOrigin}
+                                    />
                                     <DealPriorityBadge
                                         priority={task.priority}
                                     />

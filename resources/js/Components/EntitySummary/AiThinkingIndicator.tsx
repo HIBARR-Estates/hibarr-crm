@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface AiThinkingIndicatorProps {
     size?: number;
@@ -18,26 +19,34 @@ const PHRASES = [
     "Almost there…",
 ];
 
+const PANEL_PHRASE_COUNT = 11;
+
 /**
  * Loading state for entity AI summaries.
- * Prefer concrete English phrases (always available) over lang-file indexes that
- * often render as raw keys when translations aren't wired on the page.
+ * Inline variant keeps concrete English phrases for legacy pages; panel variant
+ * uses lang-file keys on the redesign deal page.
  */
 export default function AiThinkingIndicator({
     size = 18,
     className,
     variant = "inline",
 }: AiThinkingIndicatorProps) {
+    const { t } = useTranslation();
+    const phraseCount =
+        variant === "panel" ? PANEL_PHRASE_COUNT : PHRASES.length;
     const [phraseIndex, setPhraseIndex] = useState(() =>
-        Math.floor(Math.random() * PHRASES.length),
+        Math.floor(Math.random() * phraseCount),
     );
 
     useEffect(() => {
         const interval = window.setInterval(() => {
-            setPhraseIndex((current) => (current + 1) % PHRASES.length);
+            setPhraseIndex((current) => (current + 1) % phraseCount);
         }, 2000);
         return () => window.clearInterval(interval);
-    }, []);
+    }, [phraseCount]);
+
+    const panelPhrase = t(`pages.entity_summary.thinking.${phraseIndex}`);
+    const inlinePhrase = PHRASES[phraseIndex % PHRASES.length];
 
     if (variant === "panel") {
         return (
@@ -52,7 +61,7 @@ export default function AiThinkingIndicator({
                         aria-hidden="true"
                     />
                     <span className="entity-ai-summary-loading-panel__label">
-                        {PHRASES[phraseIndex]}
+                        {panelPhrase}
                     </span>
                 </div>
                 <div className="entity-ai-summary-loading-panel__skeleton" aria-hidden="true">
@@ -86,7 +95,7 @@ export default function AiThinkingIndicator({
                 </svg>
             </span>
             <span className="entity-ai-summary-loading__text">
-                {PHRASES[phraseIndex]}
+                {inlinePhrase}
             </span>
         </span>
     );

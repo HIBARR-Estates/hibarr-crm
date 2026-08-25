@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Input, InputRef } from "antd";
+import { Input, InputRef, Tooltip } from "antd";
+import { CornerDownLeft } from "lucide-react";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
-import { useDebounce } from "@/Hooks/useDebounce";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -29,9 +29,6 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
         }
         return filters.search || "";
     });
-
-    // Reduced to 400ms for reasonable typing speed
-    const debouncedValue = useDebounce(localValue, 700);
 
     // Track if we're currently syncing to prevent loops
     const isSyncingRef = useRef(false);
@@ -148,21 +145,11 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
         onSearch?.(value);
     };
 
-    // Handle debounced search
-    useEffect(() => {
-        if (
-            !isSyncingRef.current &&
-            debouncedValue !== lastSearchedValue.current
-        ) {
-            performSearch(debouncedValue);
+    // Only search on Enter (or clicking the search icon) — never while typing.
+    const handleSearchSubmit = (value: string) => {
+        if (value !== lastSearchedValue.current) {
+            performSearch(value);
         }
-    }, [debouncedValue]);
-
-    // Prevent manual search from firing (already handled by debounce)
-    const handleManualSearch = (value: string) => {
-        // Update local value immediately for instant feedback
-        setLocalValue(value);
-        // The debounce effect will handle the actual search
     };
 
     return (
@@ -172,7 +159,15 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 placeholder={placeholder || "Search..."}
                 value={localValue}
                 onChange={handleInputChange}
-                onSearch={handleManualSearch}
+                onSearch={handleSearchSubmit}
+                suffix={
+                    <Tooltip title="Press Enter to search">
+                        <CornerDownLeft
+                            size={13}
+                            className="text-gray-400"
+                        />
+                    </Tooltip>
+                }
                 onFocus={() => {
                     keepFocused.current = true;
                 }}

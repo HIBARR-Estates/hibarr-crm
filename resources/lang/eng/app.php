@@ -197,6 +197,7 @@ return array(
         'messages' => 'Messages',
         'offers' => 'Offers',
         'partner_network' => 'Partner Network',
+        'partners' => 'Partners',
         'affiliate_workspace' => 'Affiliate Workspace',
         'mlm' => [
             'dashboard' => 'Dashboard',

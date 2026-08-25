@@ -4,6 +4,7 @@ import type { Note } from "@/Types/api/note";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
@@ -232,14 +233,20 @@ export default function NoteDetailModal({
                                 )}
                             </span>
                         </div>
-                        {createdLabel ? (
-                            <span
-                                className="shrink-0 text-[12px]"
-                                style={{ color: T.TEXT_MUTED }}
-                            >
-                                {createdLabel}
-                            </span>
-                        ) : null}
+                        <div className="flex shrink-0 items-center gap-2">
+                            <IntegrationOriginBadge
+                                origin={note.integration_origin}
+                                size={14}
+                            />
+                            {createdLabel ? (
+                                <span
+                                    className="text-[12px]"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
+                                    {createdLabel}
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
                     <div
                         className="min-w-0 text-[15px] leading-[1.55]"

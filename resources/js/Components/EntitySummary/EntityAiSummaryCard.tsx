@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
 import { isLeadSummaryPayload } from "@/Types/entity-summary";
@@ -30,10 +31,11 @@ export default function EntityAiSummaryCard({
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const isRedesign = variant === "redesign";
     const [collapsed, setCollapsed] = useState(isRedesign);
 
-    const { summary, loading, error, isStale, generate, regenerate } =
+    const { summary, loading, error, errorFromApi, isStale, generate, regenerate } =
         useEntityAiSummary({
             entityType,
             entityId,
@@ -149,30 +151,58 @@ export default function EntityAiSummaryCard({
 
                     {error && !loading && (
                         <div className="entity-ai-summary-error" role="alert">
-                            {error}{" "}
+                            {isRedesign && errorFromApi
+                                ? td(error, { source: "en" })
+                                : error}{" "}
                             <button type="button" onClick={startGenerate}>
-                                Retry
+                                {isRedesign
+                                    ? t("pages.entity_summary.retry")
+                                    : "Retry"}
                             </button>
                         </div>
                     )}
 
                     {isStale && summary && !loading && (
                         <div className="entity-ai-summary-stale-banner">
-                            This summary may be out of date because the{" "}
-                            {entityType} changed.{" "}
-                            <button type="button" onClick={startRegenerate}>
-                                Refresh
-                            </button>
+                            {isRedesign ? (
+                                <>
+                                    {t("pages.entity_summary.stale_banner", {
+                                        entity: entityType,
+                                    })}{" "}
+                                    <button type="button" onClick={startRegenerate}>
+                                        {t("pages.entity_summary.refresh")}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    This summary may be out of date because the{" "}
+                                    {entityType} changed.{" "}
+                                    <button type="button" onClick={startRegenerate}>
+                                        Refresh
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
 
                     {isHeuristic && summary && !loading && !error && (
                         <div className="entity-ai-summary-heuristic-banner">
-                            Showing a fallback summary because AI was
-                            unavailable.{" "}
-                            <button type="button" onClick={startRegenerate}>
-                                Retry AI
-                            </button>
+                            {isRedesign ? (
+                                <>
+                                    {t("pages.entity_summary.heuristic_banner")}{" "}
+                                    <button type="button" onClick={startRegenerate}>
+                                        {t("pages.entity_summary.retry_ai")}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    Showing a fallback summary because AI was
+                                    unavailable.{" "}
+                                    <button type="button" onClick={startRegenerate}>
+                                        Retry AI
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -216,7 +246,9 @@ export default function EntityAiSummaryCard({
                                 {summary.bullets.length > 0 && (
                                     <ul className="entity-ai-summary-bullets">
                                         {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>{bullet}</li>
+                                            <li key={bullet}>
+                                                {td(bullet, { source: "en" })}
+                                            </li>
                                         ))}
                                     </ul>
                                 )}
@@ -228,8 +260,12 @@ export default function EntityAiSummaryCard({
                                         onClick={startRegenerate}
                                     >
                                         {isStale
-                                            ? "Refresh summary"
-                                            : "Regenerate summary"}
+                                            ? t(
+                                                  "pages.entity_summary.refresh_summary",
+                                              )
+                                            : t(
+                                                  "pages.entity_summary.regenerate_summary",
+                                              )}
                                     </button>
                                 )}
                             </div>
@@ -257,7 +293,9 @@ export default function EntityAiSummaryCard({
                                 {summary.bullets.length > 0 && (
                                     <ul className="entity-ai-summary-bullets">
                                         {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>{bullet}</li>
+                                            <li key={bullet}>
+                                                {td(bullet, { source: "en" })}
+                                            </li>
                                         ))}
                                     </ul>
                                 )}

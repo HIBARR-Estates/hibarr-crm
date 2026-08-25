@@ -52,19 +52,19 @@ export default function useDealOutcome(deal: Deal) {
                 // Commissions are queued, not written, so don't claim otherwise.
                 if (result?.changed && result.reverted_commissions > 0) {
                     message.success(
-                        `${td("Outcome updated.")} ${result.reverted_commissions} ${td("pending commission(s) reverted.")}`,
+                        `${td("Outcome updated.", { source: "en" })} ${result.reverted_commissions} ${td("pending commission(s) reverted.", { source: "en" })}`,
                     );
                 } else if (result?.changed && result.commissions_queued) {
                     message.success(
-                        td("Outcome updated. Commission distribution has been queued."),
+                        td("Outcome updated. Commission distribution has been queued.", { source: "en" }),
                     );
                 } else {
-                    message.success(td("Outcome updated."));
+                    message.success(td("Outcome updated.", { source: "en" }));
                 }
 
                 if (result?.paid_commissions_kept) {
                     message.warning(
-                        `${result.paid_commissions_kept} ${td("already-paid commission(s) were left untouched and must be settled manually.")}`,
+                        `${result.paid_commissions_kept} ${td("already-paid commission(s) were left untouched and must be settled manually.", { source: "en" })}`,
                     );
                 }
 
@@ -76,8 +76,8 @@ export default function useDealOutcome(deal: Deal) {
 
                 message.error(
                     status === 403
-                        ? td("Only an administrator can change a deal's outcome.")
-                        : td("Could not update the outcome."),
+                        ? td("Only an administrator can change a deal's outcome.", { source: "en" })
+                        : td("Could not update the outcome.", { source: "en" }),
                 );
 
                 return null;
