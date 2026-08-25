@@ -5,12 +5,16 @@ import AddTaskModal, {
     type AddTaskFormState,
 } from "@/Components/Redesign/modals/AddTaskModal";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import type { Task as RedesignedTask } from "@/Types/Task";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
 import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
 import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
-import { afterCreateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import {
+    afterCreateTaskFormSubmit,
+    patchTaskListExtrasCounts,
+} from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealTaskCreate from "../../hooks/useDealTaskCreate";
 
@@ -46,12 +50,21 @@ export default function DealAddTaskModal({
     const { props } = usePage();
     const { setTasks } = useDealWorkspace();
     const { persistExtras } = useTaskExtras();
+    const setRedesignedTasks = (
+        updater: (prev: RedesignedTask[]) => RedesignedTask[],
+    ) =>
+        setTasks(
+            (prev) =>
+                updater(
+                    prev as unknown as RedesignedTask[],
+                ) as unknown as typeof prev,
+        );
     const {
         createTask: createRedesignedTask,
         isCreating: isCreatingRedesigned,
         createErrors: redesignedErrors,
         clearCreateErrors: clearRedesignedErrors,
-    } = useTasksWorkspaceMutations(setTasks, null);
+    } = useTasksWorkspaceMutations(setRedesignedTasks, null);
 
     const handleClose = () => {
         if (isCreating || isCreatingRedesigned) return;
@@ -124,6 +137,15 @@ export default function DealAddTaskModal({
                                 values,
                                 persistExtras,
                                 handleClose,
+                                (task, result) => {
+                                    setRedesignedTasks((prev) =>
+                                        patchTaskListExtrasCounts(
+                                            prev,
+                                            task.id,
+                                            result,
+                                        ),
+                                    );
+                                },
                             ),
                         )
                     }

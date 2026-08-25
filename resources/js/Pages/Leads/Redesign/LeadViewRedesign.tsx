@@ -60,7 +60,7 @@ import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWor
 import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
 import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
-import { afterCreateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import { afterCreateTaskFormSubmit, patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
 import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
@@ -135,6 +135,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         files,
         filesLoading,
         addTask,
+        setTasks,
     } = useLeadWorkspace();
 
     const overviewPending =
@@ -920,6 +921,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             );
                                         }
                                         setAddTaskOpen(false);
+                                    },
+                                    (task, result) => {
+                                        setTasks(
+                                            (prev) =>
+                                                patchTaskListExtrasCounts(
+                                                    prev as unknown as RedesignedTask[],
+                                                    task.id,
+                                                    result,
+                                                ) as unknown as typeof prev,
+                                        );
                                     },
                                 ),
                             )

@@ -175,8 +175,10 @@ export interface TasksIndexProps extends PageProps {
     openTaskId?: number;
     /** "detail" (default) opens the view popup, "edit" opens the edit form for openTaskId. */
     openMode?: "detail" | "edit";
-    /** Only sent when openTaskId's task isn't already in tableTasks/kanbanTasks (e.g. outside the default filters). */
+    /** Deferred when openTaskId's task isn't already in tableTasks/kanbanTasks (e.g. outside the default filters). */
     openTask?: Task;
+    /** True when openTask is loaded via Inertia::defer rather than inline in the first response. */
+    openTaskDeferred?: boolean;
     /** Set by /tasks/create (TaskController::create) — opens the Add Task popup instead of redirecting. */
     openCreate?: boolean;
     /** Quick-pill counts for the redesigned workspace (server-side). */

@@ -50,6 +50,7 @@ import {
 import {
     afterCreateTaskFormSubmit,
     afterUpdateTaskFormSubmit,
+    patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
 
@@ -87,6 +88,7 @@ export default function TasksWorkspaceRedesign({
     now,
     openTaskId,
     openTask,
+    openTaskDeferred,
     openMode,
     openCreate,
 }: TasksWorkspaceRedesignProps) {
@@ -326,33 +328,26 @@ export default function TasksWorkspaceRedesign({
         ) {
             byId.set(
                 openTaskId,
-                toTaskViewModel(openTask, completedSlugs),
+                toTaskViewModel(openTask, completedSlugs, serverNow),
             );
         }
         return byId;
-    }, [boardViewModels, listViewModels, openTaskId, openTask, completedSlugs]);
+    }, [
+        boardViewModels,
+        listViewModels,
+        openTaskId,
+        openTask,
+        completedSlugs,
+        serverNow,
+    ]);
 
-    // /tasks/create, /tasks/{id} and /tasks/{id}/edit (TaskController::
-    // create/show/edit, redesign flag on) all render this same page with
-    // one of openCreate/openTaskId set instead of redirecting to a ?task=
-    // query param or a standalone page, so the URL stays as typed. Open the
-    // matching popup once on mount — if the task wasn't in the
-    // default-filtered listing, the server already sent its data separately
-    // as openTask. Afterwards popups are driven by clicks, not the URL —
-    // see useTasksUrlSync for the other direction — so this only runs once.
+    // Open the deep-linked popup from URL props once on mount.
     useEffect(() => {
         if (openCreate) {
             setAddOpen(true);
             return;
         }
         if (!openTaskId) return;
-        if (!allViewModels.has(openTaskId) && openTask) {
-            patchTasks((prev) =>
-                prev.some((task) => task.id === openTask.id)
-                    ? prev
-                    : [openTask, ...prev],
-            );
-        }
         if (openMode === "edit") {
             setEditingTaskId(openTaskId);
         } else {
@@ -360,6 +355,18 @@ export default function TasksWorkspaceRedesign({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Merge deferred openTask into local lists once it arrives.
+    useEffect(() => {
+        if (!openTaskId || !openTask) return;
+        patchTasks((prev) =>
+            prev.some((task) => task.id === openTask.id)
+                ? prev.map((task) =>
+                      task.id === openTask.id ? { ...task, ...openTask } : task,
+                  )
+                : [openTask, ...prev],
+        );
+    }, [openTask, openTaskId, patchTasks]);
 
     useTasksUrlSync({ view, addOpen, editingTaskId, selectedTaskId });
 
@@ -493,15 +500,32 @@ export default function TasksWorkspaceRedesign({
     const submitCreate = (values: TaskFormValues, onDone: () => void) =>
         createTask(
             { ...values, links: formLinksPayload(values) },
-            afterCreateTaskFormSubmit(values, persistExtras, onDone),
+            afterCreateTaskFormSubmit(
+                values,
+                persistExtras,
+                onDone,
+                (task, result) => {
+                    patchTasks((prev) =>
+                        patchTaskListExtrasCounts(prev, task.id, result),
+                    );
+                },
+            ),
         );
 
     const submitUpdate = (taskId: number, values: TaskFormValues) =>
         updateTask(
             taskId,
             { ...values, links: formLinksPayload(values) },
-            afterUpdateTaskFormSubmit(taskId, values, persistExtras, () =>
-                setEditingTaskId(null),
+            afterUpdateTaskFormSubmit(
+                taskId,
+                values,
+                persistExtras,
+                () => setEditingTaskId(null),
+                (result) => {
+                    patchTasks((prev) =>
+                        patchTaskListExtrasCounts(prev, taskId, result),
+                    );
+                },
             ),
         );
 
@@ -764,6 +788,9 @@ export default function TasksWorkspaceRedesign({
                 bulkUpdateFields={bulk.bulkUpdateFields}
                 taskSettingsOpen={taskSettingsOpen}
                 onCloseTaskSettings={() => setTaskSettingsOpen(false)}
+                deferAttachments={Boolean(
+                    openTaskDeferred && selectedVm?.id === openTaskId,
+                )}
             />
         </PageLayout>
     );

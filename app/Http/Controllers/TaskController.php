@@ -139,11 +139,24 @@ class TaskController extends AccountBaseController
 
         $statuses = $this->taskFilterAsList(request('status'));
         if (! empty($statuses)) {
-            if (in_array('pending', $statuses, true)) {
+            $hasPending = in_array('pending', $statuses, true);
+            $slugs = array_values(array_filter(
+                $statuses,
+                static fn (string $status) => $status !== 'pending'
+            ));
+
+            if ($hasPending && $slugs !== []) {
+                $tasksQuery->where(function ($query) use ($slugs) {
+                    $query->pending()
+                        ->orWhereHas('boardColumn', function ($columnQuery) use ($slugs) {
+                            $columnQuery->whereIn('slug', $slugs);
+                        });
+                });
+            } elseif ($hasPending) {
                 $tasksQuery->pending();
             } else {
-                $tasksQuery->whereHas('boardColumn', function ($query) use ($statuses) {
-                    $query->whereIn('slug', $statuses);
+                $tasksQuery->whereHas('boardColumn', function ($query) use ($slugs) {
+                    $query->whereIn('slug', $slugs);
                 });
             }
         }
@@ -416,17 +429,10 @@ class TaskController extends AccountBaseController
 
             $alreadyLoaded = $kanbanTasks->contains('id', $openTaskId);
             if (! $alreadyLoaded) {
-                $userId = UserService::getUserId();
-                $viewTaskFilePermission = user()->permission('view_task_files');
-                $openTask = Task::with(TaskPresenter::RELATIONS)
-                    ->with(['files' => function ($q) use ($viewTaskFilePermission, $userId) {
-                        if ($viewTaskFilePermission == 'added') {
-                            $q->where('added_by', $userId);
-                        }
-                    }])
-                    ->withCount(TaskPresenter::COUNTS)
-                    ->find($openTaskId);
-                $props['openTask'] = $openTask ? $this->presentTask($openTask, true) : null;
+                $props['openTaskDeferred'] = true;
+                $props['openTask'] = Inertia::defer(
+                    fn () => $this->presentOpenTaskForIndex($openTaskId)
+                );
             }
         }
 
@@ -587,6 +593,43 @@ class TaskController extends AccountBaseController
     private function presentTask(Task $task, bool $includeFiles = false): array
     {
         return TaskPresenter::present($task, $includeFiles);
+    }
+
+    /**
+     * Deep-linked /tasks/{id} task payload — deferred so attachment metadata
+     * does not block the Tasks/Index first paint.
+     */
+    private function presentOpenTaskForIndex(int $openTaskId): ?array
+    {
+        $userId = UserService::getUserId();
+        $viewTaskFilePermission = user()->permission('view_task_files');
+
+        $openTask = Task::with(TaskPresenter::RELATIONS)
+            ->with(['files' => function ($q) use ($viewTaskFilePermission, $userId) {
+                $this->scopeTaskFilesRelation($q, $viewTaskFilePermission, $userId);
+            }])
+            ->withCount(TaskPresenter::COUNTS)
+            ->find($openTaskId);
+
+        return $openTask ? $this->presentTask($openTask, true) : null;
+    }
+
+    /**
+     * Restrict file eager-loading to permissions the current user actually has.
+     */
+    private function scopeTaskFilesRelation($query, string $viewTaskFilePermission, int $userId): void
+    {
+        if ($viewTaskFilePermission === 'all') {
+            return;
+        }
+
+        if ($viewTaskFilePermission === 'added') {
+            $query->where('added_by', $userId);
+
+            return;
+        }
+
+        $query->whereRaw('0 = 1');
     }
 
     /**

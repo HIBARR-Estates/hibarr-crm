@@ -40,7 +40,7 @@ import {
     formLinksPayload,
     type TaskFormValues,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
-import { afterUpdateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import { afterUpdateTaskFormSubmit, patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
@@ -750,6 +750,15 @@ export default function TasksTab({
                                     values,
                                     persistExtras,
                                     () => setEditingTaskId(null),
+                                    (result) => {
+                                        setRedesignedTasks((prev) =>
+                                            patchTaskListExtrasCounts(
+                                                prev,
+                                                editingTaskId,
+                                                result,
+                                            ),
+                                        );
+                                    },
                                 ),
                             );
                         }}

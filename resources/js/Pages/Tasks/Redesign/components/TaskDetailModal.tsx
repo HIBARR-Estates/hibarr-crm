@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Deferred } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -37,6 +38,7 @@ interface TaskDetailModalProps {
     currentUser: { id: number; name: string; image?: string | null };
     deleteCommentScope?: TaskCommentDeleteScope;
     onChecklistChange?: (taskId: number, items: TaskCheckpoint[]) => void;
+    deferAttachments?: boolean;
 }
 
 export default function TaskDetailModal({
@@ -52,6 +54,7 @@ export default function TaskDetailModal({
     people,
     currentUser,
     onChecklistChange,
+    deferAttachments = false,
 }: TaskDetailModalProps) {
     const { td } = useTd();
     const [mentionDropdownOpen, setMentionDropdownOpen] = useState(false);
@@ -94,7 +97,17 @@ export default function TaskDetailModal({
                         >
                             <TaskDetailLinks links={vm.allLinks} />
 
-                            <TaskDetailAttachments files={vm.task.files ?? []} />
+                            {deferAttachments ? (
+                                <Deferred data="openTask" fallback={null}>
+                                    <TaskDetailAttachments
+                                        files={vm.task.files ?? []}
+                                    />
+                                </Deferred>
+                            ) : (
+                                <TaskDetailAttachments
+                                    files={vm.task.files ?? []}
+                                />
+                            )}
 
                             <p style={{ ...DETAIL_LABEL, margin: "0 0 10px" }}>
                                 {td("Description")}
