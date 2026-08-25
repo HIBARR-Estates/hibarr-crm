@@ -287,12 +287,27 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                             </div>
                                             {levelData?.current_level ? (
                                                 <div className="flex flex-col items-center gap-2">
-                                                    <LevelBadge
-                                                        level={
-                                                            levelData.current_level
-                                                        }
-                                                        showPercentage
-                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <LevelBadge
+                                                            level={
+                                                                levelData.current_level
+                                                            }
+                                                            showPercentage
+                                                        />
+                                                        {commissionOverrideEnabled &&
+                                                            commissionProfile
+                                                                ?.custom_commission_rate !=
+                                                                null && (
+                                                                <Tag color="gold">
+                                                                    Custom rate:{" "}
+                                                                    {
+                                                                        commissionProfile
+                                                                            .custom_commission_rate
+                                                                    }
+                                                                    %
+                                                                </Tag>
+                                                            )}
+                                                    </div>
                                                     {levelData.current_level
                                                         .is_hidden && (
                                                         <Tag color="default">
