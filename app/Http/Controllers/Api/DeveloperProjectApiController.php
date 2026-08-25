@@ -32,8 +32,9 @@ class DeveloperProjectApiController extends Controller
 
             $body = $this->getRequestBody($request);
             $page = max(1, (int) ($request->query('page') ?? $body['page'] ?? 1));
+            // Projects never paginate below 15 per page, regardless of request.
             $perPage = min(
-                max(1, (int) ($request->query('per_page') ?? $body['per_page'] ?? config('api.defaultLimit', 20))),
+                max(15, (int) ($request->query('per_page') ?? $body['per_page'] ?? config('api.defaultLimit', 20))),
                 config('api.maxLimit', 1000)
             );
 

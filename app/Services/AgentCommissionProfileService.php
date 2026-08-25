@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AgentCommissionRateAuditLog;
 use App\Models\LeadAgent;
+use App\Support\FeatureFlags;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -157,6 +158,26 @@ class AgentCommissionProfileService
         }
 
         return (float) ($direct ?? $override);
+    }
+
+    /**
+     * Swap a dashboard payload's current level commission percentage for the
+     * agent's unified custom rate, so agent-facing surfaces show the rate
+     * they actually earn.
+     */
+    public function applyDisplayRateToStats(LeadAgent $agent, array $stats): array
+    {
+        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
+            return $stats;
+        }
+
+        $customRate = $this->resolveUnifiedCustomRate($agent);
+
+        if ($customRate !== null && is_array($stats['current_level'] ?? null)) {
+            $stats['current_level']['commission_percentage'] = $customRate;
+        }
+
+        return $stats;
     }
 
     protected function getAuditLogs(int $agentId, int $companyId, int $perPage): LengthAwarePaginator

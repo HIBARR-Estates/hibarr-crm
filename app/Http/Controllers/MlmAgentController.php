@@ -16,6 +16,7 @@ use App\Models\MlmCycle;
 use App\Models\Deal;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
+use App\Services\AgentCommissionProfileService;
 use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
@@ -186,7 +187,9 @@ class MlmAgentController extends AccountBaseController
                 ->get()
             : [];
 
-        return $this->maskAgentLevelResponse([
+        return app(AgentCommissionProfileService::class)->applyDisplayRateToStats(
+            $agent,
+            $this->maskAgentLevelResponse([
             'current_level' => $currentLevel,
             'next_level' => $nextLevel,
             'progress_percentage' => $overallProgress,
@@ -230,7 +233,7 @@ class MlmAgentController extends AccountBaseController
                 'end_date' => $activeCycle->end_date->format('Y-m-d'),
                 'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
             ] : null,
-        ]);
+        ]));
     }
 
     /**

@@ -182,7 +182,7 @@ class DeveloperProjectController extends AccountBaseController
         $listingFilters = $request->only($filterKeys);
         DeveloperProjectListingQuery::apply($query, $listingFilters, $filtersModalEnabled);
 
-        $projects = $query->paginate(12);
+        $projects = $query->paginate(15);
 
         $developersQuery = \App\Models\Developer::where('company_id', user()->company_id)
             ->select('id', 'name', 'is_hidden')
