@@ -329,6 +329,22 @@ return [
             'sync_processing' => false,
         ],
         [
+            'slug' => 'deal_meeting_outcome_logged',
+            'name' => 'Deal Meeting Outcome Logged',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'An agent confirmed what happened at a meeting (attended, no-show, rescheduled, cancelled, or partially attended).',
+            'sync_processing' => false,
+            'metadata_schema' => [
+                'followup_id' => ['type' => 'integer', 'label' => 'Follow-Up ID'],
+                'meeting_type_name' => ['type' => 'string', 'label' => 'Meeting Type'],
+                'outcome' => ['type' => 'string', 'label' => 'Outcome'],
+                'outcome_label' => ['type' => 'string', 'label' => 'Outcome Label'],
+                'note_id' => ['type' => 'integer', 'label' => 'Note ID'],
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+            ],
+        ],
+        [
             'slug' => 'deal_task_created',
             'name' => 'Deal Task Created',
             'category' => 'deal',

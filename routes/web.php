@@ -750,6 +750,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
 
+    // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)
+    Route::prefix('api/meetings')->name('meetings.api.')->group(function () {
+        Route::get('/attendance-confirmation/pending', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'pending'])->name('attendance_confirmation.pending');
+        Route::post('/{followUp}/attendance-confirmation', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'confirm'])->name('attendance_confirmation.confirm');
+    });
+
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
 

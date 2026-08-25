@@ -93,6 +93,9 @@ class DealFollowUp extends BaseModel
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
         'duration',  // Meeting duration in minutes (nullable, defaults to 30)
+        'attendance_outcome',
+        'attendance_outcome_logged_at',
+        'attendance_outcome_logged_by',
     ];
 
     protected $casts = [
@@ -101,6 +104,7 @@ class DealFollowUp extends BaseModel
         'reminders' => 'array',  // Cast JSON to array
         'participants' => 'array',  // Cast JSON to array
         'duration' => 'integer',
+        'attendance_outcome_logged_at' => 'datetime',
     ];
 
     /** Default meeting duration (minutes) when none is set */
@@ -162,6 +166,33 @@ class DealFollowUp extends BaseModel
     public function getEffectiveDuration(): int
     {
         return $this->duration ?? self::DEFAULT_DURATION_MINUTES;
+    }
+
+    /**
+     * Computed end time (next_follow_up_date + effective duration). Null when
+     * the meeting has no scheduled date. There is no end_time column.
+     */
+    public function getEndTime(): ?\Carbon\CarbonInterface
+    {
+        if (!$this->next_follow_up_date) {
+            return null;
+        }
+
+        return $this->next_follow_up_date->copy()->addMinutes($this->getEffectiveDuration());
+    }
+
+    /**
+     * The user this meeting is "assigned" to for prompts/reminders: the deal's
+     * lead agent, falling back to the lead owner for lead-only follow-ups.
+     * Mirrors MeetingReminderSync::buildRecipients()'s resolution.
+     */
+    public function assignedAgentUserId(): ?int
+    {
+        $this->loadMissing(['deal.leadAgent', 'lead']);
+
+        $agentUserId = $this->deal?->leadAgent?->user_id ?? $this->lead?->lead_owner;
+
+        return $agentUserId ? (int) $agentUserId : null;
     }
 
     public function addedBy(): BelongsTo

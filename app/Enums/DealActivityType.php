@@ -32,6 +32,7 @@ enum DealActivityType: string
     case MEETING_SCHEDULED = 'meeting_scheduled';
     case MEETING_UPDATED = 'meeting_updated';
     case MEETING_CANCELLED = 'meeting_cancelled';
+    case MEETING_OUTCOME_LOGGED = 'meeting_outcome_logged';
 
     // Files
     case FILE_UPLOADED = 'file_uploaded';
@@ -82,6 +83,7 @@ enum DealActivityType: string
             self::MEETING_SCHEDULED => 'Meeting Scheduled',
             self::MEETING_UPDATED => 'Meeting Updated',
             self::MEETING_CANCELLED => 'Meeting Cancelled',
+            self::MEETING_OUTCOME_LOGGED => 'Meeting Outcome Logged',
             self::FILE_UPLOADED => 'File Uploaded',
             self::FILE_UPDATED => 'File Updated',
             self::FILE_DELETED => 'File Deleted',
@@ -109,7 +111,7 @@ enum DealActivityType: string
             self::NOTE_ADDED, self::NOTE_UPDATED, self::NOTE_DELETED => 'note',
             self::STAGE_CHANGED, self::PIPELINE_CHANGED, self::DEAL_WON, self::DEAL_LOST => 'stage',
             self::TASK_ADDED, self::TASK_UPDATED, self::TASK_COMPLETED, self::TASK_DELETED => 'task',
-            self::MEETING_SCHEDULED, self::MEETING_UPDATED, self::MEETING_CANCELLED => 'meeting',
+            self::MEETING_SCHEDULED, self::MEETING_UPDATED, self::MEETING_CANCELLED, self::MEETING_OUTCOME_LOGGED => 'meeting',
             self::FILE_UPLOADED, self::FILE_UPDATED, self::FILE_DELETED => 'file',
             self::PROPERTY_LINKED, self::PROPERTY_UNLINKED => 'property',
             self::PACKAGE_ASSIGNED, self::PACKAGE_REMOVED => 'package',

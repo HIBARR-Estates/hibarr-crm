@@ -33,5 +33,6 @@ return [
         'crm.leads-filter-v2',
         'crm.expose-share-links',
         'crm.tasks-workspace-redesign',
+        'crm.meeting-attendance-confirmation',
     ],
 ];
