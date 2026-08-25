@@ -82,7 +82,9 @@ export default function useTasksBulkActions({
     const bulkUpdateTarget = target;
 
     const reloadTaskList = () =>
-        router.reload({ only: ["tableTasks", "taskQuickCounts", "stats"] });
+        router.reload({
+            only: ["tableTasks", "kanbanTasks", "taskQuickCounts", "stats"],
+        });
 
     const bulkSetStatus = (column: TaskboardColumn) =>
         applyBulkAction(

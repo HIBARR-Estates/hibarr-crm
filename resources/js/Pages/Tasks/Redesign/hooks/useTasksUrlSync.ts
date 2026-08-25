@@ -46,7 +46,13 @@ function syncUrl(state: TasksUrlState) {
  */
 export default function useTasksUrlSync(state: TasksUrlState): void {
     const stateRef = useRef(state);
-    stateRef.current = state;
+    // Assigned in an effect (commit phase), not during render — a render
+    // that gets thrown away (e.g. React discarding an in-progress render)
+    // must not leave the ref pointing at state that was never actually
+    // committed, since router.on("finish") below reads it well after render.
+    useEffect(() => {
+        stateRef.current = state;
+    });
 
     useEffect(() => {
         syncUrl(stateRef.current);

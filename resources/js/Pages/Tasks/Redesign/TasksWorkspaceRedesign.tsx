@@ -128,8 +128,8 @@ export default function TasksWorkspaceRedesign({
         selected,
         selectedIds,
         clearSelection: clearRowSelection,
-        toggleSelect,
-        toggleGroupSelection,
+        toggleSelect: toggleSelectRow,
+        toggleGroupSelection: toggleGroupSelectionRows,
         allSelected,
     } = useTaskSelection();
 
@@ -141,6 +141,23 @@ export default function TasksWorkspaceRedesign({
         setSelectAllMatching(false);
         clearRowSelection();
     }, [clearRowSelection]);
+    // Any manual row/group/page-level pick has to drop "all matching" first —
+    // otherwise the bulk bar keeps showing (and acting on) the full matching
+    // set while silently ignoring the checkbox the user just clicked.
+    const toggleSelect = useCallback(
+        (id: number) => {
+            setSelectAllMatching(false);
+            toggleSelectRow(id);
+        },
+        [toggleSelectRow],
+    );
+    const toggleGroupSelection = useCallback(
+        (ids: number[], select: boolean) => {
+            setSelectAllMatching(false);
+            toggleGroupSelectionRows(ids, select);
+        },
+        [toggleGroupSelectionRows],
+    );
 
     const { persistPageSize } = usePersistedPageSize({
         storageKey: "hibarr_tasks_per_page",
@@ -173,11 +190,6 @@ export default function TasksWorkspaceRedesign({
         },
         onPersistPageSize: persistPageSize,
     });
-
-    // Result set size changed (new filters/search) — drop "all matching".
-    useEffect(() => {
-        setSelectAllMatching(false);
-    }, [pagedTableTasks.total]);
 
     const completedSlugs = useMemo(
         () =>
@@ -374,6 +386,15 @@ export default function TasksWorkspaceRedesign({
         () => JSON.stringify(filters ?? {}),
         [filters],
     );
+
+    // Result count changed, or the filters/search producing it did (even if
+    // the count happens to coincidentally match) — either way the matching
+    // set may no longer be what the user meant when they picked "all
+    // matching", so drop it rather than silently carrying it over.
+    useEffect(() => {
+        setSelectAllMatching(false);
+    }, [pagedTableTasks.total, filterSignature]);
+
     const filtersInitialized = useRef(false);
 
     useEffect(() => {

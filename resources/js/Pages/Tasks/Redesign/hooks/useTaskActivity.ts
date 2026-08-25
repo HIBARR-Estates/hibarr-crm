@@ -25,10 +25,15 @@ export default function useTaskActivity(taskId: number | null) {
     useEffect(() => {
         if (taskId === null) {
             setEntries([]);
+            setLoading(false);
             return;
         }
 
         let cancelled = false;
+        // Clear the previous task's entries immediately — otherwise they
+        // stay on screen (mislabeled as this task's activity) until the new
+        // request resolves.
+        setEntries([]);
         setLoading(true);
 
         axios
