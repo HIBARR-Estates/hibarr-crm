@@ -66,16 +66,22 @@ class DeveloperProjectListingQuery
         }
 
         if ($filtersModalEnabled) {
-            if (!empty($filters['city'])) {
-                $cities = array_map('strtolower', self::toValueArray($filters['city']));
-                $areas = !empty($filters['area'])
-                    ? array_map('strtolower', self::toValueArray($filters['area']))
-                    : [];
+            $cities = ! empty($filters['city'])
+                ? array_map('strtolower', self::toValueArray($filters['city']))
+                : [];
+            $areas = ! empty($filters['area'])
+                ? array_map('strtolower', self::toValueArray($filters['area']))
+                : [];
 
+            // Area must filter on its own too — the v2 workbench offers it as an
+            // independent multiselect, so it cannot stay nested under city.
+            if ($cities !== [] || $areas !== []) {
                 $query->whereHas('location', function ($q) use ($cities, $areas) {
-                    $q->whereIn(DB::raw('LOWER(TRIM(COALESCE(city, "")))'), $cities);
+                    if ($cities !== []) {
+                        $q->whereIn(DB::raw('LOWER(TRIM(COALESCE(city, "")))'), $cities);
+                    }
 
-                    if (!empty($areas)) {
+                    if ($areas !== []) {
                         $q->whereIn(DB::raw('LOWER(TRIM(COALESCE(area, "")))'), $areas);
                     }
                 });
