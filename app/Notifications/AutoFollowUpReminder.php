@@ -163,9 +163,11 @@ class AutoFollowUpReminder extends BaseNotification
             'starts_now' => $startsNow,
         ];
 
-        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
-        if ($meetingLink !== null) {
-            $payload['meeting_link'] = $meetingLink;
+        if (\App\Support\MeetingLocation::supportsJoinLink($followUp->location ?? null)) {
+            $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+            if ($meetingLink !== null) {
+                $payload['meeting_link'] = $meetingLink;
+            }
         }
 
         return $payload;

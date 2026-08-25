@@ -500,7 +500,7 @@
                 @endif
 
                 @php
-                    $totalMinutes = $task->timeLogged->sum('total_minutes') + $activeTimerMinutes - $breakMinutes - $activeBreakMinutes;
+                    $totalMinutes = $task->timeLogged->sum('total_minutes') + $activeTimerMinutes - ($breakMinutes ?? 0) - $activeBreakMinutes;
                     $timeLog = \Carbon\CarbonInterval::formatHuman($totalMinutes);
                 @endphp
 
