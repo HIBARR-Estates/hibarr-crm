@@ -203,6 +203,9 @@ class DeveloperProjectApiController extends Controller
         // Ensure is_hidden is always present for consumers that filter client-side
         $projectData['is_hidden'] = (bool) $project->is_hidden;
 
+        // Keep nested location shape; overlay authoritative project pins (with location fallback).
+        $projectData['location'] = $project->locationForApi();
+
         $projectData['assets'] = $project->relationLoaded('assets')
             ? $project->assets->map(fn ($asset) => $this->mapAsset($asset))->values()->toArray()
             : [];

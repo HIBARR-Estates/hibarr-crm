@@ -74,7 +74,9 @@ For DB reads, filter on `company_id`, exclude soft-deleted rows, and usually ski
 |---|---|
 | `project_location_id` | FK → `project_locations` |
 
-Useful fields on `project_locations`: `city`, `area`, `name`, `latitude`, `longitude`, `address` (JSON), `map_url`, plus attractions / infrastructure / airports JSON blobs.
+Useful fields on `project_locations`: `city`, `area`, `name`, plus attractions / infrastructure / airports / `image_url` JSON blobs (shared by area). Default `map_url` / `address` / lat / lng may still exist on the location for admin defaults and expose copy.
+
+**Authoritative map pins** live on `developer_projects`: `map_url`, `latitude`, `longitude`, `address` (JSON). Two projects in the same city+area can have different pins. API nested `location.map_url` (etc.) is overlaid from the project with fallback to location defaults.
 
 ### Commercial & classification
 
@@ -206,8 +208,10 @@ SELECT
   d.name  AS developer_name,
   pl.city,
   pl.area,
-  pl.latitude,
-  pl.longitude,
+  dp.map_url,
+  dp.latitude,
+  dp.longitude,
+  dp.address AS project_address,
   ut.id   AS unit_type_id,
   ut.reference_code AS unit_type_ref,
   ut.primary_category,
@@ -260,7 +264,7 @@ WHERE dp.deleted_at IS NULL
 | Budget / price band | Unit `starting_price` + `currency`; fall back to project `starting_price` |
 | Beds / baths / size | Unit type columns |
 | Views / styles / features | Unit `view_types`, `unit_style`, feature JSON |
-| Location | Project → `project_locations` |
+| Location | Project pins (`map_url`, address, lat/lng) + shared `project_locations` city/area |
 | Construction timing | Project `construction_status`, `completion_date` (unit may override completion) |
 | Amenities / distances / payment plan | Project JSON columns |
 | Category / property type | Unit `primary_category` + `property_type`; project `primary_categories` / `unit_types` as coarse filters only |
