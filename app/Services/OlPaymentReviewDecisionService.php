@@ -91,6 +91,46 @@ class OlPaymentReviewDecisionService
         }
     }
 
+    public function notifyOrFail(Payment $payment, string $crmStatus, ?User $admin = null): void
+    {
+        $decision = self::STATUS_TO_DECISION[$crmStatus] ?? null;
+        if ($decision === null) {
+            throw new \InvalidArgumentException("Unsupported CRM payment status for review decision: {$crmStatus}");
+        }
+
+        $externalReference = trim((string) ($payment->external_reference ?? ''));
+        if ($externalReference === '') {
+            throw new \InvalidArgumentException('Payment is missing an external reference.');
+        }
+
+        $payload = [
+            'external_reference' => $externalReference,
+            'decision' => $decision,
+            'decided_by' => [
+                'id' => $admin?->id,
+                'email' => $admin?->email,
+                'name' => $admin?->name,
+            ],
+            'decided_at' => now()->toIso8601String(),
+        ];
+
+        $response = $this->olRequest($payload, $payment, $decision, $admin);
+        if ($response === null) {
+            throw new \RuntimeException('Unable to reach payment review service.');
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status() >= 400 && $response->status() < 600
+                ? $response->status()
+                : 502;
+
+            throw new \Symfony\Component\HttpKernel\Exception\HttpException(
+                $status,
+                $response->json('message') ?? 'Payment review request failed.'
+            );
+        }
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */

@@ -54,14 +54,20 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 export default function DealViewRedesign(props: DealShowProps) {
+    const { props: pageProps } = usePage<PageProps>();
+    const featureFlags = props.featureFlags ?? pageProps.featureFlags;
+    const showOnlinePayment = featureFlags?.["packages.online-payment"] === true;
+
     return (
-        <DealWorkspaceProvider deal={props.deal}>
-            <DealViewRedesignInner {...props} />
+        <DealWorkspaceProvider deal={props.deal} paymentEnabled={showOnlinePayment}>
+            <DealViewRedesignInner {...props} showOnlinePayment={showOnlinePayment} />
         </DealWorkspaceProvider>
     );
 }
 
-function DealViewRedesignInner(props: DealShowProps) {
+function DealViewRedesignInner(
+    props: DealShowProps & { showOnlinePayment?: boolean },
+) {
     const [isDealEditMode] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
@@ -203,6 +209,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     // may change stages — otherwise the summary card renders it as advice, not
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
+    const canManagePayments = permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -605,6 +612,8 @@ function DealViewRedesignInner(props: DealShowProps) {
                                     }
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() => nav.goToDealInfo("general")}
+                                    showOnlinePayment={props.showOnlinePayment}
+                                    canManagePayments={canManagePayments}
                                 />
                             </div>
                         </div>

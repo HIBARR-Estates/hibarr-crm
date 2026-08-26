@@ -155,5 +155,10 @@ return [
             'OL_PAYMENT_REVIEW_DECISION_PATH',
             '/internal/payments/review-decision'
         ),
+        'crm_webhook_api_key' => env('CRM_WEBHOOK_API_KEY'),
+        'deal_payment_request_path' => env(
+            'OL_DEAL_PAYMENT_REQUEST_PATH',
+            '/internal/payments/deal-requests'
+        ),
     ],
 ];

@@ -340,7 +340,14 @@ class CrmWriteService
         }
 
         $externalReference = (string) $data['external_reference'];
-        $status = (string) $data['status'];
+        $incomingStatus = strtolower(trim((string) ($data['status'] ?? '')));
+        $status = match ($incomingStatus) {
+            'approved' => 'complete',
+            'rejected' => 'failed',
+            'proof_submitted', 'proof-submitted' => 'pending',
+            default => (string) $data['status'],
+        };
+        $rawStatus = strtolower(trim((string) ($data['raw_status'] ?? $data['ol_status'] ?? '')));
 
         $existing = Payment::withoutGlobalScope(CompanyScope::class)
             ->without(['order'])
@@ -358,6 +365,32 @@ class CrmWriteService
         $payment->currency_id = $currencyId;
         $payment->gateway = (string) $data['gateway'];
         $payment->status = $status;
+
+        if (!empty($data['checkout_url'])) {
+            $payment->checkout_url = (string) $data['checkout_url'];
+        }
+
+        if (!empty($data['expires_at'])) {
+            $payment->expires_at = Carbon::parse($data['expires_at']);
+        }
+
+        $olStatus = $rawStatus !== '' ? $rawStatus : $this->inferOlStatusFromWriteBack($status, $data);
+        if ($olStatus !== null) {
+            $payment->ol_status = $olStatus;
+        }
+
+        $olPaymentType = $this->inferOlPaymentTypeFromWriteBack($data);
+        if ($olPaymentType !== null) {
+            $payment->ol_payment_type = $olPaymentType;
+        }
+
+        if (array_key_exists('verified_by_user_id', $data) && $data['verified_by_user_id'] !== null) {
+            $payment->verified_by_user_id = (int) $data['verified_by_user_id'];
+        }
+
+        if (!empty($data['verified_at'])) {
+            $payment->verified_at = Carbon::parse($data['verified_at']);
+        }
 
         if (array_key_exists('transaction_id', $data)) {
             $payment->transaction_id = $data['transaction_id'] !== null && $data['transaction_id'] !== ''
@@ -459,6 +492,50 @@ class CrmWriteService
         }
 
         return $currency;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function inferOlStatusFromWriteBack(string $crmStatus, array $data): ?string
+    {
+        $original = strtolower(trim((string) ($data['status'] ?? '')));
+        if (in_array($original, ['proof_submitted', 'proof-submitted'], true)) {
+            return 'confirming';
+        }
+
+        if ($crmStatus === 'pending' && (!empty($data['proof_url']) || !empty($data['bill']))) {
+            return 'confirming';
+        }
+
+        return match ($crmStatus) {
+            'pending' => 'pending',
+            'complete' => 'completed',
+            'failed' => 'failed',
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function inferOlPaymentTypeFromWriteBack(array $data): ?string
+    {
+        if (!empty($data['ol_payment_type'])) {
+            return strtolower((string) $data['ol_payment_type']);
+        }
+
+        if (!empty($data['payment_type'])) {
+            return strtolower((string) $data['payment_type']);
+        }
+
+        $gateway = strtolower(trim((string) ($data['gateway'] ?? '')));
+
+        return match ($gateway) {
+            'manual-bank-transfer' => 'manual',
+            'nowpayments' => 'crypto',
+            default => null,
+        };
     }
 
     private function storePaymentProof(?UploadedFile $billFile, ?string $proofUrl): string
