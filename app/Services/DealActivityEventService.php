@@ -124,7 +124,7 @@ class DealActivityEventService
             'company_id' => $deal->company_id,
         ]);
 
-        $meetingTypeName = trim((string) ($followUp->meetingType?->type ?? ''));
+        $meetingTypeName = trim((string) ($followUp->meetingType?->name ?? ''));
         $meetingLabel = $meetingTypeName !== '' ? $meetingTypeName : 'Follow-up';
 
         $this->record('deal_meeting_outcome_logged', $deal, [

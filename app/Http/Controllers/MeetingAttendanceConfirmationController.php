@@ -81,7 +81,7 @@ class MeetingAttendanceConfirmationController extends Controller
             'deal_id' => $followUp->deal_id,
             'lead_id' => $followUp->lead_id,
             'contact_name' => $contactName,
-            'meeting_type_label' => $followUp->meetingType?->type,
+            'meeting_type_label' => $followUp->meetingType?->name,
             'scheduled_at' => $followUp->next_follow_up_date?->toIso8601String(),
             'duration' => $followUp->effective_duration,
             'location' => $followUp->location,

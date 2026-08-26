@@ -16,9 +16,10 @@ use Tests\TestCase;
 
 /**
  * The eligibility window ("ended >= 5 minutes ago") and the non-retroactivity
- * cutoff (never prompt for a meeting that ended before the feature was turned
- * on for the company) are the two hard requirements for this feature — this
- * test is about proving both hold, not general CRUD coverage.
+ * cutoff (never prompt for a meeting that already existed — i.e. started —
+ * before the feature was turned on for the company, regardless of when it
+ * happens to end) are the two hard requirements for this feature — this test
+ * is about proving both hold, not general CRUD coverage.
  */
 class MeetingAttendanceConfirmationServiceTest extends TestCase
 {
@@ -40,6 +41,10 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
 
         Cache::flush();
         Config::set('meetings.attendance_confirmation_company_allowlist', '10');
+        // Pinned explicitly so a developer's local .env (MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE,
+        // set for manual browser testing) can't leak into this suite and short-circuit
+        // globallyEnabled() ahead of the remote-flag override below.
+        Config::set('meetings.attendance_confirmation_force_enable', false);
         $this->setFeatureFlag('crm.meeting-attendance-confirmation', true);
 
         DB::table('companies')->insert(['id' => 10, 'company_name' => 'Acme']);
@@ -96,6 +101,22 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->makeFollowUp(1, endedMinutesAgo: 60);
 
         $this->assertNotNull($this->service->pendingForUser($this->agent()));
+    }
+
+    public function test_meeting_that_started_before_activation_is_excluded_even_if_it_ended_after(): void
+    {
+        // Meeting: started 20 min ago, 10-min duration -> ended 10 min ago.
+        // Activation: stamped 15 min ago -- after the meeting started, before it ended.
+        // A meeting already on the calendar before activation is "existing" and must
+        // stay excluded, even though its end time is after activation and clears the
+        // 5-minute delay on its own.
+        $this->activateCompany(10, now()->subMinutes(15));
+        $this->makeFollowUp(1, endedMinutesAgo: 10, duration: 10);
+
+        $this->assertNull(
+            $this->service->pendingForUser($this->agent()),
+            'A meeting that started before activation must never be prompted, even if it ended after activation.'
+        );
     }
 
     public function test_already_logged_meeting_is_excluded(): void
@@ -172,9 +193,9 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
     private function makeFollowUp(
         int $id,
         int $endedMinutesAgo,
-        ?Carbon $attendanceOutcomeLoggedAt = null
+        ?Carbon $attendanceOutcomeLoggedAt = null,
+        int $duration = 30
     ): void {
-        $duration = 30;
         $start = now()->subMinutes($endedMinutesAgo + $duration);
 
         DB::table('lead_follow_up')->insert([

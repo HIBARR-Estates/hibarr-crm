@@ -43,6 +43,7 @@ export default function MeetingAttendanceConfirmationModal({
         null,
     );
     const [note, setNote] = useState("");
+    const [noteFocused, setNoteFocused] = useState(false);
 
     const outcomes: OutcomeDef[] = useMemo(
         () => [
@@ -139,8 +140,9 @@ export default function MeetingAttendanceConfirmationModal({
         : td(`Did ${contactName} attend the meeting?`);
 
     const scheduled = meeting.scheduled_at ? dayjs(meeting.scheduled_at) : null;
+    const meetingLabel = meetingTypeLabel ? `${meetingTypeLabel} meeting` : "meeting";
     const noteLabel = td(
-        `Remark after meeting with ${contactName} — ${
+        `Remark after ${meetingLabel} with ${contactName} — ${
             scheduled ? formatCompanyDate(meeting.scheduled_at) : ""
         }`,
     );
@@ -183,6 +185,9 @@ export default function MeetingAttendanceConfirmationModal({
                 borderRadius: 14,
                 boxShadow: "0 20px 50px rgba(22,41,77,0.18)",
                 overflow: "hidden",
+                // TaskModalShell programmatically focuses this panel on open;
+                // without this the browser's default focus ring renders around it.
+                outline: "none",
             }}
         >
             <div
@@ -444,17 +449,24 @@ export default function MeetingAttendanceConfirmationModal({
                                     id="meeting-attendance-note"
                                     value={note}
                                     onChange={(event) => setNote(event.target.value)}
+                                    onFocus={() => setNoteFocused(true)}
+                                    onBlur={() => setNoteFocused(false)}
                                     placeholder={td("Add an optional note…", { source: "en" })}
                                     rows={3}
                                     style={{
                                         width: "100%",
                                         resize: "vertical",
-                                        border: "1px solid #e2e5ea",
+                                        border: `1px solid ${noteFocused ? "#b8d4f0" : "#e2e5ea"}`,
                                         borderRadius: 8,
                                         padding: "10px 12px",
                                         fontFamily: "inherit",
                                         fontSize: 13,
                                         color: "#1a1f2e",
+                                        // Browser default focus ring can render as an odd
+                                        // (sometimes red) outline depending on OS accent color;
+                                        // replace it with the app's own blue focus treatment.
+                                        outline: "none",
+                                        boxShadow: noteFocused ? "0 0 0 2px #e8f1fb" : "none",
                                     }}
                                 />
                             </div>
