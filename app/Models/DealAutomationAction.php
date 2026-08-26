@@ -20,10 +20,12 @@ class DealAutomationAction extends BaseModel
         'forward_only',
         'field_name',
         'field_value',
+        'payload',
     ];
 
     protected $casts = [
         'forward_only' => 'boolean',
+        'payload' => 'array',
     ];
 
     /**

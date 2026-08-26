@@ -12,6 +12,7 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\LeadContactMethodService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
+use App\Services\LeadAutomationService;
 use App\Services\MlmNotificationService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
@@ -137,6 +138,8 @@ class LeadObserver
                 );
             });
         }
+
+        app(LeadAutomationService::class)->process($leadContact, 'lead_created');
     }
 
     public function deleting(Lead $leadContact)
@@ -187,6 +190,8 @@ class LeadObserver
         }
 
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
+
+        app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
 
         if (isRunningInConsoleOrSeeding()) {
             return;
