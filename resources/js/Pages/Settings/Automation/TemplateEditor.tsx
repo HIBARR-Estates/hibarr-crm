@@ -9,6 +9,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { EmailTemplate, VariableMapping } from "./types";
 import { conditionFieldGroups, mergeTagGroups } from "./config/builderFields";
 import { buildPreviewHtml } from "./adapters/emailPreview";
+import { extractMergeTags, flattenFieldKeys } from "./adapters/mergeTags";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useEmailTemplateMutations from "./hooks/useEmailTemplateMutations";
 import TagPickerButton from "./components/TagPickerButton";
@@ -79,6 +80,35 @@ export default function TemplateEditor({ template, onBack }: TemplateEditorProps
             return "";
         }
     }, [debouncedSubject, debouncedPreheader, debouncedBody, mode]);
+
+    // Auto-detect {{tags}} typed directly into Subject/Preheader/Body and add
+    // them to the Merge Tags list below — mirrors what most ESP template
+    // editors do, and means a hand-typed tag isn't silently unmapped/forgotten.
+    // Only adds; never removes a row for a tag you've since deleted from the
+    // text, since a mapping might still be wanted (e.g. mid-edit).
+    useEffect(() => {
+        const tags = extractMergeTags(`${debouncedSubject} ${debouncedPreheader} ${debouncedBody}`);
+        if (tags.length === 0) return;
+
+        const validKeys = flattenFieldKeys(mergeGroups);
+        setMappings((prev) => {
+            const known = new Set(prev.map((m) => m.variable));
+            const additions = tags.filter((tag) => !known.has(tag));
+            if (additions.length === 0) return prev;
+
+            return [
+                ...prev,
+                ...additions.map((tag) => ({
+                    variable: tag,
+                    type: "field" as const,
+                    // Pre-fill the field when the tag name already is a valid
+                    // field key (the common case) — otherwise leave it for
+                    // the user to pick from the dropdown.
+                    field: validKeys.has(tag) ? tag : "",
+                })),
+            ];
+        });
+    }, [debouncedSubject, debouncedPreheader, debouncedBody, mergeGroups]);
 
     function handleFrameLoad() {
         try {

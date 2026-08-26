@@ -14,6 +14,7 @@ import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fiel
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
 import TagPickerButton from "./components/TagPickerButton";
+import UnconnectedTagsWarning from "./components/UnconnectedTagsWarning";
 
 interface AutomationBuilderProps {
     automation?: Automation;
@@ -602,6 +603,10 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                             className="w-full"
                                         />
                                     </div>
+                                    <UnconnectedTagsWarning
+                                        template={templates.find((tpl) => tpl.id === step.email_template_id)}
+                                        validGroups={mergeGroups}
+                                    />
                                     <div>
                                         <label style={fieldLabelStyle}>{t("app.automation.sendTo")}</label>
                                         <div className="flex flex-wrap gap-3">

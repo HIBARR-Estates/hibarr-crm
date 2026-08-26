@@ -676,6 +676,7 @@ return [
         'sameAsSource' => 'Same as source',
         'forwardOnly' => 'Forward only',
         'lockDealHint' => 'This locks the deal, preventing further changes to its stage, value, and other key fields.',
+        'unconnectedTagsHint' => 'These merge tags aren\'t available to this automation and will send blank:',
         'sendTo' => 'Send to',
         'specificUsers' => 'Specific user(s)',
         'customEmails' => 'Custom email address(es)',
