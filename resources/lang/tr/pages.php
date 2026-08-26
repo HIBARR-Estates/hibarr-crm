@@ -734,6 +734,7 @@ return [
             'banner_single_limit'   => 'Bu CRM, anlaşma başına yalnızca bir paket veya mülke izin verecek şekilde yapılandırılmıştır.',
             'section_lead'          => 'Aday',
             'section_deal_details'  => 'Anlaşma detayları',
+            'section_payment'       => 'Ödeme',
             'section_documents'     => 'Dökümanlar',
             'messages' => [
                 'email_copied' => 'E-posta kopyalandı',
