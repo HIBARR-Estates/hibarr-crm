@@ -131,6 +131,18 @@ export default function SettingsIndex({
                             }
                         `}
                         onClick={card.onOpen}
+                        role={card.onOpen ? "button" : undefined}
+                        tabIndex={card.onOpen ? 0 : undefined}
+                        onKeyDown={
+                            card.onOpen
+                                ? (e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          card.onOpen?.();
+                                      }
+                                  }
+                                : undefined
+                        }
                     >
                         <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${card.iconBg} ${card.iconColor}`}

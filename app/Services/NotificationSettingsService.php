@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\EmailNotificationSetting;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -54,10 +55,14 @@ class NotificationSettingsService
             throw new InvalidArgumentException("Unknown notification setting column [{$column}].");
         }
 
-        EmailNotificationSetting::where($column, 'yes')->update([$column => 'no']);
+        DB::transaction(function () use ($column, $enabledIds) {
+            EmailNotificationSetting::lockForUpdate()->get();
 
-        if ($enabledIds !== []) {
-            EmailNotificationSetting::whereIn('id', $enabledIds)->update([$column => 'yes']);
-        }
+            EmailNotificationSetting::where($column, 'yes')->update([$column => 'no']);
+
+            if ($enabledIds !== []) {
+                EmailNotificationSetting::whereIn('id', $enabledIds)->update([$column => 'yes']);
+            }
+        });
     }
 }
