@@ -198,6 +198,21 @@ class DealFollowUp extends BaseModel
         return $agentUserId ? (int) $agentUserId : null;
     }
 
+    /**
+     * Whether this follow-up's deal or lead belongs to $companyId. Route-model
+     * binding by ID alone doesn't scope by company (this model has no
+     * CompanyScope), so callers that authorize by ID — the attendance
+     * confirmation endpoints — need this alongside assignedAgentUserId() to
+     * reject a follow-up from a company the requesting user isn't in.
+     */
+    public function belongsToCompany(int $companyId): bool
+    {
+        $this->loadMissing(['deal', 'lead']);
+
+        return ($this->deal && (int) $this->deal->company_id === $companyId)
+            || ($this->lead && (int) $this->lead->company_id === $companyId);
+    }
+
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');

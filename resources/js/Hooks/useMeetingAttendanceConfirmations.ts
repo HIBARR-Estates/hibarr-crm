@@ -47,8 +47,13 @@ export function useMeetingAttendanceConfirmations(enabled: boolean) {
 
         setItems((prev) => {
             const prevIds = new Set(prev.map((i) => i.id));
-            const serverIds = new Set(serverItems.map((i) => i.id));
-            const kept = prev.filter((i) => serverIds.has(i.id));
+            const serverById = new Map(serverItems.map((i) => [i.id, i]));
+            // Items still present server-side use the FRESH server copy, not
+            // the stale local one — otherwise a rescheduled time/location
+            // never reaches an item this hook already knew about.
+            const kept = prev
+                .filter((i) => serverById.has(i.id))
+                .map((i) => serverById.get(i.id)!);
             const added = serverItems.filter((i) => !prevIds.has(i.id));
             return sortByScheduledAt([...kept, ...added]);
         });

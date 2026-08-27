@@ -22,6 +22,7 @@ class MeetingAttendanceConfirmationController extends Controller
     public function pending(): JsonResponse
     {
         $followUps = $this->service->pendingListForUser(user());
+        DealFollowUp::attachParticipantUsers($followUps);
 
         return response()->json([
             'status' => 'success',
@@ -32,7 +33,7 @@ class MeetingAttendanceConfirmationController extends Controller
 
     public function confirm(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        if ($followUp->assignedAgentUserId() !== (int) user()->id) {
+        if (!$this->authorizedFor($followUp)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'You do not have permission to confirm this meeting.',
@@ -60,7 +61,7 @@ class MeetingAttendanceConfirmationController extends Controller
 
     public function snooze(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        if ($followUp->assignedAgentUserId() !== (int) user()->id) {
+        if (!$this->authorizedFor($followUp)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'You do not have permission to snooze this meeting.',
@@ -84,11 +85,23 @@ class MeetingAttendanceConfirmationController extends Controller
         ]);
     }
 
+    /**
+     * $followUp must belong to the current user's company (this model has no
+     * automatic CompanyScope, so route-model binding by ID alone doesn't
+     * enforce that) AND be assigned to them specifically.
+     */
+    private function authorizedFor(DealFollowUp $followUp): bool
+    {
+        $companyId = user()->company_id ? (int) user()->company_id : null;
+
+        return $companyId !== null
+            && $followUp->belongsToCompany($companyId)
+            && $followUp->assignedAgentUserId() === (int) user()->id;
+    }
+
     private function present(DealFollowUp $followUp): array
     {
         $followUp->loadMissing(['deal.contact', 'lead', 'meetingType']);
-
-        DealFollowUp::attachParticipantUsers(collect([$followUp]));
 
         $contactName = $followUp->deal?->contact?->client_name
             ?? $followUp->lead?->client_name

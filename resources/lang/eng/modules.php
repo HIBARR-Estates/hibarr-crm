@@ -825,6 +825,8 @@ return array(
         'companyPhone' => 'Company Phone',
         'companyWebsite' => 'Company Website',
         'companyDefaultLeadCreator' => 'Company Default Lead Creator',
+        'meetingAttendanceConfirmationActiveSince' => 'Meeting attendance confirmation — active since',
+        'meetingAttendanceConfirmationActiveSinceHelp' => 'Only meetings scheduled after this moment are ever prompted for an attendance outcome. Leave blank to let it activate automatically the next time the feature is checked for this company.',
         'companyLogo' => 'Company Logo',
         'darkCompanyLogo' => 'Dark Mode Logo',
         'lightCompanyLogo' => 'Light Mode Logo',

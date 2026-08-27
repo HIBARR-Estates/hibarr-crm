@@ -66,17 +66,24 @@ export default function AttendancePanel({
         if (!current) return;
         const item = current;
 
-        // Optimistic: hide it and fire the request in the background instead of
-        // waiting on the response — a failure here just means the next 60s poll
-        // re-adds it, which is an acceptable self-heal for how low-stakes this is.
+        // Optimistic: hide it right away instead of waiting on the response —
+        // a failure here just means the next 60s poll re-adds it, which is an
+        // acceptable self-heal for how low-stakes this is.
         onSnoozed(item);
-        snoozeMutation.mutate({});
+
+        // Undo posts `{ minutes: 0 }` to the same endpoint to clear the snooze.
+        // If that request reached the server before this one (network jitter,
+        // no ordering guarantee across two independent requests), the snooze
+        // would land last and "win", leaving the meeting snoozed despite the
+        // user clicking Undo. Chaining onto this promise instead of firing
+        // both concurrently guarantees the clear always happens after the set.
+        const snoozed = snoozeMutation.mutateAsync({}).catch(() => {});
 
         alert?.push({
             id: `attendance-snooze-${item.id}-${Date.now()}`,
             title: td("Snoozed", { source: "en" }),
             meta: td(
-                `${item.contact_name || "This meeting"} · back in 1 hour`,
+                `${item.contact_name || "This meeting"} · you'll be reminded again later`,
                 { source: "en" },
             ),
             severity: "gray",
@@ -84,18 +91,20 @@ export default function AttendancePanel({
                 {
                     label: td("Undo", { source: "en" }),
                     onClick: () => {
-                        onRestore(item);
-                        axios
-                            .post(
-                                route(
-                                    "meetings.api.attendance_confirmation.snooze",
-                                    {
-                                        followUp: item.id,
-                                    },
+                        snoozed
+                            .then(() =>
+                                axios.post(
+                                    route(
+                                        "meetings.api.attendance_confirmation.snooze",
+                                        { followUp: item.id },
+                                    ),
+                                    { minutes: 0 },
                                 ),
-                                { minutes: 0 },
                             )
-                            .catch(() => {});
+                            .then(() => onRestore(item));
+                        // No .catch()-driven restore: if the clear genuinely
+                        // fails, the meeting really is still snoozed server-side —
+                        // showing it again here would disagree with that.
                     },
                 },
             ],
@@ -401,6 +410,7 @@ export default function AttendancePanel({
                         </span>
                         <button
                             type="button"
+                            aria-label={td("Previous meeting", { source: "en" })}
                             disabled={effPage <= 0}
                             onClick={() =>
                                 onPageChange(Math.max(0, effPage - 1))
@@ -422,6 +432,7 @@ export default function AttendancePanel({
                         </button>
                         <button
                             type="button"
+                            aria-label={td("Next meeting", { source: "en" })}
                             disabled={effPage >= active - 1}
                             onClick={() =>
                                 onPageChange(Math.min(active - 1, effPage + 1))

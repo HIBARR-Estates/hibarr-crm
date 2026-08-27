@@ -52,6 +52,10 @@ return [
     | becomes eligible to prompt again.
     |
     */
-    'attendance_confirmation_snooze_minutes' => (int) env('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES', 60),
+    'attendance_confirmation_snooze_minutes' => (function () {
+        $value = filter_var(env('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES'), FILTER_VALIDATE_INT);
+
+        return $value !== false && $value > 0 ? $value : 60;
+    })(),
 
 ];

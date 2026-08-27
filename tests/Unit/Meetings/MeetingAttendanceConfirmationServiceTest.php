@@ -43,9 +43,12 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         Cache::flush();
         Config::set('meetings.attendance_confirmation_company_allowlist', '10');
         // Pinned explicitly so a developer's local .env (MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE,
-        // set for manual browser testing) can't leak into this suite and short-circuit
-        // globallyEnabled() ahead of the remote-flag override below.
+        // MEETING_ATTENDANCE_CONFIRMATION_DELAY_MINUTES, ... — set for manual browser
+        // testing) can't leak into this suite and short-circuit globallyEnabled() ahead
+        // of the remote-flag override below, or shift the 5-minute eligibility window
+        // the tests below assume.
         Config::set('meetings.attendance_confirmation_force_enable', false);
+        Config::set('meetings.attendance_confirmation_delay_minutes', 5);
         $this->setFeatureFlag('crm.meeting-attendance-confirmation', true);
 
         DB::table('companies')->insert(['id' => 10, 'company_name' => 'Acme']);
@@ -207,6 +210,21 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
 
         $this->assertNotNull($snoozed->attendance_confirmation_snoozed_until);
         $this->assertTrue($snoozed->attendance_confirmation_snoozed_until->between(now()->addMinutes(44), now()->addMinutes(46)));
+    }
+
+    public function test_snooze_zero_minutes_clears_an_existing_snooze_immediately(): void
+    {
+        // This is the "Undo" mechanism the frontend uses — a zero-minute
+        // snooze must resolve to a moment already in the past, not "now plus
+        // zero", so the meeting is immediately eligible again.
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, snoozedUntil: now()->addHour());
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp, 0);
+
+        $this->assertTrue($snoozed->attendance_confirmation_snoozed_until->lte(now()));
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent()));
     }
 
     public function test_snooze_is_a_no_op_on_an_already_resolved_meeting(): void

@@ -72,16 +72,14 @@
                     <div class="col-lg-6">
                         <div class="form-group my-3">
                             <label for="meeting_attendance_confirmation_enabled_at">
-                                Meeting attendance confirmation — active since
+                                {{ __('modules.accountSettings.meetingAttendanceConfirmationActiveSince') }}
                             </label>
                             <input type="datetime-local" class="form-control height-35 f-14"
                                    name="meeting_attendance_confirmation_enabled_at"
                                    id="meeting_attendance_confirmation_enabled_at"
                                    value="{{ company()->meeting_attendance_confirmation_enabled_at?->format('Y-m-d\TH:i') }}">
                             <small class="form-text text-muted">
-                                Only meetings scheduled after this moment are ever prompted for an
-                                attendance outcome. Leave blank to let it activate automatically the
-                                next time the feature is checked for this company.
+                                {{ __('modules.accountSettings.meetingAttendanceConfirmationActiveSinceHelp') }}
                             </small>
                         </div>
                     </div>
