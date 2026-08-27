@@ -183,7 +183,7 @@ class   TicketDataTable extends BaseDataTable
             return view($viewComponent, ['user' => $row->requester]);
         });
 
-        $datatables->editColumn('updated_at', fn($row) => $row->created_at?->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format));
+        $datatables->editColumn('updated_at', fn($row) => $row->created_at?->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format));
         $datatables->setRowId(fn($row) => 'row-' . $row->id);
         $datatables->orderColumn('user_id', 'name $1');
         $datatables->orderColumn('status', 'id $1');
