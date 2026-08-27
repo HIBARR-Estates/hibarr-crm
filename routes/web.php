@@ -1084,6 +1084,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('/delete', [NotificationController::class, 'apiDelete'])->name('delete');
         Route::post('/delete-multiple', [NotificationController::class, 'apiDeleteMultiple'])->name('delete_multiple');
         Route::post('/delete-all-read', [NotificationController::class, 'apiDeleteAllRead'])->name('delete_all_read');
+        Route::put('/alert-settings', [NotificationController::class, 'apiUpdateAlertSettings'])->name('alert_settings.update');
     });
 
     // Notification Page Route (Inertia)

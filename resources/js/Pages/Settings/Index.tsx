@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -9,8 +10,9 @@ import {
     CalendarIcon,
     CheckSquareIcon,
 } from "../../Components/icons";
-import { FileTextOutlined, BellOutlined } from "@ant-design/icons";
+import { FileTextOutlined, BellOutlined, NotificationOutlined } from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
+import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
 interface EntitySettingCard {
     key: string;
@@ -29,6 +31,10 @@ export default function SettingsIndex({
     pageTitle: string;
 }) {
     const { t } = useTranslation();
+    const { permissions } = usePermission();
+    const canManageNotifications = isPermissionAll(
+        permissions.manage_notification_setting,
+    );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
 
     const cards: EntitySettingCard[] = [
@@ -87,6 +93,23 @@ export default function SettingsIndex({
             description: t("app.settingsHub.remindersDesc"),
             connected: false,
         },
+        ...(canManageNotifications
+            ? [
+                  {
+                      key: "notifications",
+                      icon: <NotificationOutlined />,
+                      iconBg: "bg-indigo-50",
+                      iconColor: "text-indigo-500",
+                      title: t("app.menu.notificationSettings"),
+                      description: t("app.settingsHub.notificationsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(
+                              route("notification-settings-manager.index"),
+                          ),
+                  },
+              ]
+            : []),
     ];
 
     return (

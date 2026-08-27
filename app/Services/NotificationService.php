@@ -228,7 +228,7 @@ class NotificationService
             'event_invite' => __('email.eventInvite.subject'),
             'event_reminder' => __('email.eventReminder.subject'),
             'new_appreciation' => __('email.newAppreciation.subject'),
-            'birthday_reminder' => __('email.birthdayReminder.subject'),
+            'birthday_reminder' => __('email.BirthdayReminder.subject'),
             'contract_signed' => __('email.contractSigned.subject'),
             'new_discussion' => __('email.discussion.subject'),
             'new_discussion_reply' => __('email.discussionReply.subject'),

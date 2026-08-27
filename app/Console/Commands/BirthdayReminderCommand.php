@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Events\BirthdayReminderEvent;
 use App\Models\Company;
+use App\Models\EmailNotificationSetting;
 use App\Models\EmployeeDetails;
 use Illuminate\Console\Command;
 
@@ -39,6 +40,22 @@ class BirthdayReminderCommand extends Command
         Company::active()->select('id')->chunk(50, function ($companies) use ($currentDay) {
             // Loop through each company
             foreach ($companies as $company) {
+                // Skip companies that have fully disabled birthday notifications on every
+                // channel — no point querying employees just to build a via() that returns [].
+                $setting = EmailNotificationSetting::where('company_id', $company->id)
+                    ->where('slug', 'birthday-notification')
+                    ->first();
+
+                if (
+                    $setting
+                    && $setting->send_database === 'no'
+                    && $setting->send_email === 'no'
+                    && $setting->send_slack === 'no'
+                    && $setting->send_push === 'no'
+                ) {
+                    continue;
+                }
+
                 // Retrieve all active employees with an upcoming birthday for the current company
                 $upcomingBirthday = EmployeeDetails::join('users', 'employee_details.user_id', '=', 'users.id')
                     ->where('employee_details.company_id', $company->id)

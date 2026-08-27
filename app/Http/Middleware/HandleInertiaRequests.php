@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\UserNotificationAlertSetting;
 use App\Services\I18nTranslationService;
 use App\Support\FeatureFlags;
+use App\Support\MeetingAttendanceConfirmationFeature;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -20,8 +21,8 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    // protected $rootView = 'layouts.inertia_vite';
-    protected $rootView = 'layouts.inertia_alt';
+    protected $rootView = 'layouts.inertia_vite';
+    // protected $rootView = 'layouts.inertia_alt';
 
     /**
      * Get the root view based on the bundler configuration.
@@ -89,7 +90,7 @@ class HandleInertiaRequests extends Middleware
             'locale' => fn () => $this->getCurrentLocale(),
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
-            'featureFlags' => fn () => FeatureFlags::forInertia(),
+            'featureFlags' => fn () => $this->getFeatureFlagsForInertia(),
             'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
@@ -170,6 +171,26 @@ class HandleInertiaRequests extends Middleware
         }
     }
      /**
+     * Feature flags for the client, with crm.meeting-attendance-confirmation
+     * resolved through MeetingAttendanceConfirmationFeature::globallyEnabled()
+     * instead of the raw remote flag — so MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE
+     * (the same local/dev bypass the backend eligibility check already honors)
+     * also unblocks the frontend poller, rather than only the API endpoints.
+     *
+     * @return array<string, bool>
+     */
+    private function getFeatureFlagsForInertia(): array
+    {
+        $flags = FeatureFlags::forInertia();
+
+        if (array_key_exists('crm.meeting-attendance-confirmation', $flags)) {
+            $flags['crm.meeting-attendance-confirmation'] = MeetingAttendanceConfirmationFeature::globallyEnabled();
+        }
+
+        return $flags;
+    }
+
+    /**
      * Get default currency symbol safely
      */
     private function getDefaultCurrencySymbol(): ?string
