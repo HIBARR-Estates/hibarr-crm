@@ -9,6 +9,7 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use Illuminate\Support\Facades\Log;
 
 class SubTaskController extends AccountBaseController
 {
@@ -64,7 +65,12 @@ class SubTaskController extends AccountBaseController
 
         $subTask->assigned_to = $request->user_id ? $request->user_id : null;
 
-        $subTask->save();
+        // The redesigned task detail's checklist is a plain checkbox list
+        // backed by this same SubTask table — ticking/adding an item isn't
+        // an assignment or a milestone worth emailing/notifying anyone
+        // about, unlike a real sub-task. The frontend flags these requests
+        // so SubTaskCompletedListener can skip notifications just for them.
+        $this->withSubTaskNotificationsSuppressedIfChecklist($request, fn () => $subTask->save());
 
         $task = $subTask->task;
         $this->task = Task::with(['subtasks', 'subtasks.files'])->findOrFail($subTask->task_id);
@@ -83,7 +89,10 @@ class SubTaskController extends AccountBaseController
     public function destroy($id)
     {
         $subTask = SubTask::findOrFail($id);
-        SubTask::destroy($id);
+        $this->withSubTaskNotificationsSuppressedIfChecklist(
+            request(),
+            fn () => SubTask::destroy($id),
+        );
 
         $this->userId = UserService::getUserId();
         $this->clientIds = ClientContact::where('user_id', $this->userId)->pluck('client_id')->toArray();
@@ -96,17 +105,26 @@ class SubTaskController extends AccountBaseController
 
     public function changeStatus(Request $request)
     {
-        $subTask = SubTask::findOrFail($request->subTaskId);
-        $subTask->status = $request->status;
-        $subTask->save();
+        try {
+            $subTask = SubTask::findOrFail($request->subTaskId);
+            $subTask->status = $request->status;
+            $this->withSubTaskNotificationsSuppressedIfChecklist($request, fn () => $subTask->save());
 
-        $this->task = Task::with(['subtasks', 'subtasks.files'])->findOrFail($subTask->task_id);
-        $this->logTaskActivity($this->task->id, user()->id, 'subTaskUpdateActivity', $this->task ->board_column_id, $subTask->id);
+            $this->task = Task::with(['subtasks', 'subtasks.files'])->findOrFail($subTask->task_id);
+            $this->logTaskActivity($this->task->id, user()->id, 'subTaskUpdateActivity', $this->task ->board_column_id, $subTask->id);
 
-        $view = view('tasks.sub_tasks.show', $this->data)->render();
+            $view = view('tasks.sub_tasks.show', $this->data)->render();
 
+            return Reply::successWithData(__('messages.updateSuccess'), ['view' => $view]);
+        } catch (\Exception $e) {
+            Log::error('SubTaskController::changeStatus failed', [
+                'subTaskId' => $request->subTaskId,
+                'status' => $request->status,
+                'error' => $e->getMessage(),
+            ]);
 
-        return Reply::successWithData('messages.updateSuccess', ['view' => $view]);
+            return response()->json(Reply::error($e->getMessage()), 500);
+        }
     }
 
     /**
@@ -136,6 +154,30 @@ class SubTaskController extends AccountBaseController
         $view = view('tasks.sub_tasks.show', $this->data)->render();
 
         return Reply::successWithData(__('messages.updateSuccess'), ['view' => $view]);
+    }
+
+    /**
+     * Runs $action (a save()/destroy()) with SubTask notifications suppressed
+     * when the request is flagged `checklist=1` — set by the redesigned task
+     * detail's checklist (useTaskCheckpoints.ts), never by the legacy Sub
+     * Tasks UI, so real sub-task assignment/completion notifications are
+     * untouched. SubTaskCompletedListener checks this same container flag.
+     */
+    private function withSubTaskNotificationsSuppressedIfChecklist(Request $request, \Closure $action): void
+    {
+        if (!$request->boolean('checklist')) {
+            $action();
+
+            return;
+        }
+
+        app()->instance('suppress_subtask_notifications', true);
+
+        try {
+            $action();
+        } finally {
+            app()->forgetInstance('suppress_subtask_notifications');
+        }
     }
 
 }

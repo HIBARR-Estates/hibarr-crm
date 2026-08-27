@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -10,7 +10,12 @@ import {
     CalendarIcon,
     CheckSquareIcon,
 } from "../../Components/icons";
-import { FileTextOutlined, BellOutlined, NotificationOutlined } from "@ant-design/icons";
+import {
+    FileTextOutlined,
+    BellOutlined,
+    NotificationOutlined,
+    ThunderboltOutlined,
+} from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
 import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
@@ -36,8 +41,28 @@ export default function SettingsIndex({
         permissions.manage_notification_setting,
     );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
+    const pageProps = usePage().props as {
+        featureFlags?: Record<string, boolean>;
+    };
+    const automationV2Enabled =
+        pageProps.featureFlags?.["crm.automation-v2"] === true;
 
     const cards: EntitySettingCard[] = [
+        {
+            key: "automation",
+            icon: <ThunderboltOutlined />,
+            iconBg: "bg-indigo-50",
+            iconColor: "text-indigo-500",
+            title: t("app.menu.automation"),
+            description: t("app.settingsHub.automationDesc"),
+            connected: true,
+            onOpen: () =>
+                router.visit(
+                    automationV2Enabled
+                        ? route("settings-automation.index")
+                        : route("company-settings.deal_automations"),
+                ),
+        },
         {
             key: "leads",
             icon: <PersonIcon />,
@@ -114,11 +139,11 @@ export default function SettingsIndex({
 
     return (
         <PageLayout
-            title={pageTitle}
             breadcrumbs={[{ name: pageTitle }]}
             config={{ showTitle: true }}
         >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="max-w-screen-2xl mx-auto w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cards.map((card) => (
                     <div
                         key={card.key}
@@ -187,6 +212,7 @@ export default function SettingsIndex({
                         </div>
                     </div>
                 ))}
+                </div>
             </div>
 
             <Drawer

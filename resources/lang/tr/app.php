@@ -115,6 +115,7 @@ return [
         ],
         'reminderDefaults' => 'Hatırlatıcı Varsayılanları',
         'entityReminderDefaults' => 'Hatırlatıcı Varsayılanları',
+        'integrationsHub' => 'Entegrasyon Merkezi',
     ],
 
     // Breadcrumb

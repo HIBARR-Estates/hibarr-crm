@@ -1,4 +1,4 @@
-import { parseTaskDateTime } from "@/lib/taskDateTime";
+import { formatTaskCompanyTime, parseTaskDateTime } from "@/lib/taskDateTime";
 import {
     formatDate,
     formatDateWithTime,
@@ -58,6 +58,8 @@ export interface TaskViewModel {
     dueBorder: string;
     people: TaskPerson[];
     peopleLabel: string;
+    /** Full linked-record list, unlike `links` below which caps at 2 for compact cards. */
+    allLinks: LinkedRecord[];
     links: LinkedRecord[];
     extraLinks: number;
     titleColor: string;
@@ -147,7 +149,11 @@ function dueDisplay(due: Date | null, now: Date): string {
     const dayDiff = Math.round(
         (startOfDay(due).getTime() - startOfDay(now).getTime()) / MS_PER_DAY,
     );
-    const time = formatDateWithTime(due).split(" ").slice(-1)[0] ?? "";
+    // Was slicing the last space-separated token off the combined date+time
+    // string to get "the time" — worked for 24h formats ("17:00", no
+    // internal space) but for a 12h company format ("5:00 PM") that token
+    // is just "PM", silently dropping the actual time.
+    const time = formatTaskCompanyTime(due, "");
 
     if (dayDiff === 0) return time ? `Today · ${time}` : "Today";
     if (dayDiff === -1) return time ? `Yesterday · ${time}` : "Yesterday";
@@ -267,6 +273,7 @@ export function toTaskViewModel(
                 : people.length > 1
                   ? `${people[0].name} +${people.length - 1}`
                   : people[0].name,
+        allLinks,
         links: allLinks.slice(0, 2),
         extraLinks: Math.max(0, allLinks.length - 2),
         titleColor: done ? "#9ca3af" : "#1a1f2e",

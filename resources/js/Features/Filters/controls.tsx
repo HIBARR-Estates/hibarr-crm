@@ -376,6 +376,36 @@ export function TokenSelect({
     );
 }
 
+/** Single-value searchable select, e.g. "Project" — same pattern as TokenSelect but scalar. */
+export function SingleSelect({
+    options,
+    value,
+    onChange,
+    placeholder,
+}: {
+    options: FilterOption[];
+    value: any;
+    onChange: (next: any) => void;
+    placeholder?: string;
+}) {
+    return (
+        <Select
+            allowClear
+            showSearch
+            className="lfm-tokens"
+            value={value ?? undefined}
+            onChange={(next) => onChange(next ?? null)}
+            placeholder={placeholder || "Type to search…"}
+            options={options.map((option) => ({
+                value: option.value,
+                label: option.label,
+            }))}
+            optionFilterProp="label"
+            style={{ width: "100%" }}
+        />
+    );
+}
+
 const DATE_PRESETS: Array<{ key: string; label: string; days: number }> = [
     { key: "today", label: "Today", days: 0 },
     { key: "7", label: "7 days", days: 7 },

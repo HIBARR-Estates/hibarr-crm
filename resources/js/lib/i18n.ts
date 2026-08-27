@@ -52,7 +52,7 @@ const dictionaryCache = new Map<string, I18nPayload>();
  * Kept as a path (not ziggy) so boot can fetch before Ziggy is required.
  */
 /** Bump when lang keys are added so browsers that cached the old JSON refetch. */
-const I18N_DICT_VERSION = "3";
+const I18N_DICT_VERSION = "4";
 
 export const i18nEndpoint = (locale: string): string =>
     `/account/api/i18n/${encodeURIComponent(locale)}.json?v=${I18N_DICT_VERSION}`;

@@ -115,6 +115,7 @@ return [
         ],
         'reminderDefaults' => 'Erinnerungsstandards',
         'entityReminderDefaults' => 'Erinnerungsstandards',
+        'integrationsHub' => 'Integrations Hub',
     ],
 
     // Breadcrumb

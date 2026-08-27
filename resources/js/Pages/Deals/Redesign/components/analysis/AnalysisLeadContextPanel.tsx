@@ -261,18 +261,9 @@ export default function AnalysisLeadContextPanel({
         },
     ].filter((r) => r.value !== null && r.value !== "");
 
-    // Optimistic local state for editable core contact fields
-    const [editableContactVals, setEditableContactVals] = useState<Record<string, any>>(() => ({
-        gender: contact?.gender?.value ?? contact?.gender ?? null,
-        date_of_birth: contact?.date_of_birth ?? null,
-        age: contact?.age ?? null,
-        nationality: contact?.nationality ?? null,
-        occupation: contact?.occupation ?? null,
-    }));
-
     // Age range — show only when both age and date_of_birth are absent
     const ageRange: string | null = (() => {
-        if (editableContactVals.age || editableContactVals.date_of_birth) return null;
+        if (contact?.age || contact?.date_of_birth) return null;
         const ar = contact?.age_range;
         if (!ar) return null;
         return String(ar?.value ?? ar);
@@ -439,23 +430,20 @@ export default function AnalysisLeadContextPanel({
                         {/* Editable: gender, date_of_birth, age, nationality, occupation */}
                         <AnalysisCustomFieldRow
                             field={{ id: 0, label: td("Gender", { source: "en" }), type: "select", values: GENDER_OPTIONS }}
-                            value={editableContactVals.gender}
+                            value={contact?.gender?.value ?? contact?.gender ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, gender: v }))}
                             onSave={(v) => onContactFieldSave("gender", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 1, label: td("Date of Birth", { source: "en" }), type: "date", values: null }}
-                            value={editableContactVals.date_of_birth}
+                            value={contact?.date_of_birth ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, date_of_birth: v }))}
                             onSave={(v) => onContactFieldSave("date_of_birth", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 2, label: td("Age", { source: "en" }), type: "number", values: null }}
-                            value={editableContactVals.age}
+                            value={contact?.age ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, age: v }))}
                             onSave={(v) => onContactFieldSave("age", v)}
                         />
                         {ageRange && (
@@ -463,55 +451,55 @@ export default function AnalysisLeadContextPanel({
                         )}
                         <AnalysisCustomFieldRow
                             field={{ id: 3, label: td("Nationality", { source: "en" }), type: "country", values: null }}
-                            value={editableContactVals.nationality}
+                            value={contact?.nationality ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, nationality: v }))}
                             onSave={(v) => onContactFieldSave("nationality", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 4, label: td("Occupation", { source: "en" }), type: "text", values: null }}
-                            value={editableContactVals.occupation}
+                            value={contact?.occupation ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, occupation: v }))}
                             onSave={(v) => onContactFieldSave("occupation", v)}
                         />
 
-                        {/* ponytail: languages read-only, add language options prop when needed */}
+                        {/* Languages — read-only here too (matches Leads qualification panel) */}
+                        <CoreFieldRow label={td("Languages", { source: "en" })} value={languages.join(", ")} />
 
                         <AnalysisCustomFieldRow
                             field={{ id: 6, label: td("Company", { source: "en" }), type: "text", values: null }}
-                            value={editableContactVals.company}
+                            value={contact?.company_name ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, company: v }))}
-                            onSave={(v) => onContactFieldSave("company", v)}
+                            onSave={(v) => onContactFieldSave("company_name", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 7, label: td("Address", { source: "en" }), type: "text", values: null }}
-                            value={editableContactVals.address}
+                            value={contact?.address ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, address: v }))}
                             onSave={(v) => onContactFieldSave("address", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 8, label: td("City", { source: "en" }), type: "text", values: null }}
-                            value={editableContactVals.address}
+                            value={contact?.city ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, city: v }))}
                             onSave={(v) => onContactFieldSave("city", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 9, label: td("State", { source: "en" }), type: "text", values: null }}
-                            value={editableContactVals.state}
+                            value={contact?.state ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, state: v }))}
                             onSave={(v) => onContactFieldSave("state", v)}
                         />
                         <AnalysisCustomFieldRow
                             field={{ id: 10, label: td("Country", { source: "en" }), type: "country", values: null }}
-                            value={editableContactVals.country}
+                            value={contact?.country ?? null}
                             canEdit={canEdit}
-                            onChange={(v) => setEditableContactVals((p) => ({ ...p, country: v }))}
                             onSave={(v) => onContactFieldSave("country", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 11, label: td("Postal Code", { source: "en" }), type: "text", values: null }}
+                            value={contact?.postal_code ?? null}
+                            canEdit={canEdit}
+                            onSave={(v) => onContactFieldSave("postal_code", v)}
                         />
 
                         {conditionalReadOnlyRows.map(({ label, value }) => (

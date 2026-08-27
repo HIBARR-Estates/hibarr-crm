@@ -183,6 +183,31 @@ class DynamicTranslationBatcher {
         };
     }
 
+    /**
+     * Stops polling for `locale` — clears anything not yet flushed and any
+     * scheduled retries, then reports "not active" immediately. Used when a
+     * caller (e.g. a "continue anyway" escape hatch) opts out of waiting;
+     * whatever is already cached stays translated, the rest keeps showing
+     * its English fallback. A request already in flight can't be aborted
+     * here, but it just updates the cache harmlessly if it lands.
+     */
+    cancelPending(locale: string): void {
+        this.pending.delete(locale);
+
+        const prefix = `${locale}:`;
+        for (const key of Array.from(this.retryTimers.keys())) {
+            if (!key.startsWith(prefix)) {
+                continue;
+            }
+
+            clearTimeout(this.retryTimers.get(key));
+            this.retryTimers.delete(key);
+            this.retryCounts.delete(key);
+        }
+
+        this.notifyActivity(locale);
+    }
+
     private isActive(locale: string): boolean {
         if ((this.pending.get(locale)?.size ?? 0) > 0) {
             return true;

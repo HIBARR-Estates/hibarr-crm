@@ -478,6 +478,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/{task}/comments', [TaskCommentApiController::class, 'index'])->name('tasks.comments.index');
     Route::post('tasks/{task}/comments', [TaskCommentApiController::class, 'store'])->name('tasks.comments.store');
     Route::delete('task-comments/{id}', [TaskCommentApiController::class, 'destroy'])->name('tasks.comments.destroy');
+    Route::get('tasks/{task}/activity', [TaskCommentApiController::class, 'activity'])->name('tasks.activity.index');
 
     // Saved filter views for the redesigned tasks workspace
     Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');
@@ -750,6 +751,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
+    Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');

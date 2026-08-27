@@ -1,4 +1,10 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import {
+    useEffect,
+    useRef,
+    type CSSProperties,
+    type ReactNode,
+    type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
 interface TaskModalShellProps {
@@ -12,6 +18,8 @@ interface TaskModalShellProps {
     zIndex?: number;
     panelClassName?: string;
     panelStyle?: CSSProperties;
+    /** Exposes the rendered panel's DOM node, e.g. to clamp a child popover within its bounds. */
+    panelRef?: RefObject<HTMLDivElement | null>;
     children: ReactNode;
 }
 
@@ -29,9 +37,11 @@ export default function TaskModalShell({
     zIndex = 50,
     panelClassName,
     panelStyle,
+    panelRef: externalPanelRef,
     children,
 }: TaskModalShellProps) {
-    const panelRef = useRef<HTMLDivElement>(null);
+    const internalPanelRef = useRef<HTMLDivElement>(null);
+    const panelRef = externalPanelRef ?? internalPanelRef;
     const previousFocusRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
@@ -94,7 +104,13 @@ export default function TaskModalShell({
                 aria-label={ariaLabel}
                 onClick={(event) => event.stopPropagation()}
                 className={panelClassName}
-                style={panelStyle}
+                // The panel takes programmatic focus on open (below) so
+                // screen readers land inside the dialog — but with no
+                // `outline` reset that shows the browser's default focus
+                // ring (colored by the OS accent color) around the whole
+                // panel. The dialog itself isn't an interactive control;
+                // its focusable children still get their own focus rings.
+                style={{ ...panelStyle, outline: "none" }}
             >
                 {children}
             </div>
