@@ -93,6 +93,7 @@ class DealFollowUp extends BaseModel
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
         'duration',  // Meeting duration in minutes (nullable, defaults to 30)
+        'client_attended',  // Tri-state: null = unconfirmed, true/false = manually confirmed
     ];
 
     protected $casts = [
@@ -101,6 +102,7 @@ class DealFollowUp extends BaseModel
         'reminders' => 'array',  // Cast JSON to array
         'participants' => 'array',  // Cast JSON to array
         'duration' => 'integer',
+        'client_attended' => 'boolean',
     ];
 
     /** Default meeting duration (minutes) when none is set */

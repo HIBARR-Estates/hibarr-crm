@@ -5,10 +5,13 @@ import PeoplePicker from "@/Components/Redesign/primitives/PeoplePicker";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import type { TaskCommentRecord } from "../hooks/useTaskComments";
+import type { TaskActivityRecord } from "../hooks/useTaskActivity";
 import { extractMentionIds } from "../lib/commentMarkup";
-import TaskCommentGroup, {
-    type TaskCommentGroupData,
-} from "./comments/TaskCommentGroup";
+import { TASK_ICON } from "../config/taskDesignTokens";
+import { buildTaskTimeline } from "../adapters/taskTimeline";
+import TaskCommentGroup from "./comments/TaskCommentGroup";
+import TaskActivityLogLine from "./comments/TaskActivityLogLine";
+import { TaskGlyph } from "./primitives/TaskGlyphs";
 import { DETAIL_LABEL } from "./primitives/taskUiStyles";
 
 interface MentionCandidate {
@@ -20,6 +23,7 @@ interface MentionCandidate {
 
 interface TaskCommentsPanelProps {
     comments: TaskCommentRecord[];
+    activity: TaskActivityRecord[];
     totalCount: number;
     loading: boolean;
     loadingMore: boolean;
@@ -34,6 +38,8 @@ interface TaskCommentsPanelProps {
     onSubmit: (comment: string, mentionUserIds: number[]) => Promise<boolean>;
     onDelete: (commentId: number) => void;
     onLoadMore: () => Promise<void>;
+    /** Task detail modal's close (X) lives here — top-right of the comments rail. */
+    onClose: () => void;
 }
 
 const MAX_INPUT_HEIGHT = 140;
@@ -44,6 +50,7 @@ const MAX_INPUT_HEIGHT = 140;
  */
 export default function TaskCommentsPanel({
     comments,
+    activity,
     totalCount,
     loading,
     loadingMore,
@@ -58,6 +65,7 @@ export default function TaskCommentsPanel({
     onSubmit,
     onDelete,
     onLoadMore,
+    onClose,
 }: TaskCommentsPanelProps) {
     const { td } = useTd();
     const [draft, setDraft] = useState("");
@@ -99,26 +107,10 @@ export default function TaskCommentsPanel({
         node.style.height = `${Math.min(node.scrollHeight, MAX_INPUT_HEIGHT)}px`;
     }, [draft]);
 
-    const commentGroups = useMemo(() => {
-        const groups: TaskCommentGroupData[] = [];
-        for (const comment of comments) {
-            const last = groups[groups.length - 1];
-            const sameAuthor =
-                last &&
-                last.is_mine === comment.is_mine &&
-                (last.user?.id ?? null) === (comment.user?.id ?? null);
-            if (sameAuthor) {
-                last.items.push(comment);
-            } else {
-                groups.push({
-                    user: comment.user,
-                    is_mine: comment.is_mine,
-                    items: [comment],
-                });
-            }
-        }
-        return groups;
-    }, [comments]);
+    const timeline = useMemo(
+        () => buildTaskTimeline(comments, activity),
+        [comments, activity],
+    );
 
     const matches = useMemo(() => {
         if (mentionQuery === null) return [];
@@ -227,25 +219,42 @@ export default function TaskCommentsPanel({
             }}
         >
             <div
-                className="flex flex-shrink-0 items-center gap-2"
+                className="flex flex-shrink-0 items-center justify-between gap-2"
                 style={{
                     padding: "16px 18px 12px",
                     borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
-                <span style={DETAIL_LABEL}>{td("Comments")}</span>
-                <span
+                <div className="flex items-center gap-2">
+                    <span style={DETAIL_LABEL}>{td("Comments")}</span>
+                    <span
+                        style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: T.TEXT_MUTED,
+                            background: T.NAVY_SOFT,
+                            borderRadius: 999,
+                            padding: "1px 7px",
+                        }}
+                    >
+                        {totalCount}
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    aria-label={td("Close")}
+                    onClick={onClose}
                     style={{
-                        fontSize: 14,
-                        fontWeight: 600,
+                        display: "flex",
+                        padding: 4,
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
                         color: T.TEXT_MUTED,
-                        background: T.NAVY_SOFT,
-                        borderRadius: 999,
-                        padding: "1px 7px",
                     }}
                 >
-                    {totalCount}
-                </span>
+                    <TaskGlyph d={TASK_ICON.x} size={17} strokeWidth={1.5} />
+                </button>
             </div>
 
             <div
@@ -259,7 +268,7 @@ export default function TaskCommentsPanel({
                     </p>
                 )}
 
-                {!loading && comments.length === 0 && (
+                {!loading && timeline.length === 0 && (
                     <p
                         style={{
                             fontSize: 15,
@@ -296,14 +305,18 @@ export default function TaskCommentsPanel({
                     </button>
                 )}
 
-                {commentGroups.map((group) => (
-                    <TaskCommentGroup
-                        key={group.items[0].id}
-                        group={group}
-                        canDelete={canDeleteComment}
-                        onDelete={onDelete}
-                    />
-                ))}
+                {timeline.map((item) =>
+                    item.kind === "log" ? (
+                        <TaskActivityLogLine key={item.key} entry={item.entry} />
+                    ) : (
+                        <TaskCommentGroup
+                            key={item.key}
+                            group={item.group}
+                            canDelete={canDeleteComment}
+                            onDelete={onDelete}
+                        />
+                    ),
+                )}
             </div>
 
             {canComment && (

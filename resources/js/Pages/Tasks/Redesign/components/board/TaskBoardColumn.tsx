@@ -186,7 +186,7 @@ export default function TaskBoardColumn({
                 style={{
                     padding: 12,
                     maxHeight:
-                        "calc(100vh - var(--tasks-board-offset) - var(--tasks-board-column-header))",
+                        "calc(104.5vh - var(--tasks-board-offset) - var(--tasks-board-column-header))",
                 }}
             >
                 {visibleTasks.map((vm) => (

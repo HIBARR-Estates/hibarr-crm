@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type {
     CategoryToken,
@@ -10,6 +11,7 @@ interface GlyphProps {
     size?: number;
     color?: string;
     strokeWidth?: number;
+    style?: CSSProperties;
 }
 
 /** Raw path renderer for the design's inline icon set. */
@@ -18,6 +20,7 @@ export function TaskGlyph({
     size = 14,
     color = "currentColor",
     strokeWidth = 2,
+    style,
 }: GlyphProps) {
     return (
         <svg
@@ -29,7 +32,7 @@ export function TaskGlyph({
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ flexShrink: 0, display: "block" }}
+            style={{ flexShrink: 0, display: "block", ...style }}
         >
             <path d={d} />
         </svg>

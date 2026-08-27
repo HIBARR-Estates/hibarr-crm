@@ -3,21 +3,71 @@
 namespace App\Services;
 
 use App\Models\Deal;
-use App\Models\CustomField;
+use App\Models\Lead;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class FieldResolverService
 {
     /**
-     * Resolve a value for a given field from a Deal instance.
+     * Whitelist of native Lead columns exposed to automation conditions/merge tags,
+     * read via getRawOriginal() so enum/array casts on Lead don't leak into the
+     * evaluator (which only understands scalars, dates, and arrays from 'contains').
+     */
+    protected const LEAD_FIELDS = [
+        'client_name',
+        'client_email',
+        'mobile',
+        'cell',
+        'office',
+        'client_whatsapp',
+        'client_instagram',
+        'client_telegram',
+        'country',
+        'city',
+        'state',
+        'postal_code',
+        'address',
+        'website',
+        'company_name',
+        'note',
+        'salutation',
+        'age',
+        'age_range',
+        'date_of_birth',
+        'gender',
+        'nationality',
+        'occupation',
+        'primary_language',
+        'preferred_contact_time',
+        'type',
+        'temperature',
+        'category_id',
+        'source_id',
+        'lead_lifecycle_status_id',
+        'lead_owner',
+        'referred_by_agent_id',
+        'assigned_at',
+        'first_contacted_at',
+        'created_at',
+    ];
+
+    /**
+     * Resolve a value for a given field from a Deal or Lead instance — a Lead
+     * subject means the automation runs directly on the lead (no pipeline),
+     * so lead_field_ / lead_custom_field_ prefixed keys resolve against it
+     * directly instead of hopping through Deal->contact.
      *
-     * @param Deal $deal
-     * @param string $field
      * @return mixed
      */
-    public function resolve(Deal $deal, string $field)
+    public function resolve(Deal|Lead $subject, string $field)
     {
+        if ($subject instanceof Lead) {
+            return $this->resolveLeadSubjectField($subject, $field);
+        }
+
+        $deal = $subject;
+
         // 1. HibarrDealFields
         if ($this->isHibarrField($field)) {
             return $this->resolveHibarrField($deal, $field);
@@ -33,11 +83,62 @@ class FieldResolverService
             return $this->resolveFollowupField($deal, $field);
         }
 
-        // 4. Native Deal fields (Fallback)
+        // 4. Lead (contact) custom fields (format: lead_custom_field_{id})
+        if (Str::startsWith($field, 'lead_custom_field_')) {
+            return $this->resolveLeadCustomField($deal, $field);
+        }
+
+        // 5. Lead (contact) native fields (format: lead_field_{name})
+        if (Str::startsWith($field, 'lead_field_')) {
+            return $this->resolveLeadField($deal, $field);
+        }
+
+        // 6. Native Deal fields (Fallback)
         // We try to access it directly. If it's a valid attribute or accessor, it will return value.
         // If it doesn't exist, it might return null or throw error depending on strictness.
         // Eloquent returns null for non-existent attributes usually.
         return $deal->{$field} ?? null;
+    }
+
+    /**
+     * Resolve a field against a Lead that is itself the automation subject
+     * (not a Deal's related contact). Accepts the same lead_field_ /
+     * lead_custom_field_ prefixed keys used elsewhere for consistency, plus
+     * bare custom_field_{id}/native column names as a convenience.
+     */
+    protected function resolveLeadSubjectField(Lead $lead, string $field)
+    {
+        if (Str::startsWith($field, 'lead_custom_field_')) {
+            return $this->resolveLeadCustomFieldFor($lead, Str::after($field, 'lead_custom_field_'));
+        }
+
+        if (Str::startsWith($field, 'custom_field_')) {
+            return $this->resolveLeadCustomFieldFor($lead, Str::after($field, 'custom_field_'));
+        }
+
+        $column = Str::startsWith($field, 'lead_field_') ? Str::after($field, 'lead_field_') : $field;
+
+        if (in_array($column, self::LEAD_FIELDS)) {
+            // Raw original avoids Lead's enum/array casts, which the evaluator can't compare.
+            return $lead->getRawOriginal($column);
+        }
+
+        return $lead->{$field} ?? null;
+    }
+
+    protected function resolveLeadCustomFieldFor(Lead $lead, string $customFieldId)
+    {
+        $customFieldId = (int) $customFieldId;
+
+        if ($customFieldId <= 0) {
+            return null;
+        }
+
+        return DB::table('custom_fields_data')
+            ->where('model', Lead::CUSTOM_FIELD_MODEL)
+            ->where('model_id', $lead->id)
+            ->where('custom_field_id', $customFieldId)
+            ->value('value');
     }
 
     protected function isNativeField(Deal $deal, string $field): bool
@@ -59,7 +160,7 @@ class FieldResolverService
             'inspection_trip_date',
             'deposit_confirmation',
             'reservation_agreement',
-            'sales_contract'
+            'sales_contract',
         ];
 
         return in_array($field, $hibarrFields);
@@ -73,7 +174,7 @@ class FieldResolverService
     protected function resolveCustomField(Deal $deal, string $field)
     {
         $customFieldId = (int) Str::after($field, 'custom_field_');
-        
+
         if ($customFieldId <= 0) {
             return null;
         }
@@ -87,25 +188,58 @@ class FieldResolverService
         return $value;
     }
 
+    protected function resolveLeadField(Deal $deal, string $field)
+    {
+        $lead = $deal->contact;
+
+        if (! $lead) {
+            return null;
+        }
+
+        $column = Str::after($field, 'lead_field_');
+
+        if (! in_array($column, self::LEAD_FIELDS)) {
+            return null;
+        }
+
+        // Raw original avoids Lead's enum/array casts, which the evaluator can't compare.
+        return $lead->getRawOriginal($column);
+    }
+
+    protected function resolveLeadCustomField(Deal $deal, string $field)
+    {
+        $lead = $deal->contact;
+
+        if (! $lead) {
+            return null;
+        }
+
+        return $this->resolveLeadCustomFieldFor($lead, Str::after($field, 'lead_custom_field_'));
+    }
+
     protected function resolveFollowupField(Deal $deal, string $field)
     {
         if ($field === 'last_followup_date') {
             $lastFollowup = $deal->follow()->latest('created_at')->first();
+
             return $lastFollowup?->created_at;
         }
 
         if ($field === 'last_followup_next_date') {
             $lastFollowup = $deal->follow()->latest('created_at')->first();
+
             return $lastFollowup?->next_follow_up_date;
         }
 
         if ($field === 'last_followup_remark') {
             $lastFollowup = $deal->follow()->latest('created_at')->first();
+
             return $lastFollowup?->remark;
         }
-        
+
         if ($field === 'last_followup_status') {
             $lastFollowup = $deal->follow()->latest('created_at')->first();
+
             return $lastFollowup?->status;
         }
 

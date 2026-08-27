@@ -6,10 +6,11 @@ import {
     QualificationOutcome,
     TemplateTree,
 } from "@/Types/qualification";
-import { useDynamicTranslation, useTd } from "@/Hooks/useDynamicTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import QualificationScriptHtml from "../QualificationScriptHtml";
 import OutcomeMultiSelect from "../OutcomeMultiSelect";
 import { getScriptOutcomes } from "../qualificationUtils";
+import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
 
 interface OutcomeSegmentProps {
     label: string;
@@ -31,9 +32,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     onComplete,
     loading = false,
 }) => {
-    const translated = translateScript(
-        useDynamicTranslation(label, { source: "en" }),
-    );
+    const translated = translateScript(useTranslatedScriptLabel(label));
     const { td } = useTd();
     const [error, setError] = useState<string | null>(null);
     const scriptOutcomes = useMemo(

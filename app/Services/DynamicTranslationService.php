@@ -15,10 +15,22 @@ use Illuminate\Support\Str;
 class DynamicTranslationService
 {
     private const CACHE_TTL_SECONDS = 3600;
+
     private const TARGET_LOCALES = ['de', 'ru', 'tr'];
 
+    /**
+     * Minimum gap between job dispatches for the same hash. Every poll from
+     * every open tab hits `ensureExists()` for a still-incomplete row, so
+     * without this an API outage turns each poll into a fresh job — all
+     * re-translating the locales that already succeeded too, since
+     * `translateAll()` redoes every target locale unconditionally.
+     */
+    private const DISPATCH_COOLDOWN_SECONDS = 30;
+
     private string $baseUrl;
+
     private int $timeout;
+
     private ?string $apiKey;
 
     public function __construct()
@@ -35,18 +47,68 @@ class DynamicTranslationService
     /**
      * Trim + collapse whitespace only. Case-preserving so product strings
      * with different casing remain distinct dictionary keys.
+     *
+     * Collapse (with the `u` modifier, so `\s` catches NBSP and other Unicode
+     * whitespace) before trim — the frontend's `.trim()`/`\s` already treats
+     * those as whitespace, so trimming first here would leave a boundary NBSP
+     * in place and hash differently than the JS side, which permanently
+     * rejects that text as a "hash mismatch" and never queues its translation.
      */
     public function normalize(string $text): string
     {
         return Str::of($text)
+            ->replaceMatches('/\s+/u', ' ')
             ->trim()
-            ->replaceMatches('/\\s+/', ' ')
             ->toString();
     }
 
     public function hash(string $text): string
     {
         return hash('sha256', $this->normalize($text));
+    }
+
+    /**
+     * Strips HTML tags and protects `{{merge.field}}` tokens before text is
+     * sent to the translation API. Qualification scripts are rich-text HTML
+     * with unresolved OL/CRM mustache tokens (see qualificationUtils.ts's
+     * `OL_TOKEN_REPLACEMENTS`) — sending that markup straight through gets it
+     * mistranslated or mangled by the translator, which most often comes
+     * back empty and leaves the record stuck incomplete forever.
+     *
+     * Hashing/`source_text`/the stored `en` value are untouched — this only
+     * shapes what goes out over the wire for DE/RU/TR.
+     *
+     * @return array{0: string, 1: array<string, string>} [plain text, token => original placeholder]
+     */
+    private function extractTranslatableText(string $html): array
+    {
+        $placeholders = [];
+        $index = 0;
+
+        $protected = preg_replace_callback(
+            '/\{\{[^{}]+\}\}/',
+            function (array $match) use (&$placeholders, &$index): string {
+                $token = "__PH{$index}__";
+                $placeholders[$token] = $match[0];
+                $index++;
+
+                return $token;
+            },
+            $html
+        ) ?? $html;
+
+        $stripped = preg_replace('/<[^>]+>/', ' ', $protected) ?? $protected;
+        $decoded = html_entity_decode($stripped, ENT_QUOTES | ENT_HTML5);
+
+        return [$this->normalize($decoded), $placeholders];
+    }
+
+    /**
+     * @param  array<string, string>  $placeholders
+     */
+    private function restorePlaceholders(string $text, array $placeholders): string
+    {
+        return $placeholders === [] ? $text : strtr($text, $placeholders);
     }
 
     public function findByHash(string $hash): ?DynamicTranslation
@@ -68,12 +130,12 @@ class DynamicTranslationService
             throw new \InvalidArgumentException('Dynamic translation text cannot be empty after normalization.');
         }
 
-        $hash = hash('sha256', $normalized);
+        $hash = $this->hash($text);
         $existing = $this->findByHash($hash);
 
         if ($existing) {
-            if (!$existing->isComplete()) {
-                TranslateDynamicContentJob::dispatch($existing);
+            if (! $existing->isComplete()) {
+                $this->dispatchTranslationJob($existing);
             }
 
             return $existing;
@@ -90,24 +152,36 @@ class DynamicTranslationService
             // Handle unique race on hash_key under concurrent writes.
             $translation = DynamicTranslation::query()->where('hash_key', $hash)->first();
 
-            if (!$translation) {
+            if (! $translation) {
                 throw $exception;
             }
         }
 
         Cache::forget($this->cacheKey($hash));
-        TranslateDynamicContentJob::dispatch($translation);
+        $this->dispatchTranslationJob($translation);
 
         return $translation;
     }
 
     /**
-     * @param array<int, string> $texts
+     * Dispatches at most one job per hash per cooldown window. `Cache::add`
+     * is atomic (set-if-absent), so concurrent requests for the same hash
+     * only let one through.
+     */
+    private function dispatchTranslationJob(DynamicTranslation $translation): void
+    {
+        if (Cache::add($this->dispatchLockKey($translation->hash_key), true, self::DISPATCH_COOLDOWN_SECONDS)) {
+            TranslateDynamicContentJob::dispatch($translation);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $texts
      */
     public function bulkEnsure(array $texts): void
     {
         foreach ($texts as $text) {
-            if (!is_string($text) || trim($text) === '') {
+            if (! is_string($text) || trim($text) === '') {
                 continue;
             }
 
@@ -129,10 +203,22 @@ class DynamicTranslationService
         if ($sourceText === '') {
             $translation->status = DynamicTranslation::STATUS_PARTIAL;
             $translation->save();
+
             return $translation;
         }
 
-        $responses = Http::pool(function (Pool $pool) use ($sourceText) {
+        [$plainText, $placeholders] = $this->extractTranslatableText($sourceText);
+
+        if ($plainText === '') {
+            // Markup/placeholders only (e.g. an empty rich-text paragraph) —
+            // nothing left to translate.
+            $translation->status = DynamicTranslation::STATUS_PARTIAL;
+            $translation->save();
+
+            return $translation;
+        }
+
+        $responses = Http::pool(function (Pool $pool) use ($plainText) {
             foreach (self::TARGET_LOCALES as $locale) {
                 $request = $pool->as($locale)
                     ->timeout($this->timeout);
@@ -144,9 +230,9 @@ class DynamicTranslationService
                 }
 
                 $request->post("{$this->baseUrl}/translation", [
-                        'text' => $sourceText,
-                        'targetLang' => $locale,
-                    ]);
+                    'text' => $plainText,
+                    'targetLang' => $locale,
+                ]);
             }
         });
 
@@ -159,38 +245,41 @@ class DynamicTranslationService
         foreach (self::TARGET_LOCALES as $locale) {
             $response = $responses[$locale] ?? null;
 
-            if (!$response instanceof Response) {
+            if (! $response instanceof Response) {
                 Log::warning('DynamicTranslationService: Translation API call failed', [
                     'hash_key' => $translation->hash_key,
                     'locale' => $locale,
                     'error' => $response instanceof \Throwable ? $response->getMessage() : 'no response',
                     'response' => $response instanceof Response ? $response->body() : null,
                 ]);
+
                 continue;
             }
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('DynamicTranslationService: Translation API call failed', [
                     'hash_key' => $translation->hash_key,
                     'locale' => $locale,
                     'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
+
                 continue;
             }
 
             $translatedText = $response->json('data.text');
 
-            if (!is_string($translatedText) || trim($translatedText) === '') {
+            if (! is_string($translatedText) || trim($translatedText) === '') {
                 Log::warning('DynamicTranslationService: Translation API returned empty text', [
                     'hash_key' => $translation->hash_key,
                     'locale' => $locale,
                     'response' => $response->json(),
                 ]);
+
                 continue;
             }
 
-            $updates[$locale] = $translatedText;
+            $updates[$locale] = $this->restorePlaceholders($translatedText, $placeholders);
             $successfulCount++;
         }
 
@@ -213,5 +302,10 @@ class DynamicTranslationService
     private function cacheKey(string $hash): string
     {
         return "dyn_trans_{$hash}";
+    }
+
+    private function dispatchLockKey(string $hash): string
+    {
+        return "dyn_trans_dispatch_{$hash}";
     }
 }

@@ -2,9 +2,9 @@ import React from "react";
 import { Tag, Radio, Checkbox, Input, Switch, Space } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { Segment, SegmentAnswerState } from "@/Types/qualification";
-import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import QualificationScriptHtml from "../QualificationScriptHtml";
 import { stripHtmlTags } from "../qualificationUtils";
+import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
 
 interface QuestionSegmentProps {
     segment: Segment;
@@ -22,7 +22,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     disabled = false,
 }) => {
     const translated = translateScript(
-        useDynamicTranslation(segment.label, { source: "en" }),
+        useTranslatedScriptLabel(segment.label),
     );
     const answerType = segment.answerType ?? "singleSelect";
 
@@ -106,7 +106,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
 };
 
 const OptionLabel: React.FC<{ label: string }> = ({ label }) => {
-    const translated = useDynamicTranslation(label, { source: "en" });
+    const translated = useTranslatedScriptLabel(label);
     return <>{stripHtmlTags(translated) || translated}</>;
 };
 

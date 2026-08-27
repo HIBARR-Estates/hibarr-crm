@@ -96,7 +96,15 @@ export default function TaskPillSelect({
 
     const marker = (option: PillOption, size = 6) =>
         option.d ? (
-            <TaskGlyph d={option.d} size={13} color={option.dot ?? option.fg} />
+            <TaskGlyph
+                d={option.d}
+                // The urgent glyph is a bare "!" stripe (deliberately no
+                // enclosing circle, see taskDesignTokens.ts), so at the same
+                // numeric size as the other priority arrows it reads as
+                // visually smaller/lighter — bumped up to match.
+                size={option.d === TASK_ICON.prioUrgent ? 19 : 13}
+                color={option.dot ?? option.fg}
+            />
         ) : (
             <span
                 style={{
@@ -170,6 +178,11 @@ export default function TaskPillSelect({
                         onClick={(event) => event.stopPropagation()}
                         style={{
                             ...floatStyle,
+                            // floatStyle's maxHeight caps the box but doesn't
+                            // clip its own content — without an overflow rule
+                            // here, a long option list just spills out past
+                            // the rounded background instead of scrolling.
+                            overflowY: "auto",
                             minWidth: menuWidth,
                             padding: 8,
                             background: T.WHITE,
@@ -244,6 +257,13 @@ export default function TaskPillSelect({
                                             onChange(option.value);
                                         }}
                                         style={{
+                                            // Grid items default to
+                                            // min-width:auto, so a long label
+                                            // would otherwise force its whole
+                                            // column (and the popup) wider
+                                            // than menuWidth instead of
+                                            // truncating.
+                                            minWidth: 0,
                                             padding: "9px 10px",
                                             borderRadius: 8,
                                             border: "none",
