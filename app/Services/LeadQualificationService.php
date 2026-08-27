@@ -165,6 +165,10 @@ class LeadQualificationService
             ],
         ]);
 
+        if ($lead) {
+            app(LeadAutomationService::class)->process($lead->fresh() ?? $lead, 'qualification_completed');
+        }
+
         return [
             'qualification' => $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']),
             'lead' => $this->leadCompletionPatch($lead, $lifecycleStatus, $writtenFields),

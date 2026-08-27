@@ -693,6 +693,7 @@ class LeadContactController extends AccountBaseController
                 (int) company()->id
             );
             $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
+            app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
         }
 
         // Log search
@@ -885,6 +886,7 @@ class LeadContactController extends AccountBaseController
                 (int) company()->id
             );
             $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
+            app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
         }
 
         return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
@@ -1156,6 +1158,7 @@ class LeadContactController extends AccountBaseController
                         (int) company()->id
                     );
                     $leadContact->updateCustomFieldData($filtered['custom_fields'] ?? []);
+                    app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
                 }
             }
 

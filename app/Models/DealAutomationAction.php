@@ -20,6 +20,7 @@ class DealAutomationAction extends BaseModel
         'forward_only',
         'field_name',
         'field_value',
+        'payload',
         'email_template_id',
         'title',
         'content',
@@ -41,6 +42,7 @@ class DealAutomationAction extends BaseModel
 
     protected $casts = [
         'forward_only' => 'boolean',
+        'payload' => 'array',
         'recipient_types' => 'array',
         'recipient_user_ids' => 'array',
         'meta_event_value' => 'float',
