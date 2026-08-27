@@ -367,6 +367,25 @@ class Task extends BaseModel
         });
     }
 
+    /**
+     * Strictly "I'm assigned to this task" — task_users pivot only, unlike
+     * scopeVisibleToUser() above which also includes tasks the user merely
+     * created for someone else. Used by the classic Dashboard's task widget
+     * behind crm.tasks-workspace-redesign, where "assigned to you" means
+     * exactly that.
+     */
+    public function scopeAssignedToUser($query, int $userId)
+    {
+        $table = $query->getModel()->getTable();
+
+        return $query->whereExists(function ($sub) use ($userId, $table) {
+            $sub->selectRaw('1')
+                ->from('task_users')
+                ->whereColumn('task_users.task_id', "{$table}.id")
+                ->where('task_users.user_id', $userId);
+        });
+    }
+
     public function isCreatedBy(int $userId): bool
     {
         return in_array($userId, array_filter([$this->added_by, $this->created_by]), true);

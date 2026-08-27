@@ -324,6 +324,7 @@ function DealViewRedesignInner(
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
                 dealId={deal.id}
+                dealName={deal.name}
                 dealAgentUserId={
                     deal.lead_agent?.user?.id ??
                     deal.lead_agent?.user_id ??

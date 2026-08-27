@@ -278,6 +278,9 @@ class TaskService
             if ($assigneeIds !== null) {
                 $task->users()->sync($assigneeIds);
                 $assigneesChanged = $previousAssigneeIds !== collect($assigneeIds)->sort()->values()->all();
+                if ($assigneesChanged) {
+                    $this->logTaskActivity($task->id, $user ? $user->id : user()->id, 'assigneeActivity', $task->board_column_id);
+                }
             }
             
             if (isset($data['custom_fields_data'])) {
