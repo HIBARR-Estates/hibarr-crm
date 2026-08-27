@@ -3,6 +3,7 @@
 namespace Tests\Unit\Meetings;
 
 use App\Models\Company;
+use App\Models\DealFollowUp;
 use App\Models\User;
 use App\Services\MeetingAttendanceConfirmationService;
 use Illuminate\Database\Schema\Blueprint;
@@ -69,7 +70,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subDay());
         $this->makeFollowUp(1, endedMinutesAgo: 4);
 
-        $this->assertNull($this->service->pendingForUser($this->agent()));
+        $this->assertTrue($this->service->pendingListForUser($this->agent())->isEmpty());
     }
 
     public function test_meeting_five_minutes_past_end_is_eligible(): void
@@ -77,10 +78,10 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subDay());
         $this->makeFollowUp(1, endedMinutesAgo: 6);
 
-        $pending = $this->service->pendingForUser($this->agent());
+        $pending = $this->service->pendingListForUser($this->agent());
 
-        $this->assertNotNull($pending);
-        $this->assertSame(1, $pending->id);
+        $this->assertCount(1, $pending);
+        $this->assertSame(1, $pending->first()->id);
     }
 
     public function test_meeting_that_ended_before_company_activation_is_never_eligible(): void
@@ -89,8 +90,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subMinutes(10));
         $this->makeFollowUp(1, endedMinutesAgo: 60);
 
-        $this->assertNull(
-            $this->service->pendingForUser($this->agent()),
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent())->isEmpty(),
             'A meeting that ended before the feature was activated must never be prompted, even though the flag is on now.'
         );
     }
@@ -100,7 +101,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subHours(2));
         $this->makeFollowUp(1, endedMinutesAgo: 60);
 
-        $this->assertNotNull($this->service->pendingForUser($this->agent()));
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent()));
     }
 
     public function test_meeting_that_started_before_activation_is_excluded_even_if_it_ended_after(): void
@@ -113,8 +114,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subMinutes(15));
         $this->makeFollowUp(1, endedMinutesAgo: 10, duration: 10);
 
-        $this->assertNull(
-            $this->service->pendingForUser($this->agent()),
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent())->isEmpty(),
             'A meeting that started before activation must never be prompted, even if it ended after activation.'
         );
     }
@@ -124,7 +125,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subDay());
         $this->makeFollowUp(1, endedMinutesAgo: 30, attendanceOutcomeLoggedAt: now()->subMinutes(5));
 
-        $this->assertNull($this->service->pendingForUser($this->agent()));
+        $this->assertTrue($this->service->pendingListForUser($this->agent())->isEmpty());
     }
 
     public function test_meeting_assigned_to_a_different_agent_is_excluded(): void
@@ -132,7 +133,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->activateCompany(10, now()->subDay());
         $this->makeFollowUp(1, endedMinutesAgo: 30);
 
-        $this->assertNull($this->service->pendingForUser($this->agent(id: 6)));
+        $this->assertTrue($this->service->pendingListForUser($this->agent(id: 6))->isEmpty());
     }
 
     public function test_feature_disabled_globally_returns_null_even_when_otherwise_eligible(): void
@@ -141,7 +142,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->makeFollowUp(1, endedMinutesAgo: 30);
         $this->setFeatureFlag('crm.meeting-attendance-confirmation', false);
 
-        $this->assertNull($this->service->pendingForUser($this->agent()));
+        $this->assertTrue($this->service->pendingListForUser($this->agent())->isEmpty());
     }
 
     public function test_activation_is_stamped_once_and_visible_on_the_same_call(): void
@@ -153,8 +154,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         // already in place rather than reading it stale.
         $this->makeFollowUp(1, endedMinutesAgo: 30);
 
-        $this->assertNull(
-            $this->service->pendingForUser($this->agent()),
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent())->isEmpty(),
             'A meeting that ended before activation was stamped must not be eligible on the same call.'
         );
 
@@ -162,6 +163,63 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->assertNotNull(
             $company->meeting_attendance_confirmation_enabled_at,
             'enabledForCompany() should lazily stamp activation on first observation.'
+        );
+    }
+
+    public function test_multiple_eligible_meetings_are_returned_oldest_first(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 10);
+        $this->makeFollowUp(2, endedMinutesAgo: 60);
+        $this->makeFollowUp(3, endedMinutesAgo: 30);
+
+        $pending = $this->service->pendingListForUser($this->agent());
+
+        $this->assertSame([2, 3, 1], $pending->pluck('id')->all());
+    }
+
+    public function test_snoozed_meeting_is_excluded_until_its_snooze_elapses(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, snoozedUntil: now()->addHour());
+
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent())->isEmpty(),
+            'A meeting snoozed into the future must not resurface yet.'
+        );
+    }
+
+    public function test_meeting_with_an_elapsed_snooze_is_eligible_again(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, snoozedUntil: now()->subMinute());
+
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent()));
+    }
+
+    public function test_snooze_sets_the_snoozed_until_timestamp(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30);
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp, 45);
+
+        $this->assertNotNull($snoozed->attendance_confirmation_snoozed_until);
+        $this->assertTrue($snoozed->attendance_confirmation_snoozed_until->between(now()->addMinutes(44), now()->addMinutes(46)));
+    }
+
+    public function test_snooze_is_a_no_op_on_an_already_resolved_meeting(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, attendanceOutcomeLoggedAt: now()->subMinutes(5));
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp, 45);
+
+        $this->assertNull(
+            $snoozed->attendance_confirmation_snoozed_until,
+            'A resolved meeting must never be snoozed — the guard update should have matched zero rows.'
         );
     }
 
@@ -194,7 +252,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         int $id,
         int $endedMinutesAgo,
         ?Carbon $attendanceOutcomeLoggedAt = null,
-        int $duration = 30
+        int $duration = 30,
+        ?Carbon $snoozedUntil = null
     ): void {
         $start = now()->subMinutes($endedMinutesAgo + $duration);
 
@@ -206,6 +265,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
             'duration' => $duration,
             'status' => 'scheduled',
             'attendance_outcome_logged_at' => $attendanceOutcomeLoggedAt,
+            'attendance_confirmation_snoozed_until' => $snoozedUntil,
         ]);
     }
 
@@ -268,6 +328,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
             $table->string('attendance_outcome')->nullable();
             $table->timestamp('attendance_outcome_logged_at')->nullable();
             $table->unsignedInteger('attendance_outcome_logged_by')->nullable();
+            $table->timestamp('attendance_confirmation_snoozed_until')->nullable();
             $table->timestamps();
         });
     }

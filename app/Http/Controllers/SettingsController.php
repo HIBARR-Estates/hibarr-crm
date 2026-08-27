@@ -11,6 +11,7 @@ use App\Models\CrmEventCategory;
 use App\Models\CrmEventType;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEventRetentionPolicy;
+use App\Support\MeetingAttendanceConfirmationFeature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -71,7 +72,26 @@ class SettingsController extends AccountBaseController
         $setting->company_phone = $request->company_phone;
         $setting->website = $request->website;
         $setting->default_lead_creator_id = $request->default_lead_creator_id;
+
+        // Manual override for the meeting-attendance-confirmation rollout:
+        // blank clears it back to null (auto-stamped again on next check).
+        // Parse through Carbon first — the <input type="datetime-local">
+        // value ("2026-08-20T07:00", no seconds) doesn't match the strict
+        // Y-m-d H:i:s format Eloquent's datetime cast requires when you
+        // assign it a raw string, and throws InvalidFormatException instead
+        // of saving. Assigning an actual Carbon instance skips that parsing
+        // entirely.
+        // Cache::forget below is required, not just tidy — the auto-stamp
+        // path caches "already activated" for an hour and never re-reads the
+        // column once that's set, so it would silently ignore this write
+        // until the cache entry expired on its own.
+        $setting->meeting_attendance_confirmation_enabled_at = $request->filled('meeting_attendance_confirmation_enabled_at')
+            ? \Carbon\Carbon::parse($request->meeting_attendance_confirmation_enabled_at)
+            : null;
+
         $setting->save();
+
+        MeetingAttendanceConfirmationFeature::clearActivationCache((int) $setting->id);
 
         return Reply::success(__('messages.updateSuccess'));
     }

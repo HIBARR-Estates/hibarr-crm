@@ -10,6 +10,7 @@ use App\Models\DealNote;
 use App\Models\LeadNote;
 use App\Models\User;
 use App\Support\MeetingAttendanceConfirmationFeature;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class MeetingAttendanceConfirmationService
@@ -20,29 +21,32 @@ class MeetingAttendanceConfirmationService
     }
 
     /**
-     * The oldest meeting assigned to $user that's still awaiting an attendance
+     * Every meeting assigned to $user that's still awaiting an attendance
      * outcome, which started at/after the company's activation cutoff (a
      * meeting already on the calendar before the feature was turned on is
-     * never eligible, no matter when it happens to end), and whose computed
-     * end time is at least the configured delay in the past. Returns null
-     * when nothing is eligible (feature off, not yet activated, or no
-     * qualifying meeting).
+     * never eligible, no matter when it happens to end), whose computed end
+     * time is at least the configured delay in the past, and which isn't
+     * currently snoozed. Ordered oldest meeting first. Returns an empty
+     * collection when nothing is eligible (feature off, not yet activated,
+     * or no qualifying meeting).
+     *
+     * @return Collection<int, DealFollowUp>
      */
-    public function pendingForUser(User $user): ?DealFollowUp
+    public function pendingListForUser(User $user, int $limit = 20): Collection
     {
         $companyId = $user->company_id ? (int) $user->company_id : null;
         if (!$companyId) {
-            return null;
+            return collect();
         }
 
         $company = Company::find($companyId);
         if (!$company || !MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
-            return null;
+            return collect();
         }
 
         $activatedAt = $company->meeting_attendance_confirmation_enabled_at;
         if (!$activatedAt) {
-            return null;
+            return collect();
         }
 
         $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes());
@@ -59,6 +63,10 @@ class MeetingAttendanceConfirmationService
             // when it happens to end.
             ->where('next_follow_up_date', '>=', $activatedAt)
             ->where('next_follow_up_date', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('attendance_confirmation_snoozed_until')
+                    ->orWhere('attendance_confirmation_snoozed_until', '<=', now());
+            })
             ->where(function ($query) use ($user, $companyId) {
                 $query->whereHas('deal', function ($dealQuery) use ($user, $companyId) {
                     $dealQuery->where('company_id', $companyId)
@@ -72,22 +80,34 @@ class MeetingAttendanceConfirmationService
             })
             ->with(['deal.leadAgent', 'deal.contact', 'lead', 'meetingType'])
             ->orderBy('next_follow_up_date')
-            ->limit(20)
+            ->limit($limit)
             ->get();
 
-        foreach ($candidates as $followUp) {
+        return $candidates->filter(function (DealFollowUp $followUp) use ($cutoff) {
             $endTime = $followUp->getEndTime();
 
             // duration is per-row and defaults in PHP (not SQL), so the
             // "ended at least $delay ago" check happens here.
-            if (!$endTime || $endTime->gt($cutoff)) {
-                continue;
-            }
+            return $endTime && $endTime->lte($cutoff);
+        })->values();
+    }
 
-            return $followUp;
-        }
+    /**
+     * Hides $followUp from the reminders dock until now + $minutes (or the
+     * configured default). Passing 0 clears an existing snooze immediately —
+     * used by the frontend's "Undo" instead of a separate unsnooze endpoint.
+     * A no-op once the meeting's outcome has already been logged.
+     */
+    public function snooze(DealFollowUp $followUp, ?int $minutes = null): DealFollowUp
+    {
+        $until = now()->addMinutes($minutes ?? MeetingAttendanceConfirmationFeature::snoozeMinutes());
 
-        return null;
+        DealFollowUp::query()
+            ->whereKey($followUp->id)
+            ->whereNull('attendance_outcome_logged_at')
+            ->update(['attendance_confirmation_snoozed_until' => $until]);
+
+        return $followUp->fresh();
     }
 
     public function confirm(
@@ -177,15 +197,21 @@ class MeetingAttendanceConfirmationService
     private function remarkTitle(?string $contactName, DealFollowUp $followUp, string $timezone): string
     {
         // MeetingType's display column is `name` (e.g. "Strategy Meeting"), not `type`.
+        // Only append "meeting" when the type name doesn't already end with it,
+        // so this doesn't read as "Strategy Meeting meeting".
         $meetingTypeName = trim((string) ($followUp->meetingType?->name ?? ''));
-        $meetingLabel = $meetingTypeName !== '' ? "{$meetingTypeName} meeting" : 'meeting';
+        $meetingLabel = match (true) {
+            $meetingTypeName === '' => 'meeting',
+            (bool) preg_match('/meeting$/i', $meetingTypeName) => $meetingTypeName,
+            default => "{$meetingTypeName} meeting",
+        };
 
         $suffix = $followUp->next_follow_up_date
             ? ' — ' . $followUp->next_follow_up_date->copy()->setTimezone($timezone)->format('M j, Y')
             : '';
 
         return $contactName
-            ? "Remark after {$meetingLabel} with {$contactName}{$suffix}"
-            : "Remark after {$meetingLabel}{$suffix}";
+            ? "How did the {$meetingLabel} with {$contactName} go{$suffix}?"
+            : "How did the {$meetingLabel} go{$suffix}?";
     }
 }

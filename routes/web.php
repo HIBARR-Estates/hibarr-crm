@@ -754,6 +754,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::prefix('api/meetings')->name('meetings.api.')->group(function () {
         Route::get('/attendance-confirmation/pending', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'pending'])->name('attendance_confirmation.pending');
         Route::post('/{followUp}/attendance-confirmation', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'confirm'])->name('attendance_confirmation.confirm');
+        Route::post('/{followUp}/attendance-confirmation/snooze', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'snooze'])->name('attendance_confirmation.snooze');
     });
 
     // Meeting Summary Routes

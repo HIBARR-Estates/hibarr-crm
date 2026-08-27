@@ -43,4 +43,15 @@ return [
     */
     'attendance_confirmation_delay_minutes' => (int) env('MEETING_ATTENDANCE_CONFIRMATION_DELAY_MINUTES', 5),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Snooze duration
+    |--------------------------------------------------------------------------
+    |
+    | Minutes a "Snooze" on the reminders dock hides a meeting for before it
+    | becomes eligible to prompt again.
+    |
+    */
+    'attendance_confirmation_snooze_minutes' => (int) env('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES', 60),
+
 ];

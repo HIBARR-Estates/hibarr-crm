@@ -68,6 +68,24 @@ class MeetingAttendanceConfirmationFeature
         return (int) config('meetings.attendance_confirmation_delay_minutes', 5);
     }
 
+    public static function snoozeMinutes(): int
+    {
+        return (int) config('meetings.attendance_confirmation_snooze_minutes', 60);
+    }
+
+    /**
+     * Forget the "already stamped" flag for a company. Call this whenever
+     * meeting_attendance_confirmation_enabled_at is written directly (e.g. a
+     * manual override from Company Settings) — otherwise a stale cache entry
+     * from an earlier activation attempt keeps ensureActivationStamped() from
+     * ever re-checking the column, silently ignoring the new value until the
+     * cache entry expires on its own.
+     */
+    public static function clearActivationCache(int $companyId): void
+    {
+        Cache::forget(self::activationCacheKey($companyId));
+    }
+
     /**
      * When this call performs the write, also patches the in-memory $company
      * instance (if one was passed in) — otherwise a caller that already fetched
@@ -77,7 +95,7 @@ class MeetingAttendanceConfirmationFeature
     private static function ensureActivationStamped(Company|int $company): void
     {
         $companyId = $company instanceof Company ? (int) $company->id : (int) $company;
-        $cacheKey = "meeting_attendance_confirmation:activated:{$companyId}";
+        $cacheKey = self::activationCacheKey($companyId);
 
         if (Cache::get($cacheKey)) {
             return;
@@ -94,5 +112,10 @@ class MeetingAttendanceConfirmationFeature
         }
 
         Cache::put($cacheKey, true, self::ACTIVATION_STAMPED_CACHE_TTL);
+    }
+
+    private static function activationCacheKey(int $companyId): string
+    {
+        return "meeting_attendance_confirmation:activated:{$companyId}";
     }
 }

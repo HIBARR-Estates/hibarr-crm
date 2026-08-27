@@ -55,6 +55,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereStatus($value)
  *
+ * @property string|null $attendance_outcome
+ * @property \Illuminate\Support\Carbon|null $attendance_outcome_logged_at
+ * @property int|null $attendance_outcome_logged_by
+ * @property \Illuminate\Support\Carbon|null $attendance_confirmation_snoozed_until
+ *
  * Set by attachParticipantUsers(), not columns — the meeting modals read both.
  *
  * @property int $effective_duration
@@ -102,6 +107,7 @@ class DealFollowUp extends BaseModel
         'participants' => 'array',  // Cast JSON to array
         'duration' => 'integer',
         'attendance_outcome_logged_at' => 'datetime',
+        'attendance_confirmation_snoozed_until' => 'datetime',
     ];
 
     /** Default meeting duration (minutes) when none is set */

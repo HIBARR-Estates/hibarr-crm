@@ -1,15 +1,15 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import TaskModalShell from "@/Pages/Tasks/Redesign/components/primitives/TaskModalShell";
-import UserIndicator, { getInitials } from "@/Components/UserIndicator";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
-import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
+import { formatCompanyTime } from "@/lib/companyDateTime";
 import type {
     MeetingAttendanceOutcome,
     PendingMeetingAttendanceConfirmation,
 } from "@/Types/api/meeting-attendance-confirmation";
+import { TONE } from "./tone";
 
 interface OutcomeDef {
     key: MeetingAttendanceOutcome;
@@ -18,14 +18,6 @@ interface OutcomeDef {
     tone: { c: string; bg: string; bd: string };
     icon: React.ReactNode;
 }
-
-const TONE = {
-    green: { c: "#177a5b", bg: "#e1f5ee", bd: "#9fe1cb" },
-    red: { c: "#b91c1c", bg: "#fef2f2", bd: "#fecaca" },
-    amber: { c: "#92400e", bg: "#fef3c7", bd: "#fed7aa" },
-    gray: { c: "#5b6472", bg: "#f5f6f8", bd: "#e8eaed" },
-    teal: { c: "#0f766e", bg: "#e6f7f5", bd: "#99e2d8" },
-};
 
 interface MeetingAttendanceConfirmationModalProps {
     meeting: PendingMeetingAttendanceConfirmation;
@@ -99,7 +91,7 @@ export default function MeetingAttendanceConfirmationModal({
             {
                 key: "partial",
                 label: td("Partially attended", { source: "en" }),
-                helper: td("Left early or joined late", { source: "en" }),
+                helper: td("Left early", { source: "en" }),
                 tone: TONE.teal,
                 icon: (
                     <>
@@ -133,19 +125,23 @@ export default function MeetingAttendanceConfirmationModal({
     );
 
     const selectedOutcome = outcomes.find((o) => o.key === selected) ?? null;
-    const contactName = meeting.contact_name || td("this contact", { source: "en" });
+    const contactName =
+        meeting.contact_name || td("this contact", { source: "en" });
     const meetingTypeLabel = meeting.meeting_type_label?.trim();
-    const title = meetingTypeLabel
-        ? td(`Did ${contactName} attend the ${meetingTypeLabel} meeting?`)
-        : td(`Did ${contactName} attend the meeting?`);
+    // Meeting type names often already end in "Meeting" (e.g. "Strategy
+    // Meeting") — only append the word when it isn't already there, so this
+    // doesn't read as "Strategy Meeting meeting".
+    const meetingLabel = meetingTypeLabel
+        ? /meeting$/i.test(meetingTypeLabel)
+            ? meetingTypeLabel
+            : `${meetingTypeLabel} meeting`
+        : "meeting";
+    const title = td(`Did ${contactName} attend the ${meetingLabel}?`);
 
     const scheduled = meeting.scheduled_at ? dayjs(meeting.scheduled_at) : null;
-    const meetingLabel = meetingTypeLabel ? `${meetingTypeLabel} meeting` : "meeting";
-    const noteLabel = td(
-        `Remark after ${meetingLabel} with ${contactName} — ${
-            scheduled ? formatCompanyDate(meeting.scheduled_at) : ""
-        }`,
-    );
+    // Short and direct — who/when is already shown above, this just needs to
+    // prompt for the outcome detail.
+    const noteLabel = td("How did the meeting go?", { source: "en" });
 
     const handleConfirm = () => {
         if (!selectedOutcome || confirmMutation.isPending) return;
@@ -176,6 +172,7 @@ export default function MeetingAttendanceConfirmationModal({
         <TaskModalShell
             open
             onClose={onDismiss}
+            closeOnBackdrop
             ariaLabel={title}
             zIndex={1000}
             panelStyle={{
@@ -226,6 +223,11 @@ export default function MeetingAttendanceConfirmationModal({
                     >
                         {title}
                     </div>
+                    <div
+                        style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}
+                    >
+                        {td("Logged to this lead's timeline", { source: "en" })}
+                    </div>
                 </div>
                 <button
                     type="button"
@@ -258,7 +260,13 @@ export default function MeetingAttendanceConfirmationModal({
                 </button>
             </div>
 
-            <div style={{ padding: "18px 22px 20px", maxHeight: "70vh", overflowY: "auto" }}>
+            <div
+                style={{
+                    padding: "18px 22px 20px",
+                    maxHeight: "70vh",
+                    overflowY: "auto",
+                }}
+            >
                 <div
                     style={{
                         display: "flex",
@@ -282,72 +290,101 @@ export default function MeetingAttendanceConfirmationModal({
                                 background: "#e8f1fb",
                             }}
                         >
-                            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#14538c", padding: "4px 0 2px" }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    letterSpacing: "0.05em",
+                                    textTransform: "uppercase",
+                                    color: "#14538c",
+                                    padding: "4px 0 2px",
+                                }}
+                            >
                                 {scheduled.format("MMM").toUpperCase()}
                             </div>
-                            <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: "#16294d" }}>
+                            <div
+                                style={{
+                                    fontSize: 19,
+                                    fontWeight: 700,
+                                    lineHeight: 1.1,
+                                    color: "#16294d",
+                                }}
+                            >
                                 {scheduled.format("D")}
                             </div>
-                            <div style={{ fontSize: 12, color: "#5b6472", paddingBottom: 5 }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    color: "#5b6472",
+                                    paddingBottom: 5,
+                                }}
+                            >
                                 {scheduled.format("ddd")}
                             </div>
                         </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1f2e" }}>
-                                {meetingTypeLabel || td("Meeting", { source: "en" })}
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    color: "#1a1f2e",
+                                }}
+                            >
+                                {meetingTypeLabel ||
+                                    td("Meeting", { source: "en" })}
                             </span>
                         </div>
-                        <div style={{ fontSize: 13, color: "#5b6472", marginTop: 5, lineHeight: 1.5 }}>
-                            {scheduled ? formatCompanyTime(meeting.scheduled_at) : "--"}
-                            {meeting.duration ? ` (${meeting.duration} ${td("min", { source: "en" })})` : ""}
+                        <div
+                            style={{
+                                fontSize: 13,
+                                color: "#5b6472",
+                                marginTop: 5,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            {scheduled
+                                ? formatCompanyTime(meeting.scheduled_at)
+                                : "--"}
+                            {meeting.duration
+                                ? ` (${meeting.duration} ${td("min", { source: "en" })})`
+                                : ""}
                             {" · "}
                             {meeting.meeting_link
                                 ? td("Online", { source: "en" })
                                 : td("On site", { source: "en" })}
                         </div>
                         {meeting.location && (
-                            <div style={{ fontSize: 13, color: "#5b6472", marginTop: 2, lineHeight: 1.5 }}>
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    color: "#5b6472",
+                                    marginTop: 2,
+                                    lineHeight: 1.5,
+                                }}
+                            >
                                 {meeting.location}
-                            </div>
-                        )}
-                        {(meeting.contact_name || meeting.participants.length > 0) && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11, flexWrap: "wrap" }}>
-                                {meeting.contact_name && (
-                                    <span
-                                        style={{
-                                            width: 26,
-                                            height: 26,
-                                            borderRadius: 999,
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            fontWeight: 700,
-                                            fontSize: 11,
-                                            background: "#177a5b",
-                                            color: "#fff",
-                                            boxShadow: "0 0 0 2px #fff",
-                                        }}
-                                        title={meeting.contact_name}
-                                    >
-                                        {getInitials(meeting.contact_name)}
-                                    </span>
-                                )}
-                                {meeting.participants.map((participant) => (
-                                    <UserIndicator
-                                        key={participant.id}
-                                        data={participant}
-                                        size="xs"
-                                        showTooltip
-                                    />
-                                ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        marginTop: 16,
+                    }}
+                >
                     {selectedOutcome === null &&
                         outcomes.map((outcome) => (
                             <button
@@ -369,15 +406,44 @@ export default function MeetingAttendanceConfirmationModal({
                                         border: `1px solid ${outcome.tone.bd}`,
                                     }}
                                 >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={outcome.tone.c} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke={outcome.tone.c}
+                                        strokeWidth={1.5}
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
                                         {outcome.icon}
                                     </svg>
                                 </span>
-                                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                                    <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#1a1f2e" }}>
+                                <span
+                                    style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        textAlign: "left",
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: 14,
+                                            fontWeight: 600,
+                                            color: "#1a1f2e",
+                                        }}
+                                    >
                                         {outcome.label}
                                     </span>
-                                    <span style={{ display: "block", fontSize: 12, color: "#5b6472", marginTop: 1 }}>
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: 12,
+                                            color: "#5b6472",
+                                            marginTop: 1,
+                                        }}
+                                    >
                                         {outcome.helper}
                                     </span>
                                 </span>
@@ -400,15 +466,44 @@ export default function MeetingAttendanceConfirmationModal({
                                         border: `1px solid ${selectedOutcome.tone.bd}`,
                                     }}
                                 >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={selectedOutcome.tone.c} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke={selectedOutcome.tone.c}
+                                        strokeWidth={1.5}
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
                                         {selectedOutcome.icon}
                                     </svg>
                                 </span>
-                                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                                    <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#1a1f2e" }}>
+                                <span
+                                    style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        textAlign: "left",
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: 14,
+                                            fontWeight: 600,
+                                            color: "#1a1f2e",
+                                        }}
+                                    >
                                         {selectedOutcome.label}
                                     </span>
-                                    <span style={{ display: "block", fontSize: 12, color: "#5b6472", marginTop: 1 }}>
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            fontSize: 12,
+                                            color: "#5b6472",
+                                            marginTop: 1,
+                                        }}
+                                    >
                                         {selectedOutcome.helper}
                                     </span>
                                 </span>
@@ -418,7 +513,7 @@ export default function MeetingAttendanceConfirmationModal({
                                     style={{
                                         background: "none",
                                         border: "none",
-                                        color: "#1a6bb5",
+                                        color: "#1890ff",
                                         fontSize: 12,
                                         fontWeight: 600,
                                         cursor: "pointer",
@@ -437,6 +532,7 @@ export default function MeetingAttendanceConfirmationModal({
                                         display: "block",
                                         fontSize: 12,
                                         fontWeight: 700,
+                                        lineHeight: 1.5,
                                         letterSpacing: "0.05em",
                                         textTransform: "uppercase",
                                         color: "#5b6472",
@@ -448,10 +544,14 @@ export default function MeetingAttendanceConfirmationModal({
                                 <textarea
                                     id="meeting-attendance-note"
                                     value={note}
-                                    onChange={(event) => setNote(event.target.value)}
+                                    onChange={(event) =>
+                                        setNote(event.target.value)
+                                    }
                                     onFocus={() => setNoteFocused(true)}
                                     onBlur={() => setNoteFocused(false)}
-                                    placeholder={td("Add an optional note…", { source: "en" })}
+                                    placeholder={td("Add an optional note…", {
+                                        source: "en",
+                                    })}
                                     rows={3}
                                     style={{
                                         width: "100%",
@@ -466,7 +566,9 @@ export default function MeetingAttendanceConfirmationModal({
                                         // (sometimes red) outline depending on OS accent color;
                                         // replace it with the app's own blue focus treatment.
                                         outline: "none",
-                                        boxShadow: noteFocused ? "0 0 0 2px #e8f1fb" : "none",
+                                        boxShadow: noteFocused
+                                            ? "0 0 0 2px #e8f1fb"
+                                            : "none",
                                     }}
                                 />
                             </div>
@@ -486,62 +588,60 @@ export default function MeetingAttendanceConfirmationModal({
                     background: "#ffffff",
                 }}
             >
-                <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 7,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                        padding: "9px 16px",
+                        minHeight: 32,
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        background: TONE.red.bg,
+                        color: TONE.red.c,
+                        border: `1px solid ${TONE.red.bd}`,
+                    }}
+                >
+                    {td("Cancel", { source: "en" })}
+                </button>
+                <button
+                    type="button"
+                    disabled={!selectedOutcome || confirmMutation.isPending}
+                    onClick={handleConfirm}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 7,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                        padding: "9px 16px",
+                        minHeight: 32,
+                        borderRadius: 8,
+                        background: "#1890ff",
+                        color: "#ffffff",
+                        border: "1px solid #1890ff",
+                        cursor:
+                            !selectedOutcome || confirmMutation.isPending
+                                ? "not-allowed"
+                                : "pointer",
+                        opacity:
+                            !selectedOutcome || confirmMutation.isPending
+                                ? 0.45
+                                : 1,
+                    }}
+                >
                     {selectedOutcome
-                        ? td("Logged to this lead's timeline", { source: "en" })
-                        : td("Select an outcome to continue", { source: "en" })}
-                </span>
-                <span style={{ display: "flex", gap: 8 }}>
-                    <button
-                        type="button"
-                        onClick={onDismiss}
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 7,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            lineHeight: 1.2,
-                            padding: "9px 16px",
-                            minHeight: 32,
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            background: "#ffffff",
-                            color: "#5b6472",
-                            border: "1px solid #e2e5ea",
-                        }}
-                    >
-                        {td("Cancel", { source: "en" })}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={!selectedOutcome || confirmMutation.isPending}
-                        onClick={handleConfirm}
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 7,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            lineHeight: 1.2,
-                            padding: "9px 16px",
-                            minHeight: 32,
-                            borderRadius: 8,
-                            background: "#1a6bb5",
-                            color: "#ffffff",
-                            border: "1px solid #1a6bb5",
-                            cursor:
-                                !selectedOutcome || confirmMutation.isPending
-                                    ? "not-allowed"
-                                    : "pointer",
-                            opacity: !selectedOutcome || confirmMutation.isPending ? 0.45 : 1,
-                        }}
-                    >
-                        {selectedOutcome ? confirmLabels[selectedOutcome.key] : td("Confirm", { source: "en" })}
-                    </button>
-                </span>
+                        ? confirmLabels[selectedOutcome.key]
+                        : td("Confirm", { source: "en" })}
+                </button>
             </div>
         </TaskModalShell>
     );

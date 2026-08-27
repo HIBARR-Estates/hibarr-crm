@@ -16,25 +16,17 @@ class MeetingAttendanceConfirmationController extends Controller
     }
 
     /**
-     * The single oldest meeting awaiting an attendance-outcome confirmation
-     * from the current user, or null when nothing is due.
+     * Every meeting awaiting an attendance-outcome confirmation from the
+     * current user, oldest first.
      */
     public function pending(): JsonResponse
     {
-        $followUp = $this->service->pendingForUser(user());
-
-        if (!$followUp) {
-            return response()->json([
-                'status' => 'success',
-                'message' => '',
-                'data' => null,
-            ]);
-        }
+        $followUps = $this->service->pendingListForUser(user());
 
         return response()->json([
             'status' => 'success',
             'message' => '',
-            'data' => $this->present($followUp),
+            'data' => $followUps->map(fn (DealFollowUp $followUp) => $this->present($followUp))->values(),
         ]);
     }
 
@@ -62,6 +54,32 @@ class MeetingAttendanceConfirmationController extends Controller
             'data' => [
                 'id' => $followUp->id,
                 'attendance_outcome' => $followUp->attendance_outcome,
+            ],
+        ]);
+    }
+
+    public function snooze(Request $request, DealFollowUp $followUp): JsonResponse
+    {
+        if ($followUp->assignedAgentUserId() !== (int) user()->id) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'You do not have permission to snooze this meeting.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            // 0 clears an existing snooze immediately — used by the frontend's "Undo".
+            'minutes' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $followUp = $this->service->snooze($followUp, $validated['minutes'] ?? null);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => '',
+            'data' => [
+                'id' => $followUp->id,
+                'attendance_confirmation_snoozed_until' => $followUp->attendance_confirmation_snoozed_until?->toIso8601String(),
             ],
         ]);
     }
