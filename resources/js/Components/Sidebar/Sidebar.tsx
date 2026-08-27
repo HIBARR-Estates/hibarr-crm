@@ -17,6 +17,7 @@ import {
     UsergroupAddOutlined,
     HistoryOutlined,
     GiftOutlined,
+    AppstoreOutlined,
 } from "@ant-design/icons";
 
 import {
@@ -57,7 +58,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
-    const { auth, company, appName } = props;
+    const { auth, company, appName, integrationsHubUrl } = props;
     const { user } = auth;
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
@@ -624,6 +625,32 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
 
             {/* Footer */}
             <div className="border-t border-slate-700/50 p-3">
+                {/* Integrations Hub */}
+                {integrationsHubUrl && (
+                    <div
+                        onClick={() =>
+                            window.open(
+                                integrationsHubUrl,
+                                "_blank",
+                                "noopener,noreferrer",
+                            )
+                        }
+                        className={`
+                            flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer mb-2
+                            text-slate-300 hover:bg-slate-700/50 hover:text-white
+                            transition-all duration-200
+                            ${collapsed ? "justify-center" : ""}
+                        `}
+                    >
+                        <AppstoreOutlined className="text-lg text-slate-400" />
+                        {!collapsed && (
+                            <span className="text-sm font-medium">
+                                {t("app.menu.integrationsHub")}
+                            </span>
+                        )}
+                    </div>
+                )}
+
                 {/* Support button */}
                 <Dropdown
                     menu={{ items: supportMenuItems }}

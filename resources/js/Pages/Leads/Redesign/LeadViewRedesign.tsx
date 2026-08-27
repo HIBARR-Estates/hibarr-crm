@@ -311,11 +311,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const handleTemplateSelect = useCallback(
         async (templateId: string) => {
+            // Open first so this feels instant; the start call and script
+            // load show inside the modal.
+            setTemplatePickerOpen(false);
+            nav.setQualificationOpen(true);
+
             const started =
                 await qualification.startQualificationScript(templateId);
-            if (started) {
-                setTemplatePickerOpen(false);
-                nav.setQualificationOpen(true);
+            if (!started) {
+                // Start failed — don't leave an empty modal hanging.
+                nav.setQualificationOpen(false);
             }
         },
         [nav, qualification],
@@ -343,11 +348,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                   (run) => run.status === "inProgress",
                               ) ?? null;
                     if (!active) break;
-                    void (async () => {
-                        const ok =
-                            await qualification.resumeQualification(active);
-                        if (ok) nav.setQualificationOpen(true);
-                    })();
+                    // Modal first — the tree load shows inside it.
+                    nav.setQualificationOpen(true);
+                    void qualification.resumeQualification(active);
                     break;
                 }
                 case "create_deal":
@@ -536,13 +539,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         starting={qualification.isStartingFlow}
                         resumingId={qualification.resumingId}
                         onResumeQualify={(run) => {
-                            void (async () => {
-                                const ok =
-                                    await qualification.resumeQualification(
-                                        run,
-                                    );
-                                if (ok) nav.setQualificationOpen(true);
-                            })();
+                            // Modal first — the tree load shows inside it.
+                            nav.setQualificationOpen(true);
+                            void qualification.resumeQualification(run);
                         }}
                         onDeleteQualify={async (run) => {
                             const wasOpenCurrent =
@@ -745,13 +744,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onSelect={(id) => void handleTemplateSelect(id)}
                     />
 
-                    {qualification.current && nav.qualificationOpen && (
+                    {nav.qualificationOpen && (
                             <QualifyModal
                                 open={nav.qualificationOpen}
                                 lead={lead}
                                 qualification={qualification.current}
                                 templateTree={qualification.templateTree}
                                 treeLoading={qualification.treeLoading}
+                                starting={qualification.isStartingFlow}
                                 fields={props.fields}
                                 customFieldCategories={
                                     props.customFieldCategories

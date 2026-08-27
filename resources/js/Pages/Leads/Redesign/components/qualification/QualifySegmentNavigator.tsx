@@ -5,6 +5,7 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 
 interface QualifySegmentNavigatorProps {
@@ -83,9 +84,7 @@ function DarkNavItem({
     translateScript: (text: string) => string;
 }) {
     const { td } = useTd();
-    const rawLabel = useDynamicTranslation(segment.label || segment.key, {
-        source: "en",
-    });
+    const rawLabel = useTranslatedScriptLabel(segment.label || segment.key);
     const title = stripHtmlTags(translateScript(rawLabel)) || segment.key;
     const answered = hasAnswerContent(answer);
     const rawAnswer = formatAnswerDisplay(segment, answer);

@@ -235,10 +235,12 @@ class DeveloperProjectController extends AccountBaseController
             ->orderBy('name')
             ->get();
 
-        $constructionStatuses = \App\Models\PropertyConstructionStatus::where('company_id', user()->company_id)
-            ->select('name', 'label')
-            ->orderBy('label')
-            ->get();
+        // Project-level statuses (pre_construction/active_construction/post_construction/complete) —
+        // NOT PropertyConstructionStatus, which is a different value space (off_plan/under_construction/…)
+        // for individual properties and never matches developer_projects.construction_status.
+        $constructionStatuses = collect(DeveloperProject::CONSTRUCTION_STATUS_LABELS)
+            ->map(fn ($label, $name) => ['name' => $name, 'label' => $label])
+            ->values();
 
         $primaryCategories = \App\Models\PropertyPrimaryCategory::where('company_id', user()->company_id)
             ->select('name', 'label')

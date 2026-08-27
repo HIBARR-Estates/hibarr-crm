@@ -218,6 +218,7 @@ return array(
             'entity_reminder_defaults' => 'Reminder Defaults',
             'reminder_ledger' => 'Reminders',
         ],
+        'integrationsHub' => 'Integrations Hub',
         'reminderDefaults' => 'Reminder Defaults',
         'entityReminderDefaults' => 'Reminder Defaults',
         'reminderLedger' => 'Reminders',

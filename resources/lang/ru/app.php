@@ -115,6 +115,7 @@ return [
         ],
         'reminderDefaults' => 'Стандартные напоминания',
         'entityReminderDefaults' => 'Стандартные напоминания',
+        'integrationsHub' => 'Центр интеграций',
     ],
 
     // Breadcrumb
