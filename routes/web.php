@@ -24,6 +24,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
 use App\Http\Controllers\DealNoteController;
+use App\Http\Controllers\DealPaymentController;
 use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
@@ -477,6 +478,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('tasks/{task}/comments', [TaskCommentApiController::class, 'index'])->name('tasks.comments.index');
     Route::post('tasks/{task}/comments', [TaskCommentApiController::class, 'store'])->name('tasks.comments.store');
     Route::delete('task-comments/{id}', [TaskCommentApiController::class, 'destroy'])->name('tasks.comments.destroy');
+    Route::get('tasks/{task}/activity', [TaskCommentApiController::class, 'activity'])->name('tasks.activity.index');
 
     // Saved filter views for the redesigned tasks workspace
     Route::post('task-saved-views', [TaskSavedViewController::class, 'store'])->name('task-saved-views.store');
@@ -749,6 +751,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
+    Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
@@ -1358,6 +1361,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/{dealId}/tasks', [TaskController::class, 'dealTasks'])->name('deals.tasks.index');
     Route::get('deals/{dealId}/meetings', [DealController::class, 'dealMeetings'])->name('deals.meetings.index');
     Route::get('deals/{dealId}/files', [LeadFileController::class, 'dealFiles'])->name('deals.files.index');
+    Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
+    Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
+    Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
 
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');

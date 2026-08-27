@@ -15,7 +15,7 @@ class DeduplicateProjectLocations extends Command
         {--company= : Restrict to a single company_id}
         {--apply : Apply changes (default is dry-run)}';
 
-    protected $description = 'Deduplicate project locations by normalized area+city, enforce canonical naming, and rewire references.';
+    protected $description = 'Deduplicate project locations by normalized area+city, merge shared expose blobs, and rewire references without touching per-project map pins.';
 
     public function handle(): int
     {
@@ -43,6 +43,7 @@ class DeduplicateProjectLocations extends Command
             'properties_relinked' => 0,
             'locations_soft_deleted' => 0,
             'locations_renamed' => 0,
+            'locations_blob_merged' => 0,
         ];
 
         foreach ($companyIds as $companyId) {
@@ -83,16 +84,18 @@ class DeduplicateProjectLocations extends Command
                     ->pluck('id')
                     ->all();
 
-                $duplicateIds = $groupLocations
-                    ->pluck('id')
-                    ->filter(fn ($id) => (int) $id !== (int) $canonical->id)
-                    ->values()
-                    ->all();
+                $duplicateLocations = $groupLocations
+                    ->filter(fn (ProjectLocation $location) => (int) $location->id !== (int) $canonical->id)
+                    ->values();
+
+                $duplicateIds = $duplicateLocations->pluck('id')->all();
 
                 $needsRename = $canonicalName !== null && $canonical->name !== $canonicalName;
                 $hasDuplicates = !empty($duplicateIds);
+                $blobMerge = $this->buildExposeBlobMerge($canonical, $duplicateLocations);
+                $needsBlobMerge = !empty($blobMerge);
 
-                if (!$needsRename && !$hasDuplicates) {
+                if (!$needsRename && !$hasDuplicates && !$needsBlobMerge) {
                     continue;
                 }
 
@@ -106,6 +109,10 @@ class DeduplicateProjectLocations extends Command
                 if (!empty($duplicateIds)) {
                     $this->line('  Duplicate location IDs: ' . implode(', ', $duplicateIds));
                 }
+                if ($needsBlobMerge) {
+                    $this->line('  Will merge non-empty expose defaults onto canonical: ' . implode(', ', array_keys($blobMerge)));
+                }
+                $this->line('  Note: developer_projects map pins are left unchanged.');
 
                 if (!$apply) {
                     continue;
@@ -117,25 +124,34 @@ class DeduplicateProjectLocations extends Command
                     $canonicalArea,
                     $canonicalName,
                     $duplicateIds,
+                    $blobMerge,
                     &$totals
                 ) {
                     if ($canonical->trashed()) {
                         $canonical->restore();
                     }
 
+                    $canonicalUpdates = $blobMerge;
+
                     if ($canonicalName !== null && $canonical->name !== $canonicalName) {
-                        $canonical->update([
-                            'city' => $canonicalCity,
-                            'area' => $canonicalArea,
-                            'name' => $canonicalName,
-                        ]);
+                        $canonicalUpdates['city'] = $canonicalCity;
+                        $canonicalUpdates['area'] = $canonicalArea;
+                        $canonicalUpdates['name'] = $canonicalName;
                         $totals['locations_renamed']++;
+                    }
+
+                    if (!empty($canonicalUpdates)) {
+                        $canonical->update($canonicalUpdates);
+                        if (!empty($blobMerge)) {
+                            $totals['locations_blob_merged']++;
+                        }
                     }
 
                     if (empty($duplicateIds)) {
                         return;
                     }
 
+                    // Relink FKs only — do not touch developer_projects pin columns.
                     $projectsRelinked = DeveloperProject::withTrashed()
                         ->whereIn('project_location_id', $duplicateIds)
                         ->update(['project_location_id' => $canonical->id]);
@@ -165,12 +181,90 @@ class DeduplicateProjectLocations extends Command
             $this->line('  Developer projects relinked: ' . $totals['projects_relinked']);
             $this->line('  Properties relinked: ' . $totals['properties_relinked']);
             $this->line('  Locations renamed: ' . $totals['locations_renamed']);
+            $this->line('  Locations with expose defaults merged: ' . $totals['locations_blob_merged']);
             $this->line('  Duplicate locations soft-deleted: ' . $totals['locations_soft_deleted']);
         } else {
             $this->line('  Dry-run only. Re-run with --apply to persist changes.');
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Prefer non-empty shared expose/default fields from duplicates when canonical is empty.
+     * Does not read or write developer_projects pin columns.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildExposeBlobMerge(ProjectLocation $canonical, Collection $duplicates): array
+    {
+        if ($duplicates->isEmpty()) {
+            return [];
+        }
+
+        $updates = [];
+
+        foreach (['attractions', 'infrastructure', 'airports'] as $field) {
+            if ($this->isEmptyBlob($canonical->{$field})) {
+                foreach ($duplicates as $duplicate) {
+                    if (!$this->isEmptyBlob($duplicate->{$field})) {
+                        $updates[$field] = $duplicate->{$field};
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach (['image_url', 'description', 'map_url'] as $field) {
+            if ($this->isEmptyScalar($canonical->{$field})) {
+                foreach ($duplicates as $duplicate) {
+                    if (!$this->isEmptyScalar($duplicate->{$field})) {
+                        $updates[$field] = $duplicate->{$field};
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($this->isEmptyBlob($canonical->address)) {
+            foreach ($duplicates as $duplicate) {
+                if (!$this->isEmptyBlob($duplicate->address)) {
+                    $updates['address'] = $duplicate->address;
+                    break;
+                }
+            }
+        }
+
+        foreach (['latitude', 'longitude'] as $field) {
+            if ($canonical->{$field} === null) {
+                foreach ($duplicates as $duplicate) {
+                    if ($duplicate->{$field} !== null) {
+                        $updates[$field] = $duplicate->{$field};
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $updates;
+    }
+
+    private function isEmptyBlob(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        if (is_array($value)) {
+            return $value === [] || empty(array_filter($value, fn ($item) => $item !== null && $item !== '' && $item !== []));
+        }
+
+        return false;
+    }
+
+    private function isEmptyScalar(mixed $value): bool
+    {
+        return $value === null || $value === '';
     }
 
     private function locationGroupKey(ProjectLocation $location): string

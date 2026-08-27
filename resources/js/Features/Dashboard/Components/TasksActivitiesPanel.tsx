@@ -22,6 +22,16 @@ import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDro
 import { taskApi } from "@/lib/api/tasks";
 import { usePermission } from "@/lib/permissionUtils";
 import { PermissionKey } from "@/Types/permission";
+import type { Task as RedesignedTask } from "@/Types/Task";
+import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
+import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import {
+    formLinksPayload,
+    type TaskFormValues,
+} from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
+import TaskRedesignDetailModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignDetailModal";
+import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 
 dayjs.extend(relativeTime);
 
@@ -211,6 +221,70 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
 
     const handleTaskCreated = () => {
         router.reload({ only: ["tasks", "stats", "overviewMetrics"] });
+    };
+
+    // Behind crm.tasks-workspace-redesign, this widget's Add/Edit/View
+    // actions open the redesigned Tasks modals (comments, activity log,
+    // checklist, attachments) instead of the older SaveTaskModal/
+    // TaskDetailsModal pair — off, everything below this block is unused
+    // and the existing modals render exactly as they always have.
+    const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
+    // The widget's task list is a reload-refreshed prop, not local state
+    // this panel owns — so the mutation hook's own setTasks patch is a
+    // no-op here; handleTaskCreated (a full reload) is what actually
+    // refreshes the list after create/update, same as the old modals do.
+    const {
+        createTask: createRedesignedTask,
+        isCreating: isCreatingRedesignedTask,
+        createErrors: createRedesignedTaskErrors,
+        updateTask: updateRedesignedTask,
+        isUpdating: isUpdatingRedesignedTask,
+        updateErrors: updateRedesignedTaskErrors,
+    } = useTasksWorkspaceMutations(() => {}, selectedTask?.id ?? null);
+
+    const redesignedSelectedTask = selectedTask as unknown as RedesignedTask | null;
+
+    const handleRedesignedSubmit = (values: TaskFormValues) => {
+        const input = {
+            title: values.title,
+            startDate: values.startDate,
+            dueDate: values.dueDate,
+            dueTime: values.dueTime,
+            priority: values.priority,
+            description: values.description,
+            assignees: values.assignees,
+            categoryId: values.categoryId,
+            boardColumnId: values.boardColumnId ?? undefined,
+            links: formLinksPayload(values),
+        };
+
+        if (action === "edit" && selectedTask) {
+            updateRedesignedTask(selectedTask.id, input, () => {
+                handleClose();
+                handleTaskCreated();
+            });
+        } else {
+            createRedesignedTask(input, () => {
+                handleClose();
+                handleTaskCreated();
+            });
+        }
+    };
+
+    const doneColumn = columns.find((column) => column.slug === "done");
+    const openColumn =
+        columns.find((column) => column.slug === "in_progress") ??
+        columns.find((column) => column.slug === "to_do") ??
+        columns[0];
+
+    const handleToggleDoneRedesigned = () => {
+        if (!selectedTask) return;
+        const done = isCompletedColumn(
+            getEffectiveStatus(selectedTask),
+            columns,
+        );
+        const target = done ? openColumn : doneColumn;
+        if (target) handleStatusChange(selectedTask, target.slug, target.id);
     };
 
     const handleEditTask = (task: Task) => {
@@ -481,32 +555,91 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 )}
             </Card>
 
-            {/* Save Task Modal - handles both create and edit */}
-            <SaveTaskModal
-                key="add"
-                open={action === "add"}
-                isDuplicate={false}
-                onClose={handleClose}
-                onSuccess={handleTaskCreated}
-                reloadKeys={["tasks", "stats", "overviewMetrics"]}
-                categories={categories}
-                labels={labels}
-                columns={columns}
-                users={users}
-                projects={projects}
-            />
-            <SaveTaskModal
-                key="edit"
-                open={action === "edit"}
-                task={selectedTask}
-                isDuplicate={false}
-                onClose={handleClose}
-                categories={categories}
-                labels={labels}
-                columns={columns}
-                users={users}
-                projects={projects}
-            />
+            {useRedesignedTasks ? (
+                <>
+                    <TaskRedesignFormModal
+                        open={action === "add" || action === "edit"}
+                        mode={action === "edit" ? "edit" : "create"}
+                        editingTask={redesignedSelectedTask}
+                        columns={columns}
+                        categories={categories}
+                        users={users}
+                        saving={
+                            action === "edit"
+                                ? isUpdatingRedesignedTask
+                                : isCreatingRedesignedTask
+                        }
+                        errors={
+                            action === "edit"
+                                ? updateRedesignedTaskErrors
+                                : createRedesignedTaskErrors
+                        }
+                        onClose={handleClose}
+                        onSubmit={handleRedesignedSubmit}
+                    />
+                    <TaskRedesignDetailModal
+                        task={action === "view" ? redesignedSelectedTask : null}
+                        columns={columns}
+                        // AppPermission's scope fields are typed number|string
+                        // for the general permission system, but task scopes
+                        // specifically are always the string form ('all'/
+                        // 'added'/'owned'/'both'/'none') everywhere else this
+                        // codebase reads them (TaskController::user()->permission()).
+                        permissions={authPermissions as unknown as TaskPermissionSet}
+                        currentUser={{
+                            id: user?.id ?? 0,
+                            name: user?.name ?? "",
+                            image: user?.image_url,
+                        }}
+                        people={users}
+                        toggling={
+                            selectedTask
+                                ? processingTasks.has(selectedTask.id)
+                                : false
+                        }
+                        onClose={() => handleClose()}
+                        onEdit={() => selectedTask && handleAction("edit", selectedTask)}
+                        onToggleDone={handleToggleDoneRedesigned}
+                    />
+                </>
+            ) : (
+                <>
+                    {/* Save Task Modal - handles both create and edit */}
+                    <SaveTaskModal
+                        key="add"
+                        open={action === "add"}
+                        isDuplicate={false}
+                        onClose={handleClose}
+                        onSuccess={handleTaskCreated}
+                        reloadKeys={["tasks", "stats", "overviewMetrics"]}
+                        categories={categories}
+                        labels={labels}
+                        columns={columns}
+                        users={users}
+                        projects={projects}
+                    />
+                    <SaveTaskModal
+                        key="edit"
+                        open={action === "edit"}
+                        task={selectedTask}
+                        isDuplicate={false}
+                        onClose={handleClose}
+                        categories={categories}
+                        labels={labels}
+                        columns={columns}
+                        users={users}
+                        projects={projects}
+                    />
+                    <TaskDetailsModal
+                        task={selectedTask}
+                        open={action === "view"}
+                        onClose={() => handleClose()}
+                        columns={columns}
+                    />
+                </>
+            )}
+
+            {/* Duplicate always uses the legacy form — not part of this swap. */}
             <SaveTaskModal
                 key="duplicate"
                 open={action === "duplicate"}
@@ -518,13 +651,6 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 columns={columns}
                 users={users}
                 projects={projects}
-            />
-
-            <TaskDetailsModal
-                task={selectedTask}
-                open={action === "view"}
-                onClose={() => handleClose()}
-                columns={columns}
             />
 
             {/* Delete Task Modal */}

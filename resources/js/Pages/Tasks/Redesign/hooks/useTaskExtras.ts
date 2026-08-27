@@ -1,7 +1,7 @@
-import { router } from "@inertiajs/react";
 import axios from "axios";
 import { App } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TaskExtrasPersistResult } from "../adapters/taskFormSubmitAdapter";
 
 /**
  * Checklist rows and attachments both need a saved task id, so they're
@@ -16,7 +16,8 @@ export default function useTaskExtras() {
         taskId: number,
         checklist: string[],
         files: File[],
-    ) => {
+    ): Promise<TaskExtrasPersistResult> => {
+        let checklistAdded = 0;
         const failedTitles: string[] = [];
         for (const title of checklist) {
             try {
@@ -25,6 +26,7 @@ export default function useTaskExtras() {
                     { task_id: taskId, title },
                     { headers: { Accept: "application/json" } },
                 );
+                checklistAdded += 1;
             } catch (error) {
                 console.error("Failed to add checklist item", title, error);
                 failedTitles.push(title);
@@ -36,6 +38,7 @@ export default function useTaskExtras() {
             );
         }
 
+        let filesUploaded = 0;
         if (files.length > 0) {
             const payload = new FormData();
             payload.append("task_id", String(taskId));
@@ -44,6 +47,7 @@ export default function useTaskExtras() {
                 await axios.post(route("task-files.store"), payload, {
                     headers: { Accept: "application/json" },
                 });
+                filesUploaded = files.length;
             } catch (error) {
                 console.error("Failed to upload task files", error);
                 message.error(
@@ -52,11 +56,7 @@ export default function useTaskExtras() {
             }
         }
 
-        if (checklist.length || files.length) {
-            router.reload({
-                only: ["kanbanTasks", "tableTasks", "stats"],
-            });
-        }
+        return { checklistAdded, filesUploaded };
     };
 
     return { persistExtras };

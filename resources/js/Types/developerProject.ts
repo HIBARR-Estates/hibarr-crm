@@ -156,6 +156,11 @@ export interface DeveloperProject {
     reference_code: string | null;
     description: string | null;
     project_location_id: number | null;
+    // Per-project map pins (authoritative; location holds area defaults)
+    map_url?: string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    address?: LocationAddress | null;
     // Construction project fields
     google_drive_link: string | null;
     availability_link: string | null;

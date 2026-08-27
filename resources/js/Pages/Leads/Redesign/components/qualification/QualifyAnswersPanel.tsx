@@ -5,6 +5,7 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 
 interface QualifyAnswersPanelProps {
@@ -94,9 +95,7 @@ function AnswerCard({
     translateScript: (text: string) => string;
 }) {
     const { td } = useTd();
-    const rawLabel = useDynamicTranslation(segment.label || segment.key, {
-        source: "en",
-    });
+    const rawLabel = useTranslatedScriptLabel(segment.label || segment.key);
     const question = stripHtmlTags(translateScript(rawLabel)) || segment.key;
     const rawAnswer = formatAnswerDisplay(segment, answer);
     // The captured answer is the option label(s) — translate it like the question.

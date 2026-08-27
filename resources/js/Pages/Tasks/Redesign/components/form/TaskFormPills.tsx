@@ -96,7 +96,7 @@ export default function TaskFormPills({
     });
 
     return (
-        <div className="flex flex-nowrap items-center gap-[7px] overflow-x-auto pt-0.5">
+        <div className="flex flex-wrap items-center gap-x-[7px] gap-y-2 pt-0.5">
             <TaskPillSelect
                 value={
                     form.boardColumnId !== null

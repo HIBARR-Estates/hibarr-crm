@@ -1,6 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
-import { useDynamicTranslation, useTd } from "@/Hooks/useDynamicTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import QualificationScriptHtml from "@/Pages/Leads/Components/Qualification/QualificationScriptHtml";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
@@ -14,6 +14,7 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import {
     DEFAULT_OUTCOME_LABELS,
     OUTCOME_LIFECYCLE_STATUS_KEY,
@@ -1867,7 +1868,7 @@ function OutcomeBody({
     text: string;
     translateScript: (text: string) => string;
 }) {
-    const localized = useDynamicTranslation(text, { source: "en" });
+    const localized = useTranslatedScriptLabel(text);
     const translated = translateScript(localized);
     return (
         <QualificationScriptHtml

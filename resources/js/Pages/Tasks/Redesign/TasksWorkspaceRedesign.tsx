@@ -12,7 +12,6 @@ import { useFilter } from "@/contexts/FilterContext";
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import type { Task } from "@/Types/Task";
 import type { TasksIndexProps } from "@/Pages/Tasks/Index";
-import type { TasksViewMode } from "./components/TasksHeader";
 import type { GroupMode, QuickFilterCounts, QuickFilterKey } from "./components/TasksFilterBar";
 import TasksPagination from "./components/TasksPagination";
 import TasksBulkBar from "./components/TasksBulkBar";
@@ -22,6 +21,8 @@ import TasksWorkspaceChrome from "./components/header/TasksWorkspaceChrome";
 import TasksWorkspaceModals from "./components/workspace/TasksWorkspaceModals";
 import { buildTaskRowActions } from "./components/list/buildTaskRowActions";
 import useTasksFilters from "./hooks/useTasksFilters";
+import useTasksViewNavigation from "./hooks/useTasksViewNavigation";
+import useTasksUrlSync from "./hooks/useTasksUrlSync";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
 import useTasksServerPagination from "./hooks/useTasksServerPagination";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
@@ -31,6 +32,7 @@ import useTaskSelection from "./hooks/useTaskSelection";
 import useTasksBulkActions from "./hooks/useTasksBulkActions";
 import buildTaskGroups from "./lib/buildTaskGroups";
 import type { LeadSavedView as SavedView } from "@/Features/Filters/useLeadSavedViews";
+import { parseTaskDateTime } from "@/lib/taskDateTime";
 import { toTaskViewModel, type TaskViewModel } from "./adapters/taskViewModel";
 import {
     asCommentDeleteScope,
@@ -45,6 +47,11 @@ import {
     toRecordPool,
     type TaskFormValues,
 } from "./adapters/taskFormValues";
+import {
+    afterCreateTaskFormSubmit,
+    afterUpdateTaskFormSubmit,
+    patchTaskListExtrasCounts,
+} from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
 
 import "@/Components/Redesign/redesign.css";
@@ -78,6 +85,12 @@ export default function TasksWorkspaceRedesign({
     savedViews = [],
     filters,
     auth,
+    now,
+    openTaskId,
+    openTask,
+    openTaskDeferred,
+    openMode,
+    openCreate,
 }: TasksWorkspaceRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -89,7 +102,7 @@ export default function TasksWorkspaceRedesign({
     const [boardTasks, setBoardTasks] = useState<Task[]>(kanbanTasks);
     const [listTasks, setListTasks] = useState<Task[]>(tableTasks?.data ?? []);
     const [taskSettingsOpen, setTaskSettingsOpen] = useState(false);
-    const [view, setView] = useState<TasksViewMode>("list");
+    const { view, setView } = useTasksViewNavigation();
     const [groupMode, setGroupMode] = useState<GroupMode>("due");
     const {
         addOpen,
@@ -120,11 +133,37 @@ export default function TasksWorkspaceRedesign({
     const {
         selected,
         selectedIds,
-        clearSelection,
-        toggleSelect,
-        toggleGroupSelection,
+        clearSelection: clearRowSelection,
+        toggleSelect: toggleSelectRow,
+        toggleGroupSelection: toggleGroupSelectionRows,
         allSelected,
     } = useTaskSelection();
+
+    // "Select all N matching filters" — the bulk bar's own selection targets
+    // only the currently-loaded page; this extends it to every row the
+    // filters match, resolved server-side (see resolveBulkTaskIds()).
+    const [selectAllMatching, setSelectAllMatching] = useState(false);
+    const clearSelection = useCallback(() => {
+        setSelectAllMatching(false);
+        clearRowSelection();
+    }, [clearRowSelection]);
+    // Any manual row/group/page-level pick has to drop "all matching" first —
+    // otherwise the bulk bar keeps showing (and acting on) the full matching
+    // set while silently ignoring the checkbox the user just clicked.
+    const toggleSelect = useCallback(
+        (id: number) => {
+            setSelectAllMatching(false);
+            toggleSelectRow(id);
+        },
+        [toggleSelectRow],
+    );
+    const toggleGroupSelection = useCallback(
+        (ids: number[], select: boolean) => {
+            setSelectAllMatching(false);
+            toggleGroupSelectionRows(ids, select);
+        },
+        [toggleGroupSelectionRows],
+    );
 
     const { persistPageSize } = usePersistedPageSize({
         storageKey: "hibarr_tasks_per_page",
@@ -241,13 +280,25 @@ export default function TasksWorkspaceRedesign({
     usePageSearchAndFilter({ filterConfig });
     const { openDrawer } = useFilter();
 
+    // Due-date grouping compares each task's wall-clock due date against
+    // this — using the browser's own `new Date()` put tasks in the wrong
+    // today/overdue/upcoming bucket whenever the viewer's timezone doesn't
+    // match the one due dates are already expressed in.
+    const serverNow = useMemo(() => parseTaskDateTime(now) ?? new Date(), [now]);
+
     const boardViewModels = useMemo(
-        () => boardTasks.map((task) => toTaskViewModel(task, completedSlugs)),
-        [boardTasks, completedSlugs],
+        () =>
+            boardTasks.map((task) =>
+                toTaskViewModel(task, completedSlugs, serverNow),
+            ),
+        [boardTasks, completedSlugs, serverNow],
     );
     const listViewModels = useMemo(
-        () => listTasks.map((task) => toTaskViewModel(task, completedSlugs)),
-        [listTasks, completedSlugs],
+        () =>
+            listTasks.map((task) =>
+                toTaskViewModel(task, completedSlugs, serverNow),
+            ),
+        [listTasks, completedSlugs, serverNow],
     );
 
     const counts: QuickFilterCounts = taskQuickCounts ?? {
@@ -270,8 +321,54 @@ export default function TasksWorkspaceRedesign({
         [...boardViewModels, ...listViewModels].forEach((vm) =>
             byId.set(vm.id, vm),
         );
+        if (
+            openTaskId &&
+            openTask &&
+            !byId.has(openTaskId)
+        ) {
+            byId.set(
+                openTaskId,
+                toTaskViewModel(openTask, completedSlugs, serverNow),
+            );
+        }
         return byId;
-    }, [boardViewModels, listViewModels]);
+    }, [
+        boardViewModels,
+        listViewModels,
+        openTaskId,
+        openTask,
+        completedSlugs,
+        serverNow,
+    ]);
+
+    // Open the deep-linked popup from URL props once on mount.
+    useEffect(() => {
+        if (openCreate) {
+            setAddOpen(true);
+            return;
+        }
+        if (!openTaskId) return;
+        if (openMode === "edit") {
+            setEditingTaskId(openTaskId);
+        } else {
+            setSelectedTaskId(openTaskId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Merge deferred openTask into local lists once it arrives.
+    useEffect(() => {
+        if (!openTaskId || !openTask) return;
+        patchTasks((prev) =>
+            prev.some((task) => task.id === openTask.id)
+                ? prev.map((task) =>
+                      task.id === openTask.id ? { ...task, ...openTask } : task,
+                  )
+                : [openTask, ...prev],
+        );
+    }, [openTask, openTaskId, patchTasks]);
+
+    useTasksUrlSync({ view, addOpen, editingTaskId, selectedTaskId });
 
     const selectedVm = selectedTaskId
         ? (allViewModels.get(selectedTaskId) ?? null)
@@ -310,6 +407,15 @@ export default function TasksWorkspaceRedesign({
         () => JSON.stringify(filters ?? {}),
         [filters],
     );
+
+    // Result count changed, or the filters/search producing it did (even if
+    // the count happens to coincidentally match) — either way the matching
+    // set may no longer be what the user meant when they picked "all
+    // matching", so drop it rather than silently carrying it over.
+    useEffect(() => {
+        setSelectAllMatching(false);
+    }, [pagedTableTasks.total, filterSignature]);
+
     const filtersInitialized = useRef(false);
 
     useEffect(() => {
@@ -324,6 +430,7 @@ export default function TasksWorkspaceRedesign({
                 "stats",
                 "kanbanTasks",
                 "filters",
+                "now",
             ],
             preserveState: true,
             preserveScroll: true,
@@ -344,6 +451,7 @@ export default function TasksWorkspaceRedesign({
                     "stats",
                     "kanbanTasks",
                     "filters",
+                    "now",
                 ],
                 preserveState: true,
                 preserveScroll: true,
@@ -360,6 +468,7 @@ export default function TasksWorkspaceRedesign({
                 "stats",
                 "savedViews",
                 "taskQuickCounts",
+                "now",
             ],
             onSuccess: (page) => {
                 const props = page.props as {
@@ -379,6 +488,9 @@ export default function TasksWorkspaceRedesign({
         users,
         selected,
         selectedIds,
+        selectAllMatching,
+        matchingTotal: pagedTableTasks.total,
+        filters: filters as Record<string, unknown> | undefined,
         patchTasks,
         clearSelection,
     });
@@ -388,26 +500,33 @@ export default function TasksWorkspaceRedesign({
     const submitCreate = (values: TaskFormValues, onDone: () => void) =>
         createTask(
             { ...values, links: formLinksPayload(values) },
-            (created) => {
-                onDone();
-                if (created?.id) {
-                    void persistExtras(
-                        created.id,
-                        values.checklist,
-                        values.files,
+            afterCreateTaskFormSubmit(
+                values,
+                persistExtras,
+                onDone,
+                (task, result) => {
+                    patchTasks((prev) =>
+                        patchTaskListExtrasCounts(prev, task.id, result),
                     );
-                }
-            },
+                },
+            ),
         );
 
     const submitUpdate = (taskId: number, values: TaskFormValues) =>
         updateTask(
             taskId,
             { ...values, links: formLinksPayload(values) },
-            () => {
-                setEditingTaskId(null);
-                void persistExtras(taskId, values.checklist, values.files);
-            },
+            afterUpdateTaskFormSubmit(
+                taskId,
+                values,
+                persistExtras,
+                () => setEditingTaskId(null),
+                (result) => {
+                    patchTasks((prev) =>
+                        patchTaskListExtrasCounts(prev, taskId, result),
+                    );
+                },
+            ),
         );
 
     const rowActions = (vm: TaskViewModel) =>
@@ -471,7 +590,16 @@ export default function TasksWorkspaceRedesign({
                 {view === "list" ? (
                     <>
                         <TasksBulkBar
-                            count={selected.size}
+                            count={
+                                selectAllMatching
+                                    ? pagedTableTasks.total
+                                    : selected.size
+                            }
+                            matchingTotal={pagedTableTasks.total}
+                            selectAllMatching={selectAllMatching}
+                            onSelectAllMatching={() =>
+                                setSelectAllMatching(true)
+                            }
                             columns={columns}
                             users={users}
                             busy={bulk.bulkBusy}
@@ -640,7 +768,9 @@ export default function TasksWorkspaceRedesign({
                     setSelectedTaskId(null);
                 }}
                 confirmBulkDelete={bulk.confirmBulkDelete}
-                selectedCount={selected.size}
+                selectedCount={
+                    selectAllMatching ? pagedTableTasks.total : selected.size
+                }
                 bulkBusy={bulk.bulkBusy}
                 onConfirmBulkDelete={bulk.bulkDelete}
                 onCancelBulkDelete={() => bulk.setConfirmBulkDelete(false)}
@@ -658,6 +788,9 @@ export default function TasksWorkspaceRedesign({
                 bulkUpdateFields={bulk.bulkUpdateFields}
                 taskSettingsOpen={taskSettingsOpen}
                 onCloseTaskSettings={() => setTaskSettingsOpen(false)}
+                deferAttachments={Boolean(
+                    openTaskDeferred && selectedVm?.id === openTaskId,
+                )}
             />
         </PageLayout>
     );

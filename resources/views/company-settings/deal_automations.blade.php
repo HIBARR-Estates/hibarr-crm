@@ -33,6 +33,7 @@
                             <tr>
                                 <th>Priority</th>
                                 <th>Automation Name</th>
+                                <th>For</th>
                                 <th>Scope & Trigger</th>
                                 <th>Actions (Result)</th>
                                 <th>Status</th>
@@ -47,9 +48,23 @@
                                         <h5 class="mb-0 f-14 text-darkest-grey">{{ $automation->name }}</h5>
                                     </td>
                                     <td>
+                                        @if(($automation->subject_type ?? 'deal') === 'lead')
+                                            <span class="badge badge-info">Leads</span>
+                                        @else
+                                            <span class="badge badge-primary">Deals</span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <div class="d-flex flex-column">
-                                            <span class="badge badge-light mb-1">{{ $automation->pipeline->name ?? 'All Pipelines' }}</span>
+                                            @if(($automation->subject_type ?? 'deal') === 'lead')
+                                                <span class="badge badge-light mb-1">All Leads</span>
+                                            @else
+                                                <span class="badge badge-light mb-1">{{ $automation->pipeline->name ?? 'All Pipelines' }}</span>
+                                            @endif
                                             <small class="text-muted">When: {{ ucwords(str_replace('_', ' ', $automation->trigger ?? 'Any Update')) }}</small>
+                                            @if($automation->wait_duration_value)
+                                                <small class="text-muted">Wait: {{ $automation->wait_duration_value }} {{ strtolower($automation->wait_duration_unit ?? 'days') }}</small>
+                                            @endif
                                         </div>
                                     </td>
                                     <td>
@@ -68,6 +83,20 @@
                                                 @elseif($action->action_type === 'lock_deal')
                                                     <i class="fa fa-lock text-warning"></i>
                                                     <strong>Lock Deal</strong>
+                                                @elseif($action->action_type === 'send_email')
+                                                    <i class="fa fa-envelope text-primary"></i>
+                                                    Send email <strong>{{ $action->emailTemplate->name ?? 'Unknown Template' }}</strong>
+                                                    <br><small class="text-muted">to: {{ collect($action->recipient_types ?: ['client'])->map(fn($t) => \App\Services\AutomationFieldCatalog::RECIPIENT_TYPES[$t]['label'] ?? $t)->implode(', ') }}</small>
+                                                @elseif($action->action_type === 'create_task')
+                                                    <i class="fa fa-check-square text-primary"></i>
+                                                    Create task <strong>{{ $action->title ?: 'Automated Task' }}</strong>
+                                                    (assign: {{ $action->assignee_type === 'specific_user' ? ($action->assigneeUser->name ?? 'Unknown User') : (\App\Services\AutomationFieldCatalog::ASSIGNMENT_TYPES[$action->assignee_type]['label'] ?? $action->assignee_type ?? 'Lead Owner') }})
+                                                @elseif($action->action_type === 'create_note')
+                                                    <i class="fa fa-sticky-note text-primary"></i>
+                                                    Create note
+                                                    @if($action->title)
+                                                        <strong>{{ $action->title }}</strong>
+                                                    @endif
                                                 @endif
                                             </div>
                                         @endforeach
@@ -91,7 +120,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <x-cards.no-record icon="list" :message="__('messages.noRecordFound')" />
                                     </td>
                                 </tr>

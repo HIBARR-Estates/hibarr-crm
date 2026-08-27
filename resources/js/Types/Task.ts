@@ -38,6 +38,13 @@ export interface Task {
         title: string;
         status: "complete" | "incomplete" | string;
     }>;
+    /** File attachments, sent by TaskController@presentTask for the redesigned detail modal. */
+    files?: Array<{
+        id: number;
+        filename: string;
+        size: number;
+        download_url: string;
+    }>;
     files_count?: number;
     notes_count?: number;
     comments_count?: number;

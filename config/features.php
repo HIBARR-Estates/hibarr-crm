@@ -10,6 +10,7 @@ return [
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
         'crm.lead-merge',
+        'crm.lead-automation-engine',
         'crm.notification-service-routing',
         'crm.notification-island-alerts',
         'crm.entity-reminders',
@@ -33,5 +34,6 @@ return [
         'crm.leads-filter-v2',
         'crm.expose-share-links',
         'crm.tasks-workspace-redesign',
+        'crm.automation-v2',
     ],
 ];

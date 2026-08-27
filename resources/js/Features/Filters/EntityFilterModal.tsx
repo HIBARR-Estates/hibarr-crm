@@ -14,6 +14,7 @@ import {
     PillGroup,
     ScoreRange,
     Segmented,
+    SingleSelect,
     TemperatureCards,
     TokenSelect,
     fmt,
@@ -273,6 +274,18 @@ export default function EntityFilterModal({
                         <TokenSelect
                             options={options}
                             value={value ?? []}
+                            onChange={set}
+                            placeholder={field.placeholder}
+                        />
+                    </FieldShell>
+                );
+
+            case "select":
+                return (
+                    <FieldShell key={field.key} label={field.label}>
+                        <SingleSelect
+                            options={options}
+                            value={value ?? null}
                             onChange={set}
                             placeholder={field.placeholder}
                         />
