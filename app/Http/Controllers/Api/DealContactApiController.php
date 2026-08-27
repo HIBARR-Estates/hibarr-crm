@@ -675,6 +675,17 @@ class DealContactApiController extends Controller
             return;
         }
 
+        $coreFieldsService = app(LeadCoreFieldsService::class);
+        $filtered = $coreFieldsService->filterCustomFieldsFromPayload(
+            ['custom_fields_data' => $customFieldsData],
+            (int) $lead->company_id
+        );
+        $customFieldsData = $filtered['custom_fields_data'] ?? [];
+
+        if ($customFieldsData === []) {
+            return;
+        }
+
         try {
             $lead->updateCustomFieldData($customFieldsData, $lead->company_id);
         } catch (\Exception $e) {
