@@ -5,6 +5,7 @@ namespace App\Services;
 
 use GuzzleHttp\Client;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\LeadMarketing;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -47,10 +48,11 @@ class MetaConversionsService
      *
      * @param string $eventName The name of the conversion event (e.g., "qualified", "committed")
      * @param float $value The conversion value to send to Meta
-     * @param Deal $deal The deal that triggered this event
+     * @param Deal|Lead $subject The deal or lead that triggered this event — a
+     *        lead-subject automation has no deal at all, so this accepts either.
      * @return bool Returns true if the event was sent successfully, false otherwise
      */
-    public function sendEvent(string $eventName, float $value, Deal $deal): bool
+    public function sendEvent(string $eventName, float $value, Deal|Lead $subject): bool
     {
         // Validate configuration
         if (empty($this->pixelId) || empty($this->accessToken)) {
@@ -61,21 +63,22 @@ class MetaConversionsService
             return false;
         }
 
+        $logContext = $subject instanceof Lead ? ['lead_id' => $subject->id] : ['deal_id' => $subject->id];
+
         try {
             // Prepare the event payload
-            $payload = $this->buildPayload($eventName, $value, $deal);
+            $payload = $this->buildPayload($eventName, $value, $subject);
 
             // Construct API endpoint
             $endpoint = "https://graph.facebook.com/{$this->apiVersion}/{$this->pixelId}/events?access_token={$this->accessToken}";
 
-            Log::info('Sending Meta Conversion Event', [
-                'deal_id' => $deal->id,
+            Log::info('Sending Meta Conversion Event', $logContext + [
                 'event_name' => $eventName,
                 'endpoint' => $endpoint,
                 'payload' => $payload, // Full payload for debugging
             ]);
 
-            
+
             $client = new Client([
                 'timeout' => 30,
                 'connect_timeout' => 15,
@@ -99,8 +102,7 @@ class MetaConversionsService
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getBody()->getContents();
 
-            Log::info('Meta Conversion Event Response', [
-                'deal_id' => $deal->id,
+            Log::info('Meta Conversion Event Response', $logContext + [
                 'event_name' => $eventName,
                 'status_code' => $statusCode,
                 'response' => $responseBody, // Full response for debugging
@@ -112,8 +114,7 @@ class MetaConversionsService
             }
 
             // Log error if not successful
-            Log::error('Meta Conversion Event failed', [
-                'deal_id' => $deal->id,
+            Log::error('Meta Conversion Event failed', $logContext + [
                 'event_name' => $eventName,
                 'status_code' => $statusCode,
                 'error_response' => $responseBody,
@@ -122,8 +123,7 @@ class MetaConversionsService
             return false;
 
         } catch (\Exception $e) {
-            Log::error('Exception while sending Meta Conversion Event', [
-                'deal_id' => $deal->id,
+            Log::error('Exception while sending Meta Conversion Event', $logContext + [
                 'event_name' => $eventName,
                 'exception_message' => $e->getMessage(),
                 'exception_trace' => $e->getTraceAsString(),
@@ -137,12 +137,12 @@ class MetaConversionsService
      * Build the payload for Meta Conversions API
      *
      * @param string $eventName
-     * @param Deal $deal
+     * @param Deal|Lead $subject
      * @return array
      */
-    protected function buildPayload(string $eventName, float $value, Deal $deal): array
+    protected function buildPayload(string $eventName, float $value, Deal|Lead $subject): array
     {
-        $contact = $deal->contact;
+        $contact = $subject instanceof Lead ? $subject : $subject->contact;
         $leadMarketing = $contact->leadMarketing;
         
         // Prepare user data with hashed PII
@@ -229,9 +229,11 @@ class MetaConversionsService
         $customData = [];
         $customData['value'] = (float) $value;
         
-        // Currency is REQUIRED by Meta when value is present
-        if ($deal->currency) {
-            $customData['currency'] = $deal->currency->currency_code ?? 'GBP';
+        // Currency is REQUIRED by Meta when value is present. A Lead has no
+        // currency of its own (it isn't tied to one deal) — fall back to the
+        // same default a currency-less Deal already used.
+        if ($subject instanceof Deal && $subject->currency) {
+            $customData['currency'] = $subject->currency->currency_code ?? 'GBP';
         } else {
             $customData['currency'] = 'GBP'; // Default currency
         }
@@ -246,7 +248,8 @@ class MetaConversionsService
         ];
 
         // Add event_id for deduplication (optional but recommended)
-        $eventData['event_id'] = 'deal_' . $deal->id . '_' . $eventName . '_' . time();
+        $subjectLabel = $subject instanceof Lead ? 'lead_' . $subject->id : 'deal_' . $subject->id;
+        $eventData['event_id'] = $subjectLabel . '_' . $eventName . '_' . time();
 
         // Wrap the event in a data array as required by Meta Conversions API
         return [

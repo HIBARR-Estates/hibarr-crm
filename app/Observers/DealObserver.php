@@ -501,7 +501,7 @@ class DealObserver
             }
         }
         // deal automation trigger
-        if (! $deal->is_locked) {
+        if (! isRunningInConsoleOrSeeding() && ! $deal->is_locked) {
             $this->dealAutomation->process($deal, 'deal_updated');
         }
 
@@ -569,7 +569,9 @@ class DealObserver
             // $this->dealTaskService->createDefaultTasks($deal);
         }
         // deal automation trigger
-        $this->dealAutomation->process($deal, 'deal_created');
+        if (! isRunningInConsoleOrSeeding()) {
+            $this->dealAutomation->process($deal, 'deal_created');
+        }
 
         // ── CRM Event: deal_created ──
         $this->recordCrmEvent('deal_created', $deal, [

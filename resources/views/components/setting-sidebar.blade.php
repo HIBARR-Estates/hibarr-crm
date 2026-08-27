@@ -33,6 +33,9 @@
             <x-setting-menu-item :active="$activeMenu" menu="deal_automations" :href="route('company-settings.deal_automations')"
                                                       :text="__('app.menu.dealAutomations')"/>
 
+            <x-setting-menu-item :active="$activeMenu" menu="email_templates" :href="route('email-templates.index')"
+                                                      :text="__('app.menu.emailTemplates')"/>
+
             <x-setting-menu-item :active="$activeMenu" menu="crm_event_settings" :href="route('company-settings.crm_events')"
                                  :text="__('app.menu.crmEventSettings')"/>
 

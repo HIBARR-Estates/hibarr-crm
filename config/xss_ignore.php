@@ -27,4 +27,14 @@ return [
     'note_details',
     'message2',
     'editedMessage',
+    // Email templates (Settings > Automation > Email Templates) — body is a
+    // deliberately raw-HTML field (full custom <html> documents, <style>
+    // blocks, tables), authored only by admins with manage_company_setting.
+    // Stripping tags here doesn't add meaningful XSS protection (the only
+    // "victims" are the admin's own email recipients reading a template the
+    // admin wrote on purpose) and silently breaks every template that isn't
+    // plain text.
+    'body',
+    'subject',
+    'preheader',
 ];
