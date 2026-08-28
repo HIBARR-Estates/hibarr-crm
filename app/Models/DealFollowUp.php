@@ -59,6 +59,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $attendance_outcome_logged_at
  * @property int|null $attendance_outcome_logged_by
  * @property \Illuminate\Support\Carbon|null $attendance_confirmation_snoozed_until
+ * @property int|null $host_id
  *
  * Set by attachParticipantUsers(), not columns — the meeting modals read both.
  *
@@ -98,6 +99,11 @@ class DealFollowUp extends BaseModel
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
         'duration',  // Meeting duration in minutes (nullable, defaults to 30)
+        'attendance_outcome',
+        'attendance_outcome_logged_at',
+        'attendance_outcome_logged_by',
+        'attendance_confirmation_snoozed_until',
+        'host_id',
     ];
 
     protected $casts = [
@@ -107,7 +113,9 @@ class DealFollowUp extends BaseModel
         'participants' => 'array',  // Cast JSON to array
         'duration' => 'integer',
         'attendance_outcome_logged_at' => 'datetime',
+        'attendance_outcome_logged_by' => 'integer',
         'attendance_confirmation_snoozed_until' => 'datetime',
+        'host_id' => 'integer',
     ];
 
     /** Default meeting duration (minutes) when none is set */
@@ -196,6 +204,17 @@ class DealFollowUp extends BaseModel
         $agentUserId = $this->deal?->leadAgent?->user_id ?? $this->lead?->lead_owner;
 
         return $agentUserId ? (int) $agentUserId : null;
+    }
+
+    /**
+     * Default host for a NEW meeting when the request doesn't choose one
+     * explicitly: same resolution as assignedAgentUserId(), falling back to
+     * the meeting's creator. Create-time only — host_id is immutable after
+     * save (DealController::updateFollow never reads or writes it).
+     */
+    public function defaultHostUserId(): int
+    {
+        return $this->assignedAgentUserId() ?? $this->added_by ?? (int) user()->id;
     }
 
     /**

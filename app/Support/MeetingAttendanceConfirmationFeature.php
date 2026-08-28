@@ -101,6 +101,12 @@ class MeetingAttendanceConfirmationFeature
             return;
         }
 
+        if ($company instanceof Company && $company->meeting_attendance_confirmation_enabled_at) {
+            Cache::put($cacheKey, true, self::ACTIVATION_STAMPED_CACHE_TTL);
+
+            return;
+        }
+
         $now = now();
         $updated = Company::query()
             ->where('id', $companyId)

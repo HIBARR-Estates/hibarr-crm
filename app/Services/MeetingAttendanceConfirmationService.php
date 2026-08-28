@@ -10,6 +10,7 @@ use App\Models\DealNote;
 use App\Models\LeadNote;
 use App\Models\User;
 use App\Support\MeetingAttendanceConfirmationFeature;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -51,7 +52,46 @@ class MeetingAttendanceConfirmationService
 
         $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes());
 
-        $candidates = DealFollowUp::query()
+        // "Ended at least $delay ago" depends on duration, which defaults in PHP
+        // (not SQL) — so it can't be applied as a SQL LIMIT. Ordered ascending by
+        // start time (oldest first) and pulled in batches instead: a handful of
+        // old, long-running meetings that haven't ended yet must not crowd out an
+        // eligible one that started later but was short.
+        $batchSize = max($limit, 20);
+        $maxScanned = $batchSize * 10;
+
+        $eligible = collect();
+        $offset = 0;
+
+        while ($eligible->count() < $limit && $offset < $maxScanned) {
+            $batch = $this->pendingCandidatesQuery($user, $companyId, $activatedAt)
+                ->skip($offset)
+                ->take($batchSize)
+                ->get();
+
+            if ($batch->isEmpty()) {
+                break;
+            }
+
+            foreach ($batch as $followUp) {
+                $endTime = $followUp->getEndTime();
+                if ($endTime && $endTime->lte($cutoff)) {
+                    $eligible->push($followUp);
+                    if ($eligible->count() >= $limit) {
+                        break;
+                    }
+                }
+            }
+
+            $offset += $batchSize;
+        }
+
+        return $eligible->values();
+    }
+
+    private function pendingCandidatesQuery(User $user, int $companyId, CarbonInterface $activatedAt)
+    {
+        return DealFollowUp::query()
             ->whereNull('attendance_outcome_logged_at')
             ->where(function ($query) {
                 $query->whereNull('status')
@@ -80,16 +120,48 @@ class MeetingAttendanceConfirmationService
             })
             ->with(['deal.leadAgent', 'deal.contact', 'lead', 'meetingType'])
             ->orderBy('next_follow_up_date')
-            ->limit($limit)
-            ->get();
+            ->orderBy('id');
+    }
 
-        return $candidates->filter(function (DealFollowUp $followUp) use ($cutoff) {
-            $endTime = $followUp->getEndTime();
+    /**
+     * The same eligibility rules pendingListForUser() applies when surfacing a
+     * follow-up — reused here so confirm()/snooze() can't be used to act on a
+     * future, cancelled, pre-activation, or already-resolved follow-up just
+     * because it's assigned to the requesting user. Authorization (company +
+     * assignment) is the controller's job; this is the "is it actionable at
+     * all right now" check.
+     */
+    private function isEligibleForOutcomeAction(DealFollowUp $followUp): bool
+    {
+        if ($followUp->attendance_outcome_logged_at) {
+            return false;
+        }
 
-            // duration is per-row and defaults in PHP (not SQL), so the
-            // "ended at least $delay ago" check happens here.
-            return $endTime && $endTime->lte($cutoff);
-        })->values();
+        if ($followUp->status === 'cancelled') {
+            return false;
+        }
+
+        if (!$followUp->next_follow_up_date) {
+            return false;
+        }
+
+        $followUp->loadMissing(['deal', 'lead']);
+        $companyId = $followUp->deal?->company_id ?? $followUp->lead?->company_id;
+        $company = $companyId ? Company::find($companyId) : null;
+
+        if (!$company || !MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
+            return false;
+        }
+
+        $activatedAt = $company->meeting_attendance_confirmation_enabled_at;
+        if (!$activatedAt || $followUp->next_follow_up_date->lt($activatedAt)) {
+            return false;
+        }
+
+        $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes());
+        $endTime = $followUp->getEndTime();
+
+        return $endTime !== null && $endTime->lte($cutoff);
     }
 
     /**
@@ -100,6 +172,10 @@ class MeetingAttendanceConfirmationService
      */
     public function snooze(DealFollowUp $followUp, ?int $minutes = null): DealFollowUp
     {
+        if (!$this->isEligibleForOutcomeAction($followUp)) {
+            return $followUp;
+        }
+
         $until = now()->addMinutes($minutes ?? MeetingAttendanceConfirmationFeature::snoozeMinutes());
 
         DealFollowUp::query()
@@ -116,6 +192,10 @@ class MeetingAttendanceConfirmationService
         MeetingAttendanceOutcome $outcome,
         ?string $note
     ): DealFollowUp {
+        if (!$this->isEligibleForOutcomeAction($followUp)) {
+            return $followUp;
+        }
+
         $trimmedNote = $note !== null ? trim($note) : '';
 
         return DB::transaction(function () use ($followUp, $user, $outcome, $trimmedNote) {

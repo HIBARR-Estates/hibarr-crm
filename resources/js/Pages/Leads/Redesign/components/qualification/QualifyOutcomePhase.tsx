@@ -42,6 +42,7 @@ import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
 import {
     buildEmptyMeetingForm,
     defaultMeetingStart,
+    getMeetingOwner,
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadMeetingCreate, {
@@ -594,7 +595,7 @@ function OutcomeDetail({
     const [busy, setBusy] = useState(false);
     const [comment, setComment] = useState("");
     const [meetingForm, setMeetingForm] = useState<MeetingFormState>(() => ({
-        ...buildEmptyMeetingForm(null, userId, userEmail),
+        ...buildEmptyMeetingForm(lead, userId, userEmail),
         ...defaultMeetingStart(),
     }));
     const [meetingErrors, setMeetingErrors] = useState<string[]>([]);
@@ -748,7 +749,7 @@ function OutcomeDetail({
     useEffect(() => {
         if (outcome !== "bookMeeting" && outcome !== "callback") return;
         const base = {
-            ...buildEmptyMeetingForm(null, userId, userEmail),
+            ...buildEmptyMeetingForm(lead, userId, userEmail),
             ...defaultMeetingStart(),
         };
         setMeetingForm(
@@ -972,6 +973,7 @@ function OutcomeDetail({
         locationDetail: meetingForm.locationDetail,
         meetingLink: meetingForm.meetingLink,
         participants: meetingForm.participants,
+        hostId: meetingForm.hostId,
         remark: meetingForm.remark,
         reminders: meetingForm.reminders,
     });
@@ -1337,6 +1339,7 @@ function OutcomeDetail({
                                             }
                                             meetingTypes={meetingTypes}
                                             disabled={busy || flow.completing}
+                                            mustIncludeOwner={getMeetingOwner(lead)}
                                         />
                                     )}
                                 </div>

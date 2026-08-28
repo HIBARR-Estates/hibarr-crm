@@ -5,7 +5,7 @@ import { mergeQueryParams } from "@/lib/inertiaQuery";
 import type { Lead } from "@/Types/api/leads";
 import AddTaskModal from "@/Components/Redesign/modals/AddTaskModal";
 import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
-import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadTaskCreate from "@/Pages/Leads/Redesign/hooks/useLeadTaskCreate";
 import useLeadIndexMeetingCreate from "./useLeadIndexMeetingCreate";
 import ScheduleNextStepModal from "./ScheduleNextStepModal";
@@ -79,7 +79,7 @@ export default function ScheduleNextStepFlow({
     const initialMeetingForm = useMemo(
         () =>
             buildEmptyMeetingForm(
-                null,
+                lead,
                 props.auth?.user?.id,
                 props.auth?.user?.email,
             ),
@@ -88,6 +88,7 @@ export default function ScheduleNextStepFlow({
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [leadId, props.auth?.user?.id, props.auth?.user?.email],
     );
+    const mustIncludeOwner = useMemo(() => getMeetingOwner(lead), [lead]);
 
     return (
         <>
@@ -160,6 +161,7 @@ export default function ScheduleNextStepFlow({
                         reloadLeads();
                     })
                 }
+                mustIncludeOwner={mustIncludeOwner}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     cancel: td("Cancel", { source: "en" }),

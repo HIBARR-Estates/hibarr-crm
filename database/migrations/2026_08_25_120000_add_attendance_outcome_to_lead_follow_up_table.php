@@ -31,6 +31,10 @@ return new class extends Migration
                 $table->foreign('attendance_outcome_logged_by')
                     ->references('id')->on('users')
                     ->onDelete('set null');
+
+                // Backs MeetingAttendanceConfirmationService::pendingListForUser(), polled
+                // repeatedly per active agent to find meetings still awaiting an outcome.
+                $table->index(['attendance_outcome_logged_at', 'next_follow_up_date'], 'lead_follow_up_attendance_pending_idx');
             });
         }
     }
@@ -44,6 +48,7 @@ return new class extends Migration
 
         if ($hasOutcome) {
             Schema::table('lead_follow_up', function (Blueprint $table) {
+                $table->dropIndex('lead_follow_up_attendance_pending_idx');
                 $table->dropForeign(['attendance_outcome_logged_by']);
                 $table->dropColumn([
                     'attendance_outcome',

@@ -4,7 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildEmptyMeetingForm } from "./meetingFormUtils";
+import { buildEmptyMeetingForm, getMeetingOwner } from "./meetingFormUtils";
 import useDealMeetingCreate from "../../hooks/useDealMeetingCreate";
 
 interface DealScheduleMeetingModalProps {
@@ -28,6 +28,7 @@ export default function DealScheduleMeetingModal({
         () => buildEmptyMeetingForm(deal, currentUserId, currentUserEmail),
         [deal, currentUserId, currentUserEmail],
     );
+    const mustIncludeOwner = useMemo(() => getMeetingOwner(deal), [deal]);
     const { createMeeting, isCreating, errors, clearErrors } =
         useDealMeetingCreate(deal);
 
@@ -49,6 +50,7 @@ export default function DealScheduleMeetingModal({
                 locationDetail: form.locationDetail,
                 meetingLink: form.meetingLink,
                 participants: form.participants,
+                hostId: form.hostId,
                 remark: form.remark,
                 reminders: form.reminders,
             },
@@ -65,6 +67,7 @@ export default function DealScheduleMeetingModal({
             meetingTypes={meetingTypes}
             initialForm={initialForm}
             onSubmit={handleSubmit}
+            mustIncludeOwner={mustIncludeOwner}
             labels={{
                 title: t("pages.deals.workspace.meetings.schedule"),
                 cancel: t("pages.deals.common.cancel"),

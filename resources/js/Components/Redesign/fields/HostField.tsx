@@ -3,7 +3,6 @@ import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
-import Icon from "@/Components/Redesign/primitives/Icon";
 import PeoplePicker, {
     type PersonOption,
 } from "@/Components/Redesign/primitives/PeoplePicker";
@@ -22,15 +21,12 @@ interface EmployeeRecord {
     } | null;
 }
 
-interface AssigneeFieldProps {
-    value: number[];
-    onChange: (ids: number[]) => void;
+interface HostFieldProps {
+    value: number | null;
+    onChange: (id: number) => void;
     disabled?: boolean;
-    /** Ids in `value` that can't be removed (e.g. the deal agent / lead owner when they aren't the meeting host). */
-    lockedIds?: number[];
-    removeLabel?: string;
-    addLabel?: string;
-    doneLabel?: string;
+    changeLabel?: string;
+    pickLabel?: string;
 }
 
 function mapEmployee(employee: EmployeeRecord): PersonOption {
@@ -44,20 +40,18 @@ function mapEmployee(employee: EmployeeRecord): PersonOption {
     };
 }
 
-/** Assignee chip field with inline people picker (remote employee directory). */
-export default function AssigneeField({
+/** Single-select host picker — mirrors AssigneeField's employee-directory pattern. */
+export default function HostField({
     value,
     onChange,
     disabled = false,
-    lockedIds = [],
-    removeLabel = "Remove",
-    addLabel = "+ Add",
-    doneLabel = "Done",
-}: AssigneeFieldProps) {
+    changeLabel = "Change",
+    pickLabel = "Select host",
+}: HostFieldProps) {
     const { props } = usePage<
         PageProps & { employees?: EmployeeRecord[] }
     >();
-    const [adding, setAdding] = useState(false);
+    const [picking, setPicking] = useState(false);
     const [query, setQuery] = useState("");
     const debouncedSearch = useDebounce(query, 300);
 
@@ -65,7 +59,7 @@ export default function AssigneeField({
         search: debouncedSearch,
         per_page: 40,
         paginate: false,
-        enabled: adding && !disabled,
+        enabled: picking && !disabled,
     });
 
     const handleQueryChange = useCallback((next: string) => {
@@ -101,7 +95,6 @@ export default function AssigneeField({
 
     const byId = useMemo(() => {
         const map = new Map(people.map((person) => [person.id, person]));
-        // Also resolve chips from seed so already-picked people always label.
         for (const person of seedPeople) {
             if (!map.has(person.id)) map.set(person.id, person);
         }
@@ -109,6 +102,8 @@ export default function AssigneeField({
     }, [people, seedPeople]);
 
     const blocked = !loading && Boolean(error) && people.length === 0;
+    const current = value != null ? byId.get(value) : undefined;
+    const currentName = current?.name ?? (value != null ? `User #${value}` : null);
 
     return (
         <div>
@@ -116,71 +111,48 @@ export default function AssigneeField({
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: 8,
                     flexWrap: "wrap",
                     marginBottom: 6,
                 }}
             >
-                {value.map((id) => {
-                    const person = byId.get(id);
-                    const name = person?.name ?? `User #${id}`;
-                    return (
-                        <span
-                            key={id}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                background: T.SURFACE_2,
-                                border: `1px solid ${T.BORDER}`,
-                                borderRadius: 999,
-                                padding: "3px 8px 3px 4px",
-                            }}
-                        >
-                            <Avatar
-                                size={20}
-                                initials={initialsFromName(name)}
-                            />
-                            <span style={{ fontSize: 12 }}>{name}</span>
-                            {!disabled && !lockedIds.includes(id) && (
-                                <button
-                                    type="button"
-                                    aria-label={`${removeLabel} ${name}`}
-                                    onClick={() =>
-                                        onChange(value.filter((x) => x !== id))
-                                    }
-                                    style={{
-                                        background: "none",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        color: T.TEXT_MUTED,
-                                        display: "flex",
-                                        padding: 2,
-                                    }}
-                                >
-                                    <Icon name="x" size={11} />
-                                </button>
-                            )}
-                        </span>
-                    );
-                })}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={disabled}
-                    onClick={() => setAdding((current) => !current)}
-                >
-                    {adding ? doneLabel : addLabel}
-                </Button>
+                {currentName && (
+                    <span
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            background: T.SURFACE_2,
+                            border: `1px solid ${T.BORDER}`,
+                            borderRadius: 999,
+                            padding: "3px 8px 3px 4px",
+                        }}
+                    >
+                        <Avatar size={20} initials={initialsFromName(currentName)} />
+                        <span style={{ fontSize: 12 }}>{currentName}</span>
+                    </span>
+                )}
+                {!disabled && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPicking((current) => !current)}
+                    >
+                        {value != null ? changeLabel : pickLabel}
+                    </Button>
+                )}
             </div>
-            {adding && !disabled && (
+            {picking && !disabled && (
                 <PeoplePicker
                     people={people}
-                    exclude={value}
+                    exclude={value != null ? [value] : []}
                     loading={loading}
                     remoteFilter
                     onQueryChange={handleQueryChange}
-                    onPick={(person) => onChange([...value, person.id])}
+                    onPick={(person) => {
+                        onChange(person.id);
+                        setPicking(false);
+                    }}
                     getEmptyLabel={(q) => {
                         if (blocked) {
                             return "Employee directory is unavailable. You may not have permission to view employees.";
@@ -188,7 +160,7 @@ export default function AssigneeField({
                         if (!loading && people.length === 0 && !q.trim()) {
                             return "No employees available to assign";
                         }
-                        if (!q.trim()) return "No employees left to add";
+                        if (!q.trim()) return "No employees left to pick";
                         return `No employees match "${q}"`;
                     }}
                 />

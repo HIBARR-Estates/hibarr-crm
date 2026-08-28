@@ -10,7 +10,7 @@ import {
     requiresMeetingParticipants,
     requiresPhysicalLocationDetail,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildMeetingFormFromFollowup } from "./meetingFormUtils";
+import { buildMeetingFormFromFollowup, getMeetingOwner } from "./meetingFormUtils";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import type { DealMeetingCreateInput } from "../../hooks/useDealMeetingCreate";
 
@@ -33,6 +33,9 @@ function toSubmitInput(form: MeetingFormState): DealMeetingCreateInput {
         locationDetail: form.locationDetail,
         meetingLink: form.meetingLink,
         participants: form.participants,
+        // Type-correctness only — host_id is immutable and useDealMeetingUpdate
+        // never reads it from this input.
+        hostId: form.hostId,
         remark: form.remark,
         reminders: form.reminders,
     };
@@ -56,6 +59,7 @@ export default function DealEditMeetingModal({
         if (!open || !followup) return null;
         return buildMeetingFormFromFollowup(followup, deal, currentUserId);
     }, [open, followup, deal, currentUserId]);
+    const mustIncludeOwner = useMemo(() => getMeetingOwner(deal), [deal]);
 
     const handleClose = () => {
         if (isUpdating) return;
@@ -128,6 +132,7 @@ export default function DealEditMeetingModal({
             meetingTypes={meetingTypes}
             initialForm={initialForm}
             onSubmit={handleSubmit}
+            mustIncludeOwner={mustIncludeOwner}
             labels={{
                 title: t("pages.deals.workspace.meetings.edit_meeting"),
                 cancel: t("pages.deals.common.cancel"),

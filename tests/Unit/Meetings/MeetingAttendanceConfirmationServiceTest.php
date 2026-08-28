@@ -163,6 +163,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         );
 
         $company = Company::query()->find(10);
+        $this->assertInstanceOf(Company::class, $company);
         $this->assertNotNull(
             $company->meeting_attendance_confirmation_enabled_at,
             'enabledForCompany() should lazily stamp activation on first observation.'
@@ -241,6 +242,92 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         );
     }
 
+    public function test_snooze_is_a_no_op_on_a_meeting_that_has_not_ended_yet(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        // Started 10 minutes ago, ends in 20 (duration 30) — hasn't ended, let
+        // alone cleared the 5-minute delay.
+        $this->makeFollowUp(1, endedMinutesAgo: -20, duration: 30);
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp, 45);
+
+        $this->assertNull(
+            $snoozed->attendance_confirmation_snoozed_until,
+            'A follow-up that is not yet actionable must be rejected even when assigned to the requesting user.'
+        );
+    }
+
+    public function test_snooze_is_a_no_op_on_a_cancelled_meeting(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, status: 'cancelled');
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp, 45);
+
+        $this->assertNull($snoozed->attendance_confirmation_snoozed_until);
+    }
+
+    public function test_confirm_is_a_no_op_on_a_meeting_that_has_not_ended_yet(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: -20, duration: 30);
+
+        $followUp = DealFollowUp::query()->find(1);
+        $confirmed = $this->service->confirm(
+            $followUp,
+            $this->agent(),
+            \App\Enums\MeetingAttendanceOutcome::Attended,
+            null
+        );
+
+        $this->assertNull(
+            $confirmed->attendance_outcome_logged_at,
+            'A follow-up that is not yet actionable must be rejected even when assigned to the requesting user.'
+        );
+    }
+
+    public function test_confirm_is_a_no_op_on_a_meeting_that_predates_activation(): void
+    {
+        // Activated 10 minutes ago; the meeting started an hour ago — "existing"
+        // and must stay off-limits for a direct confirm() call too, not just
+        // pendingListForUser()'s listing.
+        $this->activateCompany(10, now()->subMinutes(10));
+        $this->makeFollowUp(1, endedMinutesAgo: 60);
+
+        $followUp = DealFollowUp::query()->find(1);
+        $confirmed = $this->service->confirm(
+            $followUp,
+            $this->agent(),
+            \App\Enums\MeetingAttendanceOutcome::Attended,
+            null
+        );
+
+        $this->assertNull($confirmed->attendance_outcome_logged_at);
+    }
+
+    public function test_pending_limit_does_not_starve_a_later_eligible_meeting(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+
+        // 21 meetings that started long ago (so they sort first) but are still
+        // "in progress" — a very long duration means none of them have ended
+        // yet. A single SQL LIMIT ordered by start time alone would let these
+        // crowd out a later, already-concluded meeting.
+        for ($id = 2; $id <= 22; $id++) {
+            $this->makeFollowUp($id, endedMinutesAgo: 0, duration: 100000);
+        }
+
+        // Starts far more recently than the above, but it already ended.
+        $this->makeFollowUp(1, endedMinutesAgo: 30, duration: 30);
+
+        $pending = $this->service->pendingListForUser($this->agent(), limit: 1);
+
+        $this->assertCount(1, $pending);
+        $this->assertSame(1, $pending->first()->id);
+    }
+
     /**
      * Built in-memory rather than fetched via Eloquent: User::$with eagerly
      * loads several relations (clientDetails, employeeDetail, ...) that this
@@ -271,7 +358,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         int $endedMinutesAgo,
         ?Carbon $attendanceOutcomeLoggedAt = null,
         int $duration = 30,
-        ?Carbon $snoozedUntil = null
+        ?Carbon $snoozedUntil = null,
+        string $status = 'scheduled'
     ): void {
         $start = now()->subMinutes($endedMinutesAgo + $duration);
 
@@ -281,7 +369,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
             'lead_id' => null,
             'next_follow_up_date' => $start,
             'duration' => $duration,
-            'status' => 'scheduled',
+            'status' => $status,
             'attendance_outcome_logged_at' => $attendanceOutcomeLoggedAt,
             'attendance_confirmation_snoozed_until' => $snoozedUntil,
         ]);

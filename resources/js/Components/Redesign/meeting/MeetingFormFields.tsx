@@ -8,6 +8,7 @@ import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
+import HostField from "@/Components/Redesign/fields/HostField";
 import type { Reminder } from "@/Types/api/deal-followup";
 import {
     DEFAULT_MEETING_REMINDERS,
@@ -40,6 +41,10 @@ interface MeetingFormFieldsProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     disabled?: boolean;
     showExistingMeetingLinkHint?: boolean;
+    /** Deal agent / lead owner — forced into participants (and locked) when not chosen as host. */
+    mustIncludeOwner?: { id: number; name: string } | null;
+    /** True in edit mode — host is immutable after creation. */
+    hostLocked?: boolean;
 }
 
 const REMINDER_UNIT_OPTIONS: Array<{ value: Reminder["type"]; labelKey: string }> = [
@@ -60,6 +65,8 @@ export default function MeetingFormFields({
     meetingTypes,
     disabled = false,
     showExistingMeetingLinkHint = false,
+    mustIncludeOwner = null,
+    hostLocked = false,
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -678,11 +685,40 @@ export default function MeetingFormFields({
                 </ModalField>
             )}
 
+            <ModalField label={t("pages.deals.workspace.meetings.host_field")}>
+                <HostField
+                    value={form.hostId}
+                    onChange={(hostId) => updateForm({ hostId })}
+                    disabled={disabled || hostLocked}
+                />
+                {mustIncludeOwner && mustIncludeOwner.id !== form.hostId && (
+                    <p className="meeting-form-hint">
+                        {td(
+                            `If they aren't the host, ${mustIncludeOwner.name} will be added to participants automatically and can't be removed.`,
+                            { source: "en" },
+                        )}
+                    </p>
+                )}
+                {!hostLocked && form.hostId && (
+                    <p className="meeting-form-hint">
+                        {td(
+                            "The host can't be changed after this meeting is saved.",
+                            { source: "en" },
+                        )}
+                    </p>
+                )}
+            </ModalField>
+
             <ModalField label={t("pages.deals.workspace.meetings.participants_field")}>
                 <AssigneeField
                     value={form.participants}
                     onChange={(participants) => updateForm({ participants })}
                     disabled={disabled}
+                    lockedIds={
+                        mustIncludeOwner && mustIncludeOwner.id !== form.hostId
+                            ? [mustIncludeOwner.id]
+                            : []
+                    }
                 />
             </ModalField>
 

@@ -856,6 +856,7 @@ return [
                 'join'                 => 'Beitreten',
                 'auto_generated_link_hint' => 'Wird nach der Planung automatisch für Videobesprechungen erzeugt.',
                 'existing_link_hint'   => 'Der bestehende Besprechungslink wird zur Referenz angezeigt.',
+                'host_field'           => 'Besprechungsverantwortlicher',
                 'participants_field'   => 'Besprechungsteilnehmer',
                 'reminders'            => 'Erinnerungen',
                 'remove_reminder'      => 'Erinnerung entfernen',

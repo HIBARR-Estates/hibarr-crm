@@ -30,6 +30,9 @@ export interface DealFollowup {
     updated_at: string;
     summary_id?: number;
     added_by?: User;
+    /** User "in charge of" the meeting. Immutable once the meeting is saved. */
+    host_id?: number | null;
+    host?: { id: number; name: string; image?: string | null } | null;
     meeting_type?: {
         id: number;
         name: string;

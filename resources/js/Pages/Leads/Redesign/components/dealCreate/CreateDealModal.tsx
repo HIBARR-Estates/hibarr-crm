@@ -217,6 +217,20 @@ export default function CreateDealModal({
         selectedAgent?.user?.name ??
         (agentId != null ? `Agent #${agentId}` : null);
 
+    // Keep the kickoff meeting's default host in sync with the picked agent
+    // — there's no deal/lead object yet to seed it from (the deal doesn't
+    // exist until step 3), so this tracks the wizard's own agent selection
+    // instead, both on initial seed and whenever the agent changes.
+    useEffect(() => {
+        if (!open || selectedAgent?.user?.id == null) return;
+        const agentUserId = selectedAgent.user.id;
+        setMeetingForm((prev) =>
+            prev.hostId === agentUserId
+                ? prev
+                : { ...prev, hostId: agentUserId },
+        );
+    }, [open, selectedAgent]);
+
     useEffect(() => {
         if (!open) return;
         setStep(1);
@@ -427,6 +441,7 @@ export default function CreateDealModal({
                           locationDetail: meetingForm.locationDetail,
                           meetingLink: meetingForm.meetingLink,
                           participants: meetingForm.participants,
+                          hostId: meetingForm.hostId,
                           remark:
                               meetingForm.remark.trim() ||
                               `Kickoff for ${resolvedName}`,
@@ -902,6 +917,11 @@ export default function CreateDealModal({
                             onChange={patchMeeting}
                             meetingTypes={meetingTypes}
                             disabled={saving}
+                            mustIncludeOwner={
+                                selectedAgent?.user?.id && selectedAgent.user.name
+                                    ? { id: selectedAgent.user.id, name: selectedAgent.user.name }
+                                    : null
+                            }
                         />
                     ) : (
                         <p
