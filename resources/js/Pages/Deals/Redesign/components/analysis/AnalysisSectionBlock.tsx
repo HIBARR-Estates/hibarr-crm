@@ -1,68 +1,85 @@
 import { forwardRef, useMemo } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import { useDealWorkspace } from "../../context/DealWorkspaceContext";
-import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
-import AnalysisCustomFieldForm from "./AnalysisCustomFieldForm";
+import AnalysisCustomFieldForm, { FormField } from "./AnalysisCustomFieldForm";
 import AnalysisQuestionRow from "./AnalysisQuestionRow";
-import type { AnalysisSection } from "./types/analysisTypes";
+import type { AnalysisSection, AnalysisSectionItem } from "./types/analysisTypes";
 
 interface Props {
     section: AnalysisSection;
+    /** Deal custom fields. */
     fields: any[];
+    /** Lead custom fields — needed to resolve `lead_custom_field` steps. */
+    leadFields?: any[];
+    /** Merged deal + lead custom field values, keyed `field_{id}`. */
     localDealFieldValues: Record<string, any>;
     canEdit: boolean;
     numberByKey?: Record<string, number>;
+    /** Precomputed by computeAnalysisProgress so the header can't drift from the rail. */
+    progress?: { filled: number; total: number };
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
-}
-
-function isFieldFilled(value: unknown): boolean {
-    if (value === null || value === undefined || value === "") return false;
-    if (Array.isArray(value)) return value.length > 0;
-    return true;
 }
 
 const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
     section,
     fields,
+    leadFields = [],
     localDealFieldValues,
     canEdit,
     numberByKey,
+    progress,
     onFieldUpdate,
     onFieldChange,
 }, ref) => {
-    const { td } = useTd();
-    const { deal } = useDealWorkspace();
 
-    const progress = useMemo(() => {
-        let filled = 0;
-        let total = 0;
+    // Custom field ids are globally unique across the deal and lead groups.
+    const customFieldById = useMemo(() => {
+        const map = new Map<number, any>();
+        for (const f of fields) map.set(Number(f.id), f);
+        for (const f of leadFields) map.set(Number(f.id), f);
+        return map;
+    }, [fields, leadFields]);
 
-        if (section.categoryId !== null) {
-            const p = getCustomFieldCategoryProgress(fields, section.categoryId, localDealFieldValues);
-            filled += p.filled;
-            total += p.total;
+    const filled = progress?.filled ?? 0;
+    const total = progress?.total ?? 0;
+    const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+    const complete = total > 0 && pct === 100;
+    const isCategory = section.kind === "category";
+
+    /** A single custom field placed directly in a hand-built section. */
+    const renderCustomFieldItem = (item: AnalysisSectionItem) => {
+        const field = customFieldById.get(Number(item.scriptItem.item_key));
+        if (!field) {
+            return (
+                <p key={item.scriptItem.id} className="text-xs italic text-slate-400 mb-4">
+                    {"This field is no longer available."}
+                </p>
+            );
         }
 
-        for (const item of section.items) {
-            if (item.kind === "native_field") {
-                total += 1;
-                filled += isFieldFilled((deal as any)[item.scriptItem.item_key]) ? 1 : 0;
-            } else if (item.kind === "hibarr_field") {
-                total += 1;
-                filled += isFieldFilled((deal as any).hibarrFields?.[item.scriptItem.item_key]) ? 1 : 0;
-            } else if (item.kind === "lead_field") {
-                total += 1;
-                filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
-            }
-        }
+        const isLead = item.kind === "lead_custom_field";
 
-        return { filled, total };
-    }, [section, fields, localDealFieldValues, deal]);
-
-    const pct = progress.total > 0 ? Math.round((progress.filled / progress.total) * 100) : 0;
-    const complete = progress.total > 0 && pct === 100;
+        return (
+            <FormField
+                key={`${item.kind}-${item.scriptItem.id}`}
+                field={{
+                    ...field,
+                    label: item.scriptItem.label_override || field.label,
+                }}
+                value={localDealFieldValues[`field_${field.id}`] ?? null}
+                fieldNumber={numberByKey?.[`script_${item.scriptItem.id}`]}
+                canEdit={canEdit}
+                onChange={(value) => onFieldChange?.(field.id, value)}
+                onSave={(value) =>
+                    onFieldUpdate(
+                        isLead ? `lead_field_${field.id}` : `deal_field_${field.id}`,
+                        value,
+                        isLead ? "lead_custom_field" : "custom_field",
+                    )
+                }
+            />
+        );
+    };
 
     return (
         <div ref={ref} data-section-id={section.id} className="mb-10">
@@ -70,18 +87,18 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0 pr-4">
                     <h2 className="text-base font-semibold text-slate-900 leading-snug">
-                        {td(section.title, { source: "en" })}
+                        {section.title}
                     </h2>
                     {section.guideText && (
                         <p className="text-xs mt-0.5 leading-relaxed text-slate-500">
-                            {td(section.guideText, { source: "en" })}
+                            {section.guideText}
                         </p>
                     )}
                 </div>
-                {progress.total > 0 && (
+                {total > 0 && (
                     <div className="shrink-0 flex items-center gap-2 mt-0.5">
                         <span className="text-xs tabular-nums text-slate-500">
-                            {progress.filled}/{progress.total}
+                            {filled}/{total}
                         </span>
                         <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                             <div
@@ -97,9 +114,9 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
             </div>
 
             {/* Body */}
-            <div className="border-t border-slate-100 pt-4">
-                {/* Custom fields for this section's category */}
-                {section.categoryId !== null && (
+            <div className="border-t pt-4" style={{ borderColor: T.BORDER }}>
+                {/* A category section is the whole category — every field in it, in order */}
+                {isCategory && section.categoryId !== null && (
                     <AnalysisCustomFieldForm
                         fields={fields}
                         categoryId={section.categoryId}
@@ -113,23 +130,24 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
                     />
                 )}
 
-                {/* Question/instruction/field items */}
-                {section.items.map((item, i) => (
-                    <AnalysisQuestionRow
-                        key={`${item.kind}-${item.scriptItem.id}-${i}`}
-                        item={item}
-                        number={numberByKey?.[`script_${item.scriptItem.id}`]}
-                        canEdit={canEdit}
-                        onFieldUpdate={onFieldUpdate}
-                        onFieldChange={onFieldChange}
-                    />
-                ))}
+                {/* Hand-placed items, in author order */}
+                {section.items.map((item, i) =>
+                    item.kind === "deal_custom_field" || item.kind === "lead_custom_field" ? (
+                        renderCustomFieldItem(item)
+                    ) : (
+                        <AnalysisQuestionRow
+                            key={`${item.kind}-${item.scriptItem.id}-${i}`}
+                            item={item}
+                            number={numberByKey?.[`script_${item.scriptItem.id}`]}
+                            canEdit={canEdit}
+                            onFieldUpdate={onFieldUpdate}
+                        />
+                    ),
+                )}
 
-                {section.categoryId !== null && section.items.length === 0 && fields.filter(
-                    (f: any) => f.custom_field_category_id === section.categoryId
-                ).length === 0 && (
+                {!isCategory && section.items.length === 0 && (
                     <p className="text-xs italic text-slate-400 py-2">
-                        No fields configured for this section.
+                        {"No steps in this section."}
                     </p>
                 )}
             </div>

@@ -553,7 +553,12 @@ class DealController extends AccountBaseController
             },
             'leadFlightItineraries',
         ])->findOrFail($id);
-        $this->loadDataForView();
+
+        // No loadDataForView() here — same reason index() skips it. It populates
+        // $this->* for Blade's $this->data contract (Deal::all(), every lead, all
+        // watchers, agents, packages, pipelines), and this action returns an
+        // Inertia response that reads none of it: 18 queries for 15 properties
+        // referenced zero times.
 
         // Load custom fields data
         $deal = $deal->withCustomFields();
@@ -758,8 +763,13 @@ class DealController extends AccountBaseController
             ),
             'leadCustomFieldsData' => $leadCustomFieldsData,
             'leadCustomFields' => $leadCustomFields,
+            // Synchronous, not deferred: the analysis modal opens on mount, so the
+            // script is on the critical path. Deferring it meant first paint had no
+            // script and the modal rendered a custom-field-category fallback before
+            // snapping to the real sections. Two indexed queries (pipeline_id is
+            // unique) is a cheap price for never rendering the wrong structure.
             ...(\App\Support\FeatureFlags::enabled('crm.deal-analysis') ? [
-                'analysisScript' => Inertia::defer(function () use ($deal) {
+                'analysisScript' => (function () use ($deal) {
                     $script = \App\Models\PipelineAnalysisScript::with('items')
                         ->where('pipeline_id', $deal->lead_pipeline_id)
                         ->first();
@@ -777,7 +787,7 @@ class DealController extends AccountBaseController
                             'position' => $i->position,
                         ]),
                     ];
-                }, 'formMeta'),
+                })(),
             ] : []),
         ]));
     }

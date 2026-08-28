@@ -73,10 +73,8 @@ class LeadPipelineSettingController extends AccountBaseController
         $this->pipelineFieldScopes = \App\Models\PipelineFieldScope::where('pipeline_id', $this->pipeline->id)->get();
         $this->pipelineFieldScopeMap = $this->buildFieldScopeMap($this->pipelineFieldScopes);
 
-        $this->analysisScript = \App\Models\PipelineAnalysisScript::with('items')
-            ->where('pipeline_id', $this->pipeline->id)
-            ->where('company_id', company()->id)
-            ->first();
+        // The analysis script is edited on its own settings page now, so this view
+        // no longer needs to load it.
 
         return view('lead-settings.edit-pipeline-modal', $this->data);
     }

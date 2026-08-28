@@ -2557,6 +2557,7 @@ return array(
         'pipelineWideFields' => 'Pipeline-wide fields',
         'stageFields' => 'Stage fields',
         'pipelineFieldHint' => 'Only selected fields will be shown on deals in this pipeline. Fields from earlier stages remain visible as the deal progresses. Leave all unchecked to show all fields.',
+        'analysisScript' => 'Deal Analysis Script',
         'dealPackageSettings' => 'Deal Package Settings',
         'dealPackageSettingsHint' => 'Configure how packages relate to pipelines and whether deals are automatically moved when a package is assigned.',
         'packagePipelineRoutingEnabled' => 'Automatically move deals to the pipeline linked to their package',

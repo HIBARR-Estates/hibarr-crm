@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -11,7 +10,8 @@ import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
 import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
-import AnalysisSectionNavigator from "./AnalysisSectionNavigator";
+import AnalysisRightRail, { type AnalysisRailTab } from "./AnalysisRightRail";
+import { buildRailGroups } from "./analysisRailItems";
 import { buildScriptItems, computeAnalysisProgress } from "./analysisProgress";
 import type { AnalysisScriptItem } from "./types/analysisTypes";
 
@@ -22,24 +22,40 @@ interface Props {
     // ponytail: kept for parent compat, not used here (pipeline scope filtering is server-side)
     visibleLeadFieldKeys?: string[] | null;
     analysisScript?: { items: AnalysisScriptItem[] } | null;
-    onAddTask: () => void;
-    onScheduleMeeting: () => void;
 }
 
 const FOCUSABLE =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Stable identity so an absent prop doesn't invalidate memos every render. */
+const EMPTY_FIELDS: any[] = [];
+
+/** Text-entry controls where Left/Right must move the caret, never the section. */
+const TEXT_ENTRY_TYPES = new Set([
+    "text", "search", "url", "tel", "email", "password", "number", "date", "datetime-local", "month", "week", "time",
+]);
+
+function isTextEntryFocused(): boolean {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = el.tagName;
+    if (tag === "TEXTAREA") return true;
+    if (tag === "INPUT") {
+        const type = (el as HTMLInputElement).type;
+        return TEXT_ENTRY_TYPES.has(type);
+    }
+    return false;
+}
 
 export default function DealAnalysisModal({
     analysis,
     dealInfoCategories,
     fields,
     analysisScript,
-    onAddTask,
-    onScheduleMeeting,
 }: Props) {
     const { deal, setDeal } = useDealWorkspace();
     const { props } = usePage<any>();
-    const { td } = useTd();
     const { t } = useTranslation();
     const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
     const { canEdit: baseCanEdit, isWatcherOnly } = useDealPermissions(deal);
@@ -50,6 +66,7 @@ export default function DealAnalysisModal({
     const titleId = "analysis-modal-title";
 
     const [activeSection, setActiveSection] = useState<string>("");
+    const [railTab, setRailTab] = useState<AnalysisRailTab>("steps");
     // Which action raised the missing-information warning. Closing and completing
     // share the same overlay — only the confirming button differs.
     const [confirmIntent, setConfirmIntent] = useState<null | "complete" | "close">(null);
@@ -91,7 +108,10 @@ export default function DealAnalysisModal({
         setLocalValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
     }, []);
 
-    const leadCustomFields: any[] = (props.leadCustomFields as any[] | null | undefined) ?? [];
+    // EMPTY_FIELDS, not a fresh `[]`: an inline literal is a new identity every
+    // render, which would invalidate every memo below it on each keystroke.
+    const leadCustomFields: any[] =
+        (props.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS;
 
     const scriptItems: AnalysisScriptItem[] = useMemo(
         () => buildScriptItems(analysisScript, dealInfoCategories),
@@ -101,8 +121,8 @@ export default function DealAnalysisModal({
     // Sections + progress + global numbering — all in one pass, shared with the
     // deal-view status card so both use the same denominator.
     const { sections, sectionProgress, totalFilled, totalFields, numberByKey } = useMemo(
-        () => computeAnalysisProgress(scriptItems, fields, localValues, deal),
-        [scriptItems, fields, localValues, deal],
+        () => computeAnalysisProgress(scriptItems, fields, localValues, deal, leadCustomFields),
+        [scriptItems, fields, localValues, deal, leadCustomFields],
     );
 
     const unfilledCount = totalFields - totalFilled;
@@ -168,6 +188,11 @@ export default function DealAnalysisModal({
         else key = fieldKey;
         save(key, value);
 
+        // Lead custom fields have no home on the deal object — their value already
+        // lives in localValues via onFieldChange, so patching the deal here would
+        // just graft a stray `lead_field_N` key onto it.
+        if (updateType === "lead_custom_field") return;
+
         setDeal((prev: any) => {
             if (updateType === "hibarr_field") {
                 return { ...prev, hibarrFields: { ...(prev.hibarrFields ?? {}), [fieldKey]: value } };
@@ -198,11 +223,11 @@ export default function DealAnalysisModal({
 
     const handleCompleteClick = useCallback(() => {
         if (allFilled) {
-            analysis.complete("auto", 0);
+            analysis.complete("auto", 0, flushAll());
         } else {
             setConfirmIntent("complete");
         }
-    }, [allFilled, analysis]);
+    }, [allFilled, analysis, flushAll]);
 
     // Closing raises the same missing-information warning as completing does.
     const requestClose = useCallback(() => {
@@ -231,6 +256,20 @@ export default function DealAnalysisModal({
                 }
                 return;
             }
+
+            // Left/Right step between sections — but never when the caret is in a
+            // text field, and never inside a checkbox/radio group, where the group
+            // owns those keys for moving between its own options.
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                if (confirmIntent) return;
+                if (isTextEntryFocused()) return;
+                const active = document.activeElement as HTMLElement | null;
+                if (active?.closest("[data-option-group]")) return;
+                e.preventDefault();
+                goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                return;
+            }
+
             if (e.key !== "Tab") return;
             const panel = panelRef.current;
             if (!panel) return;
@@ -244,7 +283,7 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [confirmIntent, requestClose],
+        [confirmIntent, requestClose, goToStep, currentStep],
     );
 
     useEffect(() => {
@@ -257,7 +296,56 @@ export default function DealAnalysisModal({
 
     const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
+    // Per-step rows for the right rail, resolved the same way the centre renders them.
+    //
+    // Built off a deferred copy of the value store: the rail can be 100+ rows and
+    // rebuilding/re-rendering it on every keystroke is what made typing feel heavy.
+    // React keeps the input responsive and repaints the rail at lower priority —
+    // it trails by a frame or two, which is invisible for a read-only summary.
+    const deferredValues = useDeferredValue(localValues);
+    const railGroups = useMemo(
+        () => buildRailGroups(sections, fields, leadCustomFields, deferredValues, deal, currentStep + 1),
+        [sections, fields, leadCustomFields, deferredValues, deal, currentStep],
+    );
+
     if (!analysis.isOpen || typeof document === "undefined") return null;
+
+    // The script prop is synchronous, so `undefined` means genuinely not loaded —
+    // show the shell as its own loading state rather than the category fallback,
+    // which would render a structure the real script is about to replace.
+    if (analysisScript === undefined) {
+        return createPortal(
+            <div className="analysis-modal-overlay">
+                <div
+                    className="analysis-modal-panel"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={titleId}
+                >
+                    <AnalysisHeaderBar
+                        leadName={leadName}
+                        isCompleted={false}
+                        totalFilled={0}
+                        totalFields={0}
+                        onMinimize={doClose}
+                    />
+                    <span id={titleId} className="sr-only">
+                        Deal Analysis {leadName}
+                    </span>
+                    <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
+                        <div className="text-center px-6">
+                            <div
+                                className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
+                                aria-hidden
+                            />
+                            <p className="m-0 text-sm text-slate-600">Loading analysis script…</p>
+                        </div>
+                    </div>
+                </div>
+            </div>,
+            document.body,
+        );
+    }
 
     // Derive per-deal and per-lead slices of localValues for downstream components
     const dealFieldValues = localValues;
@@ -316,9 +404,11 @@ export default function DealAnalysisModal({
                             onPrevStep={() => goToStep(currentStep - 1)}
                             onNextStep={() => goToStep(currentStep + 1)}
                             fields={fields}
+                            leadFields={leadCustomFields}
                             localDealFieldValues={dealFieldValues}
                             canEdit={canEdit}
                             numberByKey={numberByKey}
+                            sectionProgress={sectionProgress}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
                             onFieldUpdate={handleScriptFieldSave}
@@ -327,20 +417,19 @@ export default function DealAnalysisModal({
                         />
                     </div>
 
-                    {/* Right — section navigator + quick actions */}
-                    <div className="analysis-3col-right">
-                        <AnalysisSectionNavigator
-                            sections={sections}
-                            sectionProgress={sectionProgress}
+                    {/* Right — script steps / captured answers + Complete */}
+                    <div className="analysis-3col-right analysis-3col-right--wide">
+                        <AnalysisRightRail
+                            groups={railGroups}
                             activeSection={activeSection}
-                            unlockedCount={currentStep + 1}
+                            onJump={handleJump}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
-                            isCompleting={analysis.isCompleting}
                             allFilled={allFilled}
-                            onJump={handleJump}
-                            onScheduleMeeting={onScheduleMeeting}
+                            isCompleting={analysis.isCompleting}
                             onComplete={handleCompleteClick}
+                            tab={railTab}
+                            onTabChange={setRailTab}
                         />
                     </div>
                 </div>
@@ -369,13 +458,13 @@ export default function DealAnalysisModal({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm text-slate-700 flex-1">
-                            {failedKeys.length} {failedKeys.length === 1 ? td("field", { source: "en" }) : td("fields", { source: "en" })} {td("couldn't save", { source: "en" })} —{" "}
+                            {failedKeys.length} {failedKeys.length === 1 ? "field" : "fields"} {"couldn't save"} —{" "}
                             <button
                                 type="button"
                                 className="underline font-medium text-slate-800"
                                 onClick={() => failedKeys.forEach((f) => retry(f.key))}
                             >
-                                {td("Retry", { source: "en" })}
+                                {"Retry"}
                             </button>
                         </span>
                         <button
@@ -417,7 +506,7 @@ export default function DealAnalysisModal({
                                     lineHeight: 1.3,
                                 }}
                             >
-                                {td("Finish with missing information?", { source: "en" })}
+                                {"Finish with missing information?"}
                             </h3>
                             <p
                                 style={{
@@ -430,13 +519,13 @@ export default function DealAnalysisModal({
                                 <strong style={{ color: T.TEXT }}>
                                     {unfilledCount}{" "}
                                     {unfilledCount === 1
-                                        ? td("field is still empty", { source: "en" })
-                                        : td("fields are still empty", { source: "en" })}
+                                        ? "field is still empty"
+                                        : "fields are still empty"}
                                 </strong>
                                 .{" "}
                                 {confirmIntent === "complete"
-                                    ? td("Completing now will mark this analysis as done, but the missing data won't be captured.", { source: "en" })
-                                    : td("You can reopen the analysis later to fill in the rest.", { source: "en" })}
+                                    ? "Completing now will mark this analysis as done, but the missing data won't be captured."
+                                    : "You can reopen the analysis later to fill in the rest."}
                             </p>
                             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                                 <button
@@ -444,7 +533,7 @@ export default function DealAnalysisModal({
                                     className="dr-btn dr-btn-ghost"
                                     onClick={() => setConfirmIntent(null)}
                                 >
-                                    {td("Go back and fill in", { source: "en" })}
+                                    {"Go back and fill in"}
                                 </button>
                                 <button
                                     type="button"
@@ -454,11 +543,11 @@ export default function DealAnalysisModal({
                                     onClick={() => {
                                         const intent = confirmIntent;
                                         setConfirmIntent(null);
-                                        if (intent === "complete") analysis.complete("manual", unfilledCount);
+                                        if (intent === "complete") analysis.complete("manual", unfilledCount, flushAll());
                                         else doClose();
                                     }}
                                 >
-                                    {confirmIntent === "complete" ? td("Finish anyway", { source: "en" }) : td("Close anyway", { source: "en" })}
+                                    {confirmIntent === "complete" ? "Finish anyway" : "Close anyway"}
                                 </button>
                             </div>
                         </div>

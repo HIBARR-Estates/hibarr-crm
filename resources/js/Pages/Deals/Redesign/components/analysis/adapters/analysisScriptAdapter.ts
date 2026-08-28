@@ -4,10 +4,11 @@ import type { AnalysisSection, AnalysisSectionItem } from "../types/analysisType
 /**
  * Converts the flat AnalysisScriptItem[] from the backend into grouped AnalysisSection[].
  *
- * Grouping rule:
- * - custom_field_category items define section boundaries (one section per category)
- * - All subsequent items until the next custom_field_category belong to that section
- * - Items before the first custom_field_category go into a fallback "General" section
+ * Grouping rule — two item types open a section:
+ * - `section` starts a hand-built section; the items after it are its contents
+ * - `custom_field_category` starts a section that auto-expands to every field in
+ *   that category, and takes no explicit contents of its own
+ * Items appearing before either go into a fallback "General" section.
  */
 export function adaptScriptItems(items: AnalysisScriptItem[]): AnalysisSection[] {
     const sections: AnalysisSection[] = [];
@@ -16,10 +17,21 @@ export function adaptScriptItems(items: AnalysisScriptItem[]): AnalysisSection[]
     for (const item of items) {
         if (item.type === "custom_field_category") {
             current = {
-                id: String(item.id),
+                id: `cat_${item.id}`,
                 title: item.label_override || item.item_key,
                 guideText: item.guide_text ?? undefined,
+                kind: "category",
                 categoryId: parseInt(item.item_key, 10),
+                items: [],
+            };
+            sections.push(current);
+        } else if (item.type === "section") {
+            current = {
+                id: `sec_${item.id}`,
+                title: item.label_override || "Untitled section",
+                guideText: item.guide_text ?? undefined,
+                kind: "custom",
+                categoryId: null,
                 items: [],
             };
             sections.push(current);
@@ -30,6 +42,7 @@ export function adaptScriptItems(items: AnalysisScriptItem[]): AnalysisSection[]
                     id: "general",
                     title: "General",
                     guideText: undefined,
+                    kind: "custom",
                     categoryId: null,
                     items: [],
                 };

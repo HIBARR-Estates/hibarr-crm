@@ -15,6 +15,23 @@ use Illuminate\Support\Facades\DB;
 class PipelineScopeResolverService
 {
     /**
+     * Per-request memos. The service is bound `scoped`, so these live exactly as
+     * long as one request/test/queue job and cannot serve a stale scope later.
+     *
+     * @var array<string, bool>
+     */
+    private array $hidesAllCategoriesMemo = [];
+
+    /** @var array<string, array<int>> */
+    private array $hideAllPipelineIdsMemo = [];
+
+    /** @var array<string, array<int>> */
+    private array $stageIdsMemo = [];
+
+    /** @var array<string, \Illuminate\Support\Collection> */
+    private array $pipelineScopesMemo = [];
+
+    /**
      * Native deal fields that can be scoped per pipeline/stage.
      *
      * @var array<string, string>
@@ -77,14 +94,7 @@ class PipelineScopeResolverService
             return [];
         }
 
-        $scopesQuery = CustomFieldCategoryScope::query()
-            ->where('pipeline_id', $pipelineId);
-
-        if ($companyId) {
-            $scopesQuery->where('company_id', $companyId);
-        }
-
-        $scopes = $scopesQuery->get();
+        $scopes = $this->scopesForPipeline($pipelineId, $companyId);
 
         if ($scopes->isEmpty()) {
             return null;
@@ -150,14 +160,7 @@ class PipelineScopeResolverService
             return [];
         }
 
-        $scopesQuery = CustomFieldCategoryScope::query()
-            ->where('pipeline_id', $pipelineId);
-
-        if ($companyId) {
-            $scopesQuery->where('company_id', $companyId);
-        }
-
-        $scopes = $scopesQuery->get();
+        $scopes = $this->scopesForPipeline($pipelineId, $companyId);
 
         if ($scopes->isEmpty()) {
             return null;
@@ -182,10 +185,30 @@ class PipelineScopeResolverService
      *
      * @return array<int>
      */
+    /**
+     * Category scopes for one pipeline. resolveCategoryIds() and
+     * resolveAllCategoryIds() ran this exact query separately on the same page.
+     */
+    private function scopesForPipeline(?int $pipelineId, ?int $companyId): Collection
+    {
+        $key = $pipelineId . ':' . ($companyId ?? '-');
+
+        return $this->pipelineScopesMemo[$key] ??= CustomFieldCategoryScope::query()
+            ->where('pipeline_id', $pipelineId)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->get();
+    }
+
     public function getStageIdsUpToAndIncluding(?int $pipelineId, ?int $stageId): array
     {
         if (!$pipelineId || !$stageId) {
             return $stageId ? [(int) $stageId] : [];
+        }
+
+        $memoKey = $pipelineId . ':' . $stageId;
+
+        if (array_key_exists($memoKey, $this->stageIdsMemo)) {
+            return $this->stageIdsMemo[$memoKey];
         }
 
         $pipelineStages = PipelineStage::query()
@@ -195,7 +218,7 @@ class PipelineScopeResolverService
             ->get(['id']);
 
         if ($pipelineStages->isEmpty()) {
-            return [(int) $stageId];
+            return $this->stageIdsMemo[$memoKey] = [(int) $stageId];
         }
 
         $currentIndex = $pipelineStages->search(
@@ -203,10 +226,10 @@ class PipelineScopeResolverService
         );
 
         if ($currentIndex === false) {
-            return [(int) $stageId];
+            return $this->stageIdsMemo[$memoKey] = [(int) $stageId];
         }
 
-        return $pipelineStages
+        return $this->stageIdsMemo[$memoKey] = $pipelineStages
             ->slice(0, $currentIndex + 1)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -251,7 +274,11 @@ class PipelineScopeResolverService
             return false;
         }
 
-        return (bool) LeadPipeline::query()
+        // Memoised for the life of this (scoped) instance — resolveCategoryIds and
+        // resolveAllCategoryIds both ask for the same pipeline on a single page.
+        $key = $pipelineId . ':' . ($companyId ?? '-');
+
+        return $this->hidesAllCategoriesMemo[$key] ??= (bool) LeadPipeline::query()
             ->where('id', $pipelineId)
             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->value('hide_all_categories');
@@ -268,7 +295,7 @@ class PipelineScopeResolverService
     {
         $companyId = $companyId ?? company()?->id;
 
-        return LeadPipeline::query()
+        return $this->hideAllPipelineIdsMemo[(string) ($companyId ?? '-')] ??= LeadPipeline::query()
             ->where('hide_all_categories', true)
             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->pluck('id')

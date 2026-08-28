@@ -205,13 +205,15 @@
     overflow: hidden;
 }
 
-/* Qualify modal — wider right rail for script steps / answers */
-.analysis-modal-panel .qualify-3col-right {
+/* Qualify + analysis modals — wider right rail for script steps / answers */
+.analysis-modal-panel .qualify-3col-right,
+.analysis-modal-panel .analysis-3col-right--wide {
     width: 360px;
 }
 
 @media (min-width: 1280px) {
-    .analysis-modal-panel .qualify-3col-right {
+    .analysis-modal-panel .qualify-3col-right,
+    .analysis-modal-panel .analysis-3col-right--wide {
         width: 400px;
     }
 }
