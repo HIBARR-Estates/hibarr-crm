@@ -104,6 +104,7 @@ class DealFollowUp extends BaseModel
         'attendance_outcome_logged_by',
         'attendance_confirmation_snoozed_until',
         'host_id',
+        'client_attended',  // Tri-state: null = unconfirmed, true/false = manually confirmed
     ];
 
     protected $casts = [
@@ -116,6 +117,7 @@ class DealFollowUp extends BaseModel
         'attendance_outcome_logged_by' => 'integer',
         'attendance_confirmation_snoozed_until' => 'datetime',
         'host_id' => 'integer',
+        'client_attended' => 'boolean',
     ];
 
     /** Default meeting duration (minutes) when none is set */

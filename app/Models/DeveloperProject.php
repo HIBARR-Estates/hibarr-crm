@@ -123,6 +123,11 @@ class DeveloperProject extends BaseModel
         'reference_code',
         'description',
         'project_location_id',
+        // Per-project map pins (authoritative; location holds area defaults only)
+        'map_url',
+        'latitude',
+        'longitude',
+        'address',
         // Construction project fields
         'google_drive_link',
         'availability_link',
@@ -175,6 +180,9 @@ class DeveloperProject extends BaseModel
         'payment_plan' => 'array',
         'facilities' => 'array',
         'distances' => 'array',
+        'address' => 'array',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
         'is_hidden' => 'boolean',
         'remind_at' => 'datetime',
         'reminders' => 'array',
@@ -307,6 +315,89 @@ class DeveloperProject extends BaseModel
     public function location(): BelongsTo
     {
         return $this->belongsTo(ProjectLocation::class, 'project_location_id');
+    }
+
+    /**
+     * Nested location payload for APIs/CRM with per-project pin overlay.
+     *
+     * Project map_url / address / lat / lng win when set; otherwise fall back
+     * to shared ProjectLocation defaults. Expose PDFs should keep using the
+     * raw location relation (no overlay).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function locationForApi(): ?array
+    {
+        if (!$this->relationLoaded('location')) {
+            $this->load('location');
+        }
+
+        $location = $this->location;
+        if (!$location) {
+            return null;
+        }
+
+        $data = $location->toArray();
+
+        $address = $this->address !== null ? $this->address : ($location->address ?? null);
+        $mapUrl = $this->map_url !== null ? $this->map_url : ($location->map_url ?? null);
+        $latitude = $this->latitude !== null ? $this->latitude : ($location->latitude ?? null);
+        $longitude = $this->longitude !== null ? $this->longitude : ($location->longitude ?? null);
+
+        $data['address'] = $address;
+        $data['map_url'] = $mapUrl;
+        $data['latitude'] = $latitude;
+        $data['longitude'] = $longitude;
+        $data['full_address'] = self::formatPinFullAddress(is_array($address) ? $address : null);
+
+        return $data;
+    }
+
+    /**
+     * Effective map URL for CRM links (project pin, then location default).
+     */
+    public function effectiveMapUrl(): ?string
+    {
+        if ($this->map_url !== null && $this->map_url !== '') {
+            return $this->map_url;
+        }
+
+        return $this->location?->map_url;
+    }
+
+    /**
+     * Effective street-level address for CRM display.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function effectiveAddress(): ?array
+    {
+        if ($this->address !== null) {
+            return $this->address;
+        }
+
+        $locationAddress = $this->location?->address;
+
+        return is_array($locationAddress) ? $locationAddress : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $address
+     */
+    public static function formatPinFullAddress(?array $address): string
+    {
+        if ($address === null) {
+            return '';
+        }
+
+        $parts = array_filter([
+            $address['street'] ?? null,
+            $address['state'] ?? null,
+            $address['country'] ?? null,
+            $address['postalCode'] ?? null,
+        ]);
+
+        return implode(', ', $parts);
     }
 
     /**

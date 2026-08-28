@@ -18,10 +18,10 @@ export function resolveDealOutcome(deal: Deal): DealOutcome {
 }
 
 /**
- * Mirrors Deal::isLocked() (app/Models/Deal.php) — a won deal is locked for
- * further editing even if the manual is_locked flag was never set, so the
- * frontend gates match what the backend will actually accept.
+ * Mirrors Deal::isLocked() (app/Models/Deal.php) — only the explicit
+ * is_locked flag locks a deal. Winning a deal does not lock it on its own;
+ * use the lock_deal automation action (or a manual lock) for that.
  */
 export function isDealEffectivelyLocked(deal: Deal): boolean {
-    return !!deal.is_locked || resolveDealOutcome(deal) === "won";
+    return !!deal.is_locked;
 }

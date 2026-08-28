@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationCondition;
 use App\Models\PipelineStage;
 use App\Services\ConditionEvaluatorService;
 use App\Services\DealAutomationService;
@@ -14,6 +15,7 @@ use Tests\TestCase;
 class DealAutomationServiceTest extends TestCase
 {
     protected $fieldResolver;
+
     protected $conditionEvaluator;
 
     protected function setUp(): void
@@ -42,30 +44,41 @@ class DealAutomationServiceTest extends TestCase
         // Mock Automation
         $automation = Mockery::mock(DealAutomation::class)->makePartial();
         $automation->setRawAttributes(['id' => 1, 'name' => 'Test Auto']);
-        
-        $condition = (object)['field' => 'val', 'operator' => '>', 'value' => 100];
-        $action = (object)['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
-        
+
+        $condition = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $condition->setRawAttributes(['field' => 'val', 'operator' => '>', 'value' => 100]);
+        $action = (object) ['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
+
         $automation->setRelation('conditions', collect([$condition]));
         $automation->setRelation('actions', collect([$action]));
 
         // Mock Service (Partial)
         $service = Mockery::mock(DealAutomationService::class, [
             $this->fieldResolver,
-            $this->conditionEvaluator
+            $this->conditionEvaluator,
         ])->makePartial();
         $service->shouldAllowMockingProtectedMethods();
-        
+
         $service->shouldReceive('getAutomations')
-            ->with(1, 'trigger')
+            ->with(1, 'trigger', 'deal')
             ->andReturn(collect([$automation]));
+
+        // The stage-changed path resolves both stages for CRM event metadata
+        $currentStage = Mockery::mock(PipelineStage::class)->makePartial();
+        $currentStage->setRawAttributes(['id' => 1, 'priority' => 10, 'name' => 'Stage 10']);
+        $targetStage = Mockery::mock(PipelineStage::class)->makePartial();
+        $targetStage->setRawAttributes(['id' => 2, 'priority' => 5, 'name' => 'Stage 5']);
+
+        $service->shouldReceive('getStage')->with(1)->andReturn($currentStage);
+        $service->shouldReceive('getStage')->with(2)->andReturn($targetStage);
+        $service->shouldReceive('recordCrmEvent')->zeroOrMoreTimes();
 
         // Mock Services
         $this->fieldResolver->shouldReceive('resolve')->andReturn(200);
         $this->conditionEvaluator->shouldReceive('evaluate')->andReturn(true);
 
         $service->process($deal, 'trigger');
-        
+
         $this->assertEquals(2, $deal->pipeline_stage_id);
     }
 
@@ -81,22 +94,23 @@ class DealAutomationServiceTest extends TestCase
         // Mock Automation
         $automation = Mockery::mock(DealAutomation::class)->makePartial();
         $automation->setRawAttributes(['id' => 1, 'name' => 'Test Auto']);
-        
-        $condition = (object)['field' => 'val', 'operator' => '>', 'value' => 100];
-        $action = (object)['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
-        
+
+        $condition = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $condition->setRawAttributes(['field' => 'val', 'operator' => '>', 'value' => 100]);
+        $action = (object) ['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
+
         $automation->setRelation('conditions', collect([$condition]));
         $automation->setRelation('actions', collect([$action]));
 
         // Mock Service (Partial)
         $service = Mockery::mock(DealAutomationService::class, [
             $this->fieldResolver,
-            $this->conditionEvaluator
+            $this->conditionEvaluator,
         ])->makePartial();
         $service->shouldAllowMockingProtectedMethods();
-        
+
         $service->shouldReceive('getAutomations')
-            ->with(1, 'trigger')
+            ->with(1, 'trigger', 'deal')
             ->andReturn(collect([$automation]));
 
         // Mock Services
@@ -104,7 +118,7 @@ class DealAutomationServiceTest extends TestCase
         $this->conditionEvaluator->shouldReceive('evaluate')->andReturn(false);
 
         $service->process($deal, 'trigger');
-        
+
         $this->assertEquals(1, $deal->pipeline_stage_id);
     }
 
@@ -120,35 +134,35 @@ class DealAutomationServiceTest extends TestCase
         // Mock Automation
         $automation = Mockery::mock(DealAutomation::class)->makePartial();
         $automation->setRawAttributes(['id' => 1, 'name' => 'Test Auto']);
-        
-        $action = (object)['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => true];
-        
+
+        $action = (object) ['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => true];
+
         $automation->setRelation('conditions', collect([])); // No conditions
         $automation->setRelation('actions', collect([$action]));
 
         // Mock Stages
         $currentStage = Mockery::mock(PipelineStage::class)->makePartial();
         $currentStage->setRawAttributes(['id' => 1, 'priority' => 10, 'name' => 'Stage 10']);
-        
+
         $targetStage = Mockery::mock(PipelineStage::class)->makePartial();
         $targetStage->setRawAttributes(['id' => 2, 'priority' => 5, 'name' => 'Stage 5']);
 
         // Mock Service (Partial)
         $service = Mockery::mock(DealAutomationService::class, [
             $this->fieldResolver,
-            $this->conditionEvaluator
+            $this->conditionEvaluator,
         ])->makePartial();
         $service->shouldAllowMockingProtectedMethods();
-        
+
         $service->shouldReceive('getAutomations')
-            ->with(1, 'trigger')
+            ->with(1, 'trigger', 'deal')
             ->andReturn(collect([$automation]));
-            
+
         $service->shouldReceive('getStage')->with(1)->andReturn($currentStage);
         $service->shouldReceive('getStage')->with(2)->andReturn($targetStage);
 
         $service->process($deal, 'trigger');
-        
+
         $this->assertEquals(1, $deal->pipeline_stage_id);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\DataTables;
 
+use App\Support\UserTimezone;
 use Yajra\DataTables\Services\DataTable;
 use Illuminate\Support\Facades\File;
 
@@ -17,6 +18,15 @@ class BaseDataTable extends DataTable
         $this->company = company();
         $this->user = user();
         $this->domHtml = "<'row'<'col-sm-12'tr>><'d-flex'<'flex-grow-1'l><i><p>>";
+    }
+
+    /**
+     * Timezone for formatting UTC timestamps for the current viewer.
+     * Flag-gated via UserTimezone::forViewer(); never use the row owner's timezone.
+     */
+    protected function viewerTimezone(): string
+    {
+        return UserTimezone::forViewer($this->user, $this->company);
     }
 
     public function setBuilder($table, $orderBy = 1)

@@ -547,7 +547,7 @@ class DealContactApiController extends Controller
             $corePayload['occupation'] = $request->input('occupation');
         }
 
-        if ($corePayload !== [] && $coreFieldsService->useCoreFields()) {
+        if ($corePayload !== []) {
             $before = $coreFieldsService->read($lead);
             $coreFieldsService->write($lead, $corePayload);
             $after = $coreFieldsService->read($lead);
@@ -670,6 +670,17 @@ class DealContactApiController extends Controller
             }
             $customFieldsData['field_'.$fieldId] = $value;
         }
+
+        if ($customFieldsData === []) {
+            return;
+        }
+
+        $coreFieldsService = app(LeadCoreFieldsService::class);
+        $filtered = $coreFieldsService->filterCustomFieldsFromPayload(
+            ['custom_fields_data' => $customFieldsData],
+            (int) $lead->company_id
+        );
+        $customFieldsData = $filtered['custom_fields_data'] ?? [];
 
         if ($customFieldsData === []) {
             return;

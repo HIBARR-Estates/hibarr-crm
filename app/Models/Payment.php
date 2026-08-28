@@ -105,7 +105,9 @@ class Payment extends BaseModel
 
     protected $casts = [
         'paid_on' => 'datetime',
-        'payment_gateway_response' => 'object'
+        'expires_at' => 'datetime',
+        'verified_at' => 'datetime',
+        'payment_gateway_response' => 'object',
     ];
 
     protected $appends = ['total_amount', 'paid_date', 'file_url', 'default_currency_price'];

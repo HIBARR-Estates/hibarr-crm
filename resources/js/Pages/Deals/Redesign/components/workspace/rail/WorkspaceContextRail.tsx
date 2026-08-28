@@ -13,6 +13,7 @@ import DealIcon from "../../primitives/DealIcon";
 import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
+import DealPaymentPanel from "../DealPaymentPanel";
 import { initialsFromName } from "../../../adapters/initials";
 
 interface WorkspaceContextRailProps {
@@ -31,11 +32,14 @@ interface WorkspaceContextRailProps {
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
+    showOnlinePayment?: boolean;
+    canManagePayments?: boolean;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
     Lead: "section_lead",
     "Deal details": "section_deal_details",
+    Payment: "section_payment",
     Documents: "section_documents",
 };
 
@@ -52,6 +56,8 @@ export default function WorkspaceContextRail({
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
+    showOnlinePayment = false,
+    canManagePayments = false,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState<Set<string>>(
@@ -211,6 +217,20 @@ export default function WorkspaceContextRail({
                     />
                 ),
             },
+            ...(showOnlinePayment
+                ? [
+                      {
+                          title: "Payment",
+                          summary: td("Payment request"),
+                          body: (
+                              <DealPaymentPanel
+                                  deal={deal}
+                                  canManagePayments={canManagePayments}
+                              />
+                          ),
+                      },
+                  ]
+                : []),
             {
                 title: "Documents",
                 summary: `${hibarrDocuments.filter((doc) => doc.uploaded).length}/${hibarrDocuments.length}`,
@@ -252,6 +272,9 @@ export default function WorkspaceContextRail({
             packageSummary,
             phone,
             restrictPackageOrProperty,
+            showOnlinePayment,
+            canManagePayments,
+            td,
         ],
     );
 

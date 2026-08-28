@@ -158,6 +158,7 @@ export default function TaskReminderSelect({
                         onClick={(event) => event.stopPropagation()}
                         style={{
                             ...floatStyle,
+                            overflowY: "auto",
                             minWidth: 250,
                             padding: 8,
                             background: T.WHITE,

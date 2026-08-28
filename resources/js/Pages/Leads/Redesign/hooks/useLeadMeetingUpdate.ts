@@ -97,7 +97,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 }
             }
 
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpUpdatePayload = {
                 id: followupId,

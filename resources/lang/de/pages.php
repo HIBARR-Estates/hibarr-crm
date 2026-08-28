@@ -749,6 +749,7 @@ return [
             'banner_single_limit'   => 'Dieses CRM ist so konfiguriert, dass nur ein Paket oder eine Immobilie pro Deal erlaubt ist.',
             'section_lead'          => 'Lead',
             'section_deal_details'  => 'Deal-Details',
+            'section_payment'       => 'Zahlung',
             'section_documents'     => 'Dokumente',
             'messages' => [
                 'email_copied' => 'E-Mail kopiert',

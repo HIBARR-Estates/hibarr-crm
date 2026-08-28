@@ -1,8 +1,8 @@
 import React from "react";
 import { Tag } from "antd";
 import { SoundOutlined } from "@ant-design/icons";
-import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import QualificationScriptHtml from "../QualificationScriptHtml";
+import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
 
 interface SaySegmentProps {
     label: string;
@@ -10,9 +10,7 @@ interface SaySegmentProps {
 }
 
 const SaySegment: React.FC<SaySegmentProps> = ({ label, translateScript }) => {
-    const translated = translateScript(
-        useDynamicTranslation(label, { source: "en" }),
-    );
+    const translated = translateScript(useTranslatedScriptLabel(label));
 
     return (
         <div className="space-y-4">

@@ -51,7 +51,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
 
             setIsSubmitting(true);
             setErrors([]);
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             try {
                 const response = await fetch(

@@ -88,7 +88,7 @@ export default function useLeadIndexMeetingCreate(
                 return;
             }
 
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 lead_id: leadId,

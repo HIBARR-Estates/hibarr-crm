@@ -4,20 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\Settings\UpdateOrganisationSettings;
-use App\Traits\CurrencyExchange;
-use App\Models\User;
-use App\Models\DealAutomation;
-use App\Models\CrmEventCategory;
-use App\Models\CrmEventType;
 use App\Models\CrmBusinessRule;
+use App\Models\CrmEventCategory;
 use App\Models\CrmEventRetentionPolicy;
+use App\Models\CrmEventType;
+use App\Models\DealAutomation;
+use App\Models\User;
 use App\Support\MeetingAttendanceConfirmationFeature;
+use App\Traits\CurrencyExchange;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends AccountBaseController
 {
-
     use CurrencyExchange;
 
     public function __construct()
@@ -38,16 +37,19 @@ class SettingsController extends AccountBaseController
     public function index()
     {
         $this->employees = User::allEmployees(null, false);
+
         return view('company-settings.index', $this->data);
     }
 
     public function deal_automations()
     {
+        $this->pageTitle = 'app.menu.dealAutomations';
+        $this->activeSettingMenu = 'deal_automations';
         $this->employees = User::allEmployees(null, false);
-        $this->automations = DealAutomation::with(['pipeline', 'actions.targetStage', 'actions.targetPipeline'])
+        $this->automations = DealAutomation::with(['pipeline', 'actions.targetStage', 'actions.targetPipeline', 'actions.emailTemplate', 'actions.assigneeUser'])
             ->orderBy('priority', 'desc')
             ->get();
-            
+
         return view('company-settings.deal_automations', $this->data);
     }
 
@@ -118,14 +120,14 @@ class SettingsController extends AccountBaseController
 
         \Log::channel('daily')->info('[i18n] changeLanguage called', [
             'requested_locale' => $locale,
-            'user_id'         => auth()->id(),
+            'user_id' => auth()->id(),
             'user_permission' => function_exists('user') && user() ? user()->permission('manage_company_setting') : 'N/A',
-            'ip'              => $request->ip(),
+            'ip' => $request->ip(),
         ]);
 
         // Validate locale is supported (exactly four languages per spec)
         $supportedLocales = ['en', 'de', 'ru', 'tr'];
-        if (!in_array($locale, $supportedLocales)) {
+        if (! in_array($locale, $supportedLocales)) {
             \Log::channel('daily')->warning('[i18n] Unsupported locale requested, falling back to en', ['locale' => $locale]);
             $locale = 'en';
         }
@@ -139,8 +141,8 @@ class SettingsController extends AccountBaseController
             $user->save();
 
             \Log::channel('daily')->info('[i18n] User locale updated in DB', [
-                'user_id'      => $user->id,
-                'locale'       => $locale,
+                'user_id' => $user->id,
+                'locale' => $locale,
                 'save_success' => true,
             ]);
         } else {
@@ -157,11 +159,10 @@ class SettingsController extends AccountBaseController
 
         \Log::channel('daily')->info('[i18n] Session and app locale set', [
             'session_locale' => session('locale'),
-            'app_locale'     => app()->getLocale(),
+            'app_locale' => app()->getLocale(),
         ]);
 
         // Redirect back to previous page
         return redirect()->back();
     }
-
 }

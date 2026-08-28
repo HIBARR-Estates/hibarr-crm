@@ -1,5 +1,6 @@
 import {
     createContext,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
@@ -11,6 +12,7 @@ import {
 } from "react";
 import { useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
+import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import type { DealFile } from "@/Types/api/file";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Note } from "@/Types/api/note";
@@ -36,6 +38,10 @@ interface DealWorkspaceValue {
     files: DealFile[];
     setFiles: Dispatch<SetStateAction<DealFile[]>>;
     filesLoading: boolean;
+    paymentRequest: DealPaymentRequest | null;
+    setPaymentRequest: Dispatch<SetStateAction<DealPaymentRequest | null>>;
+    paymentRequestLoading: boolean;
+    refreshPaymentRequest: () => Promise<void>;
 }
 
 const DealWorkspaceContext = createContext<DealWorkspaceValue | null>(null);
@@ -43,6 +49,7 @@ const DealWorkspaceContext = createContext<DealWorkspaceValue | null>(null);
 interface DealWorkspaceProviderProps {
     deal: Deal;
     children: ReactNode;
+    paymentEnabled?: boolean;
 }
 
 /**
@@ -59,6 +66,7 @@ interface DealWorkspaceProviderProps {
 export function DealWorkspaceProvider({
     deal: initialDeal,
     children,
+    paymentEnabled = false,
 }: DealWorkspaceProviderProps) {
     const [deal, setDeal] = useState<Deal>(initialDeal);
     useEffect(() => {
@@ -98,11 +106,16 @@ export function DealWorkspaceProvider({
         path: route("deals.files.index", deal.id),
         options: { staleTime: 30_000 },
     });
+    const paymentRequestQuery = useApiQuery<EntityResponse<DealPaymentRequest | null>>({
+        path: route("deals.payment-request.show", deal.id),
+        options: { staleTime: 30_000, enabled: paymentEnabled },
+    });
 
     const [notes, setNotes] = useState<Note[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [dealFollowUps, setDealFollowUps] = useState<DealFollowup[]>([]);
     const [files, setFiles] = useState<DealFile[]>([]);
+    const [paymentRequest, setPaymentRequest] = useState<DealPaymentRequest | null>(null);
 
     // Seed local state the first time each query resolves; later background
     // refetches (e.g. on window refocus) must not clobber in-progress
@@ -112,6 +125,7 @@ export function DealWorkspaceProvider({
         tasks: false,
         dealFollowUps: false,
         files: false,
+        paymentRequest: false,
         dealId: deal.id,
     });
 
@@ -123,12 +137,14 @@ export function DealWorkspaceProvider({
             tasks: false,
             dealFollowUps: false,
             files: false,
+            paymentRequest: false,
             dealId: deal.id,
         };
         setNotes([]);
         setTasks([]);
         setDealFollowUps([]);
         setFiles([]);
+        setPaymentRequest(null);
     }, [deal.id]);
 
     useEffect(() => {
@@ -168,6 +184,25 @@ export function DealWorkspaceProvider({
         seeded.current.files = true;
     }, [filesQuery.data]);
 
+    useEffect(() => {
+        if (!paymentEnabled || seeded.current.paymentRequest) {
+            return;
+        }
+        if (paymentRequestQuery.data === undefined) {
+            return;
+        }
+        setPaymentRequest(paymentRequestQuery.data.data ?? null);
+        seeded.current.paymentRequest = true;
+    }, [paymentEnabled, paymentRequestQuery.data]);
+
+    const refreshPaymentRequest = useCallback(async () => {
+        if (!paymentEnabled) return;
+        const result = await paymentRequestQuery.refetch();
+        if (result.data?.data !== undefined) {
+            setPaymentRequest(result.data.data ?? null);
+        }
+    }, [paymentEnabled, paymentRequestQuery]);
+
     const value = useMemo<DealWorkspaceValue>(
         () => ({
             deal,
@@ -184,6 +219,10 @@ export function DealWorkspaceProvider({
             files,
             setFiles,
             filesLoading: filesQuery.isLoading,
+            paymentRequest,
+            setPaymentRequest,
+            paymentRequestLoading: paymentEnabled && paymentRequestQuery.isLoading,
+            refreshPaymentRequest,
         }),
         [
             deal,
@@ -191,10 +230,14 @@ export function DealWorkspaceProvider({
             tasks,
             dealFollowUps,
             files,
+            paymentRequest,
+            paymentEnabled,
             notesQuery.isLoading,
             tasksQuery.isLoading,
             dealFollowUpsQuery.isLoading,
             filesQuery.isLoading,
+            paymentRequestQuery.isLoading,
+            paymentRequestQuery.refetch,
         ],
     );
 

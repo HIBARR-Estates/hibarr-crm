@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -12,6 +12,7 @@ import {
     InputNumber,
     Form,
     Avatar,
+    message,
 } from "antd";
 import "./followup-modal.css";
 import {
@@ -29,10 +30,8 @@ import dayjs from "dayjs";
 import {
     companyDateDayjsFormat,
     companyTimeDayjsFormat,
-    formatCompanyDate,
-    formatCompanyDateTime,
-    formatCompanyTime,
 } from "@/lib/companyDateTime";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -318,15 +317,89 @@ const ViewFollowup: React.FC<Props> = ({
 }) => {
     const { props } = usePage<any>();
     const { td } = useTd();
+    const { formatDate, formatTime, formatDateTime } = useUserDateTime();
     const currentUserId = props?.auth?.user?.id;
+    const permissions = props?.permissions ?? {};
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
+    const [attendance, setAttendance] = useState<boolean | null | undefined>(
+        followup?.client_attended,
+    );
+    const [attendanceSaving, setAttendanceSaving] = useState(false);
+    const attendanceFollowupIdRef = useRef<number | undefined>(followup?.id);
+
+    useEffect(() => {
+        attendanceFollowupIdRef.current = followup?.id;
+        setAttendance(followup?.client_attended);
+    }, [followup?.id, followup?.client_attended]);
+
+    const handleSetAttendance = async (value: boolean | null) => {
+        if (!followup?.id || attendanceSaving) return;
+
+        const requestFollowupId = followup.id;
+        const nextValue = attendance === value ? null : value;
+
+        setAttendanceSaving(true);
+        try {
+            const csrfToken =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute("content") || "";
+
+            const res = await fetch(
+                `/account/meetings/${requestFollowupId}/confirm-attendance`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "X-CSRF-TOKEN": csrfToken,
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                    body: JSON.stringify({ client_attended: nextValue }),
+                },
+            );
+
+            if (attendanceFollowupIdRef.current !== requestFollowupId) {
+                return;
+            }
+
+            let json: { success?: boolean; client_attended?: boolean | null; message?: string } = {};
+            try {
+                json = await res.json();
+            } catch {
+                message.error("Could not read attendance response.");
+                return;
+            }
+
+            if (!res.ok || !json.success) {
+                message.error(json.message || "Could not update attendance.");
+                return;
+            }
+
+            setAttendance(json.client_attended);
+        } catch {
+            if (attendanceFollowupIdRef.current === requestFollowupId) {
+                message.error("Could not update attendance.");
+            }
+        } finally {
+            if (attendanceFollowupIdRef.current === requestFollowupId) {
+                setAttendanceSaving(false);
+            }
+        }
+    };
 
     const live = isLiveMeeting(followup);
     const elapsedMinutes = getElapsedMinutes(followup);
-    const localDate = dayjs.utc(followup?.next_follow_up_date).local();
+    const meetingInstant = followup?.next_follow_up_date;
     const effectiveDuration =
         followup?.effective_duration ?? followup?.duration ?? DEFAULT_DURATION;
     const isCreator = followup?.added_by?.id === currentUserId;
+    const canEditAttendance =
+        permissions.edit_lead_follow_up === "all" ||
+        (permissions.edit_lead_follow_up === "added" && isCreator);
+    const meetingHasStarted =
+        !!followup?.next_follow_up_date &&
+        !dayjs.utc(followup.next_follow_up_date).local().isAfter(dayjs());
 
     const featureEnabled =
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
@@ -420,12 +493,12 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="flex items-stretch gap-3">
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Date</p>
-                            <p className="text-[20px] font-black text-slate-900 leading-none">{formatCompanyDate(localDate)}</p>
+                            <p className="text-[20px] font-black text-slate-900 leading-none">{formatDate(meetingInstant)}</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-blue-600 rounded-2xl py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">Time</p>
                             <p className="text-[26px] font-black text-white leading-none tabular-nums">
-                                {formatCompanyTime(localDate)}
+                                {formatTime(meetingInstant)}
                             </p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
@@ -570,6 +643,46 @@ const ViewFollowup: React.FC<Props> = ({
                         </div>
                     </div>
 
+                    {/* Client Attendance — manually recorded/confirmed, never inferred */}
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Client Attendance</p>
+                        {canEditAttendance && meetingHasStarted ? (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="small"
+                                disabled={attendanceSaving}
+                                onClick={() => handleSetAttendance(true)}
+                                className={`rounded-lg text-[13px] shadow-none ${attendance === true ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ""}`}
+                            >
+                                ✓ Attended
+                            </Button>
+                            <Button
+                                size="small"
+                                disabled={attendanceSaving}
+                                onClick={() => handleSetAttendance(false)}
+                                className={`rounded-lg text-[13px] shadow-none ${attendance === false ? "bg-red-50 text-red-700 border-red-200" : ""}`}
+                            >
+                                ✗ No-show
+                            </Button>
+                            {attendance === null || attendance === undefined ? (
+                                <span className="text-[12px] text-slate-400">Not yet confirmed</span>
+                            ) : null}
+                        </div>
+                        ) : (
+                        <div className="text-[13px] text-slate-600">
+                            {attendance === true && "Attended"}
+                            {attendance === false && "No-show"}
+                            {(attendance === null || attendance === undefined) && (
+                                <span className="text-slate-400">
+                                    {canEditAttendance && !meetingHasStarted
+                                        ? "Available after the meeting time"
+                                        : "Not yet confirmed"}
+                                </span>
+                            )}
+                        </div>
+                        )}
+                    </div>
+
                     {/* Meeting Summary */}
                     {followup?.meeting_summary && Object.keys(followup.meeting_summary.summary_object).length > 0 && (
                         <div>
@@ -584,7 +697,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     </div>
                                 ))}
                                 <p className="text-[11px] text-slate-300 mt-2 mb-0">
-                                    Generated {formatCompanyDateTime(followup.meeting_summary.created_at, { separator: " at " })}
+                                    Generated {formatDateTime(followup.meeting_summary.created_at, { separator: " at " })}
                                 </p>
                             </div>
                         </div>

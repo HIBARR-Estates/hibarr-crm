@@ -7,6 +7,8 @@ use App\Models\User;
 
 class UserTimezone
 {
+    public const FLAG = 'crm.user-timezone';
+
     /**
      * Resolve display timezone for a user: user → company → UTC.
      */
@@ -23,5 +25,20 @@ class UserTimezone
         }
 
         return 'UTC';
+    }
+
+    /**
+     * Viewer timezone for DataTable/report display.
+     * Flag off: company timezone (then UTC). Flag on: {@see resolve()}.
+     */
+    public static function forViewer(?User $user, ?Company $company = null): string
+    {
+        if (! FeatureFlags::enabled(self::FLAG)) {
+            $companyTz = $company?->timezone ?? $user?->company?->timezone;
+
+            return (is_string($companyTz) && $companyTz !== '') ? $companyTz : 'UTC';
+        }
+
+        return self::resolve($user, $company);
     }
 }

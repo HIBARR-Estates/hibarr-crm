@@ -106,6 +106,75 @@ export const resolveTokens = (
     return resolved;
 };
 
+export interface ProtectedScript {
+    text: string;
+    /**
+     * Splices the original tags/tokens back into a translated string.
+     * Returns null if the round trip lost or duplicated a placeholder —
+     * the caller should fall back to the untranslated text rather than
+     * render corrupted markup.
+     */
+    restore: (translated: string) => string | null;
+}
+
+const HTML_TAG_RE = /<\/?[a-zA-Z][^<>]*>/g;
+/** OL mustache tokens, e.g. `{{lead.firstName}}` / `{{agent.name}}`. */
+const OL_TOKEN_RE = /\{\{[a-zA-Z]+\.[a-zA-Z]+\}\}/g;
+/** CRM tokens from QUALIFICATION_TOKENS, e.g. `{leadName}`. */
+const CRM_TOKEN_RE = new RegExp(
+    QUALIFICATION_TOKENS.map((token) => token.replace(/[{}]/g, "\\$&")).join(
+        "|",
+    ),
+    "g",
+);
+const PLACEHOLDER_RE = /⟦(\d+)⟧/g;
+
+/**
+ * Swap HTML tags and CRM/OL tokens for inert numbered placeholders before a
+ * script label is sent to the translation API. Sending raw `<strong>` /
+ * `{{lead.firstName}}` markup through translation is unreliable — models
+ * mistranslate or drop it. Placeholders travel through untouched, then
+ * `restore()` puts the originals back in the translated string.
+ */
+export const protectScriptForTranslation = (text: string): ProtectedScript => {
+    const originals: string[] = [];
+    const protect = (value: string): string =>
+        `⟦${originals.push(value) - 1}⟧`;
+
+    const protectedText = (text ?? "")
+        .replace(HTML_TAG_RE, protect)
+        .replace(OL_TOKEN_RE, protect)
+        .replace(CRM_TOKEN_RE, protect);
+
+    return {
+        text: protectedText,
+        restore: (translated: string): string | null => {
+            const seen = new Set<number>();
+            let broken = false;
+
+            const restored = (translated ?? "").replace(
+                PLACEHOLDER_RE,
+                (match, indexStr) => {
+                    const index = Number(indexStr);
+                    const original = originals[index];
+                    if (original === undefined || seen.has(index)) {
+                        broken = true;
+                        return match;
+                    }
+                    seen.add(index);
+                    return original;
+                },
+            );
+
+            if (broken || seen.size !== originals.length) {
+                return null;
+            }
+
+            return restored;
+        },
+    };
+};
+
 /** Plain-text preview for nav / answers rails (strips OL rich text). */
 export const stripHtmlTags = (html: string): string =>
     (html ?? "")

@@ -195,7 +195,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
             input: LeadMeetingCreateInput,
             options: LeadMeetingCreateOptions = {},
         ) => {
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 lead_id: lead.id,

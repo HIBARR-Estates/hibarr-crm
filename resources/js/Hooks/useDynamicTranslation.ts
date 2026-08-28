@@ -16,7 +16,12 @@ import {
     type TdFn,
 } from "@/lib/dynamicTranslation";
 
-const makeKey = (locale: string, hash: string) => ["dynTrans", locale, hash];
+export const makeDynamicTranslationKey = (locale: string, hash: string) => [
+    "dynTrans",
+    locale,
+    hash,
+];
+const makeKey = makeDynamicTranslationKey;
 
 type DynamicTranslationResult = string | null;
 

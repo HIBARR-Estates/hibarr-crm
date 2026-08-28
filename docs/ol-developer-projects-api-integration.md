@@ -440,15 +440,17 @@ type ProjectDistances = {
 | `id` | number | |
 | `company_id` | number | |
 | `name` | string \| null | Often `"Area, City"` |
-| `city` / `area` | string \| null | |
+| `city` / `area` | string \| null | Shared area label |
 | `description` | string \| null | |
-| `address` | object \| null | `{ street?, state?, country?, postalCode? }` |
-| `map_url` | string \| null | |
-| `image_url` | string \| null | |
-| `latitude` / `longitude` | string \| number \| null | |
+| `address` | object \| null | `{ street?, state?, country?, postalCode? }` — **overlaid** from the project pin when set, else location default |
+| `map_url` | string \| null | **Overlaid** from `developer_projects.map_url` when set, else location default |
+| `image_url` | string \| null | Shared location map image (expose); not a per-project Google Maps link |
+| `latitude` / `longitude` | string \| number \| null | **Overlaid** from the project when set |
 | `attractions` | array | `[{ name, content: string[], images: { primary, secondary } }]` |
 | `infrastructure` | array | `[{ infrastructure_id?, travelTimeInMin, name?, icon?, image? }]` |
 | `airports` | array | `[{ airport_id?, travelTimeInMin, name?, code?, image? }]` |
+
+Pin fields (`map_url`, `address`, `latitude`, `longitude`) are stored authoritatively on `developer_projects`. The nested `location` object keeps the historical response shape; values are project-then-location-default. Standalone location list endpoints return raw `project_locations` defaults without overlay.
 
 ### 6.5 `assets` / unit-type `assets` (mapped)
 

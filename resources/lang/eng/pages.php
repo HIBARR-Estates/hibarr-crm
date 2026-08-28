@@ -774,6 +774,7 @@ return [
             'banner_single_limit'   => 'This CRM is configured to allow only one package or property per deal.',
             'section_lead'          => 'Lead',
             'section_deal_details'  => 'Deal details',
+            'section_payment'       => 'Payment',
             'section_documents'     => 'Documents',
             'messages' => [
                 'email_copied' => 'Email copied',

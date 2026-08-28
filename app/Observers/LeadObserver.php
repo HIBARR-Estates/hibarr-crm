@@ -9,9 +9,11 @@ use App\Models\UniversalSearch;
 use App\Models\User;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
+use App\Services\DealAutomationService;
 use App\Services\LeadContactMethodService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
+use App\Services\LeadAutomationService;
 use App\Services\MlmNotificationService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
@@ -123,6 +125,10 @@ class LeadObserver
             ],
         ]);
 
+        if (! isRunningInConsoleOrSeeding()) {
+            app(DealAutomationService::class)->processLead($leadContact, 'lead_created');
+        }
+
         if (! isRunningInConsoleOrSeeding() && $leadContact->referred_by_agent_id) {
             DB::afterCommit(function () use ($leadContact) {
                 $lead = $leadContact->fresh(['contact', 'referredByAgent']);
@@ -137,6 +143,8 @@ class LeadObserver
                 );
             });
         }
+
+        app(LeadAutomationService::class)->process($leadContact, 'lead_created');
     }
 
     public function deleting(Lead $leadContact)
@@ -188,9 +196,13 @@ class LeadObserver
 
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
 
+        app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
+
         if (isRunningInConsoleOrSeeding()) {
             return;
         }
+
+        app(DealAutomationService::class)->processLead($leadContact, 'lead_updated');
 
         if ($leadContact->wasChanged('temperature')) {
             $from = $leadContact->getOriginal('temperature');
@@ -218,8 +230,8 @@ class LeadObserver
             $this->recordCrmEvent('lead_lifecycle_status_changed', $leadContact, [
                 'metadata' => [
                     'comment' => 'Lifecycle status changed from '
-                        . ($statuses->get($fromId)?->label ?? 'none')
-                        . ' to ' . ($statuses->get($toId)?->label ?? 'none'),
+                        .($statuses->get($fromId)?->label ?? 'none')
+                        .' to '.($statuses->get($toId)?->label ?? 'none'),
                     'from_status_id' => $fromId,
                     'to_status_id' => $toId,
                     'from_status_key' => $statuses->get($fromId)?->key,

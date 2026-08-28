@@ -111,10 +111,12 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Erinnerungseinstellungen',
+            'preferences' => 'Einstellungen',
             'entity_reminder_defaults' => 'Erinnerungsstandards',
         ],
         'reminderDefaults' => 'Erinnerungsstandards',
         'entityReminderDefaults' => 'Erinnerungsstandards',
+        'integrationsHub' => 'Integrations Hub',
     ],
 
     // Breadcrumb
@@ -593,6 +595,7 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Erinnerungseinstellungen',
+        'preferences' => 'Einstellungen',
         'entity_reminder_defaults' => 'Erinnerungsstandards',
         'reminder_defaults' => 'Erinnerungsstandards',
     ],

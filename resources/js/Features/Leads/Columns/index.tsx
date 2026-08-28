@@ -391,10 +391,10 @@ export const LEAD_TABLE_COLUMNS = (
             ),
         },
         {
-            title: translateDynamic("Category · source", { source: "en" }),
+            title: translateDynamic("Category", { source: "en" }),
             dataIndex: "category",
             key: "category",
-            width: 170,
+            width: 150,
             onHeaderCell: () => headerCell(),
             onCell: () => bodyCell(),
             render: (_, record) => {
@@ -405,43 +405,49 @@ export const LEAD_TABLE_COLUMNS = (
                           ? [record.category.category_name]
                           : [];
                 const categoryText = names.map((n) => translateDynamic(n)).join(", ");
-                const sourceText = record.lead_source
-                    ? translateDynamic(record.lead_source.type)
-                    : null;
 
-                if (!categoryText && !sourceText) {
+                if (!categoryText) {
                     return <span style={{ color: T.TEXT_HINT }}>—</span>;
                 }
 
                 return (
-                    <div className="min-w-0" style={{ maxWidth: 150 }}>
-                        {categoryText && (
-                            <div
-                                className="line-clamp-2"
-                                style={{ fontSize: 14, color: T.TEXT }}
-                            >
-                                {categoryText}
-                            </div>
-                        )}
-                        {sourceText && (
-                            <div
-                                className="line-clamp-2 mt-1"
-                                style={{ fontSize: 13 }}
-                            >
-                                <span style={{ color: T.TEXT_MUTED }}>
-                                    {translateDynamic("Source", { source: "en" })}:{" "}
-                                </span>
-                                <span style={{ fontWeight: 600, color: T.TEXT }}>
-                                    {sourceText}
-                                </span>
-                            </div>
-                        )}
+                    <div
+                        className="line-clamp-2 min-w-0"
+                        style={{ fontSize: 14, color: T.TEXT, overflowWrap: "break-word", wordBreak: "break-word" }}
+                    >
+                        {categoryText}
                     </div>
                 );
             },
         },
         {
-            title: translateDynamic("Lifecycle", { source: "en" }),
+            title: translateDynamic("Source", { source: "en" }),
+            dataIndex: "lead_source",
+            key: "lead_source",
+            width: 130,
+            onHeaderCell: () => headerCell(),
+            onCell: () => bodyCell(),
+            render: (_, record) => {
+                const sourceText = record.lead_source
+                    ? translateDynamic(record.lead_source.type)
+                    : null;
+
+                if (!sourceText) {
+                    return <span style={{ color: T.TEXT_HINT }}>—</span>;
+                }
+
+                return (
+                    <span
+                        className="line-clamp-2 min-w-0"
+                        style={{ fontSize: 14, color: T.TEXT, overflowWrap: "break-word", wordBreak: "break-word" }}
+                    >
+                        {sourceText}
+                    </span>
+                );
+            },
+        },
+        {
+            title: translateDynamic("Status", { source: "en" }),
             dataIndex: "lead_lifecycle_status",
             key: "lead_lifecycle_status",
             width: 150,

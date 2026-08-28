@@ -1,71 +1,75 @@
 <?php
 
 /* Setting menu routes starts from here */
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
-use App\Http\Controllers\GoogleAuthController;
-use App\Http\Controllers\TicketTypeController;
-use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\AttendanceSettingController;
+use App\Http\Controllers\AutomationSettingController;
+use App\Http\Controllers\BusinessAddressController;
+use App\Http\Controllers\ContractSettingController;
+use App\Http\Controllers\CrmEventSettingController;
+use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\CustomFieldCategoryController;
-use App\Http\Controllers\LeadSettingController;
-use App\Http\Controllers\SmtpSettingController;
-use App\Http\Controllers\TaskSettingController;
-use App\Http\Controllers\TicketAgentController;
-use App\Http\Controllers\TicketGroupController;
+use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\CustomModuleController;
-use App\Http\Controllers\LeaveSettingController;
-use App\Http\Controllers\SlackSettingController;
-use App\Http\Controllers\ThemeSettingController;
-use App\Http\Controllers\TwoFASettingController;
+use App\Http\Controllers\DatabaseBackupSettingController;
+use App\Http\Controllers\DealAutomationController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\EmployeeShiftController;
-use App\Http\Controllers\ModuleSettingController;
-use App\Http\Controllers\TicketChannelController;
-use App\Http\Controllers\TicketSettingController;
+use App\Http\Controllers\EntityReminderDefaultController;
+use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\GoogleCalendarSettingController;
 use App\Http\Controllers\InvoiceSettingController;
+use App\Http\Controllers\LanguageSettingController;
+use App\Http\Controllers\LeadAgentSettingController;
+use App\Http\Controllers\LeadLifecycleStatusSettingController;
+use App\Http\Controllers\LeadPipelineSettingController;
+use App\Http\Controllers\LeadSettingController;
+use App\Http\Controllers\LeadSourceSettingController;
+use App\Http\Controllers\LeadStageSettingController;
+use App\Http\Controllers\LeaveSettingController;
+use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\MessageSettingController;
+use App\Http\Controllers\MetaEventController;
+use App\Http\Controllers\ModuleSettingController;
+use App\Http\Controllers\NotificationSettingController;
+use App\Http\Controllers\OfflinePaymentSettingController;
+use App\Http\Controllers\PackageController;
+use App\Http\Controllers\PaymentGatewayCredentialController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileSettingController;
 use App\Http\Controllers\ProjectSettingController;
 use App\Http\Controllers\PusherSettingsController;
-use App\Http\Controllers\RolePermissionController;
-use App\Http\Controllers\StorageSettingController;
-use App\Http\Controllers\TimeLogSettingController;
-use App\Http\Controllers\BusinessAddressController;
-use App\Http\Controllers\PackageController;
-use App\Http\Controllers\CurrencySettingController;
-use App\Http\Controllers\LanguageSettingController;
-use App\Http\Controllers\SecuritySettingController;
-use App\Http\Controllers\LeadAgentSettingController;
 use App\Http\Controllers\PushNotificationController;
-use App\Http\Controllers\AttendanceSettingController;
-use App\Http\Controllers\ContractSettingController;
-use App\Http\Controllers\CustomLinkSettingController;
-use App\Http\Controllers\LeadSourceSettingController;
-use App\Http\Controllers\LeadLifecycleStatusSettingController;
-use App\Http\Controllers\SocialAuthSettingController;
-use App\Http\Controllers\TicketEmailSettingController;
-use App\Http\Controllers\TicketReplyTemplatesController;
-use App\Http\Controllers\DatabaseBackupSettingController;
-use App\Http\Controllers\GoogleCalendarSettingController;
-use App\Http\Controllers\LeadPipelineSettingController;
-use App\Http\Controllers\DealAutomationController;
-use App\Http\Controllers\CrmEventSettingController;
-use App\Http\Controllers\LeadStageSettingController;
-use App\Http\Controllers\OfflinePaymentSettingController;
-use App\Http\Controllers\PaymentGatewayCredentialController;
-use App\Http\Controllers\NotificationSettingController;
 use App\Http\Controllers\QuickbookSettingsController;
+use App\Http\Controllers\ReminderLedgerController;
+use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\SecuritySettingController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
 use App\Http\Controllers\SignUpSettingController;
+use App\Http\Controllers\SlackSettingController;
+use App\Http\Controllers\SmtpSettingController;
+use App\Http\Controllers\SocialAuthSettingController;
+use App\Http\Controllers\StorageSettingController;
+use App\Http\Controllers\TaskSettingController;
 use App\Http\Controllers\TaxSettingController;
+use App\Http\Controllers\ThemeSettingController;
+use App\Http\Controllers\TicketAgentController;
+use App\Http\Controllers\TicketChannelController;
+use App\Http\Controllers\TicketEmailSettingController;
+use App\Http\Controllers\TicketGroupController;
+use App\Http\Controllers\TicketReplyTemplatesController;
+use App\Http\Controllers\TicketSettingController;
+use App\Http\Controllers\TicketTypeController;
+use App\Http\Controllers\TimeLogSettingController;
+use App\Http\Controllers\TwoFASettingController;
 use App\Http\Controllers\UnitTypeController;
-use App\Http\Controllers\UserReminderPreferenceController;
-use App\Http\Controllers\EntityReminderDefaultController;
-use App\Http\Controllers\ReminderLedgerController;
-use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\UpdateAppController;
-use App\Http\Controllers\SettingsOverviewController;
+use App\Http\Controllers\UserPreferencesController;
+use App\Http\Controllers\UserReminderPreferenceController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function () {
@@ -75,6 +79,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
 
+    /* Automation settings — email templates + trigger-based automations */
+    Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
+
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);
 
@@ -83,6 +90,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         ->whereNumber('id');
     Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* User preferences (timezone, in-app alerts, notification bypass) */
+    Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
+    Route::post('preferences/timezone', [UserPreferencesController::class, 'updateTimezone'])->name('user-preferences.timezone');
+    Route::put('preferences/bypasses', [UserPreferencesController::class, 'updateBypass'])->name('user-preferences.bypasses');
 
     /* User Reminder Preferences */
     Route::get('reminder-preferences/manage', [UserReminderPreferenceController::class, 'show'])->name('reminder-preferences.show');
@@ -203,7 +215,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('custom-fields/{id}/rule-set', [CustomFieldController::class, 'saveRuleSet'])->name('custom-fields.save-rule-set');
     Route::post('custom-fields/evaluate-visibility', [CustomFieldController::class, 'evaluateVisibility'])->name('custom-fields.evaluate-visibility');
     Route::post('custom-fields/sort-fields', [CustomFieldController::class, 'sortFields'])->name('custom-fields.sort-fields');
-    
+
     // Custom Field Categories
     Route::get('custom-field-categories/get-by-group', [CustomFieldCategoryController::class, 'getCategoriesByGroup'])->name('custom-field-categories.get-by-group');
     Route::post('custom-field-categories/sort', [CustomFieldCategoryController::class, 'sortCategories'])->name('custom-field-categories.sort');
@@ -277,7 +289,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('google-auth', [GoogleAuthController::class, 'index'])->name('googleAuth');
     Route::delete('google-auth', [GoogleAuthController::class, 'destroy'])->name('googleAuth.destroy');
 
-
     // Database Backup Settings
     Route::get('database-backup-settings/create-backup', [DatabaseBackupSettingController::class, 'createBackup'])->name('database-backup-settings.create_backup');
     Route::get('database-backup-settings/download/{file_name}', [DatabaseBackupSettingController::class, 'download'])->name('database-backup-settings.download');
@@ -322,7 +333,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
+    Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
+    Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
     Route::resource('deal-automations', DealAutomationController::class);
+
+    // Email Templates (used by deal automation "Send Email" actions)
+    Route::post('email-templates/preview', [EmailTemplateController::class, 'preview'])->name('email-templates.preview');
+    Route::get('email-templates/plunk-templates', [EmailTemplateController::class, 'plunkTemplates'])->name('email-templates.plunk-templates');
+    Route::get('email-templates/create-modal', [EmailTemplateController::class, 'createModal'])->name('email-templates.create-modal');
+    Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
+
+    // Meta Events (used by deal automation "Meta Conversion" actions)
+    Route::resource('meta-events', MetaEventController::class)->except(['show', 'create', 'edit']);
 
     // CRM Event Engine Settings
     Route::get('company-settings/crm-events', [SettingsController::class, 'crm_events'])->name('company-settings.crm_events');

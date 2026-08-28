@@ -84,6 +84,59 @@ class TaskCommentApiController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Activity log entries (status changes, assignee changes, checklist
+     * add/toggle, file uploads, ...) for the detail modal's comments panel,
+     * interleaved there with real comments by timestamp. `type` is the
+     * `TaskHistory.details` value (e.g. "statusActivity") — kept as an
+     * English source key so the frontend composes + td()-translates the
+     * sentence, same as everywhere else in this redesign, instead of
+     * needing a new server lang key per locale for every activity type.
+     * Capped at 200 — far more than a task's history realistically needs,
+     * and comments still paginate separately from this.
+     */
+    public function activity(int $taskId): JsonResponse
+    {
+        $task = Task::findOrFail($taskId);
+        $this->authorizeView($task);
+
+        $entries = \App\Models\TaskHistory::with([
+            'user:id,name,image',
+            'boardColumn:id,column_name,slug,label_color',
+            'subTask:id,title',
+        ])
+            ->where('task_id', $task->id)
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn (\App\Models\TaskHistory $entry) => [
+                'id' => $entry->id,
+                'type' => $entry->details,
+                'created_at' => $entry->created_at?->toIso8601String(),
+                'created_at_human' => $entry->created_at?->diffForHumans(),
+                'user' => $entry->user ? [
+                    'id' => $entry->user->id,
+                    'name' => $entry->user->name,
+                    'image' => $entry->user->image,
+                ] : null,
+                'board_column' => $entry->boardColumn ? [
+                    'column_name' => $entry->boardColumn->column_name,
+                    'label_color' => $entry->boardColumn->label_color,
+                ] : null,
+                'sub_task' => $entry->subTask ? [
+                    'title' => $entry->subTask->title,
+                ] : null,
+            ])
+            ->all();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => ['activity' => $entries],
+        ]);
+    }
+
     public function store(Request $request, int $taskId): JsonResponse
     {
         $task = Task::with('users')->findOrFail($taskId);

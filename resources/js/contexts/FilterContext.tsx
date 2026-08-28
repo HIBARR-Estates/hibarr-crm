@@ -44,6 +44,7 @@ export interface FilterFieldConfig {
         | "segmented"
         | "checklist"
         | "tokens"
+        | "select"
         | "datePresets"
         | "scoreRange"
         | "utm";

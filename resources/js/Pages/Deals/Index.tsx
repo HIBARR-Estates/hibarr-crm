@@ -61,7 +61,7 @@ import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 
 const DEAL_VIEW_OPTIONS: EntityListHeaderViewOption[] = [
     { value: "table", label: "Table", icon: <TableOutlined style={{ fontSize: 13 }} /> },
-    { value: "kanban", label: "Kanban", icon: <AppstoreOutlined style={{ fontSize: 13 }} /> },
+    { value: "kanban", label: "Board", icon: <AppstoreOutlined style={{ fontSize: 13 }} /> },
 ];
 
 interface BoardColumn extends PipelineStage {

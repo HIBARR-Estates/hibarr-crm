@@ -37,7 +37,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                                 ? "!bg-white !shadow-sm"
                                 : "hover:bg-white hover:shadow-sm"
                         }`}
-                        title="Kanban Board"
+                        title="Board View"
                         onClick={() => onChange("kanban")}
                     />
                     <Button
@@ -80,7 +80,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                             ? "!bg-white !shadow-sm"
                             : "hover:bg-white hover:shadow-sm"
                     }`}
-                    title="Kanban Board"
+                    title="Board View"
                     onClick={() =>
                         router.visit(`/account/deals/kanban${queryString}`)
                     }
