@@ -45,11 +45,11 @@ class TimeLogReportDataTable extends BaseDataTable
                 ]);
             })
             ->editColumn('start_time', function ($row) {
-                return $row->start_time->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
+                return $row->start_time->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
             })
             ->editColumn('end_time', function ($row) {
                 if (!is_null($row->end_time)) {
-                    return $row->end_time->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
+                    return $row->end_time->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
                 } else {
                     return "<span class='badge badge-primary'>" . __('app.active') . '</span>';
                 }
