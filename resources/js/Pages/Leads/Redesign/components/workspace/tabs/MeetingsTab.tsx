@@ -18,7 +18,7 @@ import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
 import DealSelectCheckbox from "@/Pages/Deals/Redesign/components/primitives/DealSelectCheckbox";
 import { ScheduleMeetingModal } from "@/Components/Redesign";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import useLeadMeetingCreate from "../../../hooks/useLeadMeetingCreate";
@@ -109,12 +109,13 @@ export default function MeetingsTab({
     const scheduleInitialForm = useMemo(
         () =>
             buildEmptyMeetingForm(
-                null,
+                lead,
                 props.auth?.user?.id,
                 props.auth?.user?.email,
             ),
-        [props.auth?.user?.id, props.auth?.user?.email],
+        [lead, props.auth?.user?.id, props.auth?.user?.email],
     );
+    const mustIncludeOwner = useMemo(() => getMeetingOwner(lead), [lead]);
 
     const toggleSelect = (id: number) =>
         setSelected((prev) => {
@@ -443,12 +444,14 @@ export default function MeetingsTab({
                             locationDetail: form.locationDetail,
                             meetingLink: form.meetingLink,
                             participants: form.participants,
+                            hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
                         },
                         () => handleCreateSuccess(),
                     )
                 }
+                mustIncludeOwner={mustIncludeOwner}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     cancel: td("Cancel", { source: "en" }),

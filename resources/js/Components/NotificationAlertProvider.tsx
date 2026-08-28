@@ -41,6 +41,8 @@ export interface NotificationAlertAction {
     href?: string | null;
     /** Open join/external meeting links without leaving the current page. */
     openInNewTab?: boolean;
+    /** Run a callback instead of navigating (e.g. "Undo"). Takes priority over href. */
+    onClick?: () => void;
 }
 
 export interface NotificationAlertPayload {
@@ -74,6 +76,17 @@ export function useNotificationAlert(): NotificationAlertContextValue {
         );
     }
     return ctx;
+}
+
+/**
+ * Same as useNotificationAlert(), but returns null instead of throwing when
+ * there's no provider in the tree — NotificationAlertsGate only mounts one
+ * when the notification-island feature flag is on, so callers that render
+ * regardless of that flag (e.g. the meeting-attendance-confirmation dock)
+ * need to degrade gracefully instead of crashing the page.
+ */
+export function useOptionalNotificationAlert(): NotificationAlertContextValue | null {
+    return useContext(NotificationAlertContext);
 }
 
 const ACCENT_BY_SEVERITY: Record<NotchSeverity, string> = {
@@ -284,6 +297,11 @@ export default function NotificationAlertProvider({
     const handleActionClick = useCallback(
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
+            if (action.onClick) {
+                action.onClick();
+                dismiss();
+                return;
+            }
             if (current?.id) markAsReadQuiet(current.id);
             const href =
                 action.href && isSafeHttpUrl(action.href)

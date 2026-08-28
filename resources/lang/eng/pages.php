@@ -882,6 +882,7 @@ return [
                 'join'                 => 'Join',
                 'auto_generated_link_hint' => 'Auto-generated for video meetings after scheduling.',
                 'existing_link_hint'   => 'Existing meeting link is shown for reference.',
+                'host_field'           => 'Meeting host',
                 'participants_field'   => 'Meeting participants',
                 'reminders'            => 'Reminders',
                 'remove_reminder'      => 'Remove reminder',

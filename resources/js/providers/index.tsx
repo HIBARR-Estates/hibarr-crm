@@ -10,6 +10,7 @@ import { UserDateTimeProvider } from "@/Components/UserDateTimeProvider";
 import NotificationAlertProvider from "@/Components/NotificationAlertProvider";
 import { NotificationAlertBridgeMount } from "@/Hooks/useNotificationAlertBridge";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import { MeetingAttendanceConfirmationMount } from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationMount";
 import { NotificationAlertSettingsProvider } from "@/contexts/NotificationAlertSettingsContext";
 
 function NotificationAlertsGate({
@@ -59,6 +60,7 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
                             <FilterProvider>
                                 <NotificationAlertSettingsProvider>
                                     <NotificationAlertsGate>
+                                        <MeetingAttendanceConfirmationMount />
                                         {children}
                                     </NotificationAlertsGate>
                                 </NotificationAlertSettingsProvider>
