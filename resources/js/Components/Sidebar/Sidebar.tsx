@@ -10,6 +10,7 @@ import {
     QuestionCircleOutlined,
     BugOutlined,
     BulbOutlined,
+    ControlOutlined,
     BellOutlined,
     ClockCircleOutlined,
     ApartmentOutlined,
@@ -370,6 +371,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <SettingOutlined />,
             label: t("app.menu.settings"),
             onClick: () => router.visit("/account/settings/profile"),
+        },
+        {
+            key: "preferences",
+            icon: <ControlOutlined />,
+            label: t("app.menu.settings_menu.preferences"),
+            onClick: () => router.visit("/account/settings/preferences"),
         },
         {
             key: "reminder-preferences",

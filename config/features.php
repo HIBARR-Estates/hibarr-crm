@@ -36,5 +36,6 @@ return [
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
         'crm.user-timezone',
+        'crm.notification-bypass',
     ],
 ];

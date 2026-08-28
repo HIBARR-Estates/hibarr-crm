@@ -56,7 +56,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
             onSuccess?: () => void,
             statusOverride?: string,
         ) => {
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpUpdatePayload = {
                 id: followupId,
