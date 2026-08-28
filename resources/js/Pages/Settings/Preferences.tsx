@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
+import { App } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -14,12 +15,19 @@ import {
 } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import {
+    isUserDateTimeEnabled,
+    setUserDateTimeContext,
+} from "@/lib/userDateTime";
 import { getBrowserTimezone } from "@/lib/userTimezone";
 import InAppAlertPreferences from "./components/InAppAlertPreferences";
 import NotificationBypassList, {
     type BypassType,
 } from "./components/NotificationBypassList";
 import "@/Components/Redesign/redesign.css";
+
+/** Hardcoded so a missing Ziggy name cannot unmount the page. */
+const TIMEZONE_SAVE_URL = "/account/settings/preferences/timezone";
 
 type AlertSettings = {
     notch_position: string;
@@ -123,6 +131,27 @@ function Section({
     );
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+    if (axios.isAxiosError(error)) {
+        const data = error.response?.data as
+            | { message?: string; errors?: Record<string, string[]> }
+            | undefined;
+        if (typeof data?.message === "string" && data.message !== "") {
+            return data.message;
+        }
+        const firstError = data?.errors
+            ? Object.values(data.errors)[0]?.[0]
+            : undefined;
+        if (typeof firstError === "string" && firstError !== "") {
+            return firstError;
+        }
+    }
+    if (error instanceof Error && error.message !== "") {
+        return error.message;
+    }
+    return fallback;
+}
+
 export default function Preferences({
     pageTitle,
     timezone,
@@ -133,6 +162,7 @@ export default function Preferences({
 }: PreferencesProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { message } = App.useApp();
     const timezoneGroups = useMemo(() => buildTimezoneGroups(), []);
     const [selectedTimezone, setSelectedTimezone] = useState(
         timezone && timezone !== "" ? timezone : "UTC",
@@ -141,9 +171,13 @@ export default function Preferences({
     const [savingTimezone, setSavingTimezone] = useState(false);
 
     const saveTimezone = async (nextTimezone: string, nextLocked: boolean) => {
+        const previousTimezone = selectedTimezone;
+        const previousLocked = locked;
+        setSelectedTimezone(nextTimezone);
+        setLocked(nextLocked);
         setSavingTimezone(true);
         try {
-            const response = await axios.post(route("user-preferences.timezone"), {
+            const response = await axios.post(TIMEZONE_SAVE_URL, {
                 timezone: nextTimezone,
                 locked: nextLocked,
             });
@@ -151,15 +185,25 @@ export default function Preferences({
                 timezone?: string;
                 timezoneLocked?: boolean;
             };
-            setSelectedTimezone(data.timezone ?? nextTimezone);
-            setLocked(data.timezoneLocked ?? nextLocked);
+            const savedTimezone = data.timezone ?? nextTimezone;
+            const savedLocked = data.timezoneLocked ?? nextLocked;
+            setSelectedTimezone(savedTimezone);
+            setLocked(savedLocked);
+            setUserDateTimeContext({
+                enabled: isUserDateTimeEnabled(),
+                timezone: savedTimezone,
+            });
+        } catch (error) {
+            setSelectedTimezone(previousTimezone);
+            setLocked(previousLocked);
+            message.error(errorMessage(error, t("messages.somethingWentWrong")));
         } finally {
             setSavingTimezone(false);
         }
     };
 
     const breadcrumbs = [
-        { name: t("app.menu.settings"), url: route("profile-settings.index") },
+        { name: t("app.menu.settings"), url: "/account/settings/profile" },
         { name: t("app.settings.preferences") },
     ];
 
@@ -187,9 +231,9 @@ export default function Preferences({
                                 options={timezoneGroups}
                                 popupMatchSelectWidth={true}
                                 style={{ width: "100%" }}
+                                disabled={savingTimezone}
                                 onChange={(value) => {
                                     if (!value) return;
-                                    setSelectedTimezone(value);
                                     void saveTimezone(value, true);
                                 }}
                             />

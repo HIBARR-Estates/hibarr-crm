@@ -18,6 +18,7 @@ class UserPreferencesController extends AccountBaseController
     {
         parent::__construct();
         $this->pageTitle = 'app.settings.preferences';
+        $this->activeSettingMenu = 'user_preferences';
 
         $this->middleware(function ($request, $next) {
             abort_403(! in_array('employees', $this->user->modules));

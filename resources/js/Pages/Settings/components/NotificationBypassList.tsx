@@ -5,6 +5,8 @@ import Switch from "@/Components/Redesign/primitives/Switch";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
+const BYPASS_SAVE_URL = "/account/settings/preferences/bypasses";
+
 export type BypassType = {
     key: string;
     label: string;
@@ -58,7 +60,7 @@ export default function NotificationBypassList({
             return copy;
         });
         try {
-            await axios.put(route("user-preferences.bypasses"), {
+            await axios.put(BYPASS_SAVE_URL, {
                 key,
                 bypassed: next,
             });

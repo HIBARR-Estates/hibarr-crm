@@ -56,6 +56,11 @@
         <x-setting-menu-item :active="$activeMenu" menu="profile_settings" :href="route('profile-settings.index')"
                              :text="__('app.menu.profileSettings')"/>
 
+        @if (in_array('employees', user_modules()))
+            <x-setting-menu-item :active="$activeMenu" menu="user_preferences" :href="route('user-preferences.show')"
+                                 :text="__('app.settings.preferences')"/>
+        @endif
+
         @if (user()->permission('manage_notification_setting') == 'all')
             <x-setting-menu-item :active="$activeMenu" menu="notification_settings" :href="route('notification-settings.index')"
                                  :text="__('app.menu.notificationSettings')"/>
