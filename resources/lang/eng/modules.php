@@ -961,6 +961,8 @@ return [
     'emailSettings' => [
         'notificationTitle' => 'Email Notification Settings',
         'notificationSubtitle' => 'Select the events for which an email should be sent to user.',
+        'inAppNotificationInfo' => 'Choose which notifications should also appear in the in-app notification bell.',
+        'inAppNotificationTitle' => 'In-App Notification Settings',
         'configTitle' => 'Mail Configuration',
         'mailDriver' => 'Mail Driver',
         'mailHost' => 'Mail Host',
@@ -2283,12 +2285,17 @@ return [
         'deal-package-notification' => 'Deal Package Notification',
         'deal-property-notification' => 'Deal Property Notification',
         'task-deleted' => 'Task Deleted',
-        'task-rejected-from-review' => 'Task Rejected From Review',
+        'task-rejected' => 'Task Rejected From Review',
         'task-overdue' => 'Task Overdue',
-        'task-priority-changed' => 'Task Priority Changed',
+        'task-priority-updated' => 'Task Priority Changed',
         'sub-task-created' => 'Sub Task Created',
         'property-activity-notification' => 'Property Activity Notification',
         'expose-ready' => 'Exposé Ready',
+        'mlm-partner-network-notification' => 'Partner Network (MLM) Notifications',
+        // Blade's checkbox label looks these three up by str_slug(setting_name),
+        // which differs from the slug column above - both kept so either lookup basis resolves.
+        'task-rejected-from-review' => 'Task Rejected From Review',
+        'task-priority-changed' => 'Task Priority Changed',
         'partner-network-mlm-notifications' => 'Partner Network (MLM) Notifications',
     ],
     'languageSettings' => [

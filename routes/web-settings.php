@@ -42,6 +42,7 @@ use App\Http\Controllers\ProfileSettingController;
 use App\Http\Controllers\ProjectSettingController;
 use App\Http\Controllers\PusherSettingsController;
 use App\Http\Controllers\PushNotificationController;
+use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
@@ -139,6 +140,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('slack-settings', SlackSettingController::class);
     Route::resource('push-notification-settings', PushNotificationController::class);
     Route::resource('pusher-settings', PusherSettingsController::class);
+
+    // React notification manager — deliberately a different path segment from the
+    // `notification-settings` resource above so its routes can't be shadowed by
+    // that resource's wildcard `{notification_setting}` show route.
+    Route::get('notification-settings-manager', [NotificationSettingsApiController::class, 'page'])->name('notification-settings-manager.index');
+    Route::get('notification-settings-manager/data', [NotificationSettingsApiController::class, 'index'])->name('notification-settings-manager.data');
+    Route::put('notification-settings-manager/data/{channel}', [NotificationSettingsApiController::class, 'update'])->name('notification-settings-manager.update');
 
     // Currency Settings routes
     Route::get('currency-settings/update/exchange-rates', [CurrencySettingController::class, 'updateExchangeRate'])->name('currency_settings.update_exchange_rates');

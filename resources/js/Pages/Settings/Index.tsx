@@ -10,8 +10,14 @@ import {
     CalendarIcon,
     CheckSquareIcon,
 } from "../../Components/icons";
-import { FileTextOutlined, BellOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import {
+    FileTextOutlined,
+    BellOutlined,
+    NotificationOutlined,
+    ThunderboltOutlined,
+} from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
+import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
 interface EntitySettingCard {
     key: string;
@@ -30,6 +36,10 @@ export default function SettingsIndex({
     pageTitle: string;
 }) {
     const { t } = useTranslation();
+    const { permissions } = usePermission();
+    const canManageNotifications = isPermissionAll(
+        permissions.manage_notification_setting,
+    );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
     const pageProps = usePage().props as {
         featureFlags?: Record<string, boolean>;
@@ -108,6 +118,23 @@ export default function SettingsIndex({
             description: t("app.settingsHub.remindersDesc"),
             connected: false,
         },
+        ...(canManageNotifications
+            ? [
+                  {
+                      key: "notifications",
+                      icon: <NotificationOutlined />,
+                      iconBg: "bg-indigo-50",
+                      iconColor: "text-indigo-500",
+                      title: t("app.menu.notificationSettings"),
+                      description: t("app.settingsHub.notificationsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(
+                              route("notification-settings-manager.index"),
+                          ),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -129,6 +156,23 @@ export default function SettingsIndex({
                             }
                         `}
                         onClick={card.onOpen}
+                        role={card.onOpen ? "button" : undefined}
+                        tabIndex={card.onOpen ? 0 : undefined}
+                        onKeyDown={
+                            card.onOpen
+                                ? (e) => {
+                                      // Ignore keydowns bubbling up from a nested
+                                      // control (e.g. the Manage button) — only
+                                      // react when the card itself has focus, or
+                                      // Enter/Space on Manage double-fires onOpen.
+                                      if (e.target !== e.currentTarget) return;
+                                      if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          card.onOpen?.();
+                                      }
+                                  }
+                                : undefined
+                        }
                     >
                         <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${card.iconBg} ${card.iconColor}`}
