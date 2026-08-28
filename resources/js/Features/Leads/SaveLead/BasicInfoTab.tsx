@@ -89,7 +89,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         categories,
         employees,
         permissions,
-        featureFlags,
         leadLifecycleStatuses,
     } = props;
     const lifecycleStatusOptions = useMemo(
@@ -105,8 +104,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             })),
         [leadLifecycleStatuses],
     );
-    const useLeadCoreFields =
-        featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
     const isPopulatingRef = useRef(false);
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
@@ -405,8 +402,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     {createDeal && <LeadDealCreation />}
                 </section>
 
-                {useLeadCoreFields && (
-                    <section className="save-lead-form__section">
+                <section className="save-lead-form__section">
                         <h3 className="save-lead-form__section-title">
                             Personal information
                         </h3>
@@ -495,8 +491,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 </Form.Item>
                             </Col>
                         </Row>
-                    </section>
-                )}
+                </section>
 
                 <section className="save-lead-form__section">
                     <h3 className="save-lead-form__section-title">
