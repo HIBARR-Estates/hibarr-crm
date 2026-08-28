@@ -161,6 +161,11 @@ export default function SettingsIndex({
                         onKeyDown={
                             card.onOpen
                                 ? (e) => {
+                                      // Ignore keydowns bubbling up from a nested
+                                      // control (e.g. the Manage button) — only
+                                      // react when the card itself has focus, or
+                                      // Enter/Space on Manage double-fires onOpen.
+                                      if (e.target !== e.currentTarget) return;
                                       if (e.key === "Enter" || e.key === " ") {
                                           e.preventDefault();
                                           card.onOpen?.();
