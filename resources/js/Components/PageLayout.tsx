@@ -10,9 +10,16 @@ import {
     Tooltip,
 } from "antd";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { HomeOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+    BellOutlined,
+    ControlOutlined,
+    HomeOutlined,
+    ReloadOutlined,
+    SettingOutlined,
+} from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import useTranslation from "@/Hooks/useTranslation";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -79,6 +86,7 @@ export default function PageLayout({
     ];
 
     const { message } = App.useApp();
+    const { t } = useTranslation();
     const { props } = usePage<PageProps>();
     const { auth, appName, flash } = props;
     const { user } = auth;
@@ -100,6 +108,28 @@ export default function PageLayout({
 
     // User dropdown menu
     const userMenuItems: MenuProps["items"] = [
+        {
+            key: "settings",
+            icon: <SettingOutlined />,
+            label: t("app.menu.settings"),
+            onClick: () => router.visit("/account/settings/profile"),
+        },
+        {
+            key: "preferences",
+            icon: <ControlOutlined />,
+            label: t("app.menu.settings_menu.preferences"),
+            onClick: () => router.visit("/account/settings/preferences"),
+        },
+        {
+            key: "reminder-preferences",
+            icon: <BellOutlined />,
+            label: t("app.menu.settings_menu.reminder_preferences"),
+            onClick: () =>
+                router.visit("/account/settings/reminder-preferences/manage"),
+        },
+        {
+            type: "divider",
+        },
         {
             key: "logout",
             label: (
