@@ -5,7 +5,7 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import { Icon } from "@/Components/Redesign";
 import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { formatDateTime } from "@/Pages/Deals/Redesign/adapters/dateFormat";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { toWorkspaceMeetingPreview } from "@/Pages/Deals/Redesign/adapters/meetingAdapter";
 import {
     formatMoneyAmount,
@@ -238,6 +238,7 @@ export default function QuickStats({
     onViewAllDeals,
 }: QuickStatsProps) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const companyCurrency = useCompanyCurrency();
 
     const meetingPreview = nextMeeting

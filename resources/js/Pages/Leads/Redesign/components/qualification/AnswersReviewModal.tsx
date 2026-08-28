@@ -10,8 +10,8 @@ import {
     formatAnswerDisplay,
     answersFromQualification,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import LeadV2Modal, {
     LeadV2ModalFooter,
@@ -34,6 +34,7 @@ interface RunCardProps {
 
 function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const templateService = useMemo(
         () => getQualificationTemplateService(),
         [],
@@ -156,7 +157,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                             marginTop: 2,
                         }}
                     >
-                        {formatCompanyDateTime(when)}
+                        {formatDateTime(when)}
                         {" · "}
                         {answerCount} {td("answers", { source: "en" })}
                         {qualification.agent?.name
