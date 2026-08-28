@@ -38,7 +38,6 @@ class LeadService
         'qualification_segment_key',
         'qualification_answer_values',
         'language',
-        'language_id',
         'temperature',
         'preferred_contact_time',
         'gender',
@@ -610,7 +609,7 @@ class LeadService
             $this->applyNextActionFilter($query, $request->get('next_action'));
         }
 
-        if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
+        if ($request->filled('language')) {
             $languageCodes = $this->toValueArray($request->get('language'));
             $query->where(function ($q) use ($languageCodes) {
                 foreach ($languageCodes as $code) {

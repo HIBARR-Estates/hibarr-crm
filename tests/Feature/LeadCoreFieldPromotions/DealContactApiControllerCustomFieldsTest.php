@@ -2,23 +2,21 @@
 
 namespace Tests\Feature\LeadCoreFieldPromotions;
 
+use App\Http\Controllers\Api\DealContactApiController;
 use App\Models\Lead;
-use App\Services\LeadCoreFieldsService;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Tests\LeadCoreFieldsTestCase;
 
-class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
+class DealContactApiControllerCustomFieldsTest extends LeadCoreFieldsTestCase
 {
-    private LeadCoreFieldsService $service;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->resetSchema();
         $this->createMinimalSchema();
-        $this->service = app(LeadCoreFieldsService::class);
     }
 
     protected function tearDown(): void
@@ -27,61 +25,44 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
         parent::tearDown();
     }
 
-    public function test_reads_from_core_columns(): void
+    /**
+     * A promoted field (e.g. "nationality") now lives on the leads.nationality
+     * core column. If a caller still submits its legacy custom-field ID via
+     * lead_custom_fields, applyLeadCustomFields() must not also write it to
+     * custom_fields_data — that would leave a stale legacy value alongside
+     * the core column with no way to tell which one is authoritative.
+     */
+    public function test_promoted_field_id_is_not_written_to_custom_fields_data(): void
     {
         $companyId = $this->seedCompany();
-        $leadId = $this->seedLead($companyId, [
-            'languages' => json_encode(['en', 'de']),
-            'nationality' => 'Germany',
-            'occupation' => 'Engineer',
-            'date_of_birth' => '1990-05-15',
-        ]);
-
-        $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
-        $values = $this->service->read($lead);
-
-        $this->assertSame(['en', 'de'], $values['languages']);
-        $this->assertSame('1990-05-15', $values['date_of_birth']);
-        $this->assertSame('Germany', $values['nationality']);
-        $this->assertSame('Engineer', $values['occupation']);
-    }
-
-    public function test_writes_core_columns(): void
-    {
-        $companyId = $this->seedCompany();
+        $nationalityFieldId = $this->seedCustomField($companyId, 'nationality');
+        $noteFieldId = $this->seedCustomField($companyId, 'custom-note');
         $leadId = $this->seedLead($companyId);
+
         $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
 
-        $this->service->write($lead, [
-            'languages' => ['en'],
-            'nationality' => 'Turkey',
-            'occupation' => 'Agent',
-            'date_of_birth' => '1985-01-20',
-        ]);
-        $lead->save();
-
-        $lead->refresh();
-        $this->assertSame(['en'], $lead->languages);
-        $this->assertSame('Turkey', $lead->nationality);
-        $this->assertSame('Agent', $lead->occupation);
-        $this->assertSame('1985-01-20', $lead->date_of_birth?->format('Y-m-d'));
-    }
-
-    public function test_filter_custom_fields_from_payload(): void
-    {
-        $companyId = $this->seedCompany();
-        $languageFieldId = $this->seedCustomField($companyId, 'language');
-        $otherFieldId = $this->seedCustomField($companyId, 'custom-note');
-
-        $filtered = $this->service->filterCustomFieldsFromPayload([
-            'custom_fields_data' => [
-                'language_' . $languageFieldId => 'de',
-                'custom_note_' . $otherFieldId => 'hello',
+        $request = new Request([
+            'lead_custom_fields' => [
+                (string) $nationalityFieldId => 'Legacy Nationality Value',
+                (string) $noteFieldId => 'hello',
             ],
-        ], $companyId);
+        ]);
 
-        $this->assertArrayNotHasKey('language_' . $languageFieldId, $filtered['custom_fields_data']);
-        $this->assertArrayHasKey('custom_note_' . $otherFieldId, $filtered['custom_fields_data']);
+        $controller = new DealContactApiController;
+        $method = new \ReflectionMethod($controller, 'applyLeadCustomFields');
+        $method->setAccessible(true);
+        $method->invoke($controller, $lead, $request);
+
+        $this->assertDatabaseMissing('custom_fields_data', [
+            'custom_field_id' => $nationalityFieldId,
+            'model_id' => $leadId,
+        ]);
+
+        $this->assertDatabaseHas('custom_fields_data', [
+            'custom_field_id' => $noteFieldId,
+            'model_id' => $leadId,
+            'value' => 'hello',
+        ]);
     }
 
     private function resetSchema(): void
@@ -104,6 +85,7 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
 
         Schema::create('custom_field_groups', function (Blueprint $table) {
             $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('model');
             $table->timestamps();
         });
@@ -147,18 +129,6 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
             $table->string('occupation')->nullable();
             $table->timestamps();
         });
-
-        \DB::table('language_settings')->insert([
-            ['language_code' => 'en', 'language_name' => 'English', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()],
-            ['language_code' => 'de', 'language_name' => 'German', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()],
-        ]);
-
-        \DB::table('custom_field_groups')->insert([
-            'id' => 1,
-            'model' => 'App\Models\Lead',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
     }
 
     private function seedCompany(): int
@@ -185,14 +155,23 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
 
     private function seedCustomField(int $companyId, string $name): int
     {
+        \DB::table('custom_field_groups')->updateOrInsert(
+            ['company_id' => $companyId, 'model' => Lead::CUSTOM_FIELD_MODEL],
+            ['created_at' => now(), 'updated_at' => now()]
+        );
+
+        $groupId = \DB::table('custom_field_groups')
+            ->where('company_id', $companyId)
+            ->where('model', Lead::CUSTOM_FIELD_MODEL)
+            ->value('id');
+
         return \DB::table('custom_fields')->insertGetId([
             'company_id' => $companyId,
-            'custom_field_group_id' => 1,
+            'custom_field_group_id' => $groupId,
             'label' => ucfirst($name),
             'name' => $name,
             'type' => 'text',
             'required' => 'no',
         ]);
     }
-
 }

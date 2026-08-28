@@ -121,8 +121,6 @@ const Index = ({
         td,
     ]);
     const { props: pageProps } = usePage<PageProps>();
-    const useLeadCoreFields =
-        pageProps.featureFlags?.["crm.lead-language-core-field"] === true;
     // Redesigned two-pane filter workbench + saved views (mockups 1a/2a/2b/3c).
     const useFilterV2 =
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
@@ -186,11 +184,10 @@ const Index = ({
                     leadLifecycleStatuses.length > 0
                         ? leadLifecycleStatuses
                         : formData["lead-lifecycle-statuses"] || [],
-                useLeadCoreFields,
                 filterV2: useFilterV2,
                 excludeFields: ["search"],
             }),
-        [formData, leadLifecycleStatuses, preferredContactTimes, useLeadCoreFields, useFilterV2],
+        [formData, leadLifecycleStatuses, preferredContactTimes, useFilterV2],
     );
 
     // Post-action receipt: survives the toast so the operator can read it.
