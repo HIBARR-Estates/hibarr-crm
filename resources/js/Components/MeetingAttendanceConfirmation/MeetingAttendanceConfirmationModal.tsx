@@ -159,7 +159,7 @@ export default function MeetingAttendanceConfirmationModal({
         padding: "11px 13px",
         borderRadius: 10,
         cursor: "pointer",
-        fontFamily: "var(--font-sans, inherit)",
+        fontFamily: "inherit",
         textAlign: "left",
         background: active ? "#e8f1fb" : "#ffffff",
         border: `1px solid ${active ? "#b8d4f0" : "#e2e5ea"}`,
@@ -369,6 +369,7 @@ export default function MeetingAttendanceConfirmationModal({
                                     color: "#5b6472",
                                     marginTop: 2,
                                     lineHeight: 1.5,
+                                    textTransform: "capitalize",
                                 }}
                             >
                                 {meeting.location}
@@ -533,8 +534,6 @@ export default function MeetingAttendanceConfirmationModal({
                                         fontSize: 12,
                                         fontWeight: 700,
                                         lineHeight: 1.5,
-                                        letterSpacing: "0.05em",
-                                        textTransform: "uppercase",
                                         color: "#5b6472",
                                         marginBottom: 6,
                                     }}
@@ -558,7 +557,7 @@ export default function MeetingAttendanceConfirmationModal({
                                         resize: "vertical",
                                         border: `1px solid ${noteFocused ? "#b8d4f0" : "#e2e5ea"}`,
                                         borderRadius: 8,
-                                        padding: "10px 12px",
+                                        padding: "10px 12px 24px",
                                         fontFamily: "inherit",
                                         fontSize: 13,
                                         color: "#1a1f2e",

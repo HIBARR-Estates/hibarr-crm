@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,8 @@ use Tests\TestCase;
  */
 class FollowUpHostTest extends TestCase
 {
+    use SetsFeatureFlags;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -70,6 +73,45 @@ class FollowUpHostTest extends TestCase
         $this->assertSame(6, $followUp->defaultHostUserId());
     }
 
+    public function test_confirmation_assignee_is_the_host_when_flag_on_and_host_differs_from_agent(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', true);
+        $this->makeUser(5, 'Agent User');
+        $this->makeUser(6, 'Host User');
+        $this->makeLeadAgent(1, 5);
+        $this->makeDeal(1, 1);
+
+        $followUp = $this->makeFollowUp(1, dealId: 1, leadId: null, addedBy: 6, hostId: 6);
+
+        $this->assertSame(6, $followUp->confirmationAssigneeUserId());
+    }
+
+    public function test_confirmation_assignee_falls_back_to_the_deal_agent_when_host_id_is_unset(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', true);
+        $this->makeUser(5, 'Agent User');
+        $this->makeUser(6, 'Creator User');
+        $this->makeLeadAgent(1, 5);
+        $this->makeDeal(1, 1);
+
+        $followUp = $this->makeFollowUp(1, dealId: 1, leadId: null, addedBy: 6, hostId: null);
+
+        $this->assertSame(5, $followUp->confirmationAssigneeUserId());
+    }
+
+    public function test_confirmation_assignee_ignores_host_id_when_the_flag_is_off(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', false);
+        $this->makeUser(5, 'Agent User');
+        $this->makeUser(6, 'Host User');
+        $this->makeLeadAgent(1, 5);
+        $this->makeDeal(1, 1);
+
+        $followUp = $this->makeFollowUp(1, dealId: 1, leadId: null, addedBy: 6, hostId: 6);
+
+        $this->assertSame(5, $followUp->confirmationAssigneeUserId());
+    }
+
     public function test_ensure_host_owner_is_participant_is_a_no_op_when_owner_is_host(): void
     {
         $result = MeetingVisibilityService::ensureHostOwnerIsParticipant([6, 7], 5, 5);
@@ -96,6 +138,38 @@ class FollowUpHostTest extends TestCase
         $result = MeetingVisibilityService::ensureHostOwnerIsParticipant([6, 7], 8, null);
 
         $this->assertSame([6, 7], $result);
+    }
+
+    public function test_without_host_removes_the_host_from_participants(): void
+    {
+        $result = MeetingVisibilityService::withoutHost([5, 6, 7], 6);
+
+        $this->assertSame([5, 7], $result);
+    }
+
+    public function test_without_host_is_a_no_op_when_host_is_not_a_participant(): void
+    {
+        $result = MeetingVisibilityService::withoutHost([5, 6], 8);
+
+        $this->assertSame([5, 6], $result);
+    }
+
+    public function test_without_host_is_a_no_op_when_host_is_unresolvable(): void
+    {
+        $result = MeetingVisibilityService::withoutHost([5, 6], null);
+
+        $this->assertSame([5, 6], $result);
+    }
+
+    public function test_host_is_never_left_in_participants_even_when_forced_in_as_owner(): void
+    {
+        // Owner and host are the same person here — ensureHostOwnerIsParticipant
+        // is a no-op (owner already "is" the host), and withoutHost must still
+        // strip them if they were already present in the raw participants list.
+        $withOwner = MeetingVisibilityService::ensureHostOwnerIsParticipant([5, 6], 5, 5);
+        $result = MeetingVisibilityService::withoutHost($withOwner, 5);
+
+        $this->assertSame([6], $result);
     }
 
     /**
@@ -148,13 +222,14 @@ class FollowUpHostTest extends TestCase
         DB::table('deals')->insert(['id' => $id, 'agent_id' => $agentId]);
     }
 
-    private function makeFollowUp(int $id, ?int $dealId, ?int $leadId, int $addedBy): DealFollowUp
+    private function makeFollowUp(int $id, ?int $dealId, ?int $leadId, int $addedBy, ?int $hostId = null): DealFollowUp
     {
         DB::table('lead_follow_up')->insert([
             'id' => $id,
             'deal_id' => $dealId,
             'lead_id' => $leadId,
             'added_by' => $addedBy,
+            'host_id' => $hostId,
             'status' => 'scheduled',
             'next_follow_up_date' => '2026-08-10 10:00:00',
         ]);

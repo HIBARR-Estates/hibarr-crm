@@ -35,6 +35,7 @@ return [
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
         'crm.meeting-attendance-confirmation',
+        'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
     ],

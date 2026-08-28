@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
@@ -9,6 +9,7 @@ import PeoplePicker, {
 } from "@/Components/Redesign/primitives/PeoplePicker";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
 import { useFormData } from "@/Hooks/useFormData";
 
@@ -28,10 +29,16 @@ interface AssigneeFieldProps {
     disabled?: boolean;
     /** Ids in `value` that can't be removed (e.g. the deal agent / lead owner when they aren't the meeting host). */
     lockedIds?: number[];
+    /** Ids that can't be picked via "+ Add" at all (e.g. the meeting host — tracked separately, never also a participant). */
+    excludeIds?: number[];
+    /** Shown when the user tries to remove a locked id. Receives the person's display name. Defaults to a generic explanation. */
+    lockedRemovalMessage?: (name: string) => string;
     removeLabel?: string;
     addLabel?: string;
     doneLabel?: string;
 }
+
+const LOCKED_REMOVAL_ERROR_TIMEOUT_MS = 5000;
 
 function mapEmployee(employee: EmployeeRecord): PersonOption {
     return {
@@ -50,16 +57,20 @@ export default function AssigneeField({
     onChange,
     disabled = false,
     lockedIds = [],
+    excludeIds = [],
+    lockedRemovalMessage,
     removeLabel = "Remove",
     addLabel = "+ Add",
     doneLabel = "Done",
 }: AssigneeFieldProps) {
+    const { td } = useTd();
     const { props } = usePage<
         PageProps & { employees?: EmployeeRecord[] }
     >();
     const [adding, setAdding] = useState(false);
     const [query, setQuery] = useState("");
     const debouncedSearch = useDebounce(query, 300);
+    const [removalError, setRemovalError] = useState<string | null>(null);
 
     const { data, loading, error } = useFormData<EmployeeRecord>("employees", {
         search: debouncedSearch,
@@ -110,6 +121,37 @@ export default function AssigneeField({
 
     const blocked = !loading && Boolean(error) && people.length === 0;
 
+    // Clear a stale error once the underlying lock state has actually moved
+    // on (e.g. this id is no longer locked), and auto-dismiss after a beat.
+    useEffect(() => {
+        if (!removalError) return;
+        const timeout = window.setTimeout(
+            () => setRemovalError(null),
+            LOCKED_REMOVAL_ERROR_TIMEOUT_MS,
+        );
+        return () => window.clearTimeout(timeout);
+    }, [removalError]);
+
+    useEffect(() => {
+        setRemovalError(null);
+    }, [lockedIds]);
+
+    const handleRemoveAttempt = (id: number, name: string) => {
+        if (lockedIds.includes(id)) {
+            setRemovalError(
+                lockedRemovalMessage
+                    ? lockedRemovalMessage(name)
+                    : td(
+                          `${name} can't be removed from this meeting while they aren't the host.`,
+                          { source: "en" },
+                      ),
+            );
+            return;
+        }
+        setRemovalError(null);
+        onChange(value.filter((x) => x !== id));
+    };
+
     return (
         <div>
             <div
@@ -124,6 +166,7 @@ export default function AssigneeField({
                 {value.map((id) => {
                     const person = byId.get(id);
                     const name = person?.name ?? `User #${id}`;
+                    const locked = lockedIds.includes(id);
                     return (
                         <span
                             key={id}
@@ -142,23 +185,26 @@ export default function AssigneeField({
                                 initials={initialsFromName(name)}
                             />
                             <span style={{ fontSize: 12 }}>{name}</span>
-                            {!disabled && !lockedIds.includes(id) && (
+                            {!disabled && (
                                 <button
                                     type="button"
                                     aria-label={`${removeLabel} ${name}`}
-                                    onClick={() =>
-                                        onChange(value.filter((x) => x !== id))
-                                    }
+                                    onClick={() => handleRemoveAttempt(id, name)}
                                     style={{
                                         background: "none",
                                         border: "none",
                                         cursor: "pointer",
-                                        color: T.TEXT_MUTED,
+                                        color: locked
+                                            ? T.TEXT_HINT
+                                            : T.TEXT_MUTED,
                                         display: "flex",
                                         padding: 2,
                                     }}
                                 >
-                                    <Icon name="x" size={11} />
+                                    <Icon
+                                        name={locked ? "lock" : "x"}
+                                        size={11}
+                                    />
                                 </button>
                             )}
                         </span>
@@ -173,10 +219,22 @@ export default function AssigneeField({
                     {adding ? doneLabel : addLabel}
                 </Button>
             </div>
+            {removalError && (
+                <p
+                    role="alert"
+                    style={{
+                        fontSize: 12,
+                        color: T.RED,
+                        margin: "0 0 6px",
+                    }}
+                >
+                    {removalError}
+                </p>
+            )}
             {adding && !disabled && (
                 <PeoplePicker
                     people={people}
-                    exclude={value}
+                    exclude={[...value, ...excludeIds]}
                     loading={loading}
                     remoteFilter
                     onQueryChange={handleQueryChange}

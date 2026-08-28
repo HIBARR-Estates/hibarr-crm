@@ -328,6 +328,43 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->assertSame(1, $pending->first()->id);
     }
 
+    public function test_pending_list_goes_to_the_host_not_the_deal_agent_when_the_flag_is_on(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', true);
+        $this->activateCompany(10, now()->subDay());
+        // Deal 1's agent is user 5 (set up in setUp), but this meeting's host is user 6.
+        $this->makeFollowUp(1, endedMinutesAgo: 30, hostId: 6);
+
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent(id: 5))->isEmpty(),
+            'The deal agent is not the host here and must not see the prompt.'
+        );
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent(id: 6)));
+    }
+
+    public function test_pending_list_falls_back_to_the_deal_agent_when_host_id_is_unset(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', true);
+        $this->activateCompany(10, now()->subDay());
+        // No host_id — a row saved before crm.meeting-host existed.
+        $this->makeFollowUp(1, endedMinutesAgo: 30, hostId: null);
+
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent(id: 5)));
+    }
+
+    public function test_pending_list_ignores_host_id_when_the_flag_is_off(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', false);
+        $this->activateCompany(10, now()->subDay());
+        $this->makeFollowUp(1, endedMinutesAgo: 30, hostId: 6);
+
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent(id: 6))->isEmpty(),
+            'crm.meeting-host is off — host_id must be ignored even though it is set.'
+        );
+        $this->assertCount(1, $this->service->pendingListForUser($this->agent(id: 5)));
+    }
+
     /**
      * Built in-memory rather than fetched via Eloquent: User::$with eagerly
      * loads several relations (clientDetails, employeeDetail, ...) that this
@@ -336,7 +373,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
      */
     private function agent(int $id = 5, int $companyId = 10): User
     {
-        $user = new User();
+        $user = new User;
         $user->id = $id;
         $user->company_id = $companyId;
 
@@ -359,14 +396,17 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         ?Carbon $attendanceOutcomeLoggedAt = null,
         int $duration = 30,
         ?Carbon $snoozedUntil = null,
-        string $status = 'scheduled'
+        string $status = 'scheduled',
+        ?int $hostId = null,
+        ?int $dealId = 1
     ): void {
         $start = now()->subMinutes($endedMinutesAgo + $duration);
 
         DB::table('lead_follow_up')->insert([
             'id' => $id,
-            'deal_id' => 1,
+            'deal_id' => $dealId,
             'lead_id' => null,
+            'host_id' => $hostId,
             'next_follow_up_date' => $start,
             'duration' => $duration,
             'status' => $status,
@@ -428,6 +468,7 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
             $table->unsignedInteger('deal_id')->nullable();
             $table->unsignedInteger('lead_id')->nullable();
             $table->unsignedInteger('meeting_type_id')->nullable();
+            $table->unsignedInteger('host_id')->nullable();
             $table->dateTime('next_follow_up_date')->nullable();
             $table->integer('duration')->nullable();
             $table->string('status')->nullable();

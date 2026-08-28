@@ -209,6 +209,22 @@ class DealFollowUp extends BaseModel
     }
 
     /**
+     * Who the attendance-confirmation prompt goes to: this meeting's host
+     * when crm.meeting-host is on and one was resolved for this row,
+     * otherwise the same deal-agent/lead-owner assignedAgentUserId() uses
+     * (also the fallback for rows saved while the flag was off, since
+     * host_id is never populated for them).
+     */
+    public function confirmationAssigneeUserId(): ?int
+    {
+        if (\App\Support\FeatureFlags::enabled('crm.meeting-host') && $this->host_id) {
+            return (int) $this->host_id;
+        }
+
+        return $this->assignedAgentUserId();
+    }
+
+    /**
      * Default host for a NEW meeting when the request doesn't choose one
      * explicitly: same resolution as assignedAgentUserId(), falling back to
      * the meeting's creator. Create-time only — host_id is immutable after
@@ -237,6 +253,11 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function host(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'host_id');
     }
 
     /**

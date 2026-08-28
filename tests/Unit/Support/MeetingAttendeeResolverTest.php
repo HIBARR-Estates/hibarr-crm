@@ -35,7 +35,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'lead_id' => $lead->id,
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->participants = [(string) $participant->id];
         $followUp->save();
@@ -53,7 +53,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'status' => 'active',
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->participants = [(string) $participant->id];
         $followUp->save();
 
@@ -79,7 +79,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'client_name' => 'Client Name',
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->participants = [];
         $followUp->save();
@@ -139,7 +139,7 @@ class MeetingAttendeeResolverTest extends TestCase
 
         $deal->dealWatchers()->sync([$watcher->id]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->added_by = $creator->id;
         $followUp->participants = [(string) $participant->id];
@@ -176,7 +176,7 @@ class MeetingAttendeeResolverTest extends TestCase
 
         $deal->dealWatchers()->sync([$watcher->id]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->participants = [(string) $watcher->id];
         $followUp->save();
@@ -201,7 +201,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'client_email' => 'client@example.com',
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->lead_id = $lead->id;
         $followUp->added_by = $creator->id;
         $followUp->participants = [(string) $creator->id];
@@ -242,7 +242,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'agent_id' => $leadAgentId,
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->added_by = $creator->id;
         $followUp->participants = [];
@@ -252,6 +252,42 @@ class MeetingAttendeeResolverTest extends TestCase
 
         $this->assertContains('client@example.com', $emails);
         $this->assertNotContains('creator@hibarr.de', $emails);
+    }
+
+    public function test_it_excludes_the_host_not_the_creator_from_zoho_attendee_emails(): void
+    {
+        $companyId = 1;
+
+        $creator = User::factory()->create([
+            'company_id' => $companyId,
+            'email' => 'creator@hibarr.de',
+            'status' => 'active',
+        ]);
+
+        $host = User::factory()->create([
+            'company_id' => $companyId,
+            'email' => 'host@hibarr.de',
+            'status' => 'active',
+        ]);
+
+        $lead = Lead::factory()->create([
+            'company_id' => $companyId,
+            'client_email' => 'client@example.com',
+        ]);
+
+        $followUp = new DealFollowUp;
+        $followUp->lead_id = $lead->id;
+        $followUp->added_by = $creator->id;
+        $followUp->host_id = $host->id;
+        // Creator is not the host here — they're a regular attendee now,
+        // not the organizer, so they must stay on the invite.
+        $followUp->participants = [(string) $creator->id];
+        $followUp->save();
+
+        $emails = MeetingAttendeeResolver::resolveAttendeeEmails($followUp->fresh(['lead']));
+
+        $this->assertContains('creator@hibarr.de', $emails);
+        $this->assertNotContains('host@hibarr.de', $emails);
     }
 
     public function test_it_includes_deal_agent_email_once_when_they_are_also_a_participant(): void
@@ -283,7 +319,7 @@ class MeetingAttendeeResolverTest extends TestCase
             'agent_id' => $leadAgentId,
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->deal_id = $deal->id;
         $followUp->participants = [(string) $dealAgentUser->id];
         $followUp->save();

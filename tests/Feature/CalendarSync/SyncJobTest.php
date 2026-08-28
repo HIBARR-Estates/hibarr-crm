@@ -48,7 +48,7 @@ class SyncJobTest extends TestCase
             return Http::response([], 404);
         });
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->added_by = $creator->id;
         $followUp->next_follow_up_date = now();
         $followUp->duration = 30;
@@ -98,7 +98,7 @@ class SyncJobTest extends TestCase
         $creator = User::factory()->create();
         $attendee = User::factory()->create();
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->added_by = $creator->id;
         $followUp->next_follow_up_date = now();
         $followUp->duration = 30;
@@ -145,7 +145,7 @@ class SyncJobTest extends TestCase
         $creator = User::factory()->create();
         $attendee = User::factory()->create();
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->added_by = $creator->id;
         $followUp->next_follow_up_date = now();
         $followUp->duration = 30;
@@ -166,6 +166,56 @@ class SyncJobTest extends TestCase
             DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             $followUp->zoho_calendar_sync_status,
         );
+    }
+
+    public function test_it_sends_host_id_as_the_zoho_organizer_not_the_creator(): void
+    {
+        config()->set('services.ol.base_url', 'https://ol.test/v1');
+        config()->set('services.ol.api_key', 'ol-test-key');
+        config()->set('services.ol.timeout', 5);
+
+        $capturedPayload = [];
+
+        Http::fake(function ($request) use (&$capturedPayload) {
+            if (
+                $request->url() ===
+                'https://ol.test/v1/crm/events/zoho' &&
+                $request->method() === 'POST'
+            ) {
+                $capturedPayload = $request->data();
+
+                return Http::response(
+                    [
+                        'success' => true,
+                        'message' => 'Calendar event job enqueued',
+                        'data' => ['jobId' => 'job-host-123'],
+                    ],
+                    202,
+                );
+            }
+
+            return Http::response([], 404);
+        });
+
+        $creator = User::factory()->create();
+        $host = User::factory()->create();
+
+        $followUp = new DealFollowUp;
+        $followUp->added_by = $creator->id;
+        $followUp->host_id = $host->id;
+        $followUp->next_follow_up_date = now();
+        $followUp->duration = 30;
+        $followUp->remark = 'Test description';
+        $followUp->location = 'zoom';
+        $followUp->meeting_link = 'https://example.com/meet';
+        $followUp->status = 'scheduled';
+        $followUp->participants = [$creator->id];
+        $followUp->save();
+
+        $job = new SyncCalendarEventJob($followUp->id);
+        $job->handle(app(CalendarSyncService::class));
+
+        $this->assertEquals($host->id, $capturedPayload['creatorUserId'] ?? null);
     }
 
     public function test_it_includes_lead_email_in_attendee_emails_for_deal_meeting(): void
@@ -211,7 +261,7 @@ class SyncJobTest extends TestCase
             'client_name' => 'Lead Person',
         ]);
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->added_by = $creator->id;
         $followUp->deal_id = $deal->id;
         $followUp->next_follow_up_date = now();

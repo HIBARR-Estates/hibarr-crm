@@ -9,6 +9,7 @@ use App\Models\DealFollowUp;
 use App\Models\DealNote;
 use App\Models\LeadNote;
 use App\Models\User;
+use App\Support\FeatureFlags;
 use App\Support\MeetingAttendanceConfirmationFeature;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -108,19 +109,42 @@ class MeetingAttendanceConfirmationService
                     ->orWhere('attendance_confirmation_snoozed_until', '<=', now());
             })
             ->where(function ($query) use ($user, $companyId) {
-                $query->whereHas('deal', function ($dealQuery) use ($user, $companyId) {
-                    $dealQuery->where('company_id', $companyId)
-                        ->whereHas('leadAgent', function ($agentQuery) use ($user) {
-                            $agentQuery->where('user_id', $user->id);
-                        });
-                })->orWhereHas('lead', function ($leadQuery) use ($user, $companyId) {
-                    $leadQuery->where('company_id', $companyId)
-                        ->where('lead_owner', $user->id);
-                });
+                if (FeatureFlags::enabled('crm.meeting-host')) {
+                    // A meeting's host is who the confirmation prompt goes to.
+                    // host_id is only ever null for rows saved while
+                    // crm.meeting-host was off — fall back to the old
+                    // deal-agent/lead-owner assignment for those.
+                    $query->where(function ($hostQuery) use ($user) {
+                        $hostQuery->whereNotNull('host_id')
+                            ->where('host_id', $user->id);
+                    })->orWhere(function ($fallbackQuery) use ($user, $companyId) {
+                        $fallbackQuery->whereNull('host_id')
+                            ->where(function ($assignedQuery) use ($user, $companyId) {
+                                self::applyAssignedToUserClause($assignedQuery, $user, $companyId);
+                            });
+                    });
+
+                    return;
+                }
+
+                self::applyAssignedToUserClause($query, $user, $companyId);
             })
             ->with(['deal.leadAgent', 'deal.contact', 'lead', 'meetingType'])
             ->orderBy('next_follow_up_date')
             ->orderBy('id');
+    }
+
+    private static function applyAssignedToUserClause($query, User $user, int $companyId): void
+    {
+        $query->whereHas('deal', function ($dealQuery) use ($user, $companyId) {
+            $dealQuery->where('company_id', $companyId)
+                ->whereHas('leadAgent', function ($agentQuery) use ($user) {
+                    $agentQuery->where('user_id', $user->id);
+                });
+        })->orWhereHas('lead', function ($leadQuery) use ($user, $companyId) {
+            $leadQuery->where('company_id', $companyId)
+                ->where('lead_owner', $user->id);
+        });
     }
 
     /**

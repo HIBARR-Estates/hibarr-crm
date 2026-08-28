@@ -88,7 +88,11 @@ class MeetingAttendanceConfirmationController extends Controller
     /**
      * $followUp must belong to the current user's company (this model has no
      * automatic CompanyScope, so route-model binding by ID alone doesn't
-     * enforce that) AND be assigned to them specifically.
+     * enforce that) AND be assigned to them specifically — the meeting's
+     * host when one applies, otherwise the same deal-agent/lead-owner
+     * fallback pendingListForUser() uses. Must stay in sync with that
+     * method's own "assigned to this user" query, or a user could see the
+     * confirmation prompt but get a 403 confirming it (or vice versa).
      */
     private function authorizedFor(DealFollowUp $followUp): bool
     {
@@ -96,7 +100,7 @@ class MeetingAttendanceConfirmationController extends Controller
 
         return $companyId !== null
             && $followUp->belongsToCompany($companyId)
-            && $followUp->assignedAgentUserId() === (int) user()->id;
+            && $followUp->confirmationAssigneeUserId() === (int) user()->id;
     }
 
     private function present(DealFollowUp $followUp): array
