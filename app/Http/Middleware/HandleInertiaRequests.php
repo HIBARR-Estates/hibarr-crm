@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\UserNotificationAlertSetting;
 use App\Services\I18nTranslationService;
 use App\Support\FeatureFlags;
+use App\Support\UserTimezone;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -90,6 +91,10 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
+            'viewerTimezone' => fn () => UserTimezone::forViewer(
+                $request->user(),
+                function_exists('company') ? company() : null
+            ),
             'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),

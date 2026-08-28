@@ -132,10 +132,10 @@ class TimeLogsDataTable extends BaseDataTable
         });
         $datatables->addColumn('employee_name', fn($row) => $row->user->name);
         $datatables->editColumn('name', fn($row) => view('components.employee', ['user' => $row->user]));
-        $datatables->editColumn('start_time', fn($row) => $row->start_time->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format));
+        $datatables->editColumn('start_time', fn($row) => $row->start_time->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format));
         $datatables->editColumn('end_time', function ($row) {
             if (!is_null($row->end_time)) {
-                return $row->end_time->timezone($this->company->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
+                return $row->end_time->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
             }
 
             if (!is_null($row->activeBreak)) {

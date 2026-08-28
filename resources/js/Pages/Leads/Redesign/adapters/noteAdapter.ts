@@ -1,7 +1,7 @@
 import type { LeadNote } from "@/Types/api/lead-note";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { formatCompanyDate } from "@/lib/companyDateTime";
+import { formatUserDate } from "@/lib/userDateTime";
 
 dayjs.extend(relativeTime);
 
@@ -24,14 +24,14 @@ function formatDate(value: string | undefined): {
     if (!value) {
         // Newly created notes can omit created_at in the store payload.
         const now = new Date();
-        return { date: now, label: formatCompanyDate(now) };
+        return { date: now, label: formatUserDate(now) };
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         const now = new Date();
-        return { date: now, label: formatCompanyDate(now) };
+        return { date: now, label: formatUserDate(now) };
     }
-    return { date, label: formatCompanyDate(date) };
+    return { date, label: formatUserDate(date) };
 }
 
 function stripHtml(html: string): string {

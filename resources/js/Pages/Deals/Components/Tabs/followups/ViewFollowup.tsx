@@ -30,10 +30,8 @@ import dayjs from "dayjs";
 import {
     companyDateDayjsFormat,
     companyTimeDayjsFormat,
-    formatCompanyDate,
-    formatCompanyDateTime,
-    formatCompanyTime,
 } from "@/lib/companyDateTime";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -319,6 +317,7 @@ const ViewFollowup: React.FC<Props> = ({
 }) => {
     const { props } = usePage<any>();
     const { td } = useTd();
+    const { formatDate, formatTime, formatDateTime } = useUserDateTime();
     const currentUserId = props?.auth?.user?.id;
     const permissions = props?.permissions ?? {};
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -391,7 +390,7 @@ const ViewFollowup: React.FC<Props> = ({
 
     const live = isLiveMeeting(followup);
     const elapsedMinutes = getElapsedMinutes(followup);
-    const localDate = dayjs.utc(followup?.next_follow_up_date).local();
+    const meetingInstant = followup?.next_follow_up_date;
     const effectiveDuration =
         followup?.effective_duration ?? followup?.duration ?? DEFAULT_DURATION;
     const isCreator = followup?.added_by?.id === currentUserId;
@@ -494,12 +493,12 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="flex items-stretch gap-3">
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Date</p>
-                            <p className="text-[20px] font-black text-slate-900 leading-none">{formatCompanyDate(localDate)}</p>
+                            <p className="text-[20px] font-black text-slate-900 leading-none">{formatDate(meetingInstant)}</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-blue-600 rounded-2xl py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">Time</p>
                             <p className="text-[26px] font-black text-white leading-none tabular-nums">
-                                {formatCompanyTime(localDate)}
+                                {formatTime(meetingInstant)}
                             </p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
@@ -698,7 +697,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     </div>
                                 ))}
                                 <p className="text-[11px] text-slate-300 mt-2 mb-0">
-                                    Generated {formatCompanyDateTime(followup.meeting_summary.created_at, { separator: " at " })}
+                                    Generated {formatDateTime(followup.meeting_summary.created_at, { separator: " at " })}
                                 </p>
                             </div>
                         </div>
