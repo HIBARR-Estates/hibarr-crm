@@ -16,7 +16,7 @@ import {
     REDESIGN_TOKENS as T,
     REDESIGN_TYPE as TY,
 } from "@/Components/Redesign/tokens";
-import { formatDateLong } from "@/Components/Redesign/adapters/dateFormat";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
@@ -82,6 +82,7 @@ export default function MeetingDetailModal({
 }: MeetingDetailModalProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { formatDate } = useUserDateTime();
     const [editOpen, setEditOpen] = useState(false);
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -91,7 +92,7 @@ export default function MeetingDetailModal({
     if (!meeting) return null;
 
     const item = toWorkspaceMeetingListItem(meeting);
-    const dateLine = formatDateLong(item.startsAt, "-");
+    const dateLine = formatDate(item.startsAt, "-");
     const attendees = meeting.participant_users ?? [];
     const reminders = meeting.reminders ?? [];
     const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
