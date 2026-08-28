@@ -505,7 +505,6 @@ export default function QualifyOutcomePhase({
     onDone,
 }: QualifyOutcomePhaseProps) {
     const { td } = useTd();
-    const { formatDateTime } = useUserDateTime();
     const choices = useMemo(
         () => getAllOutcomeChoices(flow.templateTree),
         [flow.templateTree],
@@ -588,6 +587,7 @@ function OutcomeDetail({
     onDone: (qualification: LeadQualification) => void;
 }) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const { props: pageProps } = usePage();
     const userId = pageProps.auth?.user?.id;
     const userEmail = pageProps.auth?.user?.email;

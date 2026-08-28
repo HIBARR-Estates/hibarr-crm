@@ -267,10 +267,7 @@ export default function QuickStats({
                             </span>
                             <span className="v2-quick-stat-meta">
                                 {meetingPreview.startsAt
-                                    ? formatDateTime(
-                                          meetingPreview.startsAt,
-                                          meetingPreview.startsAtLabel,
-                                      )
+                                    ? formatDateTime(meetingPreview.startsAt)
                                     : meetingPreview.startsAtLabel}
                             </span>
                         </div>
