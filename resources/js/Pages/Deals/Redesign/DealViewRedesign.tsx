@@ -18,6 +18,7 @@ import WorkspaceTasksTab from "./components/workspace/WorkspaceTasksTab";
 import WorkspaceMeetingsTab from "./components/workspace/WorkspaceMeetingsTab";
 import WorkspaceFilesTab from "./components/workspace/WorkspaceFilesTab";
 import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
+import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
 import {
@@ -51,6 +52,7 @@ import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 export default function DealViewRedesign(props: DealShowProps) {
@@ -81,6 +83,9 @@ function DealViewRedesignInner(
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
     >(undefined);
+    const [exposesCount, setExposesCount] = useState<number | undefined>(
+        undefined,
+    );
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -88,6 +93,7 @@ function DealViewRedesignInner(
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
+    const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -241,13 +247,18 @@ function DealViewRedesignInner(
         if (permissions.view_lead_proposals !== "none" && !pipelineHasPackages) {
             tabs.push("offers");
         }
+        // Exposes are documents shown to the buyer, so unlike offers they are
+        // not tied to the package/property split — only to the flag.
+        if (showExposes && permissions.view_lead_proposals !== "none") {
+            tabs.push("exposes");
+        }
         if (!pipelineHasPackages) tabs.push("recommendations");
         // itinerary / dealinfo / timeline have no matching permission in this
         // system, so they follow deal visibility itself.
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages]);
+    }, [permissions, pipelineHasPackages, showExposes]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -279,6 +290,7 @@ function DealViewRedesignInner(
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
             offers: offersCount,
+            exposes: exposesCount,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
@@ -293,6 +305,7 @@ function DealViewRedesignInner(
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
             offersCount,
+            exposesCount,
             recommendationsCount,
         ],
     );
@@ -556,6 +569,13 @@ function DealViewRedesignInner(
                                             <WorkspaceOffersTab
                                                 deal={deal}
                                                 onCountChange={setOffersCount}
+                                            />
+                                        )}
+                                        {activeTab === "exposes" && (
+                                            <WorkspaceExposesTab
+                                                deal={deal}
+                                                canEdit={dealPermissions.canEdit}
+                                                onCountChange={setExposesCount}
                                             />
                                         )}
                                         {activeTab === "recommendations" && (
