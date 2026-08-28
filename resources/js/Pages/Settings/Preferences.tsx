@@ -50,7 +50,9 @@ function buildTimezoneGroups(): SearchableSelectGroup[] {
     try {
         if (typeof Intl !== "undefined" && "supportedValuesOf" in Intl) {
             zones = (
-                Intl as unknown as { supportedValuesOf: (key: string) => string[] }
+                Intl as unknown as {
+                    supportedValuesOf: (key: string) => string[];
+                }
             ).supportedValuesOf("timeZone");
         }
     } catch {
@@ -204,16 +206,15 @@ export default function Preferences({
         } catch (error) {
             setSelectedTimezone(previousTimezone);
             setLocked(previousLocked);
-            message.error(errorMessage(error, t("messages.somethingWentWrong")));
+            message.error(
+                errorMessage(error, t("messages.somethingWentWrong")),
+            );
         } finally {
             setSaving(false);
         }
     };
 
-    const breadcrumbs = [
-        { name: t("app.menu.settings"), url: "/account/settings/profile" },
-        { name: t("app.settings.preferences") },
-    ];
+    const breadcrumbs = [{ name: t("app.settings.preferences") }];
     const timezoneBusy = savingPicker || savingBrowser;
     const zoneLabel = selectedTimezone.replace(/_/g, " ");
     const browserZoneLabel = browserTimezone.replace(/_/g, " ");
