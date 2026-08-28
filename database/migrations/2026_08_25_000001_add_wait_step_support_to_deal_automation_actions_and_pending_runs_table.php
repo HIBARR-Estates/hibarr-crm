@@ -8,25 +8,52 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('deal_automation_actions', function (Blueprint $table) {
-            $table->unsignedInteger('wait_duration_value')->nullable()->after('meta_event_value');
-            $table->string('wait_duration_unit', 20)->nullable()->after('wait_duration_value');
-        });
+        $hasValue = Schema::hasColumn('deal_automation_actions', 'wait_duration_value');
+        $hasUnit = Schema::hasColumn('deal_automation_actions', 'wait_duration_unit');
 
-        Schema::table('deal_automation_pending_runs', function (Blueprint $table) {
-            $table->foreignId('resume_action_id')->nullable()->after('trigger')
-                ->constrained('deal_automation_actions')->nullOnDelete();
-        });
+        if (! $hasValue || ! $hasUnit) {
+            Schema::table('deal_automation_actions', function (Blueprint $table) use ($hasValue, $hasUnit) {
+                if (! $hasValue) {
+                    $table->unsignedInteger('wait_duration_value')->nullable()->after('meta_event_value');
+                }
+                if (! $hasUnit) {
+                    $table->string('wait_duration_unit', 20)->nullable()->after(
+                        $hasValue ? 'wait_duration_value' : 'meta_event_value'
+                    );
+                }
+            });
+        }
+
+        if (
+            Schema::hasTable('deal_automation_pending_runs')
+            && ! Schema::hasColumn('deal_automation_pending_runs', 'resume_action_id')
+        ) {
+            Schema::table('deal_automation_pending_runs', function (Blueprint $table) {
+                $table->foreignId('resume_action_id')->nullable()->after('trigger')
+                    ->constrained('deal_automation_actions')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('deal_automation_pending_runs', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('resume_action_id');
-        });
+        if (Schema::hasColumn('deal_automation_pending_runs', 'resume_action_id')) {
+            Schema::table('deal_automation_pending_runs', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('resume_action_id');
+            });
+        }
 
-        Schema::table('deal_automation_actions', function (Blueprint $table) {
-            $table->dropColumn(['wait_duration_value', 'wait_duration_unit']);
+        $columns = array_values(array_filter(
+            ['wait_duration_value', 'wait_duration_unit'],
+            fn (string $column) => Schema::hasColumn('deal_automation_actions', $column)
+        ));
+
+        if ($columns === []) {
+            return;
+        }
+
+        Schema::table('deal_automation_actions', function (Blueprint $table) use ($columns) {
+            $table->dropColumn($columns);
         });
     }
 };
