@@ -111,6 +111,7 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Настройки напоминаний',
+            'preferences' => 'Предпочтения',
             'entity_reminder_defaults' => 'Стандартные напоминания',
         ],
         'reminderDefaults' => 'Стандартные напоминания',
@@ -593,6 +594,7 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Настройки напоминаний',
+        'preferences' => 'Предпочтения',
         'entity_reminder_defaults' => 'Стандартные напоминания',
         'reminder_defaults' => 'Стандартные напоминания',
     ],

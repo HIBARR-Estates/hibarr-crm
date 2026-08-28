@@ -2,55 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
-use App\Models\Task;
-use App\Models\User;
+use App\DataTables\WaitingForApprovalDataTable;
+use App\Events\TaskEvent;
+use App\Events\TaskReminderEvent;
 use App\Helper\Files;
 use App\Helper\Reply;
+use App\Helper\UserService;
+use App\Http\Requests\Tasks\ActionTask;
+use App\Http\Requests\Tasks\StoreTask;
+use App\Http\Requests\Tasks\UpdateTask;
+use App\Models\BaseModel;
+use App\Models\ClientContact;
+use App\Models\Deal;
+use App\Models\DeveloperProject;
+use App\Models\Lead;
 use App\Models\Leave;
 use App\Models\Pinned;
 use App\Models\Project;
-use App\Models\SubTask;
-use App\Models\TaskFile;
-use App\Models\TaskUser;
-use App\Http\Requests\Tasks\ActionTask;
-use App\Models\TaskComment;
-use App\Models\BaseModel;
-use App\Models\TaskLabel;
-use App\Models\SubTaskFile;
-use App\Models\TaskSetting;
-use App\Models\TaskCategory;
-use Illuminate\Http\Request;
-use App\Models\TaskLabelList;
-use App\Models\ProjectTimeLog;
-use App\Models\TaskboardColumn;
-use App\Traits\ProjectProgress;
 use App\Models\ProjectMilestone;
-use App\Events\TaskReminderEvent;
-use App\DataTables\TasksDataTable;
-use App\DataTables\WaitingForApprovalDataTable;
-use Illuminate\Support\Facades\DB;
+use App\Models\ProjectTimeLog;
 use App\Models\ProjectTimeLogBreak;
-use App\Http\Requests\Tasks\StoreTask;
-use Illuminate\Support\Facades\Config;
-use App\Http\Requests\Tasks\UpdateTask;
-use App\Events\TaskEvent;
-use App\Helper\UserService;
-use App\Models\ClientContact;
+use App\Models\Property;
+use App\Models\SubTask;
+use App\Models\SubTaskFile;
+use App\Models\Task;
+use App\Models\TaskboardColumn;
+use App\Models\TaskCategory;
+use App\Models\TaskComment;
+use App\Models\TaskFile;
+use App\Models\TaskLabel;
+use App\Models\TaskLabelList;
+use App\Models\TaskSetting;
+use App\Models\TaskUser;
+use App\Models\User;
 use App\Services\PermissionService;
 use App\Services\Reminders\TaskReminderSync;
-use App\Models\Deal;
-use App\Models\Lead;
-use App\Models\Property;
-use App\Models\DeveloperProject;
-use Inertia\Inertia;
 use App\Services\TaskFilterCountsService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
+use App\Support\TaskPresenter;
+use App\Traits\ProjectProgress;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class TaskController extends AccountBaseController
 {
-
     use ProjectProgress;
 
     protected $taskService;
@@ -65,43 +64,63 @@ class TaskController extends AccountBaseController
         $this->pageTitle = 'app.menu.tasks';
         $this->middleware(
             function ($request, $next) {
-                abort_403(!in_array('tasks', $this->user->modules));
+                abort_403(! in_array('tasks', $this->user->modules));
 
                 return $next($request);
             }
         );
     }
 
-    public function index()
+    /**
+     * Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
+     * legacy links) or a comma-joined string (the redesigned filter modal —
+     * FilterContext.tsx's applyFilters() joins multiselect values with "," so
+     * its own URL parser can read them back). Mirrors LeadService::toValueArray().
+     */
+    private function taskFilterAsList($value): array
+    {
+        if (! is_array($value)) {
+            $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
+        }
+
+        return array_values(array_filter(
+            array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
+            fn ($item) => $item !== null && $item !== '' && $item !== 'all'
+        ));
+    }
+
+    /** Date ranges arrive as a `[from, to]` array (legacy) or separate start/end params (redesigned modal). */
+    private function taskFilterDateRange(string $arrayKey, string $startKey, string $endKey): ?array
+    {
+        $range = request($arrayKey);
+        if (is_array($range) && count($range) === 2 && $range[0] && $range[1]) {
+            return [$range[0], $range[1]];
+        }
+
+        $start = request($startKey);
+        $end = request($endKey);
+
+        return $start && $end ? [$start, $end] : null;
+    }
+
+    /**
+     * The exact Task query index() lists from (visibility scope + every
+     * filter + quick filter), minus eager loads/sorting/pagination. Reused
+     * by bulk actions' "select all matching filters" so that set can never
+     * drift from what the user is actually looking at.
+     *
+     * $applyQuickFilter is false when the caller (index()) still needs the
+     * pre-quick-filter query to compute each quick filter option's own
+     * count — narrowing by the currently active one first would make every
+     * other option's badge count against an already-filtered set.
+     */
+    private function filteredTasksQuery(bool $applyQuickFilter = true): \Illuminate\Database\Eloquent\Builder
     {
         $viewPermission = user()->permission('view_tasks');
+        abort_403(! in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
+        $tasksQuery = Task::query();
 
-        // Fetch tasks based on permission
-        $tasksQuery = Task::with([
-            'project:id,project_name,project_short_code', 
-            'users:id,name,image', 
-            'createBy:id,name,image',
-            'addedByUser:id,name,image',
-            'category:id,category_name', 
-            'labels', 
-            'boardColumn:id,column_name,slug,label_color',
-            'deals',
-            'leads',
-            'properties',
-            'developerProjects:id,name',
-            // Checklist rows for the redesigned task detail modal.
-            'subtasks:id,task_id,title,status'
-        ])->withCount([
-            'files',
-            'notes',
-            'comments',
-            'subtasks',
-            'completedSubtasks'
-        ]);
-
-        // Apply permission-based filtering (assigner OR assignee for restricted scopes)
         if ($viewPermission === 'none') {
             abort_403(true);
         }
@@ -110,123 +129,155 @@ class TaskController extends AccountBaseController
             TaskVisibilityService::scopeVisibleToUser($tasksQuery, user()->id);
         }
 
-        // Apply search filter
         if (request()->filled('search')) {
             $searchTerm = request('search');
             $tasksQuery->where(function ($query) use ($searchTerm) {
                 $query->where('heading', 'like', "%{$searchTerm}%")
-                      ->orWhere('description', 'like', "%{$searchTerm}%");
+                    ->orWhere('description', 'like', "%{$searchTerm}%");
             });
         }
 
-        // Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
-        // legacy links) or a comma-joined string (the redesigned filter modal —
-        // FilterContext.tsx's applyFilters() joins multiselect values with "," so
-        // its own URL parser can read them back). Mirrors
-        // LeadService::toValueArray(), which the redesigned Leads filters already
-        // rely on — without the explode() branch, picking 2+ options silently
-        // matched nothing because "todo,in_review" was queried as one literal value.
-        $asList = function ($value): array {
-            if (!is_array($value)) {
-                $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
-            }
-
-            return array_values(array_filter(
-                array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
-                fn ($item) => $item !== null && $item !== '' && $item !== 'all'
+        $statuses = $this->taskFilterAsList(request('status'));
+        if (! empty($statuses)) {
+            $hasPending = in_array('pending', $statuses, true);
+            $slugs = array_values(array_filter(
+                $statuses,
+                static fn (string $status) => $status !== 'pending'
             ));
-        };
 
-        // Apply status filter
-        $statuses = $asList(request('status'));
-        if (!empty($statuses)) {
-            if (in_array('pending', $statuses, true)) {
+            if ($hasPending && $slugs !== []) {
+                $tasksQuery->where(function ($query) use ($slugs) {
+                    $query->pending()
+                        ->orWhereHas('boardColumn', function ($columnQuery) use ($slugs) {
+                            $columnQuery->whereIn('slug', $slugs);
+                        });
+                });
+            } elseif ($hasPending) {
                 $tasksQuery->pending();
             } else {
-                $tasksQuery->whereHas('boardColumn', function ($query) use ($statuses) {
-                    $query->whereIn('slug', $statuses);
+                $tasksQuery->whereHas('boardColumn', function ($query) use ($slugs) {
+                    $query->whereIn('slug', $slugs);
                 });
             }
         }
 
-        // Apply priority filter
-        $priorities = $asList(request('priority'));
-        if (!empty($priorities)) {
+        $priorities = $this->taskFilterAsList(request('priority'));
+        if (! empty($priorities)) {
             $tasksQuery->whereIn('priority', $priorities);
         }
 
-        // Apply project filter
         if (request()->filled('project_id') && request('project_id') !== 'all') {
             $tasksQuery->where('project_id', request('project_id'));
         }
 
-        // Apply category filter
-        $categoryIds = $asList(request('category_id'));
-        if (!empty($categoryIds)) {
+        $categoryIds = $this->taskFilterAsList(request('category_id'));
+        if (! empty($categoryIds)) {
             $tasksQuery->whereIn('task_category_id', $categoryIds);
         }
 
-        // Apply assignee filter
-        $assignedTo = $asList(request('assigned_to'));
-        if (!empty($assignedTo)) {
+        $assignedTo = $this->taskFilterAsList(request('assigned_to'));
+        if (! empty($assignedTo)) {
             $tasksQuery->whereHas('users', function ($query) use ($assignedTo) {
                 $query->whereIn('users.id', $assignedTo);
             });
         }
 
-        // Apply assigner filter — whoever created/added the task.
-        $assignedBy = $asList(request('assigned_by'));
-        if (!empty($assignedBy)) {
+        $assignedBy = $this->taskFilterAsList(request('assigned_by'));
+        if (! empty($assignedBy)) {
             $tasksQuery->where(function ($query) use ($assignedBy) {
                 $query->whereIn('tasks.added_by', $assignedBy)
                     ->orWhereIn('tasks.created_by', $assignedBy);
             });
         }
 
-        // Apply labels filter
-        $labelIds = $asList(request('labels'));
-        if (!empty($labelIds)) {
+        $labelIds = $this->taskFilterAsList(request('labels'));
+        if (! empty($labelIds)) {
             $tasksQuery->whereHas('labels', function ($query) use ($labelIds) {
                 $query->whereIn('id', $labelIds);
             });
         }
 
-        // Date ranges arrive either as a `[from, to]` array (legacy drawer) or
-        // as the separate start/end params the shared filter modal writes.
-        $dateRange = function (string $arrayKey, string $startKey, string $endKey): ?array {
-            $range = request($arrayKey);
-            if (is_array($range) && count($range) === 2 && $range[0] && $range[1]) {
-                return [$range[0], $range[1]];
-            }
-
-            $start = request($startKey);
-            $end = request($endKey);
-
-            return $start && $end ? [$start, $end] : null;
-        };
-
-        // Apply due date range filter
-        $dueRange = $dateRange('due_date_range', 'due_start_date', 'due_end_date');
+        $dueRange = $this->taskFilterDateRange('due_date_range', 'due_start_date', 'due_end_date');
         if ($dueRange !== null) {
             $tasksQuery->whereBetween('due_date', $dueRange);
         } elseif (request('due_date_range') === 'none') {
-            // "No date" option in the redesigned filter modal.
             $tasksQuery->whereNull('due_date');
         }
 
-        // Apply created date range filter
-        $createdRange = $dateRange('created_date_range', 'created_start_date', 'created_end_date');
+        $createdRange = $this->taskFilterDateRange('created_date_range', 'created_start_date', 'created_end_date');
         if ($createdRange !== null) {
             $tasksQuery->whereBetween('created_at', [
-                $createdRange[0] . ' 00:00:00',
-                $createdRange[1] . ' 23:59:59',
+                $createdRange[0].' 00:00:00',
+                $createdRange[1].' 23:59:59',
             ]);
         }
+
+        if ($applyQuickFilter && \App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $this->applyTasksQuickFilter($tasksQuery, (string) request('quick_filter', 'all'));
+        }
+
+        return $tasksQuery;
+    }
+
+    private const MAX_BULK_MATCHING_IDS = 2000;
+
+    /**
+     * Resolves a bulk action's target ids — either the explicit `row_ids`
+     * CSV the client already had selected, or (when `select_all_matching`
+     * is set) every id matching the current filters, re-run server-side via
+     * filteredTasksQuery() so the set matches what's on screen exactly.
+     *
+     * @throws \RuntimeException if a select_all_matching set is too large —
+     *                           truncating silently would apply the action to fewer tasks than the
+     *                           user was told were selected, which is worse than just refusing.
+     */
+    private function resolveBulkTaskIds(Request $request): array
+    {
+        if ($request->boolean('select_all_matching')) {
+            $ids = $this->filteredTasksQuery()
+                ->orderBy('id')
+                ->limit(self::MAX_BULK_MATCHING_IDS + 1)
+                ->pluck('id')
+                ->all();
+
+            if (count($ids) > self::MAX_BULK_MATCHING_IDS) {
+                throw new \RuntimeException(sprintf(
+                    'Bulk actions are limited to %s tasks at a time — narrow your filters and try again.',
+                    number_format(self::MAX_BULK_MATCHING_IDS)
+                ));
+            }
+
+            return $ids;
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', (string) $request->row_ids))));
+    }
+
+    public function index($openTaskId = null, string $openMode = 'detail', bool $openCreate = false)
+    {
+        $viewPermission = user()->permission('view_tasks');
+
+        abort_403(! in_array($viewPermission, ['all', 'added', 'owned', 'both']));
+
+        // Quick filter applied separately below, after quickFilterCounts()
+        // has had a chance to count each option against the un-narrowed set.
+        $tasksQuery = $this->filteredTasksQuery(applyQuickFilter: false)
+            ->with(TaskPresenter::RELATIONS)
+            ->withCount(TaskPresenter::COUNTS);
+
+        // Recompute the same parsed values filteredTasksQuery() used, only
+        // to echo them back in the `filters` response prop below.
+        $statuses = $this->taskFilterAsList(request('status'));
+        $priorities = $this->taskFilterAsList(request('priority'));
+        $categoryIds = $this->taskFilterAsList(request('category_id'));
+        $assignedTo = $this->taskFilterAsList(request('assigned_to'));
+        $assignedBy = $this->taskFilterAsList(request('assigned_by'));
+        $labelIds = $this->taskFilterAsList(request('labels'));
 
         // Apply sorting
         $sortField = request('sort_by', 'created_at');
         $sortDirection = request('sort_direction', 'desc');
-        
+
         // Map frontend field names to database field names
         $fieldMapping = [
             'heading' => 'heading',
@@ -260,15 +311,9 @@ class TaskController extends AccountBaseController
             : null;
 
         $kanbanTasks = $kanbanQuery->get();
-        
+
         // Ensure kanban tasks also have the counts
-        $kanbanTasks->loadCount([
-            'files',
-            'notes',
-            'comments',
-            'subtasks',
-            'completedSubtasks'
-        ]);
+        $kanbanTasks->loadCount(TaskPresenter::COUNTS);
 
         // Calculate Stats (legacy table/kanban index — collection scan).
         if ($stats === null) {
@@ -289,84 +334,7 @@ class TaskController extends AccountBaseController
             ];
         }
 
-        $transformCallback = function ($task) {
-            return [
-                'id' => $task->id,
-                'heading' => $task->heading,
-                'description' => $task->description,
-                'due_date' => Task::wallClockString($task->due_date),
-                'start_date' => Task::wallClockString($task->start_date),
-                'priority' => $task->priority,
-                'status' => $task->boardColumn->slug ?? 'to_do',
-                'board_column_id' => $task->board_column_id,
-                'completed_on' => Task::wallClockString($task->completed_on),
-                'project' => $task->project ? [
-                    'id' => $task->project->id,
-                    'project_name' => $task->project->project_name,
-                    'project_short_code' => $task->project->project_short_code,
-                ] : null,
-                'category' => $task->category ? [
-                    'id' => $task->category->id,
-                    'category_name' => $task->category->category_name,
-                ] : null,
-                'users' => $task->users->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'image' => $user->image,
-                    ];
-                })->toArray(),
-                'labels' => $task->labels->map(function ($label) {
-                    return [
-                        'id' => $label->id,
-                        'label_name' => $label->label_name,
-                        'label_color' => $label->label_color,
-                    ];
-                })->toArray(),
-                'subtasks' => $task->relationLoaded('subtasks')
-                    ? $task->subtasks->map(fn ($subtask) => [
-                        'id' => $subtask->id,
-                        'title' => $subtask->title,
-                        'status' => $subtask->status,
-                    ])->toArray()
-                    : [],
-                'files_count' => $task->files_count ?? 0,
-                'notes_count' => $task->notes_count ?? 0,
-                'comments_count' => $task->comments_count ?? 0,
-                'subtasks_count' => $task->subtasks_count ?? 0,
-                'completed_subtasks_count' => $task->completed_subtasks_count ?? 0,
-                'created_at' => $task->created_at->toISOString(),
-                'updated_at' => $task->updated_at->toISOString(),
-                'added_by' => $task->added_by,
-                'assigner' => TaskVisibilityService::formatAssigner($task),
-                'created_by' => TaskVisibilityService::formatAssigner($task),
-                'deals' => $task->deals->map(function ($deal) {
-                    return [
-                        'id' => $deal->id,
-                        'name' => $deal->name,
-                    ];
-                })->toArray(),
-                'leads' => $task->leads->map(function ($lead) {
-                    return [
-                        'id' => $lead->id,
-                        'client_name' => $lead->client_name,
-                        'company_name' => $lead->company_name,
-                    ];
-                })->toArray(),
-                'developer_projects' => $task->developerProjects->map(function ($project) {
-                    return [
-                        'id' => $project->id,
-                        'name' => $project->name,
-                    ];
-                })->toArray(),
-                'properties' => $task->properties->map(function ($property) {
-                    return [
-                        'id' => $property->id,
-                        'name' => $property->title,
-                    ];
-                })->toArray(),
-            ];
-        };
+        $transformCallback = fn ($task) => $this->presentTask($task);
 
         // Transform tasks for frontend
         $tableTasks->getCollection()->transform($transformCallback);
@@ -409,6 +377,12 @@ class TaskController extends AccountBaseController
             'filters' => $filters,
             'permissions' => $permissions,
             'stats' => $stats,
+            // Same wall-clock convention as due_date/start_date (Task::wallClockString)
+            // — the "today/overdue/upcoming" grouping compares due dates against this,
+            // and comparing a wall-clock due date against the browser's real tz-aware
+            // `new Date()` put tasks in the wrong bucket for anyone whose browser
+            // timezone doesn't match the one due dates are already expressed in.
+            'now' => Task::wallClockString(now()),
 
             // Modal/filter lookup data can arrive after the task list shell.
             'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
@@ -435,6 +409,31 @@ class TaskController extends AccountBaseController
         if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
             $props['savedViews'] = Inertia::defer(fn () => $this->savedTaskViewsForUser(), 'taskViews');
             $props['taskQuickCounts'] = $taskQuickCounts;
+        }
+
+        // /tasks/{id}, /tasks/{id}/edit and /tasks/create (show()/edit()/
+        // create(), redesign flag on) all render this same page with one of
+        // these set, instead of redirecting to a ?task= query param or a
+        // standalone page — so the URL stays /tasks/{id}, /tasks/{id}/edit
+        // or /tasks/create. The task may not match the default filters/sort,
+        // so hand its data over directly rather than making the frontend
+        // re-fetch it.
+        if ($openCreate) {
+            $props['openCreate'] = true;
+        }
+
+        if ($openTaskId) {
+            $openTaskId = (int) $openTaskId;
+            $props['openTaskId'] = $openTaskId;
+            $props['openMode'] = $openMode;
+
+            $alreadyLoaded = $kanbanTasks->contains('id', $openTaskId);
+            if (! $alreadyLoaded) {
+                $props['openTaskDeferred'] = true;
+                $props['openTask'] = Inertia::defer(
+                    fn () => $this->presentOpenTaskForIndex($openTaskId)
+                );
+            }
         }
 
         return Inertia::render('Tasks/Index', $props);
@@ -471,19 +470,19 @@ class TaskController extends AccountBaseController
      */
     private function syncTaskLinks(Task $task, Request $request): void
     {
-        if (!$request->has('links')) {
+        if (! $request->has('links')) {
             return;
         }
 
         $links = $request->input('links');
-        if (!is_array($links)) {
+        if (! is_array($links)) {
             return;
         }
 
         $byType = ['deal' => [], 'lead' => [], 'property' => [], 'project' => []];
 
         foreach ($links as $link) {
-            if (!is_array($link)) {
+            if (! is_array($link)) {
                 continue;
             }
             $type = strtolower((string) ($link['type'] ?? ''));
@@ -570,6 +569,70 @@ class TaskController extends AccountBaseController
     }
 
     /**
+     * True for a legacy jQuery fragment fetch (Deals/Leads/Projects/the
+     * dashboard all still call show()/create()/edit() this way for a Blade
+     * partial) — false for a normal browser navigation *or* an Inertia
+     * client visit. request()->ajax() alone can't tell these apart: Inertia's
+     * client is built on axios, which sets the same X-Requested-With header
+     * a legacy $.ajax() call does. X-Inertia is the one header only Inertia
+     * itself sends, so its presence is what actually distinguishes them.
+     */
+    private function isLegacyAjaxFragmentRequest(): bool
+    {
+        return request()->ajax() && ! request()->header('X-Inertia');
+    }
+
+    /**
+     * The one Task -> frontend array shape — moved to App\Support\TaskPresenter
+     * so the classic Dashboard, and the Deal/Lead workspace task tabs, can
+     * hand the same shape to the redesigned Tasks modals (behind the same
+     * crm.tasks-workspace-redesign flag) without re-deriving it. Callers must
+     * eager-load TaskPresenter::RELATIONS (+ withCount on TaskPresenter::COUNTS)
+     * first — present() only reads what's already loaded.
+     */
+    private function presentTask(Task $task, bool $includeFiles = false): array
+    {
+        return TaskPresenter::present($task, $includeFiles);
+    }
+
+    /**
+     * Deep-linked /tasks/{id} task payload — deferred so attachment metadata
+     * does not block the Tasks/Index first paint.
+     */
+    private function presentOpenTaskForIndex(int $openTaskId): ?array
+    {
+        $userId = UserService::getUserId();
+        $viewTaskFilePermission = user()->permission('view_task_files');
+
+        $openTask = Task::with(TaskPresenter::RELATIONS)
+            ->with(['files' => function ($q) use ($viewTaskFilePermission, $userId) {
+                $this->scopeTaskFilesRelation($q, $viewTaskFilePermission, $userId);
+            }])
+            ->withCount(TaskPresenter::COUNTS)
+            ->find($openTaskId);
+
+        return $openTask ? $this->presentTask($openTask, true) : null;
+    }
+
+    /**
+     * Restrict file eager-loading to permissions the current user actually has.
+     */
+    private function scopeTaskFilesRelation($query, string $viewTaskFilePermission, int $userId): void
+    {
+        if ($viewTaskFilePermission === 'all') {
+            return;
+        }
+
+        if ($viewTaskFilePermission === 'added') {
+            $query->where('added_by', $userId);
+
+            return;
+        }
+
+        $query->whereRaw('0 = 1');
+    }
+
+    /**
      * Saved filter views the current user may open: their own plus team-shared.
      *
      * @return array<int, array<string, mixed>>
@@ -610,7 +673,24 @@ class TaskController extends AccountBaseController
             'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
+
+        // Behind crm.tasks-workspace-redesign, eager-load + serialize through
+        // the same TaskPresenter the redesigned Tasks workspace uses, so this
+        // tab's tasks can open in those modals — off, the narrower relation
+        // set and raw toFrontendArray() serialization this tab always used.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+            $tasks = $deal->tasks()
+                ->with(TaskPresenter::RELATIONS)
+                ->withCount(TaskPresenter::COUNTS)
+                ->orderBy('id', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $tasks->map(fn (Task $task) => TaskPresenter::present($task))->values(),
+            ]);
+        }
 
         $tasks = $deal->tasks()
             ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
@@ -634,97 +714,108 @@ class TaskController extends AccountBaseController
         app()->instance('suppress_bulk_notifications', true);
 
         try {
-            $ids = $request->filled('row_ids')
-                ? explode(',', $request->row_ids)
-                : [];
-            $ids = array_values(array_filter(array_map('intval', $ids)));
+            try {
+                $ids = $this->resolveBulkTaskIds($request);
+            } catch (\RuntimeException $e) {
+                return Reply::error($e->getMessage());
+            }
+
+            if ($ids === []) {
+                return Reply::error('Select at least one task.');
+            }
+
+            // deleteRecords()/changeBulkStatus()/changeMilestones() each
+            // re-read row_ids off the request directly instead of taking
+            // $ids as a parameter — write the resolved set back so a
+            // select_all_matching request reaches them the same way.
+            $request->merge(['row_ids' => implode(',', $ids)]);
             $records = [];
 
             switch ($request->action_type) {
-            case 'delete':
-                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-                $records = $tasks->map(function (Task $task) {
-                    return [
-                        'label' => 'Deleted: ' . ($task->heading ?? ('#' . $task->id)),
-                        'url' => '',
-                    ];
-                })->values()->all();
+                case 'delete':
+                    $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                    $records = $tasks->map(function (Task $task) {
+                        return [
+                            'label' => 'Deleted: '.($task->heading ?? ('#'.$task->id)),
+                            'url' => '',
+                        ];
+                    })->values()->all();
 
-                $this->deleteRecords($request);
+                    $this->deleteRecords($request);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'delete', count($records), $records));
-                }
+                    if (user() && ! empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('task', 'delete', count($records), $records));
+                    }
 
-                return Reply::success(__('messages.deleteSuccess'));
-            case 'change-status':
-                $this->authorizeBulkTaskStatusChange($ids);
+                    return Reply::success(__('messages.deleteSuccess'));
+                case 'change-status':
+                    $this->authorizeBulkTaskStatusChange($ids);
 
-                $column = TaskboardColumn::find($request->status);
-                $columnLabel = $column?->column_name ?? ($column?->slug ?? ('ID ' . $request->status));
-                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-                $records = $tasks->map(function (Task $task) use ($columnLabel) {
-                    return [
-                        'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $columnLabel . ')',
-                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
-                    ];
-                })->values()->all();
+                    $column = TaskboardColumn::find($request->status);
+                    $columnLabel = $column?->column_name ?? ($column?->slug ?? ('ID '.$request->status));
+                    $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                    $records = $tasks->map(function (Task $task) use ($columnLabel) {
+                        return [
+                            'label' => ($task->heading ?? ('#'.$task->id)).' ('.$columnLabel.')',
+                            'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                        ];
+                    })->values()->all();
 
-                $this->changeBulkStatus($request);
+                    $this->changeBulkStatus($request);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'change-status', count($records), $records));
-                }
+                    if (user() && ! empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('task', 'change-status', count($records), $records));
+                    }
 
-                return Reply::success(__('messages.updateSuccess'));
-            case 'change-assignee':
-                $this->changeBulkAssignee($request, $ids);
+                    return Reply::success(__('messages.updateSuccess'));
+                case 'change-assignee':
+                    $this->changeBulkAssignee($request, $ids);
 
-                return Reply::success(__('messages.updateSuccess'));
-            case 'bulk_update':
-                $fields = $request->input('fields', []);
-                if (! is_array($fields) || $fields === []) {
-                    return Reply::error(__('messages.updateFail') ?: 'Select at least one field to update.');
-                }
+                    return Reply::success(__('messages.updateSuccess'));
+                case 'bulk_update':
+                    $fields = $request->input('fields', []);
+                    if (! is_array($fields) || $fields === []) {
+                        return Reply::error(__('messages.updateFail') ?: 'Select at least one field to update.');
+                    }
 
-                $error = $this->applyTaskBulkUpdateFields($request, $ids, $fields);
-                if ($error !== null) {
-                    return Reply::error($error);
-                }
+                    $error = $this->applyTaskBulkUpdateFields($request, $ids, $fields);
+                    if ($error !== null) {
+                        return Reply::error($error);
+                    }
 
-                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-                $records = $tasks->map(function (Task $task) {
-                    return [
-                        'label' => $task->heading ?? ('#' . $task->id),
-                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
-                    ];
-                })->values()->all();
+                    $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                    $records = $tasks->map(function (Task $task) {
+                        return [
+                            'label' => $task->heading ?? ('#'.$task->id),
+                            'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                        ];
+                    })->values()->all();
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'bulk_update', count($records), $records));
-                }
+                    if (user() && ! empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('task', 'bulk_update', count($records), $records));
+                    }
 
-                return Reply::success(__('messages.updateSuccess'));
-            case 'milestone':
-                $milestone = ProjectMilestone::find($request->milestone);
-                $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
-                $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
-                $records = $tasks->map(function (Task $task) use ($milestoneLabel) {
-                    return [
-                        'label' => ($task->heading ?? ('#' . $task->id)) . ' (' . $milestoneLabel . ')',
-                        'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
-                    ];
-                })->values()->all();
+                    return Reply::success(__('messages.updateSuccess'));
+                case 'milestone':
+                    $milestone = ProjectMilestone::find($request->milestone);
+                    $milestoneLabel = $milestone?->milestone_title ?? ('ID '.$request->milestone);
+                    $tasks = Task::whereIn('id', $ids)->get(['id', 'heading']);
+                    $records = $tasks->map(function (Task $task) use ($milestoneLabel) {
+                        return [
+                            'label' => ($task->heading ?? ('#'.$task->id)).' ('.$milestoneLabel.')',
+                            'url' => getDomainSpecificUrl(route('tasks.show', $task->id), company()),
+                        ];
+                    })->values()->all();
 
-                $this->changeMilestones($request);
+                    $this->changeMilestones($request);
 
-                if (user() && !empty($records)) {
-                    user()->notify(new \App\Notifications\BulkActionCompleted('task', 'milestone', count($records), $records));
-                }
+                    if (user() && ! empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('task', 'milestone', count($records), $records));
+                    }
 
-                return Reply::success(__('messages.updateSuccess'));
-            default:
-                return Reply::error(__('messages.selectAction'));
+                    return Reply::success(__('messages.updateSuccess'));
+                default:
+                    return Reply::error(__('messages.selectAction'));
             }
         } finally {
             app()->forgetInstance('suppress_bulk_notifications');
@@ -752,10 +843,9 @@ class TaskController extends AccountBaseController
             Task::whereIn('id', $taskIds)->update([
                 'status' => 'done',
                 'board_column_id' => $request->status,
-                'completed_on' => now()->format('Y-m-d')
+                'completed_on' => now()->format('Y-m-d'),
             ]);
-        }
-        else {
+        } else {
             // Mirrors TaskService::changeStatus's completion bookkeeping —
             // without clearing completed_on here, a task bulk-moved out of
             // "done" kept its old completion date forever, so it stayed
@@ -775,7 +865,7 @@ class TaskController extends AccountBaseController
      * applied atomically per task inside one request so the whole selection
      * lands together instead of racing N separate calls from the client.
      *
-     * @param array<int, int> $taskIds
+     * @param  array<int, int>  $taskIds
      */
     protected function changeBulkAssignee($request, array $taskIds): void
     {
@@ -849,7 +939,7 @@ class TaskController extends AccountBaseController
                     break;
 
                 default:
-                    return (__('messages.updateFail') ?: 'Unknown field.') . " ({$field})";
+                    return (__('messages.updateFail') ?: 'Unknown field.')." ({$field})";
             }
         }
 
@@ -857,7 +947,7 @@ class TaskController extends AccountBaseController
     }
 
     /**
-     * @param array<int, int> $taskIds
+     * @param  array<int, int>  $taskIds
      */
     protected function authorizeBulkTaskStatusChange(array $taskIds): void
     {
@@ -887,7 +977,7 @@ class TaskController extends AccountBaseController
                 || ($changeStatusPermission == 'both' && (in_array($currentUserId, $taskUsers, true) || (int) $task->added_by === $currentUserId))
                 || ($task->project && (int) $task->project->project_admin === $currentUserId);
 
-            if (!$isAllowed) {
+            if (! $isAllowed) {
                 abort_403(true);
             }
         }
@@ -900,7 +990,7 @@ class TaskController extends AccountBaseController
         $taskIds = explode(',', $request->row_ids);
 
         Task::whereIn('id', $taskIds)->update([
-            'milestone_id' => $request->milestone
+            'milestone_id' => $request->milestone,
         ]);
     }
 
@@ -909,12 +999,12 @@ class TaskController extends AccountBaseController
         $taskId = $request->taskId;
         $status = $request->status;
         $task = Task::withTrashed()->with('project', 'users')->findOrFail($taskId);
-        
+
         $taskUsers = $task->users->pluck('id')->toArray();
         $changeStatusPermission = user()->permission('change_status');
-        
+
         abort_403(
-            !(
+            ! (
                 $changeStatusPermission == 'all'
                 || ($changeStatusPermission == 'added' && $task->added_by == user()->id)
                 || ($changeStatusPermission == 'owned' && in_array(user()->id, $taskUsers))
@@ -924,18 +1014,18 @@ class TaskController extends AccountBaseController
         );
 
         $taskBoardColumn = TaskboardColumn::where('slug', $status)->first();
-        
+
         if ($taskBoardColumn) {
             $this->taskService->changeStatus($task, $taskBoardColumn->id);
-            
+
             $this->selfActiveTimer = ProjectTimeLog::selfActiveTimer();
             // Data for view
-             $this->data['selfActiveTimer'] = $this->selfActiveTimer; // ensure data is available
+            $this->data['selfActiveTimer'] = $this->selfActiveTimer; // ensure data is available
             $clockHtml = view('sections.timer_clock', $this->data)->render();
 
             return Reply::successWithData(__('messages.taskUpdated', ['status' => $taskBoardColumn->column_name]), ['clockHtml' => $clockHtml]);
         }
-        
+
         return Reply::error('Column not found');
     }
 
@@ -951,7 +1041,7 @@ class TaskController extends AccountBaseController
         $this->editPermission = user()->permission('edit_tasks');
         $this->changeStatusPermission = user()->permission('change_status');
         abort_403(
-            !(
+            ! (
                 $this->changeStatusPermission == 'all'
                 || ($this->changeStatusPermission == 'added' && $task->added_by == user()->id)
                 || ($this->changeStatusPermission == 'owned' && in_array(user()->id, $taskUsers))
@@ -970,18 +1060,15 @@ class TaskController extends AccountBaseController
         if ($taskBoardColumn->slug == 'done') {
             $task->status = 'done';
             $task->completed_on = now()->format('Y-m-d');
-        }
-        else {
+        } else {
             $task->completed_on = null;
         }
 
         if ($task->trashed()) {
             $task->saveQuietly();
-        }
-        else {
+        } else {
             $task->save();
         }
-
 
         if ($task->project_id != null) {
 
@@ -1011,7 +1098,7 @@ class TaskController extends AccountBaseController
         $taskUsers = $task->users->pluck('id')->toArray();
 
         abort_403(
-            !(
+            ! (
                 ($editTaskPermission == 'all'
                 || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                 || ($editTaskPermission == 'added' && $task->added_by == user()->id)
@@ -1019,7 +1106,7 @@ class TaskController extends AccountBaseController
                 || ($editTaskPermission == 'both' && (in_array(user()->id, $taskUsers) || $task->added_by == user()->id))
                 || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
                 || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
-                ) &&(
+                ) && (
                     $editMilestonePermission == 'all'
                     || ($editMilestonePermission == 'added' && $task->added_by == user()->id)
                     || ($editMilestonePermission == 'owned' && in_array(user()->id, $taskUsers))
@@ -1038,14 +1125,14 @@ class TaskController extends AccountBaseController
     {
         $deal = Deal::findOrFail($dealId);
         $this->addPermission = user()->permission('add_tasks');
-        abort_403(!in_array($this->addPermission, ['all', 'added']));
+        abort_403(! in_array($this->addPermission, ['all', 'added']));
 
         $taskType = $request->task_type;
-        
-        $dealTaskService = new \App\Services\DealTaskService();
+
+        $dealTaskService = new \App\Services\DealTaskService;
         $task = $dealTaskService->createTaskByType($deal, $taskType);
 
-        if (!$task) {
+        if (! $task) {
             return Reply::error('Invalid task type');
         }
 
@@ -1060,7 +1147,7 @@ class TaskController extends AccountBaseController
         $taskUsers = $task->users->pluck('id')->toArray();
 
         // Permission Check
-        abort_403(!($this->deletePermission == 'all'
+        abort_403(! ($this->deletePermission == 'all'
             || ($this->deletePermission == 'owned' && in_array(user()->id, $taskUsers))
             || ($this->deletePermission == 'added' && $task->added_by == user()->id)
             || ($task->project && ($task->project->project_admin == user()->id))
@@ -1123,7 +1210,7 @@ class TaskController extends AccountBaseController
         $taskUsers = $task->users->pluck('id')->toArray();
 
         abort_403(
-            !($this->deletePermission == 'all'
+            ! ($this->deletePermission == 'all'
                 || ($this->deletePermission == 'owned' && in_array(user()->id, $taskUsers))
                 || ($task->project && ($task->project->project_admin == user()->id))
                 || ($this->deletePermission == 'added' && $task->added_by == user()->id)
@@ -1145,7 +1232,7 @@ class TaskController extends AccountBaseController
     /**
      * Get task details for the modal
      *
-     * @param int $id
+     * @param  int  $id
      * @return mixed
      */
     public function data($id)
@@ -1168,15 +1255,15 @@ class TaskController extends AccountBaseController
             $task->setAttribute('status', $task->boardColumn?->slug ?? $task->status);
         }
 
-        if (!$task) {
-           return Reply::error('Task not found');
+        if (! $task) {
+            return Reply::error('Task not found');
         }
 
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
         abort_403(
-            !($editTaskPermission == 'all'
+            ! ($editTaskPermission == 'all'
                 || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                 || ($editTaskPermission == 'added' && $task->added_by == user()->id)
                 || ($task->project && ($task->project->project_admin == user()->id))
@@ -1196,6 +1283,18 @@ class TaskController extends AccountBaseController
      */
     public function create()
     {
+        // The redesigned workspace has no standalone create page — /tasks/create
+        // renders the list/board view with the Add Task popup pre-opened instead,
+        // so the URL stays /tasks/create. Only for the plain "duplicate/from
+        // project" case this route already supported; a fresh GET here is
+        // never form-submitted directly, so a coarse add_tasks check is enough.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && ! $this->isLegacyAjaxFragmentRequest()) {
+            $addPermission = user()->permission('add_tasks');
+            abort_403(! in_array($addPermission, ['all', 'added']));
+
+            return $this->index(openCreate: true);
+        }
+
         $this->pageTitle = __('app.addTask');
 
         $this->addPermission = user()->permission('add_tasks');
@@ -1203,7 +1302,7 @@ class TaskController extends AccountBaseController
         $this->project = request('task_project_id') ? Project::with('projectMembers')->findOrFail(request('task_project_id')) : null;
 
         if (is_null($this->project) || ($this->project->project_admin != user()->id)) {
-            abort_403(!in_array($this->addPermission, ['all', 'added']));
+            abort_403(! in_array($this->addPermission, ['all', 'added']));
         }
 
         $this->task = (request()['duplicate_task']) ? Task::with('users', 'label', 'project')->findOrFail(request()['duplicate_task'])->withCustomFields() : null;
@@ -1220,12 +1319,10 @@ class TaskController extends AccountBaseController
             $this->projectShortCode = $project->project_short_code;
             $this->taskLabels = TaskLabelList::where('project_id', request('task_project_id'))->orWhere('project_id', null)->get();
             $this->milestones = ProjectMilestone::where('project_id', request('task_project_id'))->whereNot('status', 'complete')->get();
-        }
-        else {
+        } else {
             if ($this->task && $this->task->project) {
                 $this->milestones = $this->task->project->incompleteMilestones;
-            }
-            else {
+            } else {
                 $this->milestones = collect([]);
             }
         }
@@ -1248,37 +1345,32 @@ class TaskController extends AccountBaseController
 
         $viewEmployeePermission = user()->permission('view_employees');
 
-        if (!is_null($this->project)) {
+        if (! is_null($this->project)) {
             if ($this->project->public) {
                 $this->employees = User::allEmployees(null, true, ($viewEmployeePermission == 'all' ? 'all' : null));
 
-            }
-            else {
+            } else {
 
                 $this->employees = $this->project->projectMembers;
             }
-        }
-        else if (!is_null($this->task) && !is_null($this->task->project_id)) {
+        } elseif (! is_null($this->task) && ! is_null($this->task->project_id)) {
             if ($this->task->project->public) {
                 $this->employees = User::allEmployees(null, true, ($viewEmployeePermission == 'all' ? 'all' : null));
-            }
-            else {
+            } else {
 
                 $this->employees = $this->task->project->projectMembers;
             }
-        }
-        else {
+        } else {
             if (in_array('client', user_roles())) {
                 $this->employees = collect([]); // Do not show all employees to client
 
-            }
-            else {
+            } else {
                 $this->employees = User::allEmployees(null, true, ($viewEmployeePermission == 'all' ? 'all' : null));
             }
 
         }
 
-        $task = new Task();
+        $task = new Task;
 
         $getCustomFieldGroupsWithFields = $task->getCustomFieldGroupsWithFields();
 
@@ -1315,13 +1407,13 @@ class TaskController extends AccountBaseController
         $project = request('project_id') ? Project::findOrFail(request('project_id')) : null;
         if (is_null($project) || ($project->project_admin != user()->id)) {
             $this->addPermission = user()->permission('add_tasks');
-            abort_403(!in_array($this->addPermission, ['all', 'added']));
+            abort_403(! in_array($this->addPermission, ['all', 'added']));
         }
 
         try {
             // Prepare Data
             $data = $request->all(); // Using all() to catch everything, validated() is strict
-            
+
             // Delegate to Service
             $task = $this->taskService->createTask($data, user());
 
@@ -1333,6 +1425,7 @@ class TaskController extends AccountBaseController
             // Handle Response Logic
             if (request()->add_more == 'true') {
                 $html = $this->create();
+
                 return Reply::successWithData(__('messages.taskSaved'), ['html' => $html, 'add_more' => true, 'taskID' => $task->id]);
             }
 
@@ -1347,7 +1440,9 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray()]);
+            $task->load(TaskPresenter::RELATIONS)->loadCount(TaskPresenter::COUNTS);
+
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $this->presentTask($task)]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1361,7 +1456,7 @@ class TaskController extends AccountBaseController
 
         if (is_null($project) || ($project->project_admin != user()->id)) {
             $this->addPermission = user()->permission('add_tasks');
-            abort_403(!in_array($this->addPermission, ['all', 'added']));
+            abort_403(! in_array($this->addPermission, ['all', 'added']));
         }
 
         DB::beginTransaction();
@@ -1369,11 +1464,11 @@ class TaskController extends AccountBaseController
         $gantTaskLinkArray = [];
 
         $taskBoardColumn = TaskboardColumn::where('slug', 'to_do')->first();
-        $task = new Task();
+        $task = new Task;
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->due_date);
-        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->start_date) : null;
+        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format.' '.company()->time_format, $request->due_date);
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format.' '.company()->time_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->project_id = $request->project_id;
         $task->task_category_id = $request->category_id;
@@ -1383,7 +1478,7 @@ class TaskController extends AccountBaseController
         if ($request->has('dependent') && $request->has('dependent_task_id') && $request->dependent_task_id != '') {
             $dependentTask = Task::findOrFail($request->dependent_task_id);
 
-            if (!is_null($dependentTask->due_date) && !is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
+            if (! is_null($dependentTask->due_date) && ! is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
                 /* @phpstan-ignore-line */
                 return Reply::error(__('messages.taskDependentDate'));
             }
@@ -1401,9 +1496,9 @@ class TaskController extends AccountBaseController
         }
 
         $waitingApprovalTaskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
-        if($request->board_column_id == $waitingApprovalTaskBoardColumn->id){
+        if ($request->board_column_id == $waitingApprovalTaskBoardColumn->id) {
             $task->approval_send = 1;
-        }else{
+        } else {
             $task->approval_send = 0;
         }
 
@@ -1418,9 +1513,8 @@ class TaskController extends AccountBaseController
             $projectLastTaskCount = Task::projectTaskCount($project->id);
 
             if (isset($project->project_short_code)) {
-                $task->task_short_code = $project->project_short_code . '-' . $this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
-            }
-            else{
+                $task->task_short_code = $project->project_short_code.'-'.$this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
+            } else {
                 $task->task_short_code = $projectLastTaskCount + 1;
             }
         }
@@ -1435,14 +1529,17 @@ class TaskController extends AccountBaseController
         if ($request->has('taskable_type') && $request->has('taskable_id')) {
             $type = $request->taskable_type;
             $id = $request->taskable_id;
-            
+
             $modelClass = null;
-            switch(strtolower($type)) {
-                case 'deal': $modelClass = \App\Models\Deal::class; break;
-                case 'lead': $modelClass = \App\Models\Lead::class; break;
-                case 'property': $modelClass = \App\Models\Property::class; break;
+            switch (strtolower($type)) {
+                case 'deal': $modelClass = \App\Models\Deal::class;
+                    break;
+                case 'lead': $modelClass = \App\Models\Lead::class;
+                    break;
+                case 'property': $modelClass = \App\Models\Property::class;
+                    break;
             }
-            
+
             if ($modelClass) {
                 $entity = $modelClass::find($id);
                 if ($entity) {
@@ -1463,38 +1560,34 @@ class TaskController extends AccountBaseController
         $this->syncTaskLinks($task, $request);
         $this->syncTaskReminders($task);
 
-
-        if (!is_null($request->taskId)) {
+        if (! is_null($request->taskId)) {
 
             $taskExists = TaskFile::where('task_id', $request->taskId)->get();
 
             if ($taskExists) {
                 foreach ($taskExists as $taskExist) {
-                    $file = new TaskFile();
+                    $file = new TaskFile;
                     $file->user_id = $taskExist->user_id;
                     $file->task_id = $task->id;
 
                     $fileName = Files::generateNewFileName($taskExist->filename);
 
-                    Files::copy(TaskFile::FILE_PATH . '/' . $taskExist->task_id . '/' . $taskExist->hashname, TaskFile::FILE_PATH . '/' . $task->id . '/' . $fileName);
+                    Files::copy(TaskFile::FILE_PATH.'/'.$taskExist->task_id.'/'.$taskExist->hashname, TaskFile::FILE_PATH.'/'.$task->id.'/'.$fileName);
 
                     $file->filename = $taskExist->filename;
                     $file->hashname = $fileName;
                     $file->size = $taskExist->size;
                     $file->save();
 
-
                     $this->logTaskActivity($task->id, $this->user->id, 'fileActivity', $task->board_column_id);
                 }
             }
 
-
             $subTask = SubTask::with(['files'])->where('task_id', $request->taskId)->get();
-
 
             if ($subTask) {
                 foreach ($subTask as $subTasks) {
-                    $subTaskData = new SubTask();
+                    $subTaskData = new SubTask;
                     $subTaskData->title = $subTasks->title;
                     $subTaskData->task_id = $task->id;
                     $subTaskData->description = trim_editor($subTasks->description);
@@ -1510,13 +1603,13 @@ class TaskController extends AccountBaseController
 
                     if ($subTasks->files) {
                         foreach ($subTasks->files as $fileData) {
-                            $file = new SubTaskFile();
+                            $file = new SubTaskFile;
                             $file->user_id = $fileData->user_id;
                             $file->sub_task_id = $subTaskData->id;
 
                             $fileName = Files::generateNewFileName($fileData->filename);
 
-                            Files::copy(SubTaskFile::FILE_PATH . '/' . $fileData->sub_task_id . '/' . $fileData->hashname, SubTaskFile::FILE_PATH . '/' . $subTaskData->id . '/' . $fileName);
+                            Files::copy(SubTaskFile::FILE_PATH.'/'.$fileData->sub_task_id.'/'.$fileData->hashname, SubTaskFile::FILE_PATH.'/'.$subTaskData->id.'/'.$fileName);
 
                             $file->filename = $fileData->filename;
                             $file->hashname = $fileName;
@@ -1534,7 +1627,7 @@ class TaskController extends AccountBaseController
         }
 
         // For gantt chart
-        if ($request->page_name && !is_null($task->due_date) && $request->page_name == 'ganttChart') {
+        if ($request->page_name && ! is_null($task->due_date) && $request->page_name == 'ganttChart') {
             $task = Task::find($task->id);
             $parentGanttId = $request->parent_gantt_id;
 
@@ -1550,17 +1643,16 @@ class TaskController extends AccountBaseController
                 'start_date' => $task->start_date->format('Y-m-d'), /* @phpstan-ignore-line */
                 'duration' => $taskDuration,
                 'parent' => $parentGanttId,
-                'taskid' => $task->id
+                'taskid' => $task->id,
             ];
 
             $gantTaskLinkArray[] = [
-                'id' => 'link_' . $task->id,
+                'id' => 'link_'.$task->id,
                 'source' => $task->dependent_task_id != '' ? $task->dependent_task_id : $parentGanttId,
                 'target' => $task->id,
-                'type' => $task->dependent_task_id != '' ? 0 : 1
+                'type' => $task->dependent_task_id != '' ? 0 : 1,
             ];
         }
-
 
         DB::commit();
 
@@ -1577,7 +1669,7 @@ class TaskController extends AccountBaseController
                 'messages.taskSaved',
                 [
                     'tasks' => $ganttTaskArray,
-                    'links' => $gantTaskLinkArray
+                    'links' => $gantTaskLinkArray,
                 ]
             );
         }
@@ -1600,11 +1692,11 @@ class TaskController extends AccountBaseController
     public function edit($id)
     {
         $editTaskPermission = user()->permission('edit_tasks');
-        $this->task = Task::with('users', 'label', 'project',)->findOrFail($id)->withCustomFields();
+        $this->task = Task::with('users', 'label', 'project')->findOrFail($id)->withCustomFields();
         $this->taskUsers = $taskUsers = $this->task->users->pluck('id')->toArray();
         $this->type = request()->type;
         abort_403(
-            !($editTaskPermission == 'all'
+            ! ($editTaskPermission == 'all'
                 || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
                 || ($editTaskPermission == 'added' && $this->task->added_by == user()->id)
                 || ($this->task->project && ($this->task->project->project_admin == user()->id))
@@ -1614,12 +1706,19 @@ class TaskController extends AccountBaseController
             )
         );
 
+        // The redesigned workspace has no standalone edit page — /tasks/{id}/edit
+        // renders the list/board view with the Edit Task popup pre-opened for
+        // this task instead, so the URL stays /tasks/{id}/edit. The permission
+        // check above already gates this; only the render target changes.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && ! $this->isLegacyAjaxFragmentRequest()) {
+            return $this->index((int) $id, openMode: 'edit');
+        }
+
         $getCustomFieldGroupsWithFields = $this->task->getCustomFieldGroupsWithFields();
 
         if ($getCustomFieldGroupsWithFields) {
             $this->fields = $getCustomFieldGroupsWithFields->fields;
         }
-
 
         $this->pageTitle = __('modules.tasks.updateTask');
         $this->labelIds = $this->task->label->pluck('label_id')->toArray();
@@ -1627,9 +1726,9 @@ class TaskController extends AccountBaseController
         $this->categories = TaskCategory::all();
         $projectId = $this->task->project_id;
 
-        if($projectId){
+        if ($projectId) {
             $this->taskLabels = TaskLabelList::where('project_id', $projectId)->orWhereNull('project_id')->get();
-        }else{
+        } else {
             $this->taskLabels = TaskLabelList::whereNull('project_id')->get();
         }
 
@@ -1639,8 +1738,7 @@ class TaskController extends AccountBaseController
         $this->waitingApprovalTaskBoardColumn = TaskboardColumn::waitingForApprovalColumn();
         if ($completedTaskColumn) {
             $this->allTasks = Task::where('board_column_id', '<>', $completedTaskColumn->id)->whereNotNull('due_date')->where('id', '!=', $id)->where('project_id', $projectId)->get();
-        }
-        else {
+        } else {
             $this->allTasks = [];
         }
 
@@ -1648,21 +1746,17 @@ class TaskController extends AccountBaseController
             if ($this->task->project->public) {
                 $this->employees = User::allEmployees(null, false, ($editTaskPermission == 'all' ? 'all' : null));
 
-            }
-            else {
+            } else {
                 $this->employees = $this->task->project->projectMembersWithoutScope;
             }
-        }
-        else {
+        } else {
             if ($editTaskPermission == 'added' || $editTaskPermission == 'owned') {
                 $this->employees = ((count($this->task->users) > 0) ? $this->task->users : User::allEmployees(null, true, ($editTaskPermission == 'all' ? 'all' : null)));
 
-            }
-            else {
+            } else {
                 $this->employees = User::allEmployees(null, false, ($editTaskPermission == 'all' ? 'all' : null));
             }
         }
-
 
         $uniqueId = $this->task->task_short_code;
         // check if unuqueId contains -
@@ -1670,8 +1764,7 @@ class TaskController extends AccountBaseController
             $uniqueId = explode('-', $uniqueId, 2);
             $this->projectUniId = $uniqueId[0];
             $this->taskUniId = $uniqueId[1];
-        }
-        else {
+        } else {
             $this->projectUniId = ($this->task->project_id != null) ? $this->task->project->project_short_code : null;
             $this->taskUniId = $uniqueId;
         }
@@ -1681,12 +1774,12 @@ class TaskController extends AccountBaseController
         $dueDate = $this->task->due_date;
         $leaves = $this->leaves($userId, $startDate, $dueDate);
 
-        if (!is_null($leaves)) {
+        if (! is_null($leaves)) {
             $data = [];
 
             foreach ($leaves as $key => $value) {
                 $values = implode(', ', $value);
-                $data[] = $key . __('modules.tasks.leaveOn') . ' ' . $values;
+                $data[] = $key.__('modules.tasks.leaveOn').' '.$values;
             }
 
             $this->leaveData = implode("\n", $data);
@@ -1756,11 +1849,11 @@ class TaskController extends AccountBaseController
 
         $task = Task::with('users', 'project')->findOrFail($id);
 
-        if (!$this->canEditTask($task) || $this->isWatcherOnlyOnTaskDeals($task)) {
+        if (! $this->canEditTask($task) || $this->isWatcherOnlyOnTaskDeals($task)) {
             return Reply::error(__('messages.permissionDenied'));
         }
 
-        $task->due_date = Carbon::parse($request->due_date . ' ' . ($request->due_time ?: '17:00'));
+        $task->due_date = Carbon::parse($request->due_date.' '.($request->due_time ?: '17:00'));
         $task->save();
 
         // A moved due date with unmoved reminders fires at the old time.
@@ -1777,7 +1870,7 @@ class TaskController extends AccountBaseController
     {
         $task = Task::with('users', 'label', 'project')->findOrFail($id);
 
-        if (!$this->canEditTask($task)) {
+        if (! $this->canEditTask($task)) {
             return Reply::error(__('messages.permissionDenied'));
         }
 
@@ -1794,10 +1887,12 @@ class TaskController extends AccountBaseController
             // multi-link `links` payload is synced separately here.
             $this->syncTaskLinks($task, $request);
 
+            $task->load(TaskPresenter::RELATIONS)->loadCount(TaskPresenter::COUNTS);
+
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,
-                'data' => $task->load(['users', 'boardColumn', 'deals', 'leads', 'properties', 'developerProjects'])->toFrontendArray(),
-                'redirectUrl' => route('tasks.show', $task->id)
+                'data' => $this->presentTask($task),
+                'redirectUrl' => route('tasks.show', $task->id),
             ]);
 
         } catch (\Exception $e) {
@@ -1811,7 +1906,7 @@ class TaskController extends AccountBaseController
         $editTaskPermission = user()->permission('edit_tasks');
         $taskUsers = $task->users->pluck('id')->toArray();
 
-        if (!($editTaskPermission == 'all'
+        if (! ($editTaskPermission == 'all'
             || ($editTaskPermission == 'owned' && in_array(user()->id, $taskUsers))
             || ($editTaskPermission == 'added' && $task->added_by == user()->id)
             || ($task->project && ($task->project->project_admin == user()->id))
@@ -1822,14 +1917,13 @@ class TaskController extends AccountBaseController
             return Reply::error(__('messages.permissionDenied'));
         }
 
-        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->due_date);
+        $dueDate = ($request->has('without_duedate')) ? null : Carbon::createFromFormat(company()->date_format.' '.company()->time_format, $request->due_date);
         $task->heading = $request->heading;
         $task->description = trim_editor($request->description);
-        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $request->start_date) : null;
+        $task->start_date = $request->start_date ? Carbon::createFromFormat(company()->date_format.' '.company()->time_format, $request->start_date) : null;
         $task->due_date = $dueDate;
         $task->task_category_id = $request->category_id;
         $task->priority = $request->priority;
-
 
         if ($request->has('board_column_id')) {
 
@@ -1839,13 +1933,12 @@ class TaskController extends AccountBaseController
 
             if ($taskBoardColumn->slug == 'done') {
                 $task->completed_on = now()->format('Y-m-d');
-            }
-            else {
+            } else {
                 $task->completed_on = null;
             }
         }
 
-        if($request->select_value == 'Waiting Approval'){
+        if ($request->select_value == 'Waiting Approval') {
 
             $taskBoardColumn = TaskboardColumn::where('column_name', $request->select_value)->where('company_id', company()->id)->first();
             $task->board_column_id = $taskBoardColumn->id;
@@ -1861,8 +1954,7 @@ class TaskController extends AccountBaseController
         if ($request->project_id != '') {
             $task->project_id = $request->project_id;
             ProjectTimeLog::where('task_id', $id)->update(['project_id' => $request->project_id]);
-        }
-        else {
+        } else {
             $task->project_id = null;
         }
 
@@ -1873,7 +1965,7 @@ class TaskController extends AccountBaseController
         if ($request->has('dependent') && $request->has('dependent_task_id') && $request->dependent_task_id != '') {
             $dependentTask = Task::findOrFail($request->dependent_task_id);
 
-            if (!is_null($dependentTask->due_date) && !is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
+            if (! is_null($dependentTask->due_date) && ! is_null($dueDate) && $dependentTask->due_date->greaterThan($dueDate)) {
                 return Reply::error(__('messages.taskDependentDate'));
             }
 
@@ -1895,7 +1987,7 @@ class TaskController extends AccountBaseController
 
         if ($project && $task->isDirty('project_id')) {
             $projectLastTaskCount = Task::projectTaskCount($project->id);
-            $task->task_short_code = $project->project_short_code . '-' . $this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
+            $task->task_short_code = $project->project_short_code.'-'.$this->getTaskShortCode($project->project_short_code, $projectLastTaskCount);
         }
         $task->save();
 
@@ -1916,9 +2008,9 @@ class TaskController extends AccountBaseController
             $task->users()->sync($request->user_id);
         }
 
-        if(!empty($request->user_id)){
+        if (! empty($request->user_id)) {
             $newlyAssignedUserIds = array_diff($request->user_id, $taskUsers);
-            if (!empty($newlyAssignedUserIds)) {
+            if (! empty($newlyAssignedUserIds)) {
                 $newUsers = User::whereIn('id', $newlyAssignedUserIds)->get();
                 event(new TaskEvent($task, $newUsers, 'NewTask'));
             }
@@ -1928,13 +2020,11 @@ class TaskController extends AccountBaseController
     }
 
     /**
-     * @param $projectShortCode
-     * @param $lastProjectCount
      * @return mixed
      */
     public function getTaskShortCode($projectShortCode, $lastProjectCount)
     {
-        $task = Task::where('task_short_code', $projectShortCode . '-' . $lastProjectCount)->exists();
+        $task = Task::where('task_short_code', $projectShortCode.'-'.$lastProjectCount)->exists();
 
         if ($task) {
             return $this->getTaskShortCode($projectShortCode, $lastProjectCount + 1);
@@ -1957,7 +2047,7 @@ class TaskController extends AccountBaseController
 
         $this->task = Task::with(
             ['boardColumn', 'project', 'users', 'label', 'approvedTimeLogs', 'mentionTask',
-                'approvedTimeLogs.user', 'approvedTimeLogs.activeBreak', 'comments','activeUsers',
+                'approvedTimeLogs.user', 'approvedTimeLogs.activeBreak', 'comments', 'activeUsers',
                 'comments.commentEmoji', 'comments.like', 'comments.dislike', 'comments.likeUsers',
                 'comments.dislikeUsers', 'comments.user', 'subtasks.files', 'userActiveTimer', 'dependentTask',
                 'files' => function ($q) use ($viewTaskFilePermission) {
@@ -1974,14 +2064,13 @@ class TaskController extends AccountBaseController
             ->withCount('subtasks', 'files', 'comments', 'activeTimerAll')
             ->findOrFail($id)->withCustomFields();
 
-
         $this->taskUsers = $taskUsers = $this->task->users->pluck('id')->toArray();
 
         $taskuserData = [];
 
         $usersData = $this->task->users;
 
-        if ($this->task->createBy && !in_array($this->task->createBy->id, $taskUsers)) {
+        if ($this->task->createBy && ! in_array($this->task->createBy->id, $taskUsers)) {
             $url = route('employees.show', [$this->task->createBy->user_id ?? $this->task->createBy->id]);
             $taskuserData[] = ['id' => $this->task->createBy->user_id ?? $this->task->createBy->id, 'value' => $this->task->createBy->user->name ?? $this->task->createBy->name, 'image' => $this->task->createBy->user->image_url ?? $this->task->createBy->image_url, 'link' => $url];
         }
@@ -2006,27 +2095,27 @@ class TaskController extends AccountBaseController
         }
 
         abort_403(
-            !(
+            ! (
                 $overrideViewPermission == true
                 || TaskVisibilityService::userCanViewTask($this->task, user(), $viewTaskPermission, $taskUsers)
                 || ($viewTaskPermission == 'owned' && in_array('client', user_roles()) && $this->task->project_id && $this->task->project->client_id == $this->userId)
                 || ($viewTaskPermission == 'both' && in_array('client', user_roles()) && $this->task->project_id && $this->task->project->client_id == $this->userId)
                 || ($this->viewUnassignedTasksPermission == 'all' && in_array('employee', user_roles()))
                 || ($this->task->project_id && $this->task->project->project_admin == $this->userId)
-                || ((!is_null($this->task->mentionTask)) && in_array($this->userId, $mentionUser))
+                || ((! is_null($this->task->mentionTask)) && in_array($this->userId, $mentionUser))
             )
 
         );
 
-        if (!$this->task->project_id || ($this->task->project_id && $this->task->project->project_admin != $this->userId)) {
+        if (! $this->task->project_id || ($this->task->project_id && $this->task->project->project_admin != $this->userId)) {
 
             abort_403($this->viewUnassignedTasksPermission == 'none' && count($taskUsers) == 0 && ((is_null($this->task->mentionTask)) && in_array($userId, $mentionUser)));
 
         }
 
-        if($this->task->task_short_code){
-            $this->pageTitle = __('app.task') . ' # ' . $this->task->task_short_code;
-        }else{
+        if ($this->task->task_short_code) {
+            $this->pageTitle = __('app.task').' # '.$this->task->task_short_code;
+        } else {
             $this->pageTitle = __('app.task');
         }
         $this->status = TaskboardColumn::where('id', $this->task->board_column_id)->first();
@@ -2036,11 +2125,9 @@ class TaskController extends AccountBaseController
             $this->fields = $getCustomFieldGroupsWithFields->fields;
         }
 
-
         $this->employees = User::join('employee_details', 'users.id', '=', 'employee_details.user_id')
             ->leftJoin('project_time_logs', 'project_time_logs.user_id', '=', 'users.id')
             ->leftJoin('designations', 'employee_details.designation_id', '=', 'designations.id');
-
 
         $this->employees = $this->employees->select(
             'users.name',
@@ -2059,12 +2146,12 @@ class TaskController extends AccountBaseController
 
         // Add Gitlab task details if available
         if (module_enabled('Gitlab')) {
-            if (in_array('gitlab', user_modules()) && !is_null($this->task->project_id)) {
+            if (in_array('gitlab', user_modules()) && ! is_null($this->task->project_id)) {
 
                 /** @phpstan-ignore-next-line */
                 $this->gitlabSettings = \Modules\Gitlab\Entities\GitlabSetting::where('user_id', $this->userId)->first();
 
-                if (!$this->gitlabSettings) {
+                if (! $this->gitlabSettings) {
                     /** @phpstan-ignore-next-line */
                     $this->gitlabSettings = \Modules\Gitlab\Entities\GitlabSetting::whereNull('user_id')->first();
                 }
@@ -2095,52 +2182,46 @@ class TaskController extends AccountBaseController
         $tab = request('view');
 
         switch ($tab) {
-        case 'sub_task':
-            $this->tab = 'tasks.ajax.sub_tasks';
-            break;
-        case 'comments':
-            abort_403($this->viewTaskCommentPermission == 'none');
-
-            $this->tab = 'tasks.ajax.comments';
-            break;
-        case 'notes':
-            abort_403($this->viewTaskNotePermission == 'none');
-            $this->tab = 'tasks.ajax.notes';
-            break;
-        case 'history':
-            $this->tab = 'tasks.ajax.history';
-            break;
-        case 'time_logs':
-            abort_403(!in_array('timelogs', user_modules()));
-            $this->tab = 'tasks.ajax.timelogs';
-            break;
-        default:
-            if ($this->taskSettings->files == 'yes' && in_array('client', user_roles())) {
-                $this->tab = 'tasks.ajax.files';
-            }
-            elseif ($this->taskSettings->sub_task == 'yes' && in_array('client', user_roles())) {
+            case 'sub_task':
                 $this->tab = 'tasks.ajax.sub_tasks';
-            }
-            elseif ($this->taskSettings->comments == 'yes' && in_array('client', user_roles())) {
+                break;
+            case 'comments':
                 abort_403($this->viewTaskCommentPermission == 'none');
+
                 $this->tab = 'tasks.ajax.comments';
-            }
-            elseif ($this->taskSettings->time_logs == 'yes' && in_array('client', user_roles())) {
-                abort_403($this->viewTaskNotePermission == 'none');
-                $this->tab = 'tasks.ajax.timelogs';
-            }
-            elseif ($this->taskSettings->notes == 'yes' && in_array('client', user_roles())) {
+                break;
+            case 'notes':
                 abort_403($this->viewTaskNotePermission == 'none');
                 $this->tab = 'tasks.ajax.notes';
-            }
-            elseif ($this->taskSettings->history == 'yes' && in_array('client', user_roles())) {
-                abort_403($this->viewTaskNotePermission == 'none');
+                break;
+            case 'history':
                 $this->tab = 'tasks.ajax.history';
-            }
-            elseif (!in_array('client', user_roles())) {
-                $this->tab = 'tasks.ajax.files';
-            }
-            break;
+                break;
+            case 'time_logs':
+                abort_403(! in_array('timelogs', user_modules()));
+                $this->tab = 'tasks.ajax.timelogs';
+                break;
+            default:
+                if ($this->taskSettings->files == 'yes' && in_array('client', user_roles())) {
+                    $this->tab = 'tasks.ajax.files';
+                } elseif ($this->taskSettings->sub_task == 'yes' && in_array('client', user_roles())) {
+                    $this->tab = 'tasks.ajax.sub_tasks';
+                } elseif ($this->taskSettings->comments == 'yes' && in_array('client', user_roles())) {
+                    abort_403($this->viewTaskCommentPermission == 'none');
+                    $this->tab = 'tasks.ajax.comments';
+                } elseif ($this->taskSettings->time_logs == 'yes' && in_array('client', user_roles())) {
+                    abort_403($this->viewTaskNotePermission == 'none');
+                    $this->tab = 'tasks.ajax.timelogs';
+                } elseif ($this->taskSettings->notes == 'yes' && in_array('client', user_roles())) {
+                    abort_403($this->viewTaskNotePermission == 'none');
+                    $this->tab = 'tasks.ajax.notes';
+                } elseif ($this->taskSettings->history == 'yes' && in_array('client', user_roles())) {
+                    abort_403($this->viewTaskNotePermission == 'none');
+                    $this->tab = 'tasks.ajax.history';
+                } elseif (! in_array('client', user_roles())) {
+                    $this->tab = 'tasks.ajax.files';
+                }
+                break;
         }
 
         if (request()->ajax()) {
@@ -2149,12 +2230,12 @@ class TaskController extends AccountBaseController
             return $this->returnAjax($view);
         }
 
-
         $this->view = 'tasks.ajax.show';
 
         return view('tasks.create', $this->data);
 
     }
+
     public function show($id)
     {
         $viewTaskFilePermission = user()->permission('view_task_files');
@@ -2190,7 +2271,7 @@ class TaskController extends AccountBaseController
             },
             'comments' => function ($q) {
                 $q->with('user')->orderByDesc('id')->limit(10);
-            }
+            },
         ])
             ->withCount(['subtasks', 'files', 'comments', 'completedSubtasks', 'notes'])
             ->findOrFail($id);
@@ -2203,24 +2284,35 @@ class TaskController extends AccountBaseController
 
         // Permission check
         abort_403(
-            !(
+            ! (
                 $overrideViewPermission == true
                 || TaskVisibilityService::userCanViewTask($task, user(), $viewTaskPermission, $taskUsers)
                 || ($viewTaskPermission == 'owned' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
                 || ($viewTaskPermission == 'both' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
                 || ($viewUnassignedTasksPermission == 'all' && in_array('employee', user_roles()))
                 || ($task->project_id && $task->project->project_admin == $userId)
-                || ((!is_null($task->mentionTask)) && in_array($userId, $mentionUser))
+                || ((! is_null($task->mentionTask)) && in_array($userId, $mentionUser))
             )
         );
 
-        if (!$task->project_id || ($task->project_id && $task->project->project_admin != $userId)) {
+        if (! $task->project_id || ($task->project_id && $task->project->project_admin != $userId)) {
             abort_403($viewUnassignedTasksPermission == 'none' && count($taskUsers) == 0 && ((is_null($task->mentionTask)) && in_array($userId, $mentionUser)));
         }
 
+        // The redesigned workspace has no standalone task page — /tasks/{id}
+        // renders the exact same list/board view index() does, plus that
+        // task's detail popup pre-opened, so the URL stays /tasks/{id}
+        // rather than redirecting to a ?task= query param. The permission
+        // checks above already gate this specific task; index($openTaskId)
+        // trusts that and only additionally resolves+authorizes its own
+        // default-filtered listing as normal.
+        if (\App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign') && ! $this->isLegacyAjaxFragmentRequest()) {
+            return $this->index((int) $task->id);
+        }
+
         // Build page title
-        $pageTitle = $task->task_short_code 
-            ? __('app.task') . ' #' . $task->task_short_code 
+        $pageTitle = $task->task_short_code
+            ? __('app.task').' #'.$task->task_short_code
             : __('app.task');
 
         // Legacy openRightModal / jQuery AJAX only — not Inertia visits (they also send X-Requested-With).
@@ -2270,15 +2362,16 @@ class TaskController extends AccountBaseController
                     $this->tab = 'tasks.ajax.history';
                     break;
                 case 'time_logs':
-                    abort_403(!in_array('timelogs', user_modules()));
+                    abort_403(! in_array('timelogs', user_modules()));
                     $this->tab = 'tasks.ajax.timelogs';
                     break;
                 default:
                     $this->tab = 'tasks.ajax.files';
                     break;
             }
-            
+
             $view = request('json') ? $this->tab : 'tasks.ajax.show';
+
             return $this->returnAjax($view);
         }
 
@@ -2323,38 +2416,38 @@ class TaskController extends AccountBaseController
                 'id' => $task->category->id,
                 'category_name' => $task->category->category_name,
             ] : null,
-            'users' => $task->users->map(fn($user) => [
+            'users' => $task->users->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'image' => $user->image_url,
                 'designation_name' => $user->employeeDetail?->designation?->name,
             ])->toArray(),
-            'labels' => $task->labels->map(fn($label) => [
+            'labels' => $task->labels->map(fn ($label) => [
                 'id' => $label->id,
                 'label_name' => $label->label_name,
                 'label_color' => $label->label_color,
             ])->toArray(),
-            'deals' => $task->deals->map(fn($deal) => [
+            'deals' => $task->deals->map(fn ($deal) => [
                 'id' => $deal->id,
                 'name' => $deal->name,
             ])->toArray(),
-            'leads' => $task->leads->map(fn($lead) => [
+            'leads' => $task->leads->map(fn ($lead) => [
                 'id' => $lead->id,
                 'client_name' => $lead->client_name,
                 'company_name' => $lead->company_name,
             ])->toArray(),
-            'properties' => $task->properties->map(fn($property) => [
+            'properties' => $task->properties->map(fn ($property) => [
                 'id' => $property->id,
                 'name' => $property->title,
             ])->toArray(),
-            'subtasks' => $task->subtasks->map(fn($subtask) => [
+            'subtasks' => $task->subtasks->map(fn ($subtask) => [
                 'id' => $subtask->id,
                 'title' => $subtask->title,
                 'status' => $subtask->status,
                 'due_date' => Task::wallClockString($subtask->due_date),
             ])->toArray(),
             'time_logs' => [
-                ['total_minutes' => $timeSpentMinutes]
+                ['total_minutes' => $timeSpentMinutes],
             ],
             'created_by' => TaskVisibilityService::formatAssigner($task),
             'assigner' => TaskVisibilityService::formatAssigner($task),
@@ -2481,7 +2574,7 @@ class TaskController extends AccountBaseController
     public function storePin(Request $request)
     {
         $userId = UserService::getUserId();
-        $pinned = new Pinned();
+        $pinned = new Pinned;
         $pinned->task_id = $request->task_id;
         $pinned->project_id = $request->project_id;
         $pinned->user_id = $userId;
@@ -2508,7 +2601,8 @@ class TaskController extends AccountBaseController
         return Reply::dataOnly(['taskCount' => $subTask, 'lastStatus' => $task->boardColumn->slug]);
     }
 
-    public function sendApproval(Request $request){
+    public function sendApproval(Request $request)
+    {
 
         $task = Task::findOrFail($request->taskId);
         $taskBoardColumn = TaskboardColumn::where('slug', 'in_review')->first();
@@ -2524,9 +2618,9 @@ class TaskController extends AccountBaseController
     {
         $viewPermission = user()->permission('view_tasks');
 
-        abort_403(!in_array($viewPermission, ['all', 'added', 'owned', 'both']));
+        abort_403(! in_array($viewPermission, ['all', 'added', 'owned', 'both']));
 
-        if (!request()->ajax()) {
+        if (! request()->ajax()) {
             $this->assignedTo = request()->assignedTo;
 
             if (request()->has('assignee') && request()->assignee == 'me') {
@@ -2537,8 +2631,7 @@ class TaskController extends AccountBaseController
 
             if (in_array('client', user_roles())) {
                 $this->clients = User::client();
-            }
-            else {
+            } else {
                 $this->clients = User::allClients();
             }
 
@@ -2552,12 +2645,12 @@ class TaskController extends AccountBaseController
 
             $projectIds = Project::where('project_admin', user()->id)->pluck('id');
 
-            if (!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && $projectIds->isEmpty())) {
+            if (! in_array('admin', user_roles()) && (in_array('employee', user_roles()) && $projectIds->isEmpty())) {
                 $user = User::findOrFail(user()->id);
                 $this->waitingApprovalCount = $user->tasks()->where('board_column_id', $taskBoardColumn->id)->count();
-            }elseif(!in_array('admin', user_roles()) && (in_array('employee', user_roles()) && !$projectIds->isEmpty())) {
+            } elseif (! in_array('admin', user_roles()) && (in_array('employee', user_roles()) && ! $projectIds->isEmpty())) {
                 $this->waitingApprovalCount = Task::whereIn('project_id', $projectIds)->where('board_column_id', $taskBoardColumn->id)->count();
-            }else{
+            } else {
                 $this->waitingApprovalCount = Task::where('board_column_id', $taskBoardColumn->id)->count();
             }
         }
@@ -2565,7 +2658,8 @@ class TaskController extends AccountBaseController
         return $dataTable->render('tasks.waiting-approval', $this->data);
     }
 
-    public function statusReason(Request $request){
+    public function statusReason(Request $request)
+    {
 
         $this->taskStatus = $request->taskStatus;
         $this->taskId = $request->taskId;
@@ -2574,7 +2668,8 @@ class TaskController extends AccountBaseController
         return view('tasks.status_reason_modal', $this->data);
     }
 
-    public function storeStatusReason(ActionTask $request){
+    public function storeStatusReason(ActionTask $request)
+    {
 
         $task = Task::findOrFail($request->taskId);
         $taskBoardColumn = TaskboardColumn::where('slug', $request->taskStatus)->first();
@@ -2582,7 +2677,7 @@ class TaskController extends AccountBaseController
         $task->approval_send = 0;
         $task->save();
 
-        $comment = new TaskComment();
+        $comment = new TaskComment;
         $comment->comment = $request->reason;
         $comment->task_id = $request->taskId;
         $comment->user_id = user()->id;
@@ -2595,13 +2690,12 @@ class TaskController extends AccountBaseController
     {
         $project = Project::with('client')->findOrFail($request->id);
 
-        if (!is_null($project->client)) {
-            $data = '<h5 class= "mb-2 f-13"> ' . __('modules.projects.projectClient') . '</h5>';
+        if (! is_null($project->client)) {
+            $data = '<h5 class= "mb-2 f-13"> '.__('modules.projects.projectClient').'</h5>';
             $data .= view('components.client', ['user' => $project->client]);
             /* @phpstan-ignore-line */
-        }
-        else {
-            $data = '<p> ' . __('modules.projects.projectDoNotHaveClient') . '</p>';
+        } else {
+            $data = '<p> '.__('modules.projects.projectDoNotHaveClient').'</p>';
         }
 
         return Reply::dataOnly(['data' => $data]);
@@ -2611,7 +2705,7 @@ class TaskController extends AccountBaseController
     {
         $task = Task::findOrFail($id);
         $task->start_date = Carbon::createFromFormat('d/m/Y', $request->start_date)->format('Y-m-d');
-        $task->due_date = (!is_null($task->due_date)) ? Carbon::createFromFormat('d/m/Y', $request->end_date)->addDay()->format('Y-m-d') : null;
+        $task->due_date = (! is_null($task->due_date)) ? Carbon::createFromFormat('d/m/Y', $request->end_date)->addDay()->format('Y-m-d') : null;
         $task->save();
 
         return Reply::success('messages.updateSuccess');
@@ -2640,7 +2734,7 @@ class TaskController extends AccountBaseController
 
         foreach ($tasks as $item) {
 
-            $options .= '<option  data-content="<div class=\'d-inline-block mr-1\'></div>  ' . $item->heading . ' ( Due date: ' . $item->due_date->format(company()->date_format) . ' ) " value="' . $item->id . '"> ' . $item->heading . '  ' . $item->due_date . ' </option>';
+            $options .= '<option  data-content="<div class=\'d-inline-block mr-1\'></div>  '.$item->heading.' ( Due date: '.$item->due_date->format(company()->date_format).' ) " value="'.$item->id.'"> '.$item->heading.'  '.$item->due_date.' </option>';
         }
 
         return Reply::dataOnly(['status' => 'success', 'data' => $options]);
@@ -2654,16 +2748,16 @@ class TaskController extends AccountBaseController
             $members = Task::with('users')->findOrFail($id);
 
             foreach ($members->users as $item) {
-                $self_select = (user() && user()->id == $item->id) ? '<span class=\'ml-2 badge badge-secondary\'>' . __('app.itsYou') . '</span>' : '';
-                if($item->status == 'active'){
-                    $content = ( $item->status == 'deactive') ? "<span class='badge badge-pill badge-danger border align-center ml-2 px-2'>Inactive</span>" : '';
-                    $options .= '<option  data-content="<div class=\'d-inline-block mr-1\'><img class=\'taskEmployeeImg rounded-circle\' src=' . $item->image_url . ' ></div>  ' . $item->name . '' . $self_select . '' . $content . '" value="' . $item->id .'"> ' . $item->name . ' </option>';
+                $self_select = (user() && user()->id == $item->id) ? '<span class=\'ml-2 badge badge-secondary\'>'.__('app.itsYou').'</span>' : '';
+                if ($item->status == 'active') {
+                    $content = ($item->status == 'deactive') ? "<span class='badge badge-pill badge-danger border align-center ml-2 px-2'>Inactive</span>" : '';
+                    $options .= '<option  data-content="<div class=\'d-inline-block mr-1\'><img class=\'taskEmployeeImg rounded-circle\' src='.$item->image_url.' ></div>  '.$item->name.''.$self_select.''.$content.'" value="'.$item->id.'"> '.$item->name.' </option>';
                 }
             }
 
             $startDateMin = $members->start_date ? $members->start_date->format('Y-m-d') : null;
             $startDate = $members->start_date && $members->start_date->lt(now()) ? now()->format('Y-m-d') : ($members->start_date ? $members->start_date->format('Y-m-d') : null);
-            info ($startDate);
+            info($startDate);
         }
 
         return Reply::dataOnly(['status' => 'success', 'data' => $options, 'startDate' => $startDate, 'startDateMin' => $startDateMin]);
@@ -2726,5 +2820,4 @@ class TaskController extends AccountBaseController
             return $data;
         }
     }
-
 }

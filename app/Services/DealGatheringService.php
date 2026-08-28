@@ -434,12 +434,8 @@ class DealGatheringService
                     if (! empty($promotedData)) {
                         /** @var \App\Services\LeadCoreFieldsService $coreFields */
                         $coreFields = app(\App\Services\LeadCoreFieldsService::class);
-                        if ($coreFields->useCoreFields()) {
-                            $coreFields->write($deal->contact, $promotedData);
-                            $deal->contact->save();
-                        } else {
-                            $deal->contact->update($promotedData);
-                        }
+                        $coreFields->write($deal->contact, $promotedData);
+                        $deal->contact->save();
                     }
                 }
                 break;

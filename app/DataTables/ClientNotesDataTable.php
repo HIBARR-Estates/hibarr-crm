@@ -87,7 +87,7 @@ class ClientNotesDataTable extends BaseDataTable
                 return '<span class="badge badge-primary"><i class="fa fa-lock"></i> ' . __('app.private') . '</span>';
             })
             ->editColumn('created_at', function ($row) {
-                return $row->created_at->timezone(company()->timezone)->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
+                return $row->created_at->timezone($this->viewerTimezone())->translatedFormat($this->company->date_format . ' ' . $this->company->time_format);
             })
             ->editColumn('id', fn($row) => $row->id)
             ->addIndexColumn()

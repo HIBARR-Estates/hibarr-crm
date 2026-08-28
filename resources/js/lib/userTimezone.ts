@@ -12,14 +12,24 @@ export function getBrowserTimezone(): string {
     }
 }
 
+function isTimezoneLocked(locked: boolean | number | null | undefined): boolean {
+    return locked === true || locked === 1;
+}
+
 /**
  * Persist browser IANA timezone at most once per browser session.
  * Writes when stored timezone is empty or differs from the browser zone.
+ * Skips entirely when the user has locked an explicit timezone override.
  */
 export function persistUserTimezoneOnce(
     storedTimezone: string | null | undefined,
+    timezoneLocked?: boolean | number | null,
 ): void {
     if (typeof window === "undefined") {
+        return;
+    }
+
+    if (isTimezoneLocked(timezoneLocked)) {
         return;
     }
 

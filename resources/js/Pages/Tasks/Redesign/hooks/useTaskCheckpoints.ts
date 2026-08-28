@@ -56,9 +56,17 @@ export default function useTaskCheckpoints(
             await axios.post(route("sub_tasks.change_status"), {
                 subTaskId: item.id,
                 status: nextStatus,
+                // Tells SubTaskController to suppress SubTask notifications
+                // for this request — a checklist tick shouldn't email/notify
+                // anyone, unlike toggling a real sub-task's status.
+                checklist: true,
             });
-        } catch {
-            setError("Couldn't update that checklist item");
+        } catch (err) {
+            const message =
+                axios.isAxiosError(err) && err.response?.data?.message
+                    ? String(err.response.data.message)
+                    : "Couldn't update that checklist item";
+            setError(message);
             setItems((prev) =>
                 prev.map((entry) =>
                     entry.id === item.id
@@ -79,6 +87,7 @@ export default function useTaskCheckpoints(
                     task_id: taskId,
                     title: title.trim(),
                     description: "",
+                    checklist: true,
                 });
                 // The endpoint answers with a rendered Blade view plus the new
                 // row id under `subTaskID` — without it the row would carry a
@@ -115,7 +124,9 @@ export default function useTaskCheckpoints(
             const previous = items;
             setItems((prev) => prev.filter((entry) => entry.id !== id));
             try {
-                await axios.delete(route("sub-tasks.destroy", id));
+                await axios.delete(route("sub-tasks.destroy", id), {
+                    params: { checklist: true },
+                });
             } catch {
                 setError("Couldn't remove that checklist item");
                 setItems(previous);

@@ -45,6 +45,7 @@ use App\Helper\UserService;
  * @property string $gender
  * @property string $locale
  * @property string|null $timezone
+ * @property bool $timezone_locked
  * @property string $status
  * @property string $login
  * @property string|null $onesignal_player_id
@@ -283,6 +284,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'last_login' => 'datetime',
         'two_factor_expires_at	' => 'array',
         'salutation' => Salutation::class,
+        'timezone_locked' => 'boolean',
     ];
 
     protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code', 'phone_number', 'country_code'];
@@ -1421,6 +1423,11 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     public function reminderPreferences(): HasMany
     {
         return $this->hasMany(UserReminderPreference::class);
+    }
+
+    public function notificationBypasses(): HasMany
+    {
+        return $this->hasMany(UserNotificationBypass::class);
     }
 
     /**

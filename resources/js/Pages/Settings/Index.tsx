@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -10,8 +10,14 @@ import {
     CalendarIcon,
     CheckSquareIcon,
 } from "../../Components/icons";
-import { FileTextOutlined, BellOutlined } from "@ant-design/icons";
+import {
+    FileTextOutlined,
+    BellOutlined,
+    NotificationOutlined,
+    ThunderboltOutlined,
+} from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
+import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
 interface EntitySettingCard {
     key: string;
@@ -30,9 +36,33 @@ export default function SettingsIndex({
     pageTitle: string;
 }) {
     const { t } = useTranslation();
+    const { permissions } = usePermission();
+    const canManageNotifications = isPermissionAll(
+        permissions.manage_notification_setting,
+    );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
+    const pageProps = usePage().props as {
+        featureFlags?: Record<string, boolean>;
+    };
+    const automationV2Enabled =
+        pageProps.featureFlags?.["crm.automation-v2"] === true;
 
     const cards: EntitySettingCard[] = [
+        {
+            key: "automation",
+            icon: <ThunderboltOutlined />,
+            iconBg: "bg-indigo-50",
+            iconColor: "text-indigo-500",
+            title: t("app.menu.automation"),
+            description: t("app.settingsHub.automationDesc"),
+            connected: true,
+            onOpen: () =>
+                router.visit(
+                    automationV2Enabled
+                        ? route("settings-automation.index")
+                        : route("company-settings.deal_automations"),
+                ),
+        },
         {
             key: "leads",
             icon: <PersonIcon />,
@@ -89,15 +119,32 @@ export default function SettingsIndex({
             description: t("app.settingsHub.remindersDesc"),
             connected: false,
         },
+        ...(canManageNotifications
+            ? [
+                  {
+                      key: "notifications",
+                      icon: <NotificationOutlined />,
+                      iconBg: "bg-indigo-50",
+                      iconColor: "text-indigo-500",
+                      title: t("app.menu.notificationSettings"),
+                      description: t("app.settingsHub.notificationsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(
+                              route("notification-settings-manager.index"),
+                          ),
+                  },
+              ]
+            : []),
     ];
 
     return (
         <PageLayout
-            title={pageTitle}
             breadcrumbs={[{ name: pageTitle }]}
             config={{ showTitle: true }}
         >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="max-w-screen-2xl mx-auto w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cards.map((card) => (
                     <div
                         key={card.key}
@@ -110,6 +157,23 @@ export default function SettingsIndex({
                             }
                         `}
                         onClick={card.onOpen}
+                        role={card.onOpen ? "button" : undefined}
+                        tabIndex={card.onOpen ? 0 : undefined}
+                        onKeyDown={
+                            card.onOpen
+                                ? (e) => {
+                                      // Ignore keydowns bubbling up from a nested
+                                      // control (e.g. the Manage button) — only
+                                      // react when the card itself has focus, or
+                                      // Enter/Space on Manage double-fires onOpen.
+                                      if (e.target !== e.currentTarget) return;
+                                      if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          card.onOpen?.();
+                                      }
+                                  }
+                                : undefined
+                        }
                     >
                         <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${card.iconBg} ${card.iconColor}`}
@@ -154,6 +218,7 @@ export default function SettingsIndex({
                         </div>
                     </div>
                 ))}
+                </div>
             </div>
 
             <Drawer

@@ -2,29 +2,32 @@
 
 namespace App\Traits;
 
-use Carbon\Carbon;
 use App\Helper\Files;
 use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Services\DealActivityEventService;
+use App\Services\DealAutomationService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use ReflectionClass;
 
 trait CustomFieldsTrait
 {
-
     public $model;
+
     private $extraData;
+
     public $custom_fields;
+
     public $custom_fields_data;
 
     /** Get company ID for current object
      * @return int Returns current object's company id
      */
-
     private function getModelName()
     {
         $model = new ReflectionClass($this);
@@ -42,13 +45,12 @@ trait CustomFieldsTrait
                 'custom_field_group_id' => 1,
                 'label' => $field['label'],
                 'name' => $field['name'],
-                'type' => $field['type']
+                'type' => $field['type'],
             ];
 
             if (isset($field['required']) && (in_array(strtolower($field['required']), ['yes', 'on', 1]))) {
                 $insertData['required'] = 'yes';
-            }
-            else {
+            } else {
                 $insertData['required'] = 'no';
             }
 
@@ -57,8 +59,7 @@ trait CustomFieldsTrait
                 if (is_array($field['value'])) {
                     $insertData['values'] = json_encode($field['value']);
 
-                }
-                else {
+                } else {
                     $insertData['values'] = $field['value'];
                 }
             }
@@ -203,7 +204,9 @@ trait CustomFieldsTrait
     public function updateCustomFieldData($fields, $company_id = null)
     {
         $isDeal = $this instanceof Deal;
-        $beforeSnapshot = $isDeal ? $this->getCustomFieldsData()->toArray() : [];
+        $isLead = $this instanceof Lead;
+        $tracksCustomFieldChanges = $isDeal || $isLead;
+        $beforeSnapshot = $tracksCustomFieldChanges ? $this->getCustomFieldsData()->toArray() : [];
         $requestedFieldKeys = $this->collectCustomFieldKeysFromPayload($fields);
 
         foreach ($fields as $key => $value) {
@@ -214,7 +217,7 @@ trait CustomFieldsTrait
             $idarray = explode('_', $key);
             $id = end($idarray);
 
-            if (!is_numeric($id)) {
+            if (! is_numeric($id)) {
                 continue;
             }
 
@@ -248,7 +251,7 @@ trait CustomFieldsTrait
             $company = $company_id ? Company::findOrFail($company_id) : company();
 
             // Handle date fields - support both ISO format (Y-m-d) and company date format
-            if ($fieldType == 'date' && !empty($value)) {
+            if ($fieldType == 'date' && ! empty($value)) {
                 try {
                     // First try ISO format (from inline editing / HTML date input)
                     $value = Carbon::createFromFormat('Y-m-d', $value)->format('Y-m-d');
@@ -262,7 +265,7 @@ trait CustomFieldsTrait
                     }
                 }
             }
-            
+
             // Handle file uploads - supports single file, array of files, or external URLs
             if ($fieldType == 'file') {
                 // Get existing files from database
@@ -271,9 +274,9 @@ trait CustomFieldsTrait
                     ->where('model_id', $this->id)
                     ->where('custom_field_id', $id)
                     ->first();
-                
+
                 $existingFiles = [];
-                if ($existingEntry && !empty($existingEntry->value)) {
+                if ($existingEntry && ! empty($existingEntry->value)) {
                     // Try to parse as JSON array first
                     $decoded = json_decode($existingEntry->value, true);
                     if (is_array($decoded)) {
@@ -286,7 +289,7 @@ trait CustomFieldsTrait
 
                 /** @var \App\Services\FileStorageService $fileStorageService */
                 $fileStorageService = app(\App\Services\FileStorageService::class);
-                
+
                 // Handle clearing all files
                 if (empty($value) || $value === '') {
                     // Delete all existing files
@@ -312,16 +315,16 @@ trait CustomFieldsTrait
                                 // Fallback to local upload if external fails
                                 $newFiles[] = Files::uploadLocalOrS3($file, 'custom_fields');
                             }
-                        } elseif (is_string($file) && !empty($file)) {
+                        } elseif (is_string($file) && ! empty($file)) {
                             // Already a filename string or URL (for removal operations or pre-uploaded)
                             $newFiles[] = $file;
                         }
                     }
-                    
+
                     // Combine existing and new files
                     $allFiles = array_merge($existingFiles, $newFiles);
                     $allFiles = array_unique(array_filter($allFiles));
-                    
+
                     // Store as JSON array if multiple files, or single string if one file
                     $value = count($allFiles) > 1 ? json_encode(array_values($allFiles)) : (reset($allFiles) ?: '');
                 }
@@ -355,14 +358,14 @@ trait CustomFieldsTrait
                     }
                 }
                 // Handle JSON string (for partial removal of files)
-                elseif (is_string($value) && !empty($value)) {
+                elseif (is_string($value) && ! empty($value)) {
                     $decoded = json_decode($value, true);
                     if (is_array($decoded)) {
                         // This is a JSON array of filenames/URLs to keep
                         // Delete files that are no longer in the list
                         $filesToKeep = $decoded;
                         foreach ($existingFiles as $oldFile) {
-                            if (!in_array($oldFile, $filesToKeep)) {
+                            if (! in_array($oldFile, $filesToKeep)) {
                                 $this->deleteCustomFieldFile($oldFile, $fileStorageService);
                             }
                         }
@@ -372,7 +375,7 @@ trait CustomFieldsTrait
                     // Otherwise it's just a single filename string, leave as-is
                 }
             }
-            
+
             // Multi-value custom fields (checkbox options, multiselect, countries)
             // all store a JSON array. Checkbox used to be comma-joined; keep
             // writing JSON going forward so country-style values with commas
@@ -389,22 +392,22 @@ trait CustomFieldsTrait
                     $value = json_encode($value);
                 }
             }
-            
+
             // Handle phone field with country code
-            if ($fieldType == 'phone' && !empty($value)) {
+            if ($fieldType == 'phone' && ! empty($value)) {
                 // Check if there's a corresponding country code field
-                $countryCodeKey = 'country_phonecode_' . $id;
-                $countryIdentifierKey = 'country_identifier_' . $id;
-                
-                if (isset($fields[$countryCodeKey]) && !empty($fields[$countryCodeKey])) {
+                $countryCodeKey = 'country_phonecode_'.$id;
+                $countryIdentifierKey = 'country_identifier_'.$id;
+
+                if (isset($fields[$countryCodeKey]) && ! empty($fields[$countryCodeKey])) {
                     $countryCode = $fields[$countryCodeKey];
                     $countryIdentifier = $fields[$countryIdentifierKey] ?? '';
-                    
+
                     // Store phone with country code and country identifier for accurate reloading
                     $phoneData = [
-                        'phone' => '+' . $countryCode . ' ' . $value,
+                        'phone' => '+'.$countryCode.' '.$value,
                         'country_code' => $countryCode,
-                        'country_identifier' => $countryIdentifier
+                        'country_identifier' => $countryIdentifier,
                     ];
                     $value = json_encode($phoneData);
                 }
@@ -421,14 +424,13 @@ trait CustomFieldsTrait
                     ->where('model_id', $this->id)
                     ->where('custom_field_id', $id)
                     ->update(['value' => $stringValue]);
-            }
-            else {
+            } else {
                 DB::table('custom_fields_data')
                     ->insert([
                         'model' => $this->getModelName(),
                         'model_id' => $this->id,
                         'custom_field_id' => $id,
-                        'value' => $stringValue
+                        'value' => $stringValue,
                     ]);
             }
         }
@@ -438,25 +440,44 @@ trait CustomFieldsTrait
         // captured for $beforeSnapshot.
         $this->forgetCustomFieldValuesMemo();
 
-        if ($isDeal && !empty($requestedFieldKeys)) {
+        if ($tracksCustomFieldChanges && ! empty($requestedFieldKeys)) {
             $afterSnapshot = $this->getCustomFieldsData()->toArray();
-            $dealCustomFieldChanges = $this->buildDealCustomFieldChangeEntries(
+            $customFieldChanges = $this->buildDealCustomFieldChangeEntries(
                 $beforeSnapshot,
                 $afterSnapshot,
                 $requestedFieldKeys
             );
 
-            if (!empty($dealCustomFieldChanges)) {
-                Log::info('[CustomFieldsTrait] Recording deal custom field CRM events.', [
-                    'deal_id' => $this->id,
-                    'change_count' => count($dealCustomFieldChanges),
-                    'field_keys' => array_column($dealCustomFieldChanges, 'custom_field_id'),
+            if (! empty($customFieldChanges)) {
+                Log::info('[CustomFieldsTrait] Detected custom field changes.', [
+                    'model' => $isDeal ? 'deal' : 'lead',
+                    'model_id' => $this->id,
+                    'change_count' => count($customFieldChanges),
+                    'field_keys' => array_column($customFieldChanges, 'custom_field_id'),
                 ]);
 
-                app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $dealCustomFieldChanges);
+                // CRM timeline event: Deal-only today (DealActivityEventService::
+                // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
+                // out of scope for wiring up the automation trigger below.
+                if ($isDeal) {
+                    app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
+                }
+
+                // Deal automation trigger 'custom_field_updated' — this is what
+                // actually makes an automation configured with that trigger fire.
+                // process() itself already skips locked deals; no need to
+                // duplicate that check here.
+                if (! isRunningInConsoleOrSeeding()) {
+                    if ($isDeal) {
+                        app(DealAutomationService::class)->process($this, 'custom_field_updated');
+                    } else {
+                        app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                    }
+                }
             } else {
-                Log::debug('[CustomFieldsTrait] No deal custom field changes detected after save.', [
-                    'deal_id' => $this->id,
+                Log::debug('[CustomFieldsTrait] No custom field changes detected after save.', [
+                    'model' => $isDeal ? 'deal' : 'lead',
+                    'model_id' => $this->id,
                     'requested_field_keys' => $requestedFieldKeys,
                 ]);
             }
@@ -484,20 +505,20 @@ trait CustomFieldsTrait
     protected function resolveCustomFieldKey(string $key): ?string
     {
         if (preg_match('/^field_(\d+)$/', $key, $matches)) {
-            return 'field_' . $matches[1];
+            return 'field_'.$matches[1];
         }
 
         if (ctype_digit($key)) {
-            return 'field_' . $key;
+            return 'field_'.$key;
         }
 
         return null;
     }
 
     /**
-     * @param array<string, mixed> $before
-     * @param array<string, mixed> $after
-     * @param array<int, string>   $fieldKeys
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @param  array<int, string>  $fieldKeys
      * @return array<int, array{custom_field_id: int, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}>
      */
     protected function buildDealCustomFieldChangeEntries(array $before, array $after, array $fieldKeys): array
@@ -508,7 +529,7 @@ trait CustomFieldsTrait
             $oldVal = $before[$fieldKey] ?? null;
             $newVal = $after[$fieldKey] ?? null;
 
-            if (!$this->customFieldValueChanged(
+            if (! $this->customFieldValueChanged(
                 $oldVal !== null ? (string) $oldVal : null,
                 $newVal !== null ? (string) $newVal : null
             )) {
@@ -586,8 +607,7 @@ trait CustomFieldsTrait
     /**
      * Delete a custom field file, handling both external URLs and legacy local files.
      *
-     * @param string $fileRef  The file reference (could be an external URL or a local filename)
-     * @param \App\Services\FileStorageService $fileStorageService
+     * @param  string  $fileRef  The file reference (could be an external URL or a local filename)
      */
     protected function deleteCustomFieldFile(string $fileRef, \App\Services\FileStorageService $fileStorageService): void
     {
@@ -614,5 +634,4 @@ trait CustomFieldsTrait
             Files::deleteFile($fileRef, 'custom_fields');
         }
     }
-
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { Deferred, router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
 import {
@@ -54,6 +54,13 @@ import useLeadTaskCreate from "./hooks/useLeadTaskCreate";
 import useLeadMeetingCreate from "./hooks/useLeadMeetingCreate";
 import useLeadDocuments from "./hooks/useLeadDocuments";
 import useLeadDuplicates from "./hooks/useLeadDuplicates";
+import type { Task as RedesignedTask } from "@/Types/Task";
+import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
+import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
+import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
+import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
+import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import { afterCreateTaskFormSubmit, patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
 import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
@@ -128,6 +135,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         files,
         filesLoading,
         addTask,
+        setTasks,
     } = useLeadWorkspace();
 
     const overviewPending =
@@ -176,6 +184,20 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
         useLeadMeetingCreate(lead);
     const duplicates = useLeadDuplicates(lead.id);
+
+    // Behind crm.tasks-workspace-redesign, "Add task" opens the redesigned
+    // form (checklist/attachments fields, multi-record linking) instead of
+    // the older AddTaskModal — createRedesignedTask's own setTasks patch is
+    // a no-op (this page's task list is patched via addTask, same as the
+    // old flow already does) since it only needs the created task back.
+    const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
+    const { persistExtras } = useTaskExtras();
+    const {
+        createTask: createRedesignedTask,
+        isCreating: isCreatingRedesignedTask,
+        createErrors: createRedesignedTaskErrors,
+        clearCreateErrors: clearCreateRedesignedErrors,
+    } = useTasksWorkspaceMutations(() => {}, null);
 
     const qualification = useLeadQualificationWorkspace(lead, {
         enabled: showQualification,
@@ -852,42 +874,107 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 }}
             />
 
-            <AddTaskModal
-                open={addTaskOpen}
-                onClose={() => {
-                    setAddTaskOpen(false);
-                    clearTaskErrors();
-                }}
-                saving={taskCreating}
-                errors={taskErrors}
-                defaultAssigneeUserId={lead.lead_owner?.id}
-                onSubmit={(form: AddTaskFormState) =>
-                    createTask(form, (task) => {
-                        if (task) addTask(task);
+            {useRedesignedTasks ? (
+                <Deferred data="taskCategories" fallback={null}>
+                    <TaskRedesignFormModal
+                        open={addTaskOpen}
+                        mode="create"
+                        columns={props.taskBoardColumns ?? []}
+                        categories={props.taskCategories ?? []}
+                        lockedLinks={[
+                            {
+                                type: "lead",
+                                id: lead.id,
+                                name: lead.client_name || "Lead",
+                            },
+                        ]}
+                        saving={isCreatingRedesignedTask}
+                        errors={createRedesignedTaskErrors}
+                        onClose={() => {
+                            setAddTaskOpen(false);
+                            clearCreateRedesignedErrors();
+                        }}
+                        onSubmit={(values) =>
+                            createRedesignedTask(
+                                {
+                                    title: values.title,
+                                    startDate: values.startDate,
+                                    dueDate: values.dueDate,
+                                    dueTime: values.dueTime,
+                                    priority: values.priority,
+                                    description: values.description,
+                                    assignees: values.assignees,
+                                    categoryId: values.categoryId,
+                                    boardColumnId:
+                                        values.boardColumnId ?? undefined,
+                                    links: formLinksPayload(values),
+                                },
+                                afterCreateTaskFormSubmit(
+                                    values,
+                                    persistExtras,
+                                    (task) => {
+                                        if (task) {
+                                            addTask(
+                                                task as unknown as Parameters<
+                                                    typeof addTask
+                                                >[0],
+                                            );
+                                        }
+                                        setAddTaskOpen(false);
+                                    },
+                                    (task, result) => {
+                                        setTasks(
+                                            (prev) =>
+                                                patchTaskListExtrasCounts(
+                                                    prev as unknown as RedesignedTask[],
+                                                    task.id,
+                                                    result,
+                                                ) as unknown as typeof prev,
+                                        );
+                                    },
+                                ),
+                            )
+                        }
+                    />
+                </Deferred>
+            ) : (
+                <AddTaskModal
+                    open={addTaskOpen}
+                    onClose={() => {
                         setAddTaskOpen(false);
-                    })
-                }
-                labels={{
-                    title: td("Create task", { source: "en" }),
-                    cancel: td("Cancel", { source: "en" }),
-                    submit: td("Create task", { source: "en" }),
-                    titleField: td("Title", { source: "en" }),
-                    titlePlaceholder: td("What needs to be done?", { source: "en" }),
-                    description: td("Description", { source: "en" }),
-                    descriptionPlaceholder: td("Optional details", { source: "en" }),
-                    startDate: td("Start date", { source: "en" }),
-                    dueDate: td("Due date", { source: "en" }),
-                    dueTime: td("Due time", { source: "en" }),
-                    priority: td("Priority", { source: "en" }),
-                    priorityHigh: td("High", { source: "en" }),
-                    priorityMedium: td("Medium", { source: "en" }),
-                    priorityLow: td("Low", { source: "en" }),
-                    priorityHighest: td("Highest", { source: "en" }),
-                    priorityUrgent: td("Urgent", { source: "en" }),
-                    assignees: td("Assignees", { source: "en" }),
-                    dateRangeError: td("Due date must be on or after start date", { source: "en" }),
-                }}
-            />
+                        clearTaskErrors();
+                    }}
+                    saving={taskCreating}
+                    errors={taskErrors}
+                    defaultAssigneeUserId={lead.lead_owner?.id}
+                    onSubmit={(form: AddTaskFormState) =>
+                        createTask(form, (task) => {
+                            if (task) addTask(task);
+                            setAddTaskOpen(false);
+                        })
+                    }
+                    labels={{
+                        title: td("Create task", { source: "en" }),
+                        cancel: td("Cancel", { source: "en" }),
+                        submit: td("Create task", { source: "en" }),
+                        titleField: td("Title", { source: "en" }),
+                        titlePlaceholder: td("What needs to be done?", { source: "en" }),
+                        description: td("Description", { source: "en" }),
+                        descriptionPlaceholder: td("Optional details", { source: "en" }),
+                        startDate: td("Start date", { source: "en" }),
+                        dueDate: td("Due date", { source: "en" }),
+                        dueTime: td("Due time", { source: "en" }),
+                        priority: td("Priority", { source: "en" }),
+                        priorityHigh: td("High", { source: "en" }),
+                        priorityMedium: td("Medium", { source: "en" }),
+                        priorityLow: td("Low", { source: "en" }),
+                        priorityHighest: td("Highest", { source: "en" }),
+                        priorityUrgent: td("Urgent", { source: "en" }),
+                        assignees: td("Assignees", { source: "en" }),
+                        dateRangeError: td("Due date must be on or after start date", { source: "en" }),
+                    }}
+                />
+            )}
 
             <ScheduleMeetingModal
                 open={addMeetingOpen}

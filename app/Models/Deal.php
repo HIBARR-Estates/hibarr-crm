@@ -389,13 +389,13 @@ class Deal extends BaseModel
     }
 
     /**
-     * A won deal is locked for further edits even without the manual
-     * is_locked flag — mirrors resolveDealOutcome() in
-     * resources/js/lib/dealOutcome.ts so frontend gates match what this
-     * will actually accept.
+     * Only the explicit is_locked flag locks a deal — winning a deal does
+     * NOT lock it on its own. Use the lock_deal automation action (or a
+     * manual lock) when that protection is wanted. Mirrors
+     * isDealEffectivelyLocked() in resources/js/lib/dealOutcome.ts.
      */
     public function isLocked(): bool
     {
-        return (bool) $this->is_locked || $this->outcome_status === \App\Enums\OutcomeStatus::Won;
+        return (bool) $this->is_locked;
     }
 }

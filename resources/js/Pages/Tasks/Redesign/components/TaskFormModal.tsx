@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type MouseEvent,
+    type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -84,6 +91,7 @@ export default function TaskFormModal({
     const [recordType, setRecordType] = useState<RecordTypeKey>("lead");
     const [recordQuery, setRecordQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const assigneeTriggerRef = useRef<HTMLButtonElement>(null);
     const linksTriggerRef = useRef<HTMLButtonElement>(null);
     const assigneeFloat = useFloatingMenuPosition(
@@ -95,8 +103,8 @@ export default function TaskFormModal({
         zIndex: 60,
         maxHeight: 420,
     });
-    const assigneePosition = clampMenuLeft(assigneeFloat, 300);
-    const linksPosition = clampMenuLeft(linksFloat, 380);
+    const assigneePosition = clampMenuLeft(assigneeFloat, 300, panelRef);
+    const linksPosition = clampMenuLeft(linksFloat, 380, panelRef);
 
     const patchForm = (patch: Partial<TaskFormValues>) =>
         setForm((current) => ({ ...current, ...patch }));
@@ -237,13 +245,14 @@ export default function TaskFormModal({
             zIndex={50}
             panelClassName="tasks-modal-panel flex w-full flex-col overflow-hidden"
             panelStyle={{
-                width: "fit-content",
-                minWidth: 640,
-                maxWidth: "min(1040px, 94vw)",
+                // Fixed size regardless of content — opening the links picker
+                // or adding chips/checklist rows must not resize the panel.
+                width: "min(640px, 94vw)",
                 background: T.WHITE,
                 borderRadius: 12,
                 boxShadow: "0 20px 50px rgba(22,41,77,0.18)",
             }}
+            panelRef={panelRef}
         >
             <div
                 className="flex items-center justify-between"
@@ -327,6 +336,8 @@ export default function TaskFormModal({
                         resize: "vertical",
                         minHeight: 108,
                         outline: "none",
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
                     }}
                 />
 
@@ -365,6 +376,13 @@ export default function TaskFormModal({
                                 onClick={(event) => event.stopPropagation()}
                                 style={{
                                     ...assigneePosition,
+                                    // assigneePosition's maxHeight (400, see
+                                    // useFloatingMenuPosition above) caps the
+                                    // box but doesn't clip its own content —
+                                    // without this, a long employee list
+                                    // spills out past the rounded background
+                                    // instead of scrolling.
+                                    overflowY: "auto",
                                     width: 280,
                                     padding: 12,
                                     background: T.WHITE,
@@ -515,11 +533,20 @@ export default function TaskFormModal({
 function clampMenuLeft(
     style: ReturnType<typeof useFloatingMenuPosition>,
     menuWidth: number,
+    panelRef: RefObject<HTMLDivElement | null>,
 ) {
     if (!style) return null;
     if (typeof style.left !== "number") return style;
+    // Bound by the modal panel's own right edge, not just the viewport —
+    // the panel is narrower than the viewport, so a popover can fit on
+    // screen while still spilling past the panel it's anchored inside.
+    const panelRight = panelRef.current?.getBoundingClientRect().right;
+    const maxLeft = Math.min(
+        window.innerWidth - menuWidth,
+        (panelRight ?? window.innerWidth) - menuWidth,
+    );
     return {
         ...style,
-        left: Math.max(8, Math.min(style.left, window.innerWidth - menuWidth)),
+        left: Math.max(8, Math.min(style.left, maxLeft)),
     };
 }

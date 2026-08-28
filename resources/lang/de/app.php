@@ -111,6 +111,7 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Erinnerungseinstellungen',
+            'preferences' => 'Einstellungen',
             'entity_reminder_defaults' => 'Erinnerungsstandards',
         ],
         'reminderDefaults' => 'Erinnerungsstandards',
@@ -594,6 +595,7 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Erinnerungseinstellungen',
+        'preferences' => 'Einstellungen',
         'entity_reminder_defaults' => 'Erinnerungsstandards',
         'reminder_defaults' => 'Erinnerungsstandards',
     ],

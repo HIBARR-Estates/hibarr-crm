@@ -42,6 +42,7 @@ class UserTimezoneCaptureTest extends TestCase
             $table->string('password')->nullable();
             $table->string('status')->default('active');
             $table->string('timezone', 64)->nullable();
+            $table->boolean('timezone_locked')->default(false);
             $table->boolean('admin_approval')->default(true);
             $table->timestamps();
         });
@@ -87,12 +88,13 @@ class UserTimezoneCaptureTest extends TestCase
             'password' => bcrypt('secret'),
             'status' => 'active',
             'timezone' => $timezone,
+            'timezone_locked' => false,
             'admin_approval' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $user = new User();
+        $user = new User;
         $user->forceFill([
             'id' => $id,
             'company_id' => 1,
@@ -100,6 +102,7 @@ class UserTimezoneCaptureTest extends TestCase
             'email' => 'tz-user@example.com',
             'status' => 'active',
             'timezone' => $timezone,
+            'timezone_locked' => false,
             'admin_approval' => true,
         ]);
         $user->exists = true;
@@ -180,6 +183,25 @@ class UserTimezoneCaptureTest extends TestCase
             ->assertJsonPath('status', 'success');
 
         $this->assertSame('America/New_York', $this->userTimezone($user->id));
+    }
+
+    public function test_does_not_overwrite_when_timezone_is_locked(): void
+    {
+        $this->withoutMiddleware();
+
+        $user = $this->createUser('Europe/Berlin');
+        DB::table('users')->where('id', $user->id)->update(['timezone_locked' => 1]);
+        $user->timezone_locked = true;
+        $this->actingAsSessionUser($user);
+
+        $response = $this->postJson(route('profile.update_timezone'), [
+            'timezone' => 'America/New_York',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertSame('Europe/Berlin', $this->userTimezone($user->id));
     }
 
     public function test_rejects_non_iana_timezone(): void

@@ -111,6 +111,7 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Hatırlatıcı Tercihleri',
+            'preferences' => 'Tercihler',
             'entity_reminder_defaults' => 'Hatırlatıcı Varsayılanları',
         ],
         'reminderDefaults' => 'Hatırlatıcı Varsayılanları',
@@ -593,6 +594,7 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Hatırlatıcı Tercihleri',
+        'preferences' => 'Tercihler',
         'entity_reminder_defaults' => 'Hatırlatıcı Varsayılanları',
         'reminder_defaults' => 'Hatırlatıcı Varsayılanları',
     ],

@@ -152,6 +152,10 @@ class ProfileController extends AccountBaseController
         $user = user();
         $timezone = $request->validated('timezone');
 
+        if ($user->timezone_locked) {
+            return Reply::success(__('messages.updateSuccess'));
+        }
+
         if ($user->timezone === $timezone) {
             return Reply::success(__('messages.updateSuccess'));
         }

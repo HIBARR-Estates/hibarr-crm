@@ -156,7 +156,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 return;
             }
 
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 deal_id: deal.id,

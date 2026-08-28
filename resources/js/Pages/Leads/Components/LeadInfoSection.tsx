@@ -72,7 +72,6 @@ interface Props {
     projects: any[];
     isEditMode: boolean;
     onEditModeChange: (value: boolean) => void;
-    useLeadCoreFields?: boolean;
 }
 
 export default function LeadInfoSection({
@@ -88,7 +87,6 @@ export default function LeadInfoSection({
     projects,
     isEditMode,
     onEditModeChange,
-    useLeadCoreFields = false,
 }: Props) {
     const { props } = usePage();
     const languageOptions = (
@@ -1098,9 +1096,7 @@ const ageRangeOptions = useMemo(
                             />
                         </DetailField>
 
-                        {useLeadCoreFields && (
-                            <>
-                                <DetailField label={t("pages.leads.info.fields.languages", { defaultValue: "Languages" })}>
+                        <DetailField label={t("pages.leads.info.fields.languages", { defaultValue: "Languages" })}>
                                     <EditableField
                                         value={currentLeadState.languages || []}
                                         fieldName="languages"
@@ -1208,8 +1204,6 @@ const ageRangeOptions = useMemo(
                                         loading={isFieldLoading("occupation")}
                                     />
                                 </DetailField>
-                            </>
-                        )}
 
                         <DetailField label={t("pages.leads.info.fields.company")}>
                             <EditableField

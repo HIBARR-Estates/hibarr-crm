@@ -91,6 +91,8 @@ interface TasksWorkspaceModalsProps {
     bulkUpdateFields: BulkUpdateFieldDef[];
     taskSettingsOpen: boolean;
     onCloseTaskSettings: () => void;
+    /** When true, attachment rows wait for the deferred openTask prop. */
+    deferAttachments?: boolean;
 }
 
 export default function TasksWorkspaceModals({
@@ -141,6 +143,7 @@ export default function TasksWorkspaceModals({
     bulkUpdateFields,
     taskSettingsOpen,
     onCloseTaskSettings,
+    deferAttachments = false,
 }: TasksWorkspaceModalsProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -160,6 +163,7 @@ export default function TasksWorkspaceModals({
                 people={mentionablePeople}
                 currentUser={currentUser}
                 onChecklistChange={onChecklistChange}
+                deferAttachments={deferAttachments}
             />
 
             <TaskFormModal
