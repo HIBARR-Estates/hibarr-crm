@@ -10,6 +10,7 @@ use App\Support\FeatureFlags;
 use App\Support\NotificationBypass;
 use App\Support\NotificationBypassCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UserPreferencesController extends AccountBaseController
@@ -63,7 +64,9 @@ class UserPreferencesController extends AccountBaseController
     public function updateBypass(Request $request)
     {
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:128'],
+            'key' => ['required_without:keys', 'string', 'max:128'],
+            'keys' => ['required_without:key', 'array', 'min:1'],
+            'keys.*' => ['string', 'max:128'],
             'bypassed' => ['required', 'boolean'],
         ]);
 
@@ -71,30 +74,44 @@ class UserPreferencesController extends AccountBaseController
             return response()->json(Reply::error(__('messages.errorOccured')), 403);
         }
 
-        $key = $validated['key'];
+        $keys = array_values(array_unique(
+            isset($validated['keys']) ? $validated['keys'] : [$validated['key']]
+        ));
 
-        if (! NotificationBypassCatalog::isBypassable($key)) {
-            return response()->json(Reply::error(__('messages.errorOccured')), 422);
+        foreach ($keys as $key) {
+            if (! NotificationBypassCatalog::isBypassable($key)) {
+                return response()->json(Reply::error(__('messages.errorOccured')), 422);
+            }
         }
 
         $userId = (int) user()->id;
         $bypassed = (bool) $validated['bypassed'];
 
-        if ($bypassed) {
-            UserNotificationBypass::query()->firstOrCreate([
-                'user_id' => $userId,
-                'notification_key' => $key,
-            ]);
-        } else {
-            UserNotificationBypass::query()
-                ->where('user_id', $userId)
-                ->where('notification_key', $key)
-                ->delete();
+        DB::transaction(function () use ($keys, $userId, $bypassed) {
+            if ($bypassed) {
+                foreach ($keys as $key) {
+                    UserNotificationBypass::query()->firstOrCreate([
+                        'user_id' => $userId,
+                        'notification_key' => $key,
+                    ]);
+                }
+            } else {
+                UserNotificationBypass::query()
+                    ->where('user_id', $userId)
+                    ->whereIn('notification_key', $keys)
+                    ->delete();
+            }
+        });
+
+        $payload = [
+            'keys' => $keys,
+            'bypassed' => $bypassed,
+        ];
+
+        if (count($keys) === 1) {
+            $payload['key'] = $keys[0];
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), [
-            'key' => $key,
-            'bypassed' => $bypassed,
-        ]);
+        return Reply::successWithData(__('messages.updateSuccess'), $payload);
     }
 }
