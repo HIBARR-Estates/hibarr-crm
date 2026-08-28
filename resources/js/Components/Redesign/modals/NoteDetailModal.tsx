@@ -8,7 +8,7 @@ import IntegrationOriginBadge from "@/Components/Redesign/primitives/Integration
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { HtmlRenderer } from "@/Components/ContentRenderer";
 
@@ -62,6 +62,7 @@ export default function NoteDetailModal({
     labels,
 }: NoteDetailModalProps) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const [editing, setEditing] = useState(false);
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
@@ -88,7 +89,7 @@ export default function NoteDetailModal({
         (note as Note & { added_by_user?: { name?: string } }).added_by_user
             ?.name ??
         labels.unknownAuthor;
-    const createdLabel = formatCompanyDateTime(
+    const createdLabel = formatDateTime(
         note.created_at || note.updated_at || new Date(),
         { fallback: "" },
     );
