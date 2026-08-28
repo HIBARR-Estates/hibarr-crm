@@ -238,6 +238,19 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     }
 
     //    protected $with = ['session:id'];
+    /**
+     * Globally eager-loaded on *every* User query, so anything listed here is a
+     * standing per-query cost across the whole app.
+     *
+     * `clientContact` was removed: the only reads of the relation are commented
+     * out (App\Helper\start.php), nothing in Blade or the frontend consumes it
+     * (`is_client_contact` is a column, and `session('clientContact')` is the
+     * session store — neither touches this relation), yet it cost one extra
+     * query on every user lookup. It is still available lazily if ever needed.
+     *
+     * `session:id` stays: the employee/client Blade components read it to show a
+     * presence indicator, and dropping it would turn those list views into N+1.
+     */
     protected $with = [
     //        'clientDetails:id,company_name',
     //        'employeeDetail.designation:id,name',
@@ -245,7 +258,6 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     //        'company:id,company_name',
     //        'roles:name,display_name',
        'session:id',
-       'clientContact'
     ];
 
     /**
@@ -755,7 +767,44 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
             ->get();
     }
 
+    /**
+     * Employee list for pickers and dropdowns.
+     *
+     * Memoised for the request: a single deal page asked for the same list from
+     * five call sites, and each call re-ran the join plus its eager-loaded
+     * relations. Keyed on every argument *and* the acting user/company, because
+     * the result is permission-filtered.
+     *
+     * Scoped container binding, so it is rebuilt per request, per test, and
+     * flushed between queue jobs — a console bypass was deliberately *not* used
+     * here: `runningInConsole()` is true under tinker and PHPUnit too, so it
+     * would have left this live only in the one environment that can't be tested.
+     * Long artisan commands key by company id, so each still resolves its own list.
+     *
+     * Returns a shallow clone so a caller adding/removing entries cannot corrupt
+     * the copy handed to the next one.
+     */
     public static function allEmployees($exceptId = null, $active = false, $overRidePermission = null, $companyId = null)
+    {
+        $memoKey = 'user.all-employees.' . md5(serialize([
+            $exceptId,
+            $active,
+            $overRidePermission,
+            $companyId,
+            user()?->id,
+            company()?->id,
+        ]));
+
+        $container = app();
+
+        if (! $container->bound($memoKey)) {
+            $container->scoped($memoKey, fn () => self::buildAllEmployees($exceptId, $active, $overRidePermission, $companyId));
+        }
+
+        return clone $container->make($memoKey);
+    }
+
+    private static function buildAllEmployees($exceptId = null, $active = false, $overRidePermission = null, $companyId = null)
     {
         if (!isRunningInConsoleOrSeeding() && !is_null($overRidePermission)) {
             $viewEmployeePermission = $overRidePermission;
@@ -1045,29 +1094,59 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     /**
      * @return false|mixed
      */
+    /**
+     * @return false|mixed
+     */
     public function permission($permission)
     {
-        $cacheKey = 'permission-' . $permission . '-' . $this->id;
+        return $this->permissionMap()[$permission] ?? false;
+    }
 
-        cache()->forget($cacheKey); // Clear the cache
+    /**
+     * Every permission this user holds, as [permission name => permission type].
+     *
+     * Previously `permission()` ran one query per call against a no-TTL cache that
+     * the line above the lookup unconditionally forgot — so the cache never hit. A
+     * single deal page makes 61 such calls across 29 distinct permissions, i.e. 29
+     * queries; the whole set is only a few hundred small rows, so it is fetched once.
+     *
+     * Held as a *scoped* container binding rather than a static: the container is
+     * rebuilt per HTTP request, per test, and flushed between queue jobs, so a
+     * permission change is picked up on the next request/job. A plain static would
+     * survive for the life of the process — which leaked between tests and would
+     * have pinned stale permissions inside a long-running queue worker.
+     *
+     * @return array<string, string>
+     */
+    protected function permissionMap(): array
+    {
+        $key = 'user.permission-map.' . $this->id;
+        $container = app();
 
-        if (cache()->has($cacheKey)) {
-            return cache($cacheKey);
+        if (! $container->bound($key)) {
+            $userId = $this->id;
+
+            $container->scoped($key, function () use ($userId) {
+                $rows = UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
+                    ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
+                    ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
+                    ->where('user_permissions.user_id', $userId)
+                    ->get();
+
+                $map = [];
+
+                foreach ($rows as $row) {
+                    // First row wins, matching the previous ->first() lookup.
+                    if (! array_key_exists($row->permission_name, $map)) {
+                        $map[$row->permission_name] = $row->permission_type;
+                    }
+                }
+
+                return $map;
+            });
         }
 
-        $permissionType = UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
-            ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
-            ->select('permission_types.name')
-            ->where('permissions.name', $permission)
-            ->where('user_permissions.user_id', $this->id)
-            ->first();
-
-        $permissionType = $permissionType ? $permissionType->name : false;
-
-        cache([$cacheKey => $permissionType]);
-
-        return $permissionType;
-
+        return $container->make($key);
     }
 
     public function permissionTypeId($permission)

@@ -51,7 +51,8 @@ trait DealFormDataTrait
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+        // Reuse the group resolved on the line above rather than re-querying it.
+        $dealCustomFieldGroup = $getCustomFieldGroupsWithFields;
         $customFieldCategories = collect();
         if ($dealCustomFieldGroup) {
             $customFieldCategories = CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)

@@ -517,6 +517,22 @@ class BaseNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * Resolve via() channels through the shared NotificationChannelResolver, using
+     * this notification's own company/Slack-eligibility context.
+     *
+     * @param  mixed  $notifiable
+     * @return array<int, string>
+     */
+    protected function resolveChannels(?\App\Models\EmailNotificationSetting $setting, $notifiable): array
+    {
+        $slackEligible = (bool) ($setting
+            && $this->company?->slackSetting?->status === 'active'
+            && $this->slackUserNameCheck($notifiable));
+
+        return app(\App\Services\NotificationChannelResolver::class)->resolve($setting, $notifiable, $slackEligible);
+    }
+
+    /**
      * Check if the notifiable has a Slack username.
      *
      * @param  mixed  $notifiable

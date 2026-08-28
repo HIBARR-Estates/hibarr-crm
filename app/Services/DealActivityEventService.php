@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
+use App\Enums\MeetingAttendanceOutcome;
 use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
@@ -102,6 +103,39 @@ class DealActivityEventService
             'remark' => $followUp->remark,
             'added_by' => $followUp->added_by,
         ]);
+    }
+
+    /**
+     * Records the outcome-change itself. The remark text (if any) is created as
+     * its own DealNote by MeetingAttendanceConfirmationService — DealNoteObserver
+     * already records that as a separate `deal_note_added` timeline entry, so
+     * only a cross-reference id is carried here, not the note text.
+     */
+    public function recordMeetingOutcomeLogged(
+        Deal $deal,
+        DealFollowUp $followUp,
+        MeetingAttendanceOutcome $outcome,
+        ?int $noteId = null
+    ): void {
+        Log::info('[DealActivityEventService::recordMeetingOutcomeLogged] Called.', [
+            'deal_id' => $deal->id,
+            'followup_id' => $followUp->id,
+            'outcome' => $outcome->value,
+            'company_id' => $deal->company_id,
+        ]);
+
+        $meetingTypeName = trim((string) ($followUp->meetingType?->name ?? ''));
+        $meetingLabel = $meetingTypeName !== '' ? $meetingTypeName : 'Follow-up';
+
+        $this->record('deal_meeting_outcome_logged', $deal, [
+            'comment' => $meetingLabel . ': ' . $outcome->label(),
+            'followup_id' => $followUp->id,
+            'meeting_type_id' => $followUp->meeting_type_id,
+            'meeting_type_name' => $meetingTypeName !== '' ? $meetingTypeName : null,
+            'outcome' => $outcome->value,
+            'outcome_label' => $outcome->label(),
+            'note_id' => $noteId,
+        ], $this->generationTypeForCurrentUser());
     }
 
     public function recordTaskCreated(Deal $deal, Task $task): void

@@ -8,6 +8,8 @@ import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
+import HostField from "@/Components/Redesign/fields/HostField";
+import useMeetingHostFlag from "@/Hooks/useMeetingHostFlag";
 import type { Reminder } from "@/Types/api/deal-followup";
 import {
     DEFAULT_MEETING_REMINDERS,
@@ -40,9 +42,16 @@ interface MeetingFormFieldsProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     disabled?: boolean;
     showExistingMeetingLinkHint?: boolean;
+    /** Deal agent / lead owner — forced into participants (and locked) when not chosen as host. */
+    mustIncludeOwner?: { id: number; name: string } | null;
+    /** True in edit mode — host is immutable after creation. */
+    hostLocked?: boolean;
 }
 
-const REMINDER_UNIT_OPTIONS: Array<{ value: Reminder["type"]; labelKey: string }> = [
+const REMINDER_UNIT_OPTIONS: Array<{
+    value: Reminder["type"];
+    labelKey: string;
+}> = [
     { value: "minute", labelKey: "reminder_unit_minutes" },
     { value: "hour", labelKey: "reminder_unit_hours" },
     { value: "day", labelKey: "reminder_unit_days" },
@@ -60,12 +69,15 @@ export default function MeetingFormFields({
     meetingTypes,
     disabled = false,
     showExistingMeetingLinkHint = false,
+    mustIncludeOwner = null,
+    hostLocked = false,
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const userEmail = props.auth?.user?.email;
     const zohoAllowed = canUseZohoMeeting(userEmail);
+    const hostFeatureEnabled = useMeetingHostFlag();
     const [showDuration, setShowDuration] = useState(Boolean(form.duration));
     const [showMore, setShowMore] = useState(form.reminders.length > 0);
     const [reminderTime, setReminderTime] = useState(1);
@@ -81,8 +93,9 @@ export default function MeetingFormFields({
         form.platform === "physical" ? "physical" : "office";
 
     const meetingTypeTitle =
-        meetingTypes.find((type) => type.id === form.meetingTypeId)?.name?.trim() ||
-        "";
+        meetingTypes
+            .find((type) => type.id === form.meetingTypeId)
+            ?.name?.trim() || "";
 
     const resolvedEndTime =
         form.endTime ||
@@ -171,7 +184,8 @@ export default function MeetingFormFields({
             // Keep a pasted link when switching between manual providers;
             // clear when moving to/from Zoho auto-link.
             meetingLink:
-                usesAutoMeetingLink(provider) || usesAutoMeetingLink(form.platform)
+                usesAutoMeetingLink(provider) ||
+                usesAutoMeetingLink(form.platform)
                     ? ""
                     : form.meetingLink,
         });
@@ -213,7 +227,9 @@ export default function MeetingFormFields({
 
     return (
         <div className="meeting-form-fields">
-            <ModalField label={t("pages.deals.workspace.meetings.meeting_type")}>
+            <ModalField
+                label={t("pages.deals.workspace.meetings.meeting_type")}
+            >
                 <MenuSelect
                     fullWidth
                     value={form.meetingTypeId ?? ""}
@@ -243,7 +259,9 @@ export default function MeetingFormFields({
                     onChange={(event) =>
                         updateForm({ remark: event.target.value })
                     }
-                    placeholder={t("pages.deals.workspace.meetings.agenda_placeholder")}
+                    placeholder={t(
+                        "pages.deals.workspace.meetings.agenda_placeholder",
+                    )}
                     rows={3}
                     style={{ resize: "vertical" }}
                 />
@@ -260,9 +278,11 @@ export default function MeetingFormFields({
                     }
                 />
             </ModalField>
-            
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ModalField label={t("pages.deals.workspace.meetings.start_time")}>
+                <ModalField
+                    label={t("pages.deals.workspace.meetings.start_time")}
+                >
                     <input
                         type="time"
                         value={form.startTime}
@@ -273,7 +293,9 @@ export default function MeetingFormFields({
                     />
                 </ModalField>
 
-                <ModalField label={t("pages.deals.workspace.meetings.end_time")}>
+                <ModalField
+                    label={t("pages.deals.workspace.meetings.end_time")}
+                >
                     <input
                         type="time"
                         value={form.endTime}
@@ -373,7 +395,10 @@ export default function MeetingFormFields({
                             const zohoLocked =
                                 provider.value === "zoho" && !zohoAllowed;
                             const optionDisabled = disabled || zohoLocked;
-                            const zohoTooltip = td("Zoho Meeting is only available for @hibarr.de email accounts.", { source: "en" });
+                            const zohoTooltip = td(
+                                "Zoho Meeting is only available for @hibarr.de email accounts.",
+                                { source: "en" },
+                            );
 
                             const optionButton = (
                                 <button
@@ -455,21 +480,21 @@ export default function MeetingFormFields({
                                     onClick={() =>
                                         handlePhysicalVenueChange(option.value)
                                     }
-                                className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
-                                style={{
-                                    fontFamily: "inherit",
-                                    borderColor: selected
-                                        ? T.BLUE_MID
-                                        : T.BORDER,
-                                    background: selected
-                                        ? T.BLUE_LIGHT
-                                        : T.WHITE,
-                                    color: selected ? T.BLUE_DARK : T.TEXT,
-                                    cursor: disabled
-                                        ? "default"
-                                        : "pointer",
-                                }}
-                            >
+                                    className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
+                                    style={{
+                                        fontFamily: "inherit",
+                                        borderColor: selected
+                                            ? T.BLUE_MID
+                                            : T.BORDER,
+                                        background: selected
+                                            ? T.BLUE_LIGHT
+                                            : T.WHITE,
+                                        color: selected ? T.BLUE_DARK : T.TEXT,
+                                        cursor: disabled
+                                            ? "default"
+                                            : "pointer",
+                                    }}
+                                >
                                     {td(option.label, { source: "en" })}
                                 </button>
                             );
@@ -481,7 +506,9 @@ export default function MeetingFormFields({
                                 type="text"
                                 value={form.locationDetail}
                                 disabled={disabled}
-                                placeholder={td("Enter meeting location", { source: "en" })}
+                                placeholder={td("Enter meeting location", {
+                                    source: "en",
+                                })}
                                 onChange={(event) =>
                                     updateForm({
                                         locationDetail: event.target.value,
@@ -493,9 +520,10 @@ export default function MeetingFormFields({
                 </ModalField>
             )}
 
-
             {isVideoMeeting && autoLink && (
-                <ModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
+                <ModalField
+                    label={t("pages.deals.workspace.meetings.meeting_link")}
+                >
                     {form.meetingLink ? (
                         <div
                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
@@ -508,11 +536,7 @@ export default function MeetingFormFields({
                                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md"
                                 style={{ background: T.WHITE }}
                             >
-                                <Icon
-                                    name="video"
-                                    size={14}
-                                    color={T.BLUE}
-                                />
+                                <Icon name="video" size={14} color={T.BLUE} />
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div
@@ -536,7 +560,9 @@ export default function MeetingFormFields({
                                 href={form.meetingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                aria-label={t("pages.deals.workspace.meetings.open_meeting_link")}
+                                aria-label={t(
+                                    "pages.deals.workspace.meetings.open_meeting_link",
+                                )}
                                 className="flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold no-underline"
                                 style={{ background: T.BLUE, color: T.WHITE }}
                             >
@@ -556,11 +582,7 @@ export default function MeetingFormFields({
                                 border: `1px dashed ${T.BORDER}`,
                             }}
                         >
-                            <Icon
-                                name="video"
-                                size={14}
-                                color={T.TEXT_HINT}
-                            />
+                            <Icon name="video" size={14} color={T.TEXT_HINT} />
                             <p
                                 className="text-[12px] leading-relaxed"
                                 style={{
@@ -568,7 +590,10 @@ export default function MeetingFormFields({
                                     color: T.TEXT_MUTED,
                                 }}
                             >
-                                {td("A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.", { source: "en" })}
+                                {td(
+                                    "A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.",
+                                    { source: "en" },
+                                )}
                             </p>
                         </div>
                     )}
@@ -578,19 +603,26 @@ export default function MeetingFormFields({
                                 ? t(
                                       "pages.deals.workspace.meetings.existing_link_hint",
                                   )
-                                : td("This event will also be created and added to your Zoho Calendar.", { source: "en" })}
+                                : td(
+                                      "This event will also be created and added to your Zoho Calendar.",
+                                      { source: "en" },
+                                  )}
                         </p>
                     )}
                 </ModalField>
             )}
 
             {isVideoMeeting && needsManualLink && (
-                <ModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
+                <ModalField
+                    label={t("pages.deals.workspace.meetings.meeting_link")}
+                >
                     <div className="flex items-stretch gap-2">
                         <input
                             type="url"
                             inputMode="url"
-                            placeholder={td("Paste your meeting link", { source: "en" })}
+                            placeholder={td("Paste your meeting link", {
+                                source: "en",
+                            })}
                             value={form.meetingLink}
                             disabled={disabled}
                             onChange={(event) =>
@@ -629,9 +661,7 @@ export default function MeetingFormFields({
                                         ? T.WHITE
                                         : T.TEXT_HINT,
                                     border: `1px solid ${
-                                        externalCreateUrl
-                                            ? T.NAVY
-                                            : T.BORDER
+                                        externalCreateUrl ? T.NAVY : T.BORDER
                                     }`,
                                     cursor:
                                         disabled || !externalCreateUrl
@@ -656,9 +686,7 @@ export default function MeetingFormFields({
                                             : T.TEXT_HINT
                                     }
                                 />
-                                <span>
-                                    {td("Open", { source: "en" })}
-                                </span>
+                                <span>{td("Open", { source: "en" })}</span>
                             </button>
                         ) : null}
                     </div>
@@ -678,11 +706,83 @@ export default function MeetingFormFields({
                 </ModalField>
             )}
 
-            <ModalField label={t("pages.deals.workspace.meetings.participants_field")}>
+            {hostFeatureEnabled && (
+                <ModalField label={t("pages.deals.workspace.meetings.host_field")}>
+                    <HostField
+                        value={form.hostId}
+                        onChange={(hostId) => {
+                            // The host is tracked separately — never also a participant.
+                            const withoutNewHost = form.participants.filter(
+                                (id) => id !== hostId,
+                            );
+                            // The deal agent / lead owner must stay on the meeting
+                            // as a locked participant the moment they're no
+                            // longer the host — add them immediately rather than
+                            // waiting for a save round-trip.
+                            const mustIncludeId =
+                                mustIncludeOwner && mustIncludeOwner.id !== hostId
+                                    ? mustIncludeOwner.id
+                                    : null;
+                            const participants =
+                                mustIncludeId !== null &&
+                                !withoutNewHost.includes(mustIncludeId)
+                                    ? [mustIncludeId, ...withoutNewHost]
+                                    : withoutNewHost;
+
+                            updateForm({ hostId, participants });
+                        }}
+                        disabled={disabled || hostLocked}
+                    />
+                    {mustIncludeOwner && mustIncludeOwner.id !== form.hostId && (
+                        <p className="meeting-form-hint">
+                            {td(
+                                `If they aren't the host, ${mustIncludeOwner.name} will be added to participants automatically and can't be removed.`,
+                                { source: "en" },
+                            )}
+                        </p>
+                    )}
+                    {!hostLocked && form.hostId && (
+                        <p className="meeting-form-hint">
+                            {td(
+                                "The host can't be changed after this meeting is saved.",
+                                { source: "en" },
+                            )}
+                        </p>
+                    )}
+                </ModalField>
+            )}
+
+            <ModalField
+                label={t("pages.deals.workspace.meetings.participants_field")}
+            >
                 <AssigneeField
-                    value={form.participants}
+                    value={
+                        hostFeatureEnabled
+                            ? form.participants.filter(
+                                  (id) => id !== form.hostId,
+                              )
+                            : form.participants
+                    }
                     onChange={(participants) => updateForm({ participants })}
                     disabled={disabled}
+                    lockedIds={
+                        hostFeatureEnabled &&
+                        mustIncludeOwner &&
+                        mustIncludeOwner.id !== form.hostId
+                            ? [mustIncludeOwner.id]
+                            : []
+                    }
+                    excludeIds={
+                        hostFeatureEnabled && form.hostId != null
+                            ? [form.hostId]
+                            : []
+                    }
+                    lockedRemovalMessage={(name) =>
+                        td(
+                            `${name} can't be removed — because they are the deal agent`,
+                            { source: "en" },
+                        )
+                    }
                 />
             </ModalField>
 
@@ -697,7 +797,9 @@ export default function MeetingFormFields({
                         size={12}
                         color={T.BLUE}
                     />
-                    {showMore ? t("pages.deals.common.less") : t("pages.deals.common.more")}
+                    {showMore
+                        ? t("pages.deals.common.less")
+                        : t("pages.deals.common.more")}
                 </button>
             </div>
 
@@ -706,14 +808,18 @@ export default function MeetingFormFields({
                     className="space-y-3 pt-3"
                     style={{ borderTop: `1px solid ${T.BORDER}` }}
                 >
-                    <ModalField label={t("pages.deals.workspace.meetings.reminders")}>
+                    <ModalField
+                        label={t("pages.deals.workspace.meetings.reminders")}
+                    >
                         <div className="flex flex-wrap items-center gap-2">
                             {DEFAULT_MEETING_REMINDERS.map((reminder) => (
                                 <span
                                     key={reminderLabel(reminder)}
                                     className="dr-pill dr-pill-gray"
                                 >
-                                    {td(reminderLabel(reminder), { source: "en" })}
+                                    {td(reminderLabel(reminder), {
+                                        source: "en",
+                                    })}
                                 </span>
                             ))}
                             {form.reminders.map((reminder, index) => (
@@ -726,16 +832,19 @@ export default function MeetingFormFields({
                                         gap: 6,
                                     }}
                                 >
-                                    {td(reminderLabel(reminder), { source: "en" })}
+                                    {td(reminderLabel(reminder), {
+                                        source: "en",
+                                    })}
                                     <button
                                         type="button"
                                         disabled={disabled}
                                         aria-label={`${t("pages.deals.workspace.meetings.remove_reminder")} ${reminderLabel(reminder)}`}
                                         onClick={() =>
                                             updateForm({
-                                                reminders: form.reminders.filter(
-                                                    (_, i) => i !== index,
-                                                ),
+                                                reminders:
+                                                    form.reminders.filter(
+                                                        (_, i) => i !== index,
+                                                    ),
                                             })
                                         }
                                         style={{
@@ -774,7 +883,9 @@ export default function MeetingFormFields({
                                     letterSpacing: "0.05em",
                                 }}
                             >
-                                {t("pages.deals.workspace.meetings.add_custom_reminder")}
+                                {t(
+                                    "pages.deals.workspace.meetings.add_custom_reminder",
+                                )}
                             </div>
                             <div className="flex items-center gap-2">
                                 <input
@@ -782,14 +893,17 @@ export default function MeetingFormFields({
                                     min={1}
                                     value={reminderTime}
                                     disabled={disabled}
-                                    aria-label={t("pages.deals.workspace.meetings.reminder_amount")}
+                                    aria-label={t(
+                                        "pages.deals.workspace.meetings.reminder_amount",
+                                    )}
                                     onChange={(event) =>
                                         setReminderTime(
                                             Math.max(
                                                 1,
                                                 Math.floor(
-                                                    Number(event.target.value) ||
-                                                    1,
+                                                    Number(
+                                                        event.target.value,
+                                                    ) || 1,
                                                 ),
                                             ),
                                         )
@@ -839,9 +953,9 @@ export default function MeetingFormFields({
                                     title={
                                         !canAddReminder
                                             ? t(
-                                                "pages.deals.workspace.meetings.reminder_already_added",
-                                            ) ||
-                                            "That reminder is already included (defaults cover 1h, 30m, 15m, and 5m)"
+                                                  "pages.deals.workspace.meetings.reminder_already_added",
+                                              ) ||
+                                              "That reminder is already included (defaults cover 1h, 30m, 15m, and 5m)"
                                             : undefined
                                     }
                                     onClick={handleAddReminder}
@@ -851,13 +965,18 @@ export default function MeetingFormFields({
                             </div>
                             {!canAddReminder && reminderTime >= 1 ? (
                                 <p className="meeting-form-hint">
-                                    {td("A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).", { source: "en" })}
+                                    {td(
+                                        "A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).",
+                                        { source: "en" },
+                                    )}
                                 </p>
                             ) : null}
                         </div>
 
                         <p className="meeting-form-hint">
-                            {t("pages.deals.workspace.meetings.default_reminders_hint")}
+                            {t(
+                                "pages.deals.workspace.meetings.default_reminders_hint",
+                            )}
                         </p>
                     </ModalField>
                 </div>

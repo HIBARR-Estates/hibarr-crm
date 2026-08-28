@@ -502,11 +502,16 @@ class DealGatheringService
                         if ($min !== null && $max !== null) {
                             [$min, $max] = [min($min, $max), max($min, $max)];
                         }
-                        $hibarrData[$key] = json_encode([
-                            'min' => $min,
-                            'max' => $max,
-                            'currency' => is_string($value['currency'] ?? null) ? $value['currency'] : null,
-                        ]);
+                        // A range with neither bound is an empty field. Storing
+                        // {"min":null,"max":null,...} would leave a non-empty column
+                        // that every "is this filled?" check reads as answered.
+                        $hibarrData[$key] = ($min === null && $max === null)
+                            ? null
+                            : json_encode([
+                                'min' => $min,
+                                'max' => $max,
+                                'currency' => is_string($value['currency'] ?? null) ? $value['currency'] : null,
+                            ]);
                     } else {
                         $hibarrData[$key] = $value;
                     }

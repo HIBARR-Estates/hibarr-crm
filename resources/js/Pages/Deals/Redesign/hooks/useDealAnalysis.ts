@@ -30,7 +30,7 @@ export interface UseDealAnalysisReturn {
     isCompleting: boolean;
     open: () => void;
     minimize: (afterSaves?: Promise<unknown>) => void;
-    complete: (completionType: CompletionType, unfilledCount: number) => Promise<void>;
+    complete: (completionType: CompletionType, unfilledCount: number, afterSaves?: Promise<unknown>) => Promise<void>;
 }
 
 export default function useDealAnalysis(): UseDealAnalysisReturn {
@@ -58,18 +58,27 @@ export default function useDealAnalysis(): UseDealAnalysisReturn {
 
     // Closes immediately; the reload waits on any in-flight field saves so the
     // deal info tab shows the values just edited in the modal.
+    //
+    // leadCustomFieldsData is refreshed alongside the deal because the modal is
+    // unmounted while closed: it re-seeds its value store from these props on
+    // reopen, so leaving them stale would make lead custom field edits look
+    // reverted until a full page load.
     const minimize = useCallback((afterSaves?: Promise<unknown>) => {
         setMinimized(deal.id);
         setIsOpen(false);
         Promise.resolve(afterSaves)
             .catch(() => {})
-            .then(() => router.reload({ only: ["deal"] }));
+            .then(() => router.reload({ only: ["deal", "leadCustomFieldsData"] }));
     }, [deal.id]);
 
+    // afterSaves mirrors minimize(): the modal's debounced field writes must land
+    // before we mark the analysis complete, or the "unfilled" count we report — and
+    // the reload below — races the last edit the agent made.
     const complete = useCallback(
-        async (completionType: CompletionType, unfilledCount: number): Promise<void> => {
+        async (completionType: CompletionType, unfilledCount: number, afterSaves?: Promise<unknown>): Promise<void> => {
             setIsCompleting(true);
             try {
+                await Promise.resolve(afterSaves).catch(() => {});
                 const resp = await axios.patch(
                     route("deals.gathering.analysis_complete", deal.id),
                     { completion_type: completionType, unfilled_count: unfilledCount },
@@ -84,6 +93,7 @@ export default function useDealAnalysis(): UseDealAnalysisReturn {
                         analysis_completed_by: resp.data.analysis_completed_by,
                     }));
                     setIsOpen(false);
+                    router.reload({ only: ["deal", "leadCustomFieldsData"] });
                 }
             } finally {
                 setIsCompleting(false);

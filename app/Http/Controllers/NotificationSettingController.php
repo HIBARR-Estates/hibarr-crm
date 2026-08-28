@@ -8,12 +8,14 @@ use App\Models\PusherSetting;
 use App\Models\PushNotificationSetting;
 use App\Models\SlackSetting;
 use App\Models\SmtpSetting;
+use App\Services\NotificationSettingsService;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Http\Request;
 
 class NotificationSettingController extends AccountBaseController
 {
 
-    public function __construct()
+    public function __construct(private readonly NotificationSettingsService $settingsService)
     {
         parent::__construct();
         $this->pageTitle = 'app.menu.notificationSettings';
@@ -55,6 +57,14 @@ class NotificationSettingController extends AccountBaseController
             $this->view = 'notification-settings.ajax.pusher-setting';
             break;
 
+        case 'database-setting':
+            $this->checkedAll = $this->emailSettings->count() == $this->emailSettings->filter(function ($value) {
+                    return $value->send_database == 'yes';
+            })->count();
+
+            $this->view = 'notification-settings.ajax.database-setting';
+            break;
+
         default:
             $this->checkedAll = $this->emailSettings->count() == $this->emailSettings->filter(function ($value) {
                     return $value->send_email == 'yes';
@@ -84,6 +94,20 @@ class NotificationSettingController extends AccountBaseController
         }
 
         return view('notification-settings.index', $this->data);
+    }
+
+    /**
+     * Save the in-app (database channel) notification toggles. Unlike the other
+     * 3 tabs, there is no connection config to save alongside — this is purely
+     * a type-toggle checklist, so the route's {notification_setting} id is unused.
+     */
+    public function update(Request $request)
+    {
+        $this->settingsService->updateChannelToggles('send_database', $request->send_database ?? []);
+
+        session()->forget('email_notification_setting');
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
 }

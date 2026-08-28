@@ -4,10 +4,8 @@ namespace App\Notifications;
 
 use App\Models\EmailNotificationSetting;
 use App\Models\Task;
-use App\Notifications\Channels\BeamsPushChannel;
 use App\Support\EntityActivityMailBuilder;
 use Illuminate\Notifications\Messages\MailMessage;
-use NotificationChannels\OneSignal\OneSignalChannel;
 
 abstract class TaskAssigneeNotification extends BaseNotification
 {
@@ -33,44 +31,11 @@ abstract class TaskAssigneeNotification extends BaseNotification
      */
     public function via($notifiable): array
     {
-        $via = ['database'];
-
         if ($this->suppressBulkTransactionalEmails) {
-            return $via;
+            return $this->emailSetting && $this->emailSetting->send_database === 'yes' ? ['database'] : [];
         }
 
-        if (
-            $this->emailSetting
-            && $this->emailSetting->send_email === 'yes'
-            && $notifiable->email_notifications
-            && filled($notifiable->email)
-        ) {
-            $via[] = 'mail';
-        }
-
-        if (
-            $this->emailSetting
-            && $this->emailSetting->send_slack === 'yes'
-            && $this->company?->slackSetting?->status === 'active'
-            && $this->slackUserNameCheck($notifiable)
-        ) {
-            $via[] = 'slack';
-        }
-
-        if ($this->emailSetting && $this->emailSetting->send_push === 'yes' && push_setting()->status === 'active') {
-            $via[] = OneSignalChannel::class;
-        }
-
-        if (
-            $this->emailSetting
-            && $this->emailSetting->send_push === 'yes'
-            && push_setting()->beams_push_status === 'active'
-            && isset($notifiable->id)
-        ) {
-            $via[] = BeamsPushChannel::class;
-        }
-
-        return $via;
+        return $this->resolveChannels($this->emailSetting, $notifiable);
     }
 
     /**

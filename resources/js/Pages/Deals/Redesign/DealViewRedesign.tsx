@@ -53,6 +53,9 @@ import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
+/** Stable identity so an absent prop doesn't invalidate memos every render. */
+const EMPTY_FIELDS: any[] = [];
+
 export default function DealViewRedesign(props: DealShowProps) {
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -161,6 +164,9 @@ function DealViewRedesignInner(
 
     // Analysis progress off saved values, so the status card reports the same
     // totals as the modal header. Recomputed when the deal reloads on modal close.
+    // leadCustomFields must be passed or `lead_custom_field` steps resolve to no
+    // field at all and silently drop out of the denominator here but not in the
+    // modal — the two would then disagree.
     const analysisProgress = useMemo(
         () =>
             computeAnalysisProgress(
@@ -171,8 +177,16 @@ function DealViewRedesignInner(
                     ...((pageProps.leadCustomFieldsData as Record<string, any>) ?? {}),
                 },
                 deal,
+                (pageProps.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS,
             ),
-        [props.analysisScript, dealInfoCategories, fields, deal, pageProps.leadCustomFieldsData],
+        [
+            props.analysisScript,
+            dealInfoCategories,
+            fields,
+            deal,
+            pageProps.leadCustomFieldsData,
+            pageProps.leadCustomFields,
+        ],
     );
 
     const dealInfoFieldKeys = useMemo(
@@ -309,15 +323,16 @@ function DealViewRedesignInner(
                 { name: td(pageTitle) },
             ]}
         >
-            {showAnalysis && (
+            {/* Gate on isOpen as well as the flag: the modal's hooks build the whole
+                section/progress/rail model, and mounting it while closed made every
+                deal page render pay for an analysis nobody is looking at. */}
+            {showAnalysis && analysis.isOpen && (
                 <DealAnalysisModal
                     analysis={analysis}
                     dealInfoCategories={dealInfoCategories}
                     fields={fields}
                     visibleLeadFieldKeys={props.visibleLeadFieldKeys}
                     analysisScript={props.analysisScript}
-                    onAddTask={() => setAddTaskOpen(true)}
-                    onScheduleMeeting={() => setAddMeetingOpen(true)}
                 />
             )}
             <DealAddTaskModal

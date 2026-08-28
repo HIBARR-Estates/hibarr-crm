@@ -1,5 +1,4 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import AnalysisSectionBlock from "./AnalysisSectionBlock";
 import type { AnalysisSection } from "./types/analysisTypes";
 
@@ -10,9 +9,11 @@ export interface ScrollPanelHandle {
 interface Props {
     sections: AnalysisSection[];
     fields: any[];
+    leadFields?: any[];
     localDealFieldValues: Record<string, any>;
     canEdit: boolean;
     numberByKey?: Record<string, number>;
+    sectionProgress?: Record<string, { filled: number; total: number }>;
     totalFilled: number;
     totalFields: number;
     currentStep: number;
@@ -28,9 +29,11 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
     const {
         sections,
         fields,
+        leadFields,
         localDealFieldValues,
         canEdit,
         numberByKey,
+        sectionProgress,
         totalFilled,
         totalFields,
         currentStep,
@@ -41,8 +44,6 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         onFieldChange,
         onActiveSectionChange,
     } = props;
-
-    const { td } = useTd();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -85,8 +86,8 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
     if (sections.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-400">
-                <p className="text-sm">{td("No analysis steps configured.", { source: "en" })}</p>
-                <p className="text-xs italic">{td("Add steps in pipeline settings to get started.", { source: "en" })}</p>
+                <p className="text-sm">{"No analysis steps configured."}</p>
+                <p className="text-xs italic">{"Add steps in pipeline settings to get started."}</p>
             </div>
         );
     }
@@ -130,9 +131,11 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                         ref={(el) => { sectionRefs.current[section.id] = el; }}
                         section={section}
                         fields={fields}
+                        leadFields={leadFields}
                         localDealFieldValues={localDealFieldValues}
                         canEdit={canEdit}
                         numberByKey={numberByKey}
+                        progress={sectionProgress?.[section.id]}
                         onFieldUpdate={onFieldUpdate}
                         onFieldChange={onFieldChange}
                     />
@@ -151,11 +154,11 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-                {td("Previous", { source: "en" })}
+                {"Previous"}
             </button>
 
             <span className="text-xs font-medium tabular-nums text-slate-500">
-                {td("Section", { source: "en" })} {Math.min(currentStep + 1, stepCount)} {td("of", { source: "en" })} {stepCount}
+                {"Section"} {Math.min(currentStep + 1, stepCount)} {"of"} {stepCount}
             </span>
 
             <button
@@ -165,7 +168,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: "#0A2E5D" }}
             >
-                {td("Next", { source: "en" })}
+                {"Next"}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>

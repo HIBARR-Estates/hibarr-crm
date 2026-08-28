@@ -36,18 +36,7 @@ abstract class TaskLifecycleBaseNotification extends BaseNotification
      */
     public function via($notifiable): array
     {
-        $via = ['database'];
-
-        if (
-            $this->emailSetting
-            && $this->emailSetting->send_email === 'yes'
-            && $notifiable->email_notifications
-            && $notifiable->email !== ''
-        ) {
-            $via[] = 'mail';
-        }
-
-        return $via;
+        return $this->resolveChannels($this->emailSetting, $notifiable);
     }
 
     public function toMail($notifiable): MailMessage

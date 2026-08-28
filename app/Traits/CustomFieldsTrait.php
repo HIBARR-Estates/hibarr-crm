@@ -68,36 +68,93 @@ trait CustomFieldsTrait
         }
     }
 
+    /**
+     * The custom field group for this model, optionally with its fields (and their
+     * visibility rule sets, rule groups and criteria) eager-loaded.
+     *
+     * Memoised for the lifetime of the request, keyed by model + company + whether
+     * fields were requested. A deal page resolves this five times across different
+     * model instances — the deal, its lead, and again inside the shell form data —
+     * and each resolve costs ~5 queries (group, fields, rule sets, rule groups,
+     * criteria, categories), so it was ~25 queries for one unchanging answer.
+     *
+     * Scoped container binding rather than a static or an instance property: field
+     * *definitions* cannot change midway through a request, and the container is
+     * rebuilt per request, per test and flushed between queue jobs, so a definition
+     * change is picked up on the next one. Call `forgetCustomFieldGroupMemo()` after
+     * writing definitions inside a request that then re-reads them.
+     */
     public function getCustomFieldGroups($fields = false)
     {
-        $customFieldGroup = CustomFieldGroup::where('model', $this->getModelName());
+        $companyId = method_exists($this, 'company')
+            ? ($this->company_id ?: company()->id)
+            : null;
 
-        $customFieldGroup = $customFieldGroup->when(method_exists($this, 'company'), function ($query) {
-            return $query->where('company_id', $this->company_id ?: company()->id);
-        })->first();
+        $key = self::customFieldGroupMemoKey($this->getModelName(), $companyId, (bool) $fields);
+        $container = app();
 
-        if ($fields && $customFieldGroup) {
-            // Load custom fields with their visibility rule sets
-            try {
-                $customFieldGroup->load(['customFieldWithRules' => function ($query) {
-                    $query->orderBy('display_order');
-                }])->append(['fields']);
-            } catch (\Exception $e) {
-                // Log the error for debugging
-                \Log::warning('Failed to load custom field visibility rules in CustomFieldsTrait', [
-                    'error' => $e->getMessage(),
-                    'model' => $this->getModelName(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
-                // If tables don't exist yet, load without relationships
-                $customFieldGroup->load(['customField' => function ($query) {
-                    $query->orderBy('display_order');
-                }])->append(['fields']);
-            }
+        if ($container->bound($key)) {
+            return $container->make($key);
         }
 
-        return $customFieldGroup;
+        $modelName = $this->getModelName();
+        $hasCompany = method_exists($this, 'company');
+
+        $container->scoped($key, function () use ($fields, $modelName, $hasCompany, $companyId) {
+            $customFieldGroup = CustomFieldGroup::where('model', $modelName);
+
+            $customFieldGroup = $customFieldGroup->when($hasCompany, function ($query) use ($companyId) {
+                return $query->where('company_id', $companyId);
+            })->first();
+
+            if ($fields && $customFieldGroup) {
+                // Load custom fields with their visibility rule sets
+                try {
+                    $customFieldGroup->load(['customFieldWithRules' => function ($query) {
+                        $query->orderBy('display_order');
+                    }])->append(['fields']);
+                } catch (\Exception $e) {
+                    // Log the error for debugging
+                    \Log::warning('Failed to load custom field visibility rules in CustomFieldsTrait', [
+                        'error' => $e->getMessage(),
+                        'model' => $modelName,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+
+                    // If tables don't exist yet, load without relationships
+                    $customFieldGroup->load(['customField' => function ($query) {
+                        $query->orderBy('display_order');
+                    }])->append(['fields']);
+                }
+            }
+
+            return $customFieldGroup;
+        });
+
+        return $container->make($key);
+    }
+
+    private static function customFieldGroupMemoKey(string $model, $companyId, bool $fields): string
+    {
+        return 'custom-field-group.' . $model . '.' . ($companyId ?? 'none') . '.' . ($fields ? 'with-fields' : 'bare');
+    }
+
+    /** Drop the memoised custom field values (call after writing them). */
+    public function forgetCustomFieldValuesMemo(): void
+    {
+        $this->customFieldValuesMemo = null;
+    }
+
+    /** Drop the memo after adding or changing custom field definitions. */
+    public function forgetCustomFieldGroupMemo(): void
+    {
+        $companyId = method_exists($this, 'company')
+            ? ($this->company_id ?: company()->id)
+            : null;
+
+        foreach ([true, false] as $fields) {
+            app()->forgetInstance(self::customFieldGroupMemoKey($this->getModelName(), $companyId, $fields));
+        }
     }
 
     public function getCustomFieldGroupsWithFields()
@@ -105,8 +162,22 @@ trait CustomFieldsTrait
         return $this->getCustomFieldGroups(true);
     }
 
+    /**
+     * Values are read twice per model on a deal page (once via withCustomFields,
+     * once directly), so memoise per instance. Unlike field *definitions* these
+     * do change on write, hence the explicit invalidation in updateCustomFieldData
+     * before it takes its "after" snapshot.
+     *
+     * @var \Illuminate\Support\Collection|null
+     */
+    private $customFieldValuesMemo = null;
+
     public function getCustomFieldsData()
     {
+        if ($this->customFieldValuesMemo !== null) {
+            return $this->customFieldValuesMemo;
+        }
+
         $modelId = $this->id;
         $modelName = $this->getModelName();
 
@@ -127,7 +198,7 @@ trait CustomFieldsTrait
         // Convert to ['field_{id}' => $value]; value is null when no custom_fields_data row exists
         $result = $data->pluck('value', 'field_id');
 
-        return $result;
+        return $this->customFieldValuesMemo = $result;
     }
 
     public function updateCustomFieldData($fields, $company_id = null)
@@ -363,6 +434,11 @@ trait CustomFieldsTrait
                     ]);
             }
         }
+
+        // Values just changed on disk — drop the memo so the "after" snapshot below
+        // (and any later read on this instance) reflects the write, not the state
+        // captured for $beforeSnapshot.
+        $this->forgetCustomFieldValuesMemo();
 
         if ($tracksCustomFieldChanges && ! empty($requestedFieldKeys)) {
             $afterSnapshot = $this->getCustomFieldsData()->toArray();

@@ -1,4 +1,5 @@
 import type { FieldOption } from "./fieldValueCodecs";
+import { handleOptionGroupArrows } from "./optionGroupNav";
 
 interface CheckboxInputProps {
     value: string[];
@@ -18,13 +19,19 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
 
     return (
         // flex-wrap + content-sized chips: options flow across rows instead of stacking
-        <div className="flex flex-wrap gap-2">
+        <div
+            className="flex flex-wrap gap-2"
+            data-option-group
+            onKeyDown={(e) => handleOptionGroupArrows(e, 'input[type="checkbox"]')}
+        >
             {options.map((o) => {
                 const checked = value.includes(o.value);
                 return (
                     <label
                         key={o.value}
-                        className="inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full"
+                        // The real checkbox is sr-only with the tick drawn separately, so
+                        // without focus-within a keyboard user gets no focus indicator at all.
+                        className="inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full focus-within:ring-2 focus-within:ring-sky-400 focus-within:ring-offset-1"
                         style={{
                             backgroundColor: checked ? "#f0f9ff" : "#fff",
                             borderColor: checked ? "#38bdf8" : "#e2e8f0",

@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useMemo, useState } from "react";
+import { useFormData } from "@/Hooks/useFormData";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealNoteCreate from "../../hooks/useDealNoteCreate";
-import DealEditableField from "../primitives/DealEditableField";
 import DealSwitch from "../primitives/DealSwitch";
+import AnalysisFieldRow from "./center/AnalysisFieldRow";
+import { FormField } from "./AnalysisCustomFieldForm";
 import { ANALYSIS_FIELD_META } from "../../config/analysisFieldMeta";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import type { AnalysisSectionItem } from "./types/analysisTypes";
@@ -13,28 +14,6 @@ interface Props {
     number?: number;
     canEdit: boolean;
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
-    onFieldChange?: (fieldId: number, value: any) => void;
-}
-
-function NumberBadge({ number, answered }: { number?: number; answered: boolean }) {
-    return (
-        <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-all"
-            style={
-                answered
-                    ? { backgroundColor: "#d1fae5", color: "#065f46", boxShadow: "0 0 0 2px #a7f3d0" }
-                    : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
-            }
-        >
-            {answered ? (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-            ) : (
-                number ?? "·"
-            )}
-        </div>
-    );
 }
 
 function InstructionCard({ text }: { text: string }) {
@@ -63,16 +42,35 @@ export default function AnalysisQuestionRow({
     number,
     canEdit,
     onFieldUpdate,
-    onFieldChange,
 }: Props) {
     const { deal } = useDealWorkspace();
-    const { td } = useTd();
     const { createNote, isSaving } = useDealNoteCreate(deal.id);
     const [answer, setAnswer] = useState("");
     const [saved, setSaved] = useState(false);
 
     const meta = ANALYSIS_FIELD_META[item.scriptItem.item_key];
     const label = item.scriptItem.label_override || meta?.label || item.scriptItem.item_key;
+
+    // Prompt body lives in guide_text, but scripts authored in the old builder put it
+    // in label_override (its input was the prominent one) — fall back so those render
+    // their text instead of the "not provided" placeholder.
+    const promptText = item.scriptItem.guide_text || item.scriptItem.label_override || "";
+
+    // FK fields (deal category) get their choices from /form-data rather than a
+    // static list. Fetched unconditionally-but-disabled: hooks can't sit behind
+    // the `kind` early-returns below.
+    const { data: formDataRows } = useFormData<any>(meta?.formDataType ?? "categories", {
+        paginate: false,
+        enabled: !!meta?.formDataType,
+    });
+    const fkOptions = useMemo(
+        () =>
+            (formDataRows ?? []).map((r: any) => ({
+                value: String(r.id),
+                label: String(r.category_name ?? r.name ?? r.type ?? r.label ?? r.id),
+            })),
+        [formDataRows],
+    );
 
     const saveAnswer = () => {
         if (!answer.trim()) return;
@@ -84,22 +82,18 @@ export default function AnalysisQuestionRow({
 
     if (item.kind === "instruction") {
         return (
-            <InstructionCard text={item.scriptItem.guide_text || td("No instruction text provided.", { source: "en" })} />
+            <InstructionCard text={promptText || "No instruction text provided."} />
         );
     }
 
     if (item.kind === "question") {
         return (
-            <div className="flex gap-4 mb-7">
-                <NumberBadge number={number} answered={saved} />
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium mb-2 leading-snug" style={{ color: T.TEXT }}>
-                        {item.scriptItem.guide_text || td("No question text provided.", { source: "en" })}
-                    </p>
+            <AnalysisFieldRow number={number} answered={saved} label={promptText || "No question text provided."}>
+                <div>
                     <textarea
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
-                        placeholder={td("Type the lead's answer here…", { source: "en" })}
+                        placeholder={"Type the lead's answer here…"}
                         rows={3}
                         className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors"
                         style={{
@@ -127,27 +121,21 @@ export default function AnalysisQuestionRow({
                                 disabled={isSaving}
                                 onClick={saveAnswer}
                             >
-                                {isSaving ? td("Saving…", { source: "en" }) : td("Save as note", { source: "en" })}
+                                {isSaving ? "Saving…" : "Save as note"}
                             </button>
                         </div>
                     )}
                 </div>
-            </div>
+            </AnalysisFieldRow>
         );
     }
 
     // native_field, hibarr_field, lead_field
     if (!meta) {
         return (
-            <div className="flex gap-4 mb-7">
-                <NumberBadge number={number} answered={false} />
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
-                        {td(label, { source: "en" })}
-                    </p>
-                    <p className="text-xs italic" style={{ color: T.TEXT_HINT }}>{td("Field not configured.", { source: "en" })}</p>
-                </div>
-            </div>
+            <AnalysisFieldRow number={number} answered={false} label={label}>
+                <p className="text-xs italic" style={{ color: T.TEXT_HINT }}>{"Field not configured."}</p>
+            </AnalysisFieldRow>
         );
     }
 
@@ -166,34 +154,30 @@ export default function AnalysisQuestionRow({
 
     const filled = currentValue !== null && currentValue !== undefined && currentValue !== "";
 
+    // Booleans have no FormField equivalent; everything else renders through the
+    // same always-open inputs the custom fields use.
+    if (meta.fieldType === "boolean") {
+        return (
+            <AnalysisFieldRow number={number} answered={filled} label={label}>
+                <DealSwitch
+                    checked={!!currentValue}
+                    label={label}
+                    disabled={!canEdit}
+                    onChange={() => onFieldUpdate(item.scriptItem.item_key, !currentValue, updateType)}
+                />
+            </AnalysisFieldRow>
+        );
+    }
+
     return (
-        <div className="flex gap-4 mb-7">
-            <NumberBadge number={number} answered={filled} />
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
-                    {td(label, { source: "en" })}
-                </p>
-                {item.kind === "hibarr_field" && meta.fieldType === "boolean" ? (
-                    <DealSwitch
-                        checked={!!currentValue}
-                        label={td(label, { source: "en" })}
-                        disabled={!canEdit}
-                        onChange={() =>
-                            onFieldUpdate(item.scriptItem.item_key, !currentValue, updateType)
-                        }
-                    />
-                ) : (
-                    <DealEditableField
-                        value={currentValue}
-                        fieldName={item.scriptItem.item_key}
-                        fieldType={meta.fieldType as any}
-                        disabled={!canEdit}
-                        onSave={async (val: unknown) => {
-                            onFieldUpdate(item.scriptItem.item_key, val, updateType);
-                        }}
-                    />
-                )}
-            </div>
-        </div>
+        <FormField
+            // id is only used for file uploads, which native fields never are
+            field={{ id: 0, label, type: meta.fieldType, values: meta.formDataType ? fkOptions : meta.options }}
+            value={currentValue}
+            fieldNumber={number}
+            canEdit={canEdit}
+            onChange={() => {}}
+            onSave={(val) => onFieldUpdate(item.scriptItem.item_key, val, updateType)}
+        />
     );
 }

@@ -53,6 +53,7 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Support\FeatureFlags;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -553,7 +554,12 @@ class DealController extends AccountBaseController
             },
             'leadFlightItineraries',
         ])->findOrFail($id);
-        $this->loadDataForView();
+
+        // No loadDataForView() here — same reason index() skips it. It populates
+        // $this->* for Blade's $this->data contract (Deal::all(), every lead, all
+        // watchers, agents, packages, pipelines), and this action returns an
+        // Inertia response that reads none of it: 18 queries for 15 properties
+        // referenced zero times.
 
         // Load custom fields data
         $deal = $deal->withCustomFields();
@@ -758,8 +764,13 @@ class DealController extends AccountBaseController
             ),
             'leadCustomFieldsData' => $leadCustomFieldsData,
             'leadCustomFields' => $leadCustomFields,
+            // Synchronous, not deferred: the analysis modal opens on mount, so the
+            // script is on the critical path. Deferring it meant first paint had no
+            // script and the modal rendered a custom-field-category fallback before
+            // snapping to the real sections. Two indexed queries (pipeline_id is
+            // unique) is a cheap price for never rendering the wrong structure.
             ...(\App\Support\FeatureFlags::enabled('crm.deal-analysis') ? [
-                'analysisScript' => Inertia::defer(function () use ($deal) {
+                'analysisScript' => (function () use ($deal) {
                     $script = \App\Models\PipelineAnalysisScript::with('items')
                         ->where('pipeline_id', $deal->lead_pipeline_id)
                         ->first();
@@ -777,7 +788,7 @@ class DealController extends AccountBaseController
                             'position' => $i->position,
                         ]),
                     ];
-                }, 'formMeta'),
+                })(),
             ] : []),
         ]));
     }
@@ -2573,6 +2584,23 @@ class DealController extends AccountBaseController
             user()->id
         );
 
+        if (FeatureFlags::enabled('crm.meeting-host')) {
+            $followUp->host_id = $request->filled('host_id')
+                ? (int) $request->host_id
+                : $followUp->defaultHostUserId();
+
+            $followUp->participants = MeetingVisibilityService::ensureHostOwnerIsParticipant(
+                $followUp->participants,
+                $followUp->host_id,
+                $followUp->assignedAgentUserId()
+            );
+
+            $followUp->participants = MeetingVisibilityService::withoutHost(
+                $followUp->participants,
+                $followUp->host_id
+            );
+        }
+
         $followUp->status = 'scheduled';
         $followUp->save();
 
@@ -2627,6 +2655,11 @@ class DealController extends AccountBaseController
             ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
             ->values()
             ->toArray();
+
+        $host = $followUp->host_id ? User::find($followUp->host_id, ['id', 'name', 'image']) : null;
+        $followUp->host = $host
+            ? ['id' => $host->id, 'name' => $host->name, 'image' => $host->image ? $host->image_url : null]
+            : null;
 
         return $followUp;
     }
@@ -2716,6 +2749,23 @@ class DealController extends AccountBaseController
                 $request->participants,
                 $followUp->added_by ?? user()->id
             );
+
+            // host_id is immutable after creation (deliberately never read/set
+            // in this method) — but the deal's agent / lead's owner can still
+            // change over time, so re-check against the CURRENT owner whenever
+            // participants are edited.
+            if (FeatureFlags::enabled('crm.meeting-host')) {
+                $followUp->participants = MeetingVisibilityService::ensureHostOwnerIsParticipant(
+                    $followUp->participants,
+                    $followUp->host_id,
+                    $followUp->assignedAgentUserId()
+                );
+
+                $followUp->participants = MeetingVisibilityService::withoutHost(
+                    $followUp->participants,
+                    $followUp->host_id
+                );
+            }
         }
 
         // Set duration if provided

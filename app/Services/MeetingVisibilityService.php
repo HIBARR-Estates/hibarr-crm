@@ -37,6 +37,52 @@ class MeetingVisibilityService
     }
 
     /**
+     * Force the deal's agent (or the lead's owner) into the participants list
+     * when they are NOT the chosen host, so the person actually accountable
+     * for the deal/lead is never silently excluded from a meeting they
+     * didn't explicitly opt into hosting. Callers are responsible for also
+     * marking this id non-removable in the UI — this only guarantees
+     * server-side inclusion, not client-side immutability.
+     *
+     * @param  array<int|string>  $participants
+     * @return array<int>
+     */
+    public static function ensureHostOwnerIsParticipant(array $participants, ?int $hostId, ?int $ownerUserId): array
+    {
+        $normalized = array_values(array_unique(array_map('intval', array_filter($participants, 'is_numeric'))));
+
+        if ($ownerUserId === null || $ownerUserId === $hostId) {
+            return $normalized;
+        }
+
+        if (!in_array($ownerUserId, $normalized, true)) {
+            array_unshift($normalized, $ownerUserId);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * The host is tracked separately from participants — never list them
+     * twice. Applied last, after ensureCreatorIsParticipant()/
+     * ensureHostOwnerIsParticipant(), so it always wins even when the host
+     * happens to be the creator or the forced-in deal agent/lead owner.
+     *
+     * @param  array<int|string>  $participants
+     * @return array<int>
+     */
+    public static function withoutHost(array $participants, ?int $hostId): array
+    {
+        $normalized = array_values(array_unique(array_map('intval', array_filter($participants, 'is_numeric'))));
+
+        if ($hostId === null) {
+            return $normalized;
+        }
+
+        return array_values(array_diff($normalized, [$hostId]));
+    }
+
+    /**
      * Deals the user may attach when scheduling a meeting from the dashboard or meetings page.
      */
     public static function schedulableDealsQuery(): Builder
