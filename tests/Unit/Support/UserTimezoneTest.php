@@ -62,6 +62,7 @@ class UserTimezoneTest extends TestCase
     public function test_user_timezone_flag_is_a_known_flag(): void
     {
         $this->assertContains(UserTimezone::FLAG, config('features.known_flags'));
+        $this->assertNotContains('viewerTimezone', config('features.known_flags'));
     }
 
     public function test_for_viewer_uses_company_timezone_when_flag_is_off(): void

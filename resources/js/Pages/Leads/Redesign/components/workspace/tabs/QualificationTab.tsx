@@ -17,8 +17,8 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import {
     Badge,
     Button,
@@ -366,6 +366,7 @@ function CallRow({
     onSelect: () => void;
 }) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const tone = callTone(call);
     const keys = outcomeKeys(call);
     const label =
@@ -408,7 +409,7 @@ function CallRow({
                     className="block mt-1.5 text-[12px]"
                     style={{ color: T.TEXT_MUTED }}
                 >
-                    {formatCompanyDateTime(call.completed_at ?? call.created_at)}
+                    {formatDateTime(call.completed_at ?? call.created_at)}
                 </span>
                 <span
                     className="block mt-0.5 text-[12px] truncate"
@@ -436,6 +437,7 @@ function CallDetail({
     onDelete?: () => Promise<boolean> | boolean;
 }) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const templateService = useMemo(() => getQualificationTemplateService(), []);
     const treeCache = useRef<Map<string, TemplateTree>>(new Map());
     const [tree, setTree] = useState<TemplateTree | null>(
@@ -558,7 +560,7 @@ function CallDetail({
         }
     };
 
-    const when = formatCompanyDateTime(call.completed_at ?? call.created_at);
+    const when = formatDateTime(call.completed_at ?? call.created_at);
 
     return (
         <div className="flex flex-col gap-3.5 min-w-0">

@@ -1,7 +1,6 @@
-import dayjs from "dayjs";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { Tooltip } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     TimelineEventViewModel,
@@ -39,6 +38,7 @@ export default function DealTimelineEventRow({
 }: DealTimelineEventRowProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { formatDateTime } = useUserDateTime();
 
     const hasDetails = Boolean(event.details && event.details.length > 0);
     // Only events an agent logged by hand (custom event type) are editable or
@@ -179,7 +179,7 @@ export default function DealTimelineEventRow({
                 </div>
 
                 <Tooltip
-                    title={formatCompanyDateTime(event.occurredAt)}
+                    title={formatDateTime(event.occurredAt)}
                 >
                     <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
                         {event.meta}
