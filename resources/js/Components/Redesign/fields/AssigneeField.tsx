@@ -132,9 +132,14 @@ export default function AssigneeField({
         return () => window.clearTimeout(timeout);
     }, [removalError]);
 
+    // lockedIds is frequently a fresh array literal from the parent (a new
+    // reference every render, same contents) — depend on a stable primitive
+    // key instead, so this only clears the error when the lock set actually
+    // changes, not on every unrelated re-render of the surrounding form.
+    const lockedIdsKey = lockedIds.join(",");
     useEffect(() => {
         setRemovalError(null);
-    }, [lockedIds]);
+    }, [lockedIdsKey]);
 
     const handleRemoveAttempt = (id: number, name: string) => {
         if (lockedIds.includes(id)) {

@@ -989,7 +989,9 @@ function OutcomeDetail({
         if (usesMeetingForm) {
             meetingInput = meetingInputFromForm();
             const validationErrors = validateMeetingForm(meetingInput, {
-                hasOwnerOrDeal: Boolean(lead.lead_owner?.id),
+                // Same resolution as mustIncludeOwner below (getMeetingOwner) —
+                // one contract for "does this lead have an owner to assign to".
+                hasOwnerOrDeal: Boolean(getMeetingOwner(lead)),
                 userEmail,
             });
             if (validationErrors.length > 0) {

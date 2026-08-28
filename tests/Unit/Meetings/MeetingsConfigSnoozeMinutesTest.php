@@ -11,9 +11,26 @@ use Tests\TestCase;
  */
 class MeetingsConfigSnoozeMinutesTest extends TestCase
 {
+    /** @var string|false */
+    private $originalSnoozeMinutesEnv;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // A developer may have this set locally for manual browser testing
+        // (see MeetingAttendanceConfirmationServiceTest) — restore it exactly
+        // in tearDown rather than unsetting it out from under them.
+        $this->originalSnoozeMinutesEnv = getenv('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES');
+    }
+
     protected function tearDown(): void
     {
-        putenv('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES');
+        if ($this->originalSnoozeMinutesEnv === false) {
+            putenv('MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES');
+        } else {
+            putenv("MEETING_ATTENDANCE_CONFIRMATION_SNOOZE_MINUTES={$this->originalSnoozeMinutesEnv}");
+        }
 
         parent::tearDown();
     }

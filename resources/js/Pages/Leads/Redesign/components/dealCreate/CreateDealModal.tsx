@@ -244,14 +244,30 @@ export default function CreateDealModal({
         setAgentPickerOpen(false);
         setManualValue("");
         setAddKickoffMeeting(false);
+
+        // Resolved directly from defaultAgentId/agents here rather than left
+        // to the selectedAgent-sync effect above to catch up on a later
+        // render: if agentId already equals defaultAgentId from a prior
+        // session, setAgentId() above is a no-op, selectedAgent never
+        // changes, and that effect would never re-fire — leaving hostId
+        // stuck on the current user instead of the pre-selected agent.
+        const defaultAgent =
+            defaultAgentId != null
+                ? (agents.find((agent) => agent.id === defaultAgentId) ?? null)
+                : null;
+
         setMeetingForm({
             ...buildEmptyMeetingForm(null, authUserId, authUserEmail),
+            ...(defaultAgent?.user?.id
+                ? { hostId: defaultAgent.user.id }
+                : {}),
             meetingTypeId: meetingTypes[0]?.id ?? null,
             startTime: "10:00",
             endTime: addMinutesToTime("10:00", 30),
             duration: 30,
             remark: "",
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- agents intentionally excluded: it's a fresh [] literal when dealMeta is unset, and only needs to be current at the moment `open` flips true, not trigger its own reset
     }, [open, defaultAgentId, meetingTypes, authUserId, authUserEmail]);
 
     // When pipeline changes: stage default, package filter/auto-select, clear property if packages linked.

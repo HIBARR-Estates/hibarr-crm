@@ -8,11 +8,13 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Support\MeetingAttendeeResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 class MeetingAttendeeResolverTest extends TestCase
 {
     use RefreshDatabase;
+    use SetsFeatureFlags;
 
     public function test_it_resolves_participant_emails_and_lead_email(): void
     {
@@ -256,6 +258,8 @@ class MeetingAttendeeResolverTest extends TestCase
 
     public function test_it_excludes_the_host_not_the_creator_from_zoho_attendee_emails(): void
     {
+        $this->setFeatureFlag('crm.meeting-host', true);
+
         $companyId = 1;
 
         $creator = User::factory()->create([

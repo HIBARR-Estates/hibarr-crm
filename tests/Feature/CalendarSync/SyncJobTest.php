@@ -10,11 +10,13 @@ use App\Models\User;
 use App\Services\CalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 class SyncJobTest extends TestCase
 {
     use RefreshDatabase;
+    use SetsFeatureFlags;
 
     public function test_it_stores_job_id_and_pending_status_on_ol_success(): void
     {
@@ -170,6 +172,8 @@ class SyncJobTest extends TestCase
 
     public function test_it_sends_host_id_as_the_zoho_organizer_not_the_creator(): void
     {
+        $this->setFeatureFlag('crm.meeting-host', true);
+
         config()->set('services.ol.base_url', 'https://ol.test/v1');
         config()->set('services.ol.api_key', 'ol-test-key');
         config()->set('services.ol.timeout', 5);

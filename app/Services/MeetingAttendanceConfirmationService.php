@@ -113,10 +113,18 @@ class MeetingAttendanceConfirmationService
                     // A meeting's host is who the confirmation prompt goes to.
                     // host_id is only ever null for rows saved while
                     // crm.meeting-host was off — fall back to the old
-                    // deal-agent/lead-owner assignment for those.
-                    $query->where(function ($hostQuery) use ($user) {
+                    // deal-agent/lead-owner assignment for those. The company
+                    // check on the host branch matters even though host_id is
+                    // now validated as company-scoped at write time: it stops
+                    // a stale assignment (e.g. a user who has since moved to
+                    // a different company) from leaking a cross-company
+                    // follow-up into their confirmation queue.
+                    $query->where(function ($hostQuery) use ($user, $companyId) {
                         $hostQuery->whereNotNull('host_id')
-                            ->where('host_id', $user->id);
+                            ->where('host_id', $user->id)
+                            ->where(function ($companyQuery) use ($companyId) {
+                                self::applyCompanyScopeClause($companyQuery, $companyId);
+                            });
                     })->orWhere(function ($fallbackQuery) use ($user, $companyId) {
                         $fallbackQuery->whereNull('host_id')
                             ->where(function ($assignedQuery) use ($user, $companyId) {
@@ -144,6 +152,20 @@ class MeetingAttendanceConfirmationService
         })->orWhereHas('lead', function ($leadQuery) use ($user, $companyId) {
             $leadQuery->where('company_id', $companyId)
                 ->where('lead_owner', $user->id);
+        });
+    }
+
+    /**
+     * The follow-up's deal or lead belongs to $companyId — the query-builder
+     * equivalent of DealFollowUp::belongsToCompany(), for filtering before a
+     * model is loaded.
+     */
+    private static function applyCompanyScopeClause($query, int $companyId): void
+    {
+        $query->whereHas('deal', function ($dealQuery) use ($companyId) {
+            $dealQuery->where('company_id', $companyId);
+        })->orWhereHas('lead', function ($leadQuery) use ($companyId) {
+            $leadQuery->where('company_id', $companyId);
         });
     }
 
