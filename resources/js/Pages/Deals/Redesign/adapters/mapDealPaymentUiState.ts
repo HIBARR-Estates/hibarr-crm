@@ -24,7 +24,7 @@ export function mapDealPaymentUiState(
         uiState: payment.ui_state,
         canConfirm: payment.can_confirm,
         showCheckoutUrl: payment.show_checkout_url,
-        hasPaymentRequest: Boolean(payment.payment_id),
+        hasPaymentRequest: true,
     };
 }
 

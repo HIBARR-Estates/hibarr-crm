@@ -123,6 +123,8 @@ export interface ProjectLocation {
     address: LocationAddress | null;
     map_url: string | null;
     image_url: string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
     attractions: LocationAttraction[];
     infrastructure: LocationInfrastructure[];
     airports: LocationAirport[];
