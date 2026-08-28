@@ -214,6 +214,7 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Reminder Preferences',
+            'preferences' => 'Preferences',
             'entity_reminder_defaults' => 'Reminder Defaults',
             'reminder_ledger' => 'Reminders',
         ],
@@ -1877,6 +1878,7 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Reminder Preferences',
+        'preferences' => 'Preferences',
         'entity_reminder_defaults' => 'Reminder Defaults',
         'reminder_defaults' => 'Reminder Defaults',
         'reminder_ledger' => 'Reminders',

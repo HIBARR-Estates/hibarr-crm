@@ -47,6 +47,7 @@ use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecuritySettingController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
 use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\SlackSettingController;
@@ -67,8 +68,8 @@ use App\Http\Controllers\TimeLogSettingController;
 use App\Http\Controllers\TwoFASettingController;
 use App\Http\Controllers\UnitTypeController;
 use App\Http\Controllers\UpdateAppController;
+use App\Http\Controllers\UserPreferencesController;
 use App\Http\Controllers\UserReminderPreferenceController;
-use App\Http\Controllers\SettingsOverviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function () {
@@ -89,6 +90,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         ->whereNumber('id');
     Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* User preferences (timezone, in-app alerts, notification bypass) */
+    Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
+    Route::post('preferences/timezone', [UserPreferencesController::class, 'updateTimezone'])->name('user-preferences.timezone');
+    Route::put('preferences/bypasses', [UserPreferencesController::class, 'updateBypass'])->name('user-preferences.bypasses');
 
     /* User Reminder Preferences */
     Route::get('reminder-preferences/manage', [UserReminderPreferenceController::class, 'show'])->name('reminder-preferences.show');
