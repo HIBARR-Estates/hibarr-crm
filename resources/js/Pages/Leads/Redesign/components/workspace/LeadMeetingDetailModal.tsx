@@ -8,6 +8,7 @@ import {
 import {
     buildMeetingFormFromFollowup,
     buildRescheduleFormFromFollowup,
+    getMeetingOwner,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
@@ -91,6 +92,7 @@ export default function LeadMeetingDetailModal({
         meeting?.deal_id != null
             ? deals.find((deal) => deal.id === meeting.deal_id) ?? null
             : null;
+    const mustIncludeOwner = getMeetingOwner(linkedDeal ?? lead);
 
     const handleCancelMeeting = () => {
         if (!meeting?.deal_id) return;
@@ -107,6 +109,7 @@ export default function LeadMeetingDetailModal({
                 locationDetail: form.locationDetail,
                 meetingLink: form.meetingLink,
                 participants: form.participants,
+                hostId: form.hostId,
                 remark: form.remark,
                 reminders: form.reminders,
                 dealId: meeting.deal_id,
@@ -171,6 +174,7 @@ export default function LeadMeetingDetailModal({
                                         locationDetail: form.locationDetail,
                                         meetingLink: form.meetingLink,
                                         participants: form.participants,
+                                        hostId: form.hostId,
                                         remark: form.remark,
                                         reminders: form.reminders,
                                         dealId: meeting.deal_id,
@@ -178,6 +182,7 @@ export default function LeadMeetingDetailModal({
                                     () => setEditOpen(false),
                                 );
                             }}
+                            mustIncludeOwner={mustIncludeOwner}
                             labels={{
                                 title: td("Edit meeting", { source: "en" }),
                                 cancel: td("Cancel", { source: "en" }),

@@ -836,6 +836,7 @@ return [
                 'join'                 => 'Katıl',
                 'auto_generated_link_hint' => 'Planlamadan sonra görüntülü toplantılar için otomatik oluşturulur.',
                 'existing_link_hint'   => 'Mevcut toplantı bağlantısı referans amaçlı gösteriliyor.',
+                'host_field'           => 'Toplantı sorumlusu',
                 'participants_field'   => 'Toplantı katılımcıları',
                 'reminders'            => 'Hatırlatmalar',
                 'remove_reminder'      => 'Hatırlatmayı kaldır',

@@ -53,6 +53,7 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Support\FeatureFlags;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -2583,6 +2584,23 @@ class DealController extends AccountBaseController
             user()->id
         );
 
+        if (FeatureFlags::enabled('crm.meeting-host')) {
+            $followUp->host_id = $request->filled('host_id')
+                ? (int) $request->host_id
+                : $followUp->defaultHostUserId();
+
+            $followUp->participants = MeetingVisibilityService::ensureHostOwnerIsParticipant(
+                $followUp->participants,
+                $followUp->host_id,
+                $followUp->assignedAgentUserId()
+            );
+
+            $followUp->participants = MeetingVisibilityService::withoutHost(
+                $followUp->participants,
+                $followUp->host_id
+            );
+        }
+
         $followUp->status = 'scheduled';
         $followUp->save();
 
@@ -2637,6 +2655,11 @@ class DealController extends AccountBaseController
             ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
             ->values()
             ->toArray();
+
+        $host = $followUp->host_id ? User::find($followUp->host_id, ['id', 'name', 'image']) : null;
+        $followUp->host = $host
+            ? ['id' => $host->id, 'name' => $host->name, 'image' => $host->image ? $host->image_url : null]
+            : null;
 
         return $followUp;
     }
@@ -2726,6 +2749,23 @@ class DealController extends AccountBaseController
                 $request->participants,
                 $followUp->added_by ?? user()->id
             );
+
+            // host_id is immutable after creation (deliberately never read/set
+            // in this method) — but the deal's agent / lead's owner can still
+            // change over time, so re-check against the CURRENT owner whenever
+            // participants are edited.
+            if (FeatureFlags::enabled('crm.meeting-host')) {
+                $followUp->participants = MeetingVisibilityService::ensureHostOwnerIsParticipant(
+                    $followUp->participants,
+                    $followUp->host_id,
+                    $followUp->assignedAgentUserId()
+                );
+
+                $followUp->participants = MeetingVisibilityService::withoutHost(
+                    $followUp->participants,
+                    $followUp->host_id
+                );
+            }
         }
 
         // Set duration if provided

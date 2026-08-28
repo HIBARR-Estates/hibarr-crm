@@ -66,6 +66,25 @@
                     </div>
                 </div>
 
+                <hr class="my-4">
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="form-group my-3">
+                            <label for="meeting_attendance_confirmation_enabled_at">
+                                {{ __('modules.accountSettings.meetingAttendanceConfirmationActiveSince') }}
+                            </label>
+                            <input type="datetime-local" class="form-control height-35 f-14"
+                                   name="meeting_attendance_confirmation_enabled_at"
+                                   id="meeting_attendance_confirmation_enabled_at"
+                                   value="{{ company()->meeting_attendance_confirmation_enabled_at?->format('Y-m-d\TH:i') }}">
+                            <small class="form-text text-muted">
+                                {{ __('modules.accountSettings.meetingAttendanceConfirmationActiveSinceHelp') }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <x-slot name="action">

@@ -192,6 +192,7 @@ class CalendarSyncService
     {
         $followUp->loadMissing([
             'meetingType',
+            'host' => fn ($query) => $query->withoutGlobalScope(\App\Scopes\ActiveScope::class),
             'lead' => fn ($query) => $query->withoutGlobalScope(CompanyScope::class),
             'deal' => fn ($query) => $query
                 ->withoutGlobalScope(CompanyScope::class)
@@ -219,7 +220,12 @@ class CalendarSyncService
 
         return [
             'meetingId' => (string) $followUp->id,
-            'creatorUserId' => $followUp->added_by,
+            // The host is who's "in charge of" the meeting and is Zoho's
+            // organizer — added_by is only who happened to click save, and
+            // may be a different person (e.g. an assistant booking on the
+            // host's behalf). MeetingAttendeeResolver falls back to added_by
+            // when crm.meeting-host is off or the row predates host_id.
+            'creatorUserId' => MeetingAttendeeResolver::organizerUserId($followUp),
             'title' => $followUp->meetingType?->name ?? 'Meeting',
             'scheduledAt' => $scheduledAt,
             'duration' => (int) ($followUp->duration ?? $followUp->getEffectiveDuration()),

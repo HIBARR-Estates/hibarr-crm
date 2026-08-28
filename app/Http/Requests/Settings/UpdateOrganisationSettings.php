@@ -28,7 +28,8 @@ class UpdateOrganisationSettings extends CoreRequest
             'company_name' => 'required|max:60',
             'company_email' => 'required|email:rfc,strict|max:100',
             'company_phone' => 'required|max:20',
-            'website' => 'nullable|url|max:50'
+            'website' => 'nullable|url|max:50',
+            'meeting_attendance_confirmation_enabled_at' => 'nullable|date',
         ];
 
         if($this->has('google_recaptcha') && $this->google_recaptcha == 'on')
