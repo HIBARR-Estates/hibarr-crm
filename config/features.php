@@ -35,5 +35,6 @@ return [
         'crm.expose-share-links',
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
+        'crm.user-timezone',
     ],
 ];
