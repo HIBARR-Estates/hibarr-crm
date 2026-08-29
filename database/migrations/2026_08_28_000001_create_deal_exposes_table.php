@@ -45,6 +45,8 @@ return new class extends Migration
             $table->index(['company_id', 'deal_id', 'created_at'], 'deal_exposes_company_deal_created_idx');
             $table->index(['company_id', 'lead_id', 'created_at'], 'deal_exposes_company_lead_created_idx');
             $table->index(['company_id', 'status'], 'deal_exposes_company_status_idx');
+
+            $table->foreign('deal_id')->references('id')->on('deals')->cascadeOnDelete();
         });
     }
 

@@ -226,7 +226,7 @@ class DealExposeControllerTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return User::withoutGlobalScopes()->findOrFail($id);
+        return User::query()->withoutGlobalScopes()->findOrFail($id);
     }
 
     private function grantPermission(User $user, string $permission, string $type): void

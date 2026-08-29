@@ -1,20 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import useTranslation from "@/Hooks/useTranslation";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import FileDropzone from "@/Components/Redesign/primitives/FileDropzone";
 import DealButton from "../primitives/DealButton";
 import type { AddExposeInput } from "../../hooks/useDealExposes";
+import { useDealExposeSnapshots } from "../../hooks/useDealExposes";
 import { titleFromFilename } from "../../adapters/dealExposeAdapter";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-
-interface AvailableSnapshot {
-    id: number;
-    entity_type: string;
-    title: string;
-    created_at: string | null;
-}
 
 interface AddExposeModalProps {
     open: boolean;
@@ -49,11 +42,13 @@ export default function AddExposeModal({
     const [amount, setAmount] = useState("");
     const [snapshotId, setSnapshotId] = useState<number | undefined>(undefined);
     const [file, setFile] = useState<File | null>(null);
-    const [snapshots, setSnapshots] = useState<AvailableSnapshot[]>([]);
-    const [snapshotsLoading, setSnapshotsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const isLinked = source === "linked";
+    const { snapshots, loading: snapshotsLoading } = useDealExposeSnapshots(
+        dealId,
+        open && isLinked,
+    );
 
     useEffect(() => {
         if (!open) {
@@ -64,33 +59,6 @@ export default function AddExposeModal({
             setError(null);
         }
     }, [open]);
-
-    // Only the linked path needs the picker, so the list is fetched when that
-    // dialog opens rather than alongside the tab itself.
-    useEffect(() => {
-        if (!open || !isLinked) return;
-
-        let cancelled = false;
-        setSnapshotsLoading(true);
-        axios
-            .get<{ snapshots: AvailableSnapshot[] }>(
-                route("deals.exposes.available", dealId),
-                { headers: { Accept: "application/json" } },
-            )
-            .then(({ data }) => {
-                if (!cancelled) setSnapshots(data.snapshots ?? []);
-            })
-            .catch(() => {
-                if (!cancelled) setSnapshots([]);
-            })
-            .finally(() => {
-                if (!cancelled) setSnapshotsLoading(false);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [open, isLinked, dealId]);
 
     const options = useMemo(
         () =>

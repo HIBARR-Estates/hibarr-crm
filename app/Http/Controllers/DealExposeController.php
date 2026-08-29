@@ -50,6 +50,7 @@ class DealExposeController extends AccountBaseController
         $exposes = DealExpose::with('exposeSnapshot')
             ->where('company_id', user()->company_id)
             ->where('deal_id', $deal->id)
+            ->when($this->proposalViewPermission() === 'added', fn ($query) => $query->where('added_by', user()->id))
             ->orderByDesc('created_at')
             ->get();
 
@@ -74,6 +75,7 @@ class DealExposeController extends AccountBaseController
         $exposes = DealExpose::with(['exposeSnapshot', 'deal'])
             ->where('company_id', user()->company_id)
             ->where('lead_id', $lead->id)
+            ->when($this->proposalViewPermission() === 'added', fn ($query) => $query->where('added_by', user()->id))
             ->orderByDesc('created_at')
             ->get();
 
@@ -157,15 +159,20 @@ class DealExposeController extends AccountBaseController
         ]);
 
         if ($validated['source'] === DealExpose::SOURCE_LINKED) {
-            // A linked expose must point at a snapshot this company owns -
-            // otherwise it is a manual row wearing the wrong label.
+            // A linked expose must point at a snapshot this company owns for
+            // this deal's lead — otherwise it is a manual row wearing the wrong label.
             $snapshotId = $validated['expose_snapshot_id'] ?? null;
 
             if ($snapshotId === null) {
                 return Reply::error('An expose must be selected to link.');
             }
 
+            if ($deal->lead_id === null) {
+                return Reply::error('This deal has no lead to link a project expose from.');
+            }
+
             $exists = ExposeSnapshot::where('company_id', user()->company_id)
+                ->where('lead_id', $deal->lead_id)
                 ->where('id', $snapshotId)
                 ->exists();
 
@@ -237,6 +244,7 @@ class DealExposeController extends AccountBaseController
         ]);
 
         $expose = DealExpose::where('company_id', user()->company_id)->findOrFail($id);
+        $this->abortUnlessCanMutateExpose($expose);
         $expose->status = $validated['status'];
         $expose->status_changed_at = now();
         $expose->save();
@@ -252,6 +260,7 @@ class DealExposeController extends AccountBaseController
         $this->abortUnlessEditable();
 
         $expose = DealExpose::where('company_id', user()->company_id)->findOrFail($id);
+        $this->abortUnlessCanMutateExpose($expose);
         $expose->delete();
 
         return Reply::success('Expose removed');
@@ -276,12 +285,28 @@ class DealExposeController extends AccountBaseController
      */
     private function abortUnlessViewable(): void
     {
-        abort_403(! in_array(user()->permission('view_lead_proposals'), ['all', 'added']));
+        abort_403(! in_array($this->proposalViewPermission(), ['all', 'added'], true));
     }
 
     private function abortUnlessEditable(): void
     {
         abort_403(! in_array(user()->permission('add_lead_proposals'), ['all', 'added']));
+    }
+
+    /** @return string|false */
+    private function proposalViewPermission()
+    {
+        return user()->permission('view_lead_proposals');
+    }
+
+    private function abortUnlessCanMutateExpose(DealExpose $expose): void
+    {
+        $permission = user()->permission('add_lead_proposals');
+
+        abort_403(! (
+            $permission === 'all'
+            || ($permission === 'added' && (int) $expose->added_by === (int) user()->id)
+        ));
     }
 
     /**

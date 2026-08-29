@@ -39,6 +39,13 @@ export interface DealExposeSummary {
     not_accepted: number;
 }
 
+export interface DealExposeSnapshotOption {
+    id: number;
+    entity_type: string;
+    title: string;
+    created_at: string | null;
+}
+
 export interface DealExposesResponse {
     status: string;
     exposes: DealExpose[];

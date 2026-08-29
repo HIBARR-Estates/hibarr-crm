@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { FileValidationError } from "@/Types/uploads";
 import type {
     DealExpose,
+    DealExposeSnapshotOption,
     DealExposeStatus,
     DealExposeSummary,
     DealExposesResponse,
@@ -23,29 +26,39 @@ const EMPTY_SUMMARY: DealExposeSummary = {
 function resolveAddExposeErrorMessage(
     error: unknown,
     t: (key: string) => string,
+    td: TdFn,
 ): string {
     if (error instanceof FileValidationError) {
         return error.message;
     }
 
     if (axios.isCancel(error)) {
-        return "Upload cancelled.";
+        return td("Upload cancelled.", { source: "en" });
     }
 
     if (axios.isAxiosError(error)) {
         if (error.code === "ECONNABORTED") {
-            return "Upload timed out. Large files need a stable connection — try again or use a smaller file.";
+            return td(
+                "Upload timed out. Large files need a stable connection — try again or use a smaller file.",
+                { source: "en" },
+            );
         }
 
         if (
             error.response?.status === 401 ||
             error.response?.status === 403
         ) {
-            return "Upload authentication failed. Check MIX_FILE_UPLOAD_API_KEY in .env and restart the Vite dev server.";
+            return td(
+                "Upload authentication failed. Check MIX_FILE_UPLOAD_API_KEY in .env and restart the Vite dev server.",
+                { source: "en" },
+            );
         }
 
         if (error.code === "ERR_NETWORK") {
-            return "Upload could not reach the storage API. Check the browser console for CORS or network errors.";
+            return td(
+                "Upload could not reach the storage API. Check the browser console for CORS or network errors.",
+                { source: "en" },
+            );
         }
 
         const apiMessage = error.response?.data?.message;
@@ -79,6 +92,53 @@ type Scope =
     | { type: "lead"; leadId: number };
 
 /**
+ * Lazy-loads project expose snapshots for the linked-add modal. Fetched only
+ * while the linked dialog is open, with cancellation on close/unmount.
+ */
+export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
+    const [snapshots, setSnapshots] = useState<DealExposeSnapshotOption[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
+
+    useEffect(() => {
+        if (!enabled) {
+            setSnapshots([]);
+            setLoading(false);
+            setLoadFailed(false);
+            return undefined;
+        }
+
+        let cancelled = false;
+        setLoading(true);
+        setLoadFailed(false);
+
+        axios
+            .get<{ snapshots: DealExposeSnapshotOption[] }>(
+                route("deals.exposes.available", dealId),
+                { headers: { Accept: "application/json" } },
+            )
+            .then(({ data }) => {
+                if (!cancelled) setSnapshots(data.snapshots ?? []);
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setSnapshots([]);
+                    setLoadFailed(true);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dealId, enabled]);
+
+    return { snapshots, loading, loadFailed };
+}
+
+/**
  * Owns the Exposes tab's list and every mutation on it. Status changes and
  * additions patch this hook's local state from the response rather than
  * reloading the page, so edits land instantly (CLAUDE.md rule 3).
@@ -89,6 +149,7 @@ type Scope =
  */
 export default function useDealExposes(scope: Scope) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const [exposes, setExposes] = useState<DealExpose[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -97,6 +158,7 @@ export default function useDealExposes(scope: Scope) {
     const [uploadBytesLoaded, setUploadBytesLoaded] = useState(0);
     const [uploadBytesTotal, setUploadBytesTotal] = useState(0);
     const [loadFailed, setLoadFailed] = useState(false);
+    const statusRequestRef = useRef<Map<number, number>>(new Map());
 
     const indexUrl =
         scope.type === "deal"
@@ -142,13 +204,16 @@ export default function useDealExposes(scope: Scope) {
 
     const setStatus = useCallback(
         async (id: number, status: DealExposeStatus) => {
-            const previous = exposes;
-            // Optimistic: the status pill is the primary interaction on this
-            // tab and a round-trip of latency on every change is felt.
+            const requestId = (statusRequestRef.current.get(id) ?? 0) + 1;
+            statusRequestRef.current.set(id, requestId);
+
+            let previousStatus: DealExposeStatus | null = null;
             setExposes((current) =>
-                current.map((expose) =>
-                    expose.id === id ? { ...expose, status } : expose,
-                ),
+                current.map((expose) => {
+                    if (expose.id !== id) return expose;
+                    previousStatus = expose.status;
+                    return { ...expose, status };
+                }),
             );
 
             try {
@@ -157,19 +222,29 @@ export default function useDealExposes(scope: Scope) {
                     { status },
                     { headers: { Accept: "application/json" } },
                 );
+                if (statusRequestRef.current.get(id) !== requestId) return;
                 setExposes((current) =>
                     current.map((expose) =>
                         expose.id === id ? data.expose : expose,
                     ),
                 );
             } catch {
-                setExposes(previous);
+                if (statusRequestRef.current.get(id) !== requestId) return;
+                if (previousStatus !== null) {
+                    setExposes((current) =>
+                        current.map((expose) =>
+                            expose.id === id
+                                ? { ...expose, status: previousStatus! }
+                                : expose,
+                        ),
+                    );
+                }
                 message.error(
                     t("pages.deals.workspace.exposes.messages.status_failed"),
                 );
             }
         },
-        [exposes, t],
+        [t],
     );
 
     const addExpose = useCallback(
@@ -227,7 +302,7 @@ export default function useDealExposes(scope: Scope) {
                 );
                 return true;
             } catch (error) {
-                message.error(resolveAddExposeErrorMessage(error, t));
+                message.error(resolveAddExposeErrorMessage(error, t, td));
                 return false;
             } finally {
                 setSaving(false);
@@ -237,7 +312,7 @@ export default function useDealExposes(scope: Scope) {
                 window.setTimeout(() => setUploadProgress(0), 400);
             }
         },
-        [scope, t],
+        [scope, t, td],
     );
 
     const cancelUpload = useCallback(() => {
