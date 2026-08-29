@@ -644,7 +644,7 @@ class DealController extends AccountBaseController
             'view_task_category' => user()->permission('view_task_category'),
         ];
 
-        $dealWithCustomFields = $deal->toArray();
+        $dealWithCustomFields = $deal->append('total_discount')->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();

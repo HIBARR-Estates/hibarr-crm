@@ -237,10 +237,9 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         static::addGlobalScope(new ActiveScope());
     }
 
-    //    protected $with = ['session:id'];
     /**
      * Globally eager-loaded on *every* User query, so anything listed here is a
-     * standing per-query cost across the whole app.
+     * standing per-query cost across the whole app. It is deliberately empty.
      *
      * `clientContact` was removed: the only reads of the relation are commented
      * out (App\Helper\start.php), nothing in Blade or the frontend consumes it
@@ -248,8 +247,11 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
      * session store — neither touches this relation), yet it cost one extra
      * query on every user lookup. It is still available lazily if ever needed.
      *
-     * `session:id` stays: the employee/client Blade components read it to show a
-     * presence indicator, and dropping it would turn those list views into N+1.
+     * `session` was removed: its only readers are the employee/client Blade
+     * presence dots, which now use online_user_ids() — one memoized query for
+     * the whole page. As `session:id` it also never loaded `last_activity`,
+     * so the dot it fed could not light up. The relation is still there for
+     * anything that wants to load it explicitly.
      */
     protected $with = [
     //        'clientDetails:id,company_name',
@@ -257,7 +259,6 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     //        'employeeDetail.department:id,team_name',
     //        'company:id,company_name',
     //        'roles:name,display_name',
-       'session:id',
     ];
 
     /**
@@ -1118,7 +1119,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
      *
      * @return array<string, string>
      */
-    protected function permissionMap(): array
+    public function permissionMap(): array
     {
         $key = 'user.permission-map.' . $this->id;
         $container = app();

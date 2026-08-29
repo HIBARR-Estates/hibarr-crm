@@ -157,10 +157,7 @@ interface IndexProps extends PageProps {
     pipelineStages: PipelineStage[];
     overviewMetrics: OverviewMetrics;
     stats: DashboardStats;
-    products: any[];
-    packages: any[];
     countries: any[];
-    leadAgents: any[];
 }
 
 const Index: React.FC<IndexProps> = ({
@@ -177,10 +174,7 @@ const Index: React.FC<IndexProps> = ({
     pipelineStages,
     overviewMetrics,
     stats,
-    products,
-    packages,
     countries,
-    leadAgents,
 }) => {
     const { props } = usePage<PageProps>();
     const company = props.company as any;
