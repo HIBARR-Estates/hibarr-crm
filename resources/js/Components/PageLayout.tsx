@@ -108,12 +108,12 @@ export default function PageLayout({
 
     // User dropdown menu
     const userMenuItems: MenuProps["items"] = [
-        {
-            key: "settings",
-            icon: <SettingOutlined />,
-            label: t("app.menu.settings"),
-            onClick: () => router.visit("/account/settings/profile"),
-        },
+        // {
+        //     key: "settings",
+        //     icon: <SettingOutlined />,
+        //     label: t("app.menu.settings"),
+        //     onClick: () => router.visit("/account/settings/profile"),
+        // },
         {
             key: "preferences",
             icon: <ControlOutlined />,

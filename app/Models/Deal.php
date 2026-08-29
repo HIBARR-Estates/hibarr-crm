@@ -146,7 +146,10 @@ class Deal extends BaseModel
     protected $hidden = ["pivot"];
 
 
-    protected $appends = ['image_url', 'total_discount'];
+    // total_discount is an aggregate — appending it globally cost one extra query
+    // per deal on every list that gets serialized. Only the deal show page reads
+    // it, and that appends it explicitly.
+    protected $appends = ['image_url'];
 
     protected $casts = [
         'close_date' => 'datetime',
@@ -163,6 +166,7 @@ class Deal extends BaseModel
         'exchange_rate' => 'double',
         'analysis_completed_at' => 'datetime',
         'analysis_completed_by' => 'integer',
+        'analysis_unanswered' => 'array',
         'remind_at' => 'datetime',
         'reminders' => 'array',
     ];

@@ -108,16 +108,27 @@ class CustomFieldGroup extends BaseModel
     {
         return Attribute::make(
             get: function () {
-                // Try to load fields with rule sets if tables exist
+                // Reuse the eager-loaded relation when the caller already paid for
+                // it. This accessor used to re-query unconditionally, so the chain
+                // that getCustomFieldGroups() had just loaded (fields, rule sets,
+                // rule groups, criteria, categories) was fetched a second time on
+                // every `->fields` access.
                 try {
-                    $fields = $this->customFieldWithRules()->orderBy('display_order')->get();
+                    $fields = $this->relationLoaded('customFieldWithRules')
+                        ? $this->getRelation('customFieldWithRules')->sortBy('display_order')->values()
+                        : $this->customFieldWithRules()->orderBy('display_order')->get();
                 } catch (\Exception $e) {
                     // If tables don't exist yet, load without relationships
-                    $fields = $this->customField()->orderBy('display_order')->get();
+                    $fields = $this->relationLoaded('customField')
+                        ? $this->getRelation('customField')->sortBy('display_order')->values()
+                        : $this->customField()->orderBy('display_order')->get();
                 }
-                
+
                 return $fields->map(function ($item) {
-                    if (in_array($item->type, ['select', 'radio', 'checkbox', 'multiselect'])) {
+                    // is_string guards make this idempotent: the models now come
+                    // from a shared relation rather than a fresh query, so decoding
+                    // an already-decoded value would blow the options away.
+                    if (in_array($item->type, ['select', 'radio', 'checkbox', 'multiselect']) && is_string($item->values)) {
                         $item->values = json_decode($item->values);
                     }
                     if ($item->type === 'repeatable' && !empty($item->values)) {
@@ -127,7 +138,7 @@ class CustomFieldGroup extends BaseModel
                     return $item;
                 });
             },
-        );
+        )->shouldCache();
     }
 
 }

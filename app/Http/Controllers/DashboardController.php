@@ -703,14 +703,11 @@ class DashboardController extends AccountBaseController
             // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
         ];
 
-        $dealFormData = $this->getDealFormData();
-        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
-        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
-
-        $leadFormData = $this->getLeadFormData();
-        $leadFormData['leadCustomFields'] = $leadFormData['customFields'];
-        $leadFormData['leadCustomFieldCategories'] = $leadFormData['customFieldCategories'];
-
+        // The full deal and lead form payloads used to be merged in here — ~24
+        // queries of reference data for the create-deal and create-lead modals.
+        // This page renders neither; the only key its tree reads is `countries`,
+        // which is cache-backed and free. Task form data stays: TasksActivitiesPanel
+        // reads categories/labels/columns/users/projects off the page props.
         $meetingPermissions = [
             'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
         ];
@@ -738,7 +735,8 @@ class DashboardController extends AccountBaseController
             'pipelineStages' => $pipelineStages,
             'overviewMetrics' => $overviewMetrics,
             'stats' => $stats,
-        ], $dealFormData, $leadFormData, TaskService::getTaskFormData()));
+            'countries' => countries(),
+        ], TaskService::getTaskFormData()));
     }
 
     public function widget(Request $request, $dashboardType)

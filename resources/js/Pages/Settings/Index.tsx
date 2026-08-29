@@ -79,7 +79,8 @@ export default function SettingsIndex({
             iconColor: "text-blue-500",
             title: t("app.menu.deal"),
             description: t("app.settingsHub.dealsDesc"),
-            connected: false,
+            connected: true,
+            onOpen: () => router.visit(route("analysis-script-builder.show")),
         },
         {
             key: "meetings",

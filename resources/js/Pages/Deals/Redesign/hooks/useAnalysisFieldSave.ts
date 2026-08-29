@@ -77,6 +77,7 @@ export default function useAnalysisFieldSave(dealId: number) {
         if (key.startsWith("lead_field_")) return "lead_custom_field";
         if (key.startsWith("hibarr:")) return "hibarr_field";
         if (key.startsWith("contact:")) return "contact";
+        if (key.startsWith("unanswered:")) return "analysis_unanswered";
         return "details";
     }, []);
 
@@ -92,6 +93,7 @@ export default function useAnalysisFieldSave(dealId: number) {
         if (key.startsWith("native:")) return { [key.replace("native:", "")]: value };
         if (key.startsWith("hibarr:")) return { [key.replace("hibarr:", "")]: value };
         if (key.startsWith("contact:")) return { [key.replace("contact:", "")]: value };
+        if (key.startsWith("unanswered:")) return { [key.replace("unanswered:", "")]: value };
         return { [key]: value };
     }, []);
 

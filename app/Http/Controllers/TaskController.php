@@ -310,10 +310,19 @@ class TaskController extends AccountBaseController
             ? $this->taskFilterCounts->workspaceStats(clone $kanbanQuery)
             : null;
 
-        $kanbanTasks = $kanbanQuery->get();
+        // The board is a second, unpaginated pass over the same task set, so it
+        // repeats every eager load the table query just did. The redesigned
+        // workspace takes its counts from workspaceStats and mounts on the table,
+        // so the board list can arrive after first paint. The legacy index derives
+        // its stats from this collection, so there it still has to be synchronous.
+        $loadKanbanTasks = function () use ($kanbanQuery) {
+            $tasks = (clone $kanbanQuery)->get();
+            $tasks->loadCount(TaskPresenter::COUNTS);
 
-        // Ensure kanban tasks also have the counts
-        $kanbanTasks->loadCount(TaskPresenter::COUNTS);
+            return $tasks;
+        };
+
+        $kanbanTasks = $stats === null ? $loadKanbanTasks() : null;
 
         // Calculate Stats (legacy table/kanban index — collection scan).
         if ($stats === null) {
@@ -338,7 +347,9 @@ class TaskController extends AccountBaseController
 
         // Transform tasks for frontend
         $tableTasks->getCollection()->transform($transformCallback);
-        $kanbanTasks = $kanbanTasks->map($transformCallback);
+        $kanbanTasks = $kanbanTasks !== null
+            ? $kanbanTasks->map($transformCallback)
+            : Inertia::defer(fn () => $loadKanbanTasks()->map($transformCallback), 'kanban');
 
         // Get user permissions
         $permissions = [

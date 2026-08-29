@@ -327,16 +327,27 @@ export interface MeetingFormState {
     locationDetail: string;
     meetingLink: string;
     participants: number[];
+    /** User "in charge of" the meeting. Immutable after the meeting is saved. */
+    hostId: number | null;
     remark: string;
     reminders: Reminder[];
 }
 
-/** Accepts Deal-shaped (`deal_participants`/`deal_watchers`) or generic lists. */
+/**
+ * Accepts Deal-shaped (`deal_participants`/`deal_watchers`) or generic lists,
+ * plus whatever's needed to resolve a default host: a deal's agent
+ * (`lead_agent`) or a lead's owner (`lead_owner`).
+ */
 export interface MeetingParticipantSource {
     deal_participants?: Array<{ id?: number } | null> | null;
     deal_watchers?: Array<{ id?: number } | null> | null;
     participants?: Array<{ id?: number } | null> | null;
     watchers?: Array<{ id?: number } | null> | null;
+    lead_agent?: {
+        user_id?: number;
+        user?: { id?: number; name?: string } | null;
+    } | null;
+    lead_owner?: { id?: number; name?: string } | null;
 }
 
 export const DEFAULT_MEETING_REMINDERS: Reminder[] = [
@@ -422,6 +433,41 @@ export function getDefaultMeetingParticipants(
 }
 
 /**
+ * The deal's agent, or the lead's owner — the person accountable for the
+ * deal/lead who must be force-included (and locked) in participants when
+ * they aren't the chosen host. Null when unresolvable (e.g. a brand-new
+ * deal with no agent yet) — in that case there's simply nothing to lock.
+ */
+export function getMeetingOwner(
+    source: MeetingParticipantSource | null | undefined,
+): { id: number; name: string } | null {
+    const agentUserId = source?.lead_agent?.user_id ?? source?.lead_agent?.user?.id;
+    const agentName = source?.lead_agent?.user?.name;
+    if (agentUserId && agentName) {
+        return { id: agentUserId, name: agentName };
+    }
+
+    if (source?.lead_owner?.id && source.lead_owner.name) {
+        return { id: source.lead_owner.id, name: source.lead_owner.name };
+    }
+
+    return null;
+}
+
+/**
+ * Default host for a new meeting: the deal's agent, else the lead's owner,
+ * else the meeting's creator — mirrors DealFollowUp::defaultHostUserId() on
+ * the backend, which is the authoritative value. This only seeds the picker
+ * so it isn't blank on open.
+ */
+export function getDefaultMeetingHost(
+    source: MeetingParticipantSource | null | undefined,
+    currentUserId?: number,
+): number | null {
+    return getMeetingOwner(source)?.id ?? currentUserId ?? null;
+}
+
+/**
  * Date + start time seed for a new meeting: 15 minutes from now, which also
  * clears the "at least 5 minutes in the future" validation. Derived from one
  * instant so the date rolls forward with the time across midnight.
@@ -448,6 +494,7 @@ export function buildEmptyMeetingForm(
         locationDetail: "",
         meetingLink: "",
         participants: getDefaultMeetingParticipants(source, currentUserId),
+        hostId: getDefaultMeetingHost(source, currentUserId),
         remark: "",
         reminders: [],
     };
@@ -546,6 +593,10 @@ export function buildMeetingFormFromFollowup(
             followup.participants?.length && followup.participants.length > 0
                 ? followup.participants
                 : getDefaultMeetingParticipants(source, currentUserId),
+        hostId:
+            followup.host_id ??
+            followup.host?.id ??
+            getDefaultMeetingHost(source, currentUserId),
         remark: followup.remark || "",
         reminders: customReminders,
     };

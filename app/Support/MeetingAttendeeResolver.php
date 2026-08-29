@@ -81,8 +81,8 @@ class MeetingAttendeeResolver
 
         $agentUserId = (int) $agentUserId;
 
-        // Creator is the Zoho organizer — never also invite them as a guest.
-        if ($followUp->added_by && $agentUserId === (int) $followUp->added_by) {
+        // The host is the Zoho organizer — never also invite them as a guest.
+        if (self::organizerUserId($followUp) === $agentUserId) {
             return [];
         }
 
@@ -97,8 +97,7 @@ class MeetingAttendeeResolver
     /**
      * Internal CRM users who should receive a calendar invite: meeting
      * participants plus the deal agent when the meeting is deal-linked.
-     * The meeting creator is excluded — OL sends them as organizer via
-     * creatorUserId.
+     * The host is excluded — OL sends them as organizer via creatorUserId.
      *
      * @return list<int>
      */
@@ -110,11 +109,27 @@ class MeetingAttendeeResolver
             ->filter(fn (int $id) => $id > 0)
             ->unique();
 
-        if ($followUp->added_by) {
-            $ids = $ids->reject(fn (int $id) => $id === (int) $followUp->added_by);
+        $organizerUserId = self::organizerUserId($followUp);
+        if ($organizerUserId !== null) {
+            $ids = $ids->reject(fn (int $id) => $id === $organizerUserId);
         }
 
         return $ids->values()->all();
+    }
+
+    /**
+     * The Zoho/OL organizer: the meeting's host, falling back to the
+     * creator — either because the row predates the host_id column, or
+     * because crm.meeting-host is off, in which case host_id is ignored
+     * entirely even if a value happens to be present (e.g. from backfill).
+     */
+    public static function organizerUserId(DealFollowUp $followUp): ?int
+    {
+        $organizerId = FeatureFlags::enabled('crm.meeting-host')
+            ? ($followUp->host_id ?? $followUp->added_by)
+            : $followUp->added_by;
+
+        return $organizerId ? (int) $organizerId : null;
     }
 
     /**
@@ -164,7 +179,7 @@ class MeetingAttendeeResolver
     /**
      * Emails OL/Zoho should invite: meeting participants, the deal agent
      * (for deal meetings), and the lead/contact when their email is known.
-     * The meeting creator is excluded — they are the organizer.
+     * The host is excluded — they are the organizer.
      *
      * @return list<string>
      */
@@ -188,30 +203,44 @@ class MeetingAttendeeResolver
             }
         }
 
-        return self::withoutCreatorEmail($followUp, $emails);
+        return self::withoutOrganizerEmail($followUp, $emails);
     }
 
     /**
      * @param  list<string>  $emails
      * @return list<string>
      */
-    private static function withoutCreatorEmail(DealFollowUp $followUp, array $emails): array
+    private static function withoutOrganizerEmail(DealFollowUp $followUp, array $emails): array
     {
-        $creatorEmail = self::resolveCreatorEmail($followUp);
-        if ($creatorEmail === null) {
+        $organizerEmail = self::resolveOrganizerEmail($followUp);
+        if ($organizerEmail === null) {
             return $emails;
         }
 
         return array_values(array_filter(
             $emails,
-            fn (string $email) => strtolower(trim($email)) !== $creatorEmail
+            fn (string $email) => strtolower(trim($email)) !== $organizerEmail
         ));
     }
 
-    private static function resolveCreatorEmail(DealFollowUp $followUp): ?string
+    /**
+     * Email for the Zoho/OL organizer — same resolution as organizerUserId()
+     * (host when crm.meeting-host is on, else the creator), just resolved to
+     * an email instead of an id.
+     */
+    private static function resolveOrganizerEmail(DealFollowUp $followUp): ?string
     {
-        if (!$followUp->added_by) {
+        $organizerUserId = self::organizerUserId($followUp);
+        if ($organizerUserId === null) {
             return null;
+        }
+
+        if ($followUp->host_id === $organizerUserId) {
+            $followUp->loadMissing([
+                'host' => fn ($query) => $query->withoutGlobalScope(ActiveScope::class),
+            ]);
+
+            return self::normalizeEmail($followUp->host?->email);
         }
 
         $followUp->loadMissing([

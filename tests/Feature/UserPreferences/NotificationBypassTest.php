@@ -251,6 +251,63 @@ class NotificationBypassTest extends TestCase
         $this->assertSame(0, DB::table('user_notification_bypasses')->count());
     }
 
+    public function test_put_bulk_keys_inserts_and_deletes_for_authenticated_user_only(): void
+    {
+        $this->withoutMiddleware();
+        $this->setFeatureFlag(NotificationBypass::FLAG, true);
+
+        $userA = $this->createUser('a@example.com');
+        $userB = $this->createUser('b@example.com');
+        $this->actingAsSessionUser($userA);
+
+        $keys = ['DealActivityNotification', 'DealStageUpdated', 'NewTask'];
+
+        $this->putJson(route('user-preferences.bypasses'), [
+            'keys' => $keys,
+            'bypassed' => true,
+        ])->assertOk()
+            ->assertJsonPath('bypassed', true)
+            ->assertJsonPath('keys', $keys);
+
+        $this->assertSame(3, DB::table('user_notification_bypasses')->where('user_id', $userA->id)->count());
+        $this->assertFalse(
+            DB::table('user_notification_bypasses')->where('user_id', $userB->id)->exists()
+        );
+
+        $this->putJson(route('user-preferences.bypasses'), [
+            'keys' => ['DealActivityNotification', 'NewTask'],
+            'bypassed' => false,
+        ])->assertOk();
+
+        $remaining = DB::table('user_notification_bypasses')
+            ->where('user_id', $userA->id)
+            ->pluck('notification_key')
+            ->all();
+
+        $this->assertEqualsCanonicalizing(['DealStageUpdated'], $remaining);
+    }
+
+    public function test_put_bulk_rejects_unknown_or_denylisted_key_and_writes_nothing(): void
+    {
+        $this->withoutMiddleware();
+        $this->setFeatureFlag(NotificationBypass::FLAG, true);
+
+        $user = $this->createUser();
+        $this->actingAsSessionUser($user);
+
+        $this->putJson(route('user-preferences.bypasses'), [
+            'keys' => ['DealActivityNotification', 'TwoFactorCode'],
+            'bypassed' => true,
+        ])->assertStatus(422);
+
+        $this->putJson(route('user-preferences.bypasses'), [
+            'keys' => ['DealActivityNotification', 'NotARealNotification'],
+            'bypassed' => true,
+        ])->assertStatus(422);
+
+        $this->assertSame(0, DB::table('user_notification_bypasses')->count());
+    }
+
     public function test_put_is_forbidden_when_flag_is_off(): void
     {
         $this->withoutMiddleware();

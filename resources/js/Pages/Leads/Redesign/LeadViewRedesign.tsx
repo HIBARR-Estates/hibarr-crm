@@ -11,7 +11,7 @@ import {
 import type { AddNoteFormState } from "@/Components/Redesign/modals/AddNoteModal";
 import type { AddTaskFormState } from "@/Components/Redesign/modals/AddTaskModal";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -1014,7 +1014,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 errors={meetingErrors}
                 meetingTypes={props.meetingTypes ?? []}
                 initialForm={buildEmptyMeetingForm(
-                    null,
+                    lead,
                     page.props.auth?.user?.id,
                     page.props.auth?.user?.email,
                 )}
@@ -1030,12 +1030,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             locationDetail: form.locationDetail,
                             meetingLink: form.meetingLink,
                             participants: form.participants,
+                            hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
                         },
                         () => setAddMeetingOpen(false),
                     )
                 }
+                mustIncludeOwner={getMeetingOwner(lead)}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     cancel: td("Cancel", { source: "en" }),

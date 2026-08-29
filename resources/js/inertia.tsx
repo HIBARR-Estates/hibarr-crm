@@ -18,6 +18,8 @@ window.route = route;
 
 type InertiaPageComponent = React.ComponentType<any> & {
     layout?: (page: React.ReactNode) => React.ReactNode;
+    /** Guards against re-wrapping on repeat resolve() calls for the same page component. */
+    __wrappedWithInnerProviders?: boolean;
 };
 
 // This entry is compiled by both bundlers (webpack.mix.js and vite.config.mjs
@@ -55,12 +57,21 @@ createInertiaApp({
 
         // Always wrap with InnerProviders (which need Inertia context)
         // This ensures TranslationProvider has access to usePage()
-        const existingLayout = component.layout;
-        component.layout = (page: React.ReactNode) => (
-            <InnerProviders>
-                {existingLayout ? existingLayout(page) : page}
-            </InnerProviders>
-        );
+        //
+        // Guarded: `module.default` is the same cached object on every visit to
+        // this page, but resolve() itself runs on every visit — without the
+        // guard, re-visiting a page nests another InnerProviders layer each
+        // time, which duplicates everything mounted inside it (notification
+        // bridge, meeting-attendance poller, ...).
+        if (!component.__wrappedWithInnerProviders) {
+            const existingLayout = component.layout;
+            component.layout = (page: React.ReactNode) => (
+                <InnerProviders>
+                    {existingLayout ? existingLayout(page) : page}
+                </InnerProviders>
+            );
+            component.__wrappedWithInnerProviders = true;
+        }
 
         return component;
     },

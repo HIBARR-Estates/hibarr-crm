@@ -55,11 +55,23 @@ class StoreRequest extends CoreRequest
             $rules['lead_id'] = 'required|exists:leads,id';
             $rules['deal_id'] = 'nullable|exists:deals,id';
             $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$lead->created_at->format('d-m-Y');
+            $companyId = $lead->company_id;
         } else {
             $deal = Deal::findOrFail($this->deal_id);
             $rules['deal_id'] = 'required|exists:deals,id';
             $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$deal->created_at->format('d-m-Y');
+            $companyId = $deal->company_id;
         }
+
+        // Host is who gets the attendance-confirmation prompt and is granted
+        // authority to confirm/snooze it — unlike participants (a display/
+        // invite list only), an unscoped host_id would let a client hand a
+        // meeting's confirmation queue entry to a user outside this company.
+        $rules['host_id'] = [
+            'nullable',
+            'integer',
+            Rule::exists('users', 'id')->where('company_id', $companyId),
+        ];
 
         return $rules;
     }

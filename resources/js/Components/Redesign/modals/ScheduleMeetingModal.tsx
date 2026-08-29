@@ -25,6 +25,8 @@ interface ScheduleMeetingModalProps {
     labels: ScheduleMeetingModalLabels;
     /** Slot for entity-specific fields (e.g. Lead “link deal”). */
     extraFields?: ReactNode;
+    /** Deal agent / lead owner — forced into participants (and locked) when not chosen as host. */
+    mustIncludeOwner?: { id: number; name: string } | null;
 }
 
 export default function ScheduleMeetingModal({
@@ -37,6 +39,7 @@ export default function ScheduleMeetingModal({
     onSubmit,
     labels,
     extraFields,
+    mustIncludeOwner = null,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
@@ -106,6 +109,7 @@ export default function ScheduleMeetingModal({
                 }
                 meetingTypes={meetingTypes}
                 disabled={saving}
+                mustIncludeOwner={mustIncludeOwner}
             />
         </Modal>
     );

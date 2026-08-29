@@ -36,7 +36,10 @@ return [
         'crm.deal-recommendations-tab',
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
-        'crm.user-timezone',
+        'crm.meeting-attendance-confirmation',
+        'crm.meeting-host',
         'crm.notification-bypass',
+        'crm.user-timezone',
+        'packages.online-payment'
     ],
 ];
