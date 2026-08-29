@@ -3,19 +3,13 @@
 namespace App\Services;
 
 use App\Models\DealAutomationCondition;
+use App\Models\LeadAutomationCondition;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class ConditionEvaluatorService
 {
-    /**
-     * Evaluate a condition against a resolved value.
-     *
-     * @param mixed $resolvedValue
-     * @param DealAutomationCondition $condition
-     * @return bool
-     */
-    public function evaluate($resolvedValue, DealAutomationCondition $condition): bool
+    public function evaluate($resolvedValue, DealAutomationCondition|LeadAutomationCondition $condition): bool
     {
         $operator = $condition->operator;
         $conditionValue = $condition->value;

@@ -35,6 +35,8 @@ use App\Services\PermissionService;
 use App\Services\MeetingVisibilityService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
+use App\Support\FeatureFlags;
+use App\Support\TaskPresenter;
 
 
 class DashboardController extends AccountBaseController
@@ -93,9 +95,15 @@ class DashboardController extends AccountBaseController
     public function dashboardOverview()
     {
         $userId = user()->id;
-        
-        // "My items": tasks/meetings the user created or is assigned/participant on
-        $tasksConstraint = fn ($q) => $q->visibleToUser($userId);
+
+        // Behind the redesigned Tasks workspace flag, the widget narrows to
+        // tasks the user is actually assigned to (task_users pivot only) —
+        // off, it keeps the broader "created by or assigned to me" scope
+        // ("My items") it's always used.
+        $useRedesignedTasks = FeatureFlags::enabled('crm.tasks-workspace-redesign');
+        $tasksConstraint = $useRedesignedTasks
+            ? fn ($q) => $q->assignedToUser($userId)
+            : fn ($q) => $q->visibleToUser($userId);
 
         $dealsConstraint = function($q) use ($userId) {
             $q->where(function($query) use ($userId) {
@@ -154,19 +162,30 @@ class DashboardController extends AccountBaseController
             return $meeting;
         });
 
-        // Get upcoming tasks ordered by due date
-        $tasksQuery = Task::with([
-            'project:id,project_name,project_short_code',
-            'users:id,name,image',
-            'createBy:id,name,image',
-            'addedByUser:id,name,image',
-            'boardColumn:id,column_name,slug,label_color',
-            'category:id,category_name',
-            'labels',
-            'deals:id,name',
-            'leads:id,client_name,company_name'
-        ])
+        // Get upcoming tasks ordered by due date. Behind the redesign flag,
+        // eager-load the same relations TaskPresenter needs so the widget can
+        // open a task in the redesigned modals (checklist/attachments/linked
+        // records) — off, the narrower relation set this widget always used.
+        $tasksQuery = Task::with(
+            $useRedesignedTasks
+                ? TaskPresenter::RELATIONS
+                : [
+                    'project:id,project_name,project_short_code',
+                    'users:id,name,image',
+                    'createBy:id,name,image',
+                    'addedByUser:id,name,image',
+                    'boardColumn:id,column_name,slug,label_color',
+                    'category:id,category_name',
+                    'labels',
+                    'deals:id,name',
+                    'leads:id,client_name,company_name'
+                ]
+        )
             ->pending();
+
+        if ($useRedesignedTasks) {
+            $tasksQuery->withCount(TaskPresenter::COUNTS);
+        }
 
         // Apply strict filtering for tasks
         $tasksConstraint($tasksQuery);
@@ -181,7 +200,11 @@ class DashboardController extends AccountBaseController
             ->orderBy('due_date', 'asc')
             ->limit(20)
             ->get()
-            ->map(function ($task) {
+            ->map(function ($task) use ($useRedesignedTasks) {
+                if ($useRedesignedTasks) {
+                    return TaskPresenter::present($task);
+                }
+
                 return [
                     'id' => $task->id,
                     'heading' => $task->heading,
@@ -680,14 +703,11 @@ class DashboardController extends AccountBaseController
             // TODO: Refactor this to be a service that calculates all this data and passes it to the dashboard controller, also the entities ought to be tied explicitly to the authenticated user
         ];
 
-        $dealFormData = $this->getDealFormData();
-        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
-        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
-
-        $leadFormData = $this->getLeadFormData();
-        $leadFormData['leadCustomFields'] = $leadFormData['customFields'];
-        $leadFormData['leadCustomFieldCategories'] = $leadFormData['customFieldCategories'];
-
+        // The full deal and lead form payloads used to be merged in here — ~24
+        // queries of reference data for the create-deal and create-lead modals.
+        // This page renders neither; the only key its tree reads is `countries`,
+        // which is cache-backed and free. Task form data stays: TasksActivitiesPanel
+        // reads categories/labels/columns/users/projects off the page props.
         $meetingPermissions = [
             'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
         ];
@@ -715,7 +735,8 @@ class DashboardController extends AccountBaseController
             'pipelineStages' => $pipelineStages,
             'overviewMetrics' => $overviewMetrics,
             'stats' => $stats,
-        ], $dealFormData, $leadFormData, TaskService::getTaskFormData()));
+            'countries' => countries(),
+        ], TaskService::getTaskFormData()));
     }
 
     public function widget(Request $request, $dashboardType)

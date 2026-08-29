@@ -6,11 +6,8 @@ use App\Models\CustomField;
 use App\Models\LanguageSetting;
 use App\Models\Lead;
 use App\Enums\AgeRange;
-use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class LeadCoreFieldsService
@@ -26,35 +23,22 @@ class LeadCoreFieldsService
     /** @var array<int, array<string, int>> */
     private array $slugToIdCache = [];
 
-    public function useCoreFields(): bool
-    {
-        return FeatureFlags::enabled('crm.lead-language-core-field');
-    }
-
     public function read(Lead $lead): array
     {
-        if ($this->useCoreFields()) {
-            return [
-                'languages' => $lead->languages ?? [],
-                'date_of_birth' => $lead->date_of_birth?->format('Y-m-d'),
-                'age' => $lead->age,
-                'age_range' => $lead->age_range instanceof AgeRange
-                    ? $lead->age_range->value
-                    : $lead->age_range,
-                'nationality' => $lead->nationality,
-                'occupation' => $lead->occupation,
-            ];
-        }
-
-        return $this->readFromCustomFields($lead);
+        return [
+            'languages' => $lead->languages ?? [],
+            'date_of_birth' => $lead->date_of_birth?->format('Y-m-d'),
+            'age' => $lead->age,
+            'age_range' => $lead->age_range instanceof AgeRange
+                ? $lead->age_range->value
+                : $lead->age_range,
+            'nationality' => $lead->nationality,
+            'occupation' => $lead->occupation,
+        ];
     }
 
     public function write(Lead $lead, array $data): void
     {
-        if (!$this->useCoreFields()) {
-            return;
-        }
-
         if (array_key_exists('languages', $data)) {
             $lead->languages = $this->normalizeLanguages($data['languages']);
         }
@@ -104,10 +88,6 @@ class LeadCoreFieldsService
      */
     public function filterCustomFieldsFromPayload(array $payload, int $companyId): array
     {
-        if (!$this->useCoreFields()) {
-            return $payload;
-        }
-
         $promotedIds = array_values($this->slugToIdMap($companyId));
 
         foreach (['custom_fields_data', 'custom_fields'] as $key) {
@@ -132,13 +112,7 @@ class LeadCoreFieldsService
      */
     public function filterPromotedFieldDefinitions(iterable $fields): Collection
     {
-        $collection = collect($fields);
-
-        if (!$this->useCoreFields()) {
-            return $collection->values();
-        }
-
-        return $collection
+        return collect($fields)
             ->filter(function ($field) {
                 $name = is_array($field) ? ($field['name'] ?? null) : ($field->name ?? null);
 
@@ -158,10 +132,6 @@ class LeadCoreFieldsService
 
     public function validationRules(bool $sometimes = false): array
     {
-        if (!$this->useCoreFields()) {
-            return [];
-        }
-
         $languageCodes = LanguageSetting::pluck('language_code')->filter()->implode(',');
         $sometimesRules = $sometimes ? ['sometimes'] : [];
         $languageItemRule = $languageCodes !== ''
@@ -177,64 +147,6 @@ class LeadCoreFieldsService
             'nationality' => [...$sometimesRules, 'nullable', 'string', 'max:255'],
             'occupation' => [...$sometimesRules, 'nullable', 'string', 'max:255'],
         ];
-    }
-
-    private function readFromCustomFields(Lead $lead): array
-    {
-        $companyId = (int) ($lead->company_id ?? company()?->id);
-        $slugMap = $this->slugToIdMap($companyId);
-
-        $rawLanguage = $this->customFieldValueForLead($lead, $slugMap['language'] ?? null);
-        $languages = $rawLanguage !== null
-            ? $this->normalizeLanguages($rawLanguage)
-            : [];
-
-        $dateOfBirth = null;
-        $rawDob = $this->customFieldValueForLead($lead, $slugMap['date-of-birth'] ?? null);
-        if ($rawDob) {
-            try {
-                $dateOfBirth = Carbon::parse($rawDob)->format('Y-m-d');
-            } catch (\Throwable $e) {
-                Log::warning('Lead core field read: unparseable date_of_birth from custom field', [
-                    'lead_id' => $lead->id,
-                    'value' => $rawDob,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        $nationality = $this->customFieldValueForLead($lead, $slugMap['nationality'] ?? null);
-        $occupation = $this->customFieldValueForLead($lead, $slugMap['occupation'] ?? null);
-        $rawAgeRange = $this->customFieldValueForLead($lead, $slugMap['age'] ?? null);
-        $ageRange = null;
-
-        if ($rawAgeRange) {
-            $ageRange = AgeRange::tryFrom($rawAgeRange)?->value ?? $rawAgeRange;
-        }
-
-        return [
-            'languages' => $languages,
-            'date_of_birth' => $dateOfBirth,
-            'age' => null,
-            'age_range' => $ageRange,
-            'nationality' => $nationality ?: null,
-            'occupation' => $occupation ?: null,
-        ];
-    }
-
-    private function customFieldValueForLead(Lead $lead, ?int $fieldId): ?string
-    {
-        if ($fieldId === null || !$lead->id) {
-            return null;
-        }
-
-        $value = DB::table('custom_fields_data')
-            ->where('custom_field_id', $fieldId)
-            ->where('model', Lead::CUSTOM_FIELD_MODEL)
-            ->where('model_id', $lead->id)
-            ->value('value');
-
-        return $value !== null ? (string) $value : null;
     }
 
     /**

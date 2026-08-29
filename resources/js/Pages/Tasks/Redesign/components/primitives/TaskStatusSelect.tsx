@@ -125,6 +125,7 @@ export default function TaskStatusSelect({
                         role="menu"
                         style={{
                             ...floatStyle,
+                            overflowY: "auto",
                             minWidth: 208,
                             padding: 8,
                             background: T.WHITE,

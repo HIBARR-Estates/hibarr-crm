@@ -27,8 +27,8 @@
                 <div class="alert alert-info mb-4">
                     <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> How Automations Work</h5>
                     <p class="mb-0 f-13">
-                        This rule runs only when the selected trigger event happens. It does not lock the deal state. 
-                        If a user manually moves a deal, this automation will not revert it unless a new event triggers the rule again.
+                        This rule runs only when the selected trigger event happens. It does not lock the deal/lead state.
+                        If a user manually changes it, this automation will not revert it unless a new event triggers the rule again.
                     </p>
                 </div>
 
@@ -51,7 +51,15 @@
 
                 <div class="row">
                     <div class="col-md-6">
-                        <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Pipeline Scope')" fieldName="pipeline_id" fieldRequired="true">
+                        <x-forms.select fieldId="subject_type" :fieldLabel="__('Automation For')" fieldName="subject_type" fieldRequired="true">
+                            <option value="deal" {{ ($automation->subject_type ?? 'deal') == 'deal' ? 'selected' : '' }}>Deals</option>
+                            <option value="lead" {{ ($automation->subject_type ?? 'deal') == 'lead' ? 'selected' : '' }}>Leads</option>
+                        </x-forms.select>
+                        <p class="f-11 text-lightest mt-1">Deal automations can move stage/lock the deal; lead automations run directly on the lead (no pipeline).</p>
+                    </div>
+                    <div class="col-md-6" id="pipeline-scope-col">
+                        <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Pipeline Scope (Optional)')" fieldName="pipeline_id">
+                            <option value="">-- All Pipelines --</option>
                             @foreach($pipelines as $pipeline)
                                 <option value="{{ $pipeline->id }}" {{ ($automation->pipeline_id ?? '') == $pipeline->id ? 'selected' : '' }}>
                                     {{ $pipeline->name }}
@@ -59,17 +67,24 @@
                             @endforeach
                         </x-forms.select>
                     </div>
+                </div>
+
+                <div class="row">
                     <div class="col-md-6">
                         <x-forms.select fieldId="trigger" :fieldLabel="__('Trigger (Optional)')" fieldName="trigger">
                             <option value="">-- Run on Any Update --</option>
-                            <option value="deal_created" {{ ($automation->trigger ?? '') == 'deal_created' ? 'selected' : '' }}>Deal Created</option>
-                            <option value="deal_updated" {{ ($automation->trigger ?? '') == 'deal_updated' ? 'selected' : '' }}>Deal Updated</option>
-                            <option value="followup_created" {{ ($automation->trigger ?? '') == 'followup_created' ? 'selected' : '' }}>Follow-up Created</option>
-                            <option value="custom_field_updated" {{ ($automation->trigger ?? '') == 'custom_field_updated' ? 'selected' : '' }}>Custom Field Updated</option>
+                            <option value="deal_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_created' ? 'selected' : '' }}>Deal Created</option>
+                            <option value="deal_updated" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_updated' ? 'selected' : '' }}>Deal Updated</option>
+                            <option value="followup_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'followup_created' ? 'selected' : '' }}>Follow-up Created</option>
+                            <option value="custom_field_updated" data-subject="any" {{ ($automation->trigger ?? '') == 'custom_field_updated' ? 'selected' : '' }}>Custom Field Updated</option>
+                            <option value="lead_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_created' ? 'selected' : '' }}>Lead Created</option>
+                            <option value="lead_updated" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_updated' ? 'selected' : '' }}>Lead Updated</option>
+                            <option value="lead_followup_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_followup_created' ? 'selected' : '' }}>Lead Follow-up Created</option>
+                            <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>Specific Date / Birthday</option>
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1" id="trigger-help-text">
                             @if(($automation->trigger ?? '') == '')
-                                Evaluates whenever a deal is created or updated.
+                                Evaluates whenever the deal/lead is created or updated.
                             @elseif(($automation->trigger ?? '') == 'deal_created')
                                 Evaluates only when a new deal is created.
                             @elseif(($automation->trigger ?? '') == 'deal_updated')
@@ -78,13 +93,56 @@
                                 Evaluates when a follow-up is added to the deal.
                             @elseif(($automation->trigger ?? '') == 'custom_field_updated')
                                 Evaluates when a custom field value changes.
+                            @elseif(($automation->trigger ?? '') == 'lead_created')
+                                Evaluates only when a new lead is created.
+                            @elseif(($automation->trigger ?? '') == 'lead_updated')
+                                Evaluates when a lead's properties are updated.
+                            @elseif(($automation->trigger ?? '') == 'lead_followup_created')
+                                Evaluates when a follow-up or meeting is added to the lead (not to a deal).
+                            @elseif(($automation->trigger ?? '') == 'date_based')
+                                Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year (birthdays) or fires one time only.
                             @endif
                         </p>
                         <div id="trigger-warning" class="alert alert-warning f-13 mt-2 p-2" style="display: none;">
-                            <i class="fa fa-exclamation-triangle"></i> <strong>Note:</strong> This rule evaluates every time a deal is saved. Ensure your conditions are specific to avoid unintended stage changes.
+                            <i class="fa fa-exclamation-triangle"></i> <strong>Note:</strong> This rule evaluates every time the record is saved. Ensure your conditions are specific to avoid unintended changes.
                         </div>
                     </div>
                 </div>
+
+                {{-- Only relevant for trigger = 'date_based'; toggled by JS below --}}
+                <div class="row" id="date-trigger-config" style="display: none;">
+                    <div class="col-md-6">
+                        <x-forms.select fieldId="trigger_date_field" :fieldLabel="__('Date Field')" fieldName="trigger_date_field" fieldRequired="true">
+                            <option value="">-- Select Date --</option>
+                            @include('company-settings.deal-automation._date-field-options', ['selectedDateField' => $automation->date_field ?? ''])
+                        </x-forms.select>
+                    </div>
+                    <div class="col-md-6">
+                        <x-forms.select fieldId="trigger_date_recurrence" :fieldLabel="__('Repeat')" fieldName="trigger_date_recurrence" fieldRequired="true">
+                            @foreach($dateRecurrences as $key => $label)
+                                <option value="{{ $key }}" {{ ($automation->date_recurrence ?? '') == $key ? 'selected' : '' }}>{{ __($label) }}</option>
+                            @endforeach
+                        </x-forms.select>
+                        <p class="f-11 text-lightest mt-1">Checked daily per company timezone. "Every Year" fires on the matching month/day (Feb 29 only in leap years); "One Time Only" fires only when that exact date is today.</p>
+                    </div>
+                </div>
+
+                {{-- Wait before running: when set, matched automations queue a
+                     pending run and actions execute later from the scheduler --}}
+                <div class="row">
+                    <div class="col-md-3">
+                        <x-forms.number fieldId="wait_duration_value" :fieldLabel="__('Wait Before Running (optional)')" fieldName="wait_duration_value"
+                            :fieldValue="$automation->wait_duration_value ?? ''" fieldHelp="Leave empty to run immediately" />
+                    </div>
+                    <div class="col-md-3" id="wait-unit-col">
+                        <x-forms.select fieldId="wait_duration_unit" :fieldLabel="__('Wait Unit')" fieldName="wait_duration_unit">
+                            @foreach($waitDurationUnits as $key => $label)
+                                <option value="{{ $key }}" {{ ($automation->wait_duration_unit ?? 'days') == $key ? 'selected' : '' }}>{{ __($label) }}</option>
+                            @endforeach
+                        </x-forms.select>
+                    </div>
+                </div>
+                <p class="f-11 text-lightest mt-1">Conditions are checked again when the wait ends — if they no longer hold, nothing runs. While waiting, only one delayed run is kept per deal/lead.</p>
 
                 <hr>
                 <h4 class="mb-3">Conditions</h4>
@@ -158,27 +216,161 @@
             });
 
             $('body').on('click', '.remove-row', function() {
-                $(this).closest('.row').remove();
+                // action-row's remove button lives in its header .row, not the
+                // whole card, so target the row/action-card wrapper explicitly.
+                $(this).closest('.condition-row, .action-row').remove();
             });
 
             // Trigger Help Text Logic
             const triggerHelp = {
-                '': 'Evaluates whenever a deal is created or updated.',
+                '': 'Evaluates whenever the deal/lead is created or updated.',
                 'deal_created': 'Evaluates only when a new deal is created.',
                 'deal_updated': 'Evaluates when a deal\'s properties are updated.',
                 'followup_created': 'Evaluates when a follow-up is added to the deal.',
-                'custom_field_updated': 'Evaluates when a custom field value changes.'
+                'custom_field_updated': 'Evaluates when a custom field value changes.',
+                'lead_created': 'Evaluates only when a new lead is created.',
+                'lead_updated': 'Evaluates when a lead\'s properties are updated.',
+                'lead_followup_created': 'Evaluates when a follow-up/meeting is added to the lead (not to a deal).',
+                'date_based': 'Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year or fires one time only.'
             };
+
+            // Date-based trigger extras: shown only for trigger = 'date_based',
+            // with the selects disabled while hidden so they never submit.
+            function toggleDateTriggerConfig() {
+                const active = $('#trigger').val() === 'date_based';
+                $('#date-trigger-config').toggle(active);
+                $('#date-trigger-config').find('select').prop('disabled', !active);
+                if (active) {
+                    $('#trigger_date_recurrence').selectpicker && $('#trigger_date_recurrence').selectpicker('refresh');
+                    $('#trigger_date_field').selectpicker && $('#trigger_date_field').selectpicker('refresh');
+                }
+            }
 
             $('#trigger').change(function() {
                 const val = $(this).val();
                 $('#trigger-help-text').text(triggerHelp[val] || '');
-                
-                if (val === 'deal_updated') {
+
+                if (val === 'deal_updated' || val === 'lead_updated') {
                     $('#trigger-warning').slideDown();
                 } else {
                     $('#trigger-warning').slideUp();
                 }
+
+                toggleDateTriggerConfig();
+            });
+
+            // Wait unit is only meaningful when a wait value is set
+            function toggleWaitUnit() {
+                $('#wait-unit-col').toggle(!!$('#wait_duration_value').val());
+            }
+
+            $('#wait_duration_value').on('input change', toggleWaitUnit);
+
+            // Subject Type (Deal/Lead) Logic — filters which triggers/actions/
+            // condition-field groups apply, since lead automations skip pipeline
+            // scope and deal-only actions (stage_transition/lock_deal).
+            function filterSelectBySubject(select, subjectType) {
+                let changed = false;
+
+                select.find('option[data-subject]').each(function() {
+                    const option = $(this);
+                    const optionSubject = option.data('subject');
+                    const matches = optionSubject === 'any' || optionSubject === subjectType;
+                    option.prop('hidden', !matches).prop('disabled', !matches);
+                });
+
+                if (select.find('option:selected').prop('disabled')) {
+                    select.val(select.find('option:not(:disabled):first').val());
+                    changed = true;
+                }
+
+                return changed;
+            }
+
+            function applySubjectTypeToConditionRow(row, subjectType) {
+                const select = row.find('.condition-field-select');
+                select.find('optgroup.subject-group-deal').toggle(subjectType !== 'lead');
+
+                if (subjectType === 'lead' && select.find('option:selected').closest('optgroup.subject-group-deal').length) {
+                    select.val('');
+                    updateOperators(row);
+                }
+            }
+
+            function applySubjectTypeToActionRow(row, subjectType) {
+                const typeChanged = filterSelectBySubject(row.find('.action-type-select'), subjectType);
+                if (typeChanged) {
+                    toggleActionFields(row);
+                }
+
+                const fieldNameSelect = row.find('.action-field-name-select');
+                fieldNameSelect.find('optgroup.action-field-group-deal').toggle(subjectType !== 'lead');
+                fieldNameSelect.find('optgroup.action-field-group-lead').toggle(subjectType === 'lead');
+
+                const selectedFieldOption = fieldNameSelect.find('option:selected');
+                const inWrongGroup = subjectType === 'lead'
+                    ? selectedFieldOption.closest('optgroup.action-field-group-deal').length
+                    : selectedFieldOption.closest('optgroup.action-field-group-lead').length;
+
+                if (inWrongGroup) {
+                    fieldNameSelect.val('');
+                    updateActionFieldValue(row);
+                }
+
+                // Send Email "Send To" checkboxes: hide/uncheck ones that don't
+                // apply to this subject type (e.g. Deal Agent for a lead automation).
+                row.find('.action-recipient-type-wrap').each(function() {
+                    const wrap = $(this);
+                    const matches = wrap.data('subject') === 'any' || wrap.data('subject') === subjectType;
+                    wrap.toggle(matches);
+                    if (!matches) {
+                        wrap.find('.action-recipient-type-check').prop('checked', false);
+                    }
+                });
+                toggleRecipientSubFields(row);
+            }
+
+            // Send Email recipients: reveal the "Specific User(s)" select and/or
+            // "Custom Email Address(es)" textarea only when their checkbox is on.
+            function toggleRecipientSubFields(row) {
+                row.find('.action-recipient-user-container').toggle(
+                    row.find('.action-recipient-type-check[value="specific_user"]').is(':checked')
+                );
+                row.find('.action-recipient-email-container').toggle(
+                    row.find('.action-recipient-type-check[value="custom_email"]').is(':checked')
+                );
+            }
+
+            $('body').on('change', '.action-recipient-type-check', function() {
+                toggleRecipientSubFields($(this).closest('.action-row'));
+            });
+
+            $('.action-row').each(function() {
+                toggleRecipientSubFields($(this));
+            });
+
+            function applySubjectType(subjectType) {
+                $('#pipeline-scope-col').toggle(subjectType !== 'lead');
+
+                if (filterSelectBySubject($('#trigger'), subjectType)) {
+                    $('#trigger').trigger('change');
+                }
+                $('#trigger').selectpicker && $('#trigger').selectpicker('refresh');
+
+                // Hide date-field options that don't apply to this subject type
+                filterSelectBySubject($('#trigger_date_field'), subjectType);
+                $('#trigger_date_field').selectpicker && $('#trigger_date_field').selectpicker('refresh');
+
+                $('#conditions-container .condition-row').each(function() {
+                    applySubjectTypeToConditionRow($(this), subjectType);
+                });
+                $('#actions-container .action-row').each(function() {
+                    applySubjectTypeToActionRow($(this), subjectType);
+                });
+            }
+
+            $('#subject_type').on('change', function() {
+                applySubjectType($(this).val());
             });
 
 
@@ -321,28 +513,42 @@
             $('#add-condition').click(function() {
                 // Wait for the row to be appended
                 setTimeout(function() {
-                    updateOperators($('#conditions-container .condition-row:last'));
+                    const newRow = $('#conditions-container .condition-row:last');
+                    applySubjectTypeToConditionRow(newRow, $('#subject_type').val());
+                    updateOperators(newRow);
                 }, 0);
             });
 
             // Action Builder Logic
+            // create_task and create_note share field names (title, content,
+            // assigner_type/assigner_user_id) since only one block is ever
+            // active per row — disabled inputs are excluded from form
+            // serialization, so the hidden block's duplicate names never submit.
             function toggleActionFields(row) {
                 const actionType = row.find('.action-type-select').val();
-                row.find('.action-fields-stage-transition').hide();
-                row.find('.action-fields-set-field-value').hide();
-                row.find('.action-fields-lock-deal').hide();
+                const allBlocks = row.find('[class^="action-fields-"], [class*=" action-fields-"]');
+                allBlocks.hide().find('input, select, textarea').prop('disabled', true);
 
-                if (actionType === 'stage_transition') {
-                    row.find('.action-fields-stage-transition').show();
-                } else if (actionType === 'set_field_value') {
-                    row.find('.action-fields-set-field-value').show();
-                } else if (actionType === 'lock_deal') {
-                    row.find('.action-fields-lock-deal').show();
-                }
+                const activeBlock = row.find('.action-fields-' + (actionType || '').replace(/_/g, '-'));
+                activeBlock.show().find('input, select, textarea').prop('disabled', false);
             }
 
             $('body').on('change', '.action-type-select', function() {
                 toggleActionFields($(this).closest('.action-row'));
+            });
+
+            // Assign To / Created-Assigned By: reveal the user picker only when
+            // "Specific User" is chosen (vs. dynamically resolved "Lead Owner").
+            function toggleAssignmentUserSelect(typeSelect) {
+                typeSelect.closest('.row').find('select[class*="-user-select"]').toggle(typeSelect.val() === 'specific_user');
+            }
+
+            $('body').on('change', '.action-assignee-type-select, .action-assigner-type-select', function() {
+                toggleAssignmentUserSelect($(this));
+            });
+
+            $('.action-assignee-type-select, .action-assigner-type-select').each(function() {
+                toggleAssignmentUserSelect($(this));
             });
 
             // Field Value dynamic input based on selected field_name
@@ -373,6 +579,15 @@
                         <select name="${inputName}" class="form-control height-35 f-14 action-field-value-input">
                             <option value="1" ${currentValue == '1' ? 'selected' : ''}>True / Yes</option>
                             <option value="0" ${currentValue == '0' ? 'selected' : ''}>False / No</option>
+                        </select>
+                    `);
+                } else if (fieldName === 'temperature') {
+                    container.html(`
+                        <label class="f-14 text-dark-grey mb-12">Value</label>
+                        <select name="${inputName}" class="form-control height-35 f-14 action-field-value-input">
+                            <option value="cold" ${currentValue === 'cold' ? 'selected' : ''}>Cold</option>
+                            <option value="warm" ${currentValue === 'warm' ? 'selected' : ''}>Warm</option>
+                            <option value="hot" ${currentValue === 'hot' ? 'selected' : ''}>Hot</option>
                         </select>
                     `);
                 } else {
@@ -433,6 +648,43 @@
                 });
             });
 
+            // Insert Tag: click a field in the "insert tag" dropdown to drop
+            // @{{tag}} into the field it belongs to, at the cursor position —
+            // so you don't have to know/remember the exact tag syntax up front.
+            // Works on dynamically-added rows too since it's delegated to body,
+            // and Bootstrap's own dropdown toggle is already delegated the
+            // same way, so no re-init is needed when a new row is cloned in.
+            $('body').on('click', '.tag-picker-item', function(e) {
+                e.preventDefault();
+                const tag = $(this).data('tag');
+                const targetId = $(this).closest('.tag-picker-menu').data('target');
+                const el = document.getElementById(targetId);
+                if (!el) {
+                    return;
+                }
+                insertTagAtCursor(el, '@{{' + tag + '}}');
+            });
+
+            function insertTagAtCursor(el, text) {
+                const start = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
+                const end = typeof el.selectionEnd === 'number' ? el.selectionEnd : el.value.length;
+                el.value = el.value.slice(0, start) + text + el.value.slice(end);
+                el.focus();
+                const newPos = start + text.length;
+                el.setSelectionRange(newPos, newPos);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            // Meta Conversion "Existing Event" picker: fills this row's own
+            // Event Name input (scoped via closest(), not an id, since every
+            // meta_conversion row repeats the same picker).
+            $('body').on('change', '.meta-event-name-picker', function() {
+                const val = $(this).val();
+                if (val) {
+                    $(this).closest('.action-fields-meta-conversion').find('input[name*="[meta_event_name]"]').val(val);
+                }
+            });
+
             // Initialize stages for existing rows
             $('.action-row').each(function() {
                 updateStageOptions($(this));
@@ -445,12 +697,28 @@
                     const newRow = $('#actions-container .action-row:last');
                     updateStageOptions(newRow);
                     toggleActionFields(newRow);
+                    applySubjectTypeToActionRow(newRow, $('#subject_type').val());
+                    newRow.find('.action-assignee-type-select, .action-assigner-type-select').each(function() {
+                        toggleAssignmentUserSelect($(this));
+                    });
                     // Fix forward_only checkbox id uniqueness
                     const idx = newRow.find('.action-type-select').attr('name').match(/actions\[(\w+)\]/)[1];
                     newRow.find('.forward-only-check').attr('id', 'forward_only_' + idx);
                     newRow.find('.forward-only-check').next('label').attr('for', 'forward_only_' + idx);
                 }, 0);
             });
+
+            // Initial render: filter triggers/conditions/actions to match the
+            // currently selected subject type (deal on create; whatever the
+            // automation was saved as on edit).
+            applySubjectType($('#subject_type').val());
+
+            // Show/hide the date-trigger config for a saved date_based
+            // automation (applySubjectType only fires 'change' when it had to
+            // reset the trigger select, so run this explicitly too).
+            toggleDateTriggerConfig();
+
+            toggleWaitUnit();
 
             // Forward Only Warning Logic
             $('body').on('change', '.forward-only-check', function() {

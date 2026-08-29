@@ -36,6 +36,7 @@ export interface LeadMeetingCreateInput {
     locationDetail: string;
     meetingLink: string;
     participants: number[];
+    hostId: number | null;
     remark: string;
     reminders: Reminder[];
     dealId?: number | null;
@@ -56,6 +57,7 @@ interface FollowUpStorePayload {
     remark?: string;
     timezone?: string;
     participants?: number[];
+    host_id?: number | null;
 }
 
 function timesOverlap(
@@ -193,7 +195,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
             input: LeadMeetingCreateInput,
             options: LeadMeetingCreateOptions = {},
         ) => {
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 lead_id: lead.id,
@@ -212,6 +214,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
+                host_id: input.hostId,
                 timezone: getBrowserTimezone(),
             };
 

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { DOSSIER_SECTIONS } from "../../config/dossierSections";
 import type { DossierFieldKey } from "../../config/dossierSections";
 import {
@@ -41,6 +41,7 @@ export default function LeadDossier({
     canEdit = false,
 }: LeadDossierProps) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const { isFieldLoading, handleFieldUpdate } =
         useLeadInfoFieldUpdate(canEdit);
     const [openSections, setOpenSections] = useState<Set<string>>(
@@ -74,10 +75,10 @@ export default function LeadDossier({
     );
 
     const createdLabel = lead.created_at
-        ? formatCompanyDateTime(lead.created_at)
+        ? formatDateTime(lead.created_at)
         : null;
     const updatedLabel = lead.updated_at
-        ? formatCompanyDateTime(lead.updated_at)
+        ? formatDateTime(lead.updated_at)
         : null;
 
     return (

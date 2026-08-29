@@ -6,10 +6,17 @@ export interface AnalysisScriptItem {
         | "hibarr_field"
         | "lead_field"
         | "question"
-        | "instruction";
+        | "instruction"
+        /** Opens a hand-built section; label_override is its title. */
+        | "section"
+        /** A single custom field by id, rather than a whole category. */
+        | "deal_custom_field"
+        | "lead_custom_field";
     item_key: string;
     label_override?: string | null;
     guide_text?: string | null;
+    /** Must be answered (or explicitly marked unanswered) before completing. */
+    is_required?: boolean;
     position: number;
 }
 
@@ -19,7 +26,9 @@ export type AnalysisSectionItemKind =
     | "instruction"
     | "native_field"
     | "hibarr_field"
-    | "lead_field";
+    | "lead_field"
+    | "deal_custom_field"
+    | "lead_custom_field";
 
 export interface AnalysisSectionItem {
     kind: AnalysisSectionItemKind;
@@ -31,7 +40,12 @@ export interface AnalysisSection {
     id: string;
     title: string;
     guideText?: string | null;
-    /** Parsed from item_key for custom_field_category items; null for the fallback General section */
+    /**
+     * "category" auto-expands to every field in `categoryId`; "custom" renders only
+     * the explicit `items` an admin placed in it.
+     */
+    kind: "category" | "custom";
+    /** Parsed from item_key for custom_field_category items; null for custom sections */
     categoryId: number | null;
     items: AnalysisSectionItem[];
 }

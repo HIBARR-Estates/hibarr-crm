@@ -14,7 +14,7 @@ export default function UserTimezoneCapture() {
         if (!user) {
             return;
         }
-        persistUserTimezoneOnce(user.timezone);
+        persistUserTimezoneOnce(user.timezone, user.timezone_locked);
     }, [user]);
 
     return null;

@@ -146,7 +146,10 @@ class Deal extends BaseModel
     protected $hidden = ["pivot"];
 
 
-    protected $appends = ['image_url', 'total_discount'];
+    // total_discount is an aggregate — appending it globally cost one extra query
+    // per deal on every list that gets serialized. Only the deal show page reads
+    // it, and that appends it explicitly.
+    protected $appends = ['image_url'];
 
     protected $casts = [
         'close_date' => 'datetime',
@@ -163,6 +166,7 @@ class Deal extends BaseModel
         'exchange_rate' => 'double',
         'analysis_completed_at' => 'datetime',
         'analysis_completed_by' => 'integer',
+        'analysis_unanswered' => 'array',
         'remind_at' => 'datetime',
         'reminders' => 'array',
     ];
@@ -389,13 +393,13 @@ class Deal extends BaseModel
     }
 
     /**
-     * A won deal is locked for further edits even without the manual
-     * is_locked flag — mirrors resolveDealOutcome() in
-     * resources/js/lib/dealOutcome.ts so frontend gates match what this
-     * will actually accept.
+     * Only the explicit is_locked flag locks a deal — winning a deal does
+     * NOT lock it on its own. Use the lock_deal automation action (or a
+     * manual lock) when that protection is wanted. Mirrors
+     * isDealEffectivelyLocked() in resources/js/lib/dealOutcome.ts.
      */
     public function isLocked(): bool
     {
-        return (bool) $this->is_locked || $this->outcome_status === \App\Enums\OutcomeStatus::Won;
+        return (bool) $this->is_locked;
     }
 }

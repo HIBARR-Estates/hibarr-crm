@@ -30,6 +30,9 @@ export interface DealFollowup {
     updated_at: string;
     summary_id?: number;
     added_by?: User;
+    /** User "in charge of" the meeting. Immutable once the meeting is saved. */
+    host_id?: number | null;
+    host?: { id: number; name: string; image?: string | null } | null;
     meeting_type?: {
         id: number;
         name: string;
@@ -43,6 +46,8 @@ export interface DealFollowup {
     zoho_calendar_job_id?: string | null;
     zoho_calendar_sync_status?: "pending" | "synced" | "failed" | null;
     zoho_calendar_event_uid?: string | null;
+    /** Tri-state: null = not yet confirmed, true/false = manually confirmed after the meeting. */
+    client_attended?: boolean | null;
     lead?: Pick<
         Lead,
         "id" | "client_name" | "client_name_salutation" | "company_name"

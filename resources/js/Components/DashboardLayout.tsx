@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { theme } from "antd";
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
@@ -10,6 +10,7 @@ export interface PageProps extends InertiaPageProps {
     auth: AuthType;
     appName: string;
     featureFlags?: Record<string, boolean>;
+    integrationsHubUrl?: string;
     sidebar: {
         unreadMessagesCount: number;
         customLinks?: unknown[];
@@ -27,6 +28,8 @@ export interface PageProps extends InertiaPageProps {
     [key: string]: any;
 }
 
+const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
+
 const DashboardLayout: React.FC<{
     children: React.ReactNode;
 }> = ({ children }) => {
@@ -35,7 +38,21 @@ const DashboardLayout: React.FC<{
     const {
         token: { colorBgContainer },
     } = theme.useToken();
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+        } catch {
+            // ignore storage errors
+        }
+    }, [collapsed]);
 
     return (
         <div className={`min-h-screen bg-slate-100 ${isRtl ? "rtl" : "ltr"}`}>

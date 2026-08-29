@@ -56,8 +56,6 @@ export default function LegacyLeadShow({
     const taskPerms = permissions ?? taskPermissions ?? {};
     const showQualificationTab =
         featureFlags?.["crm.lead-qualification-tab"] === true;
-    const useLeadCoreFields =
-        featureFlags?.["crm.lead-language-core-field"] === true;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
 
     const [activeTab, setActiveTab] = useState(
@@ -124,7 +122,6 @@ export default function LegacyLeadShow({
                     projects={projects}
                     isEditMode={isEditMode}
                     onEditModeChange={setIsEditMode}
-                    useLeadCoreFields={useLeadCoreFields}
                 />
             ),
         },

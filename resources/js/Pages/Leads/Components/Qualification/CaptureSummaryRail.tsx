@@ -4,8 +4,8 @@ import {
     Segment,
     SegmentAnswerState,
 } from "@/Types/qualification";
-import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import { formatAnswerDisplay, stripHtmlTags } from "./qualificationUtils";
+import { useTranslatedScriptLabel } from "./useTranslatedScriptLabel";
 
 interface CaptureSummaryRailProps {
     visibleSegments: Segment[];
@@ -50,7 +50,7 @@ const AnswerChip: React.FC<{
     answer?: SegmentAnswerState;
     isActive: boolean;
 }> = ({ segment, answer, isActive }) => {
-    const labelTranslated = useDynamicTranslation(segment.label, { source: "en" });
+    const labelTranslated = useTranslatedScriptLabel(segment.label);
     const label = stripHtmlTags(labelTranslated) || labelTranslated;
     const display = formatAnswerDisplay(segment, answer) || null;
 

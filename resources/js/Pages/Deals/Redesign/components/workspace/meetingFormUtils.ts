@@ -10,6 +10,8 @@ export {
     diffMinutesBetweenTimes,
     isMeetingStartInFuture,
     getDefaultMeetingParticipants,
+    getDefaultMeetingHost,
+    getMeetingOwner,
     buildEmptyMeetingForm,
     reminderLabel,
     buildMeetingFormFromFollowup,

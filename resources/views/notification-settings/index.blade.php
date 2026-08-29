@@ -34,6 +34,11 @@
                                 ajax="false">@lang('app.menu.pusherSettings')<i
                                 id="pusher-setting-tab" class="fa fa-circle ml-1 {{ $pusherSettings->status == 1 ? 'text-light-green' : 'text-red' }}"></i>
                             </a>
+                            <a class="nav-item nav-link f-15 database-setting"
+                                href="{{ route('notification-settings.index') }}?tab=database-setting" role="tab"
+                                aria-controls="nav-ticketTypes" aria-selected="true"
+                                ajax="false">@lang('app.menu.inAppNotifications')
+                            </a>
                         </div>
                     </nav>
                 </div>

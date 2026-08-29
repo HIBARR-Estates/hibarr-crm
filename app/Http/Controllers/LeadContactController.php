@@ -44,6 +44,7 @@ use App\Services\LeadService;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use App\Support\LeadExportFields;
+use App\Support\TaskPresenter;
 use App\Traits\ImportExcel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -132,6 +133,10 @@ class LeadContactController extends AccountBaseController
             // Next Action click-through: TaskDetailModal's status dropdown.
             'taskBoardColumns' => Inertia::defer(
                 fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()
+            ),
+            'taskCategories' => Inertia::defer(
+                fn () => \App\Models\TaskCategory::all(),
+                'taskMeta'
             ),
             'preferredContactTimes' => Inertia::defer(
                 fn () => collect(PreferredContactTime::cases())->map(
@@ -367,10 +372,26 @@ class LeadContactController extends AccountBaseController
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
                 ->get(), 'workspace'),
-            'tasks' => Inertia::defer(fn () => $leadContact->tasks()
-                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
-                ->orderBy('id', 'desc')
-                ->get(), 'workspace'),
+            // Behind crm.tasks-workspace-redesign, eager-load + serialize
+            // through the same TaskPresenter the redesigned Tasks workspace
+            // uses, so this tab's tasks can open in those modals (checklist/
+            // attachments/activity need that shape) — off, the narrower
+            // relation set and raw model serialization this tab always used.
+            'tasks' => Inertia::defer(function () use ($leadContact) {
+                if (FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
+                    return $leadContact->tasks()
+                        ->with(TaskPresenter::RELATIONS)
+                        ->withCount(TaskPresenter::COUNTS)
+                        ->orderBy('id', 'desc')
+                        ->get()
+                        ->map(fn ($task) => TaskPresenter::present($task));
+                }
+
+                return $leadContact->tasks()
+                    ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+            }, 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
@@ -672,6 +693,7 @@ class LeadContactController extends AccountBaseController
                 (int) company()->id
             );
             $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
+            app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
         }
 
         // Log search
@@ -864,6 +886,7 @@ class LeadContactController extends AccountBaseController
                 (int) company()->id
             );
             $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
+            app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
         }
 
         return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
@@ -1135,6 +1158,7 @@ class LeadContactController extends AccountBaseController
                         (int) company()->id
                     );
                     $leadContact->updateCustomFieldData($filtered['custom_fields'] ?? []);
+                    app(\App\Services\LeadAutomationService::class)->process($leadContact, 'custom_field_updated');
                 }
             }
 

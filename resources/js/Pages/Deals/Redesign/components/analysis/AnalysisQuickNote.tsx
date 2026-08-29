@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 export default function AnalysisQuickNote() {
     const { deal } = useDealWorkspace();
-    const { td } = useTd();
     const [text, setText] = useState("");
     const { createNote, isSaving } = useDealNoteCreate(deal.id);
 
@@ -18,7 +16,7 @@ export default function AnalysisQuickNote() {
     return (
         <div className="flex flex-col gap-2">
             <textarea
-                aria-label={td("Add a note", { source: "en" })}
+                aria-label={"Add a note"}
                 className="w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none transition-shadow"
                 style={{
                     borderColor: T.BORDER,
@@ -27,7 +25,7 @@ export default function AnalysisQuickNote() {
                     fontFamily: "inherit",
                     background: T.SURFACE_2,
                 }}
-                placeholder={td("Add a note about this call...", { source: "en" })}
+                placeholder={"Add a note about this call..."}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -47,7 +45,7 @@ export default function AnalysisQuickNote() {
             {text.trim() && (
                 <div className="flex items-center justify-between">
                     <span className="text-[11px]" style={{ color: T.TEXT_HINT }}>
-                        {td("⌘↵ to save", { source: "en" })}
+                        {"⌘↵ to save"}
                     </span>
                     <button
                         type="button"
@@ -55,7 +53,7 @@ export default function AnalysisQuickNote() {
                         disabled={isSaving}
                         onClick={save}
                     >
-                        {isSaving ? td("Saving...", { source: "en" }) : td("Save note", { source: "en" })}
+                        {isSaving ? "Saving..." : "Save note"}
                     </button>
                 </div>
             )}

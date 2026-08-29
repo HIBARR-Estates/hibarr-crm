@@ -209,21 +209,33 @@ const ConstructionProjectFormModal: React.FC<
         if (!open) return;
 
         if (project) {
-            // Flatten location fields from the related location object
-            const locationFields = project.location
-                ? {
-                      city: (project.location as any).city ?? undefined,
-                      area: (project.location as any).area ?? undefined,
-                      map_url: (project.location as any).map_url ?? undefined,
-                      address:
-                          (project.location as any)?.address?.street ??
-                          (project.location as any)?.address ??
-                          undefined,
-                      latitude: (project.location as any).latitude ?? undefined,
-                      longitude:
-                          (project.location as any).longitude ?? undefined,
-                  }
-                : {};
+            // City/area from shared location; map pins from the project (fallback to location defaults).
+            const locationFields = {
+                city: project.location?.city ?? undefined,
+                area: project.location?.area ?? undefined,
+                map_url:
+                    project.map_url ??
+                    project.location?.map_url ??
+                    undefined,
+                address:
+                    project.address?.street ??
+                    (typeof project.address === "string"
+                        ? project.address
+                        : undefined) ??
+                    project.location?.address?.street ??
+                    (typeof project.location?.address === "string"
+                        ? project.location.address
+                        : undefined) ??
+                    undefined,
+                latitude:
+                    project.latitude ??
+                    project.location?.latitude ??
+                    undefined,
+                longitude:
+                    project.longitude ??
+                    project.location?.longitude ??
+                    undefined,
+            };
             form.setFieldsValue({
                 developer_id: project.developer_id,
                 name: project.name,

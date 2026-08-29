@@ -730,6 +730,7 @@ return [
             'banner_single_limit'   => 'В этой CRM разрешен только один пакет или объект на сделку.',
             'section_lead'          => 'Лид',
             'section_deal_details'  => 'Детали сделки',
+            'section_payment'       => 'Оплата',
             'section_documents'     => 'Документы',
             'messages' => [
                 'email_copied' => 'Email скопирован',
@@ -831,6 +832,7 @@ return [
                 'join'                 => 'Присоединиться',
                 'auto_generated_link_hint' => 'Автоматически создается для видеовстреч после планирования.',
                 'existing_link_hint'   => 'Существующая ссылка на встречу показана для справки.',
+                'host_field'           => 'Организатор встречи',
                 'participants_field'   => 'Участники встречи',
                 'reminders'            => 'Напоминания',
                 'remove_reminder'      => 'Удалить напоминание',

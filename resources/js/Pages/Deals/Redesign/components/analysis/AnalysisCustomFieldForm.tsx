@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import AnalysisFieldRow from "./center/AnalysisFieldRow";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -93,8 +92,12 @@ function isFieldFilled(value: unknown): boolean {
     return true;
 }
 
-function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onSave, onFileSelect }: FieldProps) {
-    const { td } = useTd();
+/**
+ * One custom field input, including its numbered row shell. Exported so a script
+ * can place individual custom fields inline among questions/native fields, where
+ * they must interleave in author order rather than render as a whole category.
+ */
+export function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onSave, onFileSelect }: FieldProps) {
     const options = useMemo(() => parseOptions(field.values), [field.values]);
     const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -116,12 +119,22 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
         [onChange],
     );
 
+    /** True when `next` (in input representation) differs from what's stored. */
+    const changedFromStored = useCallback(
+        (next: string | string[]) =>
+            JSON.stringify(next) !== JSON.stringify(toInputValue(field.type, rawValue)),
+        [field.type, rawValue],
+    );
+
     const commit = useCallback(
         (val?: any) => {
             const finalVal = val !== undefined ? val : localVal;
+            // Blur fires whether or not the agent touched the field, so without this
+            // Tabbing through a section would PATCH every field it passed over.
+            if (!changedFromStored(finalVal as string | string[])) return;
             onSave(toSaveValue(field.type, finalVal as string | string[]));
         },
-        [localVal, onSave, field.type],
+        [localVal, onSave, field.type, changedFromStored],
     );
 
     const inputStyle: React.CSSProperties = {
@@ -145,7 +158,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…", { source: "en" })}
+                    placeholder={"Fill in…"}
                     style={inputStyle}
                 />
             )}
@@ -176,7 +189,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onChange={(e) => { setLocalVal(e.target.value); notifyChange(e.target.value || null); }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…", { source: "en" })}
+                    placeholder={"Fill in…"}
                     style={{ ...inputStyle, resize: "none", cursor: canEdit ? "auto" : "not-allowed" }}
                 />
             )}
@@ -189,7 +202,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                         const inPortal = next && document.body.lastElementChild?.contains(next);
                         if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
                             // Save plain concatenated number (no pipe) to match CRM storage
-                            onSave(pipePhoneToPlain(localVal as string));
+                            if (changedFromStored(localVal)) onSave(pipePhoneToPlain(localVal as string));
                         }
                     }}
                 >
@@ -212,7 +225,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                         const next = e.relatedTarget as Element | null;
                         const inPortal = next && document.body.lastElementChild?.contains(next);
                         if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
-                            onSave(pipeToAmountObj(localVal as string));
+                            if (changedFromStored(localVal)) onSave(pipeToAmountObj(localVal as string));
                         }
                     }}
                 >
@@ -233,7 +246,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                         const next = e.relatedTarget as Element | null;
                         const inPortal = next && document.body.lastElementChild?.contains(next);
                         if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
-                            onSave(pipeToCurrencyRangeObj(localVal as string));
+                            if (changedFromStored(localVal)) onSave(pipeToCurrencyRangeObj(localVal as string));
                         }
                     }}
                 >
@@ -252,7 +265,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onBlur={(e) => {
                         const container = e.currentTarget;
                         if (!container.contains(e.relatedTarget as Node)) {
-                            onSave(pipeToRangeObj(localVal as string));
+                            if (changedFromStored(localVal)) onSave(pipeToRangeObj(localVal as string));
                         }
                     }}
                 >
@@ -278,7 +291,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                 <SelectInput
                     value={localVal as string}
                     options={options}
-                    placeholder={td("Select…", { source: "en" })}
+                    placeholder={"Select…"}
                     onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
@@ -352,7 +365,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…", { source: "en" })}
+                    placeholder={"Fill in…"}
                     style={inputStyle}
                 />
             )}
@@ -383,16 +396,12 @@ export default function AnalysisCustomFieldForm({
     onChange,
     onFileSelect,
 }: Props) {
-    const { td } = useTd();
 
-    const [localValues, setLocalValues] = useState<Record<string, any>>(() => ({ ...values }));
-
-    useEffect(() => {
-        setLocalValues((prev) => ({ ...prev, ...values }));
-    }, [values]);
-
+    // No local mirror of `values`: the modal owns the merged value store and an
+    // edit here is echoed straight back down through `values` in the same commit.
+    // Mirroring it cost an extra state update (so a second render) and a second
+    // visibility pass on every keystroke.
     const handleFieldChange = useCallback((fieldId: number, value: any) => {
-        setLocalValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
         onChange?.(fieldId, value);
     }, [onChange]);
 
@@ -404,14 +413,14 @@ export default function AnalysisCustomFieldForm({
     }, [fields, categoryId]);
 
     const visibleFields = useMemo(() => {
-        const visibilityMap = evaluateAllFieldsVisibility(scopedFields, localValues);
+        const visibilityMap = evaluateAllFieldsVisibility(scopedFields, values);
         return scopedFields.filter((f: any) => visibilityMap[f.id] !== false);
-    }, [scopedFields, localValues]);
+    }, [scopedFields, values]);
 
     if (visibleFields.length === 0) {
         return (
             <p style={{ fontSize: 13, color: A.TEXT_HINT, fontStyle: "italic", margin: 0 }}>
-                {td("No fields in this section.", { source: "en" })}
+                {"No fields in this section."}
             </p>
         );
     }

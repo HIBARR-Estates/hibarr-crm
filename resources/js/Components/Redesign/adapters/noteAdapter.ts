@@ -1,7 +1,7 @@
 import type { IntegrationOrigin, Note } from "@/Types/api/note";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { formatDate } from "./dateFormat";
+import { formatUserDate } from "@/lib/userDateTime";
 import { initialsFromName } from "./initials";
 
 dayjs.extend(relativeTime);
@@ -27,14 +27,14 @@ function parseNoteDate(value: string | undefined): {
     if (!value) {
         // Newly created notes without a serialized created_at still exist "now".
         const now = new Date();
-        return { date: now, label: formatDate(now, "Just now") };
+        return { date: now, label: formatUserDate(now, "Just now") };
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         const now = new Date();
-        return { date: now, label: formatDate(now, "Just now") };
+        return { date: now, label: formatUserDate(now, "Just now") };
     }
-    return { date, label: formatDate(date, "Just now") };
+    return { date, label: formatUserDate(date, "Just now") };
 }
 
 function stripHtml(html: string): string {

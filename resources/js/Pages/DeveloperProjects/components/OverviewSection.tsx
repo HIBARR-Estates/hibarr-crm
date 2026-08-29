@@ -140,6 +140,12 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
     }, [imagesByTag, project.assets, project.thumbnail]);
 
     const location = project.location;
+    const effectiveAddress =
+        project.address ??
+        (location?.address && typeof location.address === "object"
+            ? location.address
+            : null);
+    const effectiveMapUrl = project.map_url ?? location?.map_url ?? null;
     const distances = (project.distances ?? {}) as ProjectDistances;
     const distanceRows = DISTANCE_FIELDS.map((field) => {
         const formatted = formatDistance(
@@ -151,14 +157,17 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
     }).filter(Boolean) as { key: string; label: string; value: string }[];
 
     const addressText =
+        (effectiveAddress &&
+            [effectiveAddress.street, effectiveAddress.state, effectiveAddress.country, effectiveAddress.postalCode]
+                .filter(Boolean)
+                .join(", ")) ||
         location?.full_address ||
-        location?.address?.street ||
         null;
 
     const hasLocationBlock =
         Boolean(location?.name) ||
         Boolean(addressText) ||
-        Boolean(location?.map_url) ||
+        Boolean(effectiveMapUrl) ||
         distanceRows.length > 0;
 
     return (
@@ -242,9 +251,9 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                                         {addressText}
                                     </p>
                                 )}
-                                {location?.map_url && (
+                                {effectiveMapUrl && (
                                     <a
-                                        href={location.map_url}
+                                        href={effectiveMapUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-sm text-blue-600 hover:text-blue-800 w-fit"

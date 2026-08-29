@@ -55,6 +55,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereStatus($value)
  *
+ * @property string|null $attendance_outcome
+ * @property \Illuminate\Support\Carbon|null $attendance_outcome_logged_at
+ * @property int|null $attendance_outcome_logged_by
+ * @property \Illuminate\Support\Carbon|null $attendance_confirmation_snoozed_until
+ * @property int|null $host_id
+ *
  * Set by attachParticipantUsers(), not columns — the meeting modals read both.
  *
  * @property int $effective_duration
@@ -93,6 +99,12 @@ class DealFollowUp extends BaseModel
         'participants',  // JSON field for meeting participants (user IDs)
         'status',
         'duration',  // Meeting duration in minutes (nullable, defaults to 30)
+        'attendance_outcome',
+        'attendance_outcome_logged_at',
+        'attendance_outcome_logged_by',
+        'attendance_confirmation_snoozed_until',
+        'host_id',
+        'client_attended',  // Tri-state: null = unconfirmed, true/false = manually confirmed
     ];
 
     protected $casts = [
@@ -101,6 +113,11 @@ class DealFollowUp extends BaseModel
         'reminders' => 'array',  // Cast JSON to array
         'participants' => 'array',  // Cast JSON to array
         'duration' => 'integer',
+        'attendance_outcome_logged_at' => 'datetime',
+        'attendance_outcome_logged_by' => 'integer',
+        'attendance_confirmation_snoozed_until' => 'datetime',
+        'host_id' => 'integer',
+        'client_attended' => 'boolean',
     ];
 
     /** Default meeting duration (minutes) when none is set */
@@ -164,9 +181,83 @@ class DealFollowUp extends BaseModel
         return $this->duration ?? self::DEFAULT_DURATION_MINUTES;
     }
 
+    /**
+     * Computed end time (next_follow_up_date + effective duration). Null when
+     * the meeting has no scheduled date. There is no end_time column.
+     */
+    public function getEndTime(): ?\Carbon\CarbonInterface
+    {
+        if (!$this->next_follow_up_date) {
+            return null;
+        }
+
+        return $this->next_follow_up_date->copy()->addMinutes($this->getEffectiveDuration());
+    }
+
+    /**
+     * The user this meeting is "assigned" to for prompts/reminders: the deal's
+     * lead agent, falling back to the lead owner for lead-only follow-ups.
+     * Mirrors MeetingReminderSync::buildRecipients()'s resolution.
+     */
+    public function assignedAgentUserId(): ?int
+    {
+        $this->loadMissing(['deal.leadAgent', 'lead']);
+
+        $agentUserId = $this->deal?->leadAgent?->user_id ?? $this->lead?->lead_owner;
+
+        return $agentUserId ? (int) $agentUserId : null;
+    }
+
+    /**
+     * Who the attendance-confirmation prompt goes to: this meeting's host
+     * when crm.meeting-host is on and one was resolved for this row,
+     * otherwise the same deal-agent/lead-owner assignedAgentUserId() uses
+     * (also the fallback for rows saved while the flag was off, since
+     * host_id is never populated for them).
+     */
+    public function confirmationAssigneeUserId(): ?int
+    {
+        if (\App\Support\FeatureFlags::enabled('crm.meeting-host') && $this->host_id) {
+            return (int) $this->host_id;
+        }
+
+        return $this->assignedAgentUserId();
+    }
+
+    /**
+     * Default host for a NEW meeting when the request doesn't choose one
+     * explicitly: same resolution as assignedAgentUserId(), falling back to
+     * the meeting's creator. Create-time only — host_id is immutable after
+     * save (DealController::updateFollow never reads or writes it).
+     */
+    public function defaultHostUserId(): int
+    {
+        return $this->assignedAgentUserId() ?? $this->added_by ?? (int) user()->id;
+    }
+
+    /**
+     * Whether this follow-up's deal or lead belongs to $companyId. Route-model
+     * binding by ID alone doesn't scope by company (this model has no
+     * CompanyScope), so callers that authorize by ID — the attendance
+     * confirmation endpoints — need this alongside assignedAgentUserId() to
+     * reject a follow-up from a company the requesting user isn't in.
+     */
+    public function belongsToCompany(int $companyId): bool
+    {
+        $this->loadMissing(['deal', 'lead']);
+
+        return ($this->deal && (int) $this->deal->company_id === $companyId)
+            || ($this->lead && (int) $this->lead->company_id === $companyId);
+    }
+
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    public function host(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'host_id');
     }
 
     /**

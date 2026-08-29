@@ -14,14 +14,13 @@ use Inertia\Inertia;
 
 class MeetingsController extends AccountBaseController
 {
-
     public function __construct()
     {
         parent::__construct();
         $this->pageTitle = 'app.menu.meetings';
 
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('leads', $this->user->modules));
+            abort_403(! in_array('leads', $this->user->modules));
 
             $this->viewFollowUpPermission = user()->permission('view_lead_follow_up');
             $this->addFollowUpPermission = user()->permission('add_lead_follow_up');
@@ -53,42 +52,34 @@ class MeetingsController extends AccountBaseController
 
         // ── Overview stats ─────────────────────────────────────────────
         $weekStart = Carbon::now('UTC')->startOfWeek();
-        $weekEnd   = Carbon::now('UTC')->endOfWeek();
+        $weekEnd = Carbon::now('UTC')->endOfWeek();
 
-        $upcomingCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('next_follow_up_date', '>=', $now)
-            ->count();
-
-        $thisWeekCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->whereBetween('next_follow_up_date', [$weekStart, $weekEnd])
-            ->count();
-
-        // Live = scheduled + currently within [start, start + duration]
-        $liveMeetings = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('status', 'scheduled')
-            ->where('next_follow_up_date', '<=', $now)
-            ->get(['id', 'next_follow_up_date', 'duration']);
-
-        $liveCount = $liveMeetings->filter(function ($m) use ($now) {
-            $duration = $m->getEffectiveDuration();
-            $end = $m->next_follow_up_date->copy()->addMinutes($duration);
-            return $now->lte($end);
-        })->count();
-
-        $completedCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('status', 'completed')
-            ->count();
+        // One pass with conditional sums instead of four trips over the same
+        // table. The live count used to pull every past-dated scheduled meeting
+        // into memory to filter in PHP — unbounded, and growing with history.
+        // The end-time expression matches the one the Upcoming/Past queries below use.
+        $counts = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
+            ->selectRaw(
+                'SUM(next_follow_up_date >= ?) as upcoming,'
+                . ' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
+                . " SUM(status = 'scheduled'"
+                . ' AND next_follow_up_date <= ?'
+                . ' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
+                . " SUM(status = 'completed') as completed",
+                [$now, $weekStart, $weekEnd, $now, DealFollowUp::DEFAULT_DURATION_MINUTES, $now]
+            )
+            ->first();
 
         $overviewStats = [
-            'upcoming'  => $upcomingCount,
-            'this_week' => $thisWeekCount,
-            'live'      => $liveCount,
-            'completed' => $completedCount,
+            'upcoming' => (int) ($counts->upcoming ?? 0),
+            'this_week' => (int) ($counts->this_week ?? 0),
+            'live' => (int) ($counts->live ?? 0),
+            'completed' => (int) ($counts->completed ?? 0),
         ];
 
         // ── Paginated sections ─────────────────────────────────────────
         $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
-        $pastPerPage     = (int) $request->get('past_per_page', 6);
+        $pastPerPage = (int) $request->get('past_per_page', 6);
 
         // A meeting is "live" when it has started but not yet ended:
         //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
@@ -99,18 +90,18 @@ class MeetingsController extends AccountBaseController
             DealFollowUp::with($eagerLoads),
             $userId
         )->where(function ($query) use ($now, $defaultDuration) {
-                // Truly upcoming (haven't started yet)
-                $query->where('next_follow_up_date', '>=', $now)
-                    // OR currently live (started but not ended)
-                    ->orWhere(function ($q) use ($now, $defaultDuration) {
-                        $q->where('status', 'scheduled')
-                          ->where('next_follow_up_date', '<=', $now)
-                          ->whereRaw(
-                              'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?',
-                              [$defaultDuration, $now]
-                          );
-                    });
-            })
+            // Truly upcoming (haven't started yet)
+            $query->where('next_follow_up_date', '>=', $now)
+                // OR currently live (started but not ended)
+                ->orWhere(function ($q) use ($now, $defaultDuration) {
+                    $q->where('status', 'scheduled')
+                        ->where('next_follow_up_date', '<=', $now)
+                        ->whereRaw(
+                            'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?',
+                            [$defaultDuration, $now]
+                        );
+                });
+        })
             ->orderBy('next_follow_up_date', 'asc')
             ->paginate($upcomingPerPage, ['*'], 'upcoming_page');
 
@@ -133,7 +124,7 @@ class MeetingsController extends AccountBaseController
         $allUserIds = collect();
         $collectParticipantIds = function ($paginator) use (&$allUserIds) {
             $paginator->getCollection()->each(function ($followUp) use (&$allUserIds) {
-                if (!empty($followUp->participants)) {
+                if (! empty($followUp->participants)) {
                     $allUserIds = $allUserIds->merge($followUp->participants);
                 }
             });
@@ -155,8 +146,10 @@ class MeetingsController extends AccountBaseController
                     ->filter()
                     ->values()
                     ->toArray();
+
                 return $followUp;
             });
+
             return $paginator;
         };
         $transformRecords($upcomingMeetings);
@@ -167,7 +160,7 @@ class MeetingsController extends AccountBaseController
         $userLeads = MeetingVisibilityService::schedulableLeadsQuery()
             ->get()
             ->map(fn (Lead $lead) => [
-                'id'   => $lead->id,
+                'id' => $lead->id,
                 'name' => $lead->company_name
                     ? "{$lead->client_name} ({$lead->company_name})"
                     : $lead->client_name,
@@ -178,21 +171,21 @@ class MeetingsController extends AccountBaseController
 
         // ── Permissions ────────────────────────────────────────────────
         $permissions = [
-            'view_lead_follow_up'   => $this->viewFollowUpPermission,
-            'add_lead_follow_up'    => $this->addFollowUpPermission,
-            'edit_lead_follow_up'   => $this->editFollowUpPermission,
+            'view_lead_follow_up' => $this->viewFollowUpPermission,
+            'add_lead_follow_up' => $this->addFollowUpPermission,
+            'edit_lead_follow_up' => $this->editFollowUpPermission,
             'delete_lead_follow_up' => $this->deleteFollowUpPermission,
         ];
 
         return Inertia::render('Meetings/Index', [
-            'pageTitle'        => __($this->pageTitle),
-            'overviewStats'    => $overviewStats,
+            'pageTitle' => __($this->pageTitle),
+            'overviewStats' => $overviewStats,
             'upcomingMeetings' => $upcomingMeetings,
-            'pastMeetings'     => $pastMeetings,
-            'userDeals'        => $userDeals,
-            'userLeads'        => $userLeads,
-            'meetingTypes'     => $meetingTypes,
-            'permissions'      => $permissions,
+            'pastMeetings' => $pastMeetings,
+            'userDeals' => $userDeals,
+            'userLeads' => $userLeads,
+            'meetingTypes' => $meetingTypes,
+            'permissions' => $permissions,
         ]);
     }
 
@@ -204,7 +197,7 @@ class MeetingsController extends AccountBaseController
     {
         abort_403(
             $deal->next_follow_up !== 'yes'
-            || !MeetingVisibilityService::schedulableDealsQuery()
+            || ! MeetingVisibilityService::schedulableDealsQuery()
                 ->where('id', $deal->id)
                 ->exists()
         );
@@ -230,7 +223,7 @@ class MeetingsController extends AccountBaseController
     public function getLeadForScheduling(Lead $lead)
     {
         abort_403(
-            !MeetingVisibilityService::schedulableLeadsQuery()
+            ! MeetingVisibilityService::schedulableLeadsQuery()
                 ->where('id', $lead->id)
                 ->exists()
         );
@@ -246,8 +239,8 @@ class MeetingsController extends AccountBaseController
             ->get();
 
         return response()->json([
-            'success'        => true,
-            'data'           => $lead,
+            'success' => true,
+            'data' => $lead,
             'deals_for_lead' => $dealsForLead,
         ]);
     }
@@ -260,23 +253,23 @@ class MeetingsController extends AccountBaseController
     {
         $this->editFollowUpPermission = user()->permission('edit_lead_follow_up');
 
-        abort_403(!(
+        abort_403(! (
             $this->editFollowUpPermission == 'all'
             || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
         ));
 
         $request->validate([
             'next_follow_up_date' => 'required|date_format:d-m-Y',
-            'start_time'          => 'required|date_format:H:i:s',
-            'duration'            => 'nullable|integer|min:5|max:480',
-            'timezone'            => 'nullable|string|max:100',
+            'start_time' => 'required|date_format:H:i:s',
+            'duration' => 'nullable|integer|min:5|max:480',
+            'timezone' => 'nullable|string|max:100',
         ]);
 
         $browserTimezone = $request->input('timezone', 'UTC');
 
         $newDateTime = Carbon::createFromFormat(
             'd-m-Y H:i:s',
-            $request->next_follow_up_date . ' ' . $request->start_time,
+            $request->next_follow_up_date.' '.$request->start_time,
             $browserTimezone
         )->setTimezone('UTC');
 
@@ -295,4 +288,42 @@ class MeetingsController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Manually record/confirm whether the client attended a meeting. Tri-state
+     * (true/false/null) — this is never inferred automatically, only set by a
+     * user after the fact. Same permission rule as reschedule(): the creator,
+     * or a user with 'all' edit permission.
+     */
+    public function confirmAttendance(Request $request, DealFollowUp $followUp)
+    {
+        $this->editFollowUpPermission = user()->permission('edit_lead_follow_up');
+
+        abort_403(! (
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        $request->validate([
+            'client_attended' => 'present|nullable|boolean',
+        ]);
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance can only be recorded after the meeting time.',
+            ], 422);
+        }
+
+        // $request->has() is true even for an explicit JSON null, so it can't
+        // distinguish "clear it" from "set true/false" — read the raw value instead.
+        $value = $request->input('client_attended');
+        $followUp->client_attended = $value === null ? null : (bool) $value;
+        $followUp->save();
+
+        return response()->json([
+            'success' => true,
+            'client_attended' => $followUp->client_attended,
+            'message' => 'Attendance updated.',
+        ]);
+    }
 }

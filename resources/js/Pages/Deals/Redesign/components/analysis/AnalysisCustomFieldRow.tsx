@@ -17,7 +17,7 @@ interface FieldOption {
     label: string;
 }
 
-function parseOptions(rawValues: any): FieldOption[] {
+export function parseOptions(rawValues: any): FieldOption[] {
     if (!rawValues) return [];
     if (typeof rawValues === "string") {
         try {
@@ -48,7 +48,9 @@ function parseOptions(rawValues: any): FieldOption[] {
     return [];
 }
 
-function formatDisplay(type: string, rawValue: any, options: FieldOption[]): string {
+/** Renders a stored value for display. Exported so the right rail formats
+ *  captured answers exactly the way the field rows do. */
+export function formatDisplay(type: string, rawValue: any, options: FieldOption[]): string {
     if (rawValue === null || rawValue === undefined || rawValue === "") return "";
 
     switch (type) {
@@ -89,6 +91,18 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
                     return found ? found.label : v;
                 })
                 .join(", ");
+        }
+
+        case "currency_range": {
+            let o: any = rawValue;
+            if (typeof o === "string") {
+                try { o = JSON.parse(o); } catch { return String(rawValue); }
+            }
+            if (!o || typeof o !== "object") return String(rawValue);
+            if (o.min === null && o.max === null) return "";
+            const fmt = (n: any) =>
+                n === null || n === undefined || n === "" ? "…" : Number(n).toLocaleString();
+            return `${o.currency ? o.currency + " " : ""}${fmt(o.min)} – ${fmt(o.max)}`;
         }
 
         case "currency": {
@@ -216,6 +230,7 @@ export default function AnalysisCustomFieldRow({
     const [editVal, setEditVal] = useState<string | string[]>("");
     const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
     const editContainerRef = useRef<HTMLDivElement>(null);
+    const open = editing;
 
     useEffect(() => {
         if (!editing) return;
@@ -277,7 +292,7 @@ export default function AnalysisCustomFieldRow({
     return (
         <div>
             {/* ── Read mode — revamp InlineField display shape ── */}
-            {!editing && (
+            {!open && (
                 <button
                     type="button"
                     onClick={startEdit}
@@ -317,7 +332,7 @@ export default function AnalysisCustomFieldRow({
             )}
 
             {/* ── Edit mode — revamp InlineField edit shape ── */}
-            {editing && (
+            {open && (
                 <div
                     ref={editContainerRef}
                     // Phone stacks: flag picker + number needs the full row width,
@@ -331,6 +346,7 @@ export default function AnalysisCustomFieldRow({
                         // the modal is portaled to body too and is usually that element.)
                         const panel = e.currentTarget.closest(".analysis-modal-panel");
                         if (rel && panel && !panel.contains(rel)) return;
+
                         setEditing(false);
                         setEditVal(toEditValue(field.type, rawValue));
                     }}

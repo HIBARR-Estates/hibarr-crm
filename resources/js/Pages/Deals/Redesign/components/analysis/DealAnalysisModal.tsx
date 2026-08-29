@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
@@ -11,7 +11,8 @@ import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
 import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
-import AnalysisSectionNavigator from "./AnalysisSectionNavigator";
+import AnalysisRightRail, { type AnalysisRailTab } from "./AnalysisRightRail";
+import { buildRailGroups } from "./analysisRailItems";
 import { buildScriptItems, computeAnalysisProgress } from "./analysisProgress";
 import type { AnalysisScriptItem } from "./types/analysisTypes";
 
@@ -22,25 +23,42 @@ interface Props {
     // ponytail: kept for parent compat, not used here (pipeline scope filtering is server-side)
     visibleLeadFieldKeys?: string[] | null;
     analysisScript?: { items: AnalysisScriptItem[] } | null;
-    onAddTask: () => void;
-    onScheduleMeeting: () => void;
 }
 
 const FOCUSABLE =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Stable identity so an absent prop doesn't invalidate memos every render. */
+const EMPTY_FIELDS: any[] = [];
+
+/** Text-entry controls where Left/Right must move the caret, never the section. */
+const TEXT_ENTRY_TYPES = new Set([
+    "text", "search", "url", "tel", "email", "password", "number", "date", "datetime-local", "month", "week", "time",
+]);
+
+function isTextEntryFocused(): boolean {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = el.tagName;
+    if (tag === "TEXTAREA") return true;
+    if (tag === "INPUT") {
+        const type = (el as HTMLInputElement).type;
+        return TEXT_ENTRY_TYPES.has(type);
+    }
+    return false;
+}
 
 export default function DealAnalysisModal({
     analysis,
     dealInfoCategories,
     fields,
     analysisScript,
-    onAddTask,
-    onScheduleMeeting,
 }: Props) {
     const { deal, setDeal } = useDealWorkspace();
     const { props } = usePage<any>();
-    const { td } = useTd();
     const { t } = useTranslation();
+    const { td } = useTd();
     const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
     const { canEdit: baseCanEdit, isWatcherOnly } = useDealPermissions(deal);
     // Pure watchers are view-only on analysis (same as tasks/meetings/notes).
@@ -50,9 +68,31 @@ export default function DealAnalysisModal({
     const titleId = "analysis-modal-title";
 
     const [activeSection, setActiveSection] = useState<string>("");
+    const [railTab, setRailTab] = useState<AnalysisRailTab>("steps");
+    /** Focus mode hides both side rails so only the form column is left. */
+    const [focusMode, setFocusMode] = useState(false);
+
+    /** Required steps the customer wouldn't answer — persisted on the deal so the
+     *  mark survives a reopen. Questions answered in this session are tracked
+     *  alongside them: a question's answer is a note, so there is nothing on the
+     *  deal to read it back from. */
+    const [unanswered, setUnanswered] = useState<Record<string, unknown>>(() => {
+        // Absent on a deal payload built before this column existed, and `[]` when
+        // the json column is empty — normalise both to a plain object.
+        const stored = (deal as any).analysis_unanswered;
+        return stored && typeof stored === "object" ? { ...stored } : {};
+    });
+    const [answeredQuestions, setAnsweredQuestions] = useState<ReadonlySet<string>>(
+        () => new Set<string>(),
+    );
+    const resolvedSteps = useMemo(() => {
+        const set = new Set<string>(Object.keys(unanswered));
+        answeredQuestions.forEach((k) => set.add(k));
+        return set;
+    }, [unanswered, answeredQuestions]);
     // Which action raised the missing-information warning. Closing and completing
     // share the same overlay — only the confirming button differs.
-    const [confirmIntent, setConfirmIntent] = useState<null | "complete" | "close">(null);
+    const [confirmIntent, setConfirmIntent] = useState<null | "complete" | "close" | "required">(null);
     // Stepped flow: the centre panel reveals one section at a time. Everything past
     // currentStep stays locked until the footer's Next button advances it.
     const [currentStep, setCurrentStep] = useState(0);
@@ -91,7 +131,10 @@ export default function DealAnalysisModal({
         setLocalValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
     }, []);
 
-    const leadCustomFields: any[] = (props.leadCustomFields as any[] | null | undefined) ?? [];
+    // EMPTY_FIELDS, not a fresh `[]`: an inline literal is a new identity every
+    // render, which would invalidate every memo below it on each keystroke.
+    const leadCustomFields: any[] =
+        (props.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS;
 
     const scriptItems: AnalysisScriptItem[] = useMemo(
         () => buildScriptItems(analysisScript, dealInfoCategories),
@@ -100,10 +143,27 @@ export default function DealAnalysisModal({
 
     // Sections + progress + global numbering — all in one pass, shared with the
     // deal-view status card so both use the same denominator.
-    const { sections, sectionProgress, totalFilled, totalFields, numberByKey } = useMemo(
-        () => computeAnalysisProgress(scriptItems, fields, localValues, deal),
-        [scriptItems, fields, localValues, deal],
+    const { sections, sectionProgress, totalFilled, totalFields, numberByKey, requiredMissing, customFieldVisibility, filledSteps } = useMemo(
+        () => computeAnalysisProgress(scriptItems, fields, localValues, deal, leadCustomFields, resolvedSteps),
+        [scriptItems, fields, localValues, deal, leadCustomFields, resolvedSteps],
     );
+
+    // An answer supersedes a "no answer provided" mark: drop it the moment one
+    // lands, in state and on the deal, so the footer and the stored record can't
+    // disagree. Re-runs harmlessly — clearing empties the list it reads.
+    useEffect(() => {
+        const stale = Object.keys(unanswered).filter(
+            (key) => filledSteps.has(key) || answeredQuestions.has(key),
+        );
+        if (stale.length === 0) return;
+
+        setUnanswered((prev) => {
+            const next = { ...prev };
+            stale.forEach((key) => delete next[key]);
+            return next;
+        });
+        stale.forEach((key) => save(`unanswered:${key}`, null));
+    }, [filledSteps, answeredQuestions, unanswered, save]);
 
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
@@ -168,6 +228,11 @@ export default function DealAnalysisModal({
         else key = fieldKey;
         save(key, value);
 
+        // Lead custom fields have no home on the deal object — their value already
+        // lives in localValues via onFieldChange, so patching the deal here would
+        // just graft a stray `lead_field_N` key onto it.
+        if (updateType === "lead_custom_field") return;
+
         setDeal((prev: any) => {
             if (updateType === "hibarr_field") {
                 return { ...prev, hibarrFields: { ...(prev.hibarrFields ?? {}), [fieldKey]: value } };
@@ -196,13 +261,43 @@ export default function DealAnalysisModal({
         }));
     }, [save, setDeal]);
 
+    /** Mark / unmark a step as one the customer wouldn't answer. Goes through the
+     *  same debounced writer as every field edit, so it retries and flushes with them. */
+    const toggleUnanswered = useCallback((stepKey: string, on: boolean) => {
+        setUnanswered((prev) => {
+            const next = { ...prev };
+            if (on) next[stepKey] = true;
+            else delete next[stepKey];
+            return next;
+        });
+        save(`unanswered:${stepKey}`, on ? true : null);
+    }, [save]);
+
+    const handleQuestionAnswered = useCallback((stepKey: string) => {
+        setAnsweredQuestions((prev) => new Set(prev).add(stepKey));
+    }, []);
+
+    const handleQuestionCleared = useCallback((stepKey: string) => {
+        setAnsweredQuestions((prev) => {
+            const next = new Set(prev);
+            next.delete(stepKey);
+            return next;
+        });
+    }, []);
+
     const handleCompleteClick = useCallback(() => {
+        // Required steps are a hard gate — unlike the empty-field warning, there is
+        // no "finish anyway" past them.
+        if (requiredMissing > 0) {
+            setConfirmIntent("required");
+            return;
+        }
         if (allFilled) {
-            analysis.complete("auto", 0);
+            analysis.complete("auto", 0, flushAll());
         } else {
             setConfirmIntent("complete");
         }
-    }, [allFilled, analysis]);
+    }, [allFilled, analysis, flushAll, requiredMissing]);
 
     // Closing raises the same missing-information warning as completing does.
     const requestClose = useCallback(() => {
@@ -231,6 +326,20 @@ export default function DealAnalysisModal({
                 }
                 return;
             }
+
+            // Left/Right step between sections — but never when the caret is in a
+            // text field, and never inside a checkbox/radio group, where the group
+            // owns those keys for moving between its own options.
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                if (confirmIntent) return;
+                if (isTextEntryFocused()) return;
+                const active = document.activeElement as HTMLElement | null;
+                if (active?.closest("[data-option-group]")) return;
+                e.preventDefault();
+                goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                return;
+            }
+
             if (e.key !== "Tab") return;
             const panel = panelRef.current;
             if (!panel) return;
@@ -244,7 +353,7 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [confirmIntent, requestClose],
+        [confirmIntent, requestClose, goToStep, currentStep],
     );
 
     useEffect(() => {
@@ -257,7 +366,56 @@ export default function DealAnalysisModal({
 
     const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
+    // Per-step rows for the right rail, resolved the same way the centre renders them.
+    //
+    // Built off a deferred copy of the value store: the rail can be 100+ rows and
+    // rebuilding/re-rendering it on every keystroke is what made typing feel heavy.
+    // React keeps the input responsive and repaints the rail at lower priority —
+    // it trails by a frame or two, which is invisible for a read-only summary.
+    const deferredValues = useDeferredValue(localValues);
+    const railGroups = useMemo(
+        () => buildRailGroups(sections, fields, leadCustomFields, deferredValues, deal, currentStep + 1),
+        [sections, fields, leadCustomFields, deferredValues, deal, currentStep],
+    );
+
     if (!analysis.isOpen || typeof document === "undefined") return null;
+
+    // The script prop is synchronous, so `undefined` means genuinely not loaded —
+    // show the shell as its own loading state rather than the category fallback,
+    // which would render a structure the real script is about to replace.
+    if (analysisScript === undefined) {
+        return createPortal(
+            <div className="analysis-modal-overlay">
+                <div
+                    className="analysis-modal-panel"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={titleId}
+                >
+                    <AnalysisHeaderBar
+                        leadName={leadName}
+                        isCompleted={false}
+                        totalFilled={0}
+                        totalFields={0}
+                        onMinimize={doClose}
+                    />
+                    <span id={titleId} className="sr-only">
+                        Deal Analysis {leadName}
+                    </span>
+                    <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
+                        <div className="text-center px-6">
+                            <div
+                                className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
+                                aria-hidden
+                            />
+                            <p className="m-0 text-sm text-slate-600">Loading analysis script…</p>
+                        </div>
+                    </div>
+                </div>
+            </div>,
+            document.body,
+        );
+    }
 
     // Derive per-deal and per-lead slices of localValues for downstream components
     const dealFieldValues = localValues;
@@ -267,7 +425,7 @@ export default function DealAnalysisModal({
         <div className="analysis-modal-overlay">
             <div
                 ref={panelRef}
-                className="analysis-modal-panel"
+                className={`analysis-modal-panel${focusMode ? " analysis-focus" : ""}`}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
@@ -290,6 +448,9 @@ export default function DealAnalysisModal({
                     totalFields={totalFields}
                     subscribeSaving={subscribeSaving}
                     onMinimize={requestClose}
+                    trailingActions={
+                        <FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />
+                    }
                 />
 
                 {/* 3-column body */}
@@ -315,32 +476,46 @@ export default function DealAnalysisModal({
                             stepCount={sections.length}
                             onPrevStep={() => goToStep(currentStep - 1)}
                             onNextStep={() => goToStep(currentStep + 1)}
+                            onComplete={handleCompleteClick}
+                            requiredMissing={requiredMissing}
+                            isCompleting={analysis.isCompleting}
+                            totalMissing={unfilledCount}
                             fields={fields}
+                            leadFields={leadCustomFields}
                             localDealFieldValues={dealFieldValues}
                             canEdit={canEdit}
                             numberByKey={numberByKey}
+                            sectionProgress={sectionProgress}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
                             onFieldUpdate={handleScriptFieldSave}
                             onFieldChange={handleFieldChange}
+                            unanswered={unanswered}
+                            customFieldVisibility={customFieldVisibility}
+                            filledSteps={filledSteps}
+                            answeredQuestions={answeredQuestions}
+                            onToggleUnanswered={toggleUnanswered}
+                            onQuestionAnswered={handleQuestionAnswered}
+                            onQuestionCleared={handleQuestionCleared}
                             onActiveSectionChange={setActiveSection}
                         />
                     </div>
 
-                    {/* Right — section navigator + quick actions */}
-                    <div className="analysis-3col-right">
-                        <AnalysisSectionNavigator
-                            sections={sections}
-                            sectionProgress={sectionProgress}
+                    {/* Right — script steps / captured answers + Complete */}
+                    <div className="analysis-3col-right analysis-3col-right--wide">
+                        <AnalysisRightRail
+                            groups={railGroups}
                             activeSection={activeSection}
-                            unlockedCount={currentStep + 1}
+                            onJump={handleJump}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
-                            isCompleting={analysis.isCompleting}
                             allFilled={allFilled}
-                            onJump={handleJump}
-                            onScheduleMeeting={onScheduleMeeting}
+                            requiredMissing={requiredMissing}
+                            reachedEnd={currentStep >= sections.length - 1}
+                            isCompleting={analysis.isCompleting}
                             onComplete={handleCompleteClick}
+                            tab={railTab}
+                            onTabChange={setRailTab}
                         />
                     </div>
                 </div>
@@ -369,13 +544,13 @@ export default function DealAnalysisModal({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm text-slate-700 flex-1">
-                            {failedKeys.length} {failedKeys.length === 1 ? td("field", { source: "en" }) : td("fields", { source: "en" })} {td("couldn't save", { source: "en" })} —{" "}
+                            {failedKeys.length} {failedKeys.length === 1 ? "field" : "fields"} {"couldn't save"} —{" "}
                             <button
                                 type="button"
                                 className="underline font-medium text-slate-800"
                                 onClick={() => failedKeys.forEach((f) => retry(f.key))}
                             >
-                                {td("Retry", { source: "en" })}
+                                {"Retry"}
                             </button>
                         </span>
                         <button
@@ -417,7 +592,9 @@ export default function DealAnalysisModal({
                                     lineHeight: 1.3,
                                 }}
                             >
-                                {td("Finish with missing information?", { source: "en" })}
+                                {confirmIntent === "required"
+                                    ? td("Required steps still open", { source: "en" })
+                                    : td("Finish with missing information?", { source: "en" })}
                             </h3>
                             <p
                                 style={{
@@ -427,16 +604,36 @@ export default function DealAnalysisModal({
                                     lineHeight: 1.6,
                                 }}
                             >
-                                <strong style={{ color: T.TEXT }}>
-                                    {unfilledCount}{" "}
-                                    {unfilledCount === 1
-                                        ? td("field is still empty", { source: "en" })
-                                        : td("fields are still empty", { source: "en" })}
-                                </strong>
-                                .{" "}
-                                {confirmIntent === "complete"
-                                    ? td("Completing now will mark this analysis as done, but the missing data won't be captured.", { source: "en" })
-                                    : td("You can reopen the analysis later to fill in the rest.", { source: "en" })}
+                                {confirmIntent === "required" ? (
+                                    <>
+                                        <strong style={{ color: T.TEXT }}>
+                                            {requiredMissing}{" "}
+                                            {td(
+                                                requiredMissing === 1 ? "required step" : "required steps",
+                                                { source: "en" },
+                                            )}
+                                        </strong>{" "}
+                                        {td(
+                                            requiredMissing === 1
+                                                ? "has no answer yet. Answer it, or mark it as “No answer provided”, to finish."
+                                                : "have no answer yet. Answer them, or mark them as “No answer provided”, to finish.",
+                                            { source: "en" },
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <strong style={{ color: T.TEXT }}>
+                                            {unfilledCount}{" "}
+                                            {unfilledCount === 1
+                                                ? "field is still empty"
+                                                : "fields are still empty"}
+                                        </strong>
+                                        .{" "}
+                                        {confirmIntent === "complete"
+                                            ? "Completing now will mark this analysis as done, but the missing data won't be captured."
+                                            : "You can reopen the analysis later to fill in the rest."}
+                                    </>
+                                )}
                             </p>
                             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                                 <button
@@ -444,22 +641,30 @@ export default function DealAnalysisModal({
                                     className="dr-btn dr-btn-ghost"
                                     onClick={() => setConfirmIntent(null)}
                                 >
-                                    {td("Go back and fill in", { source: "en" })}
+                                    {td(
+                                        confirmIntent === "required"
+                                            ? "Back to the script"
+                                            : "Go back and fill in",
+                                        { source: "en" },
+                                    )}
                                 </button>
-                                <button
-                                    type="button"
-                                    className="dr-btn dr-btn-primary"
-                                    disabled={analysis.isCompleting}
-                                    style={{ background: T.NAVY }}
-                                    onClick={() => {
-                                        const intent = confirmIntent;
-                                        setConfirmIntent(null);
-                                        if (intent === "complete") analysis.complete("manual", unfilledCount);
-                                        else doClose();
-                                    }}
-                                >
-                                    {confirmIntent === "complete" ? td("Finish anyway", { source: "en" }) : td("Close anyway", { source: "en" })}
-                                </button>
+                                {/* No escape hatch for required steps — that is the point of them. */}
+                                {confirmIntent !== "required" && (
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-primary"
+                                        disabled={analysis.isCompleting}
+                                        style={{ background: T.NAVY }}
+                                        onClick={() => {
+                                            const intent = confirmIntent;
+                                            setConfirmIntent(null);
+                                            if (intent === "complete") analysis.complete("manual", unfilledCount, flushAll());
+                                            else doClose();
+                                        }}
+                                    >
+                                        {confirmIntent === "complete" ? "Finish anyway" : "Close anyway"}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -468,5 +673,49 @@ export default function DealAnalysisModal({
             </div>
         </div>,
         document.body,
+    );
+}
+
+/** Header toggle for focus mode — labelled, since it changes the whole layout. */
+function FocusModeButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+    const { td } = useTd();
+
+    return (
+        <button
+            type="button"
+            aria-pressed={active}
+            title={
+                active
+                    ? td("Restore the side panels", { source: "en" })
+                    : td("Hide the side panels and narrow the modal", { source: "en" })
+            }
+            onClick={onToggle}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap transition-colors"
+            style={{
+                color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                backgroundColor: active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)",
+            }}
+            onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.24)";
+                (e.currentTarget as HTMLElement).style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = active
+                    ? "rgba(255,255,255,0.16)"
+                    : "rgba(255,255,255,0.08)";
+                (e.currentTarget as HTMLElement).style.color = active ? "#fff" : "rgba(255,255,255,0.7)";
+            }}
+        >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {active ? (
+                    // Arrows pointing out — click to bring the panels back
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 20H4v-5m0 5l6-6m5-9h5v5m0-5l-6 6" />
+                ) : (
+                    // Arrows pointing in — click to collapse the panels
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 14h5v5m-5 0l6-6m10-4h-5V4m5 0l-6 6" />
+                )}
+            </svg>
+            {active ? td("Exit focus mode", { source: "en" }) : td("Focus mode", { source: "en" })}
+        </button>
     );
 }

@@ -37,6 +37,7 @@ export interface DealMeetingCreateInput {
     locationDetail: string;
     meetingLink: string;
     participants: number[];
+    hostId: number | null;
     remark: string;
     reminders: Reminder[];
 }
@@ -53,6 +54,7 @@ interface FollowUpStorePayload {
     remark?: string;
     timezone?: string;
     participants?: number[];
+    host_id?: number | null;
 }
 
 function dealHasAgent(deal: Deal): boolean {
@@ -156,7 +158,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 return;
             }
 
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 deal_id: deal.id,
@@ -175,6 +177,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
+                host_id: input.hostId,
                 timezone: getBrowserTimezone(),
             };
 

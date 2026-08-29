@@ -172,6 +172,8 @@ export function toInputValue(type: string, rawValue: any): string | string[] {
         case "phone": return plainPhoneToPipe(rawValue);
         default:
             if (rawValue === null || rawValue === undefined) return "";
+            // Relation-shaped values (e.g. contact.gender) arrive as {value,label}
+            if (typeof rawValue === "object") return String((rawValue as any).value ?? "");
             return String(rawValue);
     }
 }

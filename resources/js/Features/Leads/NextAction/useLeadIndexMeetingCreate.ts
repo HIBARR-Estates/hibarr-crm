@@ -33,6 +33,7 @@ interface FollowUpStorePayload {
     remark?: string;
     timezone?: string;
     participants?: number[];
+    host_id?: number | null;
 }
 
 /**
@@ -72,6 +73,7 @@ export default function useLeadIndexMeetingCreate(
                     locationDetail: form.locationDetail,
                     meetingLink: form.meetingLink,
                     participants: form.participants,
+                    hostId: form.hostId,
                     remark: form.remark,
                     reminders: form.reminders,
                 },
@@ -86,7 +88,7 @@ export default function useLeadIndexMeetingCreate(
                 return;
             }
 
-            persistUserTimezoneOnce(props.auth?.user?.timezone);
+            persistUserTimezoneOnce(props.auth?.user?.timezone, props.auth?.user?.timezone_locked);
 
             const payload: FollowUpStorePayload = {
                 lead_id: leadId,
@@ -99,6 +101,7 @@ export default function useLeadIndexMeetingCreate(
                 reminders: form.reminders,
                 remark: form.remark.trim(),
                 participants: form.participants,
+                host_id: form.hostId,
                 timezone: getBrowserTimezone(),
             };
 

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Services\MetaConversionsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,9 +14,9 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Job to send Meta Conversion API events in the background
- * 
- * This job is queued when a deal moves to a stage that has
- * a Meta conversion trigger configured.
+ *
+ * Queued either when a deal moves to a stage with a Meta conversion trigger
+ * configured, or when a deal/lead automation runs a "Meta Conversion" action.
  */
 class SendMetaConversionEventJob implements ShouldQueue
 {
@@ -36,11 +37,12 @@ class SendMetaConversionEventJob implements ShouldQueue
     public $backoff = 10;
 
     /**
-     * The deal instance
+     * The deal or lead that triggered this event — a lead-subject automation
+     * has no deal at all, so this accepts either.
      *
-     * @var \App\Models\Deal
+     * @var \App\Models\Deal|\App\Models\Lead
      */
-    protected Deal $deal;
+    protected Deal|Lead $subject;
 
     /**
      * The event name to send to Meta
@@ -59,13 +61,13 @@ class SendMetaConversionEventJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param Deal $deal
+     * @param Deal|Lead $subject
      * @param string $eventName
      * @param float $value
      */
-    public function __construct(Deal $deal, string $eventName, float $value = 0)
+    public function __construct(Deal|Lead $subject, string $eventName, float $value = 0)
     {
-        $this->deal = $deal;
+        $this->subject = $subject;
         $this->eventName = $eventName;
         $this->value = $value;
     }
@@ -78,38 +80,38 @@ class SendMetaConversionEventJob implements ShouldQueue
      */
     public function handle(MetaConversionsService $metaService): void
     {
+        $logContext = $this->subject instanceof Lead
+            ? ['lead_id' => $this->subject->id]
+            : ['deal_id' => $this->subject->id];
+
         try {
-            Log::info('Processing Meta Conversion Event Job', [
-                'deal_id' => $this->deal->id,
+            Log::info('Processing Meta Conversion Event Job', $logContext + [
                 'event_name' => $this->eventName,
                 'value' => $this->value,
                 'attempt' => $this->attempts(),
             ]);
 
             // Send the event to Meta Conversions API
-            $success = $metaService->sendEvent($this->eventName, $this->value, $this->deal);
+            $success = $metaService->sendEvent($this->eventName, $this->value, $this->subject);
 
             if ($success) {
-                Log::info('Meta Conversion Event Job completed successfully', [
-                    'deal_id' => $this->deal->id,
+                Log::info('Meta Conversion Event Job completed successfully', $logContext + [
                     'event_name' => $this->eventName,
                     'value' => $this->value,
                 ]);
             } else {
-                Log::warning('Meta Conversion Event Job completed but event was not sent successfully', [
-                    'deal_id' => $this->deal->id,
+                Log::warning('Meta Conversion Event Job completed but event was not sent successfully', $logContext + [
                     'event_name' => $this->eventName,
                     'value' => $this->value,
                     'attempt' => $this->attempts(),
                 ]);
-                
+
                 // Don't throw exception - we don't want to keep retrying if Meta API is consistently failing
                 // The detailed error is already logged in MetaConversionsService
             }
 
         } catch (\Exception $e) {
-            Log::error('Meta Conversion Event Job failed with exception', [
-                'deal_id' => $this->deal->id,
+            Log::error('Meta Conversion Event Job failed with exception', $logContext + [
                 'event_name' => $this->eventName,
                 'value' => $this->value,
                 'attempt' => $this->attempts(),
@@ -130,11 +132,13 @@ class SendMetaConversionEventJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error('Meta Conversion Event Job failed permanently', [
-            'deal_id' => $this->deal->id,
+        $logContext = $this->subject instanceof Lead
+            ? ['lead_id' => $this->subject->id]
+            : ['deal_id' => $this->subject->id];
+
+        Log::error('Meta Conversion Event Job failed permanently', $logContext + [
             'event_name' => $this->eventName,
             'exception_message' => $exception->getMessage(),
         ]);
     }
 }
-

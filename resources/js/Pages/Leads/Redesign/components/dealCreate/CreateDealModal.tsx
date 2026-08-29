@@ -217,6 +217,20 @@ export default function CreateDealModal({
         selectedAgent?.user?.name ??
         (agentId != null ? `Agent #${agentId}` : null);
 
+    // Keep the kickoff meeting's default host in sync with the picked agent
+    // — there's no deal/lead object yet to seed it from (the deal doesn't
+    // exist until step 3), so this tracks the wizard's own agent selection
+    // instead, both on initial seed and whenever the agent changes.
+    useEffect(() => {
+        if (!open || selectedAgent?.user?.id == null) return;
+        const agentUserId = selectedAgent.user.id;
+        setMeetingForm((prev) =>
+            prev.hostId === agentUserId
+                ? prev
+                : { ...prev, hostId: agentUserId },
+        );
+    }, [open, selectedAgent]);
+
     useEffect(() => {
         if (!open) return;
         setStep(1);
@@ -230,14 +244,30 @@ export default function CreateDealModal({
         setAgentPickerOpen(false);
         setManualValue("");
         setAddKickoffMeeting(false);
+
+        // Resolved directly from defaultAgentId/agents here rather than left
+        // to the selectedAgent-sync effect above to catch up on a later
+        // render: if agentId already equals defaultAgentId from a prior
+        // session, setAgentId() above is a no-op, selectedAgent never
+        // changes, and that effect would never re-fire — leaving hostId
+        // stuck on the current user instead of the pre-selected agent.
+        const defaultAgent =
+            defaultAgentId != null
+                ? (agents.find((agent) => agent.id === defaultAgentId) ?? null)
+                : null;
+
         setMeetingForm({
             ...buildEmptyMeetingForm(null, authUserId, authUserEmail),
+            ...(defaultAgent?.user?.id
+                ? { hostId: defaultAgent.user.id }
+                : {}),
             meetingTypeId: meetingTypes[0]?.id ?? null,
             startTime: "10:00",
             endTime: addMinutesToTime("10:00", 30),
             duration: 30,
             remark: "",
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- agents intentionally excluded: it's a fresh [] literal when dealMeta is unset, and only needs to be current at the moment `open` flips true, not trigger its own reset
     }, [open, defaultAgentId, meetingTypes, authUserId, authUserEmail]);
 
     // When pipeline changes: stage default, package filter/auto-select, clear property if packages linked.
@@ -427,6 +457,7 @@ export default function CreateDealModal({
                           locationDetail: meetingForm.locationDetail,
                           meetingLink: meetingForm.meetingLink,
                           participants: meetingForm.participants,
+                          hostId: meetingForm.hostId,
                           remark:
                               meetingForm.remark.trim() ||
                               `Kickoff for ${resolvedName}`,
@@ -902,6 +933,11 @@ export default function CreateDealModal({
                             onChange={patchMeeting}
                             meetingTypes={meetingTypes}
                             disabled={saving}
+                            mustIncludeOwner={
+                                selectedAgent?.user?.id && selectedAgent.user.name
+                                    ? { id: selectedAgent.user.id, name: selectedAgent.user.name }
+                                    : null
+                            }
                         />
                     ) : (
                         <p

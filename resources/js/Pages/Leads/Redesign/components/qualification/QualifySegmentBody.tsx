@@ -1,7 +1,6 @@
 import type { Segment } from "@/Types/qualification";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import {
-    useDynamicTranslation,
     useDynamicTranslations,
     useTd,
 } from "@/Hooks/useDynamicTranslation";
@@ -11,6 +10,7 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import DealSwitch from "@/Pages/Deals/Redesign/components/primitives/DealSwitch";
 import RadioInput from "@/Pages/Deals/Redesign/components/analysis/inputs/RadioInput";
 import CheckboxInput from "@/Pages/Deals/Redesign/components/analysis/inputs/CheckboxInput";
@@ -75,7 +75,7 @@ function ScriptBlock({
     text: string;
     translateScript: (text: string) => string;
 }) {
-    const localized = useDynamicTranslation(text, { source: "en" });
+    const localized = useTranslatedScriptLabel(text);
     const translated = translateScript(localized);
     return (
         <QualificationScriptHtml

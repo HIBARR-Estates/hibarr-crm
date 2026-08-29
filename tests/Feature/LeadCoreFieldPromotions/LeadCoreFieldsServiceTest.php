@@ -6,13 +6,10 @@ use App\Models\Lead;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
-use Tests\Concerns\SetsFeatureFlags;
 use Tests\LeadCoreFieldsTestCase;
 
 class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
 {
-    use SetsFeatureFlags;
-
     private LeadCoreFieldsService $service;
 
     protected function setUp(): void
@@ -30,25 +27,8 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
         parent::tearDown();
     }
 
-    public function test_flag_off_reads_from_custom_fields(): void
+    public function test_reads_from_core_columns(): void
     {
-        $this->setFeatureFlag('crm.lead-language-core-field', false);
-
-        $companyId = $this->seedCompany();
-        $leadId = $this->seedLead($companyId);
-        $languageFieldId = $this->seedCustomField($companyId, 'language');
-        $this->seedCustomFieldValue($languageFieldId, $leadId, 'German');
-
-        $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
-        $values = $this->service->read($lead);
-
-        $this->assertSame(['de'], $values['languages']);
-    }
-
-    public function test_flag_on_reads_from_core_columns(): void
-    {
-        $this->setFeatureFlag('crm.lead-language-core-field', true);
-
         $companyId = $this->seedCompany();
         $leadId = $this->seedLead($companyId, [
             'languages' => json_encode(['en', 'de']),
@@ -66,10 +46,8 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
         $this->assertSame('Engineer', $values['occupation']);
     }
 
-    public function test_flag_on_writes_core_columns_only(): void
+    public function test_writes_core_columns(): void
     {
-        $this->setFeatureFlag('crm.lead-language-core-field', true);
-
         $companyId = $this->seedCompany();
         $leadId = $this->seedLead($companyId);
         $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
@@ -89,29 +67,8 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
         $this->assertSame('1985-01-20', $lead->date_of_birth?->format('Y-m-d'));
     }
 
-    public function test_flag_off_write_is_noop(): void
+    public function test_filter_custom_fields_from_payload(): void
     {
-        $this->setFeatureFlag('crm.lead-language-core-field', false);
-
-        $companyId = $this->seedCompany();
-        $leadId = $this->seedLead($companyId);
-        $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
-
-        $this->service->write($lead, [
-            'languages' => ['en'],
-            'nationality' => 'Turkey',
-        ]);
-        $lead->save();
-        $lead->refresh();
-
-        $this->assertNull($lead->languages);
-        $this->assertNull($lead->nationality);
-    }
-
-    public function test_filter_custom_fields_from_payload_when_flag_on(): void
-    {
-        $this->setFeatureFlag('crm.lead-language-core-field', true);
-
         $companyId = $this->seedCompany();
         $languageFieldId = $this->seedCustomField($companyId, 'language');
         $otherFieldId = $this->seedCustomField($companyId, 'custom-note');
@@ -238,13 +195,4 @@ class LeadCoreFieldsServiceTest extends LeadCoreFieldsTestCase
         ]);
     }
 
-    private function seedCustomFieldValue(int $fieldId, int $leadId, string $value): void
-    {
-        \DB::table('custom_fields_data')->insert([
-            'custom_field_id' => $fieldId,
-            'model_id' => $leadId,
-            'model' => 'App\Models\Lead',
-            'value' => $value,
-        ]);
-    }
 }

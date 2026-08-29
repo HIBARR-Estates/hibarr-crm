@@ -434,12 +434,8 @@ class DealGatheringService
                     if (! empty($promotedData)) {
                         /** @var \App\Services\LeadCoreFieldsService $coreFields */
                         $coreFields = app(\App\Services\LeadCoreFieldsService::class);
-                        if ($coreFields->useCoreFields()) {
-                            $coreFields->write($deal->contact, $promotedData);
-                            $deal->contact->save();
-                        } else {
-                            $deal->contact->update($promotedData);
-                        }
+                        $coreFields->write($deal->contact, $promotedData);
+                        $deal->contact->save();
                     }
                 }
                 break;
@@ -506,11 +502,16 @@ class DealGatheringService
                         if ($min !== null && $max !== null) {
                             [$min, $max] = [min($min, $max), max($min, $max)];
                         }
-                        $hibarrData[$key] = json_encode([
-                            'min' => $min,
-                            'max' => $max,
-                            'currency' => is_string($value['currency'] ?? null) ? $value['currency'] : null,
-                        ]);
+                        // A range with neither bound is an empty field. Storing
+                        // {"min":null,"max":null,...} would leave a non-empty column
+                        // that every "is this filled?" check reads as answered.
+                        $hibarrData[$key] = ($min === null && $max === null)
+                            ? null
+                            : json_encode([
+                                'min' => $min,
+                                'max' => $max,
+                                'currency' => is_string($value['currency'] ?? null) ? $value['currency'] : null,
+                            ]);
                     } else {
                         $hibarrData[$key] = $value;
                     }
@@ -523,6 +524,20 @@ class DealGatheringService
                 // Trigger deal automation for Hibarr field updates
                 // This is needed because updating Hibarr fields doesn't trigger the Deal model's observer
                 $this->dealAutomationService->process($deal, 'deal_updated');
+                break;
+
+            case DealUpdateType::ANALYSIS_UNANSWERED:
+                // data is [stepKey => reason|null]; a null reason clears the mark.
+                $unanswered = $deal->analysis_unanswered ?? [];
+                foreach ($data as $stepKey => $reason) {
+                    if ($reason === null || $reason === '' || $reason === false) {
+                        unset($unanswered[$stepKey]);
+                    } else {
+                        $unanswered[$stepKey] = is_string($reason) ? $reason : true;
+                    }
+                }
+                $deal->analysis_unanswered = $unanswered;
+                $deal->save();
                 break;
 
             case DealUpdateType::RECALCULATE_VALUE:

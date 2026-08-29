@@ -37,18 +37,7 @@ class BirthdayReminder extends BaseNotification
      */
     public function via($notifiable)
     {
-
-        $via = array('database');
-
-        if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
-            array_push($via, 'mail');
-        }
-
-        if ($this->emailSetting->send_slack == 'yes' && $this->company->slackSetting->status == 'active' && $notifiable->employeeDetail->slack_username != '') {
-            array_push($via, 'slack');
-        }
-
-        return $via;
+        return $this->resolveChannels($this->emailSetting, $notifiable);
     }
 
     /**

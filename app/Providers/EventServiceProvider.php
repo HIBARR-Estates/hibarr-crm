@@ -160,6 +160,7 @@ use App\Listeners\RemovalRequestApprovedRejectUserListener;
 use App\Listeners\ShiftRotationListener;
 use App\Listeners\SubmitWeeklyTimesheetListener;
 use App\Listeners\SubTaskCompletedListener;
+use App\Listeners\SuppressBypassedNotification;
 use App\Listeners\TaskCommentListener;
 use App\Listeners\TaskCommentMentionListener;
 use App\Listeners\TaskListener;
@@ -498,6 +499,7 @@ use App\Observers\WeeklyTimesheetEntriesObserver;
 use App\Observers\WeeklyTimeSheetObserver;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Notifications\Events\NotificationSending;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -507,6 +509,7 @@ class EventServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
+        NotificationSending::class => [SuppressBypassedNotification::class],
         Login::class => [LogSuccessfulLogin::class],
         SubTaskCompletedEvent::class => [SubTaskCompletedListener::class],
         NewUserEvent::class => [NewUserListener::class],

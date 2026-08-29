@@ -734,6 +734,7 @@ return [
             'banner_single_limit'   => 'Bu CRM, anlaşma başına yalnızca bir paket veya mülke izin verecek şekilde yapılandırılmıştır.',
             'section_lead'          => 'Aday',
             'section_deal_details'  => 'Anlaşma detayları',
+            'section_payment'       => 'Ödeme',
             'section_documents'     => 'Dökümanlar',
             'messages' => [
                 'email_copied' => 'E-posta kopyalandı',
@@ -835,6 +836,7 @@ return [
                 'join'                 => 'Katıl',
                 'auto_generated_link_hint' => 'Planlamadan sonra görüntülü toplantılar için otomatik oluşturulur.',
                 'existing_link_hint'   => 'Mevcut toplantı bağlantısı referans amaçlı gösteriliyor.',
+                'host_field'           => 'Toplantı sorumlusu',
                 'participants_field'   => 'Toplantı katılımcıları',
                 'reminders'            => 'Hatırlatmalar',
                 'remove_reminder'      => 'Hatırlatmayı kaldır',

@@ -101,8 +101,8 @@ class LeadFollowupDataTable extends BaseDataTable
                 return $status;
             })
             ->addColumn('statusChange', fn($row) => $row->status)
-            ->addColumn('created_at', fn($row) => $row->created_at->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format))
-            ->addColumn('next_follow_up', fn($row) => $row->next_follow_up_date->timezone(company()->timezone)->format(company()->date_format . ' ' . company()->time_format))
+            ->addColumn('created_at', fn($row) => $row->created_at->timezone($this->viewerTimezone())->format(company()->date_format . ' ' . company()->time_format))
+            ->addColumn('next_follow_up', fn($row) => $row->next_follow_up_date->timezone($this->viewerTimezone())->format(company()->date_format . ' ' . company()->time_format))
             ->smart(false)
             ->setRowId(fn($row) => 'row-' . $row->id)
             ->rawColumns(['action', 'status']);

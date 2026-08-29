@@ -1,6 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
-import { useDynamicTranslation, useTd } from "@/Hooks/useDynamicTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import QualificationScriptHtml from "@/Pages/Leads/Components/Qualification/QualificationScriptHtml";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
@@ -14,6 +14,7 @@ import {
     hasAnswerContent,
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import {
     DEFAULT_OUTCOME_LABELS,
     OUTCOME_LIFECYCLE_STATUS_KEY,
@@ -36,12 +37,13 @@ import { LeadQualificationService } from "@/Services/LeadQualificationService";
 import { RegistrationService } from "@/Services/RegistrationService";
 import RadioInput from "@/Pages/Deals/Redesign/components/analysis/inputs/RadioInput";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
 import {
     buildEmptyMeetingForm,
     defaultMeetingStart,
+    getMeetingOwner,
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadMeetingCreate, {
@@ -586,6 +588,7 @@ function OutcomeDetail({
     onDone: (qualification: LeadQualification) => void;
 }) {
     const { td } = useTd();
+    const { formatDateTime } = useUserDateTime();
     const { props: pageProps } = usePage();
     const userId = pageProps.auth?.user?.id;
     const userEmail = pageProps.auth?.user?.email;
@@ -594,7 +597,7 @@ function OutcomeDetail({
     const [busy, setBusy] = useState(false);
     const [comment, setComment] = useState("");
     const [meetingForm, setMeetingForm] = useState<MeetingFormState>(() => ({
-        ...buildEmptyMeetingForm(null, userId, userEmail),
+        ...buildEmptyMeetingForm(lead, userId, userEmail),
         ...defaultMeetingStart(),
     }));
     const [meetingErrors, setMeetingErrors] = useState<string[]>([]);
@@ -748,7 +751,7 @@ function OutcomeDetail({
     useEffect(() => {
         if (outcome !== "bookMeeting" && outcome !== "callback") return;
         const base = {
-            ...buildEmptyMeetingForm(null, userId, userEmail),
+            ...buildEmptyMeetingForm(lead, userId, userEmail),
             ...defaultMeetingStart(),
         };
         setMeetingForm(
@@ -921,7 +924,7 @@ function OutcomeDetail({
             (session) => session.id === sessionId,
         );
         const sessionLabel = selected
-            ? `${selected.title} · ${formatCompanyDateTime(selected.startsAt)}`
+            ? `${selected.title} · ${formatDateTime(selected.startsAt)}`
             : sessionId;
 
         const payload: RegisterWebinarSessionPayload = {
@@ -972,6 +975,7 @@ function OutcomeDetail({
         locationDetail: meetingForm.locationDetail,
         meetingLink: meetingForm.meetingLink,
         participants: meetingForm.participants,
+        hostId: meetingForm.hostId,
         remark: meetingForm.remark,
         reminders: meetingForm.reminders,
     });
@@ -985,7 +989,9 @@ function OutcomeDetail({
         if (usesMeetingForm) {
             meetingInput = meetingInputFromForm();
             const validationErrors = validateMeetingForm(meetingInput, {
-                hasOwnerOrDeal: Boolean(lead.lead_owner?.id),
+                // Same resolution as mustIncludeOwner below (getMeetingOwner) —
+                // one contract for "does this lead have an owner to assign to".
+                hasOwnerOrDeal: Boolean(getMeetingOwner(lead)),
                 userEmail,
             });
             if (validationErrors.length > 0) {
@@ -1337,6 +1343,7 @@ function OutcomeDetail({
                                             }
                                             meetingTypes={meetingTypes}
                                             disabled={busy || flow.completing}
+                                            mustIncludeOwner={getMeetingOwner(lead)}
                                         />
                                     )}
                                 </div>
@@ -1398,7 +1405,7 @@ function OutcomeDetail({
                                                         color: T.TEXT_MUTED,
                                                     }}
                                                 >
-                                                    {formatCompanyDateTime(
+                                                    {formatDateTime(
                                                         nextSession.startsAt,
                                                     )}
                                                     {nextSession.timezone
@@ -1867,7 +1874,7 @@ function OutcomeBody({
     text: string;
     translateScript: (text: string) => string;
 }) {
-    const localized = useDynamicTranslation(text, { source: "en" });
+    const localized = useTranslatedScriptLabel(text);
     const translated = translateScript(localized);
     return (
         <QualificationScriptHtml

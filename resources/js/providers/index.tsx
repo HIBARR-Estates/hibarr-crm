@@ -6,9 +6,11 @@ import { TranslationProvider } from "@/contexts/TranslationContext";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import UserTimezoneCapture from "@/Components/UserTimezoneCapture";
 import { CompanyDateTimeProvider } from "@/Components/CompanyDateTimeProvider";
+import { UserDateTimeProvider } from "@/Components/UserDateTimeProvider";
 import NotificationAlertProvider from "@/Components/NotificationAlertProvider";
 import { NotificationAlertBridgeMount } from "@/Hooks/useNotificationAlertBridge";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import { MeetingAttendanceConfirmationMount } from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationMount";
 import { NotificationAlertSettingsProvider } from "@/contexts/NotificationAlertSettingsContext";
 
 function NotificationAlertsGate({
@@ -54,13 +56,16 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
                 <AntdConfigProvider>
                     <UserTimezoneCapture />
                     <CompanyDateTimeProvider>
-                        <FilterProvider>
-                            <NotificationAlertSettingsProvider>
-                                <NotificationAlertsGate>
-                                    {children}
-                                </NotificationAlertsGate>
-                            </NotificationAlertSettingsProvider>
-                        </FilterProvider>
+                        <UserDateTimeProvider>
+                            <FilterProvider>
+                                <NotificationAlertSettingsProvider>
+                                    <NotificationAlertsGate>
+                                        <MeetingAttendanceConfirmationMount />
+                                        {children}
+                                    </NotificationAlertsGate>
+                                </NotificationAlertSettingsProvider>
+                            </FilterProvider>
+                        </UserDateTimeProvider>
                     </CompanyDateTimeProvider>
                 </AntdConfigProvider>
             </DynamicTranslationProvider>

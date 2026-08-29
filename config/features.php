@@ -5,11 +5,11 @@ return [
     'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 10),
     'known_flags' => [
         'crm.lead-qualification-tab',
-        'crm.lead-language-core-field',
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
         'crm.lead-merge',
+        'crm.lead-automation-engine',
         'crm.notification-service-routing',
         'crm.notification-island-alerts',
         'crm.entity-reminders',
@@ -33,5 +33,11 @@ return [
         'crm.leads-filter-v2',
         'crm.expose-share-links',
         'crm.tasks-workspace-redesign',
+        'crm.automation-v2',
+        'crm.meeting-attendance-confirmation',
+        'crm.meeting-host',
+        'crm.notification-bypass',
+        'crm.user-timezone',
+        'packages.online-payment'
     ],
 ];

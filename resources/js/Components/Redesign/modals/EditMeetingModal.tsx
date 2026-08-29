@@ -22,6 +22,10 @@ interface EditMeetingModalProps {
     onSubmit: (form: MeetingFormState) => void;
     labels: EditMeetingModalLabels;
     showExistingMeetingLinkHint?: boolean;
+    /** Deal agent / lead owner — forced into participants (and locked) when not chosen as host. */
+    mustIncludeOwner?: { id: number; name: string } | null;
+    /** True — host is immutable after creation, always locked in edit mode. */
+    hostLocked?: boolean;
 }
 
 export default function EditMeetingModal({
@@ -34,6 +38,8 @@ export default function EditMeetingModal({
     onSubmit,
     labels,
     showExistingMeetingLinkHint = true,
+    mustIncludeOwner = null,
+    hostLocked = true,
 }: EditMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState | null>(null);
@@ -105,6 +111,8 @@ export default function EditMeetingModal({
                 meetingTypes={meetingTypes}
                 disabled={saving}
                 showExistingMeetingLinkHint={showExistingMeetingLinkHint}
+                mustIncludeOwner={mustIncludeOwner}
+                hostLocked={hostLocked}
             />
         </Modal>
     );

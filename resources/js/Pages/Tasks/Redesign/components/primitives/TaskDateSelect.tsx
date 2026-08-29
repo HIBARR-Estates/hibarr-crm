@@ -319,6 +319,7 @@ export default function TaskDateSelect({
                         onClick={(event) => event.stopPropagation()}
                         style={{
                             ...floatStyle,
+                            overflowY: "auto",
                             width: 300,
                             padding: 14,
                             background: T.WHITE,

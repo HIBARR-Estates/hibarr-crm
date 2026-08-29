@@ -53,6 +53,9 @@ import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 import { useNotificationAlertSettings } from "@/contexts/NotificationAlertSettingsContext";
+import { usePermission, isPermissionAll } from "@/lib/permissionUtils";
+import { router } from "@inertiajs/react";
+import useTranslation from "@/Hooks/useTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -232,6 +235,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         setAlertsMuted,
     } = useNotificationAlertSettings();
     const islandAlertsEnabled = useNotificationIslandAlertsFlag();
+    const { permissions } = usePermission();
+    const canManageNotifications = isPermissionAll(
+        permissions.manage_notification_setting,
+    );
+    const { t } = useTranslation();
 
     const { notifications, isLoading, refetch } =
         useNotificationSummary(pollingInterval);
@@ -340,7 +348,29 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 <div className="flex items-center gap-1">
                     {islandAlertsEnabled && (
                         <Popover
-                            content={<NotificationAlertSettings />}
+                            content={
+                                <>
+                                    <NotificationAlertSettings />
+                                    {canManageNotifications && (
+                                        <div className="mt-2 border-t border-gray-100 pt-2">
+                                            <Button
+                                                type="link"
+                                                size="small"
+                                                className="!px-0"
+                                                onClick={() =>
+                                                    router.visit(
+                                                        route(
+                                                            "notification-settings-manager.index",
+                                                        ),
+                                                    )
+                                                }
+                                            >
+                                                {t("app.menu.notificationSettings")}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
+                            }
                             trigger="click"
                             placement="bottomRight"
                             // Theme raises zIndexPopupBase to 1300 (see

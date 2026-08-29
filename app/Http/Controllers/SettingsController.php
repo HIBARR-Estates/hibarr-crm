@@ -4,19 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\Settings\UpdateOrganisationSettings;
-use App\Traits\CurrencyExchange;
-use App\Models\User;
-use App\Models\DealAutomation;
-use App\Models\CrmEventCategory;
-use App\Models\CrmEventType;
 use App\Models\CrmBusinessRule;
+use App\Models\CrmEventCategory;
 use App\Models\CrmEventRetentionPolicy;
+use App\Models\CrmEventType;
+use App\Models\DealAutomation;
+use App\Models\User;
+use App\Support\MeetingAttendanceConfirmationFeature;
+use App\Traits\CurrencyExchange;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends AccountBaseController
 {
-
     use CurrencyExchange;
 
     public function __construct()
@@ -37,16 +37,19 @@ class SettingsController extends AccountBaseController
     public function index()
     {
         $this->employees = User::allEmployees(null, false);
+
         return view('company-settings.index', $this->data);
     }
 
     public function deal_automations()
     {
+        $this->pageTitle = 'app.menu.dealAutomations';
+        $this->activeSettingMenu = 'deal_automations';
         $this->employees = User::allEmployees(null, false);
-        $this->automations = DealAutomation::with(['pipeline', 'actions.targetStage', 'actions.targetPipeline'])
+        $this->automations = DealAutomation::with(['pipeline', 'actions.targetStage', 'actions.targetPipeline', 'actions.emailTemplate', 'actions.assigneeUser'])
             ->orderBy('priority', 'desc')
             ->get();
-            
+
         return view('company-settings.deal_automations', $this->data);
     }
 
@@ -71,7 +74,26 @@ class SettingsController extends AccountBaseController
         $setting->company_phone = $request->company_phone;
         $setting->website = $request->website;
         $setting->default_lead_creator_id = $request->default_lead_creator_id;
+
+        // Manual override for the meeting-attendance-confirmation rollout:
+        // blank clears it back to null (auto-stamped again on next check).
+        // Parse through Carbon first — the <input type="datetime-local">
+        // value ("2026-08-20T07:00", no seconds) doesn't match the strict
+        // Y-m-d H:i:s format Eloquent's datetime cast requires when you
+        // assign it a raw string, and throws InvalidFormatException instead
+        // of saving. Assigning an actual Carbon instance skips that parsing
+        // entirely.
+        // Cache::forget below is required, not just tidy — the auto-stamp
+        // path caches "already activated" for an hour and never re-reads the
+        // column once that's set, so it would silently ignore this write
+        // until the cache entry expired on its own.
+        $setting->meeting_attendance_confirmation_enabled_at = $request->filled('meeting_attendance_confirmation_enabled_at')
+            ? \Carbon\Carbon::parse($request->meeting_attendance_confirmation_enabled_at)
+            : null;
+
         $setting->save();
+
+        MeetingAttendanceConfirmationFeature::clearActivationCache((int) $setting->id);
 
         return Reply::success(__('messages.updateSuccess'));
     }
@@ -98,14 +120,14 @@ class SettingsController extends AccountBaseController
 
         \Log::channel('daily')->info('[i18n] changeLanguage called', [
             'requested_locale' => $locale,
-            'user_id'         => auth()->id(),
+            'user_id' => auth()->id(),
             'user_permission' => function_exists('user') && user() ? user()->permission('manage_company_setting') : 'N/A',
-            'ip'              => $request->ip(),
+            'ip' => $request->ip(),
         ]);
 
         // Validate locale is supported (exactly four languages per spec)
         $supportedLocales = ['en', 'de', 'ru', 'tr'];
-        if (!in_array($locale, $supportedLocales)) {
+        if (! in_array($locale, $supportedLocales)) {
             \Log::channel('daily')->warning('[i18n] Unsupported locale requested, falling back to en', ['locale' => $locale]);
             $locale = 'en';
         }
@@ -119,8 +141,8 @@ class SettingsController extends AccountBaseController
             $user->save();
 
             \Log::channel('daily')->info('[i18n] User locale updated in DB', [
-                'user_id'      => $user->id,
-                'locale'       => $locale,
+                'user_id' => $user->id,
+                'locale' => $locale,
                 'save_success' => true,
             ]);
         } else {
@@ -137,11 +159,10 @@ class SettingsController extends AccountBaseController
 
         \Log::channel('daily')->info('[i18n] Session and app locale set', [
             'session_locale' => session('locale'),
-            'app_locale'     => app()->getLocale(),
+            'app_locale' => app()->getLocale(),
         ]);
 
         // Redirect back to previous page
         return redirect()->back();
     }
-
 }

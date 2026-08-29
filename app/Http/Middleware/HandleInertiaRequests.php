@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\UserNotificationAlertSetting;
 use App\Services\I18nTranslationService;
 use App\Support\FeatureFlags;
+use App\Support\UserTimezone;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -28,9 +29,7 @@ class HandleInertiaRequests extends Middleware
      */
     // public function rootView(Request $request): string
     // {
-    //     $bundler = config('app.bundler', env('APP_BUNDLER'));
-        
-    //     return $bundler === 'vite' 
+    //     return env('APP_BUNDLER') === 'vite'
     //         ? 'layouts.inertia_vite'
     //         : 'layouts.inertia_alt';
     // }
@@ -90,6 +89,12 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
+            'viewerTimezone' => fn () => UserTimezone::forViewer(
+                $request->user(),
+                function_exists('company') ? company() : null
+            ),
+            'integrationsHubUrl' => fn () => $this->getIntegrationsHubUrl(),
+            'posthog' => fn () => $this->getPostHogConfig(),
             'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
@@ -212,6 +217,37 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Client-side PostHog config, or null when no key is configured.
+     *
+     * Null rather than an empty key so the frontend has one thing to check —
+     * an unconfigured environment does not load the library at all.
+     *
+     * Carries no user data itself — just the key and host. Identity is taken
+     * from the `auth.user` prop that is already shared with every page, so
+     * there is one definition of "who is logged in" rather than a second copy
+     * that can drift out of step with it.
+     *
+     * What the frontend then sends about that user (currently name and email,
+     * as staff PII to a third-party processor) is decided in
+     * resources/js/lib/analytics.ts — see the note on personTraits().
+     *
+     * @return array{key: string, host: string}|null
+     */
+    private function getPostHogConfig(): ?array
+    {
+        $key = config('services.posthog.key');
+
+        if (empty($key)) {
+            return null;
+        }
+
+        return [
+            'key' => $key,
+            'host' => config('services.posthog.host'),
+        ];
+    }
+
+    /**
      * Get the authenticated user with their LeadAgent ID appended.
      */
     private function getUserWithLeadAgentId()
@@ -226,6 +262,16 @@ class HandleInertiaRequests extends Middleware
         $user->setAttribute('has_zoho_profile', !empty($user->employeeDetail?->zoho_id));
 
         return $user;
+    }
+
+    /**
+     * URL for the Hibarr Integrations Hub, environment-aware.
+     */
+    private function getIntegrationsHubUrl(): string
+    {
+        return app()->environment('production')
+            ? 'https://integrations.hibarr.de'
+            : 'https://integrations.staging.hibarr.de';
     }
 
     private function getCustomLinks(): array
@@ -270,14 +316,21 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        // Get all permissions for the user in a single query
-        // This joins user_permissions -> permissions -> permission_types
-        $userPermissions = \App\Models\UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
-            ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
-            ->where('user_permissions.user_id', user()->id)
-            ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
-            ->pluck('permission_type', 'permission_name')
-            ->toArray();
+        // // Get all permissions for the user in a single query
+        // // This joins user_permissions -> permissions -> permission_types
+        // $userPermissions = \App\Models\UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
+        //     ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
+        //     ->where('user_permissions.user_id', user()->id)
+        //     ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
+        //     ->pluck('permission_type', 'permission_name')
+        //     ->toArray();
+
+        // Byte-for-byte the query User::permissionMap() already runs and memoizes
+        // for the request, so reuse it rather than paying for it twice on every
+        // Inertia page. (permissionMap keeps the first row per permission where
+        // this used to keep the last — user_permissions has no duplicate
+        // (user_id, permission_id) pairs, so the two agree.)
+        $userPermissions = user()->permissionMap();
 
         // Get all possible permissions to ensure we return a complete list
         // We cache this query as the list of all permissions rarely changes

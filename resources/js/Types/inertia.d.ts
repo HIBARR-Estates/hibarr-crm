@@ -26,6 +26,7 @@ declare module "@inertiajs/core" {
         isDarkMode?: boolean; // Example additional prop, not implemented yet
         pipelines?: Array<{ id: number; name: string; default: number }>;
         featureFlags?: Record<string, boolean>;
+        viewerTimezone?: string;
         locale?: string;
         isRtl?: boolean;
         availableLocales?: Record<
