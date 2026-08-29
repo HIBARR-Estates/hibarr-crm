@@ -217,6 +217,13 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
         </>
     ),
+    download: (
+        <>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+        </>
+    ),
     layers: (
         <>
             <polygon points="12 2 2 7 12 12 22 7 12 2" />

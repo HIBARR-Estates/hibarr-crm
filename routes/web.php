@@ -1365,6 +1365,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('/', [App\Http\Controllers\DealExposeController::class, 'store'])->name('store');
     });
     Route::get('leads/{leadId}/exposes', [App\Http\Controllers\DealExposeController::class, 'leadIndex'])->name('leads.exposes.index');
+    Route::patch('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'update'])->name('deal-exposes.update');
     Route::patch('deal-exposes/{id}/status', [App\Http\Controllers\DealExposeController::class, 'updateStatus'])->name('deal-exposes.status');
     Route::delete('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'destroy'])->name('deal-exposes.destroy');
 

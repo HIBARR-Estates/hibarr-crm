@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealExpose;
+use App\Models\DealFile;
 use App\Models\ExposeSnapshot;
 use App\Models\Lead;
 use App\Services\FileStorageService;
@@ -86,22 +87,47 @@ class DealExposeController extends AccountBaseController
     }
 
     /**
-     * Project exposes that can be linked to this deal — the ones already
-     * generated for the deal's lead, newest first.
+     * Project exposes that can be linked to this deal — snapshots for the
+     * deal's lead and/or for properties / projects attached to the deal.
      */
     public function available(int $dealId)
     {
         $this->abortUnlessEnabled();
 
-        $deal = $this->findDeal($dealId);
+        $deal = $this->findDealWithPropertyScopes($dealId);
         $this->abortUnlessViewable();
 
-        if ($deal->lead_id === null) {
+        $scopes = $this->snapshotScopesForDeal($deal);
+
+        if ($deal->lead_id === null && $scopes === []) {
             return Reply::successWithData('Available exposes', ['snapshots' => []]);
         }
 
-        $snapshots = ExposeSnapshot::where('company_id', user()->company_id)
-            ->where('lead_id', $deal->lead_id)
+        $snapshots = ExposeSnapshot::query()
+            ->where('company_id', user()->company_id)
+            ->where(function ($query) use ($deal, $scopes) {
+                $hasLeadScope = $deal->lead_id !== null;
+
+                if ($hasLeadScope) {
+                    $query->where('lead_id', $deal->lead_id);
+                }
+
+                if ($scopes !== []) {
+                    $method = $hasLeadScope ? 'orWhere' : 'where';
+                    $query->{$method}(function ($entityQuery) use ($scopes) {
+                        foreach ($scopes as $scope) {
+                            $entityQuery->orWhere(function ($match) use ($scope) {
+                                $match->where('entity_type', $scope['entity_type'])
+                                    ->where('entity_id', $scope['entity_id']);
+
+                                if (isset($scope['sub_entity_id'])) {
+                                    $match->where('sub_entity_id', $scope['sub_entity_id']);
+                                }
+                            });
+                        }
+                    });
+                }
+            })
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
@@ -110,7 +136,9 @@ class DealExposeController extends AccountBaseController
             'snapshots' => $snapshots->map(fn (ExposeSnapshot $s) => [
                 'id' => $s->id,
                 'entity_type' => $s->entity_type,
+                'entity_label' => $this->snapshotEntityLabel($s),
                 'title' => $this->snapshotTitle($s),
+                'suggested_amount' => $this->snapshotSuggestedAmount($s),
                 'created_at' => $s->created_at?->toISOString(),
             ])->values(),
         ]);
@@ -140,7 +168,7 @@ class DealExposeController extends AccountBaseController
     {
         $this->abortUnlessEnabled();
 
-        $deal = $this->findDeal($dealId);
+        $deal = $this->findDealWithPropertyScopes($dealId);
         $this->abortUnlessEditable();
 
         $validated = $request->validate([
@@ -149,9 +177,10 @@ class DealExposeController extends AccountBaseController
             'source_label' => 'nullable|string|max:255',
             'amount' => 'nullable|numeric|min:0',
             'expose_snapshot_id' => 'nullable|integer',
+            'deal_file_id' => 'nullable|integer',
             'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB,
-            // Manual uploads go through the external storage API first; the
-            // frontend then posts these references instead of a multipart body.
+            // Optional when the browser already uploaded via storage API (no CORS).
+            // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
             'download_url' => 'nullable|url',
             'object_path' => 'nullable|string|max:512',
             'uploaded_filename' => 'nullable|string|max:255',
@@ -159,33 +188,39 @@ class DealExposeController extends AccountBaseController
         ]);
 
         if ($validated['source'] === DealExpose::SOURCE_LINKED) {
-            // A linked expose must point at a snapshot this company owns for
-            // this deal's lead — otherwise it is a manual row wearing the wrong label.
             $snapshotId = $validated['expose_snapshot_id'] ?? null;
 
             if ($snapshotId === null) {
                 return Reply::error('An expose must be selected to link.');
             }
 
-            if ($deal->lead_id === null) {
-                return Reply::error('This deal has no lead to link a project expose from.');
-            }
-
-            $exists = ExposeSnapshot::where('company_id', user()->company_id)
-                ->where('lead_id', $deal->lead_id)
-                ->where('id', $snapshotId)
-                ->exists();
-
-            if (! $exists) {
+            if (! $this->snapshotAvailableForDeal($deal, (int) $snapshotId)) {
                 return Reply::error('That expose could not be found.');
             }
+
+            $snapshot = ExposeSnapshot::where('company_id', user()->company_id)
+                ->find((int) $snapshotId);
+        } else {
+            $snapshot = null;
         }
 
         $uploaded = $request->file('file');
         $hasMultipart = $uploaded instanceof UploadedFile;
         $hasExternal = ! empty($validated['download_url']) && ! empty($validated['object_path']);
+        $dealFile = null;
 
-        if ($validated['source'] === DealExpose::SOURCE_MANUAL && ! $hasMultipart && ! $hasExternal) {
+        if (! empty($validated['deal_file_id'])) {
+            $dealFile = DealFile::where('deal_id', $deal->id)
+                ->find((int) $validated['deal_file_id']);
+
+            if ($dealFile === null) {
+                return Reply::error('That file could not be found.');
+            }
+        }
+
+        $hasDealFile = $dealFile !== null;
+
+        if ($validated['source'] === DealExpose::SOURCE_MANUAL && ! $hasMultipart && ! $hasExternal && ! $hasDealFile) {
             return Reply::error('A document is required.');
         }
 
@@ -199,11 +234,17 @@ class DealExposeController extends AccountBaseController
             : null;
         $expose->title = $validated['title'];
         $expose->source_label = $validated['source_label'] ?? null;
-        $expose->amount = $validated['amount'] ?? null;
+        $expose->amount = $validated['amount']
+            ?? ($snapshot ? $this->snapshotSuggestedAmount($snapshot) : null);
         $expose->status = DealExpose::STATUS_NOT_SENT;
         $expose->added_by = user()->id;
 
-        if ($hasExternal) {
+        if ($hasDealFile) {
+            $expose->filename = $dealFile->filename;
+            $expose->size = is_numeric($dealFile->size) ? (int) $dealFile->size : null;
+            $expose->external_url = $dealFile->external_url ?: $dealFile->file_url;
+            $expose->object_path = $dealFile->object_path ?: $dealFile->hashname;
+        } elseif ($hasExternal) {
             $expose->filename = $validated['uploaded_filename']
                 ?? basename($validated['object_path']);
             $expose->size = $validated['uploaded_size'] ?? null;
@@ -231,6 +272,36 @@ class DealExposeController extends AccountBaseController
 
         return Reply::successWithData('Expose added', [
             'expose' => $this->transform($expose),
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $this->abortUnlessEnabled();
+        $this->abortUnlessEditable();
+
+        $validated = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'amount' => 'nullable|numeric|min:0',
+        ]);
+
+        if (! $request->hasAny(['title', 'amount'])) {
+            return Reply::error('Nothing to update.');
+        }
+
+        $expose = DealExpose::where('company_id', user()->company_id)->findOrFail($id);
+        $this->abortUnlessCanMutateExpose($expose);
+
+        if (array_key_exists('title', $validated)) {
+            $expose->title = $validated['title'];
+        }
+        if ($request->has('amount')) {
+            $expose->amount = $validated['amount'];
+        }
+        $expose->save();
+
+        return Reply::successWithData('Expose updated', [
+            'expose' => $this->transform($expose->fresh('exposeSnapshot')),
         ]);
     }
 
@@ -268,7 +339,157 @@ class DealExposeController extends AccountBaseController
 
     private function findDeal(int $dealId): Deal
     {
-        return Deal::where('company_id', user()->company_id)->findOrFail($dealId);
+        return Deal::where('company_id', user()->company_id)
+            ->findOrFail($dealId);
+    }
+
+    private function findDealWithPropertyScopes(int $dealId): Deal
+    {
+        return Deal::with(['products.property'])
+            ->where('company_id', user()->company_id)
+            ->findOrFail($dealId);
+    }
+
+    private function snapshotAvailableForDeal(Deal $deal, int $snapshotId): bool
+    {
+        $scopes = $this->snapshotScopesForDeal($deal);
+
+        if ($deal->lead_id === null && $scopes === []) {
+            return false;
+        }
+
+        $query = ExposeSnapshot::query()
+            ->where('company_id', user()->company_id)
+            ->where('id', $snapshotId)
+            ->where(function ($matchQuery) use ($deal, $scopes) {
+                $hasLeadScope = $deal->lead_id !== null;
+
+                if ($hasLeadScope) {
+                    $matchQuery->where('lead_id', $deal->lead_id);
+                }
+
+                if ($scopes !== []) {
+                    $method = $hasLeadScope ? 'orWhere' : 'where';
+                    $matchQuery->{$method}(function ($entityQuery) use ($scopes) {
+                        foreach ($scopes as $scope) {
+                            $entityQuery->orWhere(function ($match) use ($scope) {
+                                $match->where('entity_type', $scope['entity_type'])
+                                    ->where('entity_id', $scope['entity_id']);
+
+                                if (isset($scope['sub_entity_id'])) {
+                                    $match->where('sub_entity_id', $scope['sub_entity_id']);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+        return $query->exists();
+    }
+
+    /**
+     * Entity keys for expose snapshots tied to this deal's attached properties.
+     *
+     * @return array<int, array{entity_type: string, entity_id: int, sub_entity_id?: int}>
+     */
+    private function snapshotScopesForDeal(Deal $deal): array
+    {
+        $deal->loadMissing(['products.property']);
+
+        $scopes = [];
+        $seen = [];
+
+        foreach ($deal->products as $product) {
+            $property = $product->property;
+            if ($property === null) {
+                continue;
+            }
+
+            $this->pushSnapshotScope(
+                $scopes,
+                $seen,
+                ExposeSnapshot::ENTITY_PROPERTY,
+                (int) $property->id,
+            );
+
+            if ($property->developer_project_id) {
+                $this->pushSnapshotScope(
+                    $scopes,
+                    $seen,
+                    ExposeSnapshot::ENTITY_DEVELOPER_PROJECT,
+                    (int) $property->developer_project_id,
+                );
+            }
+
+            if ($property->developer_project_id && $property->developer_project_unit_type_id) {
+                $this->pushSnapshotScope(
+                    $scopes,
+                    $seen,
+                    ExposeSnapshot::ENTITY_UNIT_TYPE,
+                    (int) $property->developer_project_id,
+                    (int) $property->developer_project_unit_type_id,
+                );
+            }
+        }
+
+        return $scopes;
+    }
+
+    /**
+     * @param  array<int, array{entity_type: string, entity_id: int, sub_entity_id?: int}>  $scopes
+     * @param  array<string, true>  $seen
+     */
+    private function pushSnapshotScope(
+        array &$scopes,
+        array &$seen,
+        string $entityType,
+        int $entityId,
+        ?int $subEntityId = null,
+    ): void {
+        $key = $entityType.':'.$entityId.':'.($subEntityId ?? '');
+        if (isset($seen[$key])) {
+            return;
+        }
+
+        $seen[$key] = true;
+
+        $scope = [
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+        ];
+
+        if ($subEntityId !== null) {
+            $scope['sub_entity_id'] = $subEntityId;
+        }
+
+        $scopes[] = $scope;
+    }
+
+    private function snapshotEntityLabel(ExposeSnapshot $snapshot): string
+    {
+        return match ($snapshot->entity_type) {
+            ExposeSnapshot::ENTITY_PROPERTY => 'Property',
+            ExposeSnapshot::ENTITY_DEVELOPER_PROJECT => 'Project',
+            ExposeSnapshot::ENTITY_UNIT_TYPE => 'Unit type',
+            default => ucfirst(str_replace('_', ' ', (string) $snapshot->entity_type)),
+        };
+    }
+
+    private function snapshotSuggestedAmount(ExposeSnapshot $snapshot): ?float
+    {
+        $payload = $snapshot->expose_payload;
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        foreach (['price', 'amount', 'property_price', 'total_price', 'listing_price'] as $key) {
+            if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                return (float) $payload[$key];
+            }
+        }
+
+        return null;
     }
 
     private function abortUnlessEnabled(): void

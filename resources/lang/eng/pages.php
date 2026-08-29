@@ -1035,6 +1035,7 @@ return [
                     'removed'        => 'Expose removed',
                     'remove_failed'  => 'Failed to remove expose',
                     'status_failed'  => 'Failed to update the expose status',
+                    'update_failed'  => 'Failed to update the expose',
                 ],
             ],
             'recommendations' => [

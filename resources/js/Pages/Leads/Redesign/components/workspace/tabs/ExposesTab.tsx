@@ -29,7 +29,7 @@ export default function ExposesTab({
     const { props: pageProps } = usePage<PageProps>();
     const permissions = pageProps.auth?.permissions as AppPermission | undefined;
     const canEdit = canManageDealExposes(permissions);
-    const { exposes, summary, loading, loadFailed, reload, setStatus } =
+    const { exposes, summary, loading, loadFailed, reload, setStatus, updateExpose } =
         useDealExposes({ type: "lead", leadId });
 
     useEffect(() => {
@@ -47,6 +47,7 @@ export default function ExposesTab({
             subtitle={t("pages.deals.workspace.exposes.subtitle_lead")}
             canEdit={canEdit}
             onStatusChange={setStatus}
+            onUpdate={canEdit ? updateExpose : undefined}
             onRetry={reload}
         />
     );

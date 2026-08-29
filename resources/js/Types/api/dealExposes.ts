@@ -22,7 +22,7 @@ export interface DealExpose {
     expose_snapshot_id: number | null;
     title: string;
     source_label: string | null;
-    amount: number | null;
+    amount: number | string | null;
     status: DealExposeStatus;
     status_changed_at: string | null;
     filename: string | null;
@@ -42,7 +42,9 @@ export interface DealExposeSummary {
 export interface DealExposeSnapshotOption {
     id: number;
     entity_type: string;
+    entity_label?: string;
     title: string;
+    suggested_amount?: number | null;
     created_at: string | null;
 }
 

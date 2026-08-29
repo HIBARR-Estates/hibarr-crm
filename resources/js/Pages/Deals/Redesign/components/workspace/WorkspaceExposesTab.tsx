@@ -43,6 +43,7 @@ export default function WorkspaceExposesTab({
         loadFailed,
         reload,
         setStatus,
+        updateExpose,
         addExpose,
         removeExpose,
         cancelUpload,
@@ -70,6 +71,7 @@ export default function WorkspaceExposesTab({
                 canEdit={editable}
                 onAdd={(source) => setAddSource(source)}
                 onStatusChange={setStatus}
+                onUpdate={editable ? updateExpose : undefined}
                 onRemove={editable ? (id) => setConfirmRemoveId(id) : undefined}
                 onRetry={reload}
             />
@@ -84,10 +86,10 @@ export default function WorkspaceExposesTab({
                     uploadBytesLoaded={uploadBytesLoaded}
                     uploadBytesTotal={uploadBytesTotal}
                     onCancelUpload={cancelUpload}
-                    onSubmit={(input) => {
-                        void addExpose(input).then((ok) => {
-                            if (ok) setAddSource(null);
-                        });
+                    onSubmit={async (input) => {
+                        const failure = await addExpose(input);
+                        if (failure === null) setAddSource(null);
+                        return failure;
                     }}
                     onClose={() => setAddSource(null)}
                 />

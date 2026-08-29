@@ -5,14 +5,21 @@ import type { DealExpose, DealExposeStatus, DealExposeSummary } from "@/Types/ap
 import {
     EXPOSE_STATUS_ORDER,
     exposeStatusMeta,
+    downloadDealExpose,
     formatExposeAmount,
     formatExposeDate,
     groupExposes,
+    parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
-import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
+import DealEditableField from "../primitives/DealEditableField";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+
+export interface ExposeUpdatePatch {
+    title?: string;
+    amount?: number | null;
+}
 
 interface ExposesPanelProps {
     exposes: DealExpose[];
@@ -30,6 +37,7 @@ interface ExposesPanelProps {
     /** Omitted when the user cannot remove exposes. */
     onRemove?: (id: number) => void;
     onStatusChange: (id: number, status: DealExposeStatus) => void;
+    onUpdate?: (id: number, patch: ExposeUpdatePatch) => Promise<void>;
     onRetry: () => void;
 }
 
@@ -71,6 +79,7 @@ export default function ExposesPanel({
     onAdd,
     onRemove,
     onStatusChange,
+    onUpdate,
     onRetry,
 }: ExposesPanelProps) {
     const { t } = useTranslation();
@@ -369,11 +378,62 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div
-                                                    className="truncate text-[15px] font-semibold"
-                                                    style={{ color: T.TEXT }}
-                                                >
-                                                    {expose.title}
+                                                <div className="group min-w-0">
+                                                    {onUpdate && canEdit ? (
+                                                        <DealEditableField
+                                                            value={expose.title}
+                                                            fieldName="title"
+                                                            fieldType="text"
+                                                            disabled={!canEdit}
+                                                            className="truncate text-[15px] font-semibold"
+                                                            displayValue={
+                                                                <span
+                                                                    className="truncate"
+                                                                    style={{
+                                                                        color: T.TEXT,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        expose.title
+                                                                    }
+                                                                </span>
+                                                            }
+                                                            onSave={async (
+                                                                value,
+                                                            ) => {
+                                                                const title =
+                                                                    String(
+                                                                        value,
+                                                                    ).trim();
+                                                                if (!title) {
+                                                                    throw new Error(
+                                                                        t(
+                                                                            "pages.deals.workspace.exposes.validation.title_required",
+                                                                        ),
+                                                                    );
+                                                                }
+                                                                if (
+                                                                    title ===
+                                                                    expose.title
+                                                                ) {
+                                                                    return;
+                                                                }
+                                                                await onUpdate(
+                                                                    expose.id,
+                                                                    { title },
+                                                                );
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="truncate text-[15px] font-semibold"
+                                                            style={{
+                                                                color: T.TEXT,
+                                                            }}
+                                                        >
+                                                            {expose.title}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 {expose.source_label && (
                                                     <div
@@ -385,17 +445,82 @@ export default function ExposesPanel({
                                                 )}
                                             </div>
                                             <div className="mr-1.5 flex-none text-right">
+                                                {linked && (
+                                                    <div className="group inline-block min-w-[88px]">
+                                                        {onUpdate && canEdit ? (
+                                                            <DealEditableField
+                                                                value={
+                                                                    expose.amount ??
+                                                                    ""
+                                                                }
+                                                                fieldName="amount"
+                                                                fieldType="currency"
+                                                                disabled={!canEdit}
+                                                                className="text-[15px] font-bold text-right"
+                                                                displayValue={
+                                                                    <span
+                                                                        style={{
+                                                                            color: T.NAVY,
+                                                                        }}
+                                                                    >
+                                                                        {formatExposeAmount(
+                                                                            expose.amount,
+                                                                            currencySymbol,
+                                                                        )}
+                                                                    </span>
+                                                                }
+                                                                onSave={async (
+                                                                    value,
+                                                                ) => {
+                                                                    const amount =
+                                                                        parseExposeAmount(
+                                                                            value,
+                                                                        );
+                                                                    if (
+                                                                        amount !==
+                                                                            null &&
+                                                                        amount < 0
+                                                                    ) {
+                                                                        throw new Error(
+                                                                            t(
+                                                                                "pages.deals.workspace.exposes.validation.amount_invalid",
+                                                                            ),
+                                                                        );
+                                                                    }
+                                                                    if (
+                                                                        parseExposeAmount(
+                                                                            expose.amount,
+                                                                        ) === amount
+                                                                    ) {
+                                                                        return;
+                                                                    }
+                                                                    await onUpdate(
+                                                                        expose.id,
+                                                                        { amount },
+                                                                    );
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="text-[15px] font-bold"
+                                                                style={{
+                                                                    color: T.NAVY,
+                                                                }}
+                                                            >
+                                                                {formatExposeAmount(
+                                                                    expose.amount,
+                                                                    currencySymbol,
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <div
-                                                    className="text-[15px] font-bold"
-                                                    style={{ color: T.NAVY }}
-                                                >
-                                                    {formatExposeAmount(
-                                                        expose.amount,
-                                                        currencySymbol,
-                                                    )}
-                                                </div>
-                                                <div
-                                                    className="mt-[3px] text-xs"
+                                                    className={
+                                                        linked
+                                                            ? "mt-[3px] text-xs"
+                                                            : "text-xs"
+                                                    }
                                                     style={{ color: T.TEXT_HINT }}
                                                 >
                                                     {formatExposeDate(expose)}
@@ -429,32 +554,27 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             {expose.download_url && (
-                                                <DealButton
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="shrink-0 p-0.5"
+                                                <button
+                                                    type="button"
+                                                    className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                                                     title={t(
                                                         "pages.deals.workspace.files.download",
                                                     )}
                                                     aria-label={t(
                                                         "pages.deals.workspace.files.download",
                                                     )}
-                                                    onClick={() => {
-                                                        if (!expose.download_url) return;
-                                                        window.open(
-                                                            expose.download_url,
-                                                            "_blank",
-                                                            "noreferrer",
-                                                        );
-                                                    }}
-                                                    icon={
-                                                        <DealIcon
-                                                            name="download"
-                                                            size={16}
-                                                            color={T.TEXT_MUTED}
-                                                        />
+                                                    onClick={() =>
+                                                        downloadDealExpose(
+                                                            expose,
+                                                        )
                                                     }
-                                                />
+                                                >
+                                                    <DealIcon
+                                                        name="download"
+                                                        size={16}
+                                                        color={T.TEXT_MUTED}
+                                                    />
+                                                </button>
                                             )}
                                             {onRemove && (
                                                 <button

@@ -2,6 +2,7 @@ import type {
     DealExpose,
     DealExposeStatus,
 } from "@/Types/api/dealExposes";
+import type { DealFile } from "@/Types/api/file";
 import type { AppPermission } from "@/Types/permission";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { formatCurrencyWithSymbol } from "@/lib/utils";
@@ -10,12 +11,46 @@ import { formatDate } from "./dateFormat";
 /** 1 GB — matches DealExposeController::MAX_UPLOAD_KB and FileUploadService. */
 export const DEAL_EXPOSE_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 
+/** Coerce antd Select values (number or numeric string) into an id. */
+export function parseOptionalSelectId(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return undefined;
+}
+
 /** Strip the extension for a human-readable title from an uploaded filename. */
 export function titleFromFilename(filename: string): string {
     const trimmed = filename.trim();
     const lastDot = trimmed.lastIndexOf(".");
     if (lastDot <= 0) return trimmed;
     return trimmed.slice(0, lastDot);
+}
+
+/** Register a manual expose from an uploaded deal file row. */
+export function dealFileToExposeStoreBody(
+    dealFile: DealFile,
+): Record<string, unknown> {
+    const downloadUrl = dealFile.external_url || dealFile.file_url;
+    const objectPath =
+        dealFile.object_path ||
+        (dealFile.hashname
+            ? `lead-files/${dealFile.deal_id}/${dealFile.hashname}`
+            : null);
+
+    return {
+        deal_file_id: dealFile.id,
+        download_url: downloadUrl || null,
+        object_path: objectPath,
+        uploaded_filename: dealFile.filename,
+        uploaded_size: Number(dealFile.size) || null,
+    };
 }
 
 /** Mirrors DealExposeController's add_lead_proposals gate for mutations. */
@@ -85,12 +120,35 @@ export function exposeStatusMeta(status: DealExposeStatus): ExposeStatusMeta {
 }
 
 /** An em dash reads as "no amount recorded" without implying a zero price. */
+export function parseExposeAmount(value: unknown): number | null {
+    if (value === null || value === undefined || value === "") return null;
+    if (typeof value === "number") {
+        return Number.isNaN(value) ? null : value;
+    }
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    if (
+        typeof value === "object" &&
+        value !== null &&
+        "amount" in (value as Record<string, unknown>)
+    ) {
+        const raw = (value as { amount?: unknown }).amount;
+        if (raw === null || raw === undefined || raw === "") return null;
+        const parsed = typeof raw === "number" ? raw : Number(raw);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+}
+
 export function formatExposeAmount(
-    amount: number | null,
+    amount: number | string | null,
     symbol: string,
 ): string {
-    if (amount === null || Number.isNaN(amount)) return "—";
-    return formatCurrencyWithSymbol(amount, symbol);
+    const parsed = parseExposeAmount(amount);
+    if (parsed === null) return "—";
+    return formatCurrencyWithSymbol(parsed, symbol);
 }
 
 /**
@@ -100,6 +158,15 @@ export function formatExposeAmount(
 export function formatExposeDate(expose: DealExpose): string {
     const stamp = expose.status_changed_at ?? expose.created_at;
     return stamp ? formatDate(stamp) : "";
+}
+
+/** Opens the expose document in a new tab when a download URL is available. */
+export function downloadDealExpose(
+    expose: Pick<DealExpose, "download_url" | "filename">,
+): void {
+    if (!expose.download_url) return;
+
+    window.open(expose.download_url, "_blank", "noopener,noreferrer");
 }
 
 export interface ExposeGroup {

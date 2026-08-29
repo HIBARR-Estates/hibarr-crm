@@ -42,6 +42,7 @@ class DealExposeControllerTest extends TestCase
         $this->assertTrue(Route::has('deals.exposes.available'));
         $this->assertTrue(Route::has('deals.exposes.store'));
         $this->assertTrue(Route::has('leads.exposes.index'));
+        $this->assertTrue(Route::has('deal-exposes.update'));
         $this->assertTrue(Route::has('deal-exposes.status'));
         $this->assertTrue(Route::has('deal-exposes.destroy'));
     }
@@ -69,6 +70,9 @@ class DealExposeControllerTest extends TestCase
         $this->postJson(route('deals.exposes.store', $dealId), [
             'source' => 'manual',
             'title' => 'Blocked',
+        ])->assertStatus(404);
+        $this->patchJson(route('deal-exposes.update', $exposeId), [
+            'title' => 'Renamed',
         ])->assertStatus(404);
         $this->patchJson(route('deal-exposes.status', $exposeId), [
             'status' => 'shown',
@@ -171,6 +175,34 @@ class DealExposeControllerTest extends TestCase
         $this->assertNotNull($row->status_changed_at);
     }
 
+    public function test_update_persists_title_and_amount(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId);
+        $exposeId = $this->createExpose($dealId, $leadId, [
+            'title' => 'Original',
+            'amount' => 100000,
+        ]);
+
+        $this->beAgent($agent);
+
+        $this->patchJson(route('deal-exposes.update', $exposeId), [
+            'title' => 'Renamed',
+            'amount' => 250000.5,
+        ])
+            ->assertStatus(200)
+            ->assertJsonPath('expose.title', 'Renamed')
+            ->assertJsonPath('expose.amount', 250000.5);
+
+        $row = DB::table('deal_exposes')->where('id', $exposeId)->first();
+        $this->assertSame('Renamed', $row->title);
+        $this->assertEqualsWithDelta(250000.5, (float) $row->amount, 0.001);
+    }
+
     public function test_status_update_rejects_an_unknown_status(): void
     {
         $this->setFeatureFlag('crm.deal-exposes-tab', true);
@@ -199,6 +231,82 @@ class DealExposeControllerTest extends TestCase
         $this->beAgent($agent);
 
         $this->getJson(route('deals.exposes.index', $dealId))->assertStatus(403);
+    }
+
+    public function test_available_includes_property_scoped_snapshots_without_lead_match(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'view_lead_proposals', 'all');
+
+        $dealLeadId = $this->createLead(['client_name' => 'Deal Lead']);
+        $snapshotLeadId = $this->createLead(['client_name' => 'Snapshot Lead']);
+        $dealId = $this->createDeal($dealLeadId);
+        $propertyId = $this->createProperty(['developer_project_id' => 42]);
+        $this->attachPropertyToDeal($dealId, $propertyId);
+
+        $matchingSnapshotId = $this->createExposeSnapshot([
+            'lead_id' => $snapshotLeadId,
+            'entity_type' => 'property',
+            'entity_id' => $propertyId,
+            'expose_payload' => json_encode(['title' => 'Villa A', 'price' => 250000]),
+        ]);
+        $this->createExposeSnapshot([
+            'lead_id' => $snapshotLeadId,
+            'entity_type' => 'property',
+            'entity_id' => $propertyId + 999,
+            'expose_payload' => json_encode(['title' => 'Other property']),
+        ]);
+
+        $this->beAgent($agent);
+
+        $response = $this->getJson(route('deals.exposes.available', $dealId));
+
+        $response->assertStatus(200);
+        $ids = array_column($response->json('snapshots'), 'id');
+        $this->assertSame([$matchingSnapshotId], $ids);
+        $this->assertSame('Villa A', $response->json('snapshots.0.title'));
+        $this->assertEqualsWithDelta(250000.0, (float) $response->json('snapshots.0.suggested_amount'), 0.001);
+    }
+
+    public function test_store_linked_expose_accepts_property_scoped_snapshot(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+
+        $dealLeadId = $this->createLead();
+        $snapshotLeadId = $this->createLead();
+        $dealId = $this->createDeal($dealLeadId);
+        $propertyId = $this->createProperty();
+        $this->attachPropertyToDeal($dealId, $propertyId);
+
+        $snapshotId = $this->createExposeSnapshot([
+            'lead_id' => $snapshotLeadId,
+            'entity_type' => 'property',
+            'entity_id' => $propertyId,
+            'expose_payload' => json_encode(['title' => 'Linked villa', 'price' => 180000]),
+        ]);
+
+        $this->beAgent($agent);
+
+        $this->postJson(route('deals.exposes.store', $dealId), [
+            'source' => 'linked',
+            'title' => 'Linked villa',
+            'expose_snapshot_id' => $snapshotId,
+        ])
+            ->assertStatus(200)
+            ->assertJsonPath('expose.source', 'linked')
+            ->assertJsonPath('expose.expose_snapshot_id', $snapshotId)
+            ->assertJsonPath('expose.amount', 180000);
+
+        $this->assertDatabaseHas('deal_exposes', [
+            'deal_id' => $dealId,
+            'expose_snapshot_id' => $snapshotId,
+            'source' => 'linked',
+        ]);
     }
 
     private function beAgent(User $agent): void
@@ -244,15 +352,15 @@ class DealExposeControllerTest extends TestCase
         ]);
     }
 
-    private function createLead(): int
+    private function createLead(array $overrides = []): int
     {
-        return (int) DB::table('leads')->insertGetId([
+        return (int) DB::table('leads')->insertGetId(array_merge([
             'company_id' => self::COMPANY_ID,
             'client_name' => 'Default Lead',
             'client_email' => 'lead'.uniqid('', true).'@test.com',
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ], $overrides));
     }
 
     /**
@@ -283,6 +391,64 @@ class DealExposeControllerTest extends TestCase
             'source_label' => 'Manual upload',
             'amount' => 100000,
             'status' => DealExpose::STATUS_NOT_SENT,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createProperty(array $overrides = []): int
+    {
+        $productId = (int) DB::table('products')->insertGetId([
+            'company_id' => self::COMPANY_ID,
+            'name' => 'Test property product',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return (int) DB::table('properties')->insertGetId(array_merge([
+            'company_id' => self::COMPANY_ID,
+            'product_id' => $productId,
+            'title' => 'Test Property',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
+    }
+
+    private function attachPropertyToDeal(int $dealId, int $propertyId): void
+    {
+        $productId = (int) DB::table('properties')->where('id', $propertyId)->value('product_id');
+
+        DB::table('lead_products')->insert([
+            'deal_id' => $dealId,
+            'product_id' => $productId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createExposeSnapshot(array $overrides = []): int
+    {
+        return (int) DB::table('expose_snapshots')->insertGetId(array_merge([
+            'company_id' => self::COMPANY_ID,
+            'token_hash' => hash('sha256', uniqid('exp_', true)),
+            'token_prefix' => 'exp_test',
+            'entity_type' => 'property',
+            'entity_id' => 1,
+            'agent_user_id' => 1,
+            'lead_id' => 1,
+            'layout' => 'expose-template',
+            'request_payload' => json_encode([]),
+            'agent_snapshot' => json_encode([]),
+            'lead_snapshot' => json_encode([]),
+            'expose_payload' => json_encode(['title' => 'Snapshot']),
+            'schema_version' => 1,
+            'warnings' => json_encode([]),
             'created_at' => now(),
             'updated_at' => now(),
         ], $overrides));
@@ -412,6 +578,66 @@ class DealExposeControllerTest extends TestCase
             });
         } else {
             DB::table('deal_exposes')->delete();
+        }
+
+        if (! Schema::hasTable('products')) {
+            Schema::create('products', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('company_id')->nullable();
+                $table->string('name')->nullable();
+                $table->timestamps();
+            });
+        } else {
+            DB::table('products')->delete();
+        }
+
+        if (! Schema::hasTable('properties')) {
+            Schema::create('properties', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('company_id')->nullable();
+                $table->unsignedInteger('product_id')->nullable();
+                $table->unsignedInteger('developer_project_id')->nullable();
+                $table->unsignedInteger('developer_project_unit_type_id')->nullable();
+                $table->string('title')->nullable();
+                $table->timestamps();
+            });
+        } else {
+            DB::table('properties')->delete();
+        }
+
+        if (! Schema::hasTable('lead_products')) {
+            Schema::create('lead_products', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('deal_id');
+                $table->unsignedInteger('product_id');
+                $table->timestamps();
+            });
+        } else {
+            DB::table('lead_products')->delete();
+        }
+
+        if (! Schema::hasTable('expose_snapshots')) {
+            Schema::create('expose_snapshots', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('company_id');
+                $table->string('token_hash');
+                $table->string('token_prefix', 12);
+                $table->string('entity_type');
+                $table->unsignedBigInteger('entity_id');
+                $table->unsignedBigInteger('sub_entity_id')->nullable();
+                $table->unsignedBigInteger('agent_user_id')->nullable();
+                $table->unsignedBigInteger('lead_id')->nullable();
+                $table->string('layout')->nullable();
+                $table->text('request_payload')->nullable();
+                $table->text('agent_snapshot')->nullable();
+                $table->text('lead_snapshot')->nullable();
+                $table->text('expose_payload')->nullable();
+                $table->unsignedInteger('schema_version')->default(1);
+                $table->text('warnings')->nullable();
+                $table->timestamps();
+            });
+        } else {
+            DB::table('expose_snapshots')->delete();
         }
     }
 }

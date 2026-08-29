@@ -10,6 +10,8 @@ import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
 import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
+import useDealOffers from "../Redesign/hooks/useDealOffers";
+import useDealRecommendationsFlag from "@/Hooks/useDealRecommendationsFlag";
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -76,6 +78,13 @@ export default function DealTabs({
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
+    const showRecommendations = useDealRecommendationsFlag();
+    const {
+        hasOffers,
+        isLoading: offersLoading,
+    } = useDealOffers(deal.id, !pipelineHasPackages);
+    const showOffersTab =
+        !pipelineHasPackages && !offersLoading && hasOffers;
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
@@ -148,7 +157,7 @@ export default function DealTabs({
 
         // Recommendations Tab - AI-powered property recommendations.
         // Hidden for package pipelines, which do not sell properties.
-        if (!pipelineHasPackages) {
+        if (showRecommendations && !pipelineHasPackages) {
             items.push({
                 key: "recommendations",
                 label: t("pages.deals.tabs.recommendations"),
@@ -189,8 +198,8 @@ export default function DealTabs({
             });
         }
 
-        // Offers Tab — property-led, so hidden for package pipelines.
-        if (!pipelineHasPackages) {
+        // Offers — only when a property on this deal has an applied offer.
+        if (showOffersTab) {
             items.push({
                 key: "offers",
                 label: (

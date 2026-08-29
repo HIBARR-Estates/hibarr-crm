@@ -4,8 +4,6 @@ import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TdFn } from "@/lib/dynamicTranslation";
-import { getFileUploadService } from "@/Services/FileUploadService";
-import { FileValidationError } from "@/Types/uploads";
 import type {
     DealExpose,
     DealExposeSnapshotOption,
@@ -13,7 +11,11 @@ import type {
     DealExposeSummary,
     DealExposesResponse,
 } from "@/Types/api/dealExposes";
-import { DEAL_EXPOSE_MAX_UPLOAD_BYTES } from "../adapters/dealExposeAdapter";
+import {
+    DEAL_EXPOSE_MAX_UPLOAD_BYTES,
+    dealFileToExposeStoreBody,
+} from "../adapters/dealExposeAdapter";
+import useDealFileUpload from "./useDealFileUpload";
 
 const EMPTY_SUMMARY: DealExposeSummary = {
     total: 0,
@@ -23,15 +25,31 @@ const EMPTY_SUMMARY: DealExposeSummary = {
     not_accepted: 0,
 };
 
+/** Dev-only tracing for manual expose adds. */
+function logExposeUpload(step: string, detail?: Record<string, unknown>): void {
+    if (typeof import.meta === "undefined" || !import.meta.env?.DEV) {
+        return;
+    }
+    console.debug(`[deal-exposes/upload] ${step}`, detail ?? "");
+}
+
+/** CRM JSON responses use Reply::{success,error} with HTTP 200 for both. */
+function extractExposeFromStoreResponse(body: unknown): DealExpose | null {
+    if (!body || typeof body !== "object") return null;
+    const record = body as Record<string, unknown>;
+    if (record.status !== "success") return null;
+    const expose = record.expose;
+    if (!expose || typeof expose !== "object") return null;
+    const id = Number((expose as DealExpose).id);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    return expose as DealExpose;
+}
+
 function resolveAddExposeErrorMessage(
     error: unknown,
     t: (key: string) => string,
     td: TdFn,
 ): string {
-    if (error instanceof FileValidationError) {
-        return error.message;
-    }
-
     if (axios.isCancel(error)) {
         return td("Upload cancelled.", { source: "en" });
     }
@@ -44,19 +62,19 @@ function resolveAddExposeErrorMessage(
             );
         }
 
+        if (error.response?.status === 413) {
+            return td(
+                "This file is too large for the CRM web server limit (nginx/PHP post_max_size). Increase upload limits or use a smaller file.",
+                { source: "en" },
+            );
+        }
+
         if (
             error.response?.status === 401 ||
             error.response?.status === 403
         ) {
             return td(
-                "Upload authentication failed. Check MIX_FILE_UPLOAD_API_KEY in .env and restart the Vite dev server.",
-                { source: "en" },
-            );
-        }
-
-        if (error.code === "ERR_NETWORK") {
-            return td(
-                "Upload could not reach the storage API. Check the browser console for CORS or network errors.",
+                "You do not have permission to add exposes on this deal.",
                 { source: "en" },
             );
         }
@@ -113,12 +131,14 @@ export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
         setLoadFailed(false);
 
         axios
-            .get<{ snapshots: DealExposeSnapshotOption[] }>(
+            .get<{ snapshots?: DealExposeSnapshotOption[] }>(
                 route("deals.exposes.available", dealId),
                 { headers: { Accept: "application/json" } },
             )
             .then(({ data }) => {
-                if (!cancelled) setSnapshots(data.snapshots ?? []);
+                if (cancelled) return;
+                const rows = Array.isArray(data?.snapshots) ? data.snapshots : [];
+                setSnapshots(rows);
             })
             .catch(() => {
                 if (!cancelled) {
@@ -143,20 +163,24 @@ export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
  * additions patch this hook's local state from the response rather than
  * reloading the page, so edits land instantly (CLAUDE.md rule 3).
  *
- * The list is fetched here rather than deferred through Inertia because the
- * tab is reachable from two different pages (Deal and Lead) and only matters
- * once its tab is opened.
+ * Manual documents reuse {@link useDealFileUpload} (same as the Files tab),
+ * then register an expose row pointing at the uploaded deal file.
  */
 export default function useDealExposes(scope: Scope) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const dealId = scope.type === "deal" ? scope.dealId : 0;
+    const {
+        uploadFiles,
+        cancelUpload: cancelDealFileUpload,
+        isUploading: isUploadingFile,
+        uploadProgress,
+        uploadBytesLoaded,
+        uploadBytesTotal,
+    } = useDealFileUpload(dealId);
     const [exposes, setExposes] = useState<DealExpose[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [isUploadingFile, setIsUploadingFile] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [uploadBytesLoaded, setUploadBytesLoaded] = useState(0);
-    const [uploadBytesTotal, setUploadBytesTotal] = useState(0);
     const [loadFailed, setLoadFailed] = useState(false);
     const statusRequestRef = useRef<Map<number, number>>(new Map());
 
@@ -165,30 +189,89 @@ export default function useDealExposes(scope: Scope) {
             ? route("deals.exposes.index", scope.dealId)
             : route("leads.exposes.index", scope.leadId);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        setLoadFailed(false);
+    const fetchExposes = useCallback(async (): Promise<DealExpose[] | null> => {
         try {
             const { data } = await axios.get<DealExposesResponse>(indexUrl, {
                 headers: { Accept: "application/json" },
             });
-            setExposes(data.exposes ?? []);
+            return Array.isArray(data?.exposes) ? data.exposes : [];
         } catch {
-            setLoadFailed(true);
-            setExposes([]);
+            return null;
+        }
+    }, [indexUrl]);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setLoadFailed(false);
+        try {
+            const rows = await fetchExposes();
+            if (rows === null) {
+                setLoadFailed(true);
+                setExposes([]);
+                return;
+            }
+            setExposes(rows);
         } finally {
             setLoading(false);
         }
-    }, [indexUrl]);
+    }, [fetchExposes]);
+
+    /** Reconcile from index without toggling the panel skeleton. */
+    const reconcileExposes = useCallback(async () => {
+        const rows = await fetchExposes();
+        if (rows !== null) {
+            setExposes(rows);
+            logExposeUpload("list-reconciled", { count: rows.length });
+        }
+    }, [fetchExposes]);
+
+    const registerExpose = useCallback(
+        async (body: Record<string, unknown>): Promise<DealExpose> => {
+            if (scope.type !== "deal") {
+                throw new Error(
+                    t("pages.deals.workspace.exposes.messages.add_failed"),
+                );
+            }
+
+            const response = await axios.post(
+                route("deals.exposes.store", scope.dealId),
+                body,
+                { headers: { Accept: "application/json" } },
+            );
+
+            const expose = extractExposeFromStoreResponse(response.data);
+            if (expose) {
+                return expose;
+            }
+
+            const apiMessage =
+                typeof response.data?.message === "string"
+                    ? response.data.message
+                    : t("pages.deals.workspace.exposes.messages.add_failed");
+            throw new Error(apiMessage);
+        },
+        [scope, t],
+    );
+
+    const commitAddedExpose = useCallback(
+        async (expose: DealExpose) => {
+            setExposes((current) => [
+                expose,
+                ...current.filter((row) => row.id !== expose.id),
+            ]);
+            logExposeUpload("ui-updated", { exposeId: expose.id });
+
+            // Match Files tab: always reconcile so the list matches the server
+            // even if a race or odd payload skipped the optimistic row.
+            await reconcileExposes();
+        },
+        [reconcileExposes],
+    );
 
     useEffect(() => {
         void load();
     }, [load]);
 
-    /**
-     * Recomputed locally rather than reused from the response so the counters
-     * stay in step with an optimistic status change.
-     */
     const summary = useMemo<DealExposeSummary>(() => {
         const count = (status: DealExposeStatus) =>
             exposes.filter((expose) => expose.status === status).length;
@@ -248,81 +331,156 @@ export default function useDealExposes(scope: Scope) {
     );
 
     const addExpose = useCallback(
-        async (input: AddExposeInput): Promise<boolean> => {
-            if (scope.type !== "deal") return false;
+        async (input: AddExposeInput): Promise<string | null> => {
+            if (scope.type !== "deal") {
+                return t("pages.deals.workspace.exposes.messages.add_failed");
+            }
 
             setSaving(true);
-            setUploadProgress(0);
-            setUploadBytesLoaded(0);
-            setUploadBytesTotal(input.file?.size ?? 0);
-            setIsUploadingFile(false);
+
+            await Promise.resolve();
+
             try {
-                const body: Record<string, unknown> = {
+                if (input.file) {
+                    if (input.file.size > DEAL_EXPOSE_MAX_UPLOAD_BYTES) {
+                        return td(
+                            "This file exceeds the 1 GB maximum size.",
+                            { source: "en" },
+                        );
+                    }
+
+                    logExposeUpload("start", {
+                        dealId: scope.dealId,
+                        fileName: input.file.name,
+                        fileSize: input.file.size,
+                        via: "deal-files.store",
+                    });
+
+                    const uploaded = await uploadFiles([input.file], {
+                        showSuccessToast: false,
+                    });
+
+                    if (uploaded === null) {
+                        return td("Upload cancelled.", { source: "en" });
+                    }
+                    if (uploaded.length === 0) {
+                        return t(
+                            "pages.deals.workspace.exposes.messages.add_failed",
+                        );
+                    }
+
+                    const expose = await registerExpose({
+                        source: input.source,
+                        title: input.title,
+                        source_label: input.sourceLabel ?? null,
+                        amount: input.amount ?? null,
+                        expose_snapshot_id: input.exposeSnapshotId ?? null,
+                        ...dealFileToExposeStoreBody(uploaded[0]),
+                    });
+
+                    logExposeUpload("registered", { exposeId: expose.id });
+                    await commitAddedExpose(expose);
+                    message.success(
+                        t("pages.deals.workspace.exposes.messages.added"),
+                    );
+                    return null;
+                }
+
+                const expose = await registerExpose({
                     source: input.source,
                     title: input.title,
                     source_label: input.sourceLabel ?? null,
                     amount: input.amount ?? null,
                     expose_snapshot_id: input.exposeSnapshotId ?? null,
-                };
+                });
 
-                if (input.file) {
-                    setIsUploadingFile(true);
-                    setUploadBytesTotal(input.file.size);
-                    const uploadService = getFileUploadService({
-                        maxFileSize: DEAL_EXPOSE_MAX_UPLOAD_BYTES,
-                        allowedTypes: [],
-                    });
-                    const uploaded = await uploadService.uploadSingle(
-                        input.file,
-                        `deal-exposes/${scope.dealId}`,
-                        (_fileId, progress, loadedBytes) => {
-                            setUploadProgress(progress);
-                            if (loadedBytes != null) {
-                                setUploadBytesLoaded(loadedBytes);
-                            }
-                        },
-                    );
-                    setIsUploadingFile(false);
-                    setUploadProgress(100);
-                    body.download_url = uploaded.downloadUrl;
-                    body.object_path = uploaded.objectPath;
-                    body.uploaded_filename = input.file.name;
-                    body.uploaded_size = input.file.size;
-                }
-
-                const { data } = await axios.post<{ expose: DealExpose }>(
-                    route("deals.exposes.store", scope.dealId),
-                    body,
-                    { headers: { Accept: "application/json" } },
-                );
-
-                setExposes((current) => [data.expose, ...current]);
+                logExposeUpload("registered", { exposeId: expose.id });
+                await commitAddedExpose(expose);
                 message.success(
                     t("pages.deals.workspace.exposes.messages.added"),
                 );
-                return true;
+                return null;
             } catch (error) {
-                message.error(resolveAddExposeErrorMessage(error, t, td));
-                return false;
+                logExposeUpload("failed", {
+                    message:
+                        error instanceof Error ? error.message : String(error),
+                    status: axios.isAxiosError(error)
+                        ? error.response?.status
+                        : undefined,
+                });
+                if (axios.isCancel(error)) {
+                    return td("Upload cancelled.", { source: "en" });
+                }
+                const msg = resolveAddExposeErrorMessage(error, t, td);
+                message.error(msg);
+                return msg;
             } finally {
                 setSaving(false);
-                setIsUploadingFile(false);
-                setUploadBytesLoaded(0);
-                setUploadBytesTotal(0);
-                window.setTimeout(() => setUploadProgress(0), 400);
             }
         },
-        [scope, t, td],
+        [scope, t, td, uploadFiles, registerExpose, commitAddedExpose],
     );
 
     const cancelUpload = useCallback(() => {
-        getFileUploadService().cancelAll();
+        cancelDealFileUpload();
         setSaving(false);
-        setIsUploadingFile(false);
-        setUploadProgress(0);
-        setUploadBytesLoaded(0);
-        setUploadBytesTotal(0);
-    }, []);
+    }, [cancelDealFileUpload]);
+
+    const updateExpose = useCallback(
+        async (
+            id: number,
+            patch: { title?: string; amount?: number | null },
+        ) => {
+            let previous: DealExpose | null = null;
+            setExposes((current) =>
+                current.map((expose) => {
+                    if (expose.id !== id) return expose;
+                    previous = expose;
+                    return {
+                        ...expose,
+                        ...(patch.title !== undefined
+                            ? { title: patch.title }
+                            : {}),
+                        ...(patch.amount !== undefined
+                            ? { amount: patch.amount }
+                            : {}),
+                    };
+                }),
+            );
+
+            try {
+                const { data } = await axios.patch<{ expose: DealExpose }>(
+                    route("deal-exposes.update", id),
+                    patch,
+                    { headers: { Accept: "application/json" } },
+                );
+                setExposes((current) =>
+                    current.map((expose) =>
+                        expose.id === id ? data.expose : expose,
+                    ),
+                );
+            } catch (error) {
+                if (previous) {
+                    setExposes((current) =>
+                        current.map((expose) =>
+                            expose.id === id ? previous! : expose,
+                        ),
+                    );
+                }
+                const apiMessage = axios.isAxiosError(error)
+                    ? error.response?.data?.message
+                    : undefined;
+                throw new Error(
+                    typeof apiMessage === "string" && apiMessage !== ""
+                        ? apiMessage
+                        : t(
+                              "pages.deals.workspace.exposes.messages.update_failed",
+                          ),
+                );
+            }
+        },
+        [t],
+    );
 
     const removeExpose = useCallback(
         async (id: number) => {
@@ -360,6 +518,7 @@ export default function useDealExposes(scope: Scope) {
         loadFailed,
         reload: load,
         setStatus,
+        updateExpose,
         addExpose,
         removeExpose,
         cancelUpload,
