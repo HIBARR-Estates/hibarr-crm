@@ -4,12 +4,12 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealExpose, DealExposeStatus, DealExposeSummary } from "@/Types/api/dealExposes";
 import {
     EXPOSE_STATUS_ORDER,
-    downloadDealExpose,
     exposeStatusMeta,
     formatExposeAmount,
     formatExposeDate,
     groupExposes,
 } from "../../adapters/dealExposeAdapter";
+import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -429,25 +429,32 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             {expose.download_url && (
-                                                <button
-                                                    type="button"
-                                                    className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
+                                                <DealButton
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="shrink-0 p-0.5"
                                                     title={t(
                                                         "pages.deals.workspace.files.download",
                                                     )}
                                                     aria-label={t(
                                                         "pages.deals.workspace.files.download",
                                                     )}
-                                                    onClick={() =>
-                                                        downloadDealExpose(expose)
+                                                    onClick={() => {
+                                                        if (!expose.download_url) return;
+                                                        window.open(
+                                                            expose.download_url,
+                                                            "_blank",
+                                                            "noreferrer",
+                                                        );
+                                                    }}
+                                                    icon={
+                                                        <DealIcon
+                                                            name="download"
+                                                            size={16}
+                                                            color={T.TEXT_MUTED}
+                                                        />
                                                     }
-                                                >
-                                                    <DealIcon
-                                                        name="download"
-                                                        size={16}
-                                                        color={T.TEXT_MUTED}
-                                                    />
-                                                </button>
+                                                />
                                             )}
                                             {onRemove && (
                                                 <button

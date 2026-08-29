@@ -272,6 +272,10 @@ export class FileUploadService implements IFileUploadService {
                 file.name,
             );
 
+            if (onProgress) {
+                onProgress(fileId, 100, file.size);
+            }
+
             return result;
         } finally {
             // Cleanup
