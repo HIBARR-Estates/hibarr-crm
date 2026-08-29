@@ -970,6 +970,7 @@ return [
                 'messages' => [
                     'uploaded'      => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
+                    'upload_timeout' => 'This upload is taking too long and timed out. Try a smaller file or check your connection.',
                     'save_failed'   => 'Failed to save uploaded files',
                     'deleted'       => 'File deleted',
                     'delete_failed' => 'Could not delete file',

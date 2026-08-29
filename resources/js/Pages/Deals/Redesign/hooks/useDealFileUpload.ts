@@ -121,6 +121,11 @@ export default function useDealFileUpload(dealId: number) {
                     formData,
                     {
                         cancelToken: cancelSource.token,
+                        // Large files proxy through Laravel to the external storage
+                        // API (uploaded twice, up to 3 attempts x 300s each server-side);
+                        // give that legroom instead of hanging the UI indefinitely if
+                        // the server never responds.
+                        timeout: 1200000,
                         headers: {
                             Accept: "application/json",
                             "X-COMPANY-ID": companyId,
@@ -198,19 +203,20 @@ export default function useDealFileUpload(dealId: number) {
                 ) {
                     return null;
                 }
-                const backendMessage =
-                    error instanceof Error
-                        ? error.message
-                        : (error as {
-                              response?: { data?: { message?: string } };
-                              message?: string;
-                          })?.response?.data?.message ??
-                          (error as { message?: string } | undefined)?.message;
+                const isTimeout =
+                    axios.isAxiosError(error) && error.code === "ECONNABORTED";
+                const backendMessage = axios.isAxiosError(error)
+                    ? error.response?.data?.message
+                    : undefined;
                 message.error(
-                    backendMessage ??
-                        t(
-                            "pages.deals.workspace.files.messages.upload_failed",
-                        ),
+                    isTimeout
+                        ? t(
+                              "pages.deals.workspace.files.messages.upload_timeout",
+                          )
+                        : (backendMessage ??
+                              t(
+                                  "pages.deals.workspace.files.messages.upload_failed",
+                              )),
                 );
                 return [];
             } finally {

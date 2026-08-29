@@ -25,14 +25,6 @@ const EMPTY_SUMMARY: DealExposeSummary = {
     not_accepted: 0,
 };
 
-/** Dev-only tracing for manual expose adds. */
-function logExposeUpload(step: string, detail?: Record<string, unknown>): void {
-    if (typeof import.meta === "undefined" || !import.meta.env?.DEV) {
-        return;
-    }
-    console.debug(`[deal-exposes/upload] ${step}`, detail ?? "");
-}
-
 /** CRM JSON responses use Reply::{success,error} with HTTP 200 for both. */
 function extractExposeFromStoreResponse(body: unknown): DealExpose | null {
     if (!body || typeof body !== "object") return null;
@@ -221,7 +213,6 @@ export default function useDealExposes(scope: Scope) {
         const rows = await fetchExposes();
         if (rows !== null) {
             setExposes(rows);
-            logExposeUpload("list-reconciled", { count: rows.length });
         }
     }, [fetchExposes]);
 
@@ -259,7 +250,6 @@ export default function useDealExposes(scope: Scope) {
                 expose,
                 ...current.filter((row) => row.id !== expose.id),
             ]);
-            logExposeUpload("ui-updated", { exposeId: expose.id });
 
             // Match Files tab: always reconcile so the list matches the server
             // even if a race or odd payload skipped the optimistic row.
@@ -338,8 +328,6 @@ export default function useDealExposes(scope: Scope) {
 
             setSaving(true);
 
-            await Promise.resolve();
-
             try {
                 if (input.file) {
                     if (input.file.size > DEAL_EXPOSE_MAX_UPLOAD_BYTES) {
@@ -348,13 +336,6 @@ export default function useDealExposes(scope: Scope) {
                             { source: "en" },
                         );
                     }
-
-                    logExposeUpload("start", {
-                        dealId: scope.dealId,
-                        fileName: input.file.name,
-                        fileSize: input.file.size,
-                        via: "deal-files.store",
-                    });
 
                     const uploaded = await uploadFiles([input.file], {
                         showSuccessToast: false,
@@ -378,7 +359,6 @@ export default function useDealExposes(scope: Scope) {
                         ...dealFileToExposeStoreBody(uploaded[0]),
                     });
 
-                    logExposeUpload("registered", { exposeId: expose.id });
                     await commitAddedExpose(expose);
                     message.success(
                         t("pages.deals.workspace.exposes.messages.added"),
@@ -394,20 +374,12 @@ export default function useDealExposes(scope: Scope) {
                     expose_snapshot_id: input.exposeSnapshotId ?? null,
                 });
 
-                logExposeUpload("registered", { exposeId: expose.id });
                 await commitAddedExpose(expose);
                 message.success(
                     t("pages.deals.workspace.exposes.messages.added"),
                 );
                 return null;
             } catch (error) {
-                logExposeUpload("failed", {
-                    message:
-                        error instanceof Error ? error.message : String(error),
-                    status: axios.isAxiosError(error)
-                        ? error.response?.status
-                        : undefined,
-                });
                 if (axios.isCancel(error)) {
                     return td("Upload cancelled.", { source: "en" });
                 }

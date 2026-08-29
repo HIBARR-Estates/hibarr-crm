@@ -309,6 +309,66 @@ class DealExposeControllerTest extends TestCase
         ]);
     }
 
+    public function test_store_manual_expose_links_to_an_uploaded_deal_file(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId);
+        $dealFileId = $this->createDealFile($dealId, [
+            'filename' => 'brochure.pdf',
+            'external_url' => 'https://cdn.example.test/backend-uploads/brochure.pdf',
+            'object_path' => 'backend-uploads/brochure.pdf',
+            'size' => 204800,
+        ]);
+
+        $this->beAgent($agent);
+
+        $this->postJson(route('deals.exposes.store', $dealId), [
+            'source' => 'manual',
+            'title' => 'Brochure',
+            'deal_file_id' => $dealFileId,
+        ])
+            ->assertStatus(200)
+            ->assertJsonPath('expose.source', 'manual')
+            ->assertJsonPath('expose.filename', 'brochure.pdf')
+            ->assertJsonPath('expose.download_url', 'https://cdn.example.test/backend-uploads/brochure.pdf');
+
+        $this->assertDatabaseHas('deal_exposes', [
+            'deal_id' => $dealId,
+            'source' => 'manual',
+            'filename' => 'brochure.pdf',
+            'object_path' => 'backend-uploads/brochure.pdf',
+            'size' => 204800,
+        ]);
+    }
+
+    public function test_store_manual_expose_rejects_a_deal_file_from_another_deal(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId);
+        $otherDealId = $this->createDeal($leadId);
+        $foreignFileId = $this->createDealFile($otherDealId);
+
+        $this->beAgent($agent);
+
+        $this->postJson(route('deals.exposes.store', $dealId), [
+            'source' => 'manual',
+            'title' => 'Brochure',
+            'deal_file_id' => $foreignFileId,
+        ])->assertStatus(200)->assertJsonPath('status', 'fail');
+
+        $this->assertDatabaseMissing('deal_exposes', ['deal_id' => $dealId]);
+    }
+
     private function beAgent(User $agent): void
     {
         // Prefer session user over actingAs so CompanyScope does not require
@@ -391,6 +451,22 @@ class DealExposeControllerTest extends TestCase
             'source_label' => 'Manual upload',
             'amount' => 100000,
             'status' => DealExpose::STATUS_NOT_SENT,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createDealFile(int $dealId, array $overrides = []): int
+    {
+        return (int) DB::table('deal_files')->insertGetId(array_merge([
+            'deal_id' => $dealId,
+            'filename' => 'document.pdf',
+            'external_url' => 'https://cdn.example.test/backend-uploads/document.pdf',
+            'object_path' => 'backend-uploads/document.pdf',
+            'size' => 102400,
             'created_at' => now(),
             'updated_at' => now(),
         ], $overrides));
@@ -578,6 +654,25 @@ class DealExposeControllerTest extends TestCase
             });
         } else {
             DB::table('deal_exposes')->delete();
+        }
+
+        if (! Schema::hasTable('deal_files')) {
+            Schema::create('deal_files', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('deal_id');
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->string('filename')->nullable();
+                $table->string('hashname')->nullable();
+                $table->string('external_url')->nullable();
+                $table->string('object_path')->nullable();
+                $table->unsignedBigInteger('size')->nullable();
+                $table->string('description')->nullable();
+                $table->unsignedBigInteger('added_by')->nullable();
+                $table->unsignedBigInteger('last_updated_by')->nullable();
+                $table->timestamps();
+            });
+        } else {
+            DB::table('deal_files')->delete();
         }
 
         if (! Schema::hasTable('products')) {
