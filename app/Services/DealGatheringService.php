@@ -526,6 +526,20 @@ class DealGatheringService
                 $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
 
+            case DealUpdateType::ANALYSIS_UNANSWERED:
+                // data is [stepKey => reason|null]; a null reason clears the mark.
+                $unanswered = $deal->analysis_unanswered ?? [];
+                foreach ($data as $stepKey => $reason) {
+                    if ($reason === null || $reason === '' || $reason === false) {
+                        unset($unanswered[$stepKey]);
+                    } else {
+                        $unanswered[$stepKey] = is_string($reason) ? $reason : true;
+                    }
+                }
+                $deal->analysis_unanswered = $unanswered;
+                $deal->save();
+                break;
+
             case DealUpdateType::RECALCULATE_VALUE:
                 $this->dealValueResolver->resolveAndPersist(
                     $deal->fresh(),

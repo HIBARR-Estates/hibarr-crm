@@ -644,7 +644,7 @@ class DealController extends AccountBaseController
             'view_task_category' => user()->permission('view_task_category'),
         ];
 
-        $dealWithCustomFields = $deal->toArray();
+        $dealWithCustomFields = $deal->append('total_discount')->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
@@ -652,6 +652,8 @@ class DealController extends AccountBaseController
         $dealWithCustomFields['analysis_status'] = $deal->analysis_status ?? 'pending';
         $dealWithCustomFields['analysis_completed_at'] = $deal->analysis_completed_at?->toIso8601String();
         $dealWithCustomFields['analysis_completed_by'] = $deal->analysis_completed_by;
+        // Always an object/array, never absent: the analysis modal reads it on mount.
+        $dealWithCustomFields['analysis_unanswered'] = $deal->analysis_unanswered ?? [];
 
         // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
         $formData = $this->getDealShowShellFormData();
@@ -785,6 +787,7 @@ class DealController extends AccountBaseController
                             'item_key' => $i->item_key,
                             'label_override' => $i->label_override,
                             'guide_text' => $i->guide_text,
+                            'is_required' => (bool) $i->is_required,
                             'position' => $i->position,
                         ]),
                     ];

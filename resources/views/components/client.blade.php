@@ -1,14 +1,5 @@
 @php
-$active = false;
-
-if (!is_null($user) && $user->session) {
-    $lastSeen = \Carbon\Carbon::createFromTimestamp($user->session->last_activity)->timezone(company()?company()->timezone:$user->company->timezone);
-
-    $lastSeenDifference = now()->diffInSeconds($lastSeen);
-    if ($lastSeenDifference > 0 && $lastSeenDifference <= 90) {
-        $active = true;
-    }
-}
+$active = !is_null($user) && isset(online_user_ids()[$user->id]);
 @endphp
 
 <div class="media align-items-center mw-250 @if($user->status != 'active') inactive @endif">

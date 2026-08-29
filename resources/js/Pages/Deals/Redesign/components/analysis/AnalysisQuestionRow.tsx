@@ -14,6 +14,10 @@ interface Props {
     number?: number;
     canEdit: boolean;
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
+    /** Fired once the answer note is saved — settles a required question. */
+    onAnswered?: () => void;
+    /** Owned by the modal so "Clear answer" can take the tick back. */
+    answered?: boolean;
 }
 
 function InstructionCard({ text }: { text: string }) {
@@ -42,11 +46,12 @@ export default function AnalysisQuestionRow({
     number,
     canEdit,
     onFieldUpdate,
+    onAnswered,
+    answered = false,
 }: Props) {
     const { deal } = useDealWorkspace();
     const { createNote, isSaving } = useDealNoteCreate(deal.id);
     const [answer, setAnswer] = useState("");
-    const [saved, setSaved] = useState(false);
 
     const meta = ANALYSIS_FIELD_META[item.scriptItem.item_key];
     const label = item.scriptItem.label_override || meta?.label || item.scriptItem.item_key;
@@ -76,7 +81,7 @@ export default function AnalysisQuestionRow({
         if (!answer.trim()) return;
         createNote({ title: label, text: answer }, () => {
             setAnswer("");
-            setSaved(true);
+            onAnswered?.();
         });
     };
 
@@ -88,7 +93,7 @@ export default function AnalysisQuestionRow({
 
     if (item.kind === "question") {
         return (
-            <AnalysisFieldRow number={number} answered={saved} label={promptText || "No question text provided."}>
+            <AnalysisFieldRow number={number} answered={answered} label={promptText || "No question text provided."}>
                 <div>
                     <textarea
                         value={answer}

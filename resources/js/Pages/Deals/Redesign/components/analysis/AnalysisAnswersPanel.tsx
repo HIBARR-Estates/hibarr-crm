@@ -79,7 +79,7 @@ function AnswerCard({
             type="button"
             disabled={locked}
             onClick={() => onJump(step.sectionId)}
-            className="w-full text-left px-4 py-3.5 transition-colors relative border-b"
+            className="w-full text-left px-4 py-2.5 transition-colors relative border-b"
             style={{
                 borderColor: T.BORDER,
                 backgroundColor: isActive ? T.BLUE_LIGHT : "#ffffff",
@@ -100,26 +100,14 @@ function AnswerCard({
                 className="absolute left-0 top-0 bottom-0 w-1"
                 style={{ backgroundColor: isActive ? "#38bdf8" : "transparent" }}
             />
-            <p className="text-[13px] font-medium leading-snug line-clamp-2 mb-2" style={{ color: T.TEXT }}>
+            {/* Question lighter than its answer — the weight difference replaces the
+                labels and the box that used to separate them. */}
+            <p className="text-[13px] font-normal leading-snug line-clamp-2" style={{ color: T.TEXT_MUTED }}>
                 {step.title}
             </p>
-            <div
-                className="rounded-md px-3 py-2"
-                style={{
-                    background: isActive ? "#dbeafe" : "#f1f5f9",
-                    border: `1px solid ${isActive ? "#7dd3fc" : T.BORDER}`,
-                }}
-            >
-                <div
-                    className="text-[11px] font-bold uppercase tracking-widest mb-1"
-                    style={{ color: T.NAVY }}
-                >
-                    Answer
-                </div>
-                <p className="text-[15px] font-bold leading-snug break-words" style={{ color: T.TEXT }}>
-                    {step.value}
-                </p>
-            </div>
+            <p className="text-[14px] font-bold leading-snug break-words mt-0.5" style={{ color: T.TEXT }}>
+                {step.value}
+            </p>
         </button>
     );
 }

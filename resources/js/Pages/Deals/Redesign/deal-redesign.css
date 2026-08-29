@@ -178,6 +178,7 @@
 
 .analysis-3col-left {
     width: 300px;
+    transition: width 200ms ease;
     flex-shrink: 0;
     border-right: 1px solid #e2e5ea;
     overflow: hidden;
@@ -199,6 +200,7 @@
 
 .analysis-3col-right {
     width: 280px;
+    transition: width 200ms ease;
     flex-shrink: 0;
     border-left: 1px solid #e2e5ea;
     position: relative;
@@ -216,6 +218,20 @@
     .analysis-modal-panel .analysis-3col-right--wide {
         width: 400px;
     }
+}
+
+/* Focus mode — the side rails collapse to zero width and the modal shrinks with
+   them, so the form is left at a reading width rather than stretched across 90vw.
+   Collapsed (not display:none) so the widths can animate. Three-class selectors:
+   they out-specify the media-query widths above without !important. */
+.analysis-modal-panel.analysis-focus {
+    width: min(880px, 96vw);
+}
+
+.analysis-modal-panel.analysis-focus .analysis-3col-left,
+.analysis-modal-panel.analysis-focus .analysis-3col-right {
+    width: 0;
+    border: 0;
 }
 
 /* Analysis modal — large panel (~90vw × ~90vh), portaled to document.body */
@@ -238,6 +254,7 @@
     box-shadow: 0 20px 60px rgba(22, 41, 77, 0.22);
     width: 90vw;
     height: 90vh;
+    transition: width 200ms ease;
     display: flex;
     flex-direction: column;
     overflow: hidden;

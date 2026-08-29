@@ -57,12 +57,28 @@ class TaskboardColumn extends BaseModel
     }
 
     /**
+     * The board has a handful of columns and every one of the helpers below was
+     * its own query, several times per request. Fetch them once and index by slug.
+     * Scoped (not static) so it rebuilds per request and per queued job.
+     */
+    private static function bySlug(string $slug): ?self
+    {
+        $key = 'taskboard-columns.' . (company()?->id ?? 0);
+
+        if (! app()->bound($key)) {
+            app()->scoped($key, fn () => static::query()->get()->keyBy('slug'));
+        }
+
+        return app()->make($key)->get($slug);
+    }
+
+    /**
      * Get the "Done" column (completed tasks)
      * @return TaskboardColumn|null
      */
     public static function completeColumn()
     {
-        return TaskboardColumn::where('slug', 'done')->first();
+        return self::bySlug('done');
     }
 
     /**
@@ -80,7 +96,7 @@ class TaskboardColumn extends BaseModel
      */
     public static function waitingForApprovalColumn()
     {
-        return TaskboardColumn::where('slug', 'in_review')->first();
+        return self::bySlug('in_review');
     }
 
     /**
@@ -98,7 +114,7 @@ class TaskboardColumn extends BaseModel
      */
     public static function toDoColumn()
     {
-        return TaskboardColumn::where('slug', 'to_do')->first();
+        return self::bySlug('to_do');
     }
 
     /**
@@ -107,7 +123,7 @@ class TaskboardColumn extends BaseModel
      */
     public static function inProgressColumn()
     {
-        return TaskboardColumn::where('slug', 'in_progress')->first();
+        return self::bySlug('in_progress');
     }
 
     /**
@@ -116,6 +132,6 @@ class TaskboardColumn extends BaseModel
      */
     public static function onHoldColumn()
     {
-        return TaskboardColumn::where('slug', 'on_hold')->first();
+        return self::bySlug('on_hold');
     }
 }

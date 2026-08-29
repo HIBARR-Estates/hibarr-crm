@@ -25,6 +25,7 @@ import FieldPalette, {
     type PaletteCustomField,
 } from "./AnalysisScript/FieldPalette";
 import ScriptCanvas from "./AnalysisScript/ScriptCanvas";
+import { downloadJson, parseScriptJson, sampleScriptJson } from "./AnalysisScript/scriptJson";
 import {
     itemsToSections,
     makeKey,
@@ -360,6 +361,44 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
         );
     };
 
+    // ── JSON import / export ──────────────────────────────────────────────────
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importErrors, setImportErrors] = useState<string[]>([]);
+    const [pendingImport, setPendingImport] = useState<BuilderSection[] | null>(null);
+
+    const catalog = useMemo(
+        () => ({ dealCustomFields, leadCustomFields, categories }),
+        [dealCustomFields, leadCustomFields, categories],
+    );
+
+    const handleDownloadSample = () =>
+        downloadJson(sampleScriptJson(catalog), "analysis-script-sample.json");
+
+    const handleImportFile = async (file: File) => {
+        setImportErrors([]);
+        let raw: unknown;
+        try {
+            raw = JSON.parse(await file.text());
+        } catch (e) {
+            setImportErrors([`Not valid JSON: ${(e as Error).message}`]);
+            return;
+        }
+
+        const { sections: parsed, errors } = parseScriptJson(raw, catalog);
+        if (errors.length) {
+            setImportErrors(errors);
+            return;
+        }
+        // Nothing is written until Save — but the canvas is replaced wholesale, so
+        // don't drop existing work without asking.
+        if (sections.length) {
+            setPendingImport(parsed);
+            return;
+        }
+        setSections(parsed);
+    };
+
     const stepCount = useMemo(
         () => sections.reduce((n, s) => n + (s.kind === "category" ? 1 : s.rows.length), 0),
         [sections],
@@ -400,6 +439,35 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                             {justSaved && (
                                 <span style={{ fontSize: 14, color: T.GREEN, fontWeight: 600 }}>✓ Saved</span>
                             )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="application/json,.json"
+                                hidden
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    // Reset so re-picking the same file fires change again.
+                                    e.target.value = "";
+                                    if (file) void handleImportFile(file);
+                                }}
+                            />
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                disabled={loading}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                Import JSON
+                            </button>
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                disabled={loading}
+                                onClick={handleDownloadSample}
+                                title="Downloads a sample import file plus every live field key, id and type"
+                            >
+                                Sample JSON
+                            </button>
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-navy"
@@ -415,7 +483,32 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                 <p style={{ fontSize: 14, color: T.TEXT_MUTED, margin: 0 }}>
                     Build the call script as sections. Drag fields, questions and instructions from the
                     palette into a section, or add a field group to include a whole custom-field category.
+                    Download the sample JSON to get the import format plus every valid field key, id and
+                    type; import a filled-in file to load it into the canvas, then Save.
                 </p>
+
+                {importErrors.length > 0 && (
+                    <div
+                        style={{
+                            border: `1px solid ${T.RED}`,
+                            borderRadius: 8,
+                            padding: 12,
+                            fontSize: 14,
+                            color: T.RED,
+                            background: T.WHITE,
+                        }}
+                    >
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                            Import rejected — nothing was changed:
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {importErrors.slice(0, 20).map((e, i) => (
+                                <li key={i}>{e}</li>
+                            ))}
+                            {importErrors.length > 20 && <li>…and {importErrors.length - 20} more.</li>}
+                        </ul>
+                    </div>
+                )}
 
                 {!selectedPipelineId ? (
                     <EmptyState
@@ -486,6 +579,20 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                     setPendingPipelineId(null);
                 }}
                 onCancel={() => setPendingPipelineId(null)}
+            />
+            <ConfirmDialog
+                open={pendingImport !== null}
+                title="Replace this script?"
+                message="The imported file will replace every section currently on the canvas. Nothing is saved until you hit Save."
+                confirmLabel="Replace"
+                cancelLabel="Cancel"
+                danger
+                onConfirm={() => {
+                    setSections(pendingImport ?? []);
+                    setActiveSectionKey(pendingImport?.find((s) => s.kind === "custom")?.key ?? null);
+                    setPendingImport(null);
+                }}
+                onCancel={() => setPendingImport(null)}
             />
         </PageLayout>
     );

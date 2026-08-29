@@ -48,6 +48,7 @@ const row = (
     item_key,
     label_override: null,
     guide_text: null,
+    is_required: false,
     displayLabel,
     contextLabel,
 });
