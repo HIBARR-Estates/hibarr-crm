@@ -109,11 +109,13 @@ const CEO_CALENDLY_URL =
 /**
  * Calendly prefill for the CEO track. `a1`/`a3` are Calendly's custom
  * question slots: a1 is the phone number, a3 carries the main qualification
- * answer so the booking page has call context.
+ * answer so the booking page has call context. `guests` is Calendly's
+ * comma-separated invitee-guest prefill.
  */
 const buildCeoCalendlyUrl = (
     lead: Lead,
     mainQuestionSummary?: string | null,
+    guests?: (string | null | undefined)[],
 ): string => {
     const { firstName, lastName } = splitLeadName(lead.client_name);
     const url = new URL(CEO_CALENDLY_URL);
@@ -126,7 +128,13 @@ const buildCeoCalendlyUrl = (
             resolveLeadPhoneDisplay(lead.cell) ||
             "",
     );
-    url.searchParams.set("a3", mainQuestionSummary?.trim() || "");
+    url.searchParams.set("a2", mainQuestionSummary?.trim() || "");
+    const guestList = (guests ?? [])
+        .map((g) => g?.trim())
+        .filter((g): g is string => !!g);
+    if (guestList.length > 0) {
+        url.searchParams.set("guests", guestList.join(","));
+    }
     return url.toString();
 };
 
@@ -592,6 +600,8 @@ function OutcomeDetail({
     const { props: pageProps } = usePage();
     const userId = pageProps.auth?.user?.id;
     const userEmail = pageProps.auth?.user?.email;
+    // Calendly guest: the lead's assigned agent, or whoever is qualifying.
+    const calendlyGuestEmail = lead.lead_owner?.email || userEmail;
     const meetingCreate = useLeadMeetingCreate(lead);
     const { updateField } = useLeadFieldUpdate();
     const [busy, setBusy] = useState(false);
@@ -1024,7 +1034,9 @@ function OutcomeDetail({
                     ? `${leadName} answered ${questionTitle} - ${answerText}`
                     : "";
 
-            calendlyUrl = buildCeoCalendlyUrl(lead, mainQuestionSummary);
+            calendlyUrl = buildCeoCalendlyUrl(lead, mainQuestionSummary, [
+                calendlyGuestEmail,
+            ]);
             window.open(calendlyUrl, "_blank", "noopener,noreferrer");
         }
 
@@ -1321,6 +1333,14 @@ function OutcomeDetail({
                                                             source: "en",
                                                         })}
                                                 </li>
+                                                {calendlyGuestEmail ? (
+                                                    <li>
+                                                        {td("Guest", {
+                                                            source: "en",
+                                                        })}
+                                                        {`: ${calendlyGuestEmail}`}
+                                                    </li>
+                                                ) : null}
                                             </ul>
                                             <p
                                                 className="mt-2 text-[12px]"
