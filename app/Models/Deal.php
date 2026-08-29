@@ -166,6 +166,7 @@ class Deal extends BaseModel
         'exchange_rate' => 'double',
         'analysis_completed_at' => 'datetime',
         'analysis_completed_by' => 'integer',
+        'analysis_unanswered' => 'array',
         'remind_at' => 'datetime',
         'reminders' => 'array',
     ];

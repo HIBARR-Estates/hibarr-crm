@@ -14,6 +14,7 @@ export interface BuilderRow {
     item_key: string;
     label_override: string | null;
     guide_text: string | null;
+    is_required: boolean;
     displayLabel: string;
     /** e.g. the custom field's category, shown as secondary context. */
     contextLabel?: string | null;
@@ -100,6 +101,7 @@ export function itemsToSections(
             item_key: item.item_key,
             label_override: item.label_override ?? null,
             guide_text: item.guide_text ?? null,
+            is_required: !!item.is_required,
             displayLabel: resolved.label,
             contextLabel: resolved.context ?? null,
         });
@@ -111,8 +113,8 @@ export function itemsToSections(
 /** Editable sections -> the flat ordered payload the upsert endpoint expects. */
 export function sectionsToItems(
     sections: BuilderSection[],
-): Array<Pick<AnalysisScriptItem, "type" | "item_key" | "label_override" | "guide_text">> {
-    const out: Array<Pick<AnalysisScriptItem, "type" | "item_key" | "label_override" | "guide_text">> = [];
+): Array<Pick<AnalysisScriptItem, "type" | "item_key" | "label_override" | "guide_text" | "is_required">> {
+    const out: Array<Pick<AnalysisScriptItem, "type" | "item_key" | "label_override" | "guide_text" | "is_required">> = [];
 
     for (const section of sections) {
         if (section.kind === "category") {
@@ -138,6 +140,7 @@ export function sectionsToItems(
                 item_key: row.item_key,
                 label_override: row.label_override,
                 guide_text: row.guide_text,
+                is_required: row.is_required,
             });
         }
     }

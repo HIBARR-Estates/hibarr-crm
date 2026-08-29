@@ -1,7 +1,9 @@
 import { forwardRef, useMemo } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import AnalysisCustomFieldForm, { FormField } from "./AnalysisCustomFieldForm";
 import AnalysisQuestionRow from "./AnalysisQuestionRow";
+import { stepKeyOf } from "./analysisProgress";
 import type { AnalysisSection, AnalysisSectionItem } from "./types/analysisTypes";
 
 interface Props {
@@ -18,6 +20,103 @@ interface Props {
     progress?: { filled: number; total: number };
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
+    /** Step keys marked as "the customer wouldn't answer this". */
+    unanswered?: Record<string, unknown>;
+    /** Show-rule result per custom field id. A field missing from the map is shown —
+     *  only an explicit `false` hides one, matching the category form. */
+    customFieldVisibility?: Record<number, boolean>;
+    /** Step keys that already hold a recorded value, from computeAnalysisProgress. */
+    filledSteps?: ReadonlySet<string>;
+    /** Question steps answered in this session (their answer is saved as a note). */
+    answeredQuestions: ReadonlySet<string>;
+    onToggleUnanswered: (stepKey: string, on: boolean) => void;
+    onQuestionAnswered: (stepKey: string) => void;
+    /** Undo a question's saved answer — the note stays, the step reopens. */
+    onQuestionCleared: (stepKey: string) => void;
+}
+
+/** Stable empty default — a deal payload without the column must not crash the page. */
+const EMPTY_UNANSWERED: Record<string, unknown> = {};
+/** Empty map = nothing hidden, so a missing prop can never blank out the form. */
+const EMPTY_VISIBILITY: Record<number, boolean> = {};
+const EMPTY_STEPS: ReadonlySet<string> = new Set();
+
+/**
+ * Footer under a step: its required marker, the "wouldn't answer" escape hatch,
+ * and the way to take an answer back. Rendered here rather than inside each input
+ * component so every step type (question, native/hibarr/lead field, custom field)
+ * gets the same one. Renders nothing when a step is neither required nor answered.
+ */
+function StepFooter({
+    stepKey,
+    required,
+    answered,
+    marked,
+    onToggle,
+    onClear,
+}: {
+    stepKey: string;
+    required: boolean;
+    /** An answer is recorded for this step. */
+    answered: boolean;
+    marked: boolean;
+    onToggle: (stepKey: string, on: boolean) => void;
+    onClear: () => void;
+}) {
+    const { td } = useTd();
+    const link = "font-medium underline-offset-2 hover:underline cursor-pointer";
+
+    // After the hook, so the hook order stays stable across renders.
+    if (!required && !answered) return null;
+
+    return (
+        <div className="flex items-center gap-2 -mt-4 mb-6 pl-11 text-xs">
+            {required && (
+                <span
+                    className="font-semibold"
+                    style={{ color: answered || marked ? "#059669" : "#b45309" }}
+                >
+                    {answered
+                        ? `${td("Required", { source: "en" })} · ${td("answered", { source: "en" })}`
+                        : marked
+                          ? `${td("Required", { source: "en" })} · ${td("no answer", { source: "en" })}`
+                          : td("Required", { source: "en" })}
+                </span>
+            )}
+
+            {/* The escape hatch is for required steps with nothing recorded — once
+                there is an answer there is nothing to excuse, so it disappears. */}
+            {required && !answered && (
+                <>
+                    {<span style={{ color: T.BORDER }}>|</span>}
+                    <button
+                        type="button"
+                        onClick={() => onToggle(stepKey, !marked)}
+                        className={link}
+                        style={{ color: marked ? "#b45309" : T.TEXT_MUTED }}
+                    >
+                        {marked
+                            ? `${td("No answer provided", { source: "en" })} — ${td("undo", { source: "en" })}`
+                            : td("No answer provided", { source: "en" })}
+                    </button>
+                </>
+            )}
+
+            {answered && (
+                <>
+                    {required && <span style={{ color: T.BORDER }}>|</span>}
+                    <button
+                        type="button"
+                        onClick={onClear}
+                        className={link}
+                        style={{ color: T.TEXT_MUTED }}
+                    >
+                        {td("Clear answer", { source: "en" })}
+                    </button>
+                </>
+            )}
+        </div>
+    );
 }
 
 const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
@@ -30,6 +129,13 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
     progress,
     onFieldUpdate,
     onFieldChange,
+    unanswered = EMPTY_UNANSWERED,
+    customFieldVisibility = EMPTY_VISIBILITY,
+    filledSteps = EMPTY_STEPS,
+    answeredQuestions,
+    onToggleUnanswered,
+    onQuestionAnswered,
+    onQuestionCleared,
 }, ref) => {
 
     // Custom field ids are globally unique across the deal and lead groups.
@@ -39,6 +145,34 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
         for (const f of leadFields) map.set(Number(f.id), f);
         return map;
     }, [fields, leadFields]);
+
+    /** Wipe a step's recorded answer through the same save path its input uses, so
+     *  the value, the deal and the progress counts all follow from one write. */
+    const clearAnswer = (item: AnalysisSectionItem, stepKey: string) => {
+        const key = item.scriptItem.item_key;
+
+        if (item.kind === "question") {
+            // The answer is a saved note — kept as the record of what was said;
+            // this just reopens the step so it can be answered again.
+            onQuestionCleared(stepKey);
+            return;
+        }
+        if (item.kind === "deal_custom_field" || item.kind === "lead_custom_field") {
+            const isLead = item.kind === "lead_custom_field";
+            onFieldChange?.(Number(key), null);
+            onFieldUpdate(
+                isLead ? `lead_field_${key}` : `deal_field_${key}`,
+                null,
+                isLead ? "lead_custom_field" : "custom_field",
+            );
+            return;
+        }
+        onFieldUpdate(
+            key,
+            null,
+            item.kind === "hibarr_field" ? "hibarr_field" : item.kind === "lead_field" ? "contact" : "details",
+        );
+    };
 
     const filled = progress?.filled ?? 0;
     const total = progress?.total ?? 0;
@@ -131,19 +265,52 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
                 )}
 
                 {/* Hand-placed items, in author order */}
-                {section.items.map((item, i) =>
-                    item.kind === "deal_custom_field" || item.kind === "lead_custom_field" ? (
-                        renderCustomFieldItem(item)
-                    ) : (
-                        <AnalysisQuestionRow
-                            key={`${item.kind}-${item.scriptItem.id}-${i}`}
-                            item={item}
-                            number={numberByKey?.[`script_${item.scriptItem.id}`]}
-                            canEdit={canEdit}
-                            onFieldUpdate={onFieldUpdate}
-                        />
-                    ),
-                )}
+                {section.items.map((item, i) => {
+                    const stepKey = stepKeyOf(item.scriptItem.id);
+                    const marked = stepKey in unanswered;
+                    const isCustom =
+                        item.kind === "deal_custom_field" || item.kind === "lead_custom_field";
+
+                    // Show-rules apply to a custom field wherever it sits — placed
+                    // directly in a hand-built section, exactly as inside a category
+                    // section. Hidden means gone: no input, and no required footer,
+                    // since computeAnalysisProgress already drops it from the counts.
+                    if (
+                        isCustom &&
+                        customFieldVisibility[Number(item.scriptItem.item_key)] === false
+                    ) {
+                        return null;
+                    }
+
+                    return (
+                        <div key={`${item.kind}-${item.scriptItem.id}-${i}`}>
+                            {isCustom ? (
+                                renderCustomFieldItem(item)
+                            ) : (
+                                <AnalysisQuestionRow
+                                    item={item}
+                                    number={numberByKey?.[`script_${item.scriptItem.id}`]}
+                                    canEdit={canEdit}
+                                    onFieldUpdate={onFieldUpdate}
+                                    onAnswered={() => onQuestionAnswered(stepKey)}
+                                    answered={answeredQuestions.has(stepKey)}
+                                />
+                            )}
+                            <StepFooter
+                                stepKey={stepKey}
+                                required={!!item.scriptItem.is_required}
+                                marked={marked}
+                                answered={
+                                    item.kind === "question"
+                                        ? answeredQuestions.has(stepKey)
+                                        : filledSteps.has(stepKey)
+                                }
+                                onToggle={onToggleUnanswered}
+                                onClear={() => clearAnswer(item, stepKey)}
+                            />
+                        </div>
+                    );
+                })}
 
                 {!isCategory && section.items.length === 0 && (
                     <p className="text-xs italic text-slate-400 py-2">

@@ -42,10 +42,12 @@ export default function AnalysisStatusBanner({ analysis, totalFilled, totalField
                 subtitle: `${missing} ${missing === 1 ? td("field still empty", { source: "en" }) : td("fields still empty", { source: "en" })}`,
             }
             : {
-                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
-                dot: "#38BDF8",
-                bar: "#38BDF8",
-                cta: "text-sky-300",
+                // Red, not navy: an unfinished analysis is the one state that needs
+                // to read as outstanding work from across the deal list.
+                background: "linear-gradient(135deg, #991B1B 0%, #DC2626 100%)",
+                dot: "#FCA5A5",
+                bar: "#FCA5A5",
+                cta: "text-red-200",
                 title: td("Analysis Incomplete", { source: "en" }),
                 subtitle: totalFields > 0
                     ? `${missing} ${missing === 1 ? td("field left to fill", { source: "en" }) : td("fields left to fill", { source: "en" })}`

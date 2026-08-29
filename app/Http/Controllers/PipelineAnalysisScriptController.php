@@ -149,6 +149,7 @@ class PipelineAnalysisScriptController extends Controller
             'items.*.item_key'     => ['required', 'string', 'max:255'],
             'items.*.label_override' => ['nullable', 'string', 'max:255'],
             'items.*.guide_text'   => ['nullable', 'string'],
+            'items.*.is_required'  => ['boolean'],
         ]);
 
         $script = PipelineAnalysisScript::firstOrCreate(
@@ -164,6 +165,7 @@ class PipelineAnalysisScriptController extends Controller
                 'item_key'           => $item['item_key'],
                 'label_override'     => $item['label_override'] ?? null,
                 'guide_text'         => $item['guide_text'] ?? null,
+                'is_required'        => (bool) ($item['is_required'] ?? false),
                 'position'           => $index,
             ])
             ->all();

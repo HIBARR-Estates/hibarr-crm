@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Badge from "@/Components/Redesign/primitives/Badge";
@@ -32,6 +33,7 @@ export default function ScriptItemRow({ row, sectionKey, onChange, onRemove }: P
         data: { kind: "row", rowKey: row.key, sectionKey },
     });
 
+    const { td } = useTd();
     const isPrompt = row.type === "question" || row.type === "instruction";
     const [notesOpen, setNotesOpen] = useState(Boolean(row.guide_text) && !isPrompt);
     const badge = BADGE[row.type];
@@ -66,6 +68,34 @@ export default function ScriptItemRow({ row, sectionKey, onChange, onRemove }: P
                         <span style={{ fontSize: 13, color: T.TEXT_HINT, flexShrink: 0 }}>
                             {row.contextLabel}
                         </span>
+                    )}
+                    {/* Instructions are read out, not answered — nothing to require. */}
+                    {row.type !== "instruction" && (
+                        <label
+                            title={td(
+                                "Must be answered, or explicitly marked as having no answer, before the analysis can be completed",
+                                { source: "en" },
+                            )}
+                            style={{
+                                marginLeft: "auto",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 5,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: row.is_required ? T.TEXT : T.TEXT_MUTED,
+                                cursor: "pointer",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={row.is_required}
+                                onChange={(e) => onChange({ is_required: e.target.checked })}
+                                style={{ cursor: "pointer" }}
+                            />
+                            {td("Required", { source: "en" })}
+                        </label>
                     )}
                 </div>
 

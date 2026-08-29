@@ -32,6 +32,9 @@ export interface JsonRow {
     label?: string | null;
     /** Prompts: the question/instruction text. Fields: agent talking points. */
     text?: string | null;
+    /** Must be answered (or marked unanswered) before the analysis can complete.
+     *  Ignored on `instruction` rows, which are read out rather than answered. */
+    required?: boolean;
 }
 
 export interface JsonSection {
@@ -96,15 +99,21 @@ function reference(catalog: ScriptCatalog) {
 export function sampleScriptJson(catalog: ScriptCatalog): ScriptJson {
     const rows: JsonRow[] = [
         { type: "instruction", text: "Introduce yourself and confirm you are speaking to the right person." },
-        { type: "question", text: "What made you look into this now?" },
+        { type: "question", text: "What made you look into this now?", required: true },
     ];
 
     // One row per field type, skipping any type this company has no key for — a
     // sample that can't be imported is worse than a shorter one.
-    const sampleField = (type: RowType, key: string | undefined, label: string | null, text: string | null) => {
-        if (key) rows.push({ type, key, label, text });
+    const sampleField = (
+        type: RowType,
+        key: string | undefined,
+        label: string | null,
+        text: string | null,
+        required = false,
+    ) => {
+        if (key) rows.push({ type, key, label, text, required });
     };
-    sampleField("native_field", metaEntries("native_field")[0]?.key, null, null);
+    sampleField("native_field", metaEntries("native_field")[0]?.key, null, null, true);
     sampleField("hibarr_field", metaEntries("hibarr_field")[0]?.key, null, "Agent talking points for this step.");
     sampleField("lead_field", metaEntries("lead_field")[0]?.key, null, null);
     sampleField(
@@ -236,6 +245,7 @@ function resolveRow(row: JsonRow, catalog: ScriptCatalog): { row: BuilderRow } |
         type: row.type as ScriptItemType,
         label_override: row.label ?? null,
         guide_text: row.text ?? null,
+        is_required: row.type !== "instruction" && !!row.required,
     };
 
     if (isPrompt(row.type)) {

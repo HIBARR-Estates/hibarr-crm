@@ -15,6 +15,8 @@ export interface AnalysisScriptItem {
     item_key: string;
     label_override?: string | null;
     guide_text?: string | null;
+    /** Must be answered (or explicitly marked unanswered) before completing. */
+    is_required?: boolean;
     position: number;
 }
 

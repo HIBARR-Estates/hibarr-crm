@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import { completeButtonState } from "./analysisProgress";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import AnalysisStepsPanel from "./AnalysisStepsPanel";
 import AnalysisAnswersPanel from "./AnalysisAnswersPanel";
@@ -13,6 +15,10 @@ interface Props {
     totalFilled: number;
     totalFields: number;
     allFilled: boolean;
+    /** Required steps still unsettled — what actually gates completion. */
+    requiredMissing: number;
+    /** The agent has stepped through to the last section. */
+    reachedEnd: boolean;
     isCompleting: boolean;
     onComplete: () => void;
     tab?: AnalysisRailTab;
@@ -27,11 +33,20 @@ export default function AnalysisRightRail({
     totalFilled,
     totalFields,
     allFilled,
+    requiredMissing,
+    reachedEnd,
     isCompleting,
     onComplete,
     tab: controlledTab,
     onTabChange,
 }: Props) {
+    const { td } = useTd();
+    const { ready, label } = completeButtonState(
+        requiredMissing,
+        Math.max(0, totalFields - totalFilled),
+        isCompleting,
+        reachedEnd,
+    );
     const [uncontrolledTab, setUncontrolledTab] = useState<AnalysisRailTab>("steps");
     const tab = controlledTab ?? uncontrolledTab;
     const setTab = (next: AnalysisRailTab) => {
@@ -106,7 +121,9 @@ export default function AnalysisRightRail({
                     className="w-full py-2.5 rounded-xl text-xs font-semibold transition-all disabled:cursor-wait"
                     style={{
                         cursor: "pointer",
-                        ...(allFilled
+                        // Green means "nothing required is outstanding" — optional
+                        // empties are reported in the label, not the colour.
+                        ...(ready
                             ? { backgroundColor: "#10b981", color: "#fff" }
                             : {
                                   backgroundColor: T.AMBER_SOFT,
@@ -115,11 +132,7 @@ export default function AnalysisRightRail({
                               }),
                     }}
                 >
-                    {isCompleting
-                        ? "Completing…"
-                        : allFilled
-                          ? "Complete Analysis ✓"
-                          : `Complete (${Math.max(0, totalFields - totalFilled)} missing)`}
+                    {td(ready && allFilled && !isCompleting ? "Complete Analysis ✓" : label, { source: "en" })}
                 </button>
             </div>
         </div>
