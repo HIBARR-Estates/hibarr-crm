@@ -4,6 +4,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealExpose, DealExposeStatus, DealExposeSummary } from "@/Types/api/dealExposes";
 import {
     EXPOSE_STATUS_ORDER,
+    downloadDealExpose,
     exposeStatusMeta,
     formatExposeAmount,
     formatExposeDate,
@@ -427,6 +428,27 @@ export default function ExposesPanel({
                                                     }}
                                                 />
                                             </div>
+                                            {expose.download_url && (
+                                                <button
+                                                    type="button"
+                                                    className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
+                                                    title={t(
+                                                        "pages.deals.workspace.files.download",
+                                                    )}
+                                                    aria-label={t(
+                                                        "pages.deals.workspace.files.download",
+                                                    )}
+                                                    onClick={() =>
+                                                        downloadDealExpose(expose)
+                                                    }
+                                                >
+                                                    <DealIcon
+                                                        name="download"
+                                                        size={16}
+                                                        color={T.TEXT_MUTED}
+                                                    />
+                                                </button>
+                                            )}
                                             {onRemove && (
                                                 <button
                                                     type="button"

@@ -102,6 +102,13 @@ export function formatExposeDate(expose: DealExpose): string {
     return stamp ? formatDate(stamp) : "";
 }
 
+/** Opens the stored document in a new tab (manual uploads via the external storage API). */
+export function downloadDealExpose(expose: DealExpose): void {
+    if (!expose.download_url) return;
+
+    window.open(expose.download_url, "_blank", "noreferrer");
+}
+
 export interface ExposeGroup {
     id: string;
     /** Empty on the deal view, where a single ungrouped list is rendered. */
