@@ -51,7 +51,7 @@ class MeetingAttendanceConfirmationService
             return collect();
         }
 
-        $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes());
+        $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes($company));
 
         // "Ended at least $delay ago" depends on duration, which defaults in PHP
         // (not SQL) — so it can't be applied as a SQL LIMIT. Ordered ascending by
@@ -191,9 +191,7 @@ class MeetingAttendanceConfirmationService
             return false;
         }
 
-        $followUp->loadMissing(['deal', 'lead']);
-        $companyId = $followUp->deal?->company_id ?? $followUp->lead?->company_id;
-        $company = $companyId ? Company::find($companyId) : null;
+        $company = $this->resolveCompanyForFollowUp($followUp);
 
         if (!$company || !MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
             return false;
@@ -204,10 +202,23 @@ class MeetingAttendanceConfirmationService
             return false;
         }
 
-        $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes());
+        $cutoff = now()->subMinutes(MeetingAttendanceConfirmationFeature::delayMinutes($company));
         $endTime = $followUp->getEndTime();
 
         return $endTime !== null && $endTime->lte($cutoff);
+    }
+
+    /**
+     * The deal's or lead's company for $followUp, or null when neither is
+     * linked. Shared by isEligibleForOutcomeAction() and snooze() so both
+     * resolve the company the same way.
+     */
+    private function resolveCompanyForFollowUp(DealFollowUp $followUp): ?Company
+    {
+        $followUp->loadMissing(['deal', 'lead']);
+        $companyId = $followUp->deal?->company_id ?? $followUp->lead?->company_id;
+
+        return $companyId ? Company::find($companyId) : null;
     }
 
     /**
@@ -222,7 +233,11 @@ class MeetingAttendanceConfirmationService
             return $followUp;
         }
 
-        $until = now()->addMinutes($minutes ?? MeetingAttendanceConfirmationFeature::snoozeMinutes());
+        $company = $this->resolveCompanyForFollowUp($followUp);
+        $snoozeMinutes = $minutes ?? ($company
+            ? MeetingAttendanceConfirmationFeature::snoozeMinutes($company)
+            : 60);
+        $until = now()->addMinutes($snoozeMinutes);
 
         DealFollowUp::query()
             ->whereKey($followUp->id)

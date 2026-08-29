@@ -205,14 +205,39 @@ class FeatureFlagService
     }
 
     /**
-     * @param array<string, bool> $flags
+     * Environments where the remote flags API is expected to sometimes be
+     * unreachable (no network access, dev sandboxing, ...) and a local
+     * default is safe to fall back on instead of silently going dark.
+     * Deliberately excludes 'testing' — tests must stay fully deterministic
+     * and control flag state explicitly via SetsFeatureFlags::setFeatureFlag(),
+     * never an ambient default. Production is never in this list either.
+     */
+    private const LOCAL_FALLBACK_ENVIRONMENTS = ['local', 'development', 'codecanyon'];
+
+    /**
+     * The fallback used when the remote flags API is unreachable and there's
+     * no cached (or stale/last-good) result to fall back to instead. Every
+     * known flag defaults to off — except, in a local-ish environment,
+     * whatever's listed in config('features.local_defaults'), so local dev
+     * doesn't silently lose a feature just because the flags service isn't
+     * reachable from this machine. Never applies in production.
+     *
      * @return array<string, bool>
      */
     private function allFalseKnownFlags(): array
     {
         $knownFlags = config('features.known_flags', []);
+        $defaults = array_fill_keys($knownFlags, false);
 
-        return array_fill_keys($knownFlags, false);
+        if (app()->environment(self::LOCAL_FALLBACK_ENVIRONMENTS)) {
+            foreach (config('features.local_defaults', []) as $flag => $enabled) {
+                if (array_key_exists($flag, $defaults)) {
+                    $defaults[$flag] = (bool) $enabled;
+                }
+            }
+        }
+
+        return $defaults;
     }
 
     private function resolveSessionId(): string

@@ -1,6 +1,7 @@
 <?php
 
 /* Setting menu routes starts from here */
+
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\LeadSourceSettingController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\MeetingAttendanceConfirmationSettingsApiController;
 use App\Http\Controllers\MessageSettingController;
 use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
@@ -139,6 +141,19 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('slack-settings', SlackSettingController::class);
     Route::resource('push-notification-settings', PushNotificationController::class);
     Route::resource('pusher-settings', PusherSettingsController::class);
+
+    // React notification manager — deliberately a different path segment from the
+    // `notification-settings` resource above so its routes can't be shadowed by
+    // that resource's wildcard `{notification_setting}` show route.
+    Route::get('notification-settings-manager', [NotificationSettingsApiController::class, 'page'])->name('notification-settings-manager.index');
+    Route::get('notification-settings-manager/data', [NotificationSettingsApiController::class, 'index'])->name('notification-settings-manager.data');
+    Route::put('notification-settings-manager/data/{channel}', [NotificationSettingsApiController::class, 'update'])->name('notification-settings-manager.update');
+
+    // React meeting-attendance-confirmation settings — mirrors the delay/snooze
+    // fields on the legacy Company Settings page above.
+    Route::get('meeting-attendance-confirmation-settings', [MeetingAttendanceConfirmationSettingsApiController::class, 'page'])->name('meeting-attendance-confirmation-settings.index');
+    Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
+    Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
 
     // Currency Settings routes
     Route::get('currency-settings/update/exchange-rates', [CurrencySettingController::class, 'updateExchangeRate'])->name('currency_settings.update_exchange_rates');
@@ -326,7 +341,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('custom-link-settings', CustomLinkSettingController::class);
 
     Route::resource('sign-up-settings', SignUpSettingController::class)->only(['index', 'update']);
-
 });
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {

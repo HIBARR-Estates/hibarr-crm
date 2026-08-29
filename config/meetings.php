@@ -4,37 +4,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Meeting attendance confirmation — staged company allowlist
+    | Meeting attendance confirmation
     |--------------------------------------------------------------------------
     |
-    | Global kill switch: FeatureFlags::enabled('crm.meeting-attendance-confirmation')
-    | (OFF until enabled in the feature-flag service).
+    | Sole kill switch: FeatureFlags::enabled('crm.meeting-attendance-confirmation')
+    | (OFF until enabled in the feature-flag service). No per-company opt-in
+    | on top of this — once the flag is on, it's on for every company.
     |
-    | When ON, only company IDs listed here prompt agents to confirm meeting
-    | outcomes. Everyone else sees no change.
-    |
-    | Empty = no companies. Use * for all companies once verified.
-    | MEETING_ATTENDANCE_CONFIRMATION_COMPANY_ALLOWLIST=123 or 123,456 or *
+    | Delay/snooze below are the defaults used when a company hasn't set its
+    | own override in Company Settings
+    | (companies.meeting_attendance_confirmation_{delay,snooze}_minutes).
     |
     */
-    'attendance_confirmation_company_allowlist' => trim((string) env('MEETING_ATTENDANCE_CONFIRMATION_COMPANY_ALLOWLIST', '')),
 
     /*
     |--------------------------------------------------------------------------
-    | Bypass remote feature flag
-    |--------------------------------------------------------------------------
-    |
-    | When true, MeetingAttendanceConfirmationFeature ignores
-    | FeatureFlags::enabled('crm.meeting-attendance-confirmation') and still
-    | respects the company allowlist. Use locally when the flags API is
-    | unreachable, or as an ops override.
-    |
-    */
-    'attendance_confirmation_force_enable' => filter_var(env('MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE', false), FILTER_VALIDATE_BOOLEAN),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Confirmation delay
+    | Confirmation delay (default)
     |--------------------------------------------------------------------------
     |
     | Minutes after a meeting's computed end time (next_follow_up_date +
@@ -45,7 +30,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Snooze duration
+    | Snooze duration (default)
     |--------------------------------------------------------------------------
     |
     | Minutes a "Snooze" on the reminders dock hides a meeting for before it

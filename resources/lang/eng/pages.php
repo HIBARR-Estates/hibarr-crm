@@ -1369,6 +1369,18 @@ return [
             'no_deals_found'         => 'No deals found',
             'no_leads_found'         => 'No leads found',
         ],
+        'attendance_confirmation_settings' => [
+            'title'        => 'Attendance confirmation timing',
+            'description'  => 'Configure how long after a meeting ends agents are prompted to confirm what happened, and how long "Snooze" hides that prompt.',
+            'delay_label'  => 'Confirmation delay',
+            'delay_help'   => 'How long after a meeting ends before agents are prompted to confirm the outcome. Leave blank to use the default.',
+            'snooze_label' => 'Snooze duration',
+            'snooze_help'  => 'How long "Snooze" hides a meeting from the reminders dock before prompting again. Leave blank to use the default.',
+            'minutes'      => 'minutes',
+            'unsaved'      => 'You have unsaved changes',
+            'saved'        => 'Settings saved',
+            'save_failed'  => 'Failed to save settings',
+        ],
     ],
 
     'tasks' => [

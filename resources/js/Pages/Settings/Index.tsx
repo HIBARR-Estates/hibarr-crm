@@ -78,7 +78,11 @@ export default function SettingsIndex({
             iconColor: "text-amber-500",
             title: t("app.menu.meetings"),
             description: t("app.settingsHub.meetingsDesc"),
-            connected: false,
+            connected: true,
+            onOpen: () =>
+                router.visit(
+                    route("meeting-attendance-confirmation-settings.index"),
+                ),
         },
         {
             key: "tasks",
