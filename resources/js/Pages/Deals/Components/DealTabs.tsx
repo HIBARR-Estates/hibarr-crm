@@ -79,12 +79,13 @@ export default function DealTabs({
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
     const showRecommendations = useDealRecommendationsFlag();
+    const offersEligible =
+        permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
     const {
         hasOffers,
         isLoading: offersLoading,
-    } = useDealOffers(deal.id, !pipelineHasPackages);
-    const showOffersTab =
-        !pipelineHasPackages && !offersLoading && hasOffers;
+    } = useDealOffers(deal.id, offersEligible);
+    const showOffersTab = offersEligible && !offersLoading && hasOffers;
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 

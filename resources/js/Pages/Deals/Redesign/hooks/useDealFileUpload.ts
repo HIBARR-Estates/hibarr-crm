@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useContext } from "react";
+import { useCallback, useEffect, useRef, useState, useContext } from "react";
 import axios, { CancelTokenSource } from "axios";
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
@@ -71,6 +71,16 @@ export default function useDealFileUpload(dealId: number) {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadBytesTotal, setUploadBytesTotal] = useState(0);
     const cancelRef = useRef<CancelTokenSource | null>(null);
+    const resetTimerRef = useRef<number | null>(null);
+
+    useEffect(
+        () => () => {
+            if (resetTimerRef.current !== null) {
+                window.clearTimeout(resetTimerRef.current);
+            }
+        },
+        [],
+    );
 
     const uploadBytesLoaded =
         uploadBytesTotal > 0 && uploadProgress > 0
@@ -221,7 +231,7 @@ export default function useDealFileUpload(dealId: number) {
                 return [];
             } finally {
                 setIsUploading(false);
-                window.setTimeout(() => {
+                resetTimerRef.current = window.setTimeout(() => {
                     setUploadProgress(0);
                     setUploadBytesTotal(0);
                 }, 400);

@@ -203,6 +203,34 @@ class DealExposeControllerTest extends TestCase
         $this->assertEqualsWithDelta(250000.5, (float) $row->amount, 0.001);
     }
 
+    public function test_update_status_and_destroy_are_rejected_when_the_deal_is_locked(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId, ['is_locked' => true]);
+        $exposeId = $this->createExpose($dealId, $leadId, ['title' => 'Original']);
+
+        $this->beAgent($agent);
+
+        $this->patchJson(route('deal-exposes.update', $exposeId), [
+            'title' => 'Renamed',
+        ])->assertStatus(403);
+
+        $this->patchJson(route('deal-exposes.status', $exposeId), [
+            'status' => 'shown',
+        ])->assertStatus(403);
+
+        $this->deleteJson(route('deal-exposes.destroy', $exposeId))
+            ->assertStatus(403);
+
+        $row = DB::table('deal_exposes')->where('id', $exposeId)->first();
+        $this->assertSame('Original', $row->title, 'A locked deal\'s expose must be untouched.');
+        $this->assertSame('not_sent', $row->status);
+    }
+
     public function test_status_update_rejects_an_unknown_status(): void
     {
         $this->setFeatureFlag('crm.deal-exposes-tab', true);
@@ -344,6 +372,29 @@ class DealExposeControllerTest extends TestCase
             'object_path' => 'backend-uploads/brochure.pdf',
             'size' => 204800,
         ]);
+    }
+
+    public function test_store_rejects_a_non_http_download_url(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId);
+
+        $this->beAgent($agent);
+
+        $this->postJson(route('deals.exposes.store', $dealId), [
+            'source' => 'manual',
+            'title' => 'Brochure',
+            'download_url' => 'javascript:alert(1)',
+            'object_path' => 'backend-uploads/brochure.pdf',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('download_url');
+
+        $this->assertDatabaseMissing('deal_exposes', ['deal_id' => $dealId]);
     }
 
     public function test_store_manual_expose_rejects_a_deal_file_from_another_deal(): void
@@ -603,6 +654,7 @@ class DealExposeControllerTest extends TestCase
                 $table->unsignedInteger('company_id')->nullable();
                 $table->unsignedInteger('lead_id')->nullable();
                 $table->string('name')->nullable();
+                $table->boolean('is_locked')->default(false);
                 $table->softDeletes();
                 $table->timestamps();
             });

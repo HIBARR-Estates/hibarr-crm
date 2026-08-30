@@ -109,6 +109,8 @@ export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
     const [snapshots, setSnapshots] = useState<DealExposeSnapshotOption[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const reload = useCallback(() => setRefreshKey((key) => key + 1), []);
 
     useEffect(() => {
         if (!enabled) {
@@ -145,9 +147,9 @@ export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
         return () => {
             cancelled = true;
         };
-    }, [dealId, enabled]);
+    }, [dealId, enabled, refreshKey]);
 
-    return { snapshots, loading, loadFailed };
+    return { snapshots, loading, loadFailed, reload };
 }
 
 /**
@@ -331,10 +333,12 @@ export default function useDealExposes(scope: Scope) {
             try {
                 if (input.file) {
                     if (input.file.size > DEAL_EXPOSE_MAX_UPLOAD_BYTES) {
-                        return td(
+                        const msg = td(
                             "This file exceeds the 1 GB maximum size.",
                             { source: "en" },
                         );
+                        message.error(msg);
+                        return msg;
                     }
 
                     const uploaded = await uploadFiles([input.file], {
@@ -403,6 +407,17 @@ export default function useDealExposes(scope: Scope) {
             id: number,
             patch: { title?: string; amount?: number | null },
         ) => {
+            // The lead rollup lists exposes across several deals — one of
+            // them may be locked while the others aren't, so this can't be a
+            // single canEdit boolean; check the specific row instead. The
+            // server rejects this too (defense in depth), but failing fast
+            // here skips a pointless optimistic-update-then-revert flicker.
+            if (exposes.find((expose) => expose.id === id)?.deal_is_locked) {
+                throw new Error(
+                    t("pages.deals.workspace.exposes.messages.deal_locked"),
+                );
+            }
+
             let previous: DealExpose | null = null;
             setExposes((current) =>
                 current.map((expose) => {
@@ -451,7 +466,7 @@ export default function useDealExposes(scope: Scope) {
                 );
             }
         },
-        [t],
+        [t, exposes],
     );
 
     const removeExpose = useCallback(

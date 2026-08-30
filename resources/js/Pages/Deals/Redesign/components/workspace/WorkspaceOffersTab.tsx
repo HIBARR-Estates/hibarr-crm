@@ -88,9 +88,8 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
     const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
     const symbol = deal.currency?.currency_symbol || "£";
 
-    const { applications, totalDiscount, isLoading, refetch } = useDealOffers(
-        deal.id,
-    );
+    const { applications, totalDiscount, isLoading, isError, refetch } =
+        useDealOffers(deal.id);
 
     const { mutate: removeAllOffers, isPending: isRemoving } = useApiMutate<
         undefined,
@@ -107,6 +106,32 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
     );
 
     const isInitialLoading = isLoading && items.length === 0;
+
+    // A failed request must read as "couldn't load", not silently render
+    // nothing the way a genuinely empty (no offers applied) result does.
+    if (isError && items.length === 0) {
+        return (
+            <div
+                role="alert"
+                className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
+                style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
+            >
+                <div
+                    className="mb-[3px] text-[13px] font-semibold"
+                    style={{ color: T.TEXT }}
+                >
+                    {t("pages.deals.workspace.offers.load_failed")}
+                </div>
+                <button
+                    type="button"
+                    className="dr-btn dr-btn-sm mt-2"
+                    onClick={() => refetch()}
+                >
+                    {t("pages.deals.workspace.offers.retry")}
+                </button>
+            </div>
+        );
+    }
 
     if (!isInitialLoading && items.length === 0) {
         return null;

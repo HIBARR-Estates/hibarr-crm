@@ -222,9 +222,13 @@ function DealViewRedesignInner(
     const {
         applications: offerApplications,
         isLoading: offersLoading,
+        isError: offersError,
         hasOffers,
     } = useDealOffers(deal.id, offersEligible);
-    const showOffersTab = offersEligible && !offersLoading && hasOffers;
+    // A failed fetch must not read as "no offers" and hide the tab — keep it
+    // visible so WorkspaceOffersTab can show its own retry UI instead.
+    const showOffersTab =
+        offersEligible && !offersLoading && (hasOffers || offersError);
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),

@@ -991,6 +991,8 @@ return [
                 'remove_all_confirm_title'   => 'Remove all offers?',
                 'remove_all_confirm_message' => 'All applied discounts will be removed and the calculated deal value will increase accordingly.',
                 'loading_aria' => 'Loading offers',
+                'load_failed' => 'Failed to load offers',
+                'retry' => 'Retry',
                 'validation' => [
                     'property_required' => 'Property is required',
                     'amount_required'   => 'Offer amount is required',
@@ -1038,6 +1040,7 @@ return [
                     'remove_failed'  => 'Failed to remove expose',
                     'status_failed'  => 'Failed to update the expose status',
                     'update_failed'  => 'Failed to update the expose',
+                    'deal_locked'    => 'This deal is locked and can no longer be edited.',
                 ],
             ],
             'recommendations' => [

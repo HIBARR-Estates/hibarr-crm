@@ -33,11 +33,26 @@ export function titleFromFilename(filename: string): string {
     return trimmed.slice(0, lastDot);
 }
 
+/**
+ * http(s)-only allowlist for anything that ends up in an <a>/window.open —
+ * a javascript:/data: URI here would execute in the CRM's own origin.
+ * Mirrors DealExposeController's `download_url` => `url:http,https` rule.
+ */
+export function isHttpUrl(value: string | null | undefined): value is string {
+    if (!value) return false;
+    try {
+        return ["http:", "https:"].includes(new URL(value).protocol);
+    } catch {
+        return false;
+    }
+}
+
 /** Register a manual expose from an uploaded deal file row. */
 export function dealFileToExposeStoreBody(
     dealFile: DealFile,
 ): Record<string, unknown> {
-    const downloadUrl = dealFile.external_url || dealFile.file_url;
+    const rawDownloadUrl = dealFile.external_url || dealFile.file_url;
+    const downloadUrl = isHttpUrl(rawDownloadUrl) ? rawDownloadUrl : null;
     const objectPath =
         dealFile.object_path ||
         (dealFile.hashname
@@ -46,7 +61,7 @@ export function dealFileToExposeStoreBody(
 
     return {
         deal_file_id: dealFile.id,
-        download_url: downloadUrl || null,
+        download_url: downloadUrl,
         object_path: objectPath,
         uploaded_filename: dealFile.filename,
         uploaded_size: Number(dealFile.size) || null,
@@ -160,11 +175,15 @@ export function formatExposeDate(expose: DealExpose): string {
     return stamp ? formatDate(stamp) : "";
 }
 
-/** Opens the expose document in a new tab when a download URL is available. */
+/**
+ * Opens the expose document in a new tab when a download URL is available.
+ * Re-checks the scheme rather than trusting the stored value — it may
+ * predate the backend's url:http,https validation.
+ */
 export function downloadDealExpose(
     expose: Pick<DealExpose, "download_url" | "filename">,
 ): void {
-    if (!expose.download_url) return;
+    if (!isHttpUrl(expose.download_url)) return;
 
     window.open(expose.download_url, "_blank", "noopener,noreferrer");
 }

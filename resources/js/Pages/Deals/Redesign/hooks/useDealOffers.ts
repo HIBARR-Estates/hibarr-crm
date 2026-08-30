@@ -7,7 +7,7 @@ import type { DealOffersResponse } from "@/Types/api/offers";
  * via TanStack Query on `deals.offers.index`.
  */
 export default function useDealOffers(dealId: number, enabled = true) {
-    const { data, isLoading, isFetching, refetch } =
+    const { data, isLoading, isFetching, isError, refetch } =
         useApiQuery<DealOffersResponse>({
             path: route("deals.offers.index", dealId),
             options: {
@@ -24,6 +24,9 @@ export default function useDealOffers(dealId: number, enabled = true) {
         totalDiscount: data?.total_discount ?? 0,
         isLoading,
         isFetching,
+        // Only meaningful once loading has settled — a failed request must
+        // read as "couldn't load", never as "no offers applied".
+        isError,
         hasOffers: applications.length > 0,
         refetch,
     };

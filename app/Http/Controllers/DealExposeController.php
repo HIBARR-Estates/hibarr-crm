@@ -181,7 +181,7 @@ class DealExposeController extends AccountBaseController
             'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB,
             // Optional when the browser already uploaded via storage API (no CORS).
             // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
-            'download_url' => 'nullable|url',
+            'download_url' => 'nullable|url:http,https',
             'object_path' => 'nullable|string|max:512',
             'uploaded_filename' => 'nullable|string|max:255',
             'uploaded_size' => 'nullable|integer|min:0',
@@ -528,6 +528,12 @@ class DealExposeController extends AccountBaseController
             $permission === 'all'
             || ($permission === 'added' && (int) $expose->added_by === (int) user()->id)
         ));
+
+        // A locked deal is frozen — matches Deal::isLocked() gating elsewhere
+        // (e.g. the Offers tab's "Remove all" button). Only reachable here on
+        // update/status/destroy; store() creating a brand-new expose against
+        // an already-locked deal is a separate, pre-existing gap left alone.
+        abort_403((bool) $expose->deal?->isLocked());
     }
 
     /**
@@ -552,6 +558,7 @@ class DealExposeController extends AccountBaseController
             'id' => $expose->id,
             'deal_id' => $expose->deal_id,
             'deal_name' => $expose->relationLoaded('deal') ? $expose->deal?->name : null,
+            'deal_is_locked' => $expose->relationLoaded('deal') ? (bool) $expose->deal?->isLocked() : false,
             'lead_id' => $expose->lead_id,
             'source' => $expose->source,
             'expose_snapshot_id' => $expose->expose_snapshot_id,

@@ -17,6 +17,8 @@ export interface DealExpose {
     deal_id: number;
     /** Present only on the lead rollup, where rows are grouped by deal. */
     deal_name: string | null;
+    /** Present only on the lead rollup — false elsewhere (deal_id's own page already knows its lock state). */
+    deal_is_locked: boolean;
     lead_id: number | null;
     source: DealExposeSource;
     expose_snapshot_id: number | null;

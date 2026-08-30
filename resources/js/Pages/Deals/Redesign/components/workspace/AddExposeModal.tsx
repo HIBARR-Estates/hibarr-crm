@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@/Components/DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import CurrencyInput from "@/Components/CurrencyInput";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
@@ -40,7 +41,7 @@ export default function AddExposeModal({
     onClose,
 }: AddExposeModalProps) {
     const { t } = useTranslation();
-    const { props } = usePage<any>();
+    const { props } = usePage<PageProps>();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [title, setTitle] = useState("");
     const [amount, setAmount] = useState<{
@@ -56,8 +57,12 @@ export default function AddExposeModal({
     const isLinked = source === "linked";
     const manualUploadActive =
         !isLinked && file != null && (isUploadingFile || saving);
-    const { snapshots, loading: snapshotsLoading, loadFailed: snapshotsLoadFailed } =
-        useDealExposeSnapshots(dealId, open && isLinked);
+    const {
+        snapshots,
+        loading: snapshotsLoading,
+        loadFailed: snapshotsLoadFailed,
+        reload: reloadSnapshots,
+    } = useDealExposeSnapshots(dealId, open && isLinked);
 
     useEffect(() => {
         if (!open) {
@@ -216,10 +221,8 @@ export default function AddExposeModal({
                             void handleSubmit();
                         }}
                     >
-                        {manualUploadActive
-                            ? isUploadingFile
-                                ? t("pages.deals.workspace.files.uploading")
-                                : t("pages.deals.workspace.exposes.add")
+                        {manualUploadActive && isUploadingFile
+                            ? t("pages.deals.workspace.files.uploading")
                             : t("pages.deals.workspace.exposes.add")}
                     </DealButton>
                 </>
@@ -269,10 +272,27 @@ export default function AddExposeModal({
                     {snapshotsLoadFailed && (
                         <div
                             role="alert"
-                            className="text-xs"
+                            className="text-xs flex items-center gap-2"
                             style={{ color: T.RED }}
                         >
-                            {t("pages.deals.workspace.exposes.load_failed")}
+                            <span>
+                                {t("pages.deals.workspace.exposes.load_failed")}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={reloadSnapshots}
+                                style={{
+                                    color: T.RED,
+                                    textDecoration: "underline",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    font: "inherit",
+                                }}
+                            >
+                                {t("pages.deals.workspace.exposes.retry")}
+                            </button>
                         </div>
                     )}
 
@@ -293,7 +313,18 @@ export default function AddExposeModal({
                     >
                         <CurrencyInput
                             value={amount}
-                            onChange={setAmount}
+                            // deal_exposes has no currency column — only the
+                            // number is persisted, and ExposesPanel always
+                            // formats it with the deal's own currency symbol.
+                            // Pin the currency here so CurrencyInput's picker
+                            // can't silently record an amount as one currency
+                            // while it displays as another.
+                            onChange={(next) =>
+                                setAmount({
+                                    ...next,
+                                    currency: defaultCurrencyCode,
+                                })
+                            }
                             noFormItem
                             disabled={isBusy}
                         />
