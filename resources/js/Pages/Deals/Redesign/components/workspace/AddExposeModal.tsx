@@ -278,21 +278,13 @@ export default function AddExposeModal({
                             <span>
                                 {t("pages.deals.workspace.exposes.load_failed")}
                             </span>
-                            <button
-                                type="button"
+                            <DealButton
+                                variant="ghost"
+                                size="sm"
                                 onClick={reloadSnapshots}
-                                style={{
-                                    color: T.RED,
-                                    textDecoration: "underline",
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    padding: 0,
-                                    font: "inherit",
-                                }}
                             >
                                 {t("pages.deals.workspace.exposes.retry")}
-                            </button>
+                            </DealButton>
                         </div>
                     )}
 

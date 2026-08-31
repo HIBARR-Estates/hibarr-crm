@@ -84,8 +84,12 @@ export default function DealTabs({
     const {
         hasOffers,
         isLoading: offersLoading,
+        isError: offersError,
     } = useDealOffers(deal.id, offersEligible);
-    const showOffersTab = offersEligible && !offersLoading && hasOffers;
+    // A failed fetch must not read as "no offers" and hide the tab — keep it
+    // visible so the tab body can show its own retry UI instead.
+    const showOffersTab =
+        offersEligible && !offersLoading && (hasOffers || offersError);
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 

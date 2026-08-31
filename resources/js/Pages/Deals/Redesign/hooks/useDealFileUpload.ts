@@ -102,6 +102,13 @@ export default function useDealFileUpload(dealId: number) {
             }
 
             cancelRef.current?.cancel("replaced");
+            // A previous upload's delayed reset (below) could still be
+            // pending — let it fire and it would zero out this new upload's
+            // progress/bytes mid-flight.
+            if (resetTimerRef.current !== null) {
+                window.clearTimeout(resetTimerRef.current);
+                resetTimerRef.current = null;
+            }
             const cancelSource = axios.CancelToken.source();
             cancelRef.current = cancelSource;
 
@@ -232,8 +239,14 @@ export default function useDealFileUpload(dealId: number) {
             } finally {
                 setIsUploading(false);
                 resetTimerRef.current = window.setTimeout(() => {
-                    setUploadProgress(0);
-                    setUploadBytesTotal(0);
+                    resetTimerRef.current = null;
+                    // A newer upload may have started (and be mid-flight)
+                    // before this fires — only this call's own cancelSource
+                    // still being the active one means it's safe to reset.
+                    if (cancelRef.current === cancelSource) {
+                        setUploadProgress(0);
+                        setUploadBytesTotal(0);
+                    }
                 }, 400);
             }
         },

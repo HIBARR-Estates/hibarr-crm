@@ -9,6 +9,7 @@ import {
     type WorkspaceOfferApplicationItem,
 } from "../../adapters/offerApplicationAdapter";
 import useDealOffers from "../../hooks/useDealOffers";
+import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -122,13 +123,14 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                 >
                     {t("pages.deals.workspace.offers.load_failed")}
                 </div>
-                <button
-                    type="button"
-                    className="dr-btn dr-btn-sm mt-2"
+                <DealButton
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2"
                     onClick={() => refetch()}
                 >
                     {t("pages.deals.workspace.offers.retry")}
-                </button>
+                </DealButton>
             </div>
         );
     }
