@@ -223,7 +223,8 @@ function DealViewRedesignInner(
     // may change stages — otherwise the summary card renders it as advice, not
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
-    const canManagePayments = permissions.edit_payments === "all";
+    const canCreatePaymentRequest = dealPermissions.canEdit;
+    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -629,7 +630,8 @@ function DealViewRedesignInner(
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() => nav.goToDealInfo("general")}
                                     showOnlinePayment={props.showOnlinePayment}
-                                    canManagePayments={canManagePayments}
+                                    canCreatePaymentRequest={canCreatePaymentRequest}
+                                    canConfirmPaymentTransfer={canConfirmPaymentTransfer}
                                 />
                             </div>
                         </div>

@@ -18,7 +18,8 @@ import { DealModal, DealModalField } from "../primitives/DealModal";
 
 interface DealPaymentPanelProps {
     deal: Deal;
-    canManagePayments: boolean;
+    canCreatePaymentRequest: boolean;
+    canConfirmPaymentTransfer: boolean;
 }
 
 function formatTimestamp(value: string | null | undefined): string | null {
@@ -30,7 +31,8 @@ function formatTimestamp(value: string | null | undefined): string | null {
 
 export default function DealPaymentPanel({
     deal,
-    canManagePayments,
+    canCreatePaymentRequest,
+    canConfirmPaymentTransfer,
 }: DealPaymentPanelProps) {
     const { td } = useTd();
     const {
@@ -108,7 +110,7 @@ export default function DealPaymentPanel({
                     <p className="text-xs text-[#5b6472]">
                         {td("Create a payment request to share a checkout link with the customer.")}
                     </p>
-                    {canManagePayments && (
+                    {canCreatePaymentRequest && (
                         <DealButton
                             variant="primary"
                             size="sm"
@@ -182,7 +184,7 @@ export default function DealPaymentPanel({
                         </a>
                     )}
 
-                    {mapped.canConfirm && canManagePayments && (
+                    {mapped.canConfirm && canConfirmPaymentTransfer && (
                         <DealButton
                             variant="primary"
                             size="sm"

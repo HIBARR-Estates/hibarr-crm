@@ -35,7 +35,7 @@ class DealPaymentController extends AccountBaseController
     {
         $this->assertFeatureEnabled();
         $this->assertCanViewDeal($deal);
-        abort_403(user()->permission('edit_payments') != 'all');
+        $this->assertCanCreatePaymentRequest($deal);
 
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0',
@@ -62,7 +62,7 @@ class DealPaymentController extends AccountBaseController
     {
         $this->assertFeatureEnabled();
         $this->assertCanViewDeal($deal);
-        abort_403(user()->permission('edit_payments') != 'all');
+        $this->assertCanConfirmPaymentTransfer();
 
         try {
             $data = $this->dealPaymentService->confirmBankTransfer($deal, user());
@@ -97,5 +97,36 @@ class DealPaymentController extends AccountBaseController
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
         abort_403(!$access['canAccess']);
+    }
+
+    private function assertCanCreatePaymentRequest(Deal $deal): void
+    {
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+
+        // Same write gate as DealController::update — agent/participant/creator scopes only.
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        // Watchers can see everything but never write — see DealNoteController::store.
+        $isUnrestrictedWriter = in_array('admin', user_roles())
+            || user()->permission('edit_deals') === 'all';
+        if (!$isUnrestrictedWriter
+            && $deal->added_by != user()->id
+            && !$deal->hasTeamMemberAccess(user()->id)
+            && $deal->dealWatchers()->where('user_id', user()->id)->exists()
+        ) {
+            abort_403(true);
+        }
+    }
+
+    private function assertCanConfirmPaymentTransfer(): void
+    {
+        abort_403(user()->permission('edit_payments') != 'all');
     }
 }
