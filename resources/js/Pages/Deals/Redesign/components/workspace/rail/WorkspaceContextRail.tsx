@@ -33,7 +33,8 @@ interface WorkspaceContextRailProps {
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
     showOnlinePayment?: boolean;
-    canManagePayments?: boolean;
+    canCreatePaymentRequest?: boolean;
+    canConfirmPaymentTransfer?: boolean;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
@@ -57,7 +58,8 @@ export default function WorkspaceContextRail({
     onNavigateToSubTab,
     onSwitchToDealInfo,
     showOnlinePayment = false,
-    canManagePayments = false,
+    canCreatePaymentRequest = false,
+    canConfirmPaymentTransfer = false,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState<Set<string>>(
@@ -225,7 +227,8 @@ export default function WorkspaceContextRail({
                           body: (
                               <DealPaymentPanel
                                   deal={deal}
-                                  canManagePayments={canManagePayments}
+                                  canCreatePaymentRequest={canCreatePaymentRequest}
+                                  canConfirmPaymentTransfer={canConfirmPaymentTransfer}
                               />
                           ),
                       },
@@ -273,7 +276,8 @@ export default function WorkspaceContextRail({
             phone,
             restrictPackageOrProperty,
             showOnlinePayment,
-            canManagePayments,
+            canCreatePaymentRequest,
+            canConfirmPaymentTransfer,
             td,
         ],
     );
