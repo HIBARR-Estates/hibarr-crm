@@ -22,6 +22,13 @@ import {
 } from "./config/notificationSettingGroups";
 import "@/Components/Redesign/redesign.css";
 
+const TOGGLE_COLUMNS: ToggleColumn[] = [
+    "send_database",
+    "send_email",
+    "send_slack",
+    "send_push",
+];
+
 /** Name column flexes; the four channel columns stay aligned across sections. */
 const GRID_TEMPLATE = "minmax(220px, 1fr) repeat(4, 96px)";
 const GRID_MIN_WIDTH = 660;
@@ -88,11 +95,33 @@ export default function NotificationSettings({
         () => new Set(NOTIFICATION_GROUP_ORDER),
     );
 
+    /** True while `rows` holds edits not yet reflected in `original` (queued for, or mid, autosave). */
+    const hasPendingChanges = useMemo(
+        () =>
+            TOGGLE_COLUMNS.some((column) => {
+                const before = original
+                    .filter((row) => row[column] === "yes")
+                    .map((row) => row.id)
+                    .sort()
+                    .join(",");
+                const after = rows
+                    .filter((row) => row[column] === "yes")
+                    .map((row) => row.id)
+                    .sort()
+                    .join(",");
+                return before !== after;
+            }),
+        [original, rows],
+    );
+
     useEffect(() => {
-        if (settings.length > 0) {
+        // A background refetch (window refocus, cache invalidation, ...)
+        // must not clobber an edit the user just made that hasn't saved yet.
+        if (settings.length > 0 && !hasPendingChanges) {
             setOriginal(settings);
             setRows(settings);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settings]);
 
     /** Debounced so a burst of toggles (e.g. a bulk switch) collapses into one save. */
@@ -268,7 +297,6 @@ export default function NotificationSettings({
                                     borderRadius: 8,
                                     padding: "8px 12px",
                                     marginBottom: 16,
-                                    outline: "none",
                                     background: T.WHITE,
                                 }}
                             />

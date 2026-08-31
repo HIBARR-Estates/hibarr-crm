@@ -52,6 +52,10 @@ class FileStorageService
      */
     public function upload(UploadedFile $file, ?string $targetFolder = null): array
     {
+        if (!str_starts_with(strtolower($this->baseUrl), 'https://')) {
+            throw new \RuntimeException('File storage base URL must use HTTPS.');
+        }
+
         $folder = $targetFolder ?? $this->defaultTargetFolder;
 
         return $this->withRetry(function () use ($file, $folder) {

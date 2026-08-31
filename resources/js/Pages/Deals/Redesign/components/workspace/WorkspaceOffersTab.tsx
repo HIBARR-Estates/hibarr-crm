@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import { useApiMutate } from "@/lib/api/client";
-import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
 import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import {
@@ -89,17 +87,21 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
     const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
     const symbol = deal.currency?.currency_symbol || "£";
 
-    const { applications, totalDiscount, isLoading, isError, refetch } =
-        useDealOffers(deal.id);
+    const {
+        applications,
+        totalDiscount,
+        isLoading,
+        isError,
+        refetch,
+        removeAllOffers,
+        isRemovingAllOffers: isRemoving,
+    } = useDealOffers(deal.id);
 
-    const { mutate: removeAllOffers, isPending: isRemoving } = useApiMutate<
-        undefined,
-        unknown,
-        ApiResponse<unknown>
-    >(route("deals.offers.remove", deal.id), "DELETE", () => {
-        refetch();
-        setConfirmRemoveAll(false);
-    });
+    const handleRemoveAll = () => {
+        removeAllOffers(undefined, {
+            onSuccess: () => setConfirmRemoveAll(false),
+        });
+    };
 
     const items = useMemo(
         () => applications.map(toWorkspaceOfferApplicationItem),
@@ -254,7 +256,7 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                 message={t("pages.deals.workspace.offers.remove_all_confirm_message")}
                 confirmLabel={t("pages.deals.workspace.offers.remove_all")}
                 danger
-                onConfirm={() => removeAllOffers(undefined)}
+                onConfirm={handleRemoveAll}
                 onCancel={() => setConfirmRemoveAll(false)}
             />
         </div>

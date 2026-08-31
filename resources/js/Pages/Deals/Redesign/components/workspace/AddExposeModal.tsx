@@ -55,8 +55,7 @@ export default function AddExposeModal({
 
     const isBusy = saving || submitting;
     const isLinked = source === "linked";
-    const manualUploadActive =
-        !isLinked && file != null && (isUploadingFile || saving);
+    const manualUploadActive = !isLinked && file != null && isUploadingFile;
     const {
         snapshots,
         loading: snapshotsLoading,

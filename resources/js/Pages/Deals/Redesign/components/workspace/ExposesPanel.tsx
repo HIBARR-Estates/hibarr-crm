@@ -349,6 +349,11 @@ export default function ExposesPanel({
                                 {group.exposes.map((expose) => {
                                     const meta = exposeStatusMeta(expose.status);
                                     const linked = expose.source === "linked";
+                                    // The lead rollup shows exposes across several
+                                    // deals — one may be locked while others
+                                    // aren't, so editability is per-row, not just
+                                    // the panel-wide permission check.
+                                    const rowEditable = canEdit && !expose.deal_is_locked;
                                     return (
                                         <div
                                             key={expose.id}
@@ -379,12 +384,12 @@ export default function ExposesPanel({
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="group min-w-0">
-                                                    {onUpdate && canEdit ? (
+                                                    {onUpdate && rowEditable ? (
                                                         <DealEditableField
                                                             value={expose.title}
                                                             fieldName="title"
                                                             fieldType="text"
-                                                            disabled={!canEdit}
+                                                            disabled={!rowEditable}
                                                             className="truncate text-[15px] font-semibold"
                                                             displayValue={
                                                                 <span
@@ -447,7 +452,7 @@ export default function ExposesPanel({
                                             <div className="mr-1.5 flex-none text-right">
                                                 {linked && (
                                                     <div className="group inline-block min-w-[88px]">
-                                                        {onUpdate && canEdit ? (
+                                                        {onUpdate && rowEditable ? (
                                                             <DealEditableField
                                                                 value={
                                                                     expose.amount ??
@@ -455,7 +460,7 @@ export default function ExposesPanel({
                                                                 }
                                                                 fieldName="amount"
                                                                 fieldType="currency"
-                                                                disabled={!canEdit}
+                                                                disabled={!rowEditable}
                                                                 className="text-[15px] font-bold text-right"
                                                                 displayValue={
                                                                     <span
@@ -531,7 +536,7 @@ export default function ExposesPanel({
                                                     value={expose.status}
                                                     options={statusOptions}
                                                     align="right"
-                                                    disabled={!canEdit}
+                                                    disabled={!rowEditable}
                                                     onChange={(value) =>
                                                         onStatusChange(
                                                             expose.id,

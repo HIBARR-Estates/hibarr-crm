@@ -237,7 +237,13 @@ export default function useDealFileUpload(dealId: number) {
                 );
                 return [];
             } finally {
-                setIsUploading(false);
+                // A newer upload may have already replaced this one (see the
+                // `cancel("replaced")` above) and be mid-flight — only this
+                // call's own cancelSource still being current means it's safe
+                // to clear the uploading state.
+                if (cancelRef.current === cancelSource) {
+                    setIsUploading(false);
+                }
                 resetTimerRef.current = window.setTimeout(() => {
                     resetTimerRef.current = null;
                     // A newer upload may have started (and be mid-flight)

@@ -170,6 +170,7 @@ class DealExposeController extends AccountBaseController
 
         $deal = $this->findDealWithPropertyScopes($dealId);
         $this->abortUnlessEditable();
+        abort_403($deal->isLocked());
 
         $validated = $request->validate([
             'source' => 'required|in:'.implode(',', DealExpose::SOURCES),
@@ -177,14 +178,14 @@ class DealExposeController extends AccountBaseController
             'source_label' => 'nullable|string|max:255',
             'amount' => 'nullable|numeric|min:0',
             'expose_snapshot_id' => 'nullable|integer',
-            'deal_file_id' => 'nullable|integer',
-            'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB,
+            'deal_file_id' => 'nullable|integer|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB.'|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             // Optional when the browser already uploaded via storage API (no CORS).
             // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
-            'download_url' => 'nullable|url:http,https',
-            'object_path' => 'nullable|string|max:512',
-            'uploaded_filename' => 'nullable|string|max:255',
-            'uploaded_size' => 'nullable|integer|min:0',
+            'download_url' => 'nullable|url:http,https|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'object_path' => 'nullable|string|max:512|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'uploaded_filename' => 'nullable|string|max:255|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'uploaded_size' => 'nullable|integer|min:0|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
         ]);
 
         if ($validated['source'] === DealExpose::SOURCE_LINKED) {
@@ -530,9 +531,7 @@ class DealExposeController extends AccountBaseController
         ));
 
         // A locked deal is frozen — matches Deal::isLocked() gating elsewhere
-        // (e.g. the Offers tab's "Remove all" button). Only reachable here on
-        // update/status/destroy; store() creating a brand-new expose against
-        // an already-locked deal is a separate, pre-existing gap left alone.
+        // (e.g. the Offers tab's "Remove all" button, and store()'s own check).
         abort_403((bool) $expose->deal?->isLocked());
     }
 

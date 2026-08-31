@@ -292,15 +292,16 @@ export default function useDealExposes(scope: Scope) {
             );
 
             try {
-                const { data } = await axios.patch<{ expose: DealExpose }>(
+                const { data } = await axios.patch<unknown>(
                     route("deal-exposes.status", id),
                     { status },
                     { headers: { Accept: "application/json" } },
                 );
                 if (statusRequestRef.current.get(id) !== requestId) return;
+                const updated = extractExposeFromStoreResponse(data);
                 setExposes((current) =>
                     current.map((expose) =>
-                        expose.id === id ? data.expose : expose,
+                        expose.id === id && updated ? updated : expose,
                     ),
                 );
             } catch {
@@ -436,14 +437,15 @@ export default function useDealExposes(scope: Scope) {
             );
 
             try {
-                const { data } = await axios.patch<{ expose: DealExpose }>(
+                const { data } = await axios.patch<unknown>(
                     route("deal-exposes.update", id),
                     patch,
                     { headers: { Accept: "application/json" } },
                 );
+                const updated = extractExposeFromStoreResponse(data);
                 setExposes((current) =>
                     current.map((expose) =>
-                        expose.id === id ? data.expose : expose,
+                        expose.id === id && updated ? updated : expose,
                     ),
                 );
             } catch (error) {
