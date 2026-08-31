@@ -1,5 +1,5 @@
 @php
-    $title = 'Timer Started';
+    $title = __('email.timerStarted.subject');
     $text = null;
     $linkRoute = 'timelogs.show';
     $linkParam = $notification->data['id'] ?? null;

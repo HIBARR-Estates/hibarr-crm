@@ -148,5 +148,11 @@ return [
     'dealCloseDateApproaching' => [
         'textNoDate' => 'Das Abschlussdatum für :dealName rückt näher. Prüfen Sie den Deal und aktualisieren Sie bei Bedarf den Zeitplan.',
     ],
+    'leads' => [
+        'imported' => '{0} :count Leads importiert|{1} :count Lead importiert|[2,*] :count Leads importiert',
+    ],
+    'timerStarted' => [
+        'subject' => 'Timer gestartet',
+    ],
 
 ];
