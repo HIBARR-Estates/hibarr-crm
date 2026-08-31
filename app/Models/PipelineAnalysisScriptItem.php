@@ -9,9 +9,9 @@ class PipelineAnalysisScriptItem extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['analysis_script_id', 'type', 'item_key', 'label_override', 'guide_text', 'position'];
+    protected $fillable = ['analysis_script_id', 'type', 'item_key', 'label_override', 'guide_text', 'is_required', 'position'];
 
-    protected $casts = ['position' => 'integer'];
+    protected $casts = ['position' => 'integer', 'is_required' => 'boolean'];
 
     public function script(): BelongsTo
     {

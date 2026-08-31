@@ -67,6 +67,40 @@ if (!function_exists('user')) {
 
 }
 
+if (!function_exists('online_user_ids')) {
+
+    /**
+     * Ids of users seen in the last 90 seconds, as a lookup map.
+     *
+     * The employee/client Blade presence dots are the only thing that needs
+     * this. They used to read it off a `session` relation that was globally
+     * eager-loaded on User, which cost an extra query on every user lookup in
+     * the app — and only selected `id`, so `last_activity` was never actually
+     * there and the dot could never light up. One memoized query serves every
+     * component on the page instead.
+     *
+     * @return array<int, int> user id => offset (use isset(), not in_array)
+     */
+    function online_user_ids(): array
+    {
+        $key = 'presence.online-user-ids';
+
+        if (!app()->bound($key)) {
+            app()->scoped($key, function () {
+                return \Illuminate\Support\Facades\DB::table('sessions')
+                    ->whereNotNull('user_id')
+                    ->where('last_activity', '>=', now()->subSeconds(90)->getTimestamp())
+                    ->pluck('user_id')
+                    ->flip()
+                    ->all();
+            });
+        }
+
+        return app()->make($key);
+    }
+
+}
+
 if (!function_exists('user_roles')) {
 
     /**

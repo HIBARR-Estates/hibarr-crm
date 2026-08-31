@@ -38,6 +38,7 @@ return [
         'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
+        'packages.online-payment'
     ],
 
     /*

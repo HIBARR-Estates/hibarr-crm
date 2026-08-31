@@ -1,3 +1,5 @@
+import type { FormDataType } from "@/Hooks/useFormData";
+
 export type AnalysisFieldType =
     | 'text'
     | 'date'
@@ -8,7 +10,8 @@ export type AnalysisFieldType =
     | 'country'
     | 'select'
     | 'radio'
-    | 'multiselect';
+    | 'multiselect'
+    | 'currency_range';
 
 export type AnalysisUpdateType = 'details' | 'hibarr_field' | 'contact';
 export type AnalysisFieldSource = 'deal' | 'hibarrFields' | 'contact';
@@ -18,20 +21,38 @@ export interface AnalysisFieldMeta {
     fieldType: AnalysisFieldType;
     updateType: AnalysisUpdateType;
     source: AnalysisFieldSource;
+    /** Choices for select/radio types, so stored values render as their label. */
+    options?: Array<{ value: string; label: string }>;
+    /**
+     * For FK columns: the /form-data endpoint the choices come from. Without it a
+     * `select` falls back to `options`, and an FK would be a free-text box writing
+     * arbitrary strings into an id column.
+     */
+    formDataType?: FormDataType;
 }
+
+export const GENDER_OPTIONS = [
+    { value: "male", label: "Male" },
+    { value: "female", label: "Female" },
+    { value: "other", label: "Other" },
+];
 
 export const ANALYSIS_FIELD_META: Record<string, AnalysisFieldMeta> = {
     // Native deal fields
     name:              { label: 'Deal Name',          fieldType: 'text',       updateType: 'details',      source: 'deal' },
     close_date:        { label: 'Close Date',          fieldType: 'date',       updateType: 'details',      source: 'deal' },
-    value:             { label: 'Deal Value',          fieldType: 'text',       updateType: 'details',      source: 'deal' },
-    category_id:       { label: 'Deal Category',       fieldType: 'text',       updateType: 'details',      source: 'deal' },
+    // Numeric: the server only writes manual_value when is_numeric() passes, so a
+    // text box would silently discard "250,000".
+    value:             { label: 'Deal Value',          fieldType: 'number',     updateType: 'details',      source: 'deal' },
+    // FK column — must be a picker, not free text (Deal Info uses the same source).
+    category_id:       { label: 'Deal Category',       fieldType: 'select',     updateType: 'details',      source: 'deal', formDataType: 'categories' },
 
     // Hibarr fields
     interested_in:            { label: 'Interested In',           fieldType: 'text',     updateType: 'hibarr_field', source: 'hibarrFields' },
     motivation:               { label: 'Motivation',              fieldType: 'textarea', updateType: 'hibarr_field', source: 'hibarrFields' },
     purchase_timeline:        { label: 'Purchase Timeline',       fieldType: 'text',     updateType: 'hibarr_field', source: 'hibarrFields' },
-    budget_range:             { label: 'Budget Range',            fieldType: 'text',     updateType: 'hibarr_field', source: 'hibarrFields' },
+    // Stored as JSON {min,max,currency} — same widget the Deal Info tab uses.
+    budget_range:             { label: 'Budget Range',            fieldType: 'currency_range', updateType: 'hibarr_field', source: 'hibarrFields' },
     inspection_trip_date:     { label: 'Inspection Trip Date',    fieldType: 'date',     updateType: 'hibarr_field', source: 'hibarrFields' },
     strategy_meeting_booked:  { label: 'Strategy Meeting Booked', fieldType: 'boolean',  updateType: 'hibarr_field', source: 'hibarrFields' },
     downpayment_paid:         { label: 'Downpayment Paid',        fieldType: 'boolean',  updateType: 'hibarr_field', source: 'hibarrFields' },
@@ -50,7 +71,7 @@ export const ANALYSIS_FIELD_META: Record<string, AnalysisFieldMeta> = {
     postal_code:   { label: 'Postal Code',   fieldType: 'text',       updateType: 'contact', source: 'contact' },
 
     // Promoted core contact fields — editable
-    gender:        { label: 'Gender',         fieldType: 'select',     updateType: 'contact', source: 'contact' },
+    gender:        { label: 'Gender',         fieldType: 'select',     updateType: 'contact', source: 'contact', options: GENDER_OPTIONS },
     date_of_birth: { label: 'Date of Birth',  fieldType: 'date',       updateType: 'contact', source: 'contact' },
     age:           { label: 'Age',            fieldType: 'number',     updateType: 'contact', source: 'contact' },
     nationality:   { label: 'Nationality',    fieldType: 'country',    updateType: 'contact', source: 'contact' },

@@ -36,6 +36,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\ProximityOfferPolicy::class,
         );
 
+        // Stateless resolver whose lookups repeat within a request (a deal page
+        // resolves pipeline scope from four call sites). Scoped so its per-request
+        // memos are shared, while still being rebuilt per request/test/queue job.
+        $this->app->scoped(\App\Services\PipelineScopeResolverService::class);
+
         $this->app->bind(
             \App\Contracts\AiSummaryInterface::class,
             \App\Services\AiSummary\HibarrAiSummaryService::class,

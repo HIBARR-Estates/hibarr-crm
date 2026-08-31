@@ -1,14 +1,5 @@
 @php
-    $active = false;
-
-    $session = $user->session ?? null;
-    if ($session) {
-        $lastSeen = \Carbon\Carbon::createFromTimestamp($session->last_activity)
-            ->timezone(company() ? company()->timezone : $user->company->timezone);
-
-        $lastSeenDifference = now()->diffInSeconds($lastSeen);
-        $active = ($lastSeenDifference > 0 && $lastSeenDifference <= 90);
-    }
+    $active = !is_null($user) && isset(online_user_ids()[$user->id]);
 @endphp
 
 

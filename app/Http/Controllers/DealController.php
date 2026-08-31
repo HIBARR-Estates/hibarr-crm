@@ -554,7 +554,12 @@ class DealController extends AccountBaseController
             },
             'leadFlightItineraries',
         ])->findOrFail($id);
-        $this->loadDataForView();
+
+        // No loadDataForView() here — same reason index() skips it. It populates
+        // $this->* for Blade's $this->data contract (Deal::all(), every lead, all
+        // watchers, agents, packages, pipelines), and this action returns an
+        // Inertia response that reads none of it: 18 queries for 15 properties
+        // referenced zero times.
 
         // Load custom fields data
         $deal = $deal->withCustomFields();
@@ -639,7 +644,7 @@ class DealController extends AccountBaseController
             'view_task_category' => user()->permission('view_task_category'),
         ];
 
-        $dealWithCustomFields = $deal->toArray();
+        $dealWithCustomFields = $deal->append('total_discount')->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
@@ -647,6 +652,8 @@ class DealController extends AccountBaseController
         $dealWithCustomFields['analysis_status'] = $deal->analysis_status ?? 'pending';
         $dealWithCustomFields['analysis_completed_at'] = $deal->analysis_completed_at?->toIso8601String();
         $dealWithCustomFields['analysis_completed_by'] = $deal->analysis_completed_by;
+        // Always an object/array, never absent: the analysis modal reads it on mount.
+        $dealWithCustomFields['analysis_unanswered'] = $deal->analysis_unanswered ?? [];
 
         // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
         $formData = $this->getDealShowShellFormData();
@@ -759,8 +766,13 @@ class DealController extends AccountBaseController
             ),
             'leadCustomFieldsData' => $leadCustomFieldsData,
             'leadCustomFields' => $leadCustomFields,
+            // Synchronous, not deferred: the analysis modal opens on mount, so the
+            // script is on the critical path. Deferring it meant first paint had no
+            // script and the modal rendered a custom-field-category fallback before
+            // snapping to the real sections. Two indexed queries (pipeline_id is
+            // unique) is a cheap price for never rendering the wrong structure.
             ...(\App\Support\FeatureFlags::enabled('crm.deal-analysis') ? [
-                'analysisScript' => Inertia::defer(function () use ($deal) {
+                'analysisScript' => (function () use ($deal) {
                     $script = \App\Models\PipelineAnalysisScript::with('items')
                         ->where('pipeline_id', $deal->lead_pipeline_id)
                         ->first();
@@ -775,10 +787,11 @@ class DealController extends AccountBaseController
                             'item_key' => $i->item_key,
                             'label_override' => $i->label_override,
                             'guide_text' => $i->guide_text,
+                            'is_required' => (bool) $i->is_required,
                             'position' => $i->position,
                         ]),
                     ];
-                }, 'formMeta'),
+                })(),
             ] : []),
         ]));
     }

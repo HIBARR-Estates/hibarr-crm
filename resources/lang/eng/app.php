@@ -538,6 +538,9 @@ return [
         'remindersDesc' => 'Manage reminder defaults sent for each entity.',
         'manage' => 'Manage',
         'comingSoon' => 'Coming soon',
+        'notificationsDesc' => 'Manage which channels each notification type is sent on.',
+        'connected' => 'Connected',
+        'notConnected' => 'Not connected',
     ],
     'automation' => [
         'overview' => 'Overview',

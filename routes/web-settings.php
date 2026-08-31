@@ -44,6 +44,7 @@ use App\Http\Controllers\ProfileSettingController;
 use App\Http\Controllers\ProjectSettingController;
 use App\Http\Controllers\PusherSettingsController;
 use App\Http\Controllers\PushNotificationController;
+use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
@@ -285,6 +286,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
     Route::put('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'upsert'])->name('pipeline.analysis-script.upsert');
     Route::get('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'show'])->name('pipeline.analysis-script.show');
+    Route::get('analysis-script-builder', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'builder'])->name('analysis-script-builder.show');
+    Route::get('pipeline-analysis-script/pipelines', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'pipelines'])->name('pipeline.analysis-script.pipelines');
+    Route::get('pipeline-analysis-script/palette-fields', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'paletteFields'])->name('pipeline.analysis-script.palette-fields');
+    Route::get('pipeline-analysis-script/{pipelineId}/categories', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'categories'])->name('pipeline.analysis-script.categories');
     Route::resource('lead-pipeline-setting', LeadPipelineSettingController::class);
 
     Route::resource('lead-agent-settings', LeadAgentSettingController::class);

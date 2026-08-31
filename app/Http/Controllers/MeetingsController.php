@@ -54,36 +54,27 @@ class MeetingsController extends AccountBaseController
         $weekStart = Carbon::now('UTC')->startOfWeek();
         $weekEnd = Carbon::now('UTC')->endOfWeek();
 
-        $upcomingCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('next_follow_up_date', '>=', $now)
-            ->count();
-
-        $thisWeekCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->whereBetween('next_follow_up_date', [$weekStart, $weekEnd])
-            ->count();
-
-        // Live = scheduled + currently within [start, start + duration]
-        $liveMeetings = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('status', 'scheduled')
-            ->where('next_follow_up_date', '<=', $now)
-            ->get(['id', 'next_follow_up_date', 'duration']);
-
-        $liveCount = $liveMeetings->filter(function ($m) use ($now) {
-            $duration = $m->getEffectiveDuration();
-            $end = $m->next_follow_up_date->copy()->addMinutes($duration);
-
-            return $now->lte($end);
-        })->count();
-
-        $completedCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
-            ->where('status', 'completed')
-            ->count();
+        // One pass with conditional sums instead of four trips over the same
+        // table. The live count used to pull every past-dated scheduled meeting
+        // into memory to filter in PHP — unbounded, and growing with history.
+        // The end-time expression matches the one the Upcoming/Past queries below use.
+        $counts = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
+            ->selectRaw(
+                'SUM(next_follow_up_date >= ?) as upcoming,'
+                . ' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
+                . " SUM(status = 'scheduled'"
+                . ' AND next_follow_up_date <= ?'
+                . ' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
+                . " SUM(status = 'completed') as completed",
+                [$now, $weekStart, $weekEnd, $now, DealFollowUp::DEFAULT_DURATION_MINUTES, $now]
+            )
+            ->first();
 
         $overviewStats = [
-            'upcoming' => $upcomingCount,
-            'this_week' => $thisWeekCount,
-            'live' => $liveCount,
-            'completed' => $completedCount,
+            'upcoming' => (int) ($counts->upcoming ?? 0),
+            'this_week' => (int) ($counts->this_week ?? 0),
+            'live' => (int) ($counts->live ?? 0),
+            'completed' => (int) ($counts->completed ?? 0),
         ];
 
         // ── Paginated sections ─────────────────────────────────────────
