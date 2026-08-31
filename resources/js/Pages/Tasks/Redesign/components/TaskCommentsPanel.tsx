@@ -6,7 +6,12 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import type { TaskCommentRecord } from "../hooks/useTaskComments";
 import type { TaskActivityRecord } from "../hooks/useTaskActivity";
-import { extractMentionIds } from "../lib/commentMarkup";
+import {
+    extractMentionIds,
+    insertMentionChip,
+    serializeMentionEditor,
+    textBeforeCaret,
+} from "../lib/commentMarkup";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import { buildTaskTimeline } from "../adapters/taskTimeline";
 import TaskCommentGroup from "./comments/TaskCommentGroup";
@@ -71,11 +76,8 @@ export default function TaskCommentsPanel({
     const [draft, setDraft] = useState("");
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const buttonMentionRef = useRef<{ at: number; length: number } | null>(
-        null,
-    );
 
     const scrolledRef = useRef(false);
     useEffect(() => {
@@ -100,13 +102,6 @@ export default function TaskCommentsPanel({
         });
     };
 
-    useEffect(() => {
-        const node = inputRef.current;
-        if (!node) return;
-        node.style.height = "auto";
-        node.style.height = `${Math.min(node.scrollHeight, MAX_INPUT_HEIGHT)}px`;
-    }, [draft]);
-
     const timeline = useMemo(
         () => buildTaskTimeline(comments, activity),
         [comments, activity],
@@ -129,8 +124,8 @@ export default function TaskCommentsPanel({
         return () => onMentionOpenChange?.(false);
     }, [mentionDropdownOpen, onMentionOpenChange]);
 
-    const syncMentionQuery = (value: string, caret: number) => {
-        const upToCaret = value.slice(0, caret);
+    /** `upToCaret` is already the text up to the caret — see `textBeforeCaret`. */
+    const syncMentionQuery = (upToCaret: string) => {
         const at = upToCaret.lastIndexOf("@");
         if (at === -1) {
             setMentionQuery(null);
@@ -145,37 +140,22 @@ export default function TaskCommentsPanel({
         setActiveIndex(0);
     };
 
-    const insertMention = (person: { id: number; name: string }) => {
-        const input = inputRef.current;
-        const caret = input?.selectionStart ?? draft.length;
-        const upToCaret = draft.slice(0, caret);
-        const at = upToCaret.lastIndexOf("@");
-        if (at === -1) return;
-
-        const marker = `@[${person.name}](${person.id}) `;
-        const next = draft.slice(0, at) + marker + draft.slice(caret);
-        setDraft(next);
-        setMentionQuery(null);
-        buttonMentionRef.current = null;
-
-        window.requestAnimationFrame(() => {
-            const position = at + marker.length;
-            input?.focus();
-            input?.setSelectionRange(position, position);
-        });
+    /** Re-reads the composer's DOM after a change it didn't dispatch its own input event for. */
+    const syncDraftFromDom = () => {
+        const root = editorRef.current;
+        if (!root) return;
+        setDraft(serializeMentionEditor(root));
     };
 
-    const closeMentionDropdown = () => {
-        const pending = buttonMentionRef.current;
-        if (pending && mentionQuery === "" && draft.length === pending.length) {
-            setDraft((prev) =>
-                prev.length === pending.length
-                    ? prev.slice(0, pending.at) + prev.slice(pending.at + 1)
-                    : prev,
-            );
-        }
-        buttonMentionRef.current = null;
+    const insertMention = (person: { id: number; name: string }) => {
+        const root = editorRef.current;
+        const selection = window.getSelection();
+        if (!root || !selection || selection.rangeCount === 0) return;
+        const inserted = insertMentionChip(selection.getRangeAt(0), person);
+        if (!inserted) return;
         setMentionQuery(null);
+        syncDraftFromDom();
+        root.focus();
     };
 
     const submit = async () => {
@@ -184,6 +164,7 @@ export default function TaskCommentsPanel({
         const ok = await onSubmit(value, extractMentionIds(value));
         if (ok) {
             setDraft("");
+            if (editorRef.current) editorRef.current.innerHTML = "";
             window.requestAnimationFrame(() => {
                 const node = scrollRef.current;
                 if (node) node.scrollTop = node.scrollHeight;
@@ -191,18 +172,14 @@ export default function TaskCommentsPanel({
         }
     };
 
+    /** Inserts a literal "@" to open the mention picker without typing it. */
     const handleInsertAtSymbol = () => {
-        const input = inputRef.current;
-        const caret = input?.selectionStart ?? draft.length;
-        const next = draft.slice(0, caret) + "@" + draft.slice(caret);
-        buttonMentionRef.current = { at: caret, length: next.length };
-        setDraft(next);
-        window.requestAnimationFrame(() => {
-            const position = caret + 1;
-            input?.focus();
-            input?.setSelectionRange(position, position);
-            syncMentionQuery(next, position);
-        });
+        const root = editorRef.current;
+        if (!root) return;
+        root.focus();
+        document.execCommand("insertText", false, "@");
+        syncDraftFromDom();
+        syncMentionQuery(textBeforeCaret(root));
     };
 
     const canDeleteComment = (comment: TaskCommentRecord) =>
@@ -226,7 +203,7 @@ export default function TaskCommentsPanel({
                 }}
             >
                 <div className="flex items-center gap-2">
-                    <span style={DETAIL_LABEL}>{td("Comments")}</span>
+                    <span style={DETAIL_LABEL}>{td("Activities")}</span>
                     <span
                         style={{
                             fontSize: 14,
@@ -362,19 +339,22 @@ export default function TaskCommentsPanel({
                     )}
 
                     <div className="flex flex-col gap-2">
-                        <textarea
-                            ref={inputRef}
-                            className="tasks-bare-input"
-                            rows={1}
-                            value={draft}
-                            disabled={posting}
-                            placeholder={td("Reply or @ mention someone")}
-                            onChange={(event) => {
-                                setDraft(event.target.value);
-                                syncMentionQuery(
-                                    event.target.value,
-                                    event.target.selectionStart ?? 0,
-                                );
+                        <div
+                            ref={editorRef}
+                            className="tasks-comment-editor"
+                            contentEditable={!posting}
+                            suppressContentEditableWarning
+                            role="textbox"
+                            aria-multiline="true"
+                            aria-label={td("Reply or @ mention someone")}
+                            data-placeholder={td(
+                                "Reply or @ mention someone",
+                            )}
+                            onInput={() => {
+                                const root = editorRef.current;
+                                if (!root) return;
+                                setDraft(serializeMentionEditor(root));
+                                syncMentionQuery(textBeforeCaret(root));
                             }}
                             onKeyDown={(event) => {
                                 if (
@@ -406,32 +386,39 @@ export default function TaskCommentsPanel({
                                     }
                                     if (event.key === "Escape") {
                                         event.stopPropagation();
-                                        closeMentionDropdown();
+                                        setMentionQuery(null);
                                         return;
                                     }
                                 }
-                                if (event.key === "Enter" && !event.shiftKey) {
+                                if (event.key === "Enter" && event.shiftKey) {
+                                    event.preventDefault();
+                                    document.execCommand("insertLineBreak");
+                                    syncDraftFromDom();
+                                    return;
+                                }
+                                if (event.key === "Enter") {
                                     event.preventDefault();
                                     void submit();
                                 }
                             }}
                             onBlur={() => {
                                 if (mentionQuery !== null) {
-                                    closeMentionDropdown();
+                                    setMentionQuery(null);
                                 }
                             }}
                             style={{
                                 width: "100%",
+                                minHeight: 22,
                                 maxHeight: MAX_INPUT_HEIGHT,
-                                border: "none",
-                                outline: "none",
-                                resize: "none",
                                 overflowY: "auto",
                                 fontSize: 15,
                                 lineHeight: 1.5,
                                 color: T.TEXT,
                                 background: "transparent",
                                 fontFamily: "inherit",
+                                outline: "none",
+                                overflowWrap: "anywhere",
+                                whiteSpace: "pre-wrap",
                             }}
                         />
                         <div className="flex items-center justify-between">
