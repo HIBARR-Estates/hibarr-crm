@@ -86,7 +86,7 @@ class DealPaymentController extends AccountBaseController
 
     private function assertFeatureEnabled(): void
     {
-        abort_404(!FeatureFlags::enabled('packages.online-payment'));
+        abort_unless(FeatureFlags::enabled('packages.online-payment'), 404);
     }
 
     private function assertCanViewDeal(Deal $deal): void
