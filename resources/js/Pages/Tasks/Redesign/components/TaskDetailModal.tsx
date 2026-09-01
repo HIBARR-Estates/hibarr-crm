@@ -17,6 +17,7 @@ import TaskDetailAttachments from "./detail/TaskDetailAttachments";
 import TaskDetailChecklist from "./detail/TaskDetailChecklist";
 import TaskDetailFooter from "./detail/TaskDetailFooter";
 import { DETAIL_LABEL } from "./primitives/taskUiStyles";
+import "../tasks-redesign.css";
 
 interface PersonOption {
     id: number;

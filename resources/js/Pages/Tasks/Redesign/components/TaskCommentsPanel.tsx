@@ -241,7 +241,7 @@ export default function TaskCommentsPanel({
             >
                 {loading && (
                     <p style={{ fontSize: 15, color: T.TEXT_HINT }}>
-                        {td("Loading comments…")}
+                        {td("Loading activities and comments…")}
                     </p>
                 )}
 
