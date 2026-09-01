@@ -5,6 +5,7 @@ import type { Task } from "@/Types/Task";
 import { toTaskViewModel } from "../../adapters/taskViewModel";
 import {
     asCommentDeleteScope,
+    canChangeStatus,
     canCommentOnTask,
     canEditTask,
     type TaskPermissionSet,
@@ -27,7 +28,7 @@ interface TaskRedesignDetailModalProps {
     toggling?: boolean;
     /**
      * Extra write gate from the host (e.g. deal watcher-only). Combined with
-     * canEditTask — omit to keep embed behavior unchanged.
+     * canEditTask / canChangeStatus — omit to keep embed behavior unchanged.
      */
     canWrite?: boolean;
     onClose: () => void;
@@ -87,8 +88,12 @@ export default function TaskRedesignDetailModal({
         [task, completedSlugs],
     );
 
-    const canWrite = task
+    const canEdit = task
         ? hostCanWrite && canEditTask(task, resolvedPermissions, currentUser.id)
+        : false;
+    const canWrite = task
+        ? hostCanWrite &&
+          canChangeStatus(task, resolvedPermissions, currentUser.id)
         : false;
     const canComment = task
         ? canCommentOnTask(task, resolvedPermissions, currentUser.id)
@@ -99,7 +104,7 @@ export default function TaskRedesignDetailModal({
             vm={vm}
             onClose={onClose}
             onEdit={() => {
-                if (!canWrite) return;
+                if (!canEdit) return;
                 onEdit();
             }}
             onToggleDone={() => {
@@ -107,7 +112,8 @@ export default function TaskRedesignDetailModal({
                 onToggleDone();
             }}
             canWrite={canWrite}
-            canManageChecklist={canWrite}
+            canEdit={canEdit}
+            canManageChecklist={canEdit}
             canComment={canComment}
             toggling={toggling}
             people={people}

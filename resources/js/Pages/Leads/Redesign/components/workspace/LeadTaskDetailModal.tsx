@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { usePage } from "@inertiajs/react";
+import { Deferred, usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     isCompletedColumn,
@@ -70,7 +70,7 @@ export default function LeadTaskDetailModal({
     const userId = props.auth?.user?.id;
     const [deleteOpen, setDeleteOpen] = useState(false);
     const { setStatus, isPending } = useLeadTaskStatus();
-    const { setTasks } = useLeadWorkspace();
+    const { lead, setTasks } = useLeadWorkspace();
     const { updateTask, isUpdating, errors, clearErrors } = useLeadTaskUpdate(
         task ?? ({ id: 0 } as Task),
     );
@@ -86,7 +86,6 @@ export default function LeadTaskDetailModal({
         permissions?: Record<string, string>;
     };
     const employees = pageProps.employees ?? [];
-    const taskCategories = pageProps.taskCategories ?? [];
     const permissionSet = (permissions ??
         pageProps.taskPermissions ??
         pageProps.permissions) as TaskPermissionSet | undefined;
@@ -162,54 +161,63 @@ export default function LeadTaskDetailModal({
                         if (target) setStatus(task.id, target.slug);
                     }}
                 />
-                <TaskRedesignFormModal
-                    open={editing && task !== null}
-                    mode="edit"
-                    editingTask={task as unknown as RedesignedTask | null}
-                    columns={taskBoardColumns}
-                    categories={taskCategories}
-                    users={people}
-                    saving={isUpdatingRedesignedTask}
-                    errors={updateRedesignedTaskErrors}
-                    onClose={() => {
-                        setEditing(false);
-                        clearUpdateRedesignedErrors();
-                    }}
-                    onSubmit={(values: TaskFormValues) => {
-                        if (!task) return;
-                        updateRedesignedTask(
-                            task.id,
+                <Deferred data="taskCategories" fallback={null}>
+                    <TaskRedesignFormModal
+                        open={editing && task !== null}
+                        mode="edit"
+                        editingTask={task as unknown as RedesignedTask | null}
+                        columns={taskBoardColumns}
+                        categories={pageProps.taskCategories ?? []}
+                        users={people}
+                        lockedLinks={[
                             {
-                                title: values.title,
-                                startDate: values.startDate,
-                                dueDate: values.dueDate,
-                                dueTime: values.dueTime,
-                                priority: values.priority,
-                                description: values.description,
-                                assignees: values.assignees,
-                                categoryId: values.categoryId,
-                                boardColumnId:
-                                    values.boardColumnId ?? undefined,
-                                links: formLinksPayload(values),
+                                type: "lead",
+                                id: lead.id,
+                                name: lead.client_name || "Lead",
                             },
-                            afterUpdateTaskFormSubmit(
+                        ]}
+                        saving={isUpdatingRedesignedTask}
+                        errors={updateRedesignedTaskErrors}
+                        onClose={() => {
+                            setEditing(false);
+                            clearUpdateRedesignedErrors();
+                        }}
+                        onSubmit={(values: TaskFormValues) => {
+                            if (!task) return;
+                            updateRedesignedTask(
                                 task.id,
-                                values,
-                                persistExtras,
-                                () => setEditing(false),
-                                (result) => {
-                                    setRedesignedTasks((prev) =>
-                                        patchTaskListExtrasCounts(
-                                            prev,
-                                            task.id,
-                                            result,
-                                        ),
-                                    );
+                                {
+                                    title: values.title,
+                                    startDate: values.startDate,
+                                    dueDate: values.dueDate,
+                                    dueTime: values.dueTime,
+                                    priority: values.priority,
+                                    description: values.description,
+                                    assignees: values.assignees,
+                                    categoryId: values.categoryId,
+                                    boardColumnId:
+                                        values.boardColumnId ?? undefined,
+                                    links: formLinksPayload(values),
                                 },
-                            ),
-                        );
-                    }}
-                />
+                                afterUpdateTaskFormSubmit(
+                                    task.id,
+                                    values,
+                                    persistExtras,
+                                    () => setEditing(false),
+                                    (result) => {
+                                        setRedesignedTasks((prev) =>
+                                            patchTaskListExtrasCounts(
+                                                prev,
+                                                task.id,
+                                                result,
+                                            ),
+                                        );
+                                    },
+                                ),
+                            );
+                        }}
+                    />
+                </Deferred>
             </>
         );
     }

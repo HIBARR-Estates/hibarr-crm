@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { usePage } from "@inertiajs/react";
+import { Deferred, usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import {
@@ -51,6 +52,7 @@ export default function DealTaskDetailModal({
     onClose,
 }: DealTaskDetailModalProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -67,9 +69,6 @@ export default function DealTaskDetailModal({
     const [editing, setEditing] = useState(false);
     const employees =
         (props as { employees?: EmployeeRecord[] }).employees ?? [];
-    const taskCategories =
-        (props as { taskCategories?: TaskCategoryOption[] }).taskCategories ??
-        [];
     const permissions = props.permissions as TaskPermissionSet | undefined;
     const setRedesignedTasks = (
         updater: (prev: RedesignedTask[]) => RedesignedTask[],
@@ -147,54 +146,67 @@ export default function DealTaskDetailModal({
                         if (target) setStatus(task.id, target.slug);
                     }}
                 />
-                <TaskRedesignFormModal
-                    open={Boolean(canWriteTask) && editing && task !== null}
-                    mode="edit"
-                    editingTask={task as unknown as RedesignedTask | null}
-                    columns={taskBoardColumns}
-                    categories={taskCategories}
-                    users={people}
-                    saving={isUpdatingRedesignedTask}
-                    errors={updateRedesignedTaskErrors}
-                    onClose={() => {
-                        setEditing(false);
-                        clearUpdateRedesignedErrors();
-                    }}
-                    onSubmit={(values: TaskFormValues) => {
-                        if (!canWriteTask || !task) return;
-                        updateRedesignedTask(
-                            task.id,
+                <Deferred data="taskCategories" fallback={null}>
+                    <TaskRedesignFormModal
+                        open={Boolean(canWriteTask) && editing && task !== null}
+                        mode="edit"
+                        editingTask={task as unknown as RedesignedTask | null}
+                        columns={taskBoardColumns}
+                        categories={
+                            (props.taskCategories as unknown as
+                                | TaskCategoryOption[]
+                                | undefined) ?? []
+                        }
+                        users={people}
+                        lockedLinks={[
                             {
-                                title: values.title,
-                                startDate: values.startDate,
-                                dueDate: values.dueDate,
-                                dueTime: values.dueTime,
-                                priority: values.priority,
-                                description: values.description,
-                                assignees: values.assignees,
-                                categoryId: values.categoryId,
-                                boardColumnId:
-                                    values.boardColumnId ?? undefined,
-                                links: formLinksPayload(values),
+                                type: "deal",
+                                id: deal.id,
+                                name: deal.name || td("Deal", { source: "en" }),
                             },
-                            afterUpdateTaskFormSubmit(
+                        ]}
+                        saving={isUpdatingRedesignedTask}
+                        errors={updateRedesignedTaskErrors}
+                        onClose={() => {
+                            setEditing(false);
+                            clearUpdateRedesignedErrors();
+                        }}
+                        onSubmit={(values: TaskFormValues) => {
+                            if (!canWriteTask || !task) return;
+                            updateRedesignedTask(
                                 task.id,
-                                values,
-                                persistExtras,
-                                () => setEditing(false),
-                                (result) => {
-                                    setRedesignedTasks((prev) =>
-                                        patchTaskListExtrasCounts(
-                                            prev,
-                                            task.id,
-                                            result,
-                                        ),
-                                    );
+                                {
+                                    title: values.title,
+                                    startDate: values.startDate,
+                                    dueDate: values.dueDate,
+                                    dueTime: values.dueTime,
+                                    priority: values.priority,
+                                    description: values.description,
+                                    assignees: values.assignees,
+                                    categoryId: values.categoryId,
+                                    boardColumnId:
+                                        values.boardColumnId ?? undefined,
+                                    links: formLinksPayload(values),
                                 },
-                            ),
-                        );
-                    }}
-                />
+                                afterUpdateTaskFormSubmit(
+                                    task.id,
+                                    values,
+                                    persistExtras,
+                                    () => setEditing(false),
+                                    (result) => {
+                                        setRedesignedTasks((prev) =>
+                                            patchTaskListExtrasCounts(
+                                                prev,
+                                                task.id,
+                                                result,
+                                            ),
+                                        );
+                                    },
+                                ),
+                            );
+                        }}
+                    />
+                </Deferred>
             </>
         );
     }
