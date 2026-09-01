@@ -25,6 +25,11 @@ interface TaskRedesignDetailModalProps {
     currentUser: { id: number; name: string; image?: string | null };
     people: PersonOption[];
     toggling?: boolean;
+    /**
+     * Extra write gate from the host (e.g. deal watcher-only). Combined with
+     * canEditTask — omit to keep embed behavior unchanged.
+     */
+    canWrite?: boolean;
     onClose: () => void;
     onEdit: () => void;
     onToggleDone: () => void;
@@ -51,6 +56,7 @@ export default function TaskRedesignDetailModal({
     currentUser,
     people,
     toggling = false,
+    canWrite: hostCanWrite = true,
     onClose,
     onEdit,
     onToggleDone,
@@ -82,7 +88,7 @@ export default function TaskRedesignDetailModal({
     );
 
     const canWrite = task
-        ? canEditTask(task, resolvedPermissions, currentUser.id)
+        ? hostCanWrite && canEditTask(task, resolvedPermissions, currentUser.id)
         : false;
     const canComment = task
         ? canCommentOnTask(task, resolvedPermissions, currentUser.id)
@@ -92,8 +98,14 @@ export default function TaskRedesignDetailModal({
         <TaskDetailModal
             vm={vm}
             onClose={onClose}
-            onEdit={onEdit}
-            onToggleDone={onToggleDone}
+            onEdit={() => {
+                if (!canWrite) return;
+                onEdit();
+            }}
+            onToggleDone={() => {
+                if (!canWrite) return;
+                onToggleDone();
+            }}
             canWrite={canWrite}
             canManageChecklist={canWrite}
             canComment={canComment}

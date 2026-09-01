@@ -122,10 +122,14 @@ export default function DealTaskDetailModal({
                     }}
                     people={people}
                     toggling={task ? isStatusPending(task.id) : false}
+                    canWrite={Boolean(canWriteTask)}
                     onClose={handleClose}
-                    onEdit={() => setEditing(true)}
+                    onEdit={() => {
+                        if (!canWriteTask) return;
+                        setEditing(true);
+                    }}
                     onToggleDone={() => {
-                        if (!task) return;
+                        if (!canWriteTask || !task) return;
                         const status =
                             task.board_column?.slug || task.status || "to_do";
                         const done =
@@ -144,7 +148,7 @@ export default function DealTaskDetailModal({
                     }}
                 />
                 <TaskRedesignFormModal
-                    open={editing && task !== null}
+                    open={Boolean(canWriteTask) && editing && task !== null}
                     mode="edit"
                     editingTask={task as unknown as RedesignedTask | null}
                     columns={taskBoardColumns}
@@ -157,7 +161,7 @@ export default function DealTaskDetailModal({
                         clearUpdateRedesignedErrors();
                     }}
                     onSubmit={(values: TaskFormValues) => {
-                        if (!task) return;
+                        if (!canWriteTask || !task) return;
                         updateRedesignedTask(
                             task.id,
                             {
