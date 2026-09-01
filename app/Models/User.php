@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Salutation;
 use App\Notifications\ResetPassword;
 use App\Scopes\ActiveScope;
+use App\Scopes\CompanyScope;
 use App\Traits\HasMaskImage;
 use App\Traits\HasCompany;
 use Illuminate\Auth\Authenticatable;
@@ -892,11 +893,26 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
 
     public static function allAdmins($companyId = null)
     {
-        $users = User::withOut('clientDetails')->withRole('admin');
+        // CompanyObserver::roles() creates the `admin` role when a company is
+        // provisioned. That role is the default app administrator and is not
+        // removable from role settings.
+        $companyId = $companyId ? (int) $companyId : null;
 
-        if (!is_null($companyId)) {
-            return $users->where('users.company_id', $companyId)->get();
-        }
+        $users = User::withOut('clientDetails')
+            ->when(
+                $companyId !== null,
+                fn (Builder $query) => $query
+                    ->withoutGlobalScope(CompanyScope::class)
+                    ->where('users.company_id', $companyId),
+            )
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('role_user')
+                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                    ->whereColumn('role_user.user_id', 'users.id')
+                    ->whereColumn('roles.company_id', 'users.company_id')
+                    ->where('roles.name', 'admin');
+            });
 
         return $users->get();
     }

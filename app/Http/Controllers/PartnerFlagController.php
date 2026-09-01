@@ -6,7 +6,6 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\PartnerFlag;
 use App\Models\User;
-use App\Models\UserPermission;
 use App\Notifications\PartnerFlagRaised;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -92,26 +91,15 @@ class PartnerFlagController extends AccountBaseController
     }
 
     /**
-     * Notify everyone who holds the permission.
-     *
-     * Flags are assigned to nobody on purpose: a routing rule with one
-     * maintainer is a routing rule that rots. Falls back to admins so a flag
-     * is never raised into silence.
+     * Notify company admins. Permission-scoped managers are disabled until
+     * that routing is reviewed (TODO below).
      */
     private function notifyManagers(PartnerFlag $flag): void
     {
-        $permissionId = \App\Models\Permission::where('name', 'manage_partner_flags')->value('id');
-
-        $managers = $permissionId
-            ? User::whereIn('id', UserPermission::where('permission_id', $permissionId)
-                ->where('permission_type_id', \App\Models\PermissionType::ALL)
-                ->pluck('user_id'))->get()
-            : collect();
-
-        if ($managers->isEmpty()) {
-            $managers = collect(User::allAdmins());
-        }
-
-        Notification::send($managers, new PartnerFlagRaised($flag));
+        // TODO: also notify users with manage_partner_flags = all.
+        Notification::send(
+            User::allAdmins((int) $flag->company_id),
+            new PartnerFlagRaised($flag),
+        );
     }
 }
