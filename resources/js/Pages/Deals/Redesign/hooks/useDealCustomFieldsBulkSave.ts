@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import axios, { AxiosResponse } from "axios";
+import { ApiResponse } from "@/lib/api/types";
+import type { Deal } from "@/Types/api/deals";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface CustomFieldsBulkPayload {
@@ -27,10 +29,10 @@ export default function useDealCustomFieldsBulkSave(dealId: number) {
         async (
             payload: CustomFieldsBulkPayload,
             options?: { lean?: boolean },
-        ): Promise<AxiosResponse> => {
+        ): Promise<AxiosResponse<ApiResponse<Deal>>> => {
             setSaving(true);
             try {
-                const response = await axios.patch(
+                const response = await axios.patch<ApiResponse<Deal>>(
                     route("deals.gathering.custom_fields_bulk", { id: dealId }),
                     payload,
                     {

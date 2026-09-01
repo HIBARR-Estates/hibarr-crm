@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
@@ -46,6 +46,7 @@ export default function useCustomFieldMutations({ setFields }: Options) {
     const { td } = useTd();
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const reorderRequestRef = useRef(0);
 
     const createField = useCallback(
         async (draft: FieldDraft): Promise<SettingsField | null> => {
@@ -128,6 +129,11 @@ export default function useCustomFieldMutations({ setFields }: Options) {
     /** Persists a new field order within one module (matches sortFields' 1..N-by-id-list contract). */
     const reorderFields = useCallback(
         async (orderedIds: number[]) => {
+            // Versioned so a slow/failed request can't roll back a newer drag
+            // that already landed — only the still-latest request's failure
+            // may restore its snapshot.
+            const requestId = ++reorderRequestRef.current;
+
             // Optimistic: apply locally first so drag feels instant, then persist.
             // Snapshot `prev` at the moment of this call so a failure rolls back to
             // exactly what preceded this request, not whatever state exists later.
@@ -153,11 +159,11 @@ export default function useCustomFieldMutations({ setFields }: Options) {
                 if (res.data?.status === "success") {
                     message.success(td("Field order updated", { source: "en" }));
                 } else {
-                    setFields(snapshot);
+                    if (reorderRequestRef.current === requestId) setFields(snapshot);
                     message.error(res.data?.message || t("messages.somethingWentWrong"));
                 }
             } catch (error: any) {
-                setFields(snapshot);
+                if (reorderRequestRef.current === requestId) setFields(snapshot);
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
             }
         },

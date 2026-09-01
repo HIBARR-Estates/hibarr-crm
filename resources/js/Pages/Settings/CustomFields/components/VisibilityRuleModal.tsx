@@ -82,16 +82,17 @@ export default function VisibilityRuleModal({ open, availableFields, initialFiel
                 { rule_set: payload },
                 { headers: { Accept: "application/json" } },
             );
-            if (res.data?.rule_set) {
-                onSaved(fieldId, res.data.rule_set as ShowRuleSet);
-                onClose();
-            } else {
-                const failMessage = res.data?.message || t("messages.somethingWentWrong");
-                message.error(failMessage);
-                throw new Error(failMessage);
+            if (!res.data?.rule_set) {
+                throw new Error(res.data?.message || t("messages.somethingWentWrong"));
             }
+            onSaved(fieldId, res.data.rule_set as ShowRuleSet);
+            onClose();
         } catch (error: any) {
-            message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
+            // Single place this error is surfaced to the user — see the
+            // matching note in CustomFieldRuleBuilder's catch, which
+            // deliberately doesn't show a second, generic toast on top.
+            message.error(error?.response?.data?.message || error?.message || t("messages.somethingWentWrong"));
+            throw error;
         } finally {
             setSaving(false);
         }

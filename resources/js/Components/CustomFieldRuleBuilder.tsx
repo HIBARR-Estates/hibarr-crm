@@ -89,7 +89,8 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                 // Validation errors
                 return;
             }
-            message.error('Failed to save visibility rules');
+            // onSave (VisibilityRuleModal's handleSave) already shows the
+            // specific error message — don't stack a second, generic one.
             console.error('Save error:', error);
         } finally {
             setSaving(false);
