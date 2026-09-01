@@ -29,22 +29,28 @@ class MeetingAttendanceConfirmationSettingsApiController extends AccountBaseCont
     {
         return Inertia::render('Settings/MeetingAttendanceConfirmationSettings', [
             'pageTitle' => __('app.menu.meetings'),
+            'settings' => Inertia::defer(fn () => $this->settingsData()),
         ]);
     }
 
     public function index()
     {
-        $company = \company();
-
         return response()->json([
             'status' => 'success',
-            'data' => [
-                'delay_minutes' => $company->meeting_attendance_confirmation_delay_minutes,
-                'snooze_minutes' => $company->meeting_attendance_confirmation_snooze_minutes,
-                'default_delay_minutes' => (int) config('meetings.attendance_confirmation_delay_minutes', 5),
-                'default_snooze_minutes' => (int) config('meetings.attendance_confirmation_snooze_minutes', 60),
-            ],
+            'data' => $this->settingsData(),
         ]);
+    }
+
+    private function settingsData(): array
+    {
+        $company = \company();
+
+        return [
+            'delay_minutes' => $company->meeting_attendance_confirmation_delay_minutes,
+            'snooze_minutes' => $company->meeting_attendance_confirmation_snooze_minutes,
+            'default_delay_minutes' => (int) config('meetings.attendance_confirmation_delay_minutes', 5),
+            'default_snooze_minutes' => (int) config('meetings.attendance_confirmation_snooze_minutes', 60),
+        ];
     }
 
     public function update(Request $request)

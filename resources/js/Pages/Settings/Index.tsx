@@ -40,6 +40,9 @@ export default function SettingsIndex({
     const canManageNotifications = isPermissionAll(
         permissions.manage_notification_setting,
     );
+    const canManageCompanySettings = isPermissionAll(
+        permissions.manage_company_setting,
+    );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
     const pageProps = usePage().props as {
         featureFlags?: Record<string, boolean>;
@@ -82,19 +85,25 @@ export default function SettingsIndex({
             connected: true,
             onOpen: () => router.visit(route("analysis-script-builder.show")),
         },
-        {
-            key: "meetings",
-            icon: <CalendarIcon />,
-            iconBg: "bg-amber-50",
-            iconColor: "text-amber-500",
-            title: t("app.menu.meetings"),
-            description: t("app.settingsHub.meetingsDesc"),
-            connected: true,
-            onOpen: () =>
-                router.visit(
-                    route("meeting-attendance-confirmation-settings.index"),
-                ),
-        },
+        ...(canManageCompanySettings
+            ? [
+                  {
+                      key: "meetings",
+                      icon: <CalendarIcon />,
+                      iconBg: "bg-amber-50",
+                      iconColor: "text-amber-500",
+                      title: t("app.menu.meetings"),
+                      description: t("app.settingsHub.meetingsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(
+                              route(
+                                  "meeting-attendance-confirmation-settings.index",
+                              ),
+                          ),
+                  },
+              ]
+            : []),
         {
             key: "tasks",
             icon: <CheckSquareIcon />,

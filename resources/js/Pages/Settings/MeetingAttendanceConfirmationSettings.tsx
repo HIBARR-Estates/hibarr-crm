@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Deferred, usePage } from "@inertiajs/react";
 import {
     Card,
     InputNumber,
@@ -13,8 +14,6 @@ import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -25,11 +24,6 @@ interface SettingsData {
     default_snooze_minutes: number;
 }
 
-interface SettingsResponse {
-    status: string;
-    data: SettingsData;
-}
-
 export default function MeetingAttendanceConfirmationSettings({
     pageTitle,
 }: {
@@ -37,21 +31,12 @@ export default function MeetingAttendanceConfirmationSettings({
 }) {
     const { t } = useTranslation();
     const { message } = App.useApp();
-    const queryClient = useQueryClient();
+    const pageProps = usePage().props as { settings?: SettingsData };
+    const settings = pageProps.settings;
 
     const [delayMinutes, setDelayMinutes] = useState<number | null>(null);
     const [snoozeMinutes, setSnoozeMinutes] = useState<number | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
-
-    const { data, isLoading } = useQuery<SettingsData>({
-        queryKey: ["meeting-attendance-confirmation-settings"],
-        queryFn: async () => {
-            const response = await axios.get<SettingsResponse>(
-                route("meeting-attendance-confirmation-settings.data"),
-            );
-            return response.data.data;
-        },
-    });
 
     const updateMutation = useApiMutate<any, any, any>(
         route("meeting-attendance-confirmation-settings.update"),
@@ -59,12 +44,12 @@ export default function MeetingAttendanceConfirmationSettings({
     );
 
     useEffect(() => {
-        if (data) {
-            setDelayMinutes(data.delay_minutes);
-            setSnoozeMinutes(data.snooze_minutes);
+        if (settings) {
+            setDelayMinutes(settings.delay_minutes);
+            setSnoozeMinutes(settings.snooze_minutes);
             setHasChanges(false);
         }
-    }, [data]);
+    }, [settings]);
 
     const handleSave = () => {
         updateMutation.mutate(
@@ -73,6 +58,7 @@ export default function MeetingAttendanceConfirmationSettings({
                 snooze_minutes: snoozeMinutes,
             },
             {
+                suppressSuccessToast: true,
                 onSuccess: (response: any) => {
                     if (response?.status === "success") {
                         message.success(
@@ -81,11 +67,6 @@ export default function MeetingAttendanceConfirmationSettings({
                             ),
                         );
                         setHasChanges(false);
-                        queryClient.invalidateQueries({
-                            queryKey: [
-                                "meeting-attendance-confirmation-settings",
-                            ],
-                        });
                     }
                 },
                 onError: (error: any) => {
@@ -142,9 +123,10 @@ export default function MeetingAttendanceConfirmationSettings({
                         </div>
                     }
                 >
-                    {isLoading ? (
-                        <Skeleton active paragraph={{ rows: 3 }} />
-                    ) : (
+                    <Deferred
+                        data="settings"
+                        fallback={<Skeleton active paragraph={{ rows: 3 }} />}
+                    >
                         <>
                             <div className="mb-5">
                                 <Text strong>
@@ -165,7 +147,7 @@ export default function MeetingAttendanceConfirmationSettings({
                                     max={1440}
                                     value={delayMinutes}
                                     placeholder={String(
-                                        data?.default_delay_minutes ?? 5,
+                                        settings?.default_delay_minutes ?? 5,
                                     )}
                                     onChange={(value) => {
                                         setDelayMinutes(value ?? null);
@@ -197,7 +179,7 @@ export default function MeetingAttendanceConfirmationSettings({
                                     max={1440}
                                     value={snoozeMinutes}
                                     placeholder={String(
-                                        data?.default_snooze_minutes ?? 60,
+                                        settings?.default_snooze_minutes ?? 60,
                                     )}
                                     onChange={(value) => {
                                         setSnoozeMinutes(value ?? null);
@@ -231,7 +213,7 @@ export default function MeetingAttendanceConfirmationSettings({
                                 </Space>
                             </div>
                         </>
-                    )}
+                    </Deferred>
                 </Card>
             </div>
         </PageLayout>
