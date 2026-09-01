@@ -80,6 +80,7 @@ export default function WorkspaceExposesTab({
                     open
                     source={addSource}
                     dealId={deal.id}
+                    currencySymbol={deal.currency?.currency_symbol || "£"}
                     saving={saving}
                     isUploadingFile={isUploadingFile}
                     uploadProgress={uploadProgress}

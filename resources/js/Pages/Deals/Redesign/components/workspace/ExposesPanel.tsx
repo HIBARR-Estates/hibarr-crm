@@ -557,12 +557,24 @@ export default function ExposesPanel({
                                                 <button
                                                     type="button"
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
-                                                    title={t(
-                                                        "pages.deals.workspace.files.download",
-                                                    )}
-                                                    aria-label={t(
-                                                        "pages.deals.workspace.files.download",
-                                                    )}
+                                                    title={
+                                                        linked
+                                                            ? td("Open expose", {
+                                                                  source: "en",
+                                                              })
+                                                            : t(
+                                                                  "pages.deals.workspace.files.download",
+                                                              )
+                                                    }
+                                                    aria-label={
+                                                        linked
+                                                            ? td("Open expose", {
+                                                                  source: "en",
+                                                              })
+                                                            : t(
+                                                                  "pages.deals.workspace.files.download",
+                                                              )
+                                                    }
                                                     onClick={() =>
                                                         downloadDealExpose(
                                                             expose,
@@ -570,7 +582,11 @@ export default function ExposesPanel({
                                                     }
                                                 >
                                                     <DealIcon
-                                                        name="download"
+                                                        name={
+                                                            linked
+                                                                ? "external-link"
+                                                                : "download"
+                                                        }
                                                         size={16}
                                                         color={T.TEXT_MUTED}
                                                     />

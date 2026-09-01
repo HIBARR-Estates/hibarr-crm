@@ -6,7 +6,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TdFn } from "@/lib/dynamicTranslation";
 import type {
     DealExpose,
-    DealExposeSnapshotOption,
+    DealExposeLinkableEntity,
     DealExposeStatus,
     DealExposeSummary,
     DealExposesResponse,
@@ -93,7 +93,9 @@ export interface AddExposeInput {
     title: string;
     sourceLabel?: string;
     amount?: number | null;
-    exposeSnapshotId?: number | null;
+    entityType?: DealExposeLinkableEntity["entity_type"] | null;
+    entityId?: number | null;
+    unitTypeId?: number | null;
     file?: File | null;
 }
 
@@ -101,42 +103,90 @@ type Scope =
     | { type: "deal"; dealId: number }
     | { type: "lead"; leadId: number };
 
+export interface DealExposeEntityQuery {
+    scope: DealExposeLinkableEntity["entity_type"];
+    /** Required when scope is "unit_type" — which project's units to list. */
+    projectId?: number | null;
+    search: string;
+}
+
+interface AvailableEntitiesPage {
+    entities?: DealExposeLinkableEntity[];
+    current_page?: number;
+    last_page?: number;
+}
+
 /**
- * Lazy-loads project expose snapshots for the linked-add modal. Fetched only
- * while the linked dialog is open, with cancellation on close/unmount.
+ * Paginated, server-searched fetch of one page of properties / developer
+ * projects / unit types (within one project) for the linked-add picker.
+ * Re-fetches page 1 whenever the scope/project/search changes; `loadMore`
+ * appends the next page. Fetched only while the linked dialog is open, with
+ * cancellation on close/unmount. Picking one and submitting mints a
+ * personalized exposé link (see DealExposeController::store()).
  */
-export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
-    const [snapshots, setSnapshots] = useState<DealExposeSnapshotOption[]>([]);
+export function useDealExposeEntities(
+    dealId: number,
+    query: DealExposeEntityQuery,
+    enabled: boolean,
+) {
+    const [entities, setEntities] = useState<DealExposeLinkableEntity[]>([]);
+    const [page, setPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const reload = useCallback(() => setRefreshKey((key) => key + 1), []);
 
+    const queryKey = `${query.scope}:${query.projectId ?? ""}:${query.search}`;
+    // Read inside loadMore's async callback so a "load more" started before a
+    // scope/project/search change discards its response instead of appending
+    // stale-scope rows onto the freshly-reset list (and duplicate React keys)
+    // once it resolves after the switch.
+    const queryKeyRef = useRef(queryKey);
+    queryKeyRef.current = queryKey;
+
     useEffect(() => {
         if (!enabled) {
-            setSnapshots([]);
+            setEntities([]);
+            setPage(1);
+            setLastPage(1);
             setLoading(false);
+            setLoadingMore(false);
             setLoadFailed(false);
             return undefined;
         }
 
         let cancelled = false;
         setLoading(true);
+        // A "load more" in flight for the previous scope/project/search will
+        // discard its own response (queryKeyRef guard below), but its
+        // `finally` won't run until that request settles — clear the flag
+        // now so the button isn't stuck disabled for the new query.
+        setLoadingMore(false);
         setLoadFailed(false);
 
         axios
-            .get<{ snapshots?: DealExposeSnapshotOption[] }>(
-                route("deals.exposes.available", dealId),
-                { headers: { Accept: "application/json" } },
-            )
+            .get<AvailableEntitiesPage>(route("deals.exposes.available", dealId), {
+                headers: { Accept: "application/json" },
+                params: {
+                    scope: query.scope,
+                    project_id: query.projectId ?? undefined,
+                    search: query.search.trim() || undefined,
+                    page: 1,
+                },
+            })
             .then(({ data }) => {
                 if (cancelled) return;
-                const rows = Array.isArray(data?.snapshots) ? data.snapshots : [];
-                setSnapshots(rows);
+                setEntities(Array.isArray(data?.entities) ? data.entities : []);
+                setPage(data?.current_page ?? 1);
+                setLastPage(data?.last_page ?? 1);
             })
             .catch(() => {
                 if (!cancelled) {
-                    setSnapshots([]);
+                    setEntities([]);
+                    setPage(1);
+                    setLastPage(1);
                     setLoadFailed(true);
                 }
             })
@@ -147,9 +197,52 @@ export function useDealExposeSnapshots(dealId: number, enabled: boolean) {
         return () => {
             cancelled = true;
         };
-    }, [dealId, enabled, refreshKey]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dealId, enabled, queryKey, refreshKey]);
 
-    return { snapshots, loading, loadFailed, reload };
+    const loadMore = useCallback(async () => {
+        if (loadingMore || page >= lastPage) return;
+
+        const requestKey = queryKey;
+        setLoadingMore(true);
+        try {
+            const { data } = await axios.get<AvailableEntitiesPage>(
+                route("deals.exposes.available", dealId),
+                {
+                    headers: { Accept: "application/json" },
+                    params: {
+                        scope: query.scope,
+                        project_id: query.projectId ?? undefined,
+                        search: query.search.trim() || undefined,
+                        page: page + 1,
+                    },
+                },
+            );
+            if (queryKeyRef.current !== requestKey) return;
+            setEntities((current) => [
+                ...current,
+                ...(Array.isArray(data?.entities) ? data.entities : []),
+            ]);
+            setPage(data?.current_page ?? page + 1);
+            setLastPage(data?.last_page ?? lastPage);
+        } catch {
+            // Leave the existing page in place — the Load more button stays
+            // visible so the user can retry.
+        } finally {
+            if (queryKeyRef.current === requestKey) setLoadingMore(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dealId, queryKey, query.scope, query.projectId, query.search, page, lastPage, loadingMore]);
+
+    return {
+        entities,
+        loading,
+        loadingMore,
+        loadFailed,
+        hasMore: page < lastPage,
+        loadMore,
+        reload,
+    };
 }
 
 /**
@@ -359,7 +452,9 @@ export default function useDealExposes(scope: Scope) {
                         title: input.title,
                         source_label: input.sourceLabel ?? null,
                         amount: input.amount ?? null,
-                        expose_snapshot_id: input.exposeSnapshotId ?? null,
+                        entity_type: input.entityType ?? null,
+                        entity_id: input.entityId ?? null,
+                        unit_type_id: input.unitTypeId ?? null,
                         ...dealFileToExposeStoreBody(uploaded[0]),
                     });
 
@@ -375,7 +470,9 @@ export default function useDealExposes(scope: Scope) {
                     title: input.title,
                     source_label: input.sourceLabel ?? null,
                     amount: input.amount ?? null,
-                    expose_snapshot_id: input.exposeSnapshotId ?? null,
+                    entity_type: input.entityType ?? null,
+                    entity_id: input.entityId ?? null,
+                    unit_type_id: input.unitTypeId ?? null,
                 });
 
                 await commitAddedExpose(expose);

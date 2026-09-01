@@ -7,6 +7,7 @@ use App\Traits\HasOffers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -260,6 +261,46 @@ class DeveloperProjectUnitType extends BaseModel
     public function assets(): HasMany
     {
         return $this->hasMany(DeveloperProjectUnitTypeAsset::class, 'unit_type_id');
+    }
+
+    /**
+     * Listing/card thumbnail: prefer cover-tagged images, then hero, then
+     * lowest order. Mirrors DeveloperProject::thumbnail().
+     */
+    public function thumbnail(): HasOne
+    {
+        $table = (new DeveloperProjectUnitTypeAsset)->getTable();
+
+        $relation = $this->hasOne(DeveloperProjectUnitTypeAsset::class, 'unit_type_id')
+            ->where("{$table}.asset_type", DeveloperProjectUnitTypeAsset::TYPE_IMAGE);
+
+        $tagPrioritySql = match ($this->getConnection()->getDriverName()) {
+            'mysql' => "
+                CASE
+                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"cover\"') THEN 0
+                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"hero\"') THEN 1
+                    ELSE 2
+                END
+            ",
+            'sqlite' => "
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
+                        WHERE json_each.value = 'cover'
+                    ) THEN 0
+                    WHEN EXISTS (
+                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
+                        WHERE json_each.value = 'hero'
+                    ) THEN 1
+                    ELSE 2
+                END
+            ",
+            default => '2',
+        };
+
+        return $relation
+            ->orderByRaw($tagPrioritySql)
+            ->orderBy("{$table}.order");
     }
 
     // ================================================================
