@@ -30,6 +30,8 @@ class UpdateOrganisationSettings extends CoreRequest
             'company_phone' => 'required|max:20',
             'website' => 'nullable|url|max:50',
             'meeting_attendance_confirmation_enabled_at' => 'nullable|date',
+            'meeting_attendance_confirmation_delay_minutes' => 'nullable|integer|min:1|max:1440',
+            'meeting_attendance_confirmation_snooze_minutes' => 'nullable|integer|min:1|max:1440',
         ];
 
         if($this->has('google_recaptcha') && $this->google_recaptcha == 'on')

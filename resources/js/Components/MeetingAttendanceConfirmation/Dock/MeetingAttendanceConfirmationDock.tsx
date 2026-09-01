@@ -41,11 +41,22 @@ export function MeetingAttendanceConfirmationDock() {
 
             {modalItem && (
                 <MeetingAttendanceConfirmationModal
+                    // Force a fresh mount per meeting — without this, React
+                    // reuses the same instance when advancing to the next
+                    // pending item, leaking the previous meeting's selected
+                    // outcome, note text, and mutation state into it instead
+                    // of resetting to a clean outcome picker.
+                    key={modalItem.id}
                     meeting={modalItem}
                     onDismiss={() => setOpenModalId(null)}
                     onConfirmed={() => {
                         remove(modalItem.id);
-                        setOpenModalId(null);
+                        // Jump straight to the next pending meeting (earliest
+                        // scheduled first, same order the list is already sorted
+                        // in) instead of closing — one popup per remaining item,
+                        // no need to reopen the dock for each one.
+                        const next = items.find((i) => i.id !== modalItem.id);
+                        setOpenModalId(next ? next.id : null);
                     }}
                 />
             )}

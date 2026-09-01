@@ -90,6 +90,18 @@ class SettingsController extends AccountBaseController
         $setting->meeting_attendance_confirmation_enabled_at = $request->filled('meeting_attendance_confirmation_enabled_at')
             ? \Carbon\Carbon::parse($request->meeting_attendance_confirmation_enabled_at)
             : null;
+        // Blank = fall back to config('meetings.attendance_confirmation_*_minutes').
+        // Absent (key not submitted at all) = leave the existing value untouched.
+        if ($request->has('meeting_attendance_confirmation_delay_minutes')) {
+            $setting->meeting_attendance_confirmation_delay_minutes = $request->filled('meeting_attendance_confirmation_delay_minutes')
+                ? (int) $request->meeting_attendance_confirmation_delay_minutes
+                : null;
+        }
+        if ($request->has('meeting_attendance_confirmation_snooze_minutes')) {
+            $setting->meeting_attendance_confirmation_snooze_minutes = $request->filled('meeting_attendance_confirmation_snooze_minutes')
+                ? (int) $request->meeting_attendance_confirmation_snooze_minutes
+                : null;
+        }
 
         $setting->save();
 
