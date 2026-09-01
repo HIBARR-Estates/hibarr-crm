@@ -24,8 +24,17 @@ const HIBARR_FIELD_NAMES = [
     "message",
 ] as const;
 
-type UpdateType = "details" | "contact" | "custom_field" | "hibarr_field" | "recalculate_value";
-type ExplicitUpdateType = "details" | "contact" | "custom_field" | "hibarr_field";
+type UpdateType =
+    | "details"
+    | "contact"
+    | "custom_field"
+    | "hibarr_field"
+    | "recalculate_value";
+type ExplicitUpdateType =
+    | "details"
+    | "contact"
+    | "custom_field"
+    | "hibarr_field";
 
 /**
  * Kill-switch shared with useAnalysisFieldSave.ts. On: a changed "custom_field"
@@ -37,7 +46,7 @@ type ExplicitUpdateType = "details" | "contact" | "custom_field" | "hibarr_field
  * later (a separate, not-yet-done change) benefits immediately without
  * touching this call site again.
  */
-const CUSTOM_FIELDS_BULK_FLAG = "crm.custom-fields-bulk-write";
+const CUSTOM_FIELDS_BULK_FLAG = "crm.custom-fields-cross-model-optimizations";
 
 export interface DealFieldChange {
     fieldName: string;
@@ -50,7 +59,8 @@ export default function useDealInfoFieldUpdate() {
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
     const { props } = usePage<any>();
-    const bulkWriteEnabled = props.featureFlags?.[CUSTOM_FIELDS_BULK_FLAG] === true;
+    const bulkWriteEnabled =
+        props.featureFlags?.[CUSTOM_FIELDS_BULK_FLAG] === true;
     const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const { t } = useTranslation();
@@ -117,7 +127,8 @@ export default function useDealInfoFieldUpdate() {
                 ("amount" in value || "currency" in value)
             ) {
                 const currencyCode =
-                    typeof (value as { currency?: string }).currency === "string"
+                    typeof (value as { currency?: string }).currency ===
+                    "string"
                         ? (value as { currency: string }).currency
                         : defaultCurrencyCode;
                 const foundCurrency = currencies.find(
@@ -165,7 +176,10 @@ export default function useDealInfoFieldUpdate() {
                     type,
                 );
                 if (Object.keys(entries).length === 0) continue;
-                grouped[groupType] = { ...(grouped[groupType] ?? {}), ...entries };
+                grouped[groupType] = {
+                    ...(grouped[groupType] ?? {}),
+                    ...entries,
+                };
             }
 
             const groups = Object.entries(grouped)
@@ -187,11 +201,16 @@ export default function useDealInfoFieldUpdate() {
                 // this tab can't produce a "lead_custom_field" group today.
                 if (bulkWriteEnabled && group.type === "custom_field") {
                     const response = await axios.patch(
-                        route("deals.gathering.custom_fields_bulk", { id: deal.id }),
+                        route("deals.gathering.custom_fields_bulk", {
+                            id: deal.id,
+                        }),
                         { deal: group.data },
                         { headers: { Accept: "application/json" } },
                     );
-                    if (response.data?.status === "success" && response.data?.data) {
+                    if (
+                        response.data?.status === "success" &&
+                        response.data?.data
+                    ) {
                         setDeal(response.data.data);
                     }
                     setUpdatingField(null);
@@ -219,7 +238,9 @@ export default function useDealInfoFieldUpdate() {
                 groups.map((group) => {
                     if (bulkWriteEnabled && group.type === "custom_field") {
                         return axios.patch(
-                            route("deals.gathering.custom_fields_bulk", { id: deal.id }),
+                            route("deals.gathering.custom_fields_bulk", {
+                                id: deal.id,
+                            }),
                             { deal: group.data },
                             { headers: { Accept: "application/json" } },
                         );
@@ -231,13 +252,8 @@ export default function useDealInfoFieldUpdate() {
                     );
                 }),
             );
-            const refreshed = await axios.get(
-                route("deals.refresh", deal.id),
-            );
-            if (
-                refreshed.data?.status === "success" &&
-                refreshed.data?.data
-            ) {
+            const refreshed = await axios.get(route("deals.refresh", deal.id));
+            if (refreshed.data?.status === "success" && refreshed.data?.data) {
                 setDeal(refreshed.data.data);
             }
         },
@@ -300,7 +316,9 @@ export default function useDealInfoFieldUpdate() {
                         response.data?.data
                     ) {
                         setDeal(response.data.data);
-                        message.success(t("pages.deals.info.file_upload_success"));
+                        message.success(
+                            t("pages.deals.info.file_upload_success"),
+                        );
                     }
                     setUpdatingField(null);
                     return;

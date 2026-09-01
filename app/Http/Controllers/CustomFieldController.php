@@ -124,7 +124,7 @@ class CustomFieldController extends AccountBaseController
             );
         }
 
-        $field = !empty($createdFields) ? $createdFields[0]->load('fieldGroup', 'customFieldCategory') : null;
+        $field = !empty($createdFields) ? $createdFields[0]->load('fieldGroup', 'customFieldCategory', 'showRuleSet.groups.criteria.referenceField') : null;
 
         return Reply::successWithData('messages.recordSaved', ['field' => $field?->toAdminArray()]);
     }
@@ -204,7 +204,7 @@ class CustomFieldController extends AccountBaseController
             );
         }
 
-        $field->load('fieldGroup', 'customFieldCategory');
+        $field->load('fieldGroup', 'customFieldCategory', 'showRuleSet.groups.criteria.referenceField');
 
         return Reply::successWithData('messages.updateSuccess', ['field' => $field->toAdminArray()]);
     }

@@ -29,6 +29,8 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
         [moduleGroups],
     );
 
+    const byOrder = (a: SettingsCategory, b: SettingsCategory) => a.order - b.order || a.id - b.id;
+
     const createCategory = useCallback(
         async (draft: CategoryDraft): Promise<SettingsCategory | null> => {
             setSaving(true);
@@ -40,7 +42,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 );
                 if (res.data?.status === "success" && res.data?.category) {
                     const created = withModuleName(res.data.category as SettingsCategory);
-                    setCategories((prev) => [...prev, created]);
+                    setCategories((prev) => [...prev, created].sort(byOrder));
                     message.success(td("Category saved", { source: "en" }));
                     return created;
                 }
@@ -67,7 +69,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 );
                 if (res.data?.status === "success" && res.data?.category) {
                     const updated = withModuleName(res.data.category as SettingsCategory);
-                    setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)));
+                    setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)).sort(byOrder));
                     message.success(td("Category saved", { source: "en" }));
                     return updated;
                 }

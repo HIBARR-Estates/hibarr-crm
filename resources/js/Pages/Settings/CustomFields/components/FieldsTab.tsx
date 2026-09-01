@@ -108,16 +108,22 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                     const open = isExpanded(group.name);
                     return (
                         <div key={group.id} style={{ border: `1px solid ${T.BORDER}`, borderRadius: 10, overflow: "hidden" }}>
-                            <div
+                            <button
+                                type="button"
+                                aria-expanded={open}
                                 onClick={() => setExpanded((prev) => ({ ...prev, [group.name]: !open }))}
                                 style={{
                                     display: "flex",
+                                    width: "100%",
                                     alignItems: "center",
                                     justifyContent: "space-between",
                                     gap: 12,
                                     padding: "14px 18px",
                                     cursor: "pointer",
                                     background: open ? T.SURFACE_2 : T.WHITE,
+                                    border: "none",
+                                    font: "inherit",
+                                    textAlign: "left",
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -132,7 +138,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                 <span style={{ fontSize: 13, color: T.TEXT_HINT }}>
                                     {open ? td("Click to collapse", { source: "en" }) : td("Click to expand", { source: "en" })}
                                 </span>
-                            </div>
+                            </button>
 
                             {open && (
                                 <div style={{ borderTop: `1px solid ${T.BORDER}`, overflowX: "auto" }}>
@@ -164,10 +170,11 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                         {filtered.map((field) => (
                                             <div
                                                 key={field.id}
-                                                draggable
-                                                onDragStart={() => setDragId(field.id)}
-                                                onDragOver={(e: DragEvent) => e.preventDefault()}
+                                                draggable={!term}
+                                                onDragStart={() => !term && setDragId(field.id)}
+                                                onDragOver={(e: DragEvent) => !term && e.preventDefault()}
                                                 onDrop={(e: DragEvent) => {
+                                                    if (term) return;
                                                     e.preventDefault();
                                                     handleDrop(group.name, filtered, field.id);
                                                 }}

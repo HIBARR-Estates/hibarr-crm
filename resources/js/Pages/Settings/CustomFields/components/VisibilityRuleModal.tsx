@@ -86,7 +86,9 @@ export default function VisibilityRuleModal({ open, availableFields, initialFiel
                 onSaved(fieldId, res.data.rule_set as ShowRuleSet);
                 onClose();
             } else {
-                message.error(res.data?.message || t("messages.somethingWentWrong"));
+                const failMessage = res.data?.message || t("messages.somethingWentWrong");
+                message.error(failMessage);
+                throw new Error(failMessage);
             }
         } catch (error: any) {
             message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));

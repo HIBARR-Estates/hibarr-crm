@@ -19,7 +19,7 @@ export default function CategoriesTab({ categories, fields, onEdit, onDelete, on
     const [dragId, setDragId] = useState<number | null>(null);
 
     const fieldCount = (category: SettingsCategory) =>
-        fields.filter((f) => f.custom_field_group_id === category.custom_field_group_id && f.category_name === category.name).length;
+        fields.filter((f) => f.custom_field_group_id === category.custom_field_group_id && f.custom_field_category_id === category.id).length;
 
     const handleDrop = (targetId: number) => {
         if (dragId === null || dragId === targetId) {

@@ -1071,7 +1071,7 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value)->afterCommit();
 
         $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");

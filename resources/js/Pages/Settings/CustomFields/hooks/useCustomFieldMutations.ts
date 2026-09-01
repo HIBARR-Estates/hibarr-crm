@@ -129,7 +129,11 @@ export default function useCustomFieldMutations({ setFields }: Options) {
     const reorderFields = useCallback(
         async (orderedIds: number[]) => {
             // Optimistic: apply locally first so drag feels instant, then persist.
+            // Snapshot `prev` at the moment of this call so a failure rolls back to
+            // exactly what preceded this request, not whatever state exists later.
+            let snapshot: SettingsField[] = [];
             setFields((prev) => {
+                snapshot = prev;
                 const byId = new Map(prev.map((f) => [f.id, f]));
                 const reordered = orderedIds.map((id) => byId.get(id)).filter(Boolean) as SettingsField[];
                 const rest = prev.filter((f) => !orderedIds.includes(f.id));
@@ -149,9 +153,11 @@ export default function useCustomFieldMutations({ setFields }: Options) {
                 if (res.data?.status === "success") {
                     message.success(td("Field order updated", { source: "en" }));
                 } else {
+                    setFields(snapshot);
                     message.error(res.data?.message || t("messages.somethingWentWrong"));
                 }
             } catch (error: any) {
+                setFields(snapshot);
                 message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
             }
         },

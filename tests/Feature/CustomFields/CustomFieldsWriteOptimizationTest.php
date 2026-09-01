@@ -36,7 +36,16 @@ class CustomFieldsWriteOptimizationTest extends TestCase
         CustomFieldGroup::firstOrCreate(['name' => 'Lead'], ['model' => 'App\\Models\\Lead']);
         CustomFieldGroup::firstOrCreate(['name' => 'Ticket'], ['model' => 'App\\Models\\Ticket']);
 
-        $this->companyId = (int) Company::query()->value('id');
+        // No CompanyFactory exists in this codebase, and Company has no
+        // $fillable (default $guarded = ['*']), so Company::create() would
+        // throw a MassAssignmentException — set attributes directly instead.
+        $company = new Company();
+        $company->company_name = 'Bench Co';
+        $company->company_email = 'bench@example.com';
+        $company->company_phone = '0000000000';
+        $company->address = 'Test address';
+        $company->save();
+        $this->companyId = $company->id;
     }
 
     private function makeDeal(): Deal
