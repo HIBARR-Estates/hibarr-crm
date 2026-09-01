@@ -22,6 +22,7 @@ class ProcessDealWonJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 60;
 
     protected Deal $deal;
@@ -50,27 +51,31 @@ class ProcessDealWonJob implements ShouldQueue
         MlmCommissionService $commissionService,
         CycleService $cycleService
     ): void {
-        $deal = $this->deal->fresh();
+        $deal = $this->deal->fresh(['packages']);
 
-        if (!$deal) {
-            Log::warning("ProcessDealWonJob: Deal not found, skipping");
+        if (! $deal) {
+            Log::warning('ProcessDealWonJob: Deal not found, skipping');
+
             return;
         }
 
         // Idempotency guard: skip if already processed
         if ($deal->is_locked) {
             Log::info("ProcessDealWonJob: Deal {$deal->id} already locked, skipping");
+
             return;
         }
 
         $agent = LeadAgent::find($deal->agent_id);
 
-        if (!$agent) {
+        if (! $agent) {
             Log::warning("ProcessDealWonJob: No agent found for deal {$deal->id}, skipping");
+
             return;
         }
         if ($deal->outcome_status !== \App\Enums\OutcomeStatus::Won) {
             Log::warning("ProcessDealWonJob: Deal {$deal->id} is not marked as won, skipping. Only won deals should trigger this job.");
+
             return;
         }
 
@@ -122,7 +127,7 @@ class ProcessDealWonJob implements ShouldQueue
     ): void {
         $enrollment = $cycleService->getActiveEnrollment($agent);
 
-        if (!$enrollment || $enrollment->status !== EnrollmentStatus::Extended) {
+        if (! $enrollment || $enrollment->status !== EnrollmentStatus::Extended) {
             return; // Only check enrollments in overflow
         }
 

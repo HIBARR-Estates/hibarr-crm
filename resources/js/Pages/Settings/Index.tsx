@@ -15,6 +15,7 @@ import {
     BellOutlined,
     NotificationOutlined,
     ThunderboltOutlined,
+    DollarOutlined,
 } from "@ant-design/icons";
 import TaskCategoryManager from "./TaskCategoryManager";
 import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
@@ -39,6 +40,9 @@ export default function SettingsIndex({
     const { permissions } = usePermission();
     const canManageNotifications = isPermissionAll(
         permissions.manage_notification_setting,
+    );
+    const canManageCompanySettings = isPermissionAll(
+        permissions.manage_company_setting,
     );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
     const pageProps = usePage().props as {
@@ -133,6 +137,21 @@ export default function SettingsIndex({
                           router.visit(
                               route("notification-settings-manager.index"),
                           ),
+                  },
+              ]
+            : []),
+        ...(canManageCompanySettings
+            ? [
+                  {
+                      key: "package-commissions",
+                      icon: <DollarOutlined />,
+                      iconBg: "bg-emerald-50",
+                      iconColor: "text-emerald-500",
+                      title: t("app.menu.packages"),
+                      description: t("app.settingsHub.packageCommissionsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("package-commissions.index")),
                   },
               ]
             : []),

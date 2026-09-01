@@ -36,6 +36,7 @@ use App\Http\Controllers\ModuleSettingController;
 use App\Http\Controllers\NotificationSettingController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\PackageCommissionController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileSettingController;
@@ -329,6 +330,17 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('business-address', BusinessAddressController::class);
 
     Route::resource('packages', PackageController::class);
+
+    // Commission settings per package. A configured package owns the whole
+    // payout on its deals; an unconfigured one keeps the level-based split.
+    Route::get('package-commissions', [PackageCommissionController::class, 'index'])->name('package-commissions.index');
+
+    Route::prefix('package-commissions/api')->name('package-commissions.api.')->group(function () {
+        Route::put('packages/{package}', [PackageCommissionController::class, 'updatePackage'])->name('packages.update');
+        Route::get('packages/{package}/overrides', [PackageCommissionController::class, 'overrides'])->name('overrides.index');
+        Route::put('packages/{package}/agents/{agent}', [PackageCommissionController::class, 'upsertOverride'])->name('overrides.upsert');
+        Route::delete('packages/{package}/agents/{agent}', [PackageCommissionController::class, 'destroyOverride'])->name('overrides.destroy');
+    });
 
     Route::post('employee-shifts/set-default', [EmployeeShiftController::class, 'setDefaultShift'])->name('employee-shifts.set_default');
     Route::resource('employee-shifts', EmployeeShiftController::class);

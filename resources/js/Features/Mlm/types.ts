@@ -133,7 +133,9 @@ export interface MlmCommission {
     agent_id: number;
     source_agent_id: number;
     level_id: number | null;
-    percentage: number;
+    package_id: number | null;
+    /** Null on a fixed-fee package leg — there is no percentage to show. */
+    percentage: number | null;
     amount: number;
     type: MlmCommissionType;
     status: MlmCommissionStatus;
