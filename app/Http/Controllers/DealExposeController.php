@@ -143,7 +143,7 @@ class DealExposeController extends AccountBaseController
     }
 
     /**
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, array<string, mixed>>
+     * @return \Illuminate\Pagination\LengthAwarePaginator<array<string, mixed>>
      */
     private function availableEntitiesPage(int $companyId, string $scope, string $search, ?int $projectId, int $perPage)
     {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
@@ -280,8 +280,13 @@ export default function AddExposeModal({
                                 </button>
                             ) : (
                                 <div className="flex gap-1.5">
-                                    <TabButton
-                                        active={tab === "properties"}
+                                    <DealButton
+                                        variant={
+                                            tab === "properties"
+                                                ? "navy"
+                                                : "ghost"
+                                        }
+                                        size="sm"
                                         disabled={linkingBusy}
                                         onClick={() => {
                                             setTab("properties");
@@ -289,9 +294,14 @@ export default function AddExposeModal({
                                         }}
                                     >
                                         {td("Properties", { source: "en" })}
-                                    </TabButton>
-                                    <TabButton
-                                        active={tab === "projects"}
+                                    </DealButton>
+                                    <DealButton
+                                        variant={
+                                            tab === "projects"
+                                                ? "navy"
+                                                : "ghost"
+                                        }
+                                        size="sm"
                                         disabled={linkingBusy}
                                         onClick={() => {
                                             setTab("projects");
@@ -299,7 +309,7 @@ export default function AddExposeModal({
                                         }}
                                     >
                                         {td("Projects", { source: "en" })}
-                                    </TabButton>
+                                    </DealButton>
                                 </div>
                             )}
 
@@ -450,31 +460,6 @@ function formatOptionalAmount(
 ): string | null {
     if (amount == null) return null;
     return formatExposeAmount(amount, currencySymbol);
-}
-
-interface TabButtonProps {
-    active: boolean;
-    disabled?: boolean;
-    onClick: () => void;
-    children: ReactNode;
-}
-
-function TabButton({ active, disabled, onClick, children }: TabButtonProps) {
-    return (
-        <button
-            type="button"
-            className="dr-btn dr-btn-sm cursor-pointer"
-            disabled={disabled}
-            onClick={onClick}
-            style={{
-                background: active ? T.NAVY : T.WHITE,
-                color: active ? T.WHITE : T.TEXT_MUTED,
-                border: `1px solid ${active ? T.NAVY : T.BORDER}`,
-            }}
-        >
-            {children}
-        </button>
-    );
 }
 
 interface EntityCardProps {

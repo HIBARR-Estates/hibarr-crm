@@ -42,7 +42,6 @@ import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
 import usePipelineHasPackages from "./hooks/usePipelineHasPackages";
-import useDealOffers from "./hooks/useDealOffers";
 import {
     filterCategoriesByScope,
     resolveScopedFieldKeys,
@@ -219,20 +218,13 @@ function DealViewRedesignInner(
     const pipelineHasPackages = usePipelineHasPackages();
     const offersEligible =
         permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
-    const {
-        applications: offerApplications,
-        isLoading: offersLoading,
-        isError: offersError,
-        hasOffers,
-    } = useDealOffers(deal.id, offersEligible);
-    // A failed fetch must not read as "no offers" and hide the tab — keep it
-    // visible so WorkspaceOffersTab can show its own retry UI instead. Also
-    // stay visible *while* loading (not just after) — hiding it mid-fetch
-    // made the tab flicker in/out and, on a deep link to ?tab=offers, lose
-    // the link entirely (visibleTabs wouldn't include "offers" yet, so the
-    // redirect-to-"overview" effect below fired before the fetch resolved).
-    const showOffersTab =
-        offersEligible && (offersLoading || hasOffers || offersError);
+    // Visibility comes straight off the deal payload already shipped on
+    // first paint — no need for a separate eager fetch on every eligible
+    // deal just to answer "does this deal have any offers". WorkspaceOffersTab
+    // fetches the full offer rows itself, only once the tab is actually
+    // opened, and owns its own retry UI for that fetch.
+    const offerApplicationsCount = deal.offer_applications?.length ?? 0;
+    const showOffersTab = offersEligible && offerApplicationsCount > 0;
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),
@@ -319,7 +311,7 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
-            offers: showOffersTab ? offerApplications.length : undefined,
+            offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes: exposesCount,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
@@ -335,7 +327,7 @@ function DealViewRedesignInner(
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
             showOffersTab,
-            offerApplications.length,
+            offerApplicationsCount,
             exposesCount,
             recommendationsCount,
         ],

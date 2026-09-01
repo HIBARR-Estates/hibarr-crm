@@ -12,6 +12,7 @@ import {
     isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
+import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealEditableField from "../primitives/DealEditableField";
@@ -555,8 +556,8 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             {isHttpUrl(expose.download_url) && (
-                                                <button
-                                                    type="button"
+                                                <DealButton
+                                                    iconOnly
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                                                     title={
                                                         linked
@@ -591,7 +592,7 @@ export default function ExposesPanel({
                                                         size={16}
                                                         color={T.TEXT_MUTED}
                                                     />
-                                                </button>
+                                                </DealButton>
                                             )}
                                             {onRemove && (
                                                 <button

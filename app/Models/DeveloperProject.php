@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use App\Traits\HasOffers;
+use App\Traits\HasTagPriorityAssetOrdering;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +28,7 @@ use Illuminate\Support\Str;
  */
 class DeveloperProject extends BaseModel
 {
-    use HasFactory, HasCompany, HasOffers, SoftDeletes;
+    use HasFactory, HasCompany, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
@@ -443,32 +444,8 @@ class DeveloperProject extends BaseModel
         $relation = $this->hasOne(DeveloperProjectAsset::class)
             ->where("{$table}.asset_type", DeveloperProjectAsset::TYPE_IMAGE);
 
-        $tagPrioritySql = match ($this->getConnection()->getDriverName()) {
-            'mysql' => "
-                CASE
-                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"cover\"') THEN 0
-                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"hero\"') THEN 1
-                    ELSE 2
-                END
-            ",
-            'sqlite' => "
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
-                        WHERE json_each.value = 'cover'
-                    ) THEN 0
-                    WHEN EXISTS (
-                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
-                        WHERE json_each.value = 'hero'
-                    ) THEN 1
-                    ELSE 2
-                END
-            ",
-            default => '2',
-        };
-
         return $relation
-            ->orderByRaw($tagPrioritySql)
+            ->orderByRaw($this->tagPriorityOrderSql($table))
             ->orderBy("{$table}.order");
     }
 

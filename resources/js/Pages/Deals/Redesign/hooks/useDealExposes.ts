@@ -144,7 +144,9 @@ export function useDealExposeEntities(
     // stale-scope rows onto the freshly-reset list (and duplicate React keys)
     // once it resolves after the switch.
     const queryKeyRef = useRef(queryKey);
-    queryKeyRef.current = queryKey;
+    useEffect(() => {
+        queryKeyRef.current = queryKey;
+    }, [queryKey]);
 
     useEffect(() => {
         if (!enabled) {
