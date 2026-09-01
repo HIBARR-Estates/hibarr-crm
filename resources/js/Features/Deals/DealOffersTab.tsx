@@ -5,7 +5,7 @@ import type { TableColumnsType } from "antd";
 import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
-import type { DealOfferApplication } from "@/Types/api/offers";
+import type { DealOfferApplication, DealOffersResponse } from "@/Types/api/offers";
 import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { generatePropertySubtitle } from "@/lib/utils";
@@ -14,12 +14,6 @@ const { Text } = Typography;
 
 interface DealOffersTabProps {
     deal: Deal;
-}
-
-interface DealOffersResponse {
-    status: string;
-    applications: DealOfferApplication[];
-    total_discount: number;
 }
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {

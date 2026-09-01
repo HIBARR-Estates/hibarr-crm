@@ -385,18 +385,26 @@ export default function useDealExposes(scope: Scope) {
             );
 
             try {
-                const { data } = await axios.patch<{ expose: DealExpose }>(
+                const response = await axios.patch(
                     route("deal-exposes.status", id),
                     { status },
                     { headers: { Accept: "application/json" } },
                 );
+                const updated = extractExposeFromStoreResponse(response.data);
                 if (statusRequestRef.current.get(id) !== requestId) return;
+                if (!updated) {
+                    throw new Error(
+                        typeof response.data?.message === "string"
+                            ? response.data.message
+                            : undefined,
+                    );
+                }
                 setExposes((current) =>
                     current.map((expose) =>
-                        expose.id === id ? data.expose : expose,
+                        expose.id === id ? updated : expose,
                     ),
                 );
-            } catch {
+            } catch (error) {
                 if (statusRequestRef.current.get(id) !== requestId) return;
                 if (previousStatus !== null) {
                     setExposes((current) =>
@@ -408,7 +416,8 @@ export default function useDealExposes(scope: Scope) {
                     );
                 }
                 message.error(
-                    t("pages.deals.workspace.exposes.messages.status_failed"),
+                    (error instanceof Error && error.message) ||
+                        t("pages.deals.workspace.exposes.messages.status_failed"),
                 );
             }
         },
@@ -533,14 +542,24 @@ export default function useDealExposes(scope: Scope) {
             );
 
             try {
-                const { data } = await axios.patch<{ expose: DealExpose }>(
+                const response = await axios.patch(
                     route("deal-exposes.update", id),
                     patch,
                     { headers: { Accept: "application/json" } },
                 );
+                const updated = extractExposeFromStoreResponse(response.data);
+                if (!updated) {
+                    throw new Error(
+                        typeof response.data?.message === "string"
+                            ? response.data.message
+                            : t(
+                                  "pages.deals.workspace.exposes.messages.update_failed",
+                              ),
+                    );
+                }
                 setExposes((current) =>
                     current.map((expose) =>
-                        expose.id === id ? data.expose : expose,
+                        expose.id === id ? updated : expose,
                     ),
                 );
             } catch (error) {
@@ -550,6 +569,9 @@ export default function useDealExposes(scope: Scope) {
                             expose.id === id ? previous! : expose,
                         ),
                     );
+                }
+                if (error instanceof Error && error.message) {
+                    throw error;
                 }
                 const apiMessage = axios.isAxiosError(error)
                     ? error.response?.data?.message

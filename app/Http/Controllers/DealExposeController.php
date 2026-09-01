@@ -256,7 +256,7 @@ class DealExposeController extends AccountBaseController
             return null;
         }
 
-        $first = $photos[0];
+        $first = reset($photos);
 
         if (is_string($first) && $first !== '') {
             return $first;
@@ -325,6 +325,9 @@ class DealExposeController extends AccountBaseController
 
         $deal = $this->findDeal($dealId);
         $this->abortUnlessEditable();
+        // Matches update/status/destroy — a locked deal is frozen for new
+        // exposes too, not just existing ones.
+        abort_403((bool) $deal->isLocked());
 
         $validated = $request->validate([
             'source' => 'required|in:'.implode(',', DealExpose::SOURCES),
@@ -341,7 +344,7 @@ class DealExposeController extends AccountBaseController
             'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB,
             // Optional when the browser already uploaded via storage API (no CORS).
             // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
-            'download_url' => 'nullable|url:http,https',
+            'download_url' => 'nullable|url:http,https|max:2048',
             'object_path' => 'nullable|string|max:512',
             'uploaded_filename' => 'nullable|string|max:255',
             'uploaded_size' => 'nullable|integer|min:0',
@@ -569,7 +572,7 @@ class DealExposeController extends AccountBaseController
 
     private function abortUnlessEditable(): void
     {
-        abort_403(! in_array(user()->permission('add_lead_proposals'), ['all', 'added']));
+        abort_403(! in_array(user()->permission('add_lead_proposals'), ['all', 'added'], true));
     }
 
     /** @return string|false */
@@ -588,9 +591,8 @@ class DealExposeController extends AccountBaseController
         ));
 
         // A locked deal is frozen — matches Deal::isLocked() gating elsewhere
-        // (e.g. the Offers tab's "Remove all" button). Only reachable here on
-        // update/status/destroy; store() creating a brand-new expose against
-        // an already-locked deal is a separate, pre-existing gap left alone.
+        // (e.g. the Offers tab's "Remove all" button, and store()'s own
+        // check on the deal before creating a new expose).
         abort_403((bool) $expose->deal?->isLocked());
     }
 

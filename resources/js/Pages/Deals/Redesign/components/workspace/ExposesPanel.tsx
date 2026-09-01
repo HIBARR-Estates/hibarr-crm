@@ -9,6 +9,7 @@ import {
     formatExposeAmount,
     formatExposeDate,
     groupExposes,
+    isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
 import DealIcon from "../primitives/DealIcon";
@@ -553,7 +554,7 @@ export default function ExposesPanel({
                                                     }}
                                                 />
                                             </div>
-                                            {expose.download_url && (
+                                            {isHttpUrl(expose.download_url) && (
                                                 <button
                                                     type="button"
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"

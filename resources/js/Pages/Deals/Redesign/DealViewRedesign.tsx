@@ -226,9 +226,13 @@ function DealViewRedesignInner(
         hasOffers,
     } = useDealOffers(deal.id, offersEligible);
     // A failed fetch must not read as "no offers" and hide the tab — keep it
-    // visible so WorkspaceOffersTab can show its own retry UI instead.
+    // visible so WorkspaceOffersTab can show its own retry UI instead. Also
+    // stay visible *while* loading (not just after) — hiding it mid-fetch
+    // made the tab flicker in/out and, on a deep link to ?tab=offers, lose
+    // the link entirely (visibleTabs wouldn't include "offers" yet, so the
+    // redirect-to-"overview" effect below fired before the fetch resolved).
     const showOffersTab =
-        offersEligible && !offersLoading && (hasOffers || offersError);
+        offersEligible && (offersLoading || hasOffers || offersError);
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),

@@ -306,7 +306,6 @@ export default function AddExposeModal({
                             <input
                                 className="dr-input"
                                 value={filterText}
-                                disabled={entitiesLoading}
                                 placeholder={td("Filter by name...", {
                                     source: "en",
                                 })}

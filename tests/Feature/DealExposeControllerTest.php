@@ -506,6 +506,29 @@ class DealExposeControllerTest extends TestCase
         $this->assertStringEndsWith('/exp_test_token_123', $row->external_url);
     }
 
+    /** Matches update/status/destroy — a locked deal accepts no new exposes either. */
+    public function test_store_is_rejected_when_the_deal_is_locked(): void
+    {
+        $this->setFeatureFlag('crm.deal-exposes-tab', true);
+
+        $agent = $this->createAgent();
+        $this->grantPermission($agent, 'add_lead_proposals', 'all');
+
+        $leadId = $this->createLead();
+        $dealId = $this->createDeal($leadId, ['is_locked' => true]);
+
+        $this->beAgent($agent);
+
+        $this->postJson(route('deals.exposes.store', $dealId), [
+            'source' => 'manual',
+            'title' => 'Blocked',
+            'download_url' => 'https://cdn.example.test/backend-uploads/brochure.pdf',
+            'object_path' => 'backend-uploads/brochure.pdf',
+        ])->assertStatus(403);
+
+        $this->assertDatabaseMissing('deal_exposes', ['deal_id' => $dealId]);
+    }
+
     public function test_store_linked_expose_rejects_an_entity_from_another_company(): void
     {
         $this->setFeatureFlag('crm.deal-exposes-tab', true);
