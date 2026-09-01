@@ -53,7 +53,6 @@ import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
-import { DEAL_RECOMMENDATIONS_FLAG } from "@/Hooks/useDealRecommendationsFlag";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
@@ -93,8 +92,6 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
-    const showRecommendations =
-        featureFlags?.[DEAL_RECOMMENDATIONS_FLAG] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -273,7 +270,7 @@ function DealViewRedesignInner(
         if (showExposes && permissions.view_lead_proposals !== "none") {
             tabs.push("exposes");
         }
-        if (showRecommendations && !pipelineHasPackages) {
+        if (!pipelineHasPackages) {
             tabs.push("recommendations");
         }
         // itinerary / dealinfo / timeline have no matching permission in this
@@ -281,7 +278,7 @@ function DealViewRedesignInner(
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages, showExposes, showRecommendations, showOffersTab]);
+    }, [permissions, pipelineHasPackages, showExposes, showOffersTab]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
