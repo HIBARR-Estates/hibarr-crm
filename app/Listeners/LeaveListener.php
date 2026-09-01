@@ -27,7 +27,7 @@ class LeaveListener
     public function handle(LeaveEvent $event)
     {
         // TODO: also notify users with approve_or_reject_leaves = all.
-        $reportingTo = EmployeeDetails::where('user_id', user()->id)->pluck('reporting_to')->toArray();
+        $reportingTo = EmployeeDetails::where('user_id', $event->leave->user_id)->pluck('reporting_to')->toArray();
         $adminUserIds = User::allAdmins($event->leave->company->id)->pluck('id')->toArray();
         $notificationTo = array_values(array_unique(array_filter([
             ...$reportingTo,
