@@ -38,7 +38,7 @@ return [
     |
     */
 
-    'timeout' => env('FILE_UPLOAD_TIMEOUT', 120),
+    'timeout' => env('FILE_UPLOAD_TIMEOUT', 300),
 
     /*
     |--------------------------------------------------------------------------

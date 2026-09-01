@@ -8,6 +8,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     size?: Size;
     icon?: ReactNode;
     loading?: boolean;
+    /**
+     * Bare icon trigger (row actions like open/download/remove) — skips the
+     * `.dr-btn` chrome (padding, background, border, min-height) entirely so
+     * `className` fully controls the look instead of a variant/size.
+     */
+    iconOnly?: boolean;
 }
 
 /** Sizes/variants ported 1:1 from v2.2's .v22-btn system. */
@@ -20,16 +26,19 @@ export default function Button({
     style,
     loading,
     disabled,
+    iconOnly = false,
     ...props
 }: ButtonProps) {
-    const classes = [
-        "dr-btn",
-        `dr-btn-${variant}`,
-        size === "sm" ? "dr-btn-sm" : "",
-        className,
-    ]
-        .filter(Boolean)
-        .join(" ");
+    const classes = iconOnly
+        ? className
+        : [
+              "dr-btn",
+              `dr-btn-${variant}`,
+              size === "sm" ? "dr-btn-sm" : "",
+              className,
+          ]
+              .filter(Boolean)
+              .join(" ");
 
     return (
         <button

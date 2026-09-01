@@ -18,6 +18,7 @@ import WorkspaceTasksTab from "./components/workspace/WorkspaceTasksTab";
 import WorkspaceMeetingsTab from "./components/workspace/WorkspaceMeetingsTab";
 import WorkspaceFilesTab from "./components/workspace/WorkspaceFilesTab";
 import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
+import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
 import {
@@ -51,6 +52,8 @@ import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import { DEAL_RECOMMENDATIONS_FLAG } from "@/Hooks/useDealRecommendationsFlag";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
@@ -76,14 +79,12 @@ function DealViewRedesignInner(
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const analysis = useDealAnalysis();
-    // undefined = not yet known (tab not visited); the tab bar hides the
-    // count pill until a real number is reported, instead of showing 0.
-    const [offersCount, setOffersCount] = useState<number | undefined>(
-        undefined,
-    );
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
     >(undefined);
+    const [exposesCount, setExposesCount] = useState<number | undefined>(
+        undefined,
+    );
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -91,6 +92,9 @@ function DealViewRedesignInner(
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
+    const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    const showRecommendations =
+        featureFlags?.[DEAL_RECOMMENDATIONS_FLAG] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -212,6 +216,15 @@ function DealViewRedesignInner(
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
+    const offersEligible =
+        permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
+    // Visibility comes straight off the deal payload already shipped on
+    // first paint — no need for a separate eager fetch on every eligible
+    // deal just to answer "does this deal have any offers". WorkspaceOffersTab
+    // fetches the full offer rows itself, only once the tab is actually
+    // opened, and owns its own retry UI for that fetch.
+    const offerApplicationsCount = deal.offer_applications?.length ?? 0;
+    const showOffersTab = offersEligible && offerApplicationsCount > 0;
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),
@@ -251,18 +264,24 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
-        // Offers and recommendations are both property-led, so a package
-        // pipeline drops them (see usePipelineHasPackages).
-        if (permissions.view_lead_proposals !== "none" && !pipelineHasPackages) {
+        // Offers only appear when a property on this deal has an applied offer.
+        if (showOffersTab) {
             tabs.push("offers");
         }
-        if (!pipelineHasPackages) tabs.push("recommendations");
+        // Exposes are documents shown to the buyer, so unlike offers they are
+        // not tied to the package/property split — only to the flag.
+        if (showExposes && permissions.view_lead_proposals !== "none") {
+            tabs.push("exposes");
+        }
+        if (showRecommendations && !pipelineHasPackages) {
+            tabs.push("recommendations");
+        }
         // itinerary / dealinfo / timeline have no matching permission in this
         // system, so they follow deal visibility itself.
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages]);
+    }, [permissions, pipelineHasPackages, showExposes, showRecommendations, showOffersTab]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -293,7 +312,8 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
-            offers: offersCount,
+            offers: showOffersTab ? offerApplicationsCount : undefined,
+            exposes: exposesCount,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
@@ -307,7 +327,9 @@ function DealViewRedesignInner(
             deal.lead_flight_itineraries?.length,
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
-            offersCount,
+            showOffersTab,
+            offerApplicationsCount,
+            exposesCount,
             recommendationsCount,
         ],
     );
@@ -568,10 +590,14 @@ function DealViewRedesignInner(
                                                     categoryIds={pipelineCategoryIds}
                                                 />
                                             ))}
-                                        {activeTab === "offers" && (
-                                            <WorkspaceOffersTab
+                                        {activeTab === "offers" && showOffersTab && (
+                                            <WorkspaceOffersTab deal={deal} />
+                                        )}
+                                        {activeTab === "exposes" && (
+                                            <WorkspaceExposesTab
                                                 deal={deal}
-                                                onCountChange={setOffersCount}
+                                                canEdit={dealPermissions.canEdit}
+                                                onCountChange={setExposesCount}
                                             />
                                         )}
                                         {activeTab === "recommendations" && (

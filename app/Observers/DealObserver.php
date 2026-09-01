@@ -7,6 +7,7 @@ use App\Events\DealWonEvent;
 use App\Jobs\SendMetaConversionEventJob;
 use App\Models\Currency;
 use App\Models\Deal;
+use App\Models\DealExpose;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadPipeline;
@@ -483,6 +484,13 @@ class DealObserver
                         'outcome_status' => $deal->outcome_status,
                     ],
                 ]);
+            }
+
+            // Keep the denormalised lead_id on deal_exposes in sync so the Lead
+            // rollup tab stays accurate when a deal is re-linked.
+            if ($deal->isDirty('lead_id')) {
+                DealExpose::where('deal_id', $deal->id)
+                    ->update(['lead_id' => $deal->lead_id]);
             }
 
             // Generic deal_updated only for non-tracked field changes.

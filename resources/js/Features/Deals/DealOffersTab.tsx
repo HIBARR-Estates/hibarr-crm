@@ -5,7 +5,7 @@ import type { TableColumnsType } from "antd";
 import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
-import type { DealOfferApplication } from "@/Types/api/offers";
+import type { DealOfferApplication, DealOffersResponse } from "@/Types/api/offers";
 import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { generatePropertySubtitle } from "@/lib/utils";
@@ -14,12 +14,6 @@ const { Text } = Typography;
 
 interface DealOffersTabProps {
     deal: Deal;
-}
-
-interface DealOffersResponse {
-    status: string;
-    applications: DealOfferApplication[];
-    total_discount: number;
 }
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
@@ -33,9 +27,10 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         return `${currencySymbol}${Number(value).toLocaleString("en-GB")}`;
     };
 
-    const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
-        path: route("deals.offers.index", deal.id),
-    });
+    const { data, isLoading, isError, refetch } =
+        useApiQuery<DealOffersResponse>({
+            path: route("deals.offers.index", deal.id),
+        });
 
     const { mutate: removeAllOffers, isPending: isRemovingAllOffers } =
         useApiMutate<undefined, unknown, ApiResponse<unknown>>(
@@ -107,6 +102,23 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
     ];
+
+    // A failed fetch must not read as "no offers applied" — show a retry
+    // action instead of the empty state.
+    if (isError && applications.length === 0 && !isLoading) {
+        return (
+            <div className="p-6">
+                <Empty
+                    description="Failed to load offers"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                >
+                    <Button size="small" onClick={() => refetch()}>
+                        Retry
+                    </Button>
+                </Empty>
+            </div>
+        );
+    }
 
     if (applications.length === 0 && !isLoading) {
         return (

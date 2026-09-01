@@ -7,6 +7,7 @@ interface WorkspaceCardProps {
     onTabChange: (tab: WorkspaceTabId) => void;
     tabCounts?: LeadTabCount;
     showQualification?: boolean;
+    showExposes?: boolean;
     children: ReactNode;
 }
 
@@ -15,6 +16,7 @@ export default function WorkspaceCard({
     onTabChange,
     tabCounts,
     showQualification = true,
+    showExposes = false,
     children,
 }: WorkspaceCardProps) {
     return (
@@ -32,6 +34,7 @@ export default function WorkspaceCard({
                 onChange={onTabChange}
                 counts={tabCounts}
                 showQualification={showQualification}
+                showExposes={showExposes}
             />
             <div style={{ padding: 16 }}>{children}</div>
         </section>

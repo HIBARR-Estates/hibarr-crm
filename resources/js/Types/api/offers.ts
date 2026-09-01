@@ -67,6 +67,12 @@ export interface DealOfferApplication {
     resolved_from?: DeveloperProject | DeveloperProjectUnitType;
 }
 
+export interface DealOffersResponse {
+    status: string;
+    applications: DealOfferApplication[];
+    total_discount: number;
+}
+
 export interface OfferFormValues {
     developer_id: number;
     name: string;

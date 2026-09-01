@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import Icon from "./Icon";
+import { formatFileSize } from "@/lib/config";
 import { REDESIGN_TOKENS as T } from "../tokens";
 
 interface FileDropzoneProps {
     isUploading?: boolean;
     uploadProgress?: number;
-    /** Primary line when idle, e.g. "Drop files here or click to upload". */
+    uploadBytesLoaded?: number;
+    uploadBytesTotal?: number;    /** Primary line when idle, e.g. "Drop files here or click to upload". */
     dropHint: string;
     /** Primary line while uploading (without ellipsis/percent). */
     uploadingLabel: string;
@@ -21,8 +23,9 @@ interface FileDropzoneProps {
 export default function FileDropzone({
     isUploading = false,
     uploadProgress = 0,
-    dropHint,
-    uploadingLabel,
+    uploadBytesLoaded = 0,
+    uploadBytesTotal = 0,
+    dropHint,    uploadingLabel,
     sizeHint,
     disabled = false,
     multiple = true,
@@ -40,8 +43,10 @@ export default function FileDropzone({
         onFilesSelected(event.dataTransfer.files);
     };
 
-    return (
-        <div
+    const showByteProgress =
+        isUploading && uploadBytesTotal > 0 && uploadBytesLoaded > 0;
+
+    return (        <div
             role="button"
             tabIndex={interactive ? 0 : -1}
             onClick={() => interactive && inputRef.current?.click()}
@@ -91,7 +96,12 @@ export default function FileDropzone({
                         : `${uploadingLabel}…`
                     : dropHint}
             </div>
-            {isUploading ? (
+            {showByteProgress ? (
+                <div className="mb-1 text-[12px] text-[#6b7280]">
+                    {formatFileSize(uploadBytesLoaded)} /{" "}
+                    {formatFileSize(uploadBytesTotal)}
+                </div>
+            ) : null}            {isUploading ? (
                 <div
                     className="mx-auto mb-2 mt-1 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[#e5e7eb]"
                     role="progressbar"
