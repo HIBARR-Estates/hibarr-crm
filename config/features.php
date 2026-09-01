@@ -35,6 +35,7 @@ return [
         'crm.deal-exposes-tab',
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
+        'crm.custom-fields-cross-model-optimizations',
         'crm.meeting-attendance-confirmation',
         'crm.meeting-host',
         'crm.notification-bypass',

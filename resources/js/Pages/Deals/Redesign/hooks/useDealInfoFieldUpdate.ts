@@ -9,6 +9,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useCurrencies } from "@/Hooks/useFormData";
 import type { Deal } from "@/Types/api/deals";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import useDealCustomFieldsBulkSave from "./useDealCustomFieldsBulkSave";
 
 const HIBARR_FIELD_NAMES = [
     "interested_in",
@@ -61,6 +62,7 @@ export default function useDealInfoFieldUpdate() {
     const { props } = usePage<any>();
     const bulkWriteEnabled =
         props.featureFlags?.[CUSTOM_FIELDS_BULK_FLAG] === true;
+    const { save: saveCustomFieldsBulk } = useDealCustomFieldsBulkSave(deal.id);
     const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const { t } = useTranslation();
@@ -200,19 +202,7 @@ export default function useDealInfoFieldUpdate() {
                 // write path the analysis modal uses, no lead data here since
                 // this tab can't produce a "lead_custom_field" group today.
                 if (bulkWriteEnabled && group.type === "custom_field") {
-                    const response = await axios.patch(
-                        route("deals.gathering.custom_fields_bulk", {
-                            id: deal.id,
-                        }),
-                        { deal: group.data },
-                        { headers: { Accept: "application/json" } },
-                    );
-                    if (
-                        response.data?.status === "success" &&
-                        response.data?.data
-                    ) {
-                        setDeal(response.data.data);
-                    }
+                    await saveCustomFieldsBulk({ deal: group.data });
                     setUpdatingField(null);
                     return;
                 }
@@ -237,13 +227,7 @@ export default function useDealInfoFieldUpdate() {
             await Promise.all(
                 groups.map((group) => {
                     if (bulkWriteEnabled && group.type === "custom_field") {
-                        return axios.patch(
-                            route("deals.gathering.custom_fields_bulk", {
-                                id: deal.id,
-                            }),
-                            { deal: group.data },
-                            { headers: { Accept: "application/json" } },
-                        );
+                        return saveCustomFieldsBulk({ deal: group.data });
                     }
                     return axios.patch(
                         route("deals.gathering.inline_update", { id: deal.id }),
@@ -257,7 +241,14 @@ export default function useDealInfoFieldUpdate() {
                 setDeal(refreshed.data.data);
             }
         },
-        [bulkWriteEnabled, buildFieldEntries, deal.id, setDeal, updateDeal],
+        [
+            bulkWriteEnabled,
+            buildFieldEntries,
+            deal.id,
+            saveCustomFieldsBulk,
+            setDeal,
+            updateDeal,
+        ],
     );
 
     // Public batched save — one request per changed type (see above).

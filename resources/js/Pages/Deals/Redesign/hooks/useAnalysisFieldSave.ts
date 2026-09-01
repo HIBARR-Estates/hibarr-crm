@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
+import useDealCustomFieldsBulkSave from "./useDealCustomFieldsBulkSave";
 
 /**
  * Kill-switch for the coalesced custom-field save path below. Off: every
@@ -33,6 +34,7 @@ export default function useAnalysisFieldSave(dealId: number) {
     const { props } = usePage<any>();
     const bulkWriteEnabled =
         props.featureFlags?.[CUSTOM_FIELDS_BULK_FLAG] === true;
+    const { save: saveCustomFieldsBulk } = useDealCustomFieldsBulkSave(dealId);
 
     const pending = useRef<Map<string, PendingWrite>>(new Map());
     const customFieldPending = useRef<Map<string, CustomFieldEntry>>(new Map());
@@ -120,43 +122,28 @@ export default function useAnalysisFieldSave(dealId: number) {
             const keys = [...entries.keys()];
 
             return track(
-                axios
-                    .patch(
-                        route("deals.gathering.custom_fields_bulk", {
-                            id: dealId,
-                        }),
-                        body,
-                        {
-                            headers: {
-                                Accept: "application/json",
-                                "X-Analysis-Lean": "1",
+                saveCustomFieldsBulk(body, { lean: true }).catch(() => {
+                    setFailedKeys((prev) => {
+                        const filtered = prev.filter(
+                            (f) => !keys.includes(f.key),
+                        );
+                        const retried = keys.map((key) => ({
+                            key,
+                            retry: () => {
+                                const entry = entries.get(key);
+                                if (!entry) return;
+                                setFailedKeys((p) =>
+                                    p.filter((f) => f.key !== key),
+                                );
+                                sendCustomFieldBatch(new Map([[key, entry]]));
                             },
-                        },
-                    )
-                    .catch(() => {
-                        setFailedKeys((prev) => {
-                            const filtered = prev.filter(
-                                (f) => !keys.includes(f.key),
-                            );
-                            const retried = keys.map((key) => ({
-                                key,
-                                retry: () => {
-                                    const entry = entries.get(key);
-                                    if (!entry) return;
-                                    setFailedKeys((p) =>
-                                        p.filter((f) => f.key !== key),
-                                    );
-                                    sendCustomFieldBatch(
-                                        new Map([[key, entry]]),
-                                    );
-                                },
-                            }));
-                            return [...filtered, ...retried];
-                        });
-                    }),
+                        }));
+                        return [...filtered, ...retried];
+                    });
+                }),
             );
         },
-        [dealId, track],
+        [saveCustomFieldsBulk, track],
     );
 
     const flushCustomFields = useCallback(() => {
