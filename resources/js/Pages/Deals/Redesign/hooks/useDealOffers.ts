@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
+import { isSuccessResponse } from "@/lib/api/types";
 import type { ApiResponse } from "@/lib/api/types";
 import type { DealOffersResponse } from "@/Types/api/offers";
 
@@ -29,7 +30,9 @@ export default function useDealOffers(dealId: number, enabled = true) {
         useApiMutate<undefined, unknown, ApiResponse<unknown>>(
             route("deals.offers.remove", dealId),
             "DELETE",
-            () => {
+            (response) => {
+                if (!response || !isSuccessResponse(response)) return;
+
                 queryClient.setQueryData(
                     [indexPath, undefined],
                     (current: DealOffersResponse | undefined) => ({

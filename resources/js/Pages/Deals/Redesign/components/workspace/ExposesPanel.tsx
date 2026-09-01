@@ -581,7 +581,7 @@ export default function ExposesPanel({
                                                     />
                                                 </button>
                                             )}
-                                            {onRemove && (
+                                            {onRemove && rowEditable && (
                                                 <button
                                                     type="button"
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
