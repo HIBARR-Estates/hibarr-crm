@@ -124,7 +124,9 @@ class CustomFieldController extends AccountBaseController
             );
         }
 
-        return Reply::success('messages.recordSaved');
+        $field = !empty($createdFields) ? $createdFields[0]->load('fieldGroup', 'customFieldCategory') : null;
+
+        return Reply::successWithData('messages.recordSaved', ['field' => $field?->toAdminArray()]);
     }
 
     /**
@@ -202,7 +204,9 @@ class CustomFieldController extends AccountBaseController
             );
         }
 
-        return Reply::success('messages.updateSuccess');
+        $field->load('fieldGroup', 'customFieldCategory');
+
+        return Reply::successWithData('messages.updateSuccess', ['field' => $field->toAdminArray()]);
     }
 
     /**

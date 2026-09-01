@@ -37,6 +37,12 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
     const [form] = Form.useForm();
     const [enabled, setEnabled] = useState(ruleSet?.enabled ?? false);
     const [saving, setSaving] = useState(false);
+    // Hooks can only be called from a component's own render, never from a
+    // plain callback like Form.List's `children` render-prop (that function
+    // is invoked directly by rc-field-form, not through React.createElement,
+    // so there's no guarantee a hook dispatcher is active there) — watch here
+    // instead and read the array by index further down.
+    const watchedCriteria = Form.useWatch('criteria', form) ?? [];
 
     useEffect(() => {
         if (ruleSet) {
@@ -108,11 +114,15 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
     return (
         <div style={{ padding: '20px' }}>
             <Form form={form} layout="vertical">
-                <Form.Item 
+                {/* Form.Item with a `name` prop clones exactly one child to wire up
+                    value/onChange — the caption lives outside it, not as a second
+                    child, since it isn't part of the control. */}
+                <Form.Item
                     name="enabled"
                     label="Enable visibility rules"
                     valuePropName="checked"
                     initialValue={enabled}
+                    style={{ marginBottom: 4 }}
                 >
                     <Switch
                         checked={enabled}
@@ -121,10 +131,10 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                             form.setFieldValue('enabled', checked);
                         }}
                     />
-                    <Text type="secondary" style={{ marginLeft: 12 }}>
-                        When enabled, this field will only be visible when the conditions below are met.
-                    </Text>
                 </Form.Item>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+                    When enabled, this field will only be visible when the conditions below are met.
+                </Text>
 
                 <Form.Item
                     name="default_visibility"
@@ -158,14 +168,12 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
 
                         <Form.List name="criteria">
                             {(fields, { add, remove }) => {
-                                // Watch all criteria operators at the top level (not inside map)
-                                const allCriteria = Form.useWatch('criteria', form) || [];
-
                                 return (
                                     <>
                                         {fields.map((fieldItem, index) => {
-                                            // Access operator from watched data instead of calling hook inside map
-                                            const operator = allCriteria[fieldItem.name]?.operator;
+                                            // Read from the component-level watch instead of
+                                            // calling a hook inside this render-prop.
+                                            const operator = watchedCriteria[fieldItem.name]?.operator;
 
                                             return (
                                             <Card

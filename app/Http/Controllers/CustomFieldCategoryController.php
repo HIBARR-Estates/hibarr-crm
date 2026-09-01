@@ -120,7 +120,7 @@ class CustomFieldCategoryController extends AccountBaseController
             'order' => $request->order ?? 0
         ]);
 
-        return Reply::success('Category updated successfully');
+        return Reply::successWithData('Category updated successfully', ['category' => $category]);
     }
 
     /**

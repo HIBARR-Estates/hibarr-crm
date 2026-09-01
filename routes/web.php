@@ -712,6 +712,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         // Accept both POST (for file uploads with method spoofing) and PATCH
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
         Route::patch('gathering/analysis-complete/{id}', [DealGatheringController::class, 'completeAnalysis'])->name('gathering.analysis_complete');
+        // Bulk write: deal + lead custom fields in one request/transaction.
+        // Same POST+PATCH acceptance as inline-update, same reason (file uploads).
+        Route::match(['post', 'patch'], 'gathering/custom-fields-bulk/{id}', [DealGatheringController::class, 'updateCustomFieldsBulk'])->name('gathering.custom_fields_bulk');
     });
 
     // Explicit deal routes (no resource)

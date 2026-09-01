@@ -27,6 +27,18 @@ const HIBARR_FIELD_NAMES = [
 type UpdateType = "details" | "contact" | "custom_field" | "hibarr_field" | "recalculate_value";
 type ExplicitUpdateType = "details" | "contact" | "custom_field" | "hibarr_field";
 
+/**
+ * Kill-switch shared with useAnalysisFieldSave.ts. On: a changed "custom_field"
+ * group is sent to the dedicated bulk endpoint instead of inline-update. This
+ * tab has no "lead_custom_field" case in its type union today, so this can't
+ * yet collapse a request the way the analysis modal's coalescing does — it's
+ * wired up so a deal-only custom field save already goes through the same
+ * path the analysis modal uses, and so that adding lead fields to this tab
+ * later (a separate, not-yet-done change) benefits immediately without
+ * touching this call site again.
+ */
+const CUSTOM_FIELDS_BULK_FLAG = "crm.custom-fields-bulk-write";
+
 export interface DealFieldChange {
     fieldName: string;
     value: unknown;
@@ -38,6 +50,7 @@ export default function useDealInfoFieldUpdate() {
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
     const { props } = usePage<any>();
+    const bulkWriteEnabled = props.featureFlags?.[CUSTOM_FIELDS_BULK_FLAG] === true;
     const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const { t } = useTranslation();
@@ -164,28 +177,59 @@ export default function useDealInfoFieldUpdate() {
 
             if (groups.length === 0) return;
 
-            // One type → the single response is authoritative; reuse updateDeal
-            // so its onSuccess (setDeal + clearing updatingField) runs. This is
-            // also the path every single-field inline edit takes.
+            // One type → the single response is authoritative.
             if (groups.length === 1) {
-                await updateDeal(groups[0]);
+                const [group] = groups;
+
+                // Deal custom fields go through the dedicated bulk endpoint
+                // when enabled (see CUSTOM_FIELDS_BULK_FLAG above) — same
+                // write path the analysis modal uses, no lead data here since
+                // this tab can't produce a "lead_custom_field" group today.
+                if (bulkWriteEnabled && group.type === "custom_field") {
+                    const response = await axios.patch(
+                        route("deals.gathering.custom_fields_bulk", { id: deal.id }),
+                        { deal: group.data },
+                        { headers: { Accept: "application/json" } },
+                    );
+                    if (response.data?.status === "success" && response.data?.data) {
+                        setDeal(response.data.data);
+                    }
+                    setUpdatingField(null);
+                    return;
+                }
+
+                // reuse updateDeal so its onSuccess (setDeal + clearing
+                // updatingField) runs. This is also the path every
+                // single-field inline edit takes.
+                await updateDeal(group);
                 return;
             }
 
-            // Multiple types → fire concurrently. Each PATCH returns a full
+            // Multiple types → fire concurrently. Each write returns a full
             // deal snapshot, so letting each response setDeal() would race and
             // could drop another group's changes. Instead we suppress the
             // per-response setDeal (raw axios, not updateDeal), wait for every
             // write to commit, then do one refresh for the authoritative,
             // fully-merged snapshot — same rich shape updateDeal returns.
+            // (The custom_field group alone routes to the bulk endpoint when
+            // enabled — the refresh is still needed either way here, since
+            // details/contact/hibarr_field aren't things that endpoint
+            // understands and can't be folded into the same request.)
             await Promise.all(
-                groups.map((group) =>
-                    axios.patch(
+                groups.map((group) => {
+                    if (bulkWriteEnabled && group.type === "custom_field") {
+                        return axios.patch(
+                            route("deals.gathering.custom_fields_bulk", { id: deal.id }),
+                            { deal: group.data },
+                            { headers: { Accept: "application/json" } },
+                        );
+                    }
+                    return axios.patch(
                         route("deals.gathering.inline_update", { id: deal.id }),
                         group,
                         { headers: { Accept: "application/json" } },
-                    ),
-                ),
+                    );
+                }),
             );
             const refreshed = await axios.get(
                 route("deals.refresh", deal.id),
@@ -197,7 +241,7 @@ export default function useDealInfoFieldUpdate() {
                 setDeal(refreshed.data.data);
             }
         },
-        [buildFieldEntries, deal.id, setDeal, updateDeal],
+        [bulkWriteEnabled, buildFieldEntries, deal.id, setDeal, updateDeal],
     );
 
     // Public batched save — one request per changed type (see above).

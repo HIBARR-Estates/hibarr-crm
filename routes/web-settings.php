@@ -12,6 +12,7 @@ use App\Http\Controllers\CrmEventSettingController;
 use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\CustomFieldCategoryController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomFieldSettingsController;
 use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\CustomModuleController;
 use App\Http\Controllers\DatabaseBackupSettingController;
@@ -224,7 +225,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     // LeaveType Resource
     Route::resource('leaveType', LeaveTypeController::class);
 
-    // Custom Fields Settings (fields-by-group before resource so it is not matched as {id})
+    // Custom Fields Settings (React/Inertia page; fields-by-group before the
+    // resource so it is not matched as {id})
+    Route::get('custom-fields-settings', [CustomFieldSettingsController::class, 'index'])->name('custom-fields-settings.index');
     Route::get('custom-fields/fields-by-group', [CustomFieldController::class, 'fieldsByGroup'])->name('custom-fields.fields-by-group');
     Route::resource('custom-fields', CustomFieldController::class);
     Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');

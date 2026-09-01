@@ -149,7 +149,7 @@ export function Modal({
 }
 
 interface ModalFieldProps {
-    label: string;
+    label: ReactNode;
     children: ReactNode;
 }
 
