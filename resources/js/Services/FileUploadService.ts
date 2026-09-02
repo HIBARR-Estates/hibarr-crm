@@ -27,6 +27,7 @@ import {
     getFileUploadConfig,
     generateFileId,
     formatFileSize,
+    computeUploadTimeoutMs,
 } from "@/lib/config";
 
 // Type for axios progress event (compatible with older versions)
@@ -191,8 +192,16 @@ export class FileUploadService implements IFileUploadService {
         // Validate file first
         this.validateFile(file);
 
+        if (!this.config.apiKey?.trim()) {
+            throw new FileUploadError(
+                "File upload API key is not configured. Set MIX_FILE_UPLOAD_API_KEY in .env and restart the Vite dev server.",
+                file.name,
+            );
+        }
+
         const fileId = generateFileId(file);
         const folder = targetFolder || this.config.defaultTargetFolder;
+        const uploadTimeoutMs = computeUploadTimeoutMs(file.size);
 
         // Create abort controller for this upload
         const abortController = new AbortController();
@@ -219,16 +228,33 @@ export class FileUploadService implements IFileUploadService {
                                 "X-Api-Key": this.config.apiKey,
                                 "Content-Type": "multipart/form-data",
                             },
+                            timeout: uploadTimeoutMs,
                             cancelToken: cancelSource.token,
                             onUploadProgress: (
                                 progressEvent: AxiosProgressEvent,
                             ) => {
-                                if (onProgress && progressEvent.total) {
-                                    const progress = Math.round(
-                                        (progressEvent.loaded * 100) /
-                                            progressEvent.total,
+                                if (!onProgress) return;
+
+                                const total =
+                                    progressEvent.total && progressEvent.total > 0
+                                        ? progressEvent.total
+                                        : file.size;
+                                const loaded = progressEvent.loaded;
+
+                                if (total > 0) {
+                                    onProgress(
+                                        fileId,
+                                        Math.min(
+                                            99,
+                                            Math.round((loaded * 100) / total),
+                                        ),
+                                        loaded,
                                     );
-                                    onProgress(fileId, progress);
+                                    return;
+                                }
+
+                                if (loaded > 0) {
+                                    onProgress(fileId, 5, loaded);
                                 }
                             },
                         },
@@ -245,6 +271,10 @@ export class FileUploadService implements IFileUploadService {
                 fileId,
                 file.name,
             );
+
+            if (onProgress) {
+                onProgress(fileId, 100, file.size);
+            }
 
             return result;
         } finally {

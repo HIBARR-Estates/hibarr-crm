@@ -20,6 +20,7 @@ export const RECORD_TABS: WorkspaceTabDef[] = [
     { id: "meetings", label: "Meetings", countable: true },
     { id: "files", label: "Files", countable: true },
     { id: "deals", label: "Deals", countable: true },
+    { id: "exposes", label: "Exposes", countable: true },
     { id: "itinerary", label: "Flight Itinerary", countable: true },
     { id: "qualification", label: "Qualification", countable: true },
     { id: "marketing", label: "Marketing" },

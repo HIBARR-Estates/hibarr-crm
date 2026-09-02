@@ -46,6 +46,8 @@ interface DealWorkspaceValue {
 
 const DealWorkspaceContext = createContext<DealWorkspaceValue | null>(null);
 
+export { DealWorkspaceContext };
+
 interface DealWorkspaceProviderProps {
     deal: Deal;
     children: ReactNode;

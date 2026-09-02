@@ -14,6 +14,7 @@ export type DealRecordTab =
     | "meetings"
     | "files"
     | "offers"
+    | "exposes"
     | "recommendations"
     | "itinerary";
 
@@ -27,6 +28,7 @@ export interface DealTabCount {
     meetings?: number;
     files?: number;
     offers?: number;
+    exposes?: number;
     recommendations?: number;
     itinerary?: number;
 }

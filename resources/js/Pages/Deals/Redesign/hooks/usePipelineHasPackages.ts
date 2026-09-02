@@ -5,7 +5,7 @@ import { usePage } from "@inertiajs/react";
  * (`package_pipeline`, resolved in DealController@show).
  *
  * Such a pipeline sells packages, not individual properties — so the property
- * manager, the recommendations tab and the offers tab are hidden for its deals.
+ * manager and the recommendations tab are hidden for its deals.
  */
 export default function usePipelineHasPackages(): boolean {
     const { props } = usePage<any>();

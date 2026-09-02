@@ -10,6 +10,7 @@ const VALID_TABS: DealTab[] = [
     "meetings",
     "files",
     "offers",
+    "exposes",
     "recommendations",
     "itinerary",
     "dealinfo",

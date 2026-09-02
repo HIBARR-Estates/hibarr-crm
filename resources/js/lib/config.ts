@@ -189,6 +189,30 @@ export const formatFileSize = (bytes: number): string => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+/** Floor timeout for small files (2 minutes). */
+const UPLOAD_TIMEOUT_MIN_MS = 120_000;
+
+/** Cap for very large uploads — 1 GB on a slow link (1 hour). */
+const UPLOAD_TIMEOUT_MAX_MS = 3_600_000;
+
+/** Assumed minimum throughput (~256 KiB/s) when scaling timeout by file size. */
+const UPLOAD_TIMEOUT_BYTES_PER_MS = (256 * 1024) / 1000;
+
+/**
+ * Axios upload timeout scaled to file size so large exposes/documents are not
+ * aborted while bytes are still transferring.
+ */
+export const computeUploadTimeoutMs = (fileSizeBytes: number): number => {
+    const size = Math.max(0, fileSizeBytes);
+    const estimated =
+        UPLOAD_TIMEOUT_MIN_MS + size / UPLOAD_TIMEOUT_BYTES_PER_MS;
+
+    return Math.min(
+        Math.max(estimated, UPLOAD_TIMEOUT_MIN_MS),
+        UPLOAD_TIMEOUT_MAX_MS,
+    );
+};
+
 /**
  * Generate a unique file ID
  * @param file - The file to generate an ID for

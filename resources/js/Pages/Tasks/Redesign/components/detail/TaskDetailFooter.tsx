@@ -6,6 +6,8 @@ import { TaskGlyph } from "../primitives/TaskGlyphs";
 interface TaskDetailFooterProps {
     done: boolean;
     canWrite: boolean;
+    /** Edit control; defaults to canWrite so existing callers stay unchanged. */
+    canEdit?: boolean;
     toggling: boolean;
     onEdit: () => void;
     onClose: () => void;
@@ -15,6 +17,7 @@ interface TaskDetailFooterProps {
 export default function TaskDetailFooter({
     done,
     canWrite,
+    canEdit = canWrite,
     toggling,
     onEdit,
     onClose,
@@ -31,7 +34,7 @@ export default function TaskDetailFooter({
                 background: T.WHITE,
             }}
         >
-            {canWrite ? (
+            {canEdit ? (
                 <button
                     type="button"
                     onClick={onEdit}
