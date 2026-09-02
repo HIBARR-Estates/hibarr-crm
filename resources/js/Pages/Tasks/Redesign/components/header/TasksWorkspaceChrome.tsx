@@ -25,6 +25,9 @@ interface TasksWorkspaceChromeProps {
     activeFilterCount: number;
     onOpenFilters: () => void;
     totalItems: number;
+    onReplayGuide?: () => void;
+    replayGuideLabel?: string;
+    replayTourTarget?: string;
 }
 
 /** Sticky white header band — title, view toggle, quick filters, active sentence. */
@@ -46,6 +49,9 @@ export default function TasksWorkspaceChrome({
     activeFilterCount,
     onOpenFilters,
     totalItems,
+    onReplayGuide,
+    replayGuideLabel,
+    replayTourTarget,
 }: TasksWorkspaceChromeProps) {
     return (
         <div
@@ -68,6 +74,9 @@ export default function TasksWorkspaceChrome({
                     headline={headline}
                     showTaskSettings={showTaskSettings}
                     onOpenTaskSettings={onOpenTaskSettings}
+                    onReplayGuide={onReplayGuide}
+                    replayGuideLabel={replayGuideLabel}
+                    replayTourTarget={replayTourTarget}
                 />
                 <TasksFilterBar
                     quickFilter={quickFilter}
@@ -87,7 +96,10 @@ export default function TasksWorkspaceChrome({
                     borderTop: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
-                <div className="mx-auto w-full max-w-screen-2xl px-7">
+                <div
+                    className="mx-auto w-full max-w-screen-2xl px-7"
+                    data-tour="tasks-list-filter-sentence"
+                >
                     <ActiveFilterSentence
                         count={totalItems}
                         entityLabel="tasks"

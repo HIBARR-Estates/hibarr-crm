@@ -18,6 +18,8 @@ export interface FiltersButtonProps {
     /** Defaults to the ad-hoc-translated "Filters". */
     label?: string;
     className?: string;
+    /** Optional `data-tour` value — never hardcoded per entity. */
+    tourTarget?: string;
 }
 
 /** The Filters icon-button-with-badge, shared so a page can place it
@@ -28,10 +30,16 @@ export function FiltersButton({
     onClick,
     label,
     className = "dr-btn dr-btn-ghost",
+    tourTarget,
 }: FiltersButtonProps) {
     const { td } = useTd();
     return (
-        <button type="button" className={className} onClick={onClick}>
+        <button
+            type="button"
+            className={className}
+            onClick={onClick}
+            {...(tourTarget ? { "data-tour": tourTarget } : {})}
+        >
             <FilterOutlined style={{ fontSize: 13 }} />
             {label ?? td("Filters")}
             {count > 0 && (
@@ -68,6 +76,15 @@ export interface EntityListHeaderProps {
      */
     leadingActions?: ReactNode;
     /**
+     * Ghost "Replay guide" in the title-row actions cluster. Omitted entirely
+     * when undefined (not a no-op) — same rule as the deal/lead detail ⋮ menus.
+     */
+    onReplayGuide?: () => void;
+    /** Parent should pass `t("….replay_menu_item")`. Falls back to "Replay guide". */
+    replayGuideLabel?: string;
+    /** Optional `data-tour` value on the Replay button — never hardcoded per entity. */
+    replayTourTarget?: string;
+    /**
      * Second row, left side — a pipeline selector, quick filters, whatever
      * the entity needs. The row itself is only rendered when this or
      * `onOpenFilters` is provided.
@@ -88,6 +105,16 @@ export interface EntityListHeaderProps {
     maxWidth?: number;
     /** Sticks the band to the top of its scroll container. */
     sticky?: boolean;
+    /** Optional `data-tour` on the title + subtitle column. */
+    titleTourTarget?: string;
+    /** Optional `data-tour` on the Table/Board (or equivalent) toggle. */
+    viewToggleTourTarget?: string;
+    /** Optional `data-tour` wrapping `toolbarLeft`. */
+    toolbarLeftTourTarget?: string;
+    /** Optional `data-tour` on the toolbar-row Filters button. */
+    filtersTourTarget?: string;
+    /** Optional `data-tour` on the active-filter sentence band. */
+    filterSentenceTourTarget?: string;
 }
 
 /**
@@ -104,6 +131,9 @@ export default function EntityListHeader({
     onViewChange,
     actions,
     leadingActions,
+    onReplayGuide,
+    replayGuideLabel,
+    replayTourTarget,
     toolbarLeft,
     filtersCount = 0,
     onOpenFilters,
@@ -111,6 +141,11 @@ export default function EntityListHeader({
     filterSentence,
     maxWidth = 1536,
     sticky = false,
+    titleTourTarget,
+    viewToggleTourTarget,
+    toolbarLeftTourTarget,
+    filtersTourTarget,
+    filterSentenceTourTarget,
 }: EntityListHeaderProps) {
     const { td } = useTd();
     const showViewToggle = Boolean(viewOptions?.length && onViewChange);
@@ -131,7 +166,12 @@ export default function EntityListHeader({
                 style={{ maxWidth, fontFamily: REDESIGN_FONT_STACK }}
             >
                 <div className="flex flex-wrap items-start justify-between gap-6">
-                    <div className="flex flex-col gap-1">
+                    <div
+                        className="flex flex-col gap-1"
+                        {...(titleTourTarget
+                            ? { "data-tour": titleTourTarget }
+                            : {})}
+                    >
                         <h1
                             className="m-0 font-bold"
                             style={{
@@ -156,6 +196,9 @@ export default function EntityListHeader({
                         {showViewToggle && (
                             <div
                                 className="flex gap-0.5 p-0.5"
+                                {...(viewToggleTourTarget
+                                    ? { "data-tour": viewToggleTourTarget }
+                                    : {})}
                                 style={{
                                     background: T.BG,
                                     border: `1px solid ${T.BORDER}`,
@@ -195,6 +238,18 @@ export default function EntityListHeader({
                                 })}
                             </div>
                         )}
+                        {onReplayGuide !== undefined && (
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                onClick={onReplayGuide}
+                                {...(replayTourTarget
+                                    ? { "data-tour": replayTourTarget }
+                                    : {})}
+                            >
+                                {replayGuideLabel ?? td("Replay guide")}
+                            </button>
+                        )}
                         {leadingActions}
                         {actions}
                     </div>
@@ -202,13 +257,20 @@ export default function EntityListHeader({
 
                 {showToolbarRow && (
                     <div className="flex flex-wrap items-center gap-2.5">
-                        {toolbarLeft}
+                        {toolbarLeftTourTarget && toolbarLeft ? (
+                            <div data-tour={toolbarLeftTourTarget}>
+                                {toolbarLeft}
+                            </div>
+                        ) : (
+                            toolbarLeft
+                        )}
                         {onOpenFilters && (
                             <FiltersButton
                                 count={filtersCount}
                                 onClick={onOpenFilters}
                                 label={filtersLabel}
                                 className="dr-btn dr-btn-ghost ml-auto"
+                                tourTarget={filtersTourTarget}
                             />
                         )}
                     </div>
@@ -221,6 +283,9 @@ export default function EntityListHeader({
                         background: T.SURFACE_2,
                         borderTop: `1px solid ${T.BORDER_SOFT}`,
                     }}
+                    {...(filterSentenceTourTarget
+                        ? { "data-tour": filterSentenceTourTarget }
+                        : {})}
                 >
                     <div
                         className="mx-auto w-full px-6"

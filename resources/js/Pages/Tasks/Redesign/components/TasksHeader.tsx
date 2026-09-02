@@ -16,6 +16,15 @@ interface TasksHeaderProps {
     headline: string;
     showTaskSettings?: boolean;
     onOpenTaskSettings?: () => void;
+    /**
+     * Ghost "Replay guide" after Refresh. Omitted entirely when undefined —
+     * same rule as EntityListHeader / the deal/lead detail ⋮ menus.
+     */
+    onReplayGuide?: () => void;
+    /** Parent should pass `t("pages.tasks.tour.replay_menu_item")`. Falls back to "Replay guide". */
+    replayGuideLabel?: string;
+    /** Optional `data-tour` value on the Replay button. */
+    replayTourTarget?: string;
 }
 
 export default function TasksHeader({
@@ -28,6 +37,9 @@ export default function TasksHeader({
     headline,
     showTaskSettings,
     onOpenTaskSettings,
+    onReplayGuide,
+    replayGuideLabel,
+    replayTourTarget,
 }: TasksHeaderProps) {
     const { td } = useTd();
 
@@ -58,7 +70,10 @@ export default function TasksHeader({
 
     return (
         <div className="flex flex-wrap items-start justify-between gap-6 pb-4">
-            <div className="flex flex-col gap-1">
+            <div
+                className="flex flex-col gap-1"
+                data-tour="tasks-list-header"
+            >
                 <h1
                     className="m-0 font-bold"
                     style={{
@@ -80,6 +95,7 @@ export default function TasksHeader({
             <div className="flex items-center gap-2.5">
                 <div
                     className="flex gap-0.5 p-0.5"
+                    data-tour="tasks-list-view-toggle"
                     style={{
                         background: T.BG,
                         border: `1px solid ${T.BORDER}`,
@@ -111,12 +127,36 @@ export default function TasksHeader({
                     {td("Refresh")}
                 </button>
 
+                {onReplayGuide !== undefined && (
+                    <button
+                        type="button"
+                        onClick={onReplayGuide}
+                        className="inline-flex items-center gap-1.5"
+                        {...(replayTourTarget
+                            ? { "data-tour": replayTourTarget }
+                            : {})}
+                        style={{
+                            padding: "9px 16px",
+                            borderRadius: 8,
+                            background: T.WHITE,
+                            color: T.TEXT_MUTED,
+                            border: `1px solid ${T.BORDER}`,
+                            fontSize: 15,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        {replayGuideLabel ?? td("Replay guide")}
+                    </button>
+                )}
+
                 {showTaskSettings && (
                     <button
                         type="button"
                         aria-label={td("Task settings")}
                         title={td("Task settings")}
                         onClick={onOpenTaskSettings}
+                        data-tour="tasks-list-settings"
                         className="inline-flex items-center justify-center"
                         style={{
                             width: 36,
@@ -136,6 +176,7 @@ export default function TasksHeader({
                     <button
                         type="button"
                         onClick={onAddTask}
+                        data-tour="tasks-list-add"
                         className="inline-flex items-center gap-1.5"
                         style={{
                             padding: "9px 16px",
