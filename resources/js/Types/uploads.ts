@@ -189,7 +189,11 @@ export class FileUploadError extends Error {
 /**
  * Progress callback for tracking upload progress
  */
-export type OnProgressCallback = (fileId: string, progress: number) => void;
+export type OnProgressCallback = (
+    fileId: string,
+    progress: number,
+    loadedBytes?: number,
+) => void;
 
 /**
  * Interface for file upload service implementations

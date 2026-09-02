@@ -641,6 +641,9 @@ class DealController extends AccountBaseController
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
+            'change_status' => user()->permission('change_status'),
+            'add_task_comments' => user()->permission('add_task_comments'),
+            'delete_task_comments' => user()->permission('delete_task_comments'),
             'view_task_category' => user()->permission('view_task_category'),
         ];
 

@@ -1,6 +1,9 @@
-import { useMemo, useCallback, useEffect, useState, type ReactNode } from "react";
+import { useMemo, useCallback, useEffect, useState, useRef, type ReactNode } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
 import { LEAD_TABLE_COLUMNS } from "@/Features/Leads/Columns";
 // dr-btn / dr-pill / modal-panel — the toolbar buttons and Schedule-next-step
@@ -64,6 +67,11 @@ import {
 import EntityListHeader, {
     FiltersButton,
 } from "@/Components/Redesign/primitives/EntityListHeader";
+import {
+    buildLeadListTourSteps,
+    LEADS_LIST_TOUR_ID,
+    LEADS_LIST_TOUR_LABELS,
+} from "./config/leadListTourSteps";
 
 /** Rows-per-page preference, remembered per browser across visits. */
 const LEADS_PER_PAGE_STORAGE_KEY = "hibarr_leads_per_page";
@@ -121,9 +129,12 @@ const Index = ({
         td,
     ]);
     const { props: pageProps } = usePage<PageProps>();
-    // Redesigned two-pane filter workbench + saved views (mockups 1a/2a/2b/3c).
     const useFilterV2 =
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
+    const leadListTourSteps = useMemo(() => buildLeadListTourSteps(), []);
 
     const {
         handleAction,
@@ -416,18 +427,29 @@ const Index = ({
                 title={t("app.menu.lead")}
                 breadcrumbs={[{ name: t("app.menu.lead") }]}
                 searchComp={
-                    <UniversalSearchBox
-                        placeholder={t("app.leads.search_placeholder")}
-                        className="w-full"
-                    />
+                    <div data-tour="leads-list-search">
+                        <UniversalSearchBox
+                            placeholder={t("app.leads.search_placeholder")}
+                            className="w-full"
+                        />
+                    </div>
                 }
                 filterSection={
                     useFilterV2 ? undefined : <ContextualActiveFilters />
                 }
                 mainContentClassName="p-0"
             >
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={LEADS_LIST_TOUR_ID}
+                        steps={leadListTourSteps}
+                        labels={LEADS_LIST_TOUR_LABELS}
+                    />
+                )}
                 <EntityListHeader
                     title={t("app.menu.lead")}
+                    titleTourTarget="leads-list-header"
                     subtitle={
                         <Deferred
                             data={[
@@ -470,6 +492,7 @@ const Index = ({
                                     <button
                                         type="button"
                                         onClick={handleDueThisWeekClick}
+                                        data-tour="leads-list-due-this-week"
                                         className="inline-flex items-center rounded-md font-semibold cursor-pointer"
                                         style={{
                                             gap: 7,
@@ -512,6 +535,7 @@ const Index = ({
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
+                                data-tour="leads-list-import"
                                 onClick={handleImportLeads}
                             >
                                 <ImportOutlined style={{ fontSize: 13 }} />
@@ -537,10 +561,12 @@ const Index = ({
                                 count={activeFilterCount}
                                 onClick={openDrawer}
                                 label={t("app.filter")}
+                                tourTarget="leads-list-filters"
                             />
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-primary"
+                                data-tour="leads-list-add"
                                 onClick={handleCreateLead}
                             >
                                 <PlusOutlined style={{ fontSize: 13 }} />
@@ -555,6 +581,19 @@ const Index = ({
                                 onOpenFilters={openDrawer}
                             />
                         ) : undefined
+                    }
+                    filterSentenceTourTarget={
+                        useFilterV2 ? "leads-list-filter-sentence" : undefined
+                    }
+                    onReplayGuide={
+                        showProductTour
+                            ? () => tourRef.current?.restart()
+                            : undefined
+                    }
+                    replayGuideLabel={
+                        showProductTour
+                            ? t("pages.leads.list_tour.replay_menu_item")
+                            : undefined
                     }
                     // maxWidth={1560}
                 />
@@ -588,6 +627,7 @@ const Index = ({
                     )}
 
                     {/* Properties Table */}
+                    <div data-tour="leads-list-table">
                     <DataTable<Lead>
                         columns={columns}
                         dataSource={leads.data}
@@ -636,6 +676,7 @@ const Index = ({
                         scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
                         size="small"
                     />
+                    </div>
                 </div>
             </PageLayout>
 

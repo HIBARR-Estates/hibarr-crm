@@ -2,10 +2,12 @@
 
 namespace Tests;
 
+use App\Services\MlmNotificationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 
 abstract class PerAgentCommissionOverrideTestCase extends TestCase
 {
@@ -21,6 +23,11 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
 
         $this->resetSchema();
         $this->createMinimalSchema();
+
+        $this->app->instance(
+            MlmNotificationService::class,
+            Mockery::mock(MlmNotificationService::class)->shouldIgnoreMissing()
+        );
     }
 
     protected function tearDown(): void
@@ -61,6 +68,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
 
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
             $table->string('email')->nullable();
             $table->string('status')->default('active');
@@ -268,6 +276,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function seedUser(int $companyId, string $name = 'Test User'): int
     {
         return DB::table('users')->insertGetId([
+            'company_id' => $companyId,
             'name' => $name,
             'email' => strtolower(str_replace(' ', '.', $name)) . '@test.com',
             'status' => 'active',
@@ -358,7 +367,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function seedApiToken(int $companyId, string $token = 'test-token'): void
     {
         DB::table('api_tokens')->insert([
-            'token' => $token,
+            'token' => \App\Models\ApiToken::hashToken($token),
             'company_id' => $companyId,
             'revoked' => false,
             'created_at' => now(),

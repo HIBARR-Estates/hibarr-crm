@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use App\Traits\HasOffers;
+use App\Traits\HasTagPriorityAssetOrdering;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +28,7 @@ use Illuminate\Support\Str;
  */
 class DeveloperProject extends BaseModel
 {
-    use HasFactory, HasCompany, HasOffers, SoftDeletes;
+    use HasFactory, HasCompany, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
@@ -249,7 +250,9 @@ class DeveloperProject extends BaseModel
     }
 
     /**
-     * Generate a unique slug from name. If slug exists, append short random id.
+     * Generate a unique slug from name. If slug exists (including soft-deleted),
+     * append a short random id. The DB unique index (company_id, slug) includes
+     * trashed rows, so uniqueness checks must use withTrashed().
      */
     public static function makeUniqueSlug(string $name, ?int $companyId = null, $excludeId = null): string
     {
@@ -259,22 +262,8 @@ class DeveloperProject extends BaseModel
         }
         $slug = $base;
         $attempt = 0;
-        $query = static::query()->where('slug', $slug);
-        if ($companyId !== null) {
-            $query->where('company_id', $companyId);
-        }
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
-        while ($query->exists()) {
+        while (self::slugExists($slug, $companyId, $excludeId)) {
             $slug = $base . '-' . Str::lower(Str::random(4));
-            $query = static::query()->where('slug', $slug);
-            if ($companyId !== null) {
-                $query->where('company_id', $companyId);
-            }
-            if ($excludeId !== null) {
-                $query->where('id', '!=', $excludeId);
-            }
             $attempt++;
             if ($attempt > 100) {
                 $slug = $base . '-' . ($excludeId ?: Str::random(8));
@@ -283,6 +272,22 @@ class DeveloperProject extends BaseModel
         }
 
         return $slug;
+    }
+
+    /**
+     * Whether a slug is already used in the company, including soft-deleted rows.
+     */
+    private static function slugExists(string $slug, ?int $companyId, $excludeId): bool
+    {
+        $query = static::withTrashed()->where('slug', $slug);
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
     }
 
     /**
@@ -443,32 +448,8 @@ class DeveloperProject extends BaseModel
         $relation = $this->hasOne(DeveloperProjectAsset::class)
             ->where("{$table}.asset_type", DeveloperProjectAsset::TYPE_IMAGE);
 
-        $tagPrioritySql = match ($this->getConnection()->getDriverName()) {
-            'mysql' => "
-                CASE
-                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"cover\"') THEN 0
-                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"hero\"') THEN 1
-                    ELSE 2
-                END
-            ",
-            'sqlite' => "
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
-                        WHERE json_each.value = 'cover'
-                    ) THEN 0
-                    WHEN EXISTS (
-                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
-                        WHERE json_each.value = 'hero'
-                    ) THEN 1
-                    ELSE 2
-                END
-            ",
-            default => '2',
-        };
-
         return $relation
-            ->orderByRaw($tagPrioritySql)
+            ->orderByRaw($this->tagPriorityOrderSql($table))
             ->orderBy("{$table}.order");
     }
 

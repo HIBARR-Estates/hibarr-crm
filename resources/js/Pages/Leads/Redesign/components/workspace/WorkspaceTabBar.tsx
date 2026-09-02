@@ -19,6 +19,8 @@ interface WorkspaceTabBarProps {
     counts?: LeadTabCount;
     /** When false, hide the Qualification record tab (feature flag). */
     showQualification?: boolean;
+    /** When false, hide the Exposes record tab (crm.deal-exposes-tab). */
+    showExposes?: boolean;
 }
 
 /**
@@ -30,13 +32,16 @@ export default function WorkspaceTabBar({
     onChange,
     counts = {},
     showQualification = true,
+    showExposes = false,
 }: WorkspaceTabBarProps) {
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
 
-    const recordTabs = showQualification
-        ? RECORD_TABS
-        : RECORD_TABS.filter((tab) => tab.id !== "qualification");
+    const recordTabs = RECORD_TABS.filter((tab) => {
+        if (tab.id === "qualification") return showQualification;
+        if (tab.id === "exposes") return showExposes;
+        return true;
+    });
 
     const countFor = (id: WorkspaceTabId): number | undefined => {
         if (id === "notes") return counts.notes;
@@ -44,6 +49,7 @@ export default function WorkspaceTabBar({
         if (id === "meetings") return counts.meetings;
         if (id === "files") return counts.files;
         if (id === "deals") return counts.deals;
+        if (id === "exposes") return counts.exposes;
         if (id === "itinerary") return counts.itinerary;
         if (id === "qualification") return counts.qualification;
         return undefined;

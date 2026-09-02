@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Models\Deal;
 use App\Services\PermissionService;
 use App\Services\PropertyRecommendationService;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,8 @@ use Illuminate\Http\Request;
  */
 class PropertyRecommendationController extends AccountBaseController
 {
+    public const FEATURE_FLAG = 'crm.deal-recommendations-tab';
+
     protected PropertyRecommendationService $recommendationService;
 
     public function __construct(PropertyRecommendationService $recommendationService)
@@ -48,6 +51,11 @@ class PropertyRecommendationController extends AccountBaseController
         return $access['canAccess'];
     }
 
+    private function abortUnlessEnabled(): void
+    {
+        abort_if(! FeatureFlags::enabled(self::FEATURE_FLAG), 404);
+    }
+
     /**
      * Get property recommendations for a specific deal.
      *
@@ -57,6 +65,8 @@ class PropertyRecommendationController extends AccountBaseController
      */
     public function getRecommendations(Request $request, int $dealId): JsonResponse
     {
+        $this->abortUnlessEnabled();
+
         $deal = Deal::with('contact')->findOrFail($dealId);
 
         // Authorization check
@@ -96,6 +106,8 @@ class PropertyRecommendationController extends AccountBaseController
      */
     public function getCompatibility(Request $request, int $dealId, int $propertyId): JsonResponse
     {
+        $this->abortUnlessEnabled();
+
         $deal = Deal::findOrFail($dealId);
 
         // Authorization check
@@ -135,6 +147,8 @@ class PropertyRecommendationController extends AccountBaseController
      */
     public function refreshRecommendations(Request $request, int $dealId): JsonResponse
     {
+        $this->abortUnlessEnabled();
+
         $deal = Deal::findOrFail($dealId);
 
         // Authorization check

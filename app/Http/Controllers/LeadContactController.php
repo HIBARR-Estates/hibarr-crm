@@ -315,6 +315,9 @@ class LeadContactController extends AccountBaseController
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
+            'change_status' => user()->permission('change_status'),
+            'add_task_comments' => user()->permission('add_task_comments'),
+            'delete_task_comments' => user()->permission('delete_task_comments'),
         ];
 
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)

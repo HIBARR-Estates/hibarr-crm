@@ -17,6 +17,7 @@ import TaskDetailAttachments from "./detail/TaskDetailAttachments";
 import TaskDetailChecklist from "./detail/TaskDetailChecklist";
 import TaskDetailFooter from "./detail/TaskDetailFooter";
 import { DETAIL_LABEL } from "./primitives/taskUiStyles";
+import "../tasks-redesign.css";
 
 interface PersonOption {
     id: number;
@@ -31,6 +32,7 @@ interface TaskDetailModalProps {
     onEdit: () => void;
     onToggleDone: () => void;
     canWrite: boolean;
+    canEdit?: boolean;
     canManageChecklist: boolean;
     canComment: boolean;
     toggling: boolean;
@@ -47,6 +49,7 @@ export default function TaskDetailModal({
     onEdit,
     onToggleDone,
     canWrite,
+    canEdit,
     canManageChecklist,
     canComment,
     deleteCommentScope,
@@ -147,6 +150,7 @@ export default function TaskDetailModal({
                         <TaskDetailFooter
                             done={vm.done}
                             canWrite={canWrite}
+                            canEdit={canEdit ?? canWrite}
                             toggling={toggling}
                             onEdit={onEdit}
                             onClose={onClose}
