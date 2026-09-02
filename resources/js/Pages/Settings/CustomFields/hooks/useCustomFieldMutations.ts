@@ -48,6 +48,16 @@ export default function useCustomFieldMutations({ setFields }: Options) {
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const reorderRequestRef = useRef(0);
     const reorderChainRef = useRef<Promise<void>>(Promise.resolve());
+    /**
+     * The last field order actually confirmed persisted by the server —
+     * distinct from any single call's optimistic snapshot, since a
+     * superseded reorder can be skipped entirely (never sent) while its
+     * optimistic UI state still becomes the *next* call's snapshot. Rolling
+     * back to that snapshot on failure could restore an order the server
+     * never had. Seeded lazily from the first reorder's pre-optimistic
+     * state, then advanced only after a persisted success.
+     */
+    const confirmedFieldsRef = useRef<SettingsField[] | null>(null);
 
     const createField = useCallback(
         async (draft: FieldDraft): Promise<SettingsField | null> => {
@@ -136,11 +146,11 @@ export default function useCustomFieldMutations({ setFields }: Options) {
             const requestId = ++reorderRequestRef.current;
 
             // Optimistic: apply locally first so drag feels instant, then persist.
-            // Snapshot `prev` at the moment of this call so a failure rolls back to
-            // exactly what preceded this request, not whatever state exists later.
-            let snapshot: SettingsField[] = [];
+            let nextState: SettingsField[] = [];
             setFields((prev) => {
-                snapshot = prev;
+                // Baseline the confirmed order from the state that preceded any
+                // client-side reordering, the first time this ever runs.
+                if (confirmedFieldsRef.current === null) confirmedFieldsRef.current = prev;
                 const byId = new Map(prev.map((f) => [f.id, f]));
                 const reordered = orderedIds.map((id) => byId.get(id)).filter(Boolean) as SettingsField[];
                 const rest = prev.filter((f) => !orderedIds.includes(f.id));
@@ -149,6 +159,7 @@ export default function useCustomFieldMutations({ setFields }: Options) {
                 const firstIndex = prev.findIndex((f) => orderedIds.includes(f.id));
                 const next = [...rest];
                 next.splice(firstIndex, 0, ...reordered);
+                nextState = next;
                 return next;
             });
             // Chain persistence so requests hit the server in submission order
@@ -167,13 +178,22 @@ export default function useCustomFieldMutations({ setFields }: Options) {
                         { headers: { Accept: "application/json" } },
                     );
                     if (res.data?.status === "success") {
+                        // Chain sequencing guarantees this runs in true server
+                        // order, so it's always safe to advance the baseline —
+                        // unlike the per-call snapshot, this order is now
+                        // actually persisted.
+                        confirmedFieldsRef.current = nextState;
                         message.success(td("Field order updated", { source: "en" }));
                     } else {
-                        if (reorderRequestRef.current === requestId) setFields(snapshot);
+                        if (reorderRequestRef.current === requestId && confirmedFieldsRef.current) {
+                            setFields(confirmedFieldsRef.current);
+                        }
                         message.error(res.data?.message || t("messages.somethingWentWrong"));
                     }
                 } catch (error: any) {
-                    if (reorderRequestRef.current === requestId) setFields(snapshot);
+                    if (reorderRequestRef.current === requestId && confirmedFieldsRef.current) {
+                        setFields(confirmedFieldsRef.current);
+                    }
                     message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 }
             });

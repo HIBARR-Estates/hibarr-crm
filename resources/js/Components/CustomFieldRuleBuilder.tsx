@@ -314,7 +314,19 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                         label="Operator"
                                                         rules={[{ required: true, message: 'Please select an operator' }]}
                                                     >
-                                                        <Select placeholder="Select operator">
+                                                        <Select
+                                                            placeholder="Select operator"
+                                                            onChange={() => {
+                                                                // The previous operator's value may be shaped
+                                                                // differently (a JSON-array string for in/not_in
+                                                                // vs. a plain scalar for equals) — stale reuse
+                                                                // would silently pass validation in the new shape.
+                                                                form.setFieldValue(
+                                                                    ['criteria', fieldItem.name, 'reference_value'],
+                                                                    undefined,
+                                                                );
+                                                            }}
+                                                        >
                                                             {operatorSelectOptions.map(op => (
                                                                 <Select.Option key={op.value} value={op.value}>
                                                                     {op.label}
@@ -343,7 +355,18 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                             {...fieldItem}
                                                             name={[fieldItem.name, 'reference_value']}
                                                             label="Values"
-                                                            rules={[{ required: true, message: 'Please select at least one value' }]}
+                                                            rules={[
+                                                                { required: true, message: 'Please select at least one value' },
+                                                                {
+                                                                    // getValueFromEvent always stringifies, even an
+                                                                    // empty selection ("[]") — a non-empty string,
+                                                                    // so `required` alone lets it through.
+                                                                    validator: (_, value) =>
+                                                                        parseJsonStringArray(value).length > 0
+                                                                            ? Promise.resolve()
+                                                                            : Promise.reject(new Error('Please select at least one value')),
+                                                                },
+                                                            ]}
                                                             // Keep storing the same JSON-array-string shape the
                                                             // free-typed textarea below always has (and the backend's
                                                             // json_decode expects) — only the picker UI changes.
