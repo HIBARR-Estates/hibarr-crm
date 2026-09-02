@@ -1,6 +1,6 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
@@ -82,8 +82,15 @@ function DealViewRedesignInner(
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
     >(undefined);
-    const [exposesCount, setExposesCount] = useState<number | undefined>(
-        undefined,
+    // Keyed by deal.id: this component isn't remounted across an Inertia
+    // navigation to a different deal, so a stale count from the previous
+    // deal must not flash before WorkspaceExposesTab reports the new one.
+    const [exposesCount, setExposesCount] = useState<
+        { dealId: number; count: number } | undefined
+    >(undefined);
+    const handleExposesCountChange = useCallback(
+        (count: number) => setExposesCount({ dealId: props.deal.id, count }),
+        [props.deal.id],
     );
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
@@ -312,7 +319,8 @@ function DealViewRedesignInner(
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
             offers: showOffersTab ? offerApplicationsCount : undefined,
-            exposes: exposesCount,
+            exposes:
+                exposesCount?.dealId === deal.id ? exposesCount.count : undefined,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
@@ -323,6 +331,7 @@ function DealViewRedesignInner(
             filesLoading,
             notes.length,
             fileDocuments,
+            deal.id,
             deal.lead_flight_itineraries?.length,
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
@@ -596,7 +605,7 @@ function DealViewRedesignInner(
                                             <WorkspaceExposesTab
                                                 deal={deal}
                                                 canEdit={dealPermissions.canEdit}
-                                                onCountChange={setExposesCount}
+                                                onCountChange={handleExposesCountChange}
                                             />
                                         )}
                                         {activeTab === "recommendations" && (

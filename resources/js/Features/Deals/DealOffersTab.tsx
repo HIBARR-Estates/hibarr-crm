@@ -9,6 +9,7 @@ import type { DealOfferApplication, DealOffersResponse } from "@/Types/api/offer
 import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -17,6 +18,7 @@ interface DealOffersTabProps {
 }
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
+    const { td } = useTd();
     const insight = getDealValueInsight(deal);
     const currencySymbol = deal.currency?.currency_symbol || "£";
 
@@ -109,11 +111,11 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         return (
             <div className="p-6">
                 <Empty
-                    description="Failed to load offers"
+                    description={td("Failed to load offers", { source: "en" })}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
                     <Button size="small" onClick={() => refetch()}>
-                        Retry
+                        {td("Retry", { source: "en" })}
                     </Button>
                 </Empty>
             </div>

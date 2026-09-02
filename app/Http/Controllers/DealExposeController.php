@@ -340,14 +340,14 @@ class DealExposeController extends AccountBaseController
             'entity_type' => 'nullable|in:'.implode(',', ExposeSnapshot::ENTITY_TYPES),
             'entity_id' => 'nullable|integer',
             'unit_type_id' => 'nullable|integer',
-            'deal_file_id' => 'nullable|integer',
-            'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB,
+            'deal_file_id' => 'nullable|integer|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB.'|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             // Optional when the browser already uploaded via storage API (no CORS).
             // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
-            'download_url' => 'nullable|url:http,https|max:2048',
-            'object_path' => 'nullable|string|max:512',
-            'uploaded_filename' => 'nullable|string|max:255',
-            'uploaded_size' => 'nullable|integer|min:0',
+            'download_url' => 'nullable|url:http,https|max:2048|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'object_path' => 'nullable|string|max:512|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'uploaded_filename' => 'nullable|string|max:255|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'uploaded_size' => 'nullable|integer|min:0|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
         ]);
 
         $shareUrl = null;
