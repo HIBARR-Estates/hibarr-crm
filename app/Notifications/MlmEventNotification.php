@@ -223,7 +223,12 @@ class MlmEventNotification extends BaseNotification
             ];
         }
 
-        if (! empty($this->context['level_name'])) {
+        if (! empty($this->context['level_name'])
+            && ! in_array($this->event, [
+                MlmNotificationEvent::AgentLevelUpgraded,
+                MlmNotificationEvent::AgentLevelDowngraded,
+            ], true)
+        ) {
             $rows[] = [
                 'label' => __('email.mlm.detail.level'),
                 'value' => (string) $this->context['level_name'],
