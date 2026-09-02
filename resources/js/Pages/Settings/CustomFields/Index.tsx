@@ -21,6 +21,7 @@ import VisibilityRulesTab from "./components/VisibilityRulesTab";
 import FieldModal from "./components/FieldModal";
 import CategoryModal from "./components/CategoryModal";
 import VisibilityRuleModal from "./components/VisibilityRuleModal";
+import DuplicateRuleModal from "./components/DuplicateRuleModal";
 
 type TabKey = "fields" | "categories" | "visibility";
 
@@ -75,6 +76,8 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
 
     const [ruleModalOpen, setRuleModalOpen] = useState(false);
     const [ruleModalFieldId, setRuleModalFieldId] = useState<number | null>(null);
+
+    const [duplicateSourceField, setDuplicateSourceField] = useState<SettingsField | null>(null);
 
     const [confirm, setConfirm] = useState<ConfirmState | null>(null);
     const [confirmLoading, setConfirmLoading] = useState(false);
@@ -287,6 +290,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                                     setRuleModalFieldId(null);
                                     setRuleModalOpen(true);
                                 }}
+                                onDuplicate={(field) => setDuplicateSourceField(field)}
                             />
                         )}
                     </Deferred>
@@ -325,6 +329,14 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                 initialFieldId={ruleModalFieldId}
                 onClose={() => setRuleModalOpen(false)}
                 onSaved={handleRuleSaved}
+            />
+
+            <DuplicateRuleModal
+                open={!!duplicateSourceField}
+                sourceField={duplicateSourceField}
+                availableFields={fields}
+                onClose={() => setDuplicateSourceField(null)}
+                onDuplicated={handleRuleSaved}
             />
 
             <ConfirmDialog

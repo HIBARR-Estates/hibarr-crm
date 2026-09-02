@@ -17,6 +17,65 @@ import { CustomField, ShowRuleSet, ShowCriterion } from '@/Types';
 
 const { Text } = Typography;
 
+/** How a reference field's value should be picked/compared, driving both the operator list and the value input. */
+type ValueShape = 'boolean' | 'single-option' | 'multi-option' | 'free';
+
+/** `CustomField.values` arrives as a JSON-stringified array (or null) — see toRuleBuilderField. */
+function parseJsonStringArray(raw: unknown): string[] {
+    if (typeof raw !== 'string' || raw === '') return [];
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * select/radio hold one value, multiselect always holds many, and checkbox is
+ * dual-purpose: a bare boolean toggle with no configured options, or a
+ * multi-select checklist once options are set.
+ */
+function getValueShape(field: CustomField | null, options: string[]): ValueShape {
+    if (!field) return 'free';
+    if (field.type === 'multiselect') return 'multi-option';
+    if (field.type === 'checkbox') return options.length > 0 ? 'multi-option' : 'boolean';
+    if ((field.type === 'select' || field.type === 'radio') && options.length > 0) return 'single-option';
+    return 'free';
+}
+
+const OPERATORS_BY_SHAPE: Record<ValueShape, { value: string; label: string }[]> = {
+    boolean: [
+        { value: 'boolean', label: 'is true' },
+        { value: 'exists', label: 'exists (has value)' },
+    ],
+    'single-option': [
+        { value: 'equals', label: 'equals' },
+        { value: 'exists', label: 'exists (has value)' },
+        { value: 'in', label: 'is one of' },
+        { value: 'not_in', label: 'is not one of' },
+    ],
+    'multi-option': [
+        { value: 'exists', label: 'exists (has value)' },
+        { value: 'in', label: 'includes one of' },
+        { value: 'not_in', label: 'includes none of' },
+    ],
+    // Text/number/date/etc — no fixed option list to pick from, so keep the
+    // original free-typed behavior (also the fallback while no reference
+    // field is selected yet).
+    free: [
+        { value: 'equals', label: 'equals' },
+        { value: 'exists', label: 'exists (has value)' },
+        { value: 'boolean', label: 'is boolean (true/false)' },
+        { value: '>', label: 'greater than' },
+        { value: '<', label: 'less than' },
+        { value: '>=', label: 'greater than or equal' },
+        { value: '<=', label: 'less than or equal' },
+        { value: 'in', label: 'in list' },
+        { value: 'not_in', label: 'not in list' },
+    ],
+};
+
 interface Props {
     field: CustomField;
     availableFields: CustomField[]; // All fields that can be used as references
@@ -97,18 +156,6 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
         }
     };
 
-    const operatorOptions = [
-        { value: 'equals', label: 'equals' },
-        { value: 'exists', label: 'exists (has value)' },
-        { value: 'boolean', label: 'is boolean (true/false)' },
-        { value: '>', label: 'greater than' },
-        { value: '<', label: 'less than' },
-        { value: '>=', label: 'greater than or equal' },
-        { value: '<=', label: 'less than or equal' },
-        { value: 'in', label: 'in list' },
-        { value: 'not_in', label: 'not in list' },
-    ];
-
     // Filter out the current field from available fields
     const referenceFields = availableFields.filter(f => f.id !== field.id);
 
@@ -174,7 +221,23 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                         {fields.map((fieldItem, index) => {
                                             // Read from the component-level watch instead of
                                             // calling a hook inside this render-prop.
-                                            const operator = watchedCriteria[fieldItem.name]?.operator;
+                                            const criterion = watchedCriteria[fieldItem.name] ?? {};
+                                            const operator = criterion.operator;
+                                            const referenceField = referenceFields.find(
+                                                f => f.id === criterion.reference_field_id,
+                                            ) ?? null;
+                                            const referenceOptions = parseJsonStringArray(referenceField?.values ?? null);
+                                            const shape = getValueShape(referenceField, referenceOptions);
+                                            const shapeOperators = OPERATORS_BY_SHAPE[shape];
+                                            // Keep a legacy/no-longer-valid operator visible as its own
+                                            // option rather than silently blanking the select, so switching
+                                            // away from an old rule doesn't look broken before it's touched.
+                                            const operatorSelectOptions = shapeOperators.some(op => op.value === operator)
+                                                ? shapeOperators
+                                                : operator
+                                                  ? [...shapeOperators, { value: operator, label: operator }]
+                                                  : shapeOperators;
+                                            const valueSelectOptions = referenceOptions.map(opt => ({ value: opt, label: opt }));
 
                                             return (
                                             <Card
@@ -208,6 +271,30 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                                     .toLowerCase()
                                                                     .includes(input.toLowerCase())
                                                             }
+                                                            onChange={(value: number) => {
+                                                                // Options (and often valid operators) belong to the
+                                                                // specific field just picked — a value/operator kept
+                                                                // from the previous reference field would be stale.
+                                                                const newField = referenceFields.find(f => f.id === value) ?? null;
+                                                                const newOptions = parseJsonStringArray(newField?.values ?? null);
+                                                                const allowedOps = OPERATORS_BY_SHAPE[getValueShape(newField, newOptions)]
+                                                                    .map(op => op.value);
+                                                                const currentOperator = form.getFieldValue([
+                                                                    'criteria',
+                                                                    fieldItem.name,
+                                                                    'operator',
+                                                                ]);
+                                                                form.setFieldValue(
+                                                                    ['criteria', fieldItem.name, 'reference_value'],
+                                                                    undefined,
+                                                                );
+                                                                if (currentOperator && !allowedOps.includes(currentOperator)) {
+                                                                    form.setFieldValue(
+                                                                        ['criteria', fieldItem.name, 'operator'],
+                                                                        undefined,
+                                                                    );
+                                                                }
+                                                            }}
                                                         >
                                                             {referenceFields.map(f => (
                                                                 <Select.Option
@@ -228,7 +315,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                         rules={[{ required: true, message: 'Please select an operator' }]}
                                                     >
                                                         <Select placeholder="Select operator">
-                                                            {operatorOptions.map(op => (
+                                                            {operatorSelectOptions.map(op => (
                                                                 <Select.Option key={op.value} value={op.value}>
                                                                     {op.label}
                                                                 </Select.Option>
@@ -236,7 +323,40 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                         </Select>
                                                     </Form.Item>
 
-                                                    {(operator === 'in' || operator === 'not_in') ? (
+                                                    {operator === 'exists' || operator === 'boolean' ? null
+                                                        : shape === 'single-option' && operator === 'equals' ? (
+                                                        <Form.Item
+                                                            {...fieldItem}
+                                                            name={[fieldItem.name, 'reference_value']}
+                                                            label="Value"
+                                                            rules={[{ required: true, message: 'Please select a value' }]}
+                                                        >
+                                                            <Select
+                                                                placeholder="Select a value"
+                                                                showSearch
+                                                                options={valueSelectOptions}
+                                                            />
+                                                        </Form.Item>
+                                                    ) : (shape === 'single-option' || shape === 'multi-option')
+                                                        && (operator === 'in' || operator === 'not_in') ? (
+                                                        <Form.Item
+                                                            {...fieldItem}
+                                                            name={[fieldItem.name, 'reference_value']}
+                                                            label="Values"
+                                                            rules={[{ required: true, message: 'Please select at least one value' }]}
+                                                            // Keep storing the same JSON-array-string shape the
+                                                            // free-typed textarea below always has (and the backend's
+                                                            // json_decode expects) — only the picker UI changes.
+                                                            getValueFromEvent={(selected: string[]) => JSON.stringify(selected ?? [])}
+                                                            getValueProps={value => ({ value: parseJsonStringArray(value) })}
+                                                        >
+                                                            <Select
+                                                                mode="multiple"
+                                                                placeholder="Select values"
+                                                                options={valueSelectOptions}
+                                                            />
+                                                        </Form.Item>
+                                                    ) : (operator === 'in' || operator === 'not_in') ? (
                                                         <Form.Item
                                                             {...fieldItem}
                                                             name={[fieldItem.name, 'reference_value']}
@@ -269,7 +389,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                                 rows={3}
                                                             />
                                                         </Form.Item>
-                                                    ) : operator !== 'exists' && operator !== 'boolean' ? (
+                                                    ) : (
                                                         <Form.Item
                                                             {...fieldItem}
                                                             name={[fieldItem.name, 'reference_value']}
@@ -278,7 +398,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                                         >
                                                             <Input placeholder="Enter value to compare" />
                                                         </Form.Item>
-                                                    ) : null}
+                                                    )}
 
                                                     <Form.Item
                                                         {...fieldItem}

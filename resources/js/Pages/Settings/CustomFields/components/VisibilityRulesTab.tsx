@@ -10,9 +10,10 @@ interface Props {
     onEdit: (field: SettingsField) => void;
     onRemove: (field: SettingsField) => void;
     onAdd: () => void;
+    onDuplicate: (field: SettingsField) => void;
 }
 
-export default function VisibilityRulesTab({ fields, onEdit, onRemove, onAdd }: Props) {
+export default function VisibilityRulesTab({ fields, onEdit, onRemove, onAdd, onDuplicate }: Props) {
     const { td } = useTd();
     const rulesFields = fields.filter(fieldHasRule);
 
@@ -75,6 +76,9 @@ export default function VisibilityRulesTab({ fields, onEdit, onRemove, onAdd }: 
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                                 <button type="button" onClick={() => onEdit(field)} className="dr-btn dr-btn-ghost dr-btn-sm">
                                     {td("Edit", { source: "en" })}
+                                </button>
+                                <button type="button" onClick={() => onDuplicate(field)} className="dr-btn dr-btn-ghost dr-btn-sm">
+                                    {td("Duplicate", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
