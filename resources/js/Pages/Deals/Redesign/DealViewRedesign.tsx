@@ -50,7 +50,6 @@ import "@/Components/Redesign/redesign.css";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
@@ -110,7 +109,6 @@ function DealViewRedesignInner(
     // Adapters are plain functions with no hook access, so publish the active
     // locale once here; every date/time in the redesign reads it.
     setDealDateLocale(locale);
-    const { td } = useTd();
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
@@ -321,7 +319,7 @@ function DealViewRedesignInner(
                     name: t("pages.deals.header.breadcrumb_deals"),
                     url: route("deals.index"),
                 },
-                { name: td(pageTitle) },
+                { name: pageTitle },
             ]}
         >
             {/* Gate on isOpen as well as the flag: the modal's hooks build the whole
