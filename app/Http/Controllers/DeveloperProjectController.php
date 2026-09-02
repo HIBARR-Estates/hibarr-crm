@@ -691,6 +691,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => 'nullable|url|max:2048',
             'availability_link' => 'nullable|url|max:2048',
             'starting_price' => 'nullable|numeric|min:0',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
             'title_deed_type' => 'nullable|string|in:' . implode(',', DeveloperProject::TITLE_DEED_TYPES),
@@ -772,6 +773,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => $request->google_drive_link,
             'availability_link' => $request->availability_link,
             'starting_price' => $request->starting_price,
+            'commission_percentage' => $request->commission_percentage,
             'primary_categories' => $request->primary_categories,
             'title_deed_type' => $request->title_deed_type,
             'unit_types' => $request->unit_types,
@@ -829,6 +831,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => 'nullable|url|max:2048',
             'availability_link' => 'nullable|url|max:2048',
             'starting_price' => 'nullable|numeric|min:0',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
             'title_deed_type' => 'nullable|string|in:' . implode(',', DeveloperProject::TITLE_DEED_TYPES),
@@ -896,7 +899,7 @@ class DeveloperProjectController extends AccountBaseController
 
         $updateFields = [
             'name', 'reference_code', 'description', 'developer_id', 'project_location_id',
-            'google_drive_link', 'availability_link', 'starting_price',
+            'google_drive_link', 'availability_link', 'starting_price', 'commission_percentage',
             'primary_categories', 'title_deed_type', 'unit_types',
             'number_of_units', 'total_units', 'total_units_sold', 'number_of_blocks', 'project_total_area_sqm',
             'construction_status', 'completion_date', 'number_of_phases',

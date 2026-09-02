@@ -244,6 +244,11 @@ const ConstructionProjectFormModal: React.FC<
                 google_drive_link: project.google_drive_link,
                 availability_link: project.availability_link,
                 starting_price: project.starting_price,
+                // decimal:2 serialises as a string; InputNumber needs a number.
+                commission_percentage:
+                    project.commission_percentage != null
+                        ? Number(project.commission_percentage)
+                        : null,
                 primary_categories: project.primary_categories,
                 title_deed_type: project.title_deed_type,
                 unit_types: project.unit_types,

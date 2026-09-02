@@ -273,11 +273,6 @@ class DealObserver
                 $this->triggerMetaConversionEvent($deal);
             }
 
-            // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->is_locked) {
-                $this->fireDealWonEvent($deal);
-            }
-
             // ── CRM Events for specific deal changes ──
             $trackedDirtyFields = [];
 
@@ -508,6 +503,19 @@ class DealObserver
                 ]);
             }
         }
+
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won'.
+        // Deliberately NOT inside the `! isRunningInConsoleOrSeeding()` guard
+        // above: DealController::updateOutcome() is the one other production
+        // path (besides DealAutomationService, which already fires this
+        // unconditionally) that relies on this observer to queue commission
+        // distribution, and there's nothing seeding-specific about it — a
+        // console-invoked outcome change (an artisan command, a scheduled
+        // job, tinker) is a real win just as much as one from a web request.
+        if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->commission_locked) {
+            $this->fireDealWonEvent($deal);
+        }
+
         // deal automation trigger
         if (! isRunningInConsoleOrSeeding() && ! $deal->is_locked) {
             $this->dealAutomation->process($deal, 'deal_updated');

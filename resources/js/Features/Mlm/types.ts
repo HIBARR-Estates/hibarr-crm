@@ -406,6 +406,13 @@ export interface MlmCycle {
     days_remaining: number;
     max_overflow_multiplier: number;
     enrollments_count?: number;
+    /** Whether this cycle froze a copy of the level rules when it went active. */
+    has_snapshots?: boolean;
+    /**
+     * The max commission % actually in force for this cycle. Diverges from the
+     * live setting once someone edits it mid-cycle — until the snapshot is retaken.
+     */
+    max_commission_snapshot?: number | null;
 }
 
 export interface MlmCycleFormData {

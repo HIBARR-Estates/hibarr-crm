@@ -203,4 +203,66 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertCount(1, $legs, 'No level-based fallback for the unconfigured package.');
         $this->assertSame(400.0, (float) $legs->first()->amount);
     }
+
+    /**
+     * "None" is a distinct configured state from "unconfigured" (null): both
+     * pay zero on their own, but only null falls through to the level-based
+     * split. None must not fall through either.
+     */
+    public function test_none_package_pays_nothing_and_does_not_fall_back(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'none', null);
+        $this->attachPackage($ctx['deal'], $packageId);
+
+        $this->distribute($ctx['deal']);
+
+        $this->assertCount(
+            0,
+            MlmCommission::where('deal_id', $ctx['deal'])->get(),
+            'A None package must behave like a configured zero, not an unconfigured fall-through.'
+        );
+    }
+
+    public function test_none_package_ignores_a_stray_stored_value(): void
+    {
+        // Defensive: resolvePackageCommission must not trust commission_value
+        // just because it happens to be present on a None row.
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'none', 500);
+        $this->attachPackage($ctx['deal'], $packageId);
+
+        $this->distribute($ctx['deal']);
+
+        $this->assertCount(0, MlmCommission::where('deal_id', $ctx['deal'])->get());
+    }
+
+    public function test_agent_override_can_grant_a_fee_on_a_none_package(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'none', null);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $this->seedAgentPackageRate($ctx['company'], $ctx['agent'], $packageId, 'fixed', 300);
+
+        $this->distribute($ctx['deal']);
+
+        $leg = MlmCommission::where('deal_id', $ctx['deal'])->firstOrFail();
+        $this->assertSame(300.0, (float) $leg->amount);
+    }
+
+    public function test_agent_override_can_zero_out_a_paying_package(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $this->seedAgentPackageRate($ctx['company'], $ctx['agent'], $packageId, 'none', null);
+
+        $this->distribute($ctx['deal']);
+
+        $this->assertCount(
+            0,
+            MlmCommission::where('deal_id', $ctx['deal'])->get(),
+            'A None override must silence the package default entirely.'
+        );
+    }
 }

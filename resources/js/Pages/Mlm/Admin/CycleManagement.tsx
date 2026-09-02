@@ -47,6 +47,7 @@ import type {
     CycleStatus,
 } from "@/Features/Mlm/types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { usePage } from "@inertiajs/react";
 
 interface Props extends PageProps {}
 
@@ -259,6 +260,8 @@ const ResnapshotButton: React.FC<{
 /*  Expandable Enrollment Row                                          */
 /* ------------------------------------------------------------------ */
 const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading, refetch } = useMlmCycleDetail(cycleId);
     const enrollments = (data as any)?.data?.enrollments ?? [];
 
@@ -308,14 +311,14 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             key: "vsa",
             align: "right" as const,
             render: (_: any, r: any) =>
-                `$${(r.metrics?.vsa ?? 0).toLocaleString()}`,
+                `${currencySymbol}${(r.metrics?.vsa ?? 0).toLocaleString()}`,
         },
         {
             title: "Team Revenue",
             key: "vsd",
             align: "right" as const,
             render: (_: any, r: any) =>
-                `$${(r.metrics?.vsd ?? 0).toLocaleString()}`,
+                `${currencySymbol}${(r.metrics?.vsd ?? 0).toLocaleString()}`,
         },
         {
             title: "Level",

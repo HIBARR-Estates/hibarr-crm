@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { Tooltip } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
-import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
+import { isDealEffectivelyLocked, isDealValueLocked } from "@/lib/dealOutcome";
 import {
     toWorkspaceOfferApplicationItem,
     type WorkspaceOfferApplicationItem,
@@ -151,15 +152,28 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                     </div>
                 </div>
                 {items.length > 0 && (
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-sm"
-                        style={{ color: T.RED, background: T.WHITE, border: `1px solid ${T.BORDER}` }}
-                        disabled={isDealEffectivelyLocked(deal) || isRemoving}
-                        onClick={() => setConfirmRemoveAll(true)}
+                    <Tooltip
+                        title={
+                            isDealValueLocked(deal) &&
+                            !isDealEffectivelyLocked(deal)
+                                ? t("pages.deals.value_locked_tooltip")
+                                : undefined
+                        }
                     >
-                        {t("pages.deals.workspace.offers.remove_all")}
-                    </button>
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-sm"
+                            style={{ color: T.RED, background: T.WHITE, border: `1px solid ${T.BORDER}` }}
+                            disabled={
+                                isDealEffectivelyLocked(deal) ||
+                                isDealValueLocked(deal) ||
+                                isRemoving
+                            }
+                            onClick={() => setConfirmRemoveAll(true)}
+                        >
+                            {t("pages.deals.workspace.offers.remove_all")}
+                        </button>
+                    </Tooltip>
                 )}
             </div>
 

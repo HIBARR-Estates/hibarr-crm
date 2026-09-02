@@ -80,7 +80,8 @@ const MyCommissions: React.FC<Props> = ({
                     </div>
                     {r.deal?.total_value != null && (
                         <div className="text-xs text-gray-500">
-                            Deal value: ${r.deal.total_value.toLocaleString()}
+                            Deal value: {currencySymbol}
+                            {r.deal.total_value.toLocaleString()}
                         </div>
                     )}
                 </div>
@@ -183,7 +184,7 @@ const MyCommissions: React.FC<Props> = ({
                                     <Statistic
                                         title="Total"
                                         value={summary.total}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                         valueStyle={{ color: "#16a34a" }}
                                     />
@@ -200,7 +201,7 @@ const MyCommissions: React.FC<Props> = ({
                                     <Statistic
                                         title="Pending"
                                         value={summary.pending}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                         valueStyle={{ color: "#ea580c" }}
                                     />

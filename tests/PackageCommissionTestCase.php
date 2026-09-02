@@ -59,7 +59,7 @@ abstract class PackageCommissionTestCase extends PerAgentCommissionOverrideTestC
         int $agentId,
         int $packageId,
         string $commissionType,
-        float $commissionValue
+        ?float $commissionValue = null
     ): void {
         DB::table('agent_package_commission_rates')->insert([
             'company_id' => $companyId,

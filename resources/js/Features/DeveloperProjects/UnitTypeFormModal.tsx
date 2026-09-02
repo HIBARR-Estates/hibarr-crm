@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { usePage } from "@inertiajs/react";
 import {
     Modal,
     Form,
@@ -111,6 +112,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     isDuplicating = false,
     onSuccess,
 }) => {
+    const { default_currency_code: defaultCurrencyCode = "GBP" } = usePage()
+        .props as any;
     const [form] = Form.useForm<UnitTypeFormValues>();
     const isEditing = !!editingItem && !isDuplicating;
     const { modal, message } = App.useApp();
@@ -216,7 +219,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 starting_price: editingItem.starting_price
                     ? Number(editingItem.starting_price)
                     : null,
-                currency: editingItem.currency ?? "GBP",
+                currency: editingItem.currency ?? defaultCurrencyCode,
                 bedrooms: editingItem.bedrooms,
                 bathrooms: editingItem.bathrooms,
                 floor: editingItem.floor,
@@ -256,7 +259,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
             form.resetFields();
             form.setFieldsValue({
                 primary_category: "residential",
-                currency: "GBP",
+                currency: defaultCurrencyCode,
                 has_restrictions: false,
                 is_sold_out: false,
                 unit_style: [],
@@ -267,7 +270,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 total_sold: null,
             });
         }
-    }, [open, editingItem, isDuplicating, form]);
+    }, [open, editingItem, isDuplicating, form, defaultCurrencyCode]);
 
     // ---- Reset property_type when category changes ----
 

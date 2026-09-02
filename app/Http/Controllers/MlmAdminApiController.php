@@ -995,6 +995,16 @@ class MlmAdminApiController extends AccountBaseController
                     'status' => $cycle->status->value,
                     'duration_days' => $cycle->duration_days,
                     'max_overflow_multiplier' => (float) $cycle->max_overflow_multiplier,
+                    // An active cycle pays from a frozen copy of the rules, so
+                    // editing a commission percentage changes nothing until the
+                    // snapshot is retaken. Surfaced here so the settings screen
+                    // can say which figure is actually in force rather than
+                    // offering a re-snapshot button with no way to tell whether
+                    // one is needed.
+                    'has_snapshots' => $cycle->hasSnapshots(),
+                    'max_commission_snapshot' => $cycle->max_commission_snapshot !== null
+                        ? (float) $cycle->max_commission_snapshot
+                        : null,
                 ] : null,
                 'default_overflow_multiplier' => $settings ? (float) $settings->default_overflow_multiplier : 1.0,
                 'days_remaining' => $daysRemaining,

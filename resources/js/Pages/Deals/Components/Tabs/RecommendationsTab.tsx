@@ -40,7 +40,7 @@ import type { ErrorInfo, ReactNode } from "react";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 
 const { Text, Title } = Typography;
 
@@ -115,6 +115,8 @@ export default function RecommendationsTab(props: Props) {
  * Displays AI-powered property recommendations based on customer preferences
  */
 function RecommendationsTabContent({ deal, permissions }: Props) {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -248,11 +250,9 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
     // Format price for display
     const formatPrice = (price: number | null | undefined): string => {
         if (!price) return "N/A";
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
+        return `${currencySymbol}${new Intl.NumberFormat("en-US", {
             maximumFractionDigits: 0,
-        }).format(price);
+        }).format(price)}`;
     };
 
     // Get color for match percentage

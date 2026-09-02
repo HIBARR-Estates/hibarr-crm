@@ -23,13 +23,14 @@ export interface WorkspaceRecommendationListItem {
     isInDeal: boolean;
 }
 
-function formatPrice(price: number | null | undefined): string {
+function formatPrice(
+    price: number | null | undefined,
+    currencySymbol: string,
+): string {
     if (!price) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
+    return `${currencySymbol}${new Intl.NumberFormat("en-US", {
         maximumFractionDigits: 0,
-    }).format(price);
+    }).format(price)}`;
 }
 
 function resolveMatchBadgeVariant(
@@ -88,6 +89,7 @@ export function toWorkspaceRecommendationListItem(
     recommendation: PropertyRecommendation,
     options: {
         existingPropertyIds: number[];
+        currencySymbol?: string;
     },
 ): WorkspaceRecommendationListItem {
     const { property, match_percentage, rank, factors } = recommendation;
@@ -116,7 +118,7 @@ export function toWorkspaceRecommendationListItem(
         id: rank,
         rank,
         propertyTitle: property?.title || `Property #${rank}`,
-        priceLabel: formatPrice(property?.price),
+        priceLabel: formatPrice(property?.price, options.currencySymbol ?? ""),
         matchPercentage: match_percentage,
         matchBadgeVariant: resolveMatchBadgeVariant(match_percentage),
         reasoningNotes: buildReasoningNotes(factors),

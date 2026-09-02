@@ -246,8 +246,15 @@ class HierarchyService
         $current = $agent;
         $depth = 0;
 
+        // A parent chain that loops back on itself would walk forever. Bad
+        // data can produce one (parent_agent_id is writable directly, with no
+        // FK-level cycle check), and this now runs from a model observer on
+        // every agent save, so it has to terminate on its own.
+        $seen = [$agent->id => true];
+
         // Walk up the parent chain
-        while ($current->parent_agent_id) {
+        while ($current->parent_agent_id && ! isset($seen[$current->parent_agent_id])) {
+            $seen[$current->parent_agent_id] = true;
             $depth++;
             $ancestors[] = [
                 'company_id' => $agent->company_id,

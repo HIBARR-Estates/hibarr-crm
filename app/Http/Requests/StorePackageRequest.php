@@ -28,7 +28,7 @@ class StorePackageRequest extends FormRequest
                 Rule::exists('lead_pipelines', 'id')->where('company_id', company()->id),
             ],
             'default_stage_id' => [
-                Rule::excludeIf(fn () => !$this->filled('pipeline_id')),
+                Rule::excludeIf(fn () => ! $this->filled('pipeline_id')),
                 'nullable',
                 'integer',
                 Rule::exists('pipeline_stages', 'id')
@@ -45,60 +45,16 @@ class StorePackageRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $enabledKeys = array_flip(
-                app(PackageRoutingFieldCatalog::class)->enabledFieldKeys(company()->id),
+            $errors = app(PackageRoutingFieldCatalog::class)->validateTriggerRows(
+                $this->input('routing_triggers', []),
+                company()->id,
             );
 
-            foreach ($this->input('routing_triggers', []) as $index => $row) {
-                if (!is_array($row)) {
-                    continue;
-                }
-
-                if ($this->isEmptyRoutingTriggerRow($row)) {
-                    continue;
-                }
-
-                $fieldKey = trim((string) ($row['field_key'] ?? ''));
-
-                if ($fieldKey === '') {
-                    $validator->errors()->add(
-                        "routing_triggers.{$index}.field_key",
-                        __('validation.required', ['attribute' => 'deal field']),
-                    );
-                    continue;
-                }
-
-                if (!isset($enabledKeys[$fieldKey])) {
-                    $validator->errors()->add(
-                        "routing_triggers.{$index}.field_key",
-                        __('modules.deal.routingTriggerFieldDisabled'),
-                    );
-                }
-
-                if (empty($row['match_mode'])) {
-                    $validator->errors()->add(
-                        "routing_triggers.{$index}.match_mode",
-                        __('validation.required', ['attribute' => 'match mode']),
-                    );
-                }
-
-                if (($row['match_mode'] ?? null) === 'exact' && !filled($row['match_value'] ?? null)) {
-                    $validator->errors()->add(
-                        "routing_triggers.{$index}.match_value",
-                        __('validation.required', ['attribute' => 'match value']),
-                    );
+            foreach ($errors as $key => $messages) {
+                foreach ($messages as $message) {
+                    $validator->errors()->add($key, $message);
                 }
             }
         });
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     */
-    protected function isEmptyRoutingTriggerRow(array $row): bool
-    {
-        return trim((string) ($row['field_key'] ?? '')) === ''
-            && trim((string) ($row['match_mode'] ?? '')) === ''
-            && trim((string) ($row['match_value'] ?? '')) === '';
     }
 }
