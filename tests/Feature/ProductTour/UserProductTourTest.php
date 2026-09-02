@@ -86,6 +86,23 @@ class UserProductTourTest extends TestCase
         $this->assertFalse(UserProductTour::hasSeen($userB->id, 'deal-redesign-v1'));
     }
 
+    public function test_marking_one_tour_seen_does_not_mark_a_different_tour(): void
+    {
+        $user = User::factory()->create();
+
+        UserProductTour::markSeen($user->id, 'leads-list-v1');
+        UserProductTour::markSeen($user->id, 'deals-list-v1');
+        UserProductTour::markSeen($user->id, 'preferences-v1');
+
+        $this->assertTrue(UserProductTour::hasSeen($user->id, 'leads-list-v1'));
+        $this->assertTrue(UserProductTour::hasSeen($user->id, 'deals-list-v1'));
+        $this->assertTrue(UserProductTour::hasSeen($user->id, 'preferences-v1'));
+        $this->assertFalse(UserProductTour::hasSeen($user->id, 'lead-redesign-v1'));
+        $this->assertFalse(UserProductTour::hasSeen($user->id, 'deal-redesign-v1'));
+        $this->assertFalse(UserProductTour::hasSeen($user->id, 'reminder-preferences-v1'));
+        $this->assertFalse(UserProductTour::hasSeen($user->id, 'tasks-list-v1'));
+    }
+
     public function test_product_tours_seen_route_is_registered_and_requires_auth(): void
     {
         $this->assertTrue(Route::has('product-tours.seen'));

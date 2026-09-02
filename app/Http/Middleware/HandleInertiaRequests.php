@@ -3,11 +3,12 @@
 namespace App\Http\Middleware;
 
 use App\Models\UserNotificationAlertSetting;
+use App\Models\UserProductTour;
 use App\Services\I18nTranslationService;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
-use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -110,7 +111,7 @@ class HandleInertiaRequests extends Middleware
     {
         $routeName = $request->route()?->getName();
 
-        if (!$routeName) {
+        if (! $routeName) {
             return false;
         }
 
@@ -120,7 +121,7 @@ class HandleInertiaRequests extends Middleware
     private function getPipelineCategoryScopeMap(Request $request): array
     {
         try {
-            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+            if (! $this->routeNeedsPipelineScopeData($request) || ! function_exists('company') || ! company()) {
                 return [];
             }
 
@@ -138,7 +139,7 @@ class HandleInertiaRequests extends Middleware
     private function getPipelineFieldScopeMap(Request $request): array
     {
         try {
-            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+            if (! $this->routeNeedsPipelineScopeData($request) || ! function_exists('company') || ! company()) {
                 return [];
             }
 
@@ -156,7 +157,7 @@ class HandleInertiaRequests extends Middleware
     private function getPipelineStages(Request $request): array
     {
         try {
-            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+            if (! $this->routeNeedsPipelineScopeData($request) || ! function_exists('company') || ! company()) {
                 return [];
             }
 
@@ -174,18 +175,19 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
     }
-     /**
+
+    /**
      * Get default currency symbol safely
      */
     private function getDefaultCurrencySymbol(): ?string
     {
         try {
             $company = function_exists('company') ? company() : null;
-            
-            if (!$company || !$company->currency) {
+
+            if (! $company || ! $company->currency) {
                 return null;
             }
-            
+
             return $company?->currency?->currency_symbol;
         } catch (\Exception $e) {
             return null;
@@ -199,8 +201,8 @@ class HandleInertiaRequests extends Middleware
     {
         try {
             $company = function_exists('company') ? company() : null;
-            
-            if (!$company || !$company->currency) {
+
+            if (! $company || ! $company->currency) {
                 return null;
             }
 
@@ -259,7 +261,14 @@ class HandleInertiaRequests extends Middleware
         $user->setAttribute('lead_agent_id', $leadAgent?->id);
 
         // Used by integrations feature UIs to decide whether to show an integration badge.
-        $user->setAttribute('has_zoho_profile', !empty($user->employeeDetail?->zoho_id));
+        $user->setAttribute('has_zoho_profile', ! empty($user->employeeDetail?->zoho_id));
+
+        // Drives ProductTour auto-launch (useProductTour). Per-tourId so list
+        // tours do not share seen-state with deal/lead detail tours.
+        $user->setAttribute(
+            'seen_product_tours',
+            UserProductTour::seenTourIdsForUser((int) $user->id)
+        );
 
         return $user;
     }
@@ -292,13 +301,12 @@ class HandleInertiaRequests extends Middleware
     private function getPipelines(): array
     {
         try {
-            if (!function_exists('user') || !user()) {
+            if (! function_exists('user') || ! user()) {
                 return [];
             }
 
             $query = \App\Models\LeadPipeline::has('stages')
                 ->select('id', 'name', 'default');
-                
 
             if (FeatureFlags::enabled('crm.pipeline-nav-visibility')) {
                 $query->visibleInNav();
@@ -312,7 +320,7 @@ class HandleInertiaRequests extends Middleware
 
     private function getAllPermissions()
     {
-        if (!function_exists('user') || !user()) {
+        if (! function_exists('user') || ! user()) {
             return [];
         }
 
@@ -339,9 +347,9 @@ class HandleInertiaRequests extends Middleware
         });
 
         $permissions = [];
-        
+
         // Map permissions: use the user's specific permission type if it exists, otherwise default to 'none' (or 4/5 depending on your logic)
-        // Assuming 'none' or a specific ID represents no permission. 
+        // Assuming 'none' or a specific ID represents no permission.
         // Based on your previous code, it seems you want the permission type name (e.g., 'all', 'added', 'owned', 'both', 'none')
         foreach ($allPermissions as $permissionName) {
             $permissions[$permissionName] = $userPermissions[$permissionName] ?? 'none';

@@ -27,6 +27,7 @@ return [
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
         'crm.leads-product-tour',
+        'crm.list-product-tours',
         'crm.deal-info-count-indicator',
         'crm.flight-itinerary-extraction',
         'crm.deal-analysis',
@@ -40,7 +41,7 @@ return [
         'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
-        'packages.online-payment'
+        'packages.online-payment',
     ],
 
     /*

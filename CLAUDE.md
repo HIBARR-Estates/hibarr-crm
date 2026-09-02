@@ -32,6 +32,13 @@ Frontend (JS/TS) — **two asset pipelines coexist, pick the one matching the la
 - **Two-tier translation** — `useTranslation()` (`t()`) only resolves keys that exist in `resources/lang/*/*.php`; `useDynamicTranslation()` (`td()`) translates arbitrary inline English strings on the fly (async, batched — first render shows source text, re-renders translated). Static config objects (e.g. `config/dealInfoSections.ts`) can't call hooks, so they store English source strings and get wrapped in `td()` at the render site. Toasts/validation strings follow the same rule: keep English as the source-of-truth string in code, translate at the point of display.
 - **Custom fields / pipeline categories** are the generic extensibility mechanism for deal data — categories are scoped server-side per pipeline (`DealController@show`) before reaching the page, so don't re-filter them client-side.
 
+## Product tours
+
+Spotlight walkthroughs use the shared engine in `resources/js/Components/ProductTour/` (`ProductTour` + `useProductTour` + `product-tours.seen`). Do not add a second tour library.
+
+- **Detail pages (shipped):** deal redesign (`dealTourSteps.ts`, `deal-redesign-v1`) and lead redesign (`leadTourSteps.ts`, `lead-redesign-v1`, flag `crm.leads-product-tour`). Brief: `.claude/briefs/lead-product-tour.md`.
+- **List & settings (implement by phase):** tasks list (redesign), lead list, deal list, Preferences, Reminder preferences — one flag `crm.list-product-tours`. Prompt against `.claude/briefs/list-product-tours.md` (e.g. “Implement Phase 1 of `.claude/briefs/list-product-tours.md`”). Build Phases 0–5 first; Phase 6 is verification only.
+
 ## Working in `Deals/Redesign/`
 
 Layout of the area:
