@@ -10,24 +10,21 @@ class MeetingAttendanceConfirmationFeature
     private const ACTIVATION_STAMPED_CACHE_TTL = 3600;
 
     /**
-     * Global kill switch for the meeting-attendance-confirmation prompt.
-     * Prefer the remote feature flag; MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE
-     * bypasses it when the flags API is down or the flag is not yet rolled out remotely.
+     * Sole kill switch for the meeting-attendance-confirmation prompt — no
+     * per-company opt-in on top of this; once on remotely, it's on for every
+     * company.
      */
     public static function globallyEnabled(): bool
     {
-        if ((bool) config('meetings.attendance_confirmation_force_enable', false)) {
-            return true;
-        }
-
         return FeatureFlags::enabled('crm.meeting-attendance-confirmation');
     }
 
     /**
-     * Enabled for this company right now (flag + allowlist). Also lazily stamps
-     * companies.meeting_attendance_confirmation_enabled_at the first time this
-     * returns true for the company, so meetings that ended before the feature
-     * was actually turned on for this company never become eligible later.
+     * Enabled for this company right now (the global flag). Also lazily
+     * stamps companies.meeting_attendance_confirmation_enabled_at the first
+     * time this returns true for the company, so meetings that ended before
+     * the feature was actually turned on for this company never become
+     * eligible later.
      */
     public static function enabledForCompany(Company|int $company): bool
     {
@@ -35,42 +32,23 @@ class MeetingAttendanceConfirmationFeature
             return false;
         }
 
-        $companyId = $company instanceof Company ? (int) $company->id : (int) $company;
-
-        if (!self::companyInAllowlist($companyId)) {
-            return false;
-        }
-
-        self::ensureActivationStamped($company instanceof Company ? $company : $companyId);
+        self::ensureActivationStamped($company);
 
         return true;
     }
 
-    public static function companyInAllowlist(int $companyId): bool
+    /** Company's own override, falling back to the config default. */
+    public static function delayMinutes(Company $company): int
     {
-        $raw = trim((string) config('meetings.attendance_confirmation_company_allowlist', ''));
-
-        if ($raw === '') {
-            return false;
-        }
-
-        if ($raw === '*') {
-            return true;
-        }
-
-        $ids = array_filter(array_map('intval', preg_split('/\s*,\s*/', $raw) ?: []));
-
-        return in_array($companyId, $ids, true);
+        return $company->meeting_attendance_confirmation_delay_minutes
+            ?? (int) config('meetings.attendance_confirmation_delay_minutes', 5);
     }
 
-    public static function delayMinutes(): int
+    /** Company's own override, falling back to the config default. */
+    public static function snoozeMinutes(Company $company): int
     {
-        return (int) config('meetings.attendance_confirmation_delay_minutes', 5);
-    }
-
-    public static function snoozeMinutes(): int
-    {
-        return (int) config('meetings.attendance_confirmation_snooze_minutes', 60);
+        return $company->meeting_attendance_confirmation_snooze_minutes
+            ?? (int) config('meetings.attendance_confirmation_snooze_minutes', 60);
     }
 
     /**

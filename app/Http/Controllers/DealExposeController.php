@@ -6,13 +6,18 @@ use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealExpose;
 use App\Models\DealFile;
+use App\Models\DeveloperProject;
+use App\Models\DeveloperProjectUnitType;
 use App\Models\ExposeSnapshot;
 use App\Models\Lead;
+use App\Models\Property;
 use App\Services\FileStorageService;
+use App\Services\PdfExpose\ExposeSnapshotService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Exposes attached to a deal - documents shown to a buyer, each carrying an
@@ -33,11 +38,14 @@ class DealExposeController extends AccountBaseController
 
     protected FileStorageService $fileStorageService;
 
-    public function __construct(FileStorageService $fileStorageService)
+    protected ExposeSnapshotService $exposeSnapshots;
+
+    public function __construct(FileStorageService $fileStorageService, ExposeSnapshotService $exposeSnapshots)
     {
         parent::__construct();
         $this->pageTitle = 'app.menu.deals';
         $this->fileStorageService = $fileStorageService;
+        $this->exposeSnapshots = $exposeSnapshots;
     }
 
     /** Exposes on one deal, newest first. */
@@ -86,123 +94,311 @@ class DealExposeController extends AccountBaseController
         ]);
     }
 
+    /** Page size for the linking picker — matches config('api.defaultLimit') elsewhere. */
+    private const AVAILABLE_PER_PAGE = 24;
+
+    private const AVAILABLE_MAX_PER_PAGE = 60;
+
     /**
-     * Project exposes that can be linked to this deal — snapshots for the
-     * deal's lead and/or for properties / projects attached to the deal.
+     * One page of properties, developer projects, or unit types (within one
+     * project) that can be linked to this deal. Scoped + paginated + search
+     * server-side rather than shipping the whole catalog in one response —
+     * this is an internal picker for agents managing their own inventory,
+     * not a public-facing listing, so nothing is publish/hidden-filtered,
+     * but it is still too large to load in full up front.
      */
-    public function available(int $dealId)
+    public function available(Request $request, int $dealId)
     {
         $this->abortUnlessEnabled();
 
-        $deal = $this->findDealWithPropertyScopes($dealId);
+        $this->findDeal($dealId);
         $this->abortUnlessViewable();
 
-        $scopes = $this->snapshotScopesForDeal($deal);
+        $validated = $request->validate([
+            'scope' => 'nullable|in:'.implode(',', ExposeSnapshot::ENTITY_TYPES),
+            'project_id' => 'nullable|integer',
+            'search' => 'nullable|string|max:255',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:'.self::AVAILABLE_MAX_PER_PAGE,
+        ]);
 
-        if ($deal->lead_id === null && $scopes === []) {
-            return Reply::successWithData('Available exposes', ['snapshots' => []]);
+        $scope = $validated['scope'] ?? ExposeSnapshot::ENTITY_PROPERTY;
+        $search = trim((string) ($validated['search'] ?? ''));
+        $perPage = (int) ($validated['per_page'] ?? self::AVAILABLE_PER_PAGE);
+        $projectId = isset($validated['project_id']) ? (int) $validated['project_id'] : null;
+
+        if ($scope === ExposeSnapshot::ENTITY_UNIT_TYPE && $projectId === null) {
+            return Reply::error('A project must be selected first.');
         }
 
-        $snapshots = ExposeSnapshot::query()
-            ->where('company_id', user()->company_id)
-            ->where(function ($query) use ($deal, $scopes) {
-                $hasLeadScope = $deal->lead_id !== null;
-
-                if ($hasLeadScope) {
-                    $query->where('lead_id', $deal->lead_id);
-                }
-
-                if ($scopes !== []) {
-                    $method = $hasLeadScope ? 'orWhere' : 'where';
-                    $query->{$method}(function ($entityQuery) use ($scopes) {
-                        foreach ($scopes as $scope) {
-                            $entityQuery->orWhere(function ($match) use ($scope) {
-                                $match->where('entity_type', $scope['entity_type'])
-                                    ->where('entity_id', $scope['entity_id']);
-
-                                if (isset($scope['sub_entity_id'])) {
-                                    $match->where('sub_entity_id', $scope['sub_entity_id']);
-                                }
-                            });
-                        }
-                    });
-                }
-            })
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+        $paginator = $this->availableEntitiesPage(user()->company_id, $scope, $search, $projectId, $perPage);
 
         return Reply::successWithData('Available exposes', [
-            'snapshots' => $snapshots->map(fn (ExposeSnapshot $s) => [
-                'id' => $s->id,
-                'entity_type' => $s->entity_type,
-                'entity_label' => $this->snapshotEntityLabel($s),
-                'title' => $this->snapshotTitle($s),
-                'suggested_amount' => $this->snapshotSuggestedAmount($s),
-                'created_at' => $s->created_at?->toISOString(),
-            ])->values(),
+            'entities' => $paginator->items(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
         ]);
     }
 
     /**
-     * Exposé payloads are schema-versioned and vary by entity type, so read
-     * the title defensively and fall back to something identifiable rather
-     * than rendering a blank row.
+     * @return \Illuminate\Pagination\LengthAwarePaginator<array<string, mixed>>
      */
-    private function snapshotTitle(ExposeSnapshot $snapshot): string
+    private function availableEntitiesPage(int $companyId, string $scope, string $search, ?int $projectId, int $perPage)
     {
-        $payload = $snapshot->expose_payload;
+        if ($scope === ExposeSnapshot::ENTITY_DEVELOPER_PROJECT) {
+            $paginator = DeveloperProject::query()
+                ->with('thumbnail')
+                ->where('company_id', $companyId)
+                ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+                // Ties on `name` are common (see e.g. multiple "Aria Mare" rows) —
+                // without a unique tiebreaker, MySQL's order for tied rows isn't
+                // guaranteed stable between the page-1 and page-2 queries, which
+                // duplicates/skips rows across "load more" pages.
+                ->orderBy('name')
+                ->orderBy('id')
+                ->paginate($perPage, ['id', 'name', 'reference_code', 'starting_price']);
 
-        if (is_array($payload)) {
-            foreach (['title', 'name', 'project_name', 'property_title'] as $key) {
-                if (isset($payload[$key]) && is_string($payload[$key]) && $payload[$key] !== '') {
-                    return $payload[$key];
+            $paginator->setCollection(
+                $paginator->getCollection()->map(fn (DeveloperProject $project) => $this->mapProjectEntity($project))
+            );
+
+            return $paginator;
+        }
+
+        if ($scope === ExposeSnapshot::ENTITY_UNIT_TYPE) {
+            $paginator = DeveloperProjectUnitType::query()
+                ->with(['project:id,name', 'thumbnail'])
+                ->where('company_id', $companyId)
+                ->where('developer_project_id', $projectId)
+                ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->when($search !== '', fn ($query) => $query->where('reference_code', 'like', "%{$search}%"))
+                ->orderBy('id')
+                ->paginate($perPage, ['id', 'developer_project_id', 'starting_price', 'bedrooms', 'property_type', 'primary_category']);
+
+            $paginator->setCollection(
+                $paginator->getCollection()->map(fn (DeveloperProjectUnitType $unitType) => $this->mapUnitTypeEntity($unitType))
+            );
+
+            return $paginator;
+        }
+
+        $paginator = Property::query()
+            ->where('company_id', $companyId)
+            ->when($search !== '', fn ($query) => $query->where('title', 'like', "%{$search}%"))
+            // Same tiebreaker reasoning as the developer-project scope above.
+            ->orderBy('title')
+            ->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'slug', 'price', 'photos']);
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (Property $property) => $this->mapPropertyEntity($property))
+        );
+
+        return $paginator;
+    }
+
+    /** @return array<string, mixed> */
+    private function mapPropertyEntity(Property $property): array
+    {
+        return [
+            'entity_type' => ExposeSnapshot::ENTITY_PROPERTY,
+            'entity_id' => $property->id,
+            'unit_type_id' => null,
+            'entity_label' => $this->entityLabel(ExposeSnapshot::ENTITY_PROPERTY),
+            'title' => $property->title ?: $property->slug ?: ('Property #'.$property->id),
+            'suggested_amount' => $property->price,
+            'cover_image' => $this->firstPhotoUrl($property->photos),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function mapProjectEntity(DeveloperProject $project): array
+    {
+        return [
+            'entity_type' => ExposeSnapshot::ENTITY_DEVELOPER_PROJECT,
+            'entity_id' => $project->id,
+            'unit_type_id' => null,
+            'entity_label' => $this->entityLabel(ExposeSnapshot::ENTITY_DEVELOPER_PROJECT),
+            'title' => $project->name ?: $project->reference_code,
+            'suggested_amount' => $project->starting_price !== null ? (float) $project->starting_price : null,
+            'cover_image' => $project->thumbnail?->url,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function mapUnitTypeEntity(DeveloperProjectUnitType $unitType): array
+    {
+        return [
+            'entity_type' => ExposeSnapshot::ENTITY_UNIT_TYPE,
+            'entity_id' => $unitType->developer_project_id,
+            'unit_type_id' => $unitType->id,
+            'entity_label' => $this->entityLabel(ExposeSnapshot::ENTITY_UNIT_TYPE),
+            'title' => $unitType->project?->name
+                ? "{$unitType->display_label} ({$unitType->project->name})"
+                : $unitType->display_label,
+            'suggested_amount' => $unitType->starting_price !== null ? (float) $unitType->starting_price : null,
+            'cover_image' => $unitType->thumbnail?->url,
+        ];
+    }
+
+    /**
+     * Property#photos is a plain JSON array, normally of URL strings, but a
+     * few legacy rows store richer `{url:...}`-shaped entries — check the
+     * common keys defensively rather than assuming a shape.
+     *
+     * @param  mixed  $photos
+     */
+    private function firstPhotoUrl($photos): ?string
+    {
+        if (! is_array($photos) || $photos === []) {
+            return null;
+        }
+
+        $first = reset($photos);
+
+        if (is_string($first) && $first !== '') {
+            return $first;
+        }
+
+        if (is_array($first)) {
+            foreach (['url', 'file_url', 'original_url', 'path', 'file_path'] as $key) {
+                if (isset($first[$key]) && is_string($first[$key]) && $first[$key] !== '') {
+                    return $first[$key];
                 }
             }
         }
 
-        return 'Exposé #'.$snapshot->id;
+        return null;
+    }
+
+    /**
+     * Looks up one entity for the linking picker's submit — re-checks it
+     * still exists and belongs to this company (defense against a
+     * stale/tampered payload), and shapes it the same way available() does
+     * so store() can pull title/amount straight off it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function findLinkableEntity(string $entityType, int $entityId, ?int $unitTypeId): ?array
+    {
+        $companyId = user()->company_id;
+
+        if ($entityType === ExposeSnapshot::ENTITY_PROPERTY) {
+            $property = Property::query()
+                ->where('company_id', $companyId)
+                ->find($entityId);
+
+            return $property ? $this->mapPropertyEntity($property) : null;
+        }
+
+        if ($entityType === ExposeSnapshot::ENTITY_DEVELOPER_PROJECT) {
+            $project = DeveloperProject::query()
+                ->where('company_id', $companyId)
+                ->find($entityId);
+
+            return $project ? $this->mapProjectEntity($project) : null;
+        }
+
+        if ($entityType === ExposeSnapshot::ENTITY_UNIT_TYPE) {
+            if ($unitTypeId === null) {
+                return null;
+            }
+
+            $unitType = DeveloperProjectUnitType::query()
+                ->with('project:id,name')
+                ->where('company_id', $companyId)
+                ->where('developer_project_id', $entityId)
+                ->whereHas('project', fn ($query) => $query->where('company_id', $companyId))
+                ->find($unitTypeId);
+
+            return $unitType ? $this->mapUnitTypeEntity($unitType) : null;
+        }
+
+        return null;
     }
 
     public function store(Request $request, int $dealId)
     {
         $this->abortUnlessEnabled();
 
-        $deal = $this->findDealWithPropertyScopes($dealId);
+        $deal = $this->findDeal($dealId);
         $this->abortUnlessEditable();
-        abort_403($deal->isLocked());
+        // Matches update/status/destroy — a locked deal is frozen for new
+        // exposes too, not just existing ones.
+        abort_403((bool) $deal->isLocked());
 
         $validated = $request->validate([
             'source' => 'required|in:'.implode(',', DealExpose::SOURCES),
-            'title' => 'required|string|max:255',
+            // Required for manual uploads (derived from the filename client-side).
+            // Linked entries have no title field in the UI — it comes from the
+            // picked entity below instead.
+            'title' => 'nullable|string|max:255',
             'source_label' => 'nullable|string|max:255',
             'amount' => 'nullable|numeric|min:0',
-            'expose_snapshot_id' => 'nullable|integer',
+            'entity_type' => 'nullable|in:'.implode(',', ExposeSnapshot::ENTITY_TYPES),
+            'entity_id' => 'nullable|integer',
+            'unit_type_id' => 'nullable|integer',
             'deal_file_id' => 'nullable|integer|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             'file' => 'nullable|file|max:'.self::MAX_UPLOAD_KB.'|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             // Optional when the browser already uploaded via storage API (no CORS).
             // Manual uploads from the CRM UI POST multipart here; Laravel proxies to storage.
-            'download_url' => 'nullable|url:http,https|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
+            'download_url' => 'nullable|url:http,https|max:2048|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             'object_path' => 'nullable|string|max:512|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             'uploaded_filename' => 'nullable|string|max:255|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
             'uploaded_size' => 'nullable|integer|min:0|prohibited_if:source,'.DealExpose::SOURCE_LINKED,
         ]);
 
+        $shareUrl = null;
+
         if ($validated['source'] === DealExpose::SOURCE_LINKED) {
-            $snapshotId = $validated['expose_snapshot_id'] ?? null;
+            $entityType = $validated['entity_type'] ?? null;
+            $entityId = $validated['entity_id'] ?? null;
 
-            if ($snapshotId === null) {
-                return Reply::error('An expose must be selected to link.');
+            if ($entityType === null || $entityId === null) {
+                return Reply::error('A property, project, or unit type must be selected to link.');
             }
 
-            if (! $this->snapshotAvailableForDeal($deal, (int) $snapshotId)) {
-                return Reply::error('That expose could not be found.');
+            if ($deal->lead_id === null) {
+                return Reply::error('This deal has no lead, so an expose cannot be generated.');
             }
 
-            $snapshot = ExposeSnapshot::where('company_id', user()->company_id)
-                ->find((int) $snapshotId);
+            $unitTypeId = $entityType === ExposeSnapshot::ENTITY_UNIT_TYPE
+                ? ($validated['unit_type_id'] ?? null)
+                : null;
+
+            if ($entityType === ExposeSnapshot::ENTITY_UNIT_TYPE && $unitTypeId === null) {
+                return Reply::error('A unit type must be selected to link.');
+            }
+
+            $linkedEntity = $this->findLinkableEntity($entityType, (int) $entityId, $unitTypeId !== null ? (int) $unitTypeId : null);
+
+            if ($linkedEntity === null) {
+                return Reply::error('That property, project, or unit type could not be found.');
+            }
+
+            try {
+                $mint = $this->exposeSnapshots->mint(user()->company_id, [
+                    'entity_type' => $entityType,
+                    'entity_id' => (int) $entityId,
+                    'unit_type_id' => $unitTypeId,
+                    'agent_id' => user()->id,
+                    'lead_id' => $deal->lead_id,
+                ]);
+            } catch (ValidationException $e) {
+                return Reply::error(collect($e->errors())->flatten()->first() ?? 'That expose could not be generated.');
+            }
+
+            $linkedEntity['expose_snapshot_id'] = $mint['snapshot']->id;
+            $shareUrl = rtrim((string) config('expose.share_base_url'), '/').'/'.$mint['token'];
         } else {
-            $snapshot = null;
+            $linkedEntity = null;
+        }
+
+        $title = $validated['title'] ?? ($linkedEntity['title'] ?? null);
+        if (empty($title)) {
+            return Reply::error('A title is required.');
         }
 
         $uploaded = $request->file('file');
@@ -230,17 +426,20 @@ class DealExposeController extends AccountBaseController
         $expose->deal_id = $deal->id;
         $expose->lead_id = $deal->lead_id;
         $expose->source = $validated['source'];
-        $expose->expose_snapshot_id = $validated['source'] === DealExpose::SOURCE_LINKED
-            ? $validated['expose_snapshot_id']
-            : null;
-        $expose->title = $validated['title'];
+        $expose->expose_snapshot_id = $linkedEntity['expose_snapshot_id'] ?? null;
+        $expose->entity_type = $linkedEntity['entity_type'] ?? null;
+        $expose->entity_id = $linkedEntity['entity_id'] ?? null;
+        $expose->unit_type_id = $linkedEntity['unit_type_id'] ?? null;
+        $expose->title = $title;
         $expose->source_label = $validated['source_label'] ?? null;
         $expose->amount = $validated['amount']
-            ?? ($snapshot ? $this->snapshotSuggestedAmount($snapshot) : null);
+            ?? ($linkedEntity['suggested_amount'] ?? null);
         $expose->status = DealExpose::STATUS_NOT_SENT;
         $expose->added_by = user()->id;
 
-        if ($hasDealFile) {
+        if ($shareUrl !== null) {
+            $expose->external_url = $shareUrl;
+        } elseif ($hasDealFile) {
             $expose->filename = $dealFile->filename;
             $expose->size = is_numeric($dealFile->size) ? (int) $dealFile->size : null;
             $expose->external_url = $dealFile->external_url ?: $dealFile->file_url;
@@ -344,153 +543,14 @@ class DealExposeController extends AccountBaseController
             ->findOrFail($dealId);
     }
 
-    private function findDealWithPropertyScopes(int $dealId): Deal
+    private function entityLabel(string $entityType): string
     {
-        return Deal::with(['products.property'])
-            ->where('company_id', user()->company_id)
-            ->findOrFail($dealId);
-    }
-
-    private function snapshotAvailableForDeal(Deal $deal, int $snapshotId): bool
-    {
-        $scopes = $this->snapshotScopesForDeal($deal);
-
-        if ($deal->lead_id === null && $scopes === []) {
-            return false;
-        }
-
-        $query = ExposeSnapshot::query()
-            ->where('company_id', user()->company_id)
-            ->where('id', $snapshotId)
-            ->where(function ($matchQuery) use ($deal, $scopes) {
-                $hasLeadScope = $deal->lead_id !== null;
-
-                if ($hasLeadScope) {
-                    $matchQuery->where('lead_id', $deal->lead_id);
-                }
-
-                if ($scopes !== []) {
-                    $method = $hasLeadScope ? 'orWhere' : 'where';
-                    $matchQuery->{$method}(function ($entityQuery) use ($scopes) {
-                        foreach ($scopes as $scope) {
-                            $entityQuery->orWhere(function ($match) use ($scope) {
-                                $match->where('entity_type', $scope['entity_type'])
-                                    ->where('entity_id', $scope['entity_id']);
-
-                                if (isset($scope['sub_entity_id'])) {
-                                    $match->where('sub_entity_id', $scope['sub_entity_id']);
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-
-        return $query->exists();
-    }
-
-    /**
-     * Entity keys for expose snapshots tied to this deal's attached properties.
-     *
-     * @return array<int, array{entity_type: string, entity_id: int, sub_entity_id?: int}>
-     */
-    private function snapshotScopesForDeal(Deal $deal): array
-    {
-        $deal->loadMissing(['products.property']);
-
-        $scopes = [];
-        $seen = [];
-
-        foreach ($deal->products as $product) {
-            $property = $product->property;
-            if ($property === null) {
-                continue;
-            }
-
-            $this->pushSnapshotScope(
-                $scopes,
-                $seen,
-                ExposeSnapshot::ENTITY_PROPERTY,
-                (int) $property->id,
-            );
-
-            if ($property->developer_project_id) {
-                $this->pushSnapshotScope(
-                    $scopes,
-                    $seen,
-                    ExposeSnapshot::ENTITY_DEVELOPER_PROJECT,
-                    (int) $property->developer_project_id,
-                );
-            }
-
-            if ($property->developer_project_id && $property->developer_project_unit_type_id) {
-                $this->pushSnapshotScope(
-                    $scopes,
-                    $seen,
-                    ExposeSnapshot::ENTITY_UNIT_TYPE,
-                    (int) $property->developer_project_id,
-                    (int) $property->developer_project_unit_type_id,
-                );
-            }
-        }
-
-        return $scopes;
-    }
-
-    /**
-     * @param  array<int, array{entity_type: string, entity_id: int, sub_entity_id?: int}>  $scopes
-     * @param  array<string, true>  $seen
-     */
-    private function pushSnapshotScope(
-        array &$scopes,
-        array &$seen,
-        string $entityType,
-        int $entityId,
-        ?int $subEntityId = null,
-    ): void {
-        $key = $entityType.':'.$entityId.':'.($subEntityId ?? '');
-        if (isset($seen[$key])) {
-            return;
-        }
-
-        $seen[$key] = true;
-
-        $scope = [
-            'entity_type' => $entityType,
-            'entity_id' => $entityId,
-        ];
-
-        if ($subEntityId !== null) {
-            $scope['sub_entity_id'] = $subEntityId;
-        }
-
-        $scopes[] = $scope;
-    }
-
-    private function snapshotEntityLabel(ExposeSnapshot $snapshot): string
-    {
-        return match ($snapshot->entity_type) {
+        return match ($entityType) {
             ExposeSnapshot::ENTITY_PROPERTY => 'Property',
             ExposeSnapshot::ENTITY_DEVELOPER_PROJECT => 'Project',
             ExposeSnapshot::ENTITY_UNIT_TYPE => 'Unit type',
-            default => ucfirst(str_replace('_', ' ', (string) $snapshot->entity_type)),
+            default => ucfirst(str_replace('_', ' ', $entityType)),
         };
-    }
-
-    private function snapshotSuggestedAmount(ExposeSnapshot $snapshot): ?float
-    {
-        $payload = $snapshot->expose_payload;
-        if (! is_array($payload)) {
-            return null;
-        }
-
-        foreach (['price', 'amount', 'property_price', 'total_price', 'listing_price'] as $key) {
-            if (isset($payload[$key]) && is_numeric($payload[$key])) {
-                return (float) $payload[$key];
-            }
-        }
-
-        return null;
     }
 
     private function abortUnlessEnabled(): void
@@ -512,7 +572,7 @@ class DealExposeController extends AccountBaseController
 
     private function abortUnlessEditable(): void
     {
-        abort_403(! in_array(user()->permission('add_lead_proposals'), ['all', 'added']));
+        abort_403(! in_array(user()->permission('add_lead_proposals'), ['all', 'added'], true));
     }
 
     /** @return string|false */
@@ -531,7 +591,8 @@ class DealExposeController extends AccountBaseController
         ));
 
         // A locked deal is frozen — matches Deal::isLocked() gating elsewhere
-        // (e.g. the Offers tab's "Remove all" button, and store()'s own check).
+        // (e.g. the Offers tab's "Remove all" button, and store()'s own
+        // check on the deal before creating a new expose).
         abort_403((bool) $expose->deal?->isLocked());
     }
 
@@ -561,6 +622,9 @@ class DealExposeController extends AccountBaseController
             'lead_id' => $expose->lead_id,
             'source' => $expose->source,
             'expose_snapshot_id' => $expose->expose_snapshot_id,
+            'entity_type' => $expose->entity_type,
+            'entity_id' => $expose->entity_id,
+            'unit_type_id' => $expose->unit_type_id,
             'title' => $expose->title,
             'source_label' => $expose->source_label,
             'amount' => $expose->amount !== null ? (float) $expose->amount : null,

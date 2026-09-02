@@ -10,7 +10,6 @@ import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
 import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
-import useDealOffers from "../Redesign/hooks/useDealOffers";
 import useDealRecommendationsFlag from "@/Hooks/useDealRecommendationsFlag";
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
@@ -81,15 +80,13 @@ export default function DealTabs({
     const showRecommendations = useDealRecommendationsFlag();
     const offersEligible =
         permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
-    const {
-        hasOffers,
-        isLoading: offersLoading,
-        isError: offersError,
-    } = useDealOffers(deal.id, offersEligible);
-    // A failed fetch must not read as "no offers" and hide the tab — keep it
-    // visible so the tab body can show its own retry UI instead.
+    // Visibility comes straight off the already-loaded deal payload — no
+    // need for a separate eager fetch on every eligible deal just to answer
+    // "does this deal have any offers". DealOffersTab fetches the full offer
+    // rows itself, only once the tab is actually opened, and owns its own
+    // retry UI for that fetch.
     const showOffersTab =
-        offersEligible && !offersLoading && (hasOffers || offersError);
+        offersEligible && (deal.offer_applications?.length ?? 0) > 0;
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 

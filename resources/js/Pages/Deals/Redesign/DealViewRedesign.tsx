@@ -42,7 +42,6 @@ import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
 import usePipelineHasPackages from "./hooks/usePipelineHasPackages";
-import useDealOffers from "./hooks/useDealOffers";
 import {
     filterCategoriesByScope,
     resolveScopedFieldKeys,
@@ -122,7 +121,6 @@ function DealViewRedesignInner(
     // Adapters are plain functions with no hook access, so publish the active
     // locale once here; every date/time in the redesign reads it.
     setDealDateLocale(locale);
-    const { td } = useTd();
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
@@ -226,16 +224,13 @@ function DealViewRedesignInner(
     const pipelineHasPackages = usePipelineHasPackages();
     const offersEligible =
         permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
-    const {
-        applications: offerApplications,
-        isLoading: offersLoading,
-        isError: offersError,
-        hasOffers,
-    } = useDealOffers(deal.id, offersEligible);
-    // A failed fetch must not read as "no offers" and hide the tab — keep it
-    // visible so WorkspaceOffersTab can show its own retry UI instead.
-    const showOffersTab =
-        offersEligible && !offersLoading && (hasOffers || offersError);
+    // Visibility comes straight off the deal payload already shipped on
+    // first paint — no need for a separate eager fetch on every eligible
+    // deal just to answer "does this deal have any offers". WorkspaceOffersTab
+    // fetches the full offer rows itself, only once the tab is actually
+    // opened, and owns its own retry UI for that fetch.
+    const offerApplicationsCount = deal.offer_applications?.length ?? 0;
+    const showOffersTab = offersEligible && offerApplicationsCount > 0;
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),
@@ -247,7 +242,8 @@ function DealViewRedesignInner(
     // may change stages — otherwise the summary card renders it as advice, not
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
-    const canManagePayments = permissions.edit_payments === "all";
+    const canCreatePaymentRequest = dealPermissions.canEdit;
+    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -322,7 +318,7 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
-            offers: showOffersTab ? offerApplications.length : undefined,
+            offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes:
                 exposesCount?.dealId === deal.id ? exposesCount.count : undefined,
             recommendations: recommendationsCount,
@@ -340,7 +336,7 @@ function DealViewRedesignInner(
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
             showOffersTab,
-            offerApplications.length,
+            offerApplicationsCount,
             exposesCount,
             recommendationsCount,
         ],
@@ -355,7 +351,7 @@ function DealViewRedesignInner(
                     name: t("pages.deals.header.breadcrumb_deals"),
                     url: route("deals.index"),
                 },
-                { name: td(pageTitle) },
+                { name: pageTitle },
             ]}
         >
             {/* Gate on isOpen as well as the flag: the modal's hooks build the whole
@@ -668,7 +664,8 @@ function DealViewRedesignInner(
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() => nav.goToDealInfo("general")}
                                     showOnlinePayment={props.showOnlinePayment}
-                                    canManagePayments={canManagePayments}
+                                    canCreatePaymentRequest={canCreatePaymentRequest}
+                                    canConfirmPaymentTransfer={canConfirmPaymentTransfer}
                                 />
                             </div>
                         </div>

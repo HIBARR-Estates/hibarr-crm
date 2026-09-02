@@ -15,7 +15,8 @@ class UserReminderPreferenceController extends AccountBaseController
         $this->pageTitle = 'Reminder Preferences';
 
         $this->middleware(function ($request, $next) {
-            abort_403(!in_array('employees', $this->user->modules));
+            abort_403(! in_array('employees', $this->user->modules));
+
             return $next($request);
         });
     }
@@ -27,8 +28,13 @@ class UserReminderPreferenceController extends AccountBaseController
      */
     public function show()
     {
+        $meeting = $this->preferencePayload(user()->id, 'meeting');
+
         return Inertia::render('Settings/ReminderPreferences', [
-            'pageTitle' => $this->pageTitle,
+            'pageTitle' => __('app.settings.reminder_preferences'),
+            'reminders' => $meeting['reminders'],
+            'isActive' => $meeting['is_active'],
+            'defaults' => UserReminderPreference::DEFAULT_REMINDERS,
         ]);
     }
 
@@ -42,7 +48,6 @@ class UserReminderPreferenceController extends AccountBaseController
         $userId = user()->id;
         $preferences = UserReminderPreference::where('user_id', $userId)->get();
 
-        // Build response with preferences for each entity type
         $data = [];
         foreach (UserReminderPreference::ENTITY_TYPES as $type) {
             $existing = $preferences->firstWhere('entity_type', $type);
@@ -50,7 +55,7 @@ class UserReminderPreferenceController extends AccountBaseController
                 'id' => $existing?->id,
                 'reminders' => $existing?->reminders ?? UserReminderPreference::DEFAULT_REMINDERS,
                 'is_active' => $existing?->is_active ?? true,
-                'is_custom' => $existing !== null, // Indicates if user has custom settings
+                'is_custom' => $existing !== null,
             ];
         }
 
@@ -63,7 +68,6 @@ class UserReminderPreferenceController extends AccountBaseController
     /**
      * Update or create user's reminder preference
      *
-     * @param StoreUserReminderPreferenceRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(StoreUserReminderPreferenceRequest $request)
@@ -83,6 +87,7 @@ class UserReminderPreferenceController extends AccountBaseController
         usort($reminders, function ($a, $b) {
             $aMinutes = $this->toMinutes($a['time'], $a['type']);
             $bMinutes = $this->toMinutes($b['time'], $b['type']);
+
             return $bMinutes - $aMinutes;
         });
 
@@ -111,7 +116,6 @@ class UserReminderPreferenceController extends AccountBaseController
     /**
      * Reset user's reminder preference to defaults
      *
-     * @param string $entityType
      * @return \Illuminate\Http\JsonResponse
      */
     public function reset(string $entityType)
@@ -119,7 +123,7 @@ class UserReminderPreferenceController extends AccountBaseController
         $userId = user()->id;
 
         // Validate entity type
-        if (!in_array($entityType, UserReminderPreference::ENTITY_TYPES)) {
+        if (! in_array($entityType, UserReminderPreference::ENTITY_TYPES)) {
             return Reply::error(__('messages.invalidEntityType'));
         }
 
@@ -135,11 +139,25 @@ class UserReminderPreferenceController extends AccountBaseController
     }
 
     /**
+     * @return array{id: int|null, reminders: array<int, array{time: int, type: string}>, is_active: bool, is_custom: bool}
+     */
+    private function preferencePayload(int $userId, string $entityType): array
+    {
+        $existing = UserReminderPreference::query()
+            ->where('user_id', $userId)
+            ->where('entity_type', $entityType)
+            ->first();
+
+        return [
+            'id' => $existing?->id,
+            'reminders' => $existing?->reminders ?? UserReminderPreference::DEFAULT_REMINDERS,
+            'is_active' => $existing?->is_active ?? true,
+            'is_custom' => $existing !== null,
+        ];
+    }
+
+    /**
      * Convert reminder time to minutes for sorting
-     *
-     * @param int $time
-     * @param string $type
-     * @return int
      */
     private function toMinutes(int $time, string $type): int
     {

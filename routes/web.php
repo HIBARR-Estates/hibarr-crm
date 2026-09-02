@@ -1366,15 +1366,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Deal exposes — documents shown to a buyer, with an amount and a
     // Not sent → Shown → Accepted / Not accepted lifecycle. Every endpoint
     // 404s while crm.deal-exposes-tab is off (see DealExposeController).
-    Route::prefix('deals/{dealId}/exposes')->name('deals.exposes.')->group(function () {
+    Route::prefix('deals/{dealId}/exposes')->name('deals.exposes.')->where(['dealId' => '[0-9]+'])->group(function () {
         Route::get('/', [App\Http\Controllers\DealExposeController::class, 'index'])->name('index');
         Route::get('available', [App\Http\Controllers\DealExposeController::class, 'available'])->name('available');
         Route::post('/', [App\Http\Controllers\DealExposeController::class, 'store'])->name('store');
     });
-    Route::get('leads/{leadId}/exposes', [App\Http\Controllers\DealExposeController::class, 'leadIndex'])->name('leads.exposes.index');
-    Route::patch('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'update'])->name('deal-exposes.update');
-    Route::patch('deal-exposes/{id}/status', [App\Http\Controllers\DealExposeController::class, 'updateStatus'])->name('deal-exposes.status');
-    Route::delete('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'destroy'])->name('deal-exposes.destroy');
+    Route::get('leads/{leadId}/exposes', [App\Http\Controllers\DealExposeController::class, 'leadIndex'])->name('leads.exposes.index')->where('leadId', '[0-9]+');
+    Route::patch('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'update'])->name('deal-exposes.update')->where('id', '[0-9]+');
+    Route::patch('deal-exposes/{id}/status', [App\Http\Controllers\DealExposeController::class, 'updateStatus'])->name('deal-exposes.status')->where('id', '[0-9]+');
+    Route::delete('deal-exposes/{id}', [App\Http\Controllers\DealExposeController::class, 'destroy'])->name('deal-exposes.destroy')->where('id', '[0-9]+');
 
     // Deal workspace tabs — each fetched independently by the frontend (not
     // Inertia deferred props) so a slow/broken one can't stall the others.

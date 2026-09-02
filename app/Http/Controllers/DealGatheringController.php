@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\AccountBaseController;
-use App\Services\DealGatheringService;
-use Illuminate\Http\Request;
+use App\Enums\DealUpdateType;
+use App\Enums\Salutation;
+use App\Helper\Files;
+use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadSource;
-use App\Models\Deal;
-use App\Enums\Salutation;
-use Illuminate\Validation\Rule;
-use App\Enums\DealUpdateType;
-use Illuminate\Validation\Rules\Enum;
+use App\Services\DealGatheringService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Helper\Files;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 
 class DealGatheringController extends AccountBaseController
 {
@@ -32,12 +31,12 @@ class DealGatheringController extends AccountBaseController
     public function init(Request $request)
     {
         $request->validate([
-            'deal_id'     => 'nullable|exists:deals,id',
-            'lead_id'     => 'nullable|exists:leads,id',
-            'lead_data'   => 'nullable|array',
-            'lead_type'   => 'nullable|in:agent,client',
+            'deal_id' => 'nullable|exists:deals,id',
+            'lead_id' => 'nullable|exists:leads,id',
+            'lead_data' => 'nullable|array',
+            'lead_type' => 'nullable|in:agent,client',
             'pipeline_id' => [
-                Rule::requiredIf(!$request->filled('deal_id')),
+                Rule::requiredIf(! $request->filled('deal_id')),
                 'exists:lead_pipelines,id',
             ],
         ]);
@@ -46,8 +45,8 @@ class DealGatheringController extends AccountBaseController
         $pipelineId = $request->filled('pipeline_id') ? (int) $request->pipeline_id : null;
 
         // Determine if we're updating an existing deal or creating new
-        $existingDeal = $request->filled('deal_id') 
-            ? Deal::findOrFail($request->deal_id) 
+        $existingDeal = $request->filled('deal_id')
+            ? Deal::findOrFail($request->deal_id)
             : null;
 
         // Prevent modifications to locked deals
@@ -62,12 +61,12 @@ class DealGatheringController extends AccountBaseController
         if ($request->filled('lead_id')) {
             // Using an existing lead (either same or different from current)
             $lead = Lead::findOrFail($request->lead_id);
-            
+
             // If updating an existing deal with a different lead
             if ($existingDeal && $existingDeal->lead_id !== $lead->id) {
                 $existingDeal = $this->service->updateDealLead($existingDeal, $lead);
             }
-        } else if ($request->filled('lead_data')) {
+        } elseif ($request->filled('lead_data')) {
             // Creating new lead or updating existing lead's info
             $salutationValues = array_column(Salutation::cases(), 'value');
 
@@ -97,7 +96,7 @@ class DealGatheringController extends AccountBaseController
                     ->where('company_id', company()->id)
                     ->exists();
 
-                if (!$sourceExists) {
+                if (! $sourceExists) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Lead source not found.',
@@ -107,21 +106,21 @@ class DealGatheringController extends AccountBaseController
                     ], 404);
                 }
             }
-            
+
             // If we have an existing deal, update its lead; otherwise create new
             if ($existingDeal) {
                 $lead = $this->service->updateLead($existingDeal->lead_id, $request->lead_data);
                 // Update deal name to match updated lead info
-                $existingDeal->update(['name' => 'New Deal - ' . $lead->client_name]);
+                $existingDeal->update(['name' => 'New Deal - '.$lead->client_name]);
             } else {
                 $lead = $this->service->createLead($request->lead_data);
             }
         } else {
             // No lead_id and no lead_data - this shouldn't happen for new deals
-            if (!$existingDeal) {
+            if (! $existingDeal) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Lead information is required'
+                    'message' => 'Lead information is required',
                 ], 422);
             }
             // For existing deals with no changes, just return current state
@@ -134,7 +133,7 @@ class DealGatheringController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'deal' => $deal->fresh(),
-            'lead' => $lead->fresh()
+            'lead' => $lead->fresh(),
         ]);
     }
 
@@ -155,7 +154,7 @@ class DealGatheringController extends AccountBaseController
             'steps' => $steps,
         ]);
     }
-    
+
     /**
      * Search Leads
      */
@@ -163,6 +162,7 @@ class DealGatheringController extends AccountBaseController
     {
         $query = $request->get('query');
         $leads = $this->service->searchLeads($query);
+
         return response()->json($leads);
     }
 
@@ -201,7 +201,7 @@ class DealGatheringController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'custom_fields_data' => $customFieldsData
+            'custom_fields_data' => $customFieldsData,
         ]);
     }
 
@@ -213,8 +213,8 @@ class DealGatheringController extends AccountBaseController
         try {
             // Check if type is present
             $type = $request->input('type');
-            
-            if (!$type) {
+
+            if (! $type) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'The type field is required.',
@@ -244,7 +244,7 @@ class DealGatheringController extends AccountBaseController
                 || ($editPermission == 'owned' && $deal->hasTeamMemberAccess(user()->id))
                 || ($editPermission == 'both' && ($deal->added_by == user()->id || $deal->hasTeamMemberAccess(user()->id)));
 
-            if (!$canEditDeal) {
+            if (! $canEditDeal) {
                 return response()->json([
                     'status' => 'error',
                     'message' => __('messages.permissionDenied'),
@@ -253,7 +253,7 @@ class DealGatheringController extends AccountBaseController
 
             // Process data to handle file uploads
             $data = $request->input('data', []);
-            if (!is_array($data)) {
+            if (! is_array($data)) {
                 $data = [];
             }
 
@@ -280,7 +280,7 @@ class DealGatheringController extends AccountBaseController
                                     $uploadedFiles[] = $file;
                                 }
                             }
-                            if (!empty($uploadedFiles)) {
+                            if (! empty($uploadedFiles)) {
                                 $data[$fieldKey] = $uploadedFiles;
                             }
                         }
@@ -303,52 +303,63 @@ class DealGatheringController extends AccountBaseController
                 $data['package_id'] = [];
             }
 
+            if (array_key_exists('name', $data)) {
+                if (is_string($data['name'])) {
+                    $data['name'] = trim($data['name']);
+                }
+                validator(['name' => $data['name']], [
+                    'name' => 'required|string|min:1|max:255',
+                ], [], [
+                    'name' => 'deal name',
+                ])->validate();
+            }
+
             // Validate that we have some data, except explicit recalculate actions
             if (empty($data) && $type !== DealUpdateType::RECALCULATE_VALUE->value) {
                 Log::error('DealGatheringController: No data extracted', [
                     'type' => $type,
-                    'has_files' => !empty($request->allFiles()),
+                    'has_files' => ! empty($request->allFiles()),
                 ]);
 
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'No data provided. Please check the request format.'
+                    'message' => 'No data provided. Please check the request format.',
                 ], 422);
             }
 
-        $updatedDeal = $this->service->updateDealInline(
-            $deal,
-            DealUpdateType::from($request->type),
-            $data
-        );
+            $updatedDeal = $this->service->updateDealInline(
+                $deal,
+                DealUpdateType::from($request->type),
+                $data
+            );
 
-        // Lean path: analysis modal fire-and-forget saves skip the expensive 13-relation
-        // refresh and return a minimal acknowledgement so the UI stays snappy.
-        if ($request->header('X-Analysis-Lean')) {
-            return response()->json(['status' => 'success']);
-        }
+            // Lean path: analysis modal fire-and-forget saves skip the expensive 13-relation
+            // refresh and return a minimal acknowledgement so the UI stays snappy.
+            if ($request->header('X-Analysis-Lean')) {
+                return response()->json(['status' => 'success']);
+            }
 
-        // Refresh deal with all relationships and custom fields data.
-        // Include leadFlightItineraries so redesign setDeal() patches do not
-        // wipe the itinerary tab (same relation set as DealController::loadFullDeal).
-        $freshDeal = $updatedDeal->fresh([
-            'currency',
-            'contact',
-            'hibarrFields',
-            'leadAgent.user',
-            'addedBy',
-            'leadSource',
-            'category',
-            'leadStage',
-            'pipeline.stages',
-            'packages',
-            'products.property',
-            'dealWatchers',
-            'dealParticipants',
-            'leadFlightItineraries',
-        ]);
-        $freshDeal->withCustomFields();
-        $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
+            // Refresh deal with all relationships and custom fields data.
+            // Include leadFlightItineraries so redesign setDeal() patches do not
+            // wipe the itinerary tab (same relation set as DealController::loadFullDeal).
+            $freshDeal = $updatedDeal->fresh([
+                'currency',
+                'contact',
+                'hibarrFields',
+                'leadAgent.user',
+                'addedBy',
+                'leadSource',
+                'category',
+                'leadStage',
+                'pipeline.stages',
+                'packages',
+                'products.property',
+                'dealWatchers',
+                'dealParticipants',
+                'leadFlightItineraries',
+            ]);
+            $freshDeal->withCustomFields();
+            $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
 
             return response()->json([
                 'status' => 'success',
@@ -358,7 +369,7 @@ class DealGatheringController extends AccountBaseController
             return response()->json([
                 'status' => 'error',
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             Log::error('DealGatheringController: Exception', [
@@ -370,7 +381,7 @@ class DealGatheringController extends AccountBaseController
             if (config('app.debug')) {
                 $payload['message'] = $e->getMessage();
                 $payload['exception'] = get_class($e);
-                $payload['file'] = $e->getFile() . ':' . $e->getLine();
+                $payload['file'] = $e->getFile().':'.$e->getLine();
                 $payload['trace'] = collect($e->getTrace())->take(10)->toArray();
             }
 
@@ -403,7 +414,7 @@ class DealGatheringController extends AccountBaseController
             || ($editPermission === 'owned' && $deal->hasTeamMemberAccess(user()->id))
             || ($editPermission === 'both' && ($deal->added_by === user()->id || $deal->hasTeamMemberAccess(user()->id)));
 
-        if (!$canEdit) {
+        if (! $canEdit) {
             return response()->json(['status' => 'error', 'message' => __('messages.permissionDenied')], 403);
         }
 

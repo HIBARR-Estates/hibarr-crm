@@ -66,20 +66,25 @@ export default function TasksFilterBar({
     return (
         <div>
             <div className="flex flex-wrap items-center gap-2.5 pb-[18px]">
-                <TaskSegmented
-                    value={quickFilter}
-                    ariaLabel={td("Task view")}
-                    onChange={onQuickFilter}
-                    options={QUICK_FILTERS.map((pill) => ({
-                        value: pill.key,
-                        label: td(pill.label),
-                        count: counts[pill.key],
-                    }))}
-                />
+                <div data-tour="tasks-list-quick-filters">
+                    <TaskSegmented
+                        value={quickFilter}
+                        ariaLabel={td("Task view")}
+                        onChange={onQuickFilter}
+                        options={QUICK_FILTERS.map((pill) => ({
+                            value: pill.key,
+                            label: td(pill.label),
+                            count: counts[pill.key],
+                        }))}
+                    />
+                </div>
 
                 <div className="ml-auto flex items-center gap-2.5">
                     {showGroupBy && (
-                        <div className="flex items-center gap-2">
+                        <div
+                            className="flex items-center gap-2"
+                            data-tour="tasks-list-group-by"
+                        >
                             <span
                                 className="uppercase"
                                 style={{
@@ -110,6 +115,7 @@ export default function TasksFilterBar({
                     <button
                         type="button"
                         onClick={onOpenFilters}
+                        data-tour="tasks-list-filters"
                         className="inline-flex items-center gap-1.5"
                         style={{
                             padding: "7px 12px",

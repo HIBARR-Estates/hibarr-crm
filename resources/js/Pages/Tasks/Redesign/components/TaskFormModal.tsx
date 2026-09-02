@@ -29,7 +29,9 @@ import TaskModalShell from "./primitives/TaskModalShell";
 import TaskFormPills from "./form/TaskFormPills";
 import TaskFormLinksPopover from "./form/TaskFormLinksPopover";
 import TaskFormLinkChips from "./form/TaskFormLinkChips";
-import TaskFormChecklist from "./form/TaskFormChecklist";
+import TaskFormChecklist, {
+    type TaskFormChecklistHandle,
+} from "./form/TaskFormChecklist";
 import TaskFormAttachments from "./form/TaskFormAttachments";
 
 export type { RecordPool, TaskFormValues, TaskLinkRef };
@@ -91,6 +93,7 @@ export default function TaskFormModal({
     const [recordType, setRecordType] = useState<RecordTypeKey>("lead");
     const [recordQuery, setRecordQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const checklistRef = useRef<TaskFormChecklistHandle>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const assigneeTriggerRef = useRef<HTMLButtonElement>(null);
     const linksTriggerRef = useRef<HTMLButtonElement>(null);
@@ -223,10 +226,10 @@ export default function TaskFormModal({
 
     const submit = () => {
         if (dateRangeError || !form.title.trim()) return;
-        onSubmit({
-            ...form,
-            checklist: form.checklist.filter((item) => item.trim() !== ""),
-        });
+        const checklist = (
+            checklistRef.current?.flushPendingDraft() ?? form.checklist
+        ).filter((item) => item.trim() !== "");
+        onSubmit({ ...form, checklist });
     };
 
     return (
@@ -438,6 +441,7 @@ export default function TaskFormModal({
                 />
 
                 <TaskFormChecklist
+                    ref={checklistRef}
                     items={form.checklist}
                     onChange={(checklist) => patchForm({ checklist })}
                 />

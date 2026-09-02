@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type { Lead } from "@/Types/api/leads";
 import { initialsFromName } from "@/Components/Redesign";
+import EditableTitle from "@/Components/Redesign/primitives/EditableTitle";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
 import {
@@ -9,6 +10,7 @@ import {
     LEAD_TEMPERATURE_TONE,
 } from "../../config/leadTemperature";
 import type { MoreMenuActionId } from "../../config/moreMenuItems";
+import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
 import LeadAvatarButton from "./LeadAvatarButton";
 import LeadOwnerCard from "./LeadOwnerCard";
 import LifecycleBanner from "./LifecycleBanner";
@@ -29,6 +31,7 @@ interface LeadHeaderRootProps {
     canDelete?: boolean;
     canFindDuplicates?: boolean;
     canEditOwner?: boolean;
+    canEdit?: boolean;
     canUploadPhoto?: boolean;
     /** When false, hides the lifecycle/qualification banner and answers chip. */
     showQualification?: boolean;
@@ -56,6 +59,7 @@ export default function LeadHeaderRoot({
     canDelete = true,
     canFindDuplicates = false,
     canEditOwner = true,
+    canEdit = false,
     canUploadPhoto = false,
     showQualification = true,
     onReplayGuide,
@@ -69,6 +73,7 @@ export default function LeadHeaderRoot({
     dealCount = 0,
 }: LeadHeaderRootProps) {
     const { td } = useTd();
+    const { handleFieldUpdate } = useLeadInfoFieldUpdate(canEdit);
 
     const createdAgo = lead.created_at
         ? dayjs(lead.created_at).fromNow()
@@ -113,9 +118,15 @@ export default function LeadHeaderRoot({
                             flexWrap: "wrap",
                         }}
                     >
-                        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-                            {lead.client_name_salutation || lead.client_name}
-                        </h1>
+                        <EditableTitle
+                            value={lead.client_name ?? ""}
+                            prefix={salutationPrefix(lead)}
+                            canEdit={canEdit}
+                            ariaLabel={td("Lead name", { source: "en" })}
+                            onSave={(next) =>
+                                handleFieldUpdate("client_name", next)
+                            }
+                        />
                         <StatusDropdown
                             statusKey={lifecycle.statusKey}
                             statusLabel={lifecycle.statusLabel}
@@ -176,4 +187,14 @@ export default function LeadHeaderRoot({
             ) : null}
         </>
     );
+}
+
+/** Idle title is "Mr. Jane Doe"; only `client_name` is editable. */
+function salutationPrefix(lead: Lead): string | undefined {
+    const name = (lead.client_name ?? "").trim();
+    const full = (lead.client_name_salutation ?? "").trim();
+    if (!name || !full || full === name || !full.endsWith(name)) {
+        return undefined;
+    }
+    return full.slice(0, full.length - name.length);
 }

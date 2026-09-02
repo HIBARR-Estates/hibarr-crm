@@ -438,7 +438,14 @@ class TaskController extends AccountBaseController
             $props['openTaskId'] = $openTaskId;
             $props['openMode'] = $openMode;
 
-            $alreadyLoaded = $kanbanTasks->contains('id', $openTaskId);
+            // Under the redesigned workspace, `kanbanTasks` is always an
+            // Inertia::defer() closure at this point (see above) — its
+            // contents aren't available synchronously here, so there's no
+            // way to know whether it already covers this task. Treat that
+            // case as "not loaded" and let the dedicated `openTask` deferred
+            // prop below fetch it independently.
+            $alreadyLoaded = $kanbanTasks instanceof \Illuminate\Support\Collection
+                && $kanbanTasks->contains('id', $openTaskId);
             if (! $alreadyLoaded) {
                 $props['openTaskDeferred'] = true;
                 $props['openTask'] = Inertia::defer(

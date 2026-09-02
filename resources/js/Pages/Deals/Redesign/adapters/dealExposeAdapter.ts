@@ -1,5 +1,6 @@
 import type {
     DealExpose,
+    DealExposeLinkableEntity,
     DealExposeStatus,
 } from "@/Types/api/dealExposes";
 import type { DealFile } from "@/Types/api/file";
@@ -11,18 +12,15 @@ import { formatDate } from "./dateFormat";
 /** 1 GB — matches DealExposeController::MAX_UPLOAD_KB and FileUploadService. */
 export const DEAL_EXPOSE_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 
-/** Coerce antd Select values (number or numeric string) into an id. */
-export function parseOptionalSelectId(value: unknown): number | undefined {
-    if (typeof value === "number" && Number.isFinite(value)) {
-        return value;
-    }
-    if (typeof value === "string" && value.trim() !== "") {
-        const parsed = Number(value);
-        if (Number.isFinite(parsed)) {
-            return parsed;
-        }
-    }
-    return undefined;
+/**
+ * A linkable entity is identified by (entity_type, entity_id, unit_type_id) —
+ * pack that triple as a single string key so cards/lists can key and track
+ * "which one is this" (e.g. which card is mid-submit) without re-deriving it.
+ */
+export function exposeEntityKey(
+    entity: Pick<DealExposeLinkableEntity, "entity_type" | "entity_id" | "unit_type_id">,
+): string {
+    return `${entity.entity_type}:${entity.entity_id}:${entity.unit_type_id ?? ""}`;
 }
 
 /** Strip the extension for a human-readable title from an uploaded filename. */

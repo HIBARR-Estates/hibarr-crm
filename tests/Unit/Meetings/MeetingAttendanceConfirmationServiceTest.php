@@ -41,13 +41,10 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->createMinimalSchema();
 
         Cache::flush();
-        Config::set('meetings.attendance_confirmation_company_allowlist', '10');
-        // Pinned explicitly so a developer's local .env (MEETING_ATTENDANCE_CONFIRMATION_FORCE_ENABLE,
-        // MEETING_ATTENDANCE_CONFIRMATION_DELAY_MINUTES, ... — set for manual browser
-        // testing) can't leak into this suite and short-circuit globallyEnabled() ahead
-        // of the remote-flag override below, or shift the 5-minute eligibility window
-        // the tests below assume.
-        Config::set('meetings.attendance_confirmation_force_enable', false);
+        // Pinned explicitly so a developer's local .env
+        // (MEETING_ATTENDANCE_CONFIRMATION_DELAY_MINUTES, ... — set for manual
+        // browser testing) can't leak into this suite and shift the 5-minute
+        // eligibility window the tests below assume.
         Config::set('meetings.attendance_confirmation_delay_minutes', 5);
         $this->setFeatureFlag('crm.meeting-attendance-confirmation', true);
 
@@ -167,6 +164,56 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
         $this->assertNotNull(
             $company->meeting_attendance_confirmation_enabled_at,
             'enabledForCompany() should lazily stamp activation on first observation.'
+        );
+    }
+
+    public function test_company_delay_override_shortens_the_eligibility_window(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        DB::table('companies')->where('id', 10)->update([
+            'meeting_attendance_confirmation_delay_minutes' => 1,
+        ]);
+        // Only 2 minutes past end — would be ineligible under the config
+        // default of 5, but the company's 1-minute override clears it.
+        $this->makeFollowUp(1, endedMinutesAgo: 2);
+
+        $this->assertCount(
+            1,
+            $this->service->pendingListForUser($this->agent()),
+            "A company's own delay override must take precedence over the config default."
+        );
+    }
+
+    public function test_company_delay_override_lengthens_the_eligibility_window(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        DB::table('companies')->where('id', 10)->update([
+            'meeting_attendance_confirmation_delay_minutes' => 30,
+        ]);
+        // 10 minutes past end — would be eligible under the config default of
+        // 5, but the company's 30-minute override holds it back.
+        $this->makeFollowUp(1, endedMinutesAgo: 10);
+
+        $this->assertTrue(
+            $this->service->pendingListForUser($this->agent())->isEmpty(),
+            "A company's own (longer) delay override must still be respected."
+        );
+    }
+
+    public function test_snooze_uses_the_company_snooze_override_when_no_minutes_given(): void
+    {
+        $this->activateCompany(10, now()->subDay());
+        DB::table('companies')->where('id', 10)->update([
+            'meeting_attendance_confirmation_snooze_minutes' => 15,
+        ]);
+        $this->makeFollowUp(1, endedMinutesAgo: 30);
+
+        $followUp = DealFollowUp::query()->find(1);
+        $snoozed = $this->service->snooze($followUp);
+
+        $this->assertTrue(
+            $snoozed->attendance_confirmation_snoozed_until->between(now()->addMinutes(14), now()->addMinutes(16)),
+            'snooze() with no explicit minutes must fall back to the company override, not the config default (60).'
         );
     }
 
@@ -428,6 +475,8 @@ class MeetingAttendanceConfirmationServiceTest extends TestCase
             $table->increments('id');
             $table->string('company_name')->nullable();
             $table->timestamp('meeting_attendance_confirmation_enabled_at')->nullable();
+            $table->unsignedInteger('meeting_attendance_confirmation_delay_minutes')->nullable();
+            $table->unsignedInteger('meeting_attendance_confirmation_snooze_minutes')->nullable();
             $table->timestamps();
         });
 

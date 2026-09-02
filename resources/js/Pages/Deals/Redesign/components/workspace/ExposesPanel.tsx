@@ -9,8 +9,10 @@ import {
     formatExposeAmount,
     formatExposeDate,
     groupExposes,
+    isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
+import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealEditableField from "../primitives/DealEditableField";
@@ -558,16 +560,28 @@ export default function ExposesPanel({
                                                     }}
                                                 />
                                             </div>
-                                            {expose.download_url && (
-                                                <button
-                                                    type="button"
+                                            {isHttpUrl(expose.download_url) && (
+                                                <DealButton
+                                                    iconOnly
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
-                                                    title={t(
-                                                        "pages.deals.workspace.files.download",
-                                                    )}
-                                                    aria-label={t(
-                                                        "pages.deals.workspace.files.download",
-                                                    )}
+                                                    title={
+                                                        linked
+                                                            ? td("Open expose", {
+                                                                  source: "en",
+                                                              })
+                                                            : t(
+                                                                  "pages.deals.workspace.files.download",
+                                                              )
+                                                    }
+                                                    aria-label={
+                                                        linked
+                                                            ? td("Open expose", {
+                                                                  source: "en",
+                                                              })
+                                                            : t(
+                                                                  "pages.deals.workspace.files.download",
+                                                              )
+                                                    }
                                                     onClick={() =>
                                                         downloadDealExpose(
                                                             expose,
@@ -575,11 +589,15 @@ export default function ExposesPanel({
                                                     }
                                                 >
                                                     <DealIcon
-                                                        name="download"
+                                                        name={
+                                                            linked
+                                                                ? "external-link"
+                                                                : "download"
+                                                        }
                                                         size={16}
                                                         color={T.TEXT_MUTED}
                                                     />
-                                                </button>
+                                                </DealButton>
                                             )}
                                             {onRemove && rowEditable && (
                                                 <button

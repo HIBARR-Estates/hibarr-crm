@@ -8,10 +8,12 @@ import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { resolveDealOutcome } from "@/lib/dealOutcome";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import EditableTitle from "@/Components/Redesign/primitives/EditableTitle";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import { router } from "@inertiajs/react";
 import useDealOutcome, { DealOutcome } from "../../hooks/useDealOutcome";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
+import useDealInfoFieldUpdate from "../../hooks/useDealInfoFieldUpdate";
 import useDealTeam from "../../hooks/useDealTeam";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealAvatar from "../primitives/DealAvatar";
@@ -54,6 +56,7 @@ export default function DealStickyHeader({
     const header = useDealHeaderData(deal);
     const team = useDealTeam(deal);
     const dealPermissions = useDealPermissions(deal);
+    const { handleFieldUpdate } = useDealInfoFieldUpdate();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const isAdmin = useIsAdminRole();
     const dealOutcome = useDealOutcome(deal);
@@ -89,9 +92,12 @@ export default function DealStickyHeader({
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="text-[20px] font-bold tracking-[-0.01em] text-[#1a1f2e]">
-                                {td(header.title)}
-                            </h1>
+                            <EditableTitle
+                                value={deal.name ?? ""}
+                                canEdit={dealPermissions.canEdit}
+                                ariaLabel={t("pages.deals.info.fields.deal_name")}
+                                onSave={(next) => handleFieldUpdate("name", next)}
+                            />
                             {outcome && (
                                 <span
                                     className={`dr-pill ${

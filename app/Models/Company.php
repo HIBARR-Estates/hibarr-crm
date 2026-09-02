@@ -252,6 +252,8 @@ class Company extends BaseModel
         'google_calendar_status' => 'string',
         'package_pipeline_routing_trigger_fields' => 'array',
         'meeting_attendance_confirmation_enabled_at' => 'datetime',
+        'meeting_attendance_confirmation_delay_minutes' => 'integer',
+        'meeting_attendance_confirmation_snooze_minutes' => 'integer',
     ];
     protected $appends = [
         'logo_url',

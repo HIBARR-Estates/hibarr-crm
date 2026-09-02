@@ -148,5 +148,11 @@ return [
     'dealCloseDateApproaching' => [
         'textNoDate' => ':dealName için kapanış tarihi yaklaşıyor. Anlaşmayı gözden geçirin ve gerekirse zaman çizelgesini güncelleyin.',
     ],
+    'leads' => [
+        'imported' => '{0} :count lead içe aktarıldı|{1} :count lead içe aktarıldı|[2,*] :count lead içe aktarıldı',
+    ],
+    'timerStarted' => [
+        'subject' => 'Zamanlayıcı başlatıldı',
+    ],
 
 ];
