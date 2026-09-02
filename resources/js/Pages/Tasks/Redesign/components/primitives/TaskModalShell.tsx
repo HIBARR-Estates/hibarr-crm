@@ -67,7 +67,12 @@ export default function TaskModalShell({
     useEffect(() => {
         if (!open || typeof document === "undefined") return undefined;
         previousFocusRef.current = document.activeElement as HTMLElement | null;
-        panelRef.current?.focus();
+        // A field inside the panel (e.g. the task title input) may already
+        // have claimed focus via its own `autoFocus` during this same commit
+        // — don't yank it back to the panel container in that case.
+        if (!panelRef.current?.contains(document.activeElement)) {
+            panelRef.current?.focus();
+        }
         return () => {
             const previous = previousFocusRef.current;
             if (previous && document.contains(previous)) {

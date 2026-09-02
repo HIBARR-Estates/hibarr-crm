@@ -436,6 +436,7 @@ return [
     'leads' => [
         'subject' => 'New leads received.',
         'action' => 'View Lead',
+        'imported' => '{0} :count leads imported|{1} :count lead imported|[2,*] :count leads imported',
     ],
 
     'deals' => [
@@ -731,6 +732,9 @@ return [
         'text' => 'You forgot to start the time tracker.',
         'action' => 'View Tasks',
         'dear' => 'Dear',
+    ],
+    'timerStarted' => [
+        'subject' => 'Timer Started',
     ],
     'holidays' => [
         'subject' => 'New Holiday Created',

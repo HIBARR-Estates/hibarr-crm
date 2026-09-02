@@ -5,6 +5,9 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -53,6 +56,11 @@ import {
     patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
+import {
+    buildTaskListTourSteps,
+    TASKS_LIST_TOUR_ID,
+    TASKS_LIST_TOUR_LABELS,
+} from "./config/taskListTourSteps";
 
 import "@/Components/Redesign/redesign.css";
 import "./tasks-redesign.css";
@@ -91,6 +99,7 @@ export default function TasksWorkspaceRedesign({
     openTaskDeferred,
     openMode,
     openCreate,
+    featureFlags,
 }: TasksWorkspaceRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -103,6 +112,14 @@ export default function TasksWorkspaceRedesign({
     const [listTasks, setListTasks] = useState<Task[]>(tableTasks?.data ?? []);
     const [taskSettingsOpen, setTaskSettingsOpen] = useState(false);
     const { view, setView } = useTasksViewNavigation();
+    const tourRef = useRef<ProductTourHandle>(null);
+    const showProductTour =
+        featureFlags?.["crm.tasks-workspace-redesign"] === true &&
+        featureFlags?.["crm.list-product-tours"] === true;
+    const taskListTourSteps = useMemo(
+        () => buildTaskListTourSteps(setView),
+        [setView],
+    );
     const [groupMode, setGroupMode] = useState<GroupMode>("due");
     const {
         addOpen,
@@ -546,13 +563,23 @@ export default function TasksWorkspaceRedesign({
             title={t("app.menu.tasks")}
             breadcrumbs={[{ name: t("app.menu.tasks") }]}
             searchComp={
-                <UniversalSearchBox
-                    placeholder={t("app.tasks.search_placeholder")}
-                    className="w-full"
-                />
+                <div data-tour="tasks-list-search">
+                    <UniversalSearchBox
+                        placeholder={t("app.tasks.search_placeholder")}
+                        className="w-full"
+                    />
+                </div>
             }
             mainContentClassName="p-0"
         >
+            {showProductTour && (
+                <ProductTour
+                    ref={tourRef}
+                    tourId={TASKS_LIST_TOUR_ID}
+                    steps={taskListTourSteps}
+                    labels={TASKS_LIST_TOUR_LABELS}
+                />
+            )}
             <TasksWorkspaceChrome
                 view={view}
                 onViewChange={setView}
@@ -574,12 +601,23 @@ export default function TasksWorkspaceRedesign({
                 activeFilterCount={activeCount}
                 onOpenFilters={openDrawer}
                 totalItems={pagedTableTasks.total}
+                onReplayGuide={
+                    showProductTour
+                        ? () => tourRef.current?.restart()
+                        : undefined
+                }
+                replayGuideLabel={
+                    showProductTour
+                        ? t("pages.tasks.tour.replay_menu_item")
+                        : undefined
+                }
             />
 
             <div
                 className={`relative mx-auto w-full max-w-screen-2xl px-7 pt-[22px] ${
                     view === "board" ? "pb-4" : "pb-14"
                 }`}
+                data-tour="tasks-list-body"
                 style={
                     {
                         minHeight: view === "board" ? undefined : 320,

@@ -105,13 +105,22 @@
     opacity: 1;
 }
 
-/* @mention chip inside a posted comment. */
+/* @mention chip inside a posted comment. Also used live in the comment
+   composer (TaskCommentsPanel) so a mention looks identical while typing
+   and once posted. */
 .tasks-mention {
     color: #14538c;
     font-weight: 600;
     background: #e8f1fb;
     padding: 1px 5px;
     border-radius: 5px;
+}
+
+/* contentEditable has no native `placeholder` attribute. */
+.tasks-comment-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
 }
 
 /* Delete only shows on hover, so the thread stays quiet. */

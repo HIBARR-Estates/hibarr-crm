@@ -39,7 +39,7 @@ class AgentCommissionProfileService
     }
 
     /**
-     * @param  array{custom_commission_rate?: float|null, reason?: string|null}  $payload
+     * @param  array{custom_commission_rate?: float|null, reason?: string|null, changed_by_user_id?: int|null}  $payload
      * @return array{profile: array, errors?: array<string, list<string>>}
      */
     public function updateProfile(int $agentId, int $companyId, ?int $userId, array $payload): array

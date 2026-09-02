@@ -1,9 +1,11 @@
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { Task } from "@/Types/Task";
 import { toTaskViewModel } from "../../adapters/taskViewModel";
 import {
     asCommentDeleteScope,
+    canChangeStatus,
     canCommentOnTask,
     canEditTask,
     type TaskPermissionSet,
@@ -24,6 +26,11 @@ interface TaskRedesignDetailModalProps {
     currentUser: { id: number; name: string; image?: string | null };
     people: PersonOption[];
     toggling?: boolean;
+    /**
+     * Extra write gate from the host (e.g. deal watcher-only). Combined with
+     * canEditTask / canChangeStatus — omit to keep embed behavior unchanged.
+     */
+    canWrite?: boolean;
     onClose: () => void;
     onEdit: () => void;
     onToggleDone: () => void;
@@ -50,10 +57,24 @@ export default function TaskRedesignDetailModal({
     currentUser,
     people,
     toggling = false,
+    canWrite: hostCanWrite = true,
     onClose,
     onEdit,
     onToggleDone,
 }: TaskRedesignDetailModalProps) {
+    const { props } = usePage();
+    // Deal/lead `permissions` is a page-specific subset and omits comment
+    // scopes. Fill those from auth.permissions (shared on every page) so
+    // the composer isn't hidden just because the host page never listed
+    // add_task_comments.
+    const resolvedPermissions = useMemo<TaskPermissionSet | undefined>(() => {
+        const authPermissions = props.auth?.permissions as
+            | TaskPermissionSet
+            | undefined;
+        if (!permissions && !authPermissions) return undefined;
+        return { ...(authPermissions ?? {}), ...(permissions ?? {}) };
+    }, [permissions, props.auth?.permissions]);
+
     const completedSlugs = useMemo(
         () =>
             columns
@@ -67,27 +88,38 @@ export default function TaskRedesignDetailModal({
         [task, completedSlugs],
     );
 
+    const canEdit = task
+        ? hostCanWrite && canEditTask(task, resolvedPermissions, currentUser.id)
+        : false;
     const canWrite = task
-        ? canEditTask(task, permissions, currentUser.id)
+        ? hostCanWrite &&
+          canChangeStatus(task, resolvedPermissions, currentUser.id)
         : false;
     const canComment = task
-        ? canCommentOnTask(task, permissions, currentUser.id)
+        ? canCommentOnTask(task, resolvedPermissions, currentUser.id)
         : false;
 
     return (
         <TaskDetailModal
             vm={vm}
             onClose={onClose}
-            onEdit={onEdit}
-            onToggleDone={onToggleDone}
+            onEdit={() => {
+                if (!canEdit) return;
+                onEdit();
+            }}
+            onToggleDone={() => {
+                if (!canWrite) return;
+                onToggleDone();
+            }}
             canWrite={canWrite}
-            canManageChecklist={canWrite}
+            canEdit={canEdit}
+            canManageChecklist={canEdit}
             canComment={canComment}
             toggling={toggling}
             people={people}
             currentUser={currentUser}
             deleteCommentScope={asCommentDeleteScope(
-                permissions?.delete_task_comments,
+                resolvedPermissions?.delete_task_comments,
             )}
         />
     );

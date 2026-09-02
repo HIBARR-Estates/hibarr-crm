@@ -50,6 +50,7 @@ class CommissionRateAuditTest extends PerAgentCommissionOverrideTestCase
         $this->assertNull($audit->previous_direct_rate);
         $this->assertSame('3.00', number_format((float) $audit->new_direct_rate, 2, '.', ''));
         $this->assertSame('Special arrangement', $audit->reason);
+        $this->assertSame($userId, (int) $audit->changed_by_user_id);
     }
 
     public function test_audit_log_is_immutable(): void

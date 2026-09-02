@@ -1,8 +1,12 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import axios from "axios";
 import { App } from "antd";
-import DashboardLayout from "@/Components/DashboardLayout";
+import { usePage } from "@inertiajs/react";
+import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -17,6 +21,11 @@ import {
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import "@/Components/Redesign/redesign.css";
+import {
+    buildReminderPreferencesTourSteps,
+    REMINDER_PREFERENCES_TOUR_ID,
+    REMINDER_PREFERENCES_TOUR_LABELS,
+} from "./config/reminderPreferencesTourSteps";
 
 const UPDATE_URL = "/account/settings/reminder-preferences";
 const RESET_URL = "/account/settings/reminder-preferences/meeting/reset";
@@ -47,15 +56,20 @@ function Section({
     title,
     description,
     extra,
+    tourTarget,
+    headerTourTarget,
     children,
 }: {
     title: string;
     description?: string;
     extra?: ReactNode;
+    tourTarget?: string;
+    headerTourTarget?: string;
     children: React.ReactNode;
 }) {
     return (
         <section
+            {...(tourTarget ? { "data-tour": tourTarget } : {})}
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,
@@ -65,6 +79,9 @@ function Section({
             }}
         >
             <div
+                {...(headerTourTarget
+                    ? { "data-tour": headerTourTarget }
+                    : {})}
                 style={{
                     display: "flex",
                     alignItems: "flex-start",
@@ -158,6 +175,14 @@ export default function ReminderPreferences({
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
+    const { props: pageProps } = usePage<PageProps>();
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
+    const reminderPreferencesTourSteps = useMemo(
+        () => buildReminderPreferencesTourSteps(),
+        [],
+    );
     const defaultReminders = useMemo(
         () => normalizeReminders(defaults ?? FALLBACK_DEFAULTS),
         [defaults],
@@ -269,16 +294,38 @@ export default function ReminderPreferences({
                 breadcrumbs={breadcrumbs}
                 config={{ showTitle: true }}
             >
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={REMINDER_PREFERENCES_TOUR_ID}
+                        steps={reminderPreferencesTourSteps}
+                        labels={REMINDER_PREFERENCES_TOUR_LABELS}
+                    />
+                )}
                 <div
                     className="mx-auto flex max-w-3xl flex-col"
                     style={{ gap: 16, fontFamily: REDESIGN_FONT_STACK }}
                 >
+                    {showProductTour && (
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                onClick={() => tourRef.current?.restart()}
+                            >
+                                {t(
+                                    "pages.settings.reminder_preferences_tour.replay_menu_item",
+                                )}
+                            </button>
+                        </div>
+                    )}
                     <Section
                         title={td("Meeting reminders", { source: "en" })}
                         description={td(
                             "When to notify you before meetings. A meeting can still override these with its own reminders.",
                             { source: "en" },
                         )}
+                        headerTourTarget="reminders-enable"
                         extra={
                             <div
                                 style={{
@@ -330,14 +377,15 @@ export default function ReminderPreferences({
                             </div>
                         ) : null}
 
-                        <div
-                            style={{
-                                border: `1px solid ${T.BORDER}`,
-                                borderRadius: 8,
-                                overflow: "hidden",
-                                marginBottom: 12,
-                            }}
-                        >
+                        <div data-tour="reminders-rows">
+                            <div
+                                style={{
+                                    border: `1px solid ${T.BORDER}`,
+                                    borderRadius: 8,
+                                    overflow: "hidden",
+                                    marginBottom: 12,
+                                }}
+                            >
                             {reminders.map((reminder, index) => (
                                 <div
                                     key={index}
@@ -430,24 +478,26 @@ export default function ReminderPreferences({
                                     </button>
                                 </div>
                             ))}
+                            </div>
+
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={<Icon name="plus" size={14} />}
+                                disabled={
+                                    reminders.length >= MAX_REMINDERS ||
+                                    !isActive ||
+                                    busy
+                                }
+                                onClick={handleAdd}
+                                style={{ width: "100%" }}
+                            >
+                                {td("Add reminder", { source: "en" })}
+                            </Button>
                         </div>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<Icon name="plus" size={14} />}
-                            disabled={
-                                reminders.length >= MAX_REMINDERS ||
-                                !isActive ||
-                                busy
-                            }
-                            onClick={handleAdd}
-                            style={{ width: "100%" }}
-                        >
-                            {td("Add reminder", { source: "en" })}
-                        </Button>
-
                         <div
+                            data-tour="reminders-save-reset"
                             style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -500,7 +550,10 @@ export default function ReminderPreferences({
                         </div>
                     </Section>
 
-                    <Section title={td("Defaults", { source: "en" })}>
+                    <Section
+                        title={td("Defaults", { source: "en" })}
+                        tourTarget="reminders-defaults"
+                    >
                         <p
                             style={{
                                 margin: 0,
