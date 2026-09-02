@@ -1,8 +1,10 @@
 import axios from "axios";
+import { Tooltip } from "antd";
 import { useFormData } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Deal } from "@/Types/api/deals";
+import { isDealValueLocked } from "@/lib/dealOutcome";
 import DealBadge from "../primitives/DealBadge";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
@@ -69,7 +71,10 @@ export default function DealPackagePropertyManager({
 }: DealPackagePropertyManagerProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const isLocked = !canEdit;
+    // Packages/properties feed the deal value directly, so they stay locked
+    // once commission has been distributed, even if the deal itself isn't.
+    const valueLocked = isDealValueLocked(deal);
+    const isLocked = !canEdit || valueLocked;
     const symbol = deal.currency?.currency_symbol ?? "";
 
     const packages = deal.packages ?? [];
@@ -160,6 +165,13 @@ export default function DealPackagePropertyManager({
             }}
         >
             <span className="dr-label">{label}</span>
+            {valueLocked && (
+                <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                    <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
+                        <DealIcon name="lock" size={12} />
+                    </span>
+                </Tooltip>
+            )}
         </div>
     );
 

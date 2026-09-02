@@ -367,7 +367,7 @@ return [
 
     'deals' => [
         'locked_message' => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
-        'locked_message_won' => 'Dieser Deal ist gewonnen und gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'value_locked_tooltip' => 'Für diesen Deal wurde bereits eine Provision berechnet, daher kann dies nicht mehr geändert werden.',
         'refresh_tooltip_disabled' => 'Speichern oder abbrechen Sie Änderungen, bevor Sie aktualisieren',
         'stage_jump_confirm_title' => 'Pipeline-Phasen überspringen?',
         'stage_jump_confirm_message' => 'Sie verschieben diesen Deal nach „{{stage}}“ und überspringen dabei eine oder mehrere Phasen. Fortfahren?',
@@ -712,6 +712,22 @@ return [
             'view_team' => 'Team ansehen',
             'delete_deal' => 'Deal löschen',
             'actions_aria' => 'Deal-Aktionen',
+            'outcome' => [
+                'mark_won' => 'Als gewonnen markieren',
+                'mark_lost' => 'Als verloren markieren',
+                'clear' => 'Ergebnis zurücksetzen',
+                'confirm_won_title' => 'Diesen Deal als gewonnen markieren?',
+                'confirm_lost_title' => 'Diesen Deal als verloren markieren?',
+                'confirm_clear_title' => 'Ergebnis dieses Deals zurücksetzen?',
+                'confirm_won' => 'Dadurch werden Provisionsauszahlungen an den Agenten und dessen Upline in die Warteschlange gestellt, und der Wert des Deals wird provisionsgesperrt und kann nicht mehr geändert werden. Ein späteres Zurücksetzen kann bereits ausgezahlte Provisionen nicht zurückholen.',
+                'confirm_revert' => 'Dadurch werden die ausstehenden Provisionen des Deals zurückgesetzt und die Verkaufskennzahlen des Agenten verringert, und die Provisionssperre auf den Wert des Deals wird aufgehoben. Bereits als ausgezahlt markierte Provisionen werden nicht zurückgesetzt und müssen manuell abgewickelt werden.',
+                'confirm_revert_none' => 'Für diesen Deal wurden keine Provisionen erfasst, daher muss nichts zurückgesetzt werden. Die Verkaufskennzahlen des Agenten werden trotzdem verringert, und die Provisionssperre auf den Wert des Deals wird aufgehoben.',
+                'confirm_revert_pending' => '{{count}} ausstehende Provision(en) über insgesamt {{amount}} werden zurückgesetzt:',
+                'confirm_revert_paid' => '{{count}} Provision(en) über insgesamt {{amount}} wurden bereits ausgezahlt und werden NICHT zurückgesetzt — bitte bei Bedarf manuell abwickeln.',
+                'confirm_revert_metrics' => 'Die Verkaufskennzahlen des Agenten werden verringert, und die Provisionssperre auf den Wert des Deals wird aufgehoben.',
+                'confirm_simple' => 'Dadurch wird das Ergebnis auf dem Deal erfasst. Provisionen sind davon nicht betroffen.',
+                'confirm_button' => 'Ja, fortfahren',
+            ],
             'pipeline' => [
                 'scroll_left' => 'Pipeline-Phasen nach links scrollen',
                 'scroll_right' => 'Pipeline-Phasen nach rechts scrollen',

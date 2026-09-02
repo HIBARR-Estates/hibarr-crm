@@ -43,6 +43,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
         Schema::dropIfExists('agent_package_commission_rates');
         Schema::dropIfExists('deal_package');
         Schema::dropIfExists('packages');
+        Schema::dropIfExists('currencies');
         Schema::dropIfExists('mlm_commissions');
         Schema::dropIfExists('agent_level_history');
         Schema::dropIfExists('agent_hierarchy');
@@ -149,8 +150,16 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedBigInteger('agent_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
+            $table->unsignedBigInteger('currency_id')->nullable();
+            // Rate to convert deals.value (in the deal's own currency) into
+            // the company's currency — null/1 for a same-currency deal.
+            $table->double('exchange_rate')->nullable();
             $table->decimal('max_commission_percentage', 5, 2)->nullable();
             $table->string('outcome_status')->nullable();
+            $table->boolean('is_locked')->default(false);
+            $table->timestamp('locked_at')->nullable();
+            $table->boolean('commission_locked')->default(false);
+            $table->timestamp('commission_locked_at')->nullable();
             $table->timestamps();
         });
 
@@ -250,9 +259,23 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedBigInteger('agent_id');
             $table->unsignedBigInteger('package_id');
             $table->string('commission_type', 12);
-            $table->decimal('commission_value', 15, 2);
+            // Nullable: a "none" override has nothing to store.
+            $table->decimal('commission_value', 15, 2)->nullable();
             $table->timestamps();
             $table->unique(['agent_id', 'package_id']);
+        });
+
+        // MlmCommissionService::packageCurrencyRate() looks this up directly
+        // (bypassing CompanyScope, since a queued job has no session company)
+        // to convert a package's own currency into the company's.
+        Schema::create('currencies', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('currency_name');
+            $table->string('currency_symbol')->nullable();
+            $table->string('currency_code', 3);
+            $table->decimal('exchange_rate', 15, 6)->nullable();
+            $table->timestamps();
         });
 
         Schema::create('api_tokens', function (Blueprint $table) {
@@ -352,13 +375,40 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
         ]);
     }
 
-    protected function seedDeal(int $companyId, int $agentId, float $value): int
-    {
+    protected function seedDeal(
+        int $companyId,
+        int $agentId,
+        float $value,
+        ?int $currencyId = null,
+        ?float $exchangeRate = null
+    ): int {
         return DB::table('deals')->insertGetId([
             'company_id' => $companyId,
             'agent_id' => $agentId,
             'value' => $value,
+            'currency_id' => $currencyId,
+            'exchange_rate' => $exchangeRate,
             'outcome_status' => 'won',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @return int the new currency's id
+     */
+    protected function seedCurrency(
+        int $companyId,
+        string $code,
+        float $exchangeRate,
+        string $symbol = ''
+    ): int {
+        return DB::table('currencies')->insertGetId([
+            'company_id' => $companyId,
+            'currency_name' => $code,
+            'currency_symbol' => $symbol,
+            'currency_code' => $code,
+            'exchange_rate' => $exchangeRate,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

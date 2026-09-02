@@ -379,6 +379,22 @@ class DealAutomationService
             $startIndex = $found === false ? 0 : $found;
         }
 
+        // Snapshotted before any action runs, not read from $subject after the
+        // loop: every performXxx() call above does its own saveQuietly(), and
+        // each save() resets Eloquent's wasChanged()/getOriginal() to that
+        // save's own delta. An automation with a set_field_value(won) action
+        // followed by another action that saves the same subject again (e.g.
+        // a second set_field_value, or a stage_transition) would otherwise
+        // see wasChanged('outcome_status') already reset to false by that
+        // later save, and silently never fire DealWonEvent.
+        $wasWonBeforeActions = $subject instanceof Deal
+            && $subject->outcome_status === \App\Enums\OutcomeStatus::Won;
+        // Don't re-fire for a deal that already went through commission
+        // distribution in an earlier run — a *different* concern from
+        // is_locked (see ProcessDealWonJob), which lock_deal can set within
+        // this very automation without affecting this check at all.
+        $wasCommissionLockedBeforeActions = $subject instanceof Deal && (bool) $subject->commission_locked;
+
         // NOTE: A general rule of thumb should be that actions should save quietly, so that there is no recursive loop
         for ($i = $startIndex; $i < $actions->count(); $i++) {
             $action = $actions[$i];
@@ -415,8 +431,12 @@ class DealAutomationService
         }
 
         // After the actions we then emit the necessary events, such as mlm engine DealWonEvent. This is because we save the dealModel quietly to avoid cascades because we do support an array of actions that will cannot afford to trigger the deal observer as this will lead to recursive updates ...
-        // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-        if ($subject->wasChanged('outcome_status') && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $subject->is_locked) {
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won' — judged
+        // against the snapshots taken before any action ran (see above), not
+        // against $subject's live wasChanged(), which a later action in this
+        // same sequence (another set_field_value, a stage_transition) may
+        // have already overwritten.
+        if (! $wasWonBeforeActions && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $wasCommissionLockedBeforeActions) {
             $this->fireDealWonEvent($subject);
         }
 

@@ -32,6 +32,7 @@ import { DataTable } from "@/Components/DataTable";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import axios from "axios";
+import { usePage } from "@inertiajs/react";
 import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
@@ -96,6 +97,8 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
     projectName,
     priceListItem,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [form] = Form.useForm();
     const [flowStep, setFlowStep] = useState<FlowStep>("lead-search");
     const [leadType, setLeadType] = useState<"client" | "agent">("client");
@@ -118,11 +121,9 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
 
     const formatPrice = (price: number | null) => {
         if (!price) return "-";
-        return new Intl.NumberFormat("en-GB", {
-            style: "currency",
-            currency: "GBP",
+        return `${currencySymbol}${new Intl.NumberFormat("en-GB", {
             maximumFractionDigits: 0,
-        }).format(price);
+        }).format(price)}`;
     };
 
     // ============================================

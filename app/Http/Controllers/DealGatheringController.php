@@ -327,6 +327,21 @@ class DealGatheringController extends AccountBaseController
                 ], 422);
             }
 
+            // A commission was already calculated against this deal's value —
+            // a narrower block than isLocked() above: everything else stays
+            // editable inline, only what feeds the value is refused. Each
+            // inline update targets one field at a time (unlike a full-form
+            // resubmit), so presence in $data reliably means "the caller is
+            // trying to change this" — see Deal::touchesValueFields().
+            // recalculate_value has nothing else to do once locked, so it's
+            // refused outright rather than special-cased.
+            if ($deal->isCommissionLocked() && ($type === DealUpdateType::RECALCULATE_VALUE->value || Deal::touchesValueFields($data))) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.dealValueLockedByCommission'),
+                ], 403);
+            }
+
             $updatedDeal = $this->service->updateDealInline(
                 $deal,
                 DealUpdateType::from($request->type),

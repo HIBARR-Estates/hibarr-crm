@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Tooltip } from "antd";
 import { Deal } from "@/Types/api/deals";
 import useTranslation from "@/Hooks/useTranslation";
+import { isDealValueLocked } from "@/lib/dealOutcome";
 import DealIcon from "./DealIcon";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import useDealValueUpdate from "../../hooks/useDealValueUpdate";
@@ -57,6 +59,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     const breakdown = deal.value_breakdown;
     const valueSource = breakdown?.value_source ?? "manual";
     const finalValue = breakdown?.final_value ?? deal.value ?? null;
+    const valueLocked = isDealValueLocked(deal);
 
     const line = (label: string, val: string, strong?: boolean) => (
         <div
@@ -106,6 +109,15 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                     >
                         {formatMoney(finalValue, symbol)}
                     </span>
+                    {valueLocked && (
+                        <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                            <span
+                                style={{ color: T.TEXT_MUTED, display: "flex" }}
+                            >
+                                <DealIcon name="lock" size={12} />
+                            </span>
+                        </Tooltip>
+                    )}
                     {breakdown && (
                         <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
                             <DealIcon

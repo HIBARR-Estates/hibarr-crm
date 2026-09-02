@@ -45,6 +45,7 @@ return array(
     'updateSuccess' => 'Updated successfully.',
     'dealUpdateSuccess' => 'Deal updated successfully.',
     'dealLocked' => 'This deal is locked and cannot be modified.',
+    'dealValueLockedByCommission' => 'Commission has already been calculated for this deal, so its value can no longer be changed.',
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'leadReferrerImmutable' => 'The referrer is already set and cannot be changed.',
     'propertyUpdateSuccess' => 'Property updated successfully.',

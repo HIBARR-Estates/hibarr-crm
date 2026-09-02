@@ -726,6 +726,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
+    Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 

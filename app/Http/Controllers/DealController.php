@@ -7,6 +7,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
+use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
@@ -38,6 +39,7 @@ use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
+use App\Models\MlmCommission;
 use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Models\Product;
@@ -1513,6 +1515,44 @@ class DealController extends AccountBaseController
             $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
         }
 
+        // A commission was already calculated against this deal's value — a
+        // narrower block than isLocked() above: everything else (stage,
+        // agent, notes) stays editable, only an actual value change is
+        // refused. Checked against isDirty()/id-set diffs, not raw request
+        // presence: this is a full-form resubmit, so manual_value/package_id/
+        // product_id are present on every save whether or not the user
+        // actually touched them.
+        //
+        // Computed once, up front, before any of the three writes below
+        // (scalar save, package sync, product sync) — this method runs
+        // without a wrapping transaction, so checking each write's own guard
+        // right before it risks leaving an earlier write committed while a
+        // later one is refused. Package/product diffs are still reused
+        // below, where they already were, rather than recomputed.
+        $packageRouter = app(PackagePipelineRouterService::class);
+        $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
+        $newPackageIds = $request->has('package_id')
+            ? $packageRouter->normalizePackageIds($request->package_id)
+            : $currentPackageIds;
+        $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
+        $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
+
+        $oldProductIds = $deal->products()->pluck('products.id')->toArray();
+        $newProductIds = array_diff($request->product_id ?? $oldProductIds, $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? $oldProductIds);
+
+        if ($deal->isCommissionLocked() && (
+            $deal->isDirty(['manual_value', 'value', 'value_source'])
+            || ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
+            || ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds)))
+        )) {
+            if ($request->header('X-Inertia')) {
+                return redirect()->back()->with('error', __('messages.dealValueLockedByCommission'));
+            }
+
+            return Reply::error(__('messages.dealValueLockedByCommission'));
+        }
+
         $deal->save();
 
         app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
@@ -1520,14 +1560,8 @@ class DealController extends AccountBaseController
         // Handle packages — only touch when the field is actually present in the
         // request, so partial updates (e.g. pipeline stage changes) don't wipe
         // packages the caller never intended to change.
-        $packageRouter = app(PackagePipelineRouterService::class);
         if ($request->has('package_id')) {
-            $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
             $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
-            $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
-
-            $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
-            $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
 
             $packageRouter->syncDealPackages($deal, $newPackageIds);
 
@@ -1584,16 +1618,18 @@ class DealController extends AccountBaseController
             app(\App\Services\DealNotificationService::class)->notifyParticipantsChanged($deal, $oldParticipantIds, $request->deal_participant);
         }
 
-        $oldProductIds = $deal->products()->pluck('products.id')->toArray();
+        // Commission-lock guard for product changes already ran above, before
+        // any of this method's writes. Recomputed here against the same
+        // pre-existing semantics as before this change (an absent product_id
+        // diffs against [], not against $oldProductIds) — notification logic
+        // only, sync is still gated on $request->has('product_id') below.
+        $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
 
         // Same as packages above: only sync products when the field is present.
         if ($request->has('product_id')) {
             $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
         }
-
-        // Record CRM events and notifications for product/property changes
-        $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
-        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
 
         if (! empty($newProductIds) || ! empty($removedProductIds)) {
             $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
@@ -1718,6 +1754,59 @@ class DealController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Read-only preview of what leaving 'won' would actually do to this deal's
+     * commissions — shown in the outcome-change confirmation dialog so "reverts
+     * pending commissions" isn't just boilerplate copy. Only meaningful when the
+     * deal is currently won; querying MlmCommission directly (not calling
+     * DealOutcomeService::apply()) keeps this side-effect-free.
+     */
+    public function previewOutcomeChange($id)
+    {
+        abort_403(! in_array('admin', user_roles()));
+
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->outcome_status !== OutcomeStatus::Won) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'currently_won' => false,
+                ],
+            ]);
+        }
+
+        $pendingLegs = MlmCommission::where('deal_id', $deal->id)
+            ->where('status', MlmCommissionStatus::Pending->value)
+            ->with('agent.user:id,name')
+            ->get(['id', 'agent_id', 'type', 'amount']);
+
+        $paidLegs = MlmCommission::where('deal_id', $deal->id)
+            ->where('status', MlmCommissionStatus::Paid->value)
+            ->get(['id', 'amount']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'currently_won' => true,
+                'commission_locked' => (bool) $deal->commission_locked,
+                'pending_commissions' => [
+                    'count' => $pendingLegs->count(),
+                    'total_amount' => (float) $pendingLegs->sum('amount'),
+                    'legs' => $pendingLegs->map(fn (MlmCommission $leg) => [
+                        'agent_name' => $leg->agent?->user?->name ?? 'Unknown agent',
+                        'type' => $leg->type->value,
+                        'amount' => (float) $leg->amount,
+                    ])->values(),
+                ],
+                'paid_commissions' => [
+                    'count' => $paidLegs->count(),
+                    'total_amount' => (float) $paidLegs->sum('amount'),
+                ],
+            ],
+        ]);
+    }
+
     private function loadFullDeal($id): Deal
     {
         $deal = Deal::with([
@@ -1773,6 +1862,17 @@ class DealController extends AccountBaseController
 
         // Get validated data
         $validatedData = $request->validated();
+
+        // A commission was already calculated against this deal's value — a
+        // narrower block than isLocked() above: everything else about the
+        // deal (stage, agent, notes) stays editable, only what feeds the
+        // value is refused.
+        if ($deal->isCommissionLocked() && Deal::touchesValueFields($validatedData)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealValueLockedByCommission'),
+            ], 403);
+        }
 
         // Start database transaction
         DB::beginTransaction();

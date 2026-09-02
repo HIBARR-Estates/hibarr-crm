@@ -380,7 +380,7 @@ return [
 
     'deals' => [
         'locked_message' => 'This deal is locked. Editing and deletion are disabled.',
-        'locked_message_won' => 'This deal is won and locked. Editing and deletion are disabled.',
+        'value_locked_tooltip' => 'Commission has already been calculated for this deal, so this can no longer be changed.',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'stage_jump_confirm_title' => 'Skip pipeline stages?',
         'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
@@ -732,8 +732,12 @@ return [
                 'confirm_won_title' => 'Mark this deal as won?',
                 'confirm_lost_title' => 'Mark this deal as lost?',
                 'confirm_clear_title' => 'Clear this deal\'s outcome?',
-                'confirm_won' => 'This locks the deal and queues commission payouts to the agent and their upline. Reversing it later cannot claw back commissions that have already been paid.',
-                'confirm_revert' => 'This unlocks the deal and reverts its pending commissions, and the agent\'s sales metrics will be decremented. Commissions already marked paid are not reversed and must be settled manually.',
+                'confirm_won' => 'This queues commission payouts to the agent and their upline, and commission-locks the deal\'s value so it can no longer be changed. Reversing it later cannot claw back commissions that have already been paid.',
+                'confirm_revert' => 'This reverts the deal\'s pending commissions and decrements the agent\'s sales metrics, and removes the commission lock on the deal\'s value. Commissions already marked paid are not reversed and must be settled manually.',
+                'confirm_revert_none' => 'No commissions have been recorded for this deal, so nothing needs to be reverted. The agent\'s sales metrics will still be decremented, and the commission lock on the deal\'s value will be removed.',
+                'confirm_revert_pending' => '{{count}} pending commission(s) totaling {{amount}} will be reverted:',
+                'confirm_revert_paid' => '{{count}} commission(s) totaling {{amount}} have already been paid and will NOT be reversed — settle these manually if needed.',
+                'confirm_revert_metrics' => 'The agent\'s sales metrics will be decremented, and the commission lock on the deal\'s value will be removed.',
                 'confirm_simple' => 'This records the outcome on the deal. No commissions are affected.',
                 'confirm_button' => 'Yes, continue',
             ],

@@ -91,6 +91,11 @@ export interface Deal {
     // Lock state
     is_locked?: boolean;
     locked_at?: string | null;
+    // Set once commission has been distributed for a won deal — narrower
+    // than is_locked: only the value (and packages/properties/offers that
+    // feed it) is protected, not the whole deal.
+    commission_locked?: boolean;
+    commission_locked_at?: string | null;
 
     // Outcome (read-only in the redesign; set by automation / stage movement)
     outcome_status?: "won" | "lost" | null;

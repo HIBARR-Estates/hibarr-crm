@@ -6,6 +6,7 @@ use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Enums\PackageCommissionType;
 use App\Models\AgentPackageCommissionRate;
+use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
@@ -95,7 +96,14 @@ class MlmCommissionService
             return $packageLegs;
         }
 
-        $dealValue = (float) ($deal->value ?? 0);
+        // Commissions are always in the company's currency: deals.value is
+        // stored in the deal's OWN currency (deals.currency_id), and
+        // deals.exchange_rate is the snapshotted rate to convert that into
+        // company currency — the same convention Payment/Expense/Invoice
+        // already use (`amount * exchange_rate`). A same-currency or
+        // unmaintained-rate deal has exchange_rate = 1, so this is a no-op
+        // for the common case.
+        $dealValue = (float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1);
 
         // Resolve cycle context for snapshot-aware distribution
         $enrollment = $this->cycleService->getActiveEnrollment($agent);
@@ -312,14 +320,27 @@ class MlmCommissionService
             ->first();
 
         $type = $override?->commission_type ?? $package->commission_type;
-        $value = (float) ($override?->commission_value ?? $package->commission_value);
 
-        if ($type === null) {
+        // Distinct from $type === null (fall through to the level-based split):
+        // None is a configured zero, so no leg is written and nothing falls
+        // through. Checked before touching commission_value at all — that value
+        // is meaningless for None and never trusted to already be zero.
+        if ($type === null || $type === PackageCommissionType::None) {
             return null;
         }
 
+        $value = (float) ($override?->commission_value ?? $package->commission_value);
+
+        // Percentage is computed against packages.value, which is stored in
+        // the package's OWN currency (packages.currency) — not necessarily
+        // the company's. Converted here so the written amount is always
+        // company currency, matching the level-based path. A fixed fee is
+        // NOT converted: it's entered directly in company currency by the
+        // settings-page convention (the input is labelled with the
+        // company's symbol, not the package's — see PackageFormModal.tsx),
+        // so applying a rate to it would double-convert an already-correct number.
         $amount = $type === PackageCommissionType::Percentage
-            ? round((float) $package->value * ($value / 100), 2)
+            ? round((float) $package->value * ($value / 100) * $this->packageCurrencyRate($package), 2)
             : round($value, 2);
 
         if ($amount <= 0) {
@@ -330,6 +351,31 @@ class MlmCommissionService
             'amount' => $amount,
             'percentage' => $type === PackageCommissionType::Percentage ? $value : null,
         ];
+    }
+
+    /**
+     * Rate to convert one unit of $package's own currency into the company's
+     * currency — same convention as Currency::exchange_rate everywhere else
+     * in the app (Payment, Expense, Invoice: amount * exchange_rate). Looked
+     * up live rather than snapshotted: a package is catalog pricing, not a
+     * completed transaction, so there is no "rate at the time" to freeze.
+     *
+     * Explicitly company-scoped rather than relying on CompanyScope: this
+     * runs inside a queued job, where there is no authenticated user and so
+     * no session-resolved company() for the global scope to filter by.
+     */
+    protected function packageCurrencyRate(Package $package): float
+    {
+        if (! $package->currency) {
+            return 1.0;
+        }
+
+        $rate = Currency::withoutGlobalScopes()
+            ->where('company_id', $package->company_id)
+            ->where('currency_code', $package->currency)
+            ->value('exchange_rate');
+
+        return $rate !== null ? (float) $rate : 1.0;
     }
 
     /**

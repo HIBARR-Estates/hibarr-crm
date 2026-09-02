@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $agent_id
  * @property int $package_id
  * @property PackageCommissionType $commission_type
- * @property float $commission_value
+ * @property float|null $commission_value null when commission_type is None
  */
 class AgentPackageCommissionRate extends BaseModel
 {

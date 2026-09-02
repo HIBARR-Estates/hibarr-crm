@@ -12,12 +12,26 @@ class DealValueResolver
     /**
      * Resolve and persist canonical deal value based on selected source.
      *
+     * Backstop, not the primary guard: every real caller (DealController,
+     * DealGatheringService) already checks Deal::isCommissionLocked() before
+     * reaching here. This exists so a future caller that forgets that check
+     * fails loudly instead of quietly recomputing a value commission was
+     * already calculated against.
+     *
      * @param Deal $deal
      * @param float|null $manualValue
      * @param string|null $source
+     *
+     * @throws \DomainException if the deal's value is protected by a commission lock
      */
     public function resolveAndPersist(Deal $deal, ?float $manualValue = null, ?string $source = null): Deal
     {
+        if ($deal->isCommissionLocked()) {
+            throw new \DomainException(
+                "Deal {$deal->id}'s value is commission-locked and cannot be recalculated."
+            );
+        }
+
         $normalizedSource = $this->normalizeSource($source ?? $deal->value_source);
 
         $manual = $manualValue;

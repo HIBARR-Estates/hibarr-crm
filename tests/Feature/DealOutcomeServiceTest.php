@@ -81,11 +81,12 @@ class DealOutcomeServiceTest extends TestCase
         );
     }
 
-    public function test_leaving_won_reverts_pending_commissions_and_unlocks_the_deal(): void
+    public function test_leaving_won_reverts_pending_commissions_and_commission_unlocks_the_deal(): void
     {
         $deal = $this->makeDeal([
             'outcome_status' => 'won',
-            'is_locked' => 1,
+            'commission_locked' => 1,
+            'commission_locked_at' => '2026-08-01 10:00:01',
             'won_at' => '2026-08-01 10:00:00',
         ]);
         $this->makeCommission($deal->id, MlmCommissionStatus::Pending->value, 500);
@@ -97,7 +98,34 @@ class DealOutcomeServiceTest extends TestCase
         $fresh = $deal->fresh();
         $this->assertSame('lost', $fresh->outcome_status->value);
         $this->assertNull($fresh->won_at, 'A deal that is not won must not keep a won_at.');
-        $this->assertFalse((bool) $fresh->is_locked, 'Reverting must unlock, or later edits stay blocked.');
+        $this->assertFalse(
+            (bool) $fresh->commission_locked,
+            'Reverting must commission-unlock, or the value stays blocked despite no active commission left to protect.'
+        );
+        $this->assertNull($fresh->commission_locked_at);
+    }
+
+    /**
+     * is_locked and commission_locked are independent: a deal locked for a
+     * reason unrelated to commission (a lock_deal automation action, a manual
+     * lock) must stay locked after an outcome revert — apply() does not own
+     * that flag and must not touch it in either direction.
+     */
+    public function test_leaving_won_does_not_touch_is_locked_set_for_an_unrelated_reason(): void
+    {
+        $deal = $this->makeDeal([
+            'outcome_status' => 'won',
+            'is_locked' => 1,
+            'locked_at' => '2026-07-01 09:00:00',
+            'commission_locked' => 1,
+        ]);
+        $this->makeCommission($deal->id, MlmCommissionStatus::Pending->value, 500);
+
+        $this->service()->apply($deal, OutcomeStatus::Lost, 'mistake');
+
+        $fresh = $deal->fresh();
+        $this->assertTrue((bool) $fresh->is_locked, 'is_locked belongs to something else and must survive an outcome revert untouched.');
+        $this->assertFalse((bool) $fresh->commission_locked);
     }
 
     public function test_already_paid_commissions_are_kept_and_reported(): void
@@ -173,6 +201,8 @@ class DealOutcomeServiceTest extends TestCase
             'won_at' => null,
             'is_locked' => 0,
             'locked_at' => null,
+            'commission_locked' => 0,
+            'commission_locked_at' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ], $attributes));
@@ -207,6 +237,8 @@ class DealOutcomeServiceTest extends TestCase
             $table->timestamp('won_at')->nullable();
             $table->boolean('is_locked')->default(false);
             $table->timestamp('locked_at')->nullable();
+            $table->boolean('commission_locked')->default(false);
+            $table->timestamp('commission_locked_at')->nullable();
             // Written by DealObserver::saving() on every save — kept here so the
             // observer stays live rather than being disabled for the test.
             $table->string('next_follow_up')->nullable();

@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
+import { Tooltip } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
-import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
+import { isDealEffectivelyLocked, isDealValueLocked } from "@/lib/dealOutcome";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import usePipelineHasPackages from "../../../hooks/usePipelineHasPackages";
 import useSinglePackageMode from "../../../hooks/useSinglePackageMode";
@@ -78,7 +79,9 @@ export default function PackagePropertyManager({
 
     const packages = deal.packages ?? [];
     const products = deal.products ?? [];
-    const isLocked = isDealEffectivelyLocked(deal);
+    // Packages/properties feed the deal value directly, so they stay locked
+    // once commission has been distributed, even if the deal itself isn't.
+    const isLocked = isDealEffectivelyLocked(deal) || isDealValueLocked(deal);
     const canEdit = permissions.canEdit;
 
     // A package pipeline sells packages, not individual properties.
@@ -152,7 +155,7 @@ export default function PackagePropertyManager({
             {showPackagesSection && (
                 <>
                     <div
-                        className="mb-2 pb-1.5 text-[12px] font-bold uppercase tracking-[0.05em]"
+                        className="mb-2 flex items-center gap-1.5 pb-1.5 text-[12px] font-bold uppercase tracking-[0.05em]"
                         style={{
                             color: T.TEXT_MUTED,
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
@@ -161,6 +164,13 @@ export default function PackagePropertyManager({
                         {restrictPackageOrProperty
                             ? t("pages.deals.dossier.package_singular")
                             : t("pages.deals.dossier.package_plural")}
+                        {isDealValueLocked(deal) && (
+                            <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                                <span className="normal-case" style={{ display: "flex" }}>
+                                    <DealIcon name="lock" size={11} />
+                                </span>
+                            </Tooltip>
+                        )}
                     </div>
                     {packages.length === 0 ? (
                         <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
@@ -237,6 +247,13 @@ export default function PackagePropertyManager({
                         {restrictPackageOrProperty
                             ? t("pages.deals.dossier.property_singular")
                             : t("pages.deals.dossier.property_plural")}
+                        {isDealValueLocked(deal) && (
+                            <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                                <span className="normal-case" style={{ display: "flex" }}>
+                                    <DealIcon name="lock" size={11} />
+                                </span>
+                            </Tooltip>
+                        )}
                         {refreshing && (
                             <span
                                 aria-hidden="true"

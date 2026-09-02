@@ -14,6 +14,7 @@ import {
     Spin,
     Empty,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { Save, Calculator, Play } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -41,6 +42,8 @@ const MlmCommissionSettings: React.FC<Props> = ({
 }) => {
     const { data: settingsData, isLoading } = useMlmSettings();
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const settings: MlmSettings =
         (settingsData as any)?.data ?? initialSettings;
 
@@ -281,7 +284,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             <InputNumber
                                                 className="w-full"
                                                 min={0}
-                                                prefix="$"
+                                                prefix={currencySymbol}
                                                 placeholder="Enter deal value"
                                                 value={
                                                     simDealValue || undefined
@@ -352,7 +355,9 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                             </div>
                                                             <div className="text-right">
                                                                 <div className="font-semibold text-green-600">
-                                                                    $
+                                                                    {
+                                                                        currencySymbol
+                                                                    }
                                                                     {entry.amount.toLocaleString(
                                                                         undefined,
                                                                         {
@@ -379,7 +384,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                     Total Distributed
                                                 </span>
                                                 <span className="font-bold text-green-600">
-                                                    $
+                                                    {currencySymbol}
                                                     {simResult.total_distributed.toLocaleString(
                                                         undefined,
                                                         {
@@ -393,7 +398,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                     System Retains
                                                 </span>
                                                 <span className="font-bold">
-                                                    $
+                                                    {currencySymbol}
                                                     {simResult.system_commission.toLocaleString(
                                                         undefined,
                                                         {

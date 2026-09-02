@@ -26,6 +26,7 @@ import type {
     MlmLevel,
     PaginatedResponse,
 } from "@/Features/Mlm/types";
+import { usePage } from "@inertiajs/react";
 import { formatNumber } from "@/lib/utils";
 import { DataTable } from "@/Components/DataTable";
 
@@ -35,6 +36,8 @@ interface Props extends PageProps {
 
 const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [levelFilter, setLevelFilter] = useState<string | undefined>();
@@ -142,14 +145,14 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
             dataIndex: "vsa",
             key: "vsa",
             align: "right" as const,
-            render: (val: number) => `$${formatNumber(val ?? 0)}`,
+            render: (val: number) => `${currencySymbol}${formatNumber(val ?? 0)}`,
         },
         {
             title: "Team Revenue",
             dataIndex: "vsd",
             key: "vsd",
             align: "right" as const,
-            render: (val: number) => `$${formatNumber(val ?? 0)}`,
+            render: (val: number) => `${currencySymbol}${formatNumber(val ?? 0)}`,
         },
         {
             title: "Progress to Next",

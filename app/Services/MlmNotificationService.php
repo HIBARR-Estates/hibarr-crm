@@ -410,9 +410,15 @@ class MlmNotificationService
      */
     protected function commissionContext(MlmCommission $commission): array
     {
-        $commission->loadMissing(['deal.currency', 'level', 'company.currency']);
+        $commission->loadMissing(['level', 'company.currency']);
 
-        $currency = $commission->deal?->currency ?? $commission->company?->currency;
+        // Always the company's currency, never the deal's: MlmCommissionService
+        // converts every amount into company currency before writing it
+        // (deals.value * deals.exchange_rate for the level-based split,
+        // packages.value * the package's own rate for package commissions),
+        // so the deal's own currency has nothing to do with what this number
+        // is denominated in.
+        $currency = $commission->company?->currency;
         $symbol = $currency?->currency_symbol ?? '';
         $code = $currency?->currency_code ?? '';
         $amountFormatted = number_format((float) $commission->amount, 2);

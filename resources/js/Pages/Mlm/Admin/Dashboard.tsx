@@ -29,6 +29,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
+import { usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -45,7 +46,7 @@ interface Props extends PageProps {
     stats: MlmAdminDashboardStats;
 }
 
-const statCards = (stats: MlmAdminDashboardStats) => [
+const statCards = (stats: MlmAdminDashboardStats, currencySymbol: string) => [
     {
         title: "Total Agents",
         value: stats.total_agents,
@@ -63,7 +64,7 @@ const statCards = (stats: MlmAdminDashboardStats) => [
     {
         title: "Commissions Paid",
         value: stats.total_commissions_paid,
-        prefix: "$",
+        prefix: currencySymbol,
         icon: <DollarSign size={22} />,
         color: "from-purple-500 to-purple-600",
         iconBg: "bg-purple-100 text-purple-600",
@@ -71,7 +72,7 @@ const statCards = (stats: MlmAdminDashboardStats) => [
     {
         title: "Pending Payouts",
         value: stats.pending_commissions,
-        prefix: "$",
+        prefix: currencySymbol,
         icon: <Clock size={22} />,
         color: "from-orange-500 to-orange-600",
         iconBg: "bg-orange-100 text-orange-600",
@@ -80,6 +81,8 @@ const statCards = (stats: MlmAdminDashboardStats) => [
 
 const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading } = useMlmAdminDashboard();
     const stats: MlmAdminDashboardStats = (data as any) ?? initialStats;
 
@@ -87,7 +90,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const cycleSummary: ActiveCycleSummary | null =
         (activeCycleData as any)?.data ?? null;
 
-    const cards = statCards(stats);
+    const cards = statCards(stats, currencySymbol);
 
     const topAgentColumns = [
         {
@@ -127,7 +130,8 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    ${formatNumber(+val)}
+                    {currencySymbol}
+                    {formatNumber(+val)}
                 </span>
             ),
         },
@@ -340,7 +344,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                             <YAxis tick={{ fontSize: 12 }} />
                                             <Tooltip
                                                 formatter={(value: any) => [
-                                                    `$${Number(value).toLocaleString()}`,
+                                                    `${currencySymbol}${Number(value).toLocaleString()}`,
                                                     "Commission",
                                                 ]}
                                             />

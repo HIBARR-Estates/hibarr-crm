@@ -33,6 +33,16 @@ class DealPropertyController extends AccountBaseController
      */
     public function store(Request $request, Deal $deal): JsonResponse
     {
+        // A commission was already calculated against this deal's value —
+        // attaching a property (or creating one from a unit type) changes
+        // calculated_value just as adding a package or product would.
+        if ($deal->isCommissionLocked()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.dealValueLockedByCommission'),
+            ], 403);
+        }
+
         if ($request->has('property_id')) {
             $request->validate([
                 'property_id' => 'required|integer|exists:properties,id',
@@ -80,6 +90,13 @@ class DealPropertyController extends AccountBaseController
      */
     public function destroy(Deal $deal, int $productId): JsonResponse
     {
+        if ($deal->isCommissionLocked()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.dealValueLockedByCommission'),
+            ], 403);
+        }
+
         $result = $this->service->detachProperty($deal, $productId);
 
         return response()->json($result);

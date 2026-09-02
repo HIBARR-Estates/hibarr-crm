@@ -64,10 +64,13 @@ interface ParsedCurrency {
  * Parses a stored currency value into { amount, currency }.
  * Supports: number, "CODE|amount" (e.g. USD|1200), JSON string, object with amount/currency.
  */
-function parseCurrencyValue(value: unknown): ParsedCurrency | null {
+function parseCurrencyValue(
+    value: unknown,
+    defaultCurrency: string = DEFAULT_CURRENCY_CODE,
+): ParsedCurrency | null {
     if (value == null || value === "") return null;
     if (typeof value === "number" && Number.isFinite(value)) {
-        return { amount: value, currency: DEFAULT_CURRENCY_CODE };
+        return { amount: value, currency: defaultCurrency };
     }
     if (typeof value === "string") {
         const trimmed = value.trim();
@@ -81,11 +84,11 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
         }
         const num = parseFloat(trimmed.replace(/,/g, ""));
         if (Number.isFinite(num))
-            return { amount: num, currency: DEFAULT_CURRENCY_CODE };
+            return { amount: num, currency: defaultCurrency };
         try {
             const parsed = JSON.parse(trimmed) as unknown;
             if (typeof parsed === "number")
-                return { amount: parsed, currency: DEFAULT_CURRENCY_CODE };
+                return { amount: parsed, currency: defaultCurrency };
             if (parsed && typeof parsed === "object" && "amount" in parsed) {
                 const amount =
                     typeof (parsed as { amount: unknown }).amount === "number"
@@ -97,7 +100,7 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
                           );
                 const currency = String(
                     (parsed as { currency?: string }).currency ||
-                        DEFAULT_CURRENCY_CODE,
+                        defaultCurrency,
                 );
                 return Number.isFinite(amount) ? { amount, currency } : null;
             }
@@ -111,7 +114,7 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
             typeof obj.amount === "number"
                 ? obj.amount
                 : parseFloat(String(obj.amount ?? 0).replace(/,/g, ""));
-        const currency = obj.currency || DEFAULT_CURRENCY_CODE;
+        const currency = obj.currency || defaultCurrency;
         return Number.isFinite(amount) ? { amount, currency } : null;
     }
     return null;
@@ -1042,7 +1045,7 @@ export default function CustomFieldDisplay({
                 ): React.ReactNode => {
                     if (v == null || v === "") return null;
                     if (schemaMap[k] === "currency") {
-                        const parsed = parseCurrencyValue(v);
+                        const parsed = parseCurrencyValue(v, appDefaultCurrency);
                         if (parsed)
                             return formatCurrencyAsNode(
                                 parsed.amount,
@@ -1104,7 +1107,7 @@ export default function CustomFieldDisplay({
                         }
                         case "sum_currency": {
                             const parsed = rawValues
-                                .map((v) => parseCurrencyValue(v))
+                                .map((v) => parseCurrencyValue(v, appDefaultCurrency))
                                 .filter((p): p is ParsedCurrency => p != null);
                             if (parsed.length === 0) {
                                 displayValue = formatCurrencyAsNode(
