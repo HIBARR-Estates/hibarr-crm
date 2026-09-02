@@ -249,7 +249,9 @@ class DeveloperProject extends BaseModel
     }
 
     /**
-     * Generate a unique slug from name. If slug exists, append short random id.
+     * Generate a unique slug from name. If slug exists (including soft-deleted),
+     * append a short random id. The DB unique index (company_id, slug) includes
+     * trashed rows, so uniqueness checks must use withTrashed().
      */
     public static function makeUniqueSlug(string $name, ?int $companyId = null, $excludeId = null): string
     {
@@ -259,22 +261,8 @@ class DeveloperProject extends BaseModel
         }
         $slug = $base;
         $attempt = 0;
-        $query = static::query()->where('slug', $slug);
-        if ($companyId !== null) {
-            $query->where('company_id', $companyId);
-        }
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
-        while ($query->exists()) {
+        while (self::slugExists($slug, $companyId, $excludeId)) {
             $slug = $base . '-' . Str::lower(Str::random(4));
-            $query = static::query()->where('slug', $slug);
-            if ($companyId !== null) {
-                $query->where('company_id', $companyId);
-            }
-            if ($excludeId !== null) {
-                $query->where('id', '!=', $excludeId);
-            }
             $attempt++;
             if ($attempt > 100) {
                 $slug = $base . '-' . ($excludeId ?: Str::random(8));
@@ -283,6 +271,22 @@ class DeveloperProject extends BaseModel
         }
 
         return $slug;
+    }
+
+    /**
+     * Whether a slug is already used in the company, including soft-deleted rows.
+     */
+    private static function slugExists(string $slug, ?int $companyId, $excludeId): bool
+    {
+        $query = static::withTrashed()->where('slug', $slug);
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
     }
 
     /**
