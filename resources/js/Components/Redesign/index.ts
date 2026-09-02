@@ -32,6 +32,7 @@ export { default as ScrollArrow } from "./primitives/ScrollArrow";
 export { default as MenuSelect } from "./primitives/MenuSelect";
 export type { MenuOption } from "./primitives/MenuSelect";
 export { default as EditableField } from "./primitives/EditableField";
+export { default as EditableTitle } from "./primitives/EditableTitle";
 export { default as EmptyState } from "./primitives/EmptyState";
 export { default as FileDropzone } from "./primitives/FileDropzone";
 export { default as AttachmentFileCard } from "./primitives/AttachmentFileCard";

@@ -658,6 +658,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         canDelete={props.deleteLeadPermission !== "none"}
                         canFindDuplicates={duplicates.canMerge}
                         canEditOwner={props.editLeadPermission !== "none"}
+                        canEdit={canEditLead(
+                            props.editLeadPermission,
+                            lead,
+                            page.props.auth?.user?.id,
+                        )}
                         canUploadPhoto={canEditLead(
                             props.editLeadPermission,
                             lead,
