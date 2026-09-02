@@ -653,7 +653,11 @@ class DealController extends AccountBaseController
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
-        $dealWithCustomFields['value_breakdown'] = app(DealValueResolver::class)->getBreakdown($deal);
+        $dealWithCustomFields['value_breakdown'] = app(\App\Services\MlmCommissionService::class)->attachCommissionSummary(
+            app(DealValueResolver::class)->getBreakdown($deal),
+            $deal,
+            user()
+        );
         $dealWithCustomFields['analysis_status'] = $deal->analysis_status ?? 'pending';
         $dealWithCustomFields['analysis_completed_at'] = $deal->analysis_completed_at?->toIso8601String();
         $dealWithCustomFields['analysis_completed_by'] = $deal->analysis_completed_by;
@@ -1828,7 +1832,11 @@ class DealController extends AccountBaseController
             'leadFlightItineraries',
         ])->findOrFail($id);
         $deal->withCustomFields();
-        $deal->setAttribute('value_breakdown', app(DealValueResolver::class)->getBreakdown($deal));
+        $deal->setAttribute('value_breakdown', app(\App\Services\MlmCommissionService::class)->attachCommissionSummary(
+            app(DealValueResolver::class)->getBreakdown($deal),
+            $deal,
+            user()
+        ));
 
         return $deal;
     }
@@ -1922,6 +1930,11 @@ class DealController extends AccountBaseController
                 'manual_value' => 'manual_value',
                 'value_source' => 'value_source',
                 'currency_id' => 'currency_id',
+                'exchange_rate' => 'exchange_rate',
+                'discount_type' => 'discount_type',
+                'discount_value' => 'discount_value',
+                'deduction_amount' => 'deduction_amount',
+                'deduction_note' => 'deduction_note',
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
                 'close_date' => 'close_date',
@@ -2017,11 +2030,10 @@ class DealController extends AccountBaseController
                 app(DealOfferService::class)->applyOffersToDeal($deal);
             }
 
-            if (! $productsUpdated && (
-                array_key_exists('value', $validatedData)
-                || array_key_exists('manual_value', $validatedData)
-                || array_key_exists('value_source', $validatedData)
-            )) {
+            // Any value-affecting key means calculated_value (and therefore
+            // deals.value) has to be recomputed — discounts and deductions
+            // feed it exactly as directly as the raw amount does.
+            if (! $productsUpdated && Deal::touchesValueFields($validatedData)) {
                 app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
             }
 

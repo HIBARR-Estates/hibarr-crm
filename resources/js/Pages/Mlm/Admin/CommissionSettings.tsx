@@ -13,10 +13,11 @@ import {
     Select,
     Spin,
     Empty,
+    Popconfirm,
 } from "antd";
 import { usePage } from "@inertiajs/react";
 import { motion } from "framer-motion";
-import { Save, Calculator, Play } from "lucide-react";
+import { Save, Calculator, Play, CameraIcon } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -24,6 +25,8 @@ import {
     useMlmSettings,
     useUpdateMlmSettings,
     useCommissionSimulation,
+    useActiveCycle,
+    useResnapshot,
 } from "@/Features/Mlm/api";
 import type {
     MlmSettings,
@@ -55,6 +58,33 @@ const MlmCommissionSettings: React.FC<Props> = ({
     const updateSettings = useUpdateMlmSettings(() => {
         message.success("Settings updated successfully");
     });
+
+    // An active cycle pays from a snapshot taken when it started, so edits on
+    // this page do not reach live commissions until it is retaken.
+    const { data: activeCycleData, refetch: refetchActiveCycle } =
+        useActiveCycle();
+    const activeCycle = (activeCycleData as any)?.data?.cycle ?? null;
+    const cycleIsSnapshotted =
+        !!activeCycle?.id &&
+        activeCycle?.status === "active" &&
+        activeCycle?.has_snapshots;
+
+    const resnapshot = useResnapshot(activeCycle?.id ?? 0, () => {
+        message.success(
+            "Cycle re-snapshotted. New commissions will use the current rules.",
+        );
+        refetchActiveCycle();
+    });
+
+    const snapshotMax = activeCycle?.max_commission_snapshot ?? null;
+    const currentMax = settings?.max_commission_percentage ?? null;
+    // Only claim drift on a figure we can actually compare. Level percentages
+    // can be stale too, which is why the copy never says "you are in sync".
+    const maxCommissionDrifted =
+        cycleIsSnapshotted &&
+        snapshotMax !== null &&
+        currentMax !== null &&
+        Number(snapshotMax) !== Number(currentMax);
 
     const { data: simData, isLoading: simLoading } = useCommissionSimulation({
         deal_value: simDealValue,
@@ -130,6 +160,80 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                     addonAfter="%"
                                                 />
                                             </Form.Item>
+
+                                            {cycleIsSnapshotted && (
+                                                <Alert
+                                                    className="mb-4"
+                                                    type={
+                                                        maxCommissionDrifted
+                                                            ? "warning"
+                                                            : "info"
+                                                    }
+                                                    showIcon
+                                                    message={
+                                                        maxCommissionDrifted
+                                                            ? `Active cycle is still paying ${snapshotMax}%`
+                                                            : "Active cycle uses a snapshot of these rules"
+                                                    }
+                                                    description={
+                                                        <div className="space-y-2">
+                                                            <div>
+                                                                {maxCommissionDrifted
+                                                                    ? `Cycle #${activeCycle.cycle_number} froze the rules when it started, so commissions are still calculated at ${snapshotMax}% rather than the ${currentMax}% saved here. Re-snapshot to apply the current settings.`
+                                                                    : `Cycle #${activeCycle.cycle_number} froze the commission percentages and level rules when it started. Changes made here — including level percentages — only reach live commissions once the snapshot is retaken.`}
+                                                            </div>
+                                                            <Popconfirm
+                                                                title="Re-snapshot this cycle?"
+                                                                description={
+                                                                    <div className="max-w-xs">
+                                                                        Commissions
+                                                                        calculated
+                                                                        from now
+                                                                        on will
+                                                                        use the
+                                                                        current
+                                                                        rules.
+                                                                        Commissions
+                                                                        already
+                                                                        recorded
+                                                                        keep the
+                                                                        amounts
+                                                                        they were
+                                                                        paid at.
+                                                                    </div>
+                                                                }
+                                                                okText="Re-snapshot"
+                                                                cancelText="Cancel"
+                                                                onConfirm={() =>
+                                                                    resnapshot.mutate(
+                                                                        {},
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Button
+                                                                    size="small"
+                                                                    danger={
+                                                                        maxCommissionDrifted
+                                                                    }
+                                                                    icon={
+                                                                        <CameraIcon
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                    loading={
+                                                                        resnapshot.isPending
+                                                                    }
+                                                                >
+                                                                    Re-snapshot
+                                                                    cycle
+                                                                </Button>
+                                                            </Popconfirm>
+                                                        </div>
+                                                    }
+                                                />
+                                            )}
 
                                             <Form.Item
                                                 label="Auto-Evaluate Ancestors"

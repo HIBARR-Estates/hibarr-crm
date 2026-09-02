@@ -374,7 +374,11 @@ class DealGatheringController extends AccountBaseController
                 'leadFlightItineraries',
             ]);
             $freshDeal->withCustomFields();
-            $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
+            $freshDeal->setAttribute('value_breakdown', app(\App\Services\MlmCommissionService::class)->attachCommissionSummary(
+                app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal),
+                $freshDeal,
+                user()
+            ));
 
             return response()->json([
                 'status' => 'success',

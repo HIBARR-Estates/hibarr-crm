@@ -163,6 +163,8 @@ class Deal extends BaseModel
         'max_commission_percentage' => 'decimal:2',
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
+        'discount_value' => 'decimal:2',
+        'deduction_amount' => 'decimal:2',
         'won_at' => 'datetime',
         'stage_entered_at' => 'datetime',
         'exchange_rate' => 'double',
@@ -433,6 +435,13 @@ class Deal extends BaseModel
         'calculated_value',
         'value_source',
         'currency_id',
+        // Currency and adjustments change what the deal is worth in company
+        // currency just as directly as the raw amount does, so a
+        // commission-locked deal has to refuse them too.
+        'exchange_rate',
+        'discount_type',
+        'discount_value',
+        'deduction_amount',
         'package_id',
         'product_id',
         'products',

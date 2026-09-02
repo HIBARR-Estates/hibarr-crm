@@ -623,6 +623,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
+    // Live reference FX rate, to prefill the deal value modal's exchange rate.
+    Route::get('api/exchange-rate', [\App\Http\Controllers\ExchangeRateController::class, 'show'])
+        ->name('exchange-rate.show');
+
     // Dynamic translation lookup API (auth-protected)
     Route::prefix('api/dynamic-translations')->group(function () {
         Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');

@@ -152,6 +152,7 @@ class DeveloperProject extends BaseModel
         'is_hidden',
         'remind_at',
         'reminders',
+        'commission_percentage',
     ];
 
     /**
@@ -187,6 +188,7 @@ class DeveloperProject extends BaseModel
         'is_hidden' => 'boolean',
         'remind_at' => 'datetime',
         'reminders' => 'array',
+        'commission_percentage' => 'decimal:2',
     ];
 
     /**
