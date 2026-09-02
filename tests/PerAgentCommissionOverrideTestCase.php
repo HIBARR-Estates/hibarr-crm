@@ -39,6 +39,10 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function resetSchema(): void
     {
         Schema::dropIfExists('agent_commission_rate_audit_logs');
+        Schema::dropIfExists('email_notification_settings');
+        Schema::dropIfExists('agent_package_commission_rates');
+        Schema::dropIfExists('deal_package');
+        Schema::dropIfExists('packages');
         Schema::dropIfExists('mlm_commissions');
         Schema::dropIfExists('agent_level_history');
         Schema::dropIfExists('agent_hierarchy');
@@ -157,8 +161,10 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedBigInteger('agent_id');
             $table->unsignedBigInteger('source_agent_id');
             $table->unsignedBigInteger('level_id')->nullable();
+            $table->unsignedBigInteger('package_id')->nullable();
             $table->unsignedBigInteger('cycle_level_snapshot_id')->nullable();
-            $table->decimal('percentage', 5, 2);
+            // Nullable: a fixed-fee package leg has no percentage.
+            $table->decimal('percentage', 5, 2)->nullable();
             $table->decimal('amount', 15, 2);
             $table->string('type', 20);
             $table->string('status', 20)->default('pending');
@@ -201,6 +207,52 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->decimal('override_rate', 5, 2)->default(0);
             $table->boolean('is_hidden')->default(false);
             $table->timestamps();
+        });
+
+        // distribute() notifies the agent on every non-system leg, and the
+        // notification's constructor reads this table.
+        Schema::create('email_notification_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('slug')->nullable();
+            $table->string('setting_name');
+            $table->string('send_email')->default('no');
+            $table->string('send_slack')->default('no');
+            $table->string('send_push')->default('no');
+            $table->timestamps();
+        });
+
+        // MlmCommissionService::preview() reads a deal's packages on every
+        // deal, so these are part of the minimal commission schema.
+        Schema::create('packages', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name');
+            $table->decimal('value', 15, 2)->default(0);
+            $table->string('currency', 3)->default('EUR');
+            $table->string('commission_type', 12)->nullable();
+            $table->decimal('commission_value', 15, 2)->nullable();
+            $table->text('description')->nullable();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+
+        Schema::create('deal_package', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('deal_id');
+            $table->unsignedBigInteger('package_id');
+            $table->timestamps();
+        });
+
+        Schema::create('agent_package_commission_rates', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id');
+            $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('package_id');
+            $table->string('commission_type', 12);
+            $table->decimal('commission_value', 15, 2);
+            $table->timestamps();
+            $table->unique(['agent_id', 'package_id']);
         });
 
         Schema::create('api_tokens', function (Blueprint $table) {

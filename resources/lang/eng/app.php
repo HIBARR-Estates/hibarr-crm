@@ -528,6 +528,7 @@ return [
         'weeklyTimesheets' => 'Weekly Timesheets',
     ],
     'settingsHub' => [
+        'packageCommissionsDesc' => 'Set how commission is paid on each package, with per-agent overrides.',
         'automationDesc' => 'Manage email templates and automations that run on leads, deals and meetings.',
         'leadsDesc' => 'Manage lead sources, categories and pipeline settings.',
         'dealsDesc' => 'Manage deal categories, pipelines and stages.',

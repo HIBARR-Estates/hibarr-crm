@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PackageCommissionType;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $name
  * @property float $value
  * @property string $currency
+ * @property PackageCommissionType|null $commission_type
+ * @property float|null $commission_value
  * @property string|null $description
  * @property int|null $company_id
  * @property string|null $customer_type_name
@@ -29,12 +32,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Package extends BaseModel
 {
-    use HasFactory, HasCompany, SoftDeletes;
+    use HasCompany, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
         'value',
         'currency',
+        'commission_type',
+        'commission_value',
         'description',
         'company_id',
         'customer_type_name',
@@ -43,6 +48,8 @@ class Package extends BaseModel
 
     protected $casts = [
         'value' => 'decimal:2',
+        'commission_type' => PackageCommissionType::class,
+        'commission_value' => 'decimal:2',
     ];
 
     /**
@@ -69,5 +76,13 @@ class Package extends BaseModel
     public function routingTriggers(): HasMany
     {
         return $this->hasMany(PackageRoutingTrigger::class, 'package_id');
+    }
+
+    /**
+     * Per-agent overrides of this package's default commission.
+     */
+    public function agentCommissionRates(): HasMany
+    {
+        return $this->hasMany(AgentPackageCommissionRate::class, 'package_id');
     }
 }

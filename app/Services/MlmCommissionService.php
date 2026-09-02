@@ -4,19 +4,25 @@ namespace App\Services;
 
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
+use App\Enums\PackageCommissionType;
+use App\Models\AgentPackageCommissionRate;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycleLevelSnapshot;
 use App\Models\MlmLevel;
+use App\Models\Package;
 use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
 
 class MlmCommissionService
 {
     protected HierarchyService $hierarchyService;
+
     protected LevelService $levelService;
+
     protected CycleService $cycleService;
+
     protected CycleLevelSnapshotService $snapshotService;
 
     public function __construct(
@@ -75,9 +81,18 @@ class MlmCommissionService
     {
         $agent = LeadAgent::find($deal->agent_id);
 
-        if (!$agent) {
+        if (! $agent) {
             Log::warning("MlmCommissionService: No agent found for deal {$deal->id}");
+
             return [];
+        }
+
+        // A deal sold on a configured package pays from that package's own
+        // settings and nothing else: no upline legs, no system leg.
+        $packageLegs = $this->packageLegs($deal, $agent);
+
+        if ($packageLegs !== null) {
+            return $packageLegs;
         }
 
         $dealValue = (float) ($deal->value ?? 0);
@@ -91,6 +106,7 @@ class MlmCommissionService
 
         if ($dealValue <= 0 || $maxCommission <= 0) {
             Log::info("MlmCommissionService: Skipping deal {$deal->id} - zero value or max commission");
+
             return [];
         }
 
@@ -142,7 +158,7 @@ class MlmCommissionService
 
                 $ancestorLevel = $ancestor->currentLevelHistory?->level;
 
-                if (!$ancestorLevel) {
+                if (! $ancestorLevel) {
                     continue;
                 }
 
@@ -198,7 +214,7 @@ class MlmCommissionService
             );
         }
 
-        Log::info("MlmCommissionService: Resolved " . count($records) . " commission legs for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)" . ($useSnapshots ? ' [snapshot]' : ''));
+        Log::info('MlmCommissionService: Resolved '.count($records)." commission legs for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)".($useSnapshots ? ' [snapshot]' : ''));
 
         return $records;
     }
@@ -219,6 +235,101 @@ class MlmCommissionService
         Log::info("MlmCommissionService: Reverted {$count} commissions for deal {$deal->id}: {$reason}");
 
         return $count;
+    }
+
+    /**
+     * The legs a package-based deal produces, or null when this is not one.
+     *
+     * Package mode is decided by *configuration*, not by output: if any attached
+     * package carries a commission_type, the package settings own the whole
+     * distribution and an empty array is a legitimate answer. Deciding on
+     * whether legs came out instead would mean a package deliberately set to
+     * zero silently paid the full agent+upline+system split.
+     *
+     * @return array<int, array<string, mixed>>|null null = not a package deal, fall through
+     */
+    protected function packageLegs(Deal $deal, LeadAgent $agent): ?array
+    {
+        $packages = $deal->packages->filter(
+            fn (Package $package) => $package->commission_type !== null
+        );
+
+        if ($packages->isEmpty()) {
+            return null;
+        }
+
+        $overrides = AgentPackageCommissionRate::query()
+            ->where('agent_id', $agent->id)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->keyBy('package_id');
+
+        $legs = [];
+
+        foreach ($packages as $package) {
+            $resolved = $this->resolvePackageCommission($package, $agent, $overrides->get($package->id));
+
+            if ($resolved === null) {
+                continue;
+            }
+
+            $legs[] = $this->leg(
+                deal: $deal,
+                agent: $agent,
+                sourceAgent: $agent,
+                // Not earned via a level, so nothing is claimed about one.
+                level: null,
+                percentage: $resolved['percentage'],
+                amount: $resolved['amount'],
+                type: MlmCommissionType::Agent,
+                packageId: $package->id,
+            );
+        }
+
+        Log::info('MlmCommissionService: Resolved '.count($legs)." package commission legs for deal {$deal->id}");
+
+        return $legs;
+    }
+
+    /**
+     * What one package pays this agent: the per-agent override if there is one,
+     * otherwise the package default.
+     *
+     * The percentage comes back alongside the amount because a fixed fee has no
+     * percentage at all, and the leg has to record that difference rather than
+     * store a derived figure that stops being true when the package is repriced.
+     *
+     * @return array{amount: float, percentage: float|null}|null null when nothing is payable
+     */
+    public function resolvePackageCommission(
+        Package $package,
+        LeadAgent $agent,
+        ?AgentPackageCommissionRate $override = null
+    ): ?array {
+        $override ??= AgentPackageCommissionRate::query()
+            ->where('agent_id', $agent->id)
+            ->where('package_id', $package->id)
+            ->first();
+
+        $type = $override?->commission_type ?? $package->commission_type;
+        $value = (float) ($override?->commission_value ?? $package->commission_value);
+
+        if ($type === null) {
+            return null;
+        }
+
+        $amount = $type === PackageCommissionType::Percentage
+            ? round((float) $package->value * ($value / 100), 2)
+            : round($value, 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return [
+            'amount' => $amount,
+            'percentage' => $type === PackageCommissionType::Percentage ? $value : null,
+        ];
     }
 
     /**
@@ -304,10 +415,11 @@ class MlmCommissionService
         LeadAgent $agent,
         LeadAgent $sourceAgent,
         ?MlmLevel $level,
-        float $percentage,
+        ?float $percentage,
         float $amount,
         MlmCommissionType $type,
-        ?int $cycleLevelSnapshotId = null
+        ?int $cycleLevelSnapshotId = null,
+        ?int $packageId = null
     ): array {
         return [
             'company_id' => $deal->company_id,
@@ -315,6 +427,7 @@ class MlmCommissionService
             'agent_id' => $agent->id,
             'source_agent_id' => $sourceAgent->id,
             'level_id' => $level?->id,
+            'package_id' => $packageId,
             'cycle_level_snapshot_id' => $cycleLevelSnapshotId,
             'percentage' => $percentage,
             'amount' => $amount,

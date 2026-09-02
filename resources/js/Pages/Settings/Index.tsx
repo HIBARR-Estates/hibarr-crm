@@ -16,6 +16,7 @@ import {
     NotificationOutlined,
     ThunderboltOutlined,
     TagsOutlined,
+    DollarOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
@@ -166,6 +167,21 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                           router.visit(
                               route("notification-settings-manager.index"),
                           ),
+                  },
+              ]
+            : []),
+        ...(canManageCompanySettings
+            ? [
+                  {
+                      key: "package-commissions",
+                      icon: <DollarOutlined />,
+                      iconBg: "bg-emerald-50",
+                      iconColor: "text-emerald-500",
+                      title: t("app.menu.packages"),
+                      description: t("app.settingsHub.packageCommissionsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("package-commissions.index")),
                   },
               ]
             : []),

@@ -30,10 +30,7 @@ class LeadSummaryInputBuilder
         ]);
 
         $now = Carbon::now()->toIso8601String();
-        $leadName = trim(implode(' ', array_filter([
-            $lead->salutation ? ucfirst((string) $lead->salutation) : null,
-            $lead->client_name,
-        ])));
+        $leadName = trim((string) ($lead->client_name_salutation ?? ''));
 
         $payload = [
             'now' => $now,

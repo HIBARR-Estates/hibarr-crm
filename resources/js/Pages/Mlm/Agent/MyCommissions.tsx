@@ -10,6 +10,7 @@ import {
     Statistic,
     Button,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -47,6 +48,10 @@ const MyCommissions: React.FC<Props> = ({
     summary,
 }) => {
     const { t } = useTranslation();
+    // Commissions are denominated in the app's currency (deal, falling back to
+    // company) — never a hardcoded symbol, never the package's price currency.
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as { default_currency_symbol?: string };
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -121,12 +126,24 @@ const MyCommissions: React.FC<Props> = ({
             render: (_: any, r: MlmCommission) => (
                 <div className="text-right">
                     <div className="font-semibold text-green-600">
-                        $
+                        {currencySymbol}
                         {r.amount?.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                         })}
                     </div>
-                    <div className="text-xs text-gray-500">{r.percentage}%</div>
+                    {r.percentage !== null && r.percentage !== undefined ? (
+                        <div className="text-xs text-gray-500">
+                            {r.percentage}%
+                        </div>
+                    ) : (
+                        // Fixed-fee package leg: show the money, not a fake 0%.
+                        <div className="text-xs text-gray-500">
+                            {currencySymbol}
+                            {r.amount?.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                            })}
+                        </div>
+                    )}
                 </div>
             ),
         },
