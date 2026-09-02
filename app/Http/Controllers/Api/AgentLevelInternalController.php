@@ -8,6 +8,7 @@ use App\Models\MlmLevel;
 use App\Services\LevelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AgentLevelInternalController extends Controller
 {
@@ -22,6 +23,13 @@ class AgentLevelInternalController extends Controller
         $validated = $request->validate([
             'levelId' => 'nullable|integer',
             'level_id' => 'nullable|integer',
+            'changed_by_user_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(
+                    fn ($query) => $query->where('company_id', $companyId)
+                ),
+            ],
         ]);
 
         $levelId = $validated['levelId'] ?? $validated['level_id'] ?? null;
@@ -62,7 +70,7 @@ class AgentLevelInternalController extends Controller
         $history = $this->levelService->assignLevel(
             $agent,
             $level,
-            assignedBy: null,
+            assignedBy: $validated['changed_by_user_id'] ?? null,
             systemAssigned: false
         );
 

@@ -7,6 +7,7 @@ use App\Services\AgentCommissionProfileService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AgentCommissionProfileInternalController extends Controller
 {
@@ -40,12 +41,19 @@ class AgentCommissionProfileInternalController extends Controller
         $validated = $request->validate([
             'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
             'reason' => 'nullable|string|max:1000',
+            'changed_by_user_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(
+                    fn ($query) => $query->where('company_id', $companyId)
+                ),
+            ],
         ]);
 
         $result = $this->profileService->updateProfile(
             $agentId,
             $companyId,
-            null,
+            $validated['changed_by_user_id'] ?? null,
             $validated
         );
 
