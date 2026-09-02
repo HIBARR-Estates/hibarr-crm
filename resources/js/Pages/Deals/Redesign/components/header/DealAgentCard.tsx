@@ -30,7 +30,7 @@ export default function DealAgentCard({
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
+    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right", maxHeight: 360 });
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
     const isAssigning = isSaving("agent_id");
 
