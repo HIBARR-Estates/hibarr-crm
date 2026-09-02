@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MlmCommission extends BaseModel
 {
-    use HasFactory, HasCompany;
+    use HasCompany, HasFactory;
 
     protected $table = 'mlm_commissions';
 
@@ -20,6 +20,7 @@ class MlmCommission extends BaseModel
         'agent_id',
         'source_agent_id',
         'level_id',
+        'package_id',
         'cycle_level_snapshot_id',
         'percentage',
         'amount',
@@ -63,6 +64,15 @@ class MlmCommission extends BaseModel
     public function level(): BelongsTo
     {
         return $this->belongsTo(MlmLevel::class, 'level_id');
+    }
+
+    /**
+     * The package whose settings produced this leg, when there was one.
+     * Non-null here means `percentage` may legitimately be null.
+     */
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'package_id');
     }
 
     public function cycleLevelSnapshot(): BelongsTo

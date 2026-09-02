@@ -25,8 +25,7 @@ class MlmNotificationService
     public function __construct(
         protected HierarchyService $hierarchyService,
         protected LevelService $levelService,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  Collection<int, User>|array<int, User>  $recipients
@@ -426,7 +425,11 @@ class MlmNotificationService
             'amount' => $amountDisplay,
             'currency_code' => $code,
             'currency_symbol' => $symbol,
-            'percentage' => number_format((float) $commission->percentage, 2),
+            // Left null for fixed-fee package legs: "0.00" is a truthy string,
+            // so formatting it here would print a bogus "Percentage: 0.00%" row.
+            'percentage' => $commission->percentage !== null
+                ? number_format((float) $commission->percentage, 2)
+                : null,
             'deal_name' => $commission->deal?->name ?? '',
             'deal_id' => $commission->deal_id,
             'level_name' => $commission->level?->name,

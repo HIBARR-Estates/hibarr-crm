@@ -2,43 +2,46 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CycleStatus;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Enums\MlmMetric;
-use App\Enums\CycleDurationType;
-use App\Enums\CycleStatus;
 use App\Models\AgentCycleEnrollment;
-use App\Models\AgentHierarchy;
 use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycle;
-use App\Models\MlmSetting;
 use App\Models\MlmLevel;
 use App\Models\MlmLevelCriterion;
-use App\Services\CycleService;
+use App\Models\MlmSetting;
+use App\Services\AgentCommissionProfileService;
 use App\Services\CycleLevelSnapshotService;
+use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
-use App\Services\AgentCommissionProfileService;
 use App\Services\MlmCommissionService;
 use App\Services\MlmNotificationService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class MlmAdminApiController extends AccountBaseController
 {
     protected HierarchyService $hierarchyService;
+
     protected LevelService $levelService;
+
     protected MlmCommissionService $commissionService;
+
     protected CycleService $cycleService;
+
     protected CycleLevelSnapshotService $snapshotService;
+
     protected AgentCommissionProfileService $commissionProfileService;
+
     protected MlmNotificationService $mlmNotifications;
 
     public function __construct(
@@ -60,7 +63,7 @@ class MlmAdminApiController extends AccountBaseController
         $this->mlmNotifications = $mlmNotifications;
 
         $this->middleware(function ($request, $next) {
-            abort_403(!\App\Support\PermissionGates::canManagePartnerNetwork(user()));
+            abort_403(! \App\Support\PermissionGates::canManagePartnerNetwork(user()));
 
             return $next($request);
         });
@@ -294,7 +297,7 @@ class MlmAdminApiController extends AccountBaseController
         $validated = $request->validate([
             'mlm_level_id' => 'required|integer|exists:mlm_levels,id',
             'logic_group' => 'required|integer|min:1',
-            'metric' => 'required|string|in:' . implode(',', MlmMetric::toArray()),
+            'metric' => 'required|string|in:'.implode(',', MlmMetric::toArray()),
             'operator' => 'required|string|in:>=,>,<=,<,=',
             'threshold' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:500',
@@ -323,7 +326,7 @@ class MlmAdminApiController extends AccountBaseController
 
         $validated = $request->validate([
             'logic_group' => 'sometimes|integer|min:1',
-            'metric' => 'sometimes|string|in:' . implode(',', MlmMetric::toArray()),
+            'metric' => 'sometimes|string|in:'.implode(',', MlmMetric::toArray()),
             'operator' => 'sometimes|string|in:>=,>,<=,<,=',
             'threshold' => 'sometimes|numeric|min:0',
             'description' => 'nullable|string|max:500',
@@ -388,7 +391,7 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->input('date_to') . ' 23:59:59');
+            $query->where('created_at', '<=', $request->input('date_to').' 23:59:59');
         }
 
         $perPage = min($request->input('per_page', 15), 100);
@@ -522,12 +525,13 @@ class MlmAdminApiController extends AccountBaseController
 
         foreach ($commissions as $c) {
             $csv .= sprintf(
-                '"%s","%s","%s","%s","%.2f%%","%.2f","%s","%s","%s"' . "\n",
+                '"%s","%s","%s","%s","%s","%.2f","%s","%s","%s"'."\n",
                 $c->deal?->name ?? '',
                 $c->sourceAgent?->user?->name ?? '',
                 $c->agent?->user?->name ?? '',
                 $c->level?->name ?? 'System',
-                $c->percentage,
+                // Fixed-fee package legs have no percentage; an empty cell beats "0.00%".
+                $c->percentage !== null ? number_format((float) $c->percentage, 2).'%' : '',
                 $c->amount,
                 $c->type->value ?? $c->type,
                 $c->status->value ?? $c->status,
@@ -537,7 +541,7 @@ class MlmAdminApiController extends AccountBaseController
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="commissions_export_' . now()->format('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="commissions_export_'.now()->format('Y-m-d').'.csv"',
         ]);
     }
 
@@ -624,7 +628,7 @@ class MlmAdminApiController extends AccountBaseController
 
     public function getAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (!FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
             abort(404);
         }
 
@@ -638,7 +642,7 @@ class MlmAdminApiController extends AccountBaseController
 
     public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (!FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
             abort(404);
         }
 
@@ -654,7 +658,7 @@ class MlmAdminApiController extends AccountBaseController
             $validated
         );
 
-        if (!empty($result['errors'])) {
+        if (! empty($result['errors'])) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Commission rate validation failed.',
@@ -696,7 +700,7 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         if ($request->filled('date_to')) {
-            $query->where('assigned_at', '<=', $request->input('date_to') . ' 23:59:59');
+            $query->where('assigned_at', '<=', $request->input('date_to').' 23:59:59');
         }
 
         $perPage = min($request->input('per_page', 15), 100);
@@ -887,10 +891,14 @@ class MlmAdminApiController extends AccountBaseController
             $ancestors = $this->hierarchyService->getAncestorsWithLevels($agent);
 
             foreach ($ancestors as $ancestor) {
-                if ($cumulativePct >= $maxCommission) break;
+                if ($cumulativePct >= $maxCommission) {
+                    break;
+                }
 
                 $ancestorLevel = $ancestor->currentLevelHistory?->level;
-                if (!$ancestorLevel) continue;
+                if (! $ancestorLevel) {
+                    continue;
+                }
 
                 $ancestorPct = (float) $ancestorLevel->commission_percentage;
                 if ($ancestorPct > $cumulativePct) {
@@ -1035,7 +1043,6 @@ class MlmAdminApiController extends AccountBaseController
             $status = 'completed';
         }
 
-
         $cycle = MlmCycle::create([
             'company_id' => $companyId,
             'cycle_number' => $lastNumber + 1,
@@ -1103,7 +1110,7 @@ class MlmAdminApiController extends AccountBaseController
             'start_date' => $startDate,
             'end_date' => $endDate,
             'max_overflow_multiplier' => $validated['max_overflow_multiplier'] ?? null,
-        ], fn($v) => $v !== null));
+        ], fn ($v) => $v !== null));
 
         return response()->json([
             'status' => 'success',
@@ -1208,7 +1215,7 @@ class MlmAdminApiController extends AccountBaseController
         $enrollment = AgentCycleEnrollment::where('cycle_id', $cycle->id)
             ->findOrFail($enrollmentId);
 
-        if (!$enrollment->status->isReceivingMetrics()) {
+        if (! $enrollment->status->isReceivingMetrics()) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'This enrollment is not currently active or extended.',

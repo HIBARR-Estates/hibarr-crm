@@ -13,6 +13,7 @@ import {
     Col,
     Statistic,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -67,6 +68,10 @@ const MlmCommissionLedger: React.FC<Props> = ({
     summaryStats,
 }) => {
     const { t } = useTranslation();
+    // Commissions are denominated in the app's currency (deal, falling back to
+    // company) — never a hardcoded symbol, never the package's price currency.
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as { default_currency_symbol?: string };
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
     const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -184,11 +189,21 @@ const MlmCommissionLedger: React.FC<Props> = ({
             render: (_: any, record: MlmCommission) => (
                 <div className="text-right">
                     <div className="font-semibold text-green-600">
-                        ${formatNumber(record.amount)}
+                        {currencySymbol}
+                        {formatNumber(record.amount)}
                     </div>
-                    <div className="text-xs text-gray-500">
-                        {record.percentage}%
-                    </div>
+                    {record.percentage !== null &&
+                    record.percentage !== undefined ? (
+                        <div className="text-xs text-gray-500">
+                            {record.percentage}%
+                        </div>
+                    ) : (
+                        // Fixed-fee package leg: show the money, not a fake 0%.
+                        <div className="text-xs text-gray-500">
+                            {currencySymbol}
+                            {formatNumber(record.amount)}
+                        </div>
+                    )}
                 </div>
             ),
         },
