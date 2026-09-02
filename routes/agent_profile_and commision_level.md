@@ -199,7 +199,8 @@ Sets a single unified custom commission rate. Internally, CRM writes the same va
 ```json
 {
     "custom_commission_rate": 4.0,
-    "reason": "OL adjustment"
+    "reason": "OL adjustment",
+    "changed_by_user_id": 123
 }
 ```
 
@@ -207,6 +208,7 @@ Sets a single unified custom commission rate. Internally, CRM writes the same va
 | ------------------------ | -------------- | ----------------------------- | --------------------------------------------------------------------------- |
 | `custom_commission_rate` | number \| null | **Yes** (key must be present) | `0`–`100` at request validation; further bounded by agent level (see below) |
 | `reason`                 | string         | No                            | Max 1000 chars; stored in audit log                                         |
+| `changed_by_user_id`     | integer \| null | No                           | CRM `users.id` in the same company. Omitted or `null` = system/OL origin    |
 
 **Clear override:** send `"custom_commission_rate": null`.
 
@@ -270,13 +272,34 @@ Example: Bronze (rank 1, 2%) with Silver (rank 2, 5%) above it → `max_ceiling`
 
 | Status | When                                                        |
 | ------ | ----------------------------------------------------------- |
+**422 — invalid actor**
+
+```json
+{
+    "message": "Request could not be validated",
+    "error": {
+        "message": "Request could not be validated",
+        "code": 422,
+        "details": {
+            "changed_by_user_id": [
+                "The selected changed by user id is invalid."
+            ]
+        }
+    }
+}
+```
+
+| Status | When                                                        |
+| ------ | ----------------------------------------------------------- |
 | `404`  | Feature flag off, or agent not found                        |
-| `422`  | Rate out of bounds, or missing `custom_commission_rate` key |
+| `422`  | Rate out of bounds, missing `custom_commission_rate` key, or invalid `changed_by_user_id` |
 
 #### Audit behavior
 
 - Every rate change creates an immutable row in `agent_commission_rate_audit_logs`.
-- Internal API calls set `changed_by_user_id` to `null` (system/OL origin).
+- When `changed_by_user_id` is sent and belongs to the company, it is stored on the audit row and returned as `changed_by_user` (`id`, `name`).
+- When omitted or `null`, `changed_by_user_id` / `changed_by_user` stay `null` (system/OL origin).
+- A user id that does not exist, or belongs to another company, is rejected with **422**.
 - No-op updates (same rate) do not create a new audit entry.
 
 ---
@@ -290,10 +313,18 @@ Direct level assignment for OL bulk promotion. Does **not** run auto-evaluation 
 #### Request body
 
 ```json
-{ "levelId": 123 }
+{
+    "levelId": 123,
+    "changed_by_user_id": 123
+}
 ```
 
 `level_id` is also accepted for backward compatibility. One of `levelId` or `level_id` is required.
+
+| Field                | Type            | Required | Rules                                                                                    |
+| -------------------- | --------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `levelId` / `level_id` | integer       | **Yes** (one of) | Target `mlm_levels.id` for the company                                              |
+| `changed_by_user_id` | integer \| null | No       | CRM `users.id` in the same company. Omitted or `null` = system/OL origin (`assigned_by`) |
 
 #### Success (200)
 
@@ -348,6 +379,7 @@ Examples:
 #### Behavior notes
 
 - Creates a new `agent_level_history` row with `system_assigned = false`.
+- `changed_by_user_id` is stored as `assigned_by` on that history row (and on the custom-rate-cleared audit entry when a promotion clears overrides).
 - Does **not** trigger `LevelService::evaluate()` (no auto-promotion side effects from this call).
 - **Promotion side effect:** when assigning a **higher rank** and `sales.per-agent-commission-override` is enabled, any existing `custom_direct_rate` / `custom_override_rate` are cleared automatically, with an audit log reason `"Custom rates cleared on level promotion"`.
 - Demotion or same-rank assignment does **not** clear custom rates.
@@ -406,7 +438,7 @@ curl -s -X PATCH "{CRM_BASE_URL}/api/v1/internal/agents/42/level" \
   -H "X-API-TOKEN: <token>" \
   -H "X-COMPANY-ID: 1" \
   -H "Content-Type: application/json" \
-  -d '{"levelId": 3}'
+  -d '{"levelId": 3, "changed_by_user_id": 123}'
 ```
 
 ### Get commission profile
@@ -425,7 +457,7 @@ curl -s -X PATCH "{CRM_BASE_URL}/api/v1/internal/agents/42/commission-profile" \
   -H "X-API-TOKEN: <token>" \
   -H "X-COMPANY-ID: 1" \
   -H "Content-Type: application/json" \
-  -d '{"custom_commission_rate": 4.5, "reason": "OL bulk adjustment"}'
+  -d '{"custom_commission_rate": 4.5, "reason": "OL bulk adjustment", "changed_by_user_id": 123}'
 ```
 
 ### Clear custom commission rate
@@ -452,3 +484,4 @@ curl -s -X PATCH "{CRM_BASE_URL}/api/v1/internal/agents/42/commission-profile" \
 | Rate above ceiling                            | `422`                   | Re-read profile bounds and retry with valid rate |
 | Missing `levelId`                             | `422`                   | Fix request payload                              |
 | Missing `custom_commission_rate` key on PATCH | `422`                   | Include key (use `null` to clear)                |
+| `changed_by_user_id` unknown / other company  | `422`                   | Send a CRM `users.id` for this company, or omit  |
