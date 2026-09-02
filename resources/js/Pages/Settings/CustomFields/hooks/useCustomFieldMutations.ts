@@ -47,6 +47,7 @@ export default function useCustomFieldMutations({ setFields }: Options) {
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const reorderRequestRef = useRef(0);
+    const reorderChainRef = useRef<Promise<void>>(Promise.resolve());
 
     const createField = useCallback(
         async (draft: FieldDraft): Promise<SettingsField | null> => {
@@ -150,22 +151,32 @@ export default function useCustomFieldMutations({ setFields }: Options) {
                 next.splice(firstIndex, 0, ...reordered);
                 return next;
             });
-            try {
-                const res = await axios.post(
-                    route("custom-fields.sort-fields"),
-                    { sortedValues: orderedIds },
-                    { headers: { Accept: "application/json" } },
-                );
-                if (res.data?.status === "success") {
-                    message.success(td("Field order updated", { source: "en" }));
-                } else {
+            // Chain persistence so requests hit the server in submission order
+            // and never overlap in flight — the server applies orders as it
+            // receives them with no revision check, so two concurrent
+            // requests could otherwise land out of order and let a stale
+            // drag overwrite a newer one. If a later reorder was already
+            // queued by the time this one's turn comes up, skip sending it:
+            // that queued request carries the full (newer) order anyway.
+            reorderChainRef.current = reorderChainRef.current.then(async () => {
+                if (reorderRequestRef.current !== requestId) return;
+                try {
+                    const res = await axios.post(
+                        route("custom-fields.sort-fields"),
+                        { sortedValues: orderedIds },
+                        { headers: { Accept: "application/json" } },
+                    );
+                    if (res.data?.status === "success") {
+                        message.success(td("Field order updated", { source: "en" }));
+                    } else {
+                        if (reorderRequestRef.current === requestId) setFields(snapshot);
+                        message.error(res.data?.message || t("messages.somethingWentWrong"));
+                    }
+                } catch (error: any) {
                     if (reorderRequestRef.current === requestId) setFields(snapshot);
-                    message.error(res.data?.message || t("messages.somethingWentWrong"));
+                    message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
                 }
-            } catch (error: any) {
-                if (reorderRequestRef.current === requestId) setFields(snapshot);
-                message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
-            }
+            });
         },
         [setFields, t, td],
     );
