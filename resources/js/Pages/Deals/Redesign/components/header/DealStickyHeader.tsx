@@ -334,8 +334,6 @@ export default function DealStickyHeader({
                             dealId={deal.id}
                             agent={team.agent}
                             canEdit={dealPermissions.canEdit}
-                            isWatcherOnly={dealPermissions.isWatcherOnly}
-                            onManageTeam={() => team.setTeamModalOpen(true)}
                         />
                     </div>
                 </div>
