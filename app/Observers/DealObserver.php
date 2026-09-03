@@ -629,6 +629,14 @@ class DealObserver
     {
         UniversalSearch::where('searchable_id', $deal->id)->where('module_type', 'lead')->delete();
 
+        // custom_fields_data.model_id has no FK, so nothing cascades on its
+        // own. Deal has no soft-deletes, so this is a hard delete and
+        // there's no "restore" path to preserve them for.
+        \Illuminate\Support\Facades\DB::table('custom_fields_data')
+            ->where('model', Deal::CUSTOM_FIELD_MODEL)
+            ->where('model_id', $deal->id)
+            ->delete();
+
         if (user()) {
             self::createEmployeeActivity(user()->id, 'deal-deleted');
         }

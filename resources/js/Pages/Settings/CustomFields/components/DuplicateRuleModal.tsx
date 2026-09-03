@@ -6,7 +6,6 @@ import Button from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { ShowRuleSet } from "@/Types";
 import { normalizeRuleSet, ruleSummary } from "../adapters/ruleSummary";
 import { fieldHasRule, SettingsField } from "../types";
 
@@ -17,8 +16,8 @@ interface Props {
     /** All fields on the page — filtered down to the source field's module. */
     availableFields: SettingsField[];
     onClose: () => void;
-    /** Called once per field the rule was successfully applied to. */
-    onDuplicated: (fieldId: number, ruleSet: ShowRuleSet) => void;
+    /** Called once per field the rule was successfully applied to, with that field's full fresh snapshot. */
+    onDuplicated: (field: SettingsField) => void;
 }
 
 /** Builds the same `rule_set` payload shape CustomFieldRuleBuilder's handleSave sends. */
@@ -75,17 +74,17 @@ export default function DuplicateRuleModal({ open, sourceField, availableFields,
                 axios
                     .post(route("custom-fields.save-rule-set", id), { rule_set: payload }, { headers: { Accept: "application/json" } })
                     .then((res) => {
-                        if (!res.data?.rule_set) throw new Error(res.data?.message || t("messages.somethingWentWrong"));
-                        return { id, ruleSet: res.data.rule_set as ShowRuleSet };
+                        if (!res.data?.field) throw new Error(res.data?.message || t("messages.somethingWentWrong"));
+                        return res.data.field as SettingsField;
                     }),
             ),
         );
         setSaving(false);
 
-        const succeeded = results.filter((r): r is PromiseFulfilledResult<{ id: number; ruleSet: ShowRuleSet }> => r.status === "fulfilled");
+        const succeeded = results.filter((r): r is PromiseFulfilledResult<SettingsField> => r.status === "fulfilled");
         const failedCount = results.length - succeeded.length;
 
-        succeeded.forEach((r) => onDuplicated(r.value.id, r.value.ruleSet));
+        succeeded.forEach((r) => onDuplicated(r.value));
 
         if (succeeded.length > 0) {
             message.success(

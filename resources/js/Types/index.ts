@@ -773,7 +773,9 @@ export interface ShowRuleGroup {
 export interface ShowCriterion {
     id: number;
     group_id: number;
-    reference_field_id: number;
+    /** What this criterion reads. Defaults to 'custom_field' for legacy rows. */
+    reference_source?: "custom_field" | "pipeline" | "pipeline_stage" | "deal_package" | "record";
+    reference_field_id: number | null;
     operator:
         | "equals"
         | "exists"

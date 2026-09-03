@@ -10,6 +10,7 @@ import {
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyDateTime, formatCompanyTime } from "@/lib/companyDateTime";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
 import {
     formatCountryForDisplay,
@@ -60,14 +61,45 @@ interface ParsedCurrency {
     currency: string;
 }
 
+const DEFAULT_CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+};
+
+/** A currency's symbol from the company's currency list (matched by code or name), falling back to a small built-in map. */
+function resolveCurrencySymbol(
+    code: string,
+    currencies: Array<{
+        currency_code?: string;
+        currency_name?: string;
+        currency_symbol?: string;
+    }>,
+): string {
+    let symbol = DEFAULT_CURRENCY_SYMBOLS[code] ?? "";
+    if (currencies.length > 0 && code) {
+        const match = currencies.find(
+            (c) =>
+                c.currency_code === code ||
+                (c.currency_name &&
+                    String(c.currency_name).toUpperCase() === code.toUpperCase()),
+        );
+        symbol = match?.currency_symbol ?? symbol;
+    }
+    return symbol;
+}
+
 /**
  * Parses a stored currency value into { amount, currency }.
  * Supports: number, "CODE|amount" (e.g. USD|1200), JSON string, object with amount/currency.
  */
-function parseCurrencyValue(value: unknown): ParsedCurrency | null {
+function parseCurrencyValue(
+    value: unknown,
+    defaultCurrency: string = DEFAULT_CURRENCY_CODE,
+): ParsedCurrency | null {
     if (value == null || value === "") return null;
     if (typeof value === "number" && Number.isFinite(value)) {
-        return { amount: value, currency: DEFAULT_CURRENCY_CODE };
+        return { amount: value, currency: defaultCurrency };
     }
     if (typeof value === "string") {
         const trimmed = value.trim();
@@ -81,11 +113,11 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
         }
         const num = parseFloat(trimmed.replace(/,/g, ""));
         if (Number.isFinite(num))
-            return { amount: num, currency: DEFAULT_CURRENCY_CODE };
+            return { amount: num, currency: defaultCurrency };
         try {
             const parsed = JSON.parse(trimmed) as unknown;
             if (typeof parsed === "number")
-                return { amount: parsed, currency: DEFAULT_CURRENCY_CODE };
+                return { amount: parsed, currency: defaultCurrency };
             if (parsed && typeof parsed === "object" && "amount" in parsed) {
                 const amount =
                     typeof (parsed as { amount: unknown }).amount === "number"
@@ -97,7 +129,7 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
                           );
                 const currency = String(
                     (parsed as { currency?: string }).currency ||
-                        DEFAULT_CURRENCY_CODE,
+                        defaultCurrency,
                 );
                 return Number.isFinite(amount) ? { amount, currency } : null;
             }
@@ -111,7 +143,7 @@ function parseCurrencyValue(value: unknown): ParsedCurrency | null {
             typeof obj.amount === "number"
                 ? obj.amount
                 : parseFloat(String(obj.amount ?? 0).replace(/,/g, ""));
-        const currency = obj.currency || DEFAULT_CURRENCY_CODE;
+        const currency = obj.currency || defaultCurrency;
         return Number.isFinite(amount) ? { amount, currency } : null;
     }
     return null;
@@ -172,6 +204,36 @@ function getRepeatableSchemaMap(
         if (s?.key) map[s.key] = s.type || "text";
     });
     return map;
+}
+
+/** A select/radio/multiselect/checkbox field's `values` arrives either already-parsed or as a JSON string — normalize to the parsed shape (array or object), leaving a genuinely non-JSON string as-is. */
+function parseFieldValuesRaw(values: unknown): unknown {
+    if (typeof values !== "string") return values;
+    try {
+        return JSON.parse(values);
+    } catch {
+        return values;
+    }
+}
+
+/** Options list (array-of-strings, array-of-{key,label}, or a plain {key: label} object) normalized to {label, value} pairs — the shape EditableField/DealBadge rendering expects. */
+function toSelectOptions(
+    valuesObj: unknown,
+): { label: string; value: string | number }[] {
+    if (!valuesObj) return [];
+    if (Array.isArray(valuesObj)) {
+        return (
+            valuesObj as Array<string | { key: string; label: string }>
+        ).map((v) =>
+            typeof v === "string" ? { label: v, value: v } : { label: v.label, value: v.key },
+        );
+    }
+    if (typeof valuesObj === "object") {
+        return Object.entries(valuesObj as Record<string, string>).map(
+            ([k, v]) => ({ label: v, value: k }),
+        );
+    }
+    return [];
 }
 
 // Helper to parse file value - can be single file string, comma-separated, or JSON array
@@ -535,6 +597,8 @@ interface Props {
     activateOnSingleClick?: boolean;
     /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
     visibleFieldKeys?: string[] | null;
+    /** The record (Deal/Lead/...) these fields belong to — backs a `record`-source visibility rule ("restrict to specific record(s)"). */
+    recordId?: number | string | null;
     /** Switch the 2-column breakpoint from a viewport media query to a
      * container query (nearest ancestor with @container), so the grid
      * responds to this component's own rendered width rather than the
@@ -570,6 +634,7 @@ export default function CustomFieldDisplay({
     visibleFieldKeys,
     useContainerQuery = false,
     bare = false,
+    recordId,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
@@ -606,27 +671,12 @@ export default function CustomFieldDisplay({
         currencies?.[0]?.currency_code ??
         "USD";
 
-    const defaultSymbols: Record<string, string> = {
-        USD: "$",
-        EUR: "€",
-        GBP: "£",
-    };
     const formatCurrencyAsNode = (
         amount: number,
         currencyCode: string,
     ): React.ReactNode => {
         const code = currencyCode || appDefaultCurrency;
-        let symbol = defaultSymbols[code] ?? "";
-        if (currencies.length > 0 && code) {
-            const c = currencies.find(
-                (x: any) =>
-                    x.currency_code === code ||
-                    (x.currency_name &&
-                        String(x.currency_name).toUpperCase() ===
-                            code.toUpperCase()),
-            );
-            symbol = c?.currency_symbol ?? symbol;
-        }
+        const symbol = resolveCurrencySymbol(code, currencies);
         const formatted = Number.isFinite(amount)
             ? amount.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
@@ -655,34 +705,12 @@ export default function CustomFieldDisplay({
     }
 
     // Apply visibility rules if customFieldsData is provided
-    // Convert customFieldsData to the format expected by visibility evaluator
-    const fieldValuesForVisibility: Record<string, any> = {};
-    if (customFieldsData) {
-        Object.keys(customFieldsData).forEach((key) => {
-            // Ensure keys are in format "field_47"
-            const normalizedKey = key.startsWith("field_")
-                ? key
-                : `field_${key}`;
-            let fieldValue = customFieldsData[key];
-
-            // multiSelectCountry / checkbox / multiselect are stored as JSON
-            // arrays (legacy checkbox used comma-separated); normalize so
-            // visibility rules that check array membership evaluate against a real array.
-            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
-            const matchingField = fields.find((f) => {
-                const fId = typeof f.id === "string" ? parseInt(f.id) : f.id;
-                return fId === fieldId;
-            });
-            if (
-                matchingField &&
-                hasMultiSelectOptions(matchingField)
-            ) {
-                fieldValue = parseMultiSelectStoredValue(fieldValue);
-            }
-
-            fieldValuesForVisibility[normalizedKey] = fieldValue;
-        });
-    }
+    const fieldValuesForVisibility = buildFieldValueMap({
+        customFieldsData,
+        fields,
+        normalizeMultiSelect: true,
+        context: recordId !== undefined ? { recordId } : undefined,
+    });
     // Live edits (bulk edit mode, not yet saved) take priority over the
     // persisted value so visibility reacts immediately — see liveValues above.
     Object.assign(fieldValuesForVisibility, liveValues);
@@ -776,12 +804,7 @@ export default function CustomFieldDisplay({
             case "select":
             case "radio":
                 // Parse values - can be JSON string array or object
-                let selectValues = field.values;
-                if (typeof selectValues === "string") {
-                    try {
-                        selectValues = JSON.parse(selectValues);
-                    } catch (e) {}
-                }
+                const selectValues = parseFieldValuesRaw(field.values);
 
                 let selectLabel = value;
                 // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
@@ -807,12 +830,7 @@ export default function CustomFieldDisplay({
                 const selected = parseMultiSelectStoredValue(value);
                 if (selected.length > 0) {
                     // Parse option labels - can be JSON string array or object
-                    let multiValues = field.values;
-                    if (typeof multiValues === "string") {
-                        try {
-                            multiValues = JSON.parse(multiValues);
-                        } catch (e) {}
-                    }
+                    const multiValues = parseFieldValuesRaw(field.values);
 
                     return (
                         <div className="flex flex-wrap gap-1.5">
@@ -1220,117 +1238,10 @@ export default function CustomFieldDisplay({
             }
 
             case "currency": {
-                let currencyData: {
-                    amount: string | number | null;
-                    currency: string;
-                } | null = null;
-
-                // Handle plain numbers (most common case from DB)
-                if (typeof value === "number") {
-                    currencyData = {
-                        amount: value,
-                        currency: appDefaultCurrency,
-                    };
-                }
-                // Handle string numbers (e.g., "3235242")
-                else if (
-                    typeof value === "string" &&
-                    !isNaN(Number(value)) &&
-                    value.trim() !== ""
-                ) {
-                    const numValue = Number(value);
-                    if (!isNaN(numValue)) {
-                        currencyData = {
-                            amount: numValue,
-                            currency: appDefaultCurrency,
-                        };
-                    }
-                }
-                // Handle objects with amount property
-                else if (
-                    value &&
-                    typeof value === "object" &&
-                    value.amount !== undefined
-                ) {
-                    currencyData = value;
-                }
-                // Handle JSON strings
-                else if (value && typeof value === "string") {
-                    try {
-                        const parsed = JSON.parse(value);
-                        // If JSON.parse returns a number, treat it as amount
-                        if (typeof parsed === "number") {
-                            currencyData = {
-                                amount: parsed,
-                                currency: appDefaultCurrency,
-                            };
-                        } else if (
-                            typeof parsed === "object" &&
-                            parsed !== null
-                        ) {
-                            currencyData = parsed;
-                        }
-                    } catch {
-                        currencyData = {
-                            amount: value,
-                            currency: appDefaultCurrency,
-                        };
-                    }
-                }
-
-                // Ensure currencyData has a currency property with a default
-                if (currencyData) {
-                    currencyData.currency =
-                        currencyData.currency || appDefaultCurrency;
-                }
-
-                if (
-                    currencyData &&
-                    currencyData.amount !== null &&
-                    currencyData.amount !== ""
-                ) {
-                    const defaultSymbols: Record<string, string> = {
-                        USD: "$",
-                        EUR: "€",
-                        GBP: "£",
-                    };
-
-                    const currencyCode =
-                        currencyData.currency || appDefaultCurrency;
-                    let symbol = defaultSymbols[currencyCode] || "";
-                    if (currencies.length > 0 && currencyCode) {
-                        const currency = currencies.find(
-                            (c: any) =>
-                                c.currency_code === currencyCode ||
-                                (c.currency_name &&
-                                    c.currency_name.toUpperCase() ===
-                                        currencyCode.toUpperCase()),
-                        );
-                        symbol = currency?.currency_symbol || symbol;
-                    }
-
-                    // Format amount with commas
-                    const amount =
-                        typeof currencyData.amount === "number"
-                            ? currencyData.amount
-                            : parseFloat(
-                                  String(currencyData.amount).replace(/,/g, ""),
-                              );
-
-                    if (!isNaN(amount)) {
-                        const formatted = amount.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                        });
-                        return (
-                            <span className="font-medium">
-                                {symbol}
-                                {formatted}
-                            </span>
-                        );
-                    }
-                }
-                return <span className={notSetClassName}>{notSetLabel}</span>;
+                const parsed = parseCurrencyValue(value, appDefaultCurrency);
+                return parsed && Number.isFinite(parsed.amount)
+                    ? formatCurrencyAsNode(parsed.amount, parsed.currency)
+                    : <span className={notSetClassName}>{notSetLabel}</span>;
             }
 
             case "range": {
@@ -1360,20 +1271,7 @@ export default function CustomFieldDisplay({
                         <span className={notSetClassName}>{notSetLabel}</span>
                     );
                 }
-                const defaultSymbols: Record<string, string> = {
-                    USD: "$",
-                    EUR: "€",
-                    GBP: "£",
-                };
-                const symbol =
-                    currencies.find(
-                        (c: any) =>
-                            c.currency_code === parsed.currency ||
-                            c.currency_name?.toUpperCase() ===
-                                parsed.currency.toUpperCase(),
-                    )?.currency_symbol ??
-                    defaultSymbols[parsed.currency] ??
-                    "";
+                const symbol = resolveCurrencySymbol(parsed.currency, currencies);
                 const fmt = (n: number | null) =>
                     n == null ? "?" : `${symbol}${n.toLocaleString()}`;
                 return (
@@ -1450,77 +1348,28 @@ export default function CustomFieldDisplay({
             case "select":
             case "radio":
                 type = "select";
-                let valuesObj = field.values;
-                if (typeof valuesObj === "string") {
-                    try {
-                        valuesObj = JSON.parse(valuesObj);
-                    } catch (e) {}
-                }
-                if (valuesObj) {
-                    // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
-                    if (Array.isArray(valuesObj)) {
-                        options = valuesObj.map(
-                            (
-                                v:
-                                    | string
-                                    | {
-                                          key: string;
-                                          type: string;
-                                          label: string;
-                                      },
-                            ) =>
-                                typeof v === "string"
-                                    ? { label: v, value: v }
-                                    : { label: v.label, value: v.key },
-                        );
-                    } else {
-                        options = Object.entries(valuesObj).map(([k, v]) => ({
-                            label: v as string,
-                            value: k,
-                        }));
-                    }
-                }
+                options = toSelectOptions(parseFieldValuesRaw(field.values));
                 break;
             case "multiselect":
-            case "checkbox":
-                // Check if checkbox/multiselect has values (options)
-                let multiCheckboxValues = field.values;
-                if (typeof multiCheckboxValues === "string") {
-                    try {
-                        multiCheckboxValues = JSON.parse(multiCheckboxValues);
-                    } catch (e) {}
-                }
-                // If it has values array/object, it's a multi-select
-                if (
-                    multiCheckboxValues &&
-                    (Array.isArray(multiCheckboxValues)
-                        ? multiCheckboxValues.length > 0
-                        : Object.keys(multiCheckboxValues).length > 0)
-                ) {
+            case "checkbox": {
+                // Check if checkbox/multiselect has values (options) — if so
+                // it's a multi-select; with none, it's a simple boolean toggle.
+                const multiCheckboxValues = parseFieldValuesRaw(field.values);
+                const hasOptions = Array.isArray(multiCheckboxValues)
+                    ? multiCheckboxValues.length > 0
+                    : Boolean(
+                          multiCheckboxValues &&
+                              typeof multiCheckboxValues === "object" &&
+                              Object.keys(multiCheckboxValues).length > 0,
+                      );
+                if (hasOptions) {
                     type = "multiselect";
-                    if (Array.isArray(multiCheckboxValues)) {
-                        const arr = multiCheckboxValues as (
-                            | string
-                            | { key: string; type: string; label: string }
-                        )[];
-                        options = arr.map((v) =>
-                            typeof v === "string"
-                                ? { label: v, value: v }
-                                : { label: v.label, value: v.key },
-                        );
-                    } else {
-                        options = Object.entries(multiCheckboxValues).map(
-                            ([k, v]) => ({
-                                label: v as string,
-                                value: k,
-                            }),
-                        );
-                    }
+                    options = toSelectOptions(multiCheckboxValues);
                 } else {
-                    // No values means simple boolean checkbox
                     type = "boolean";
                 }
                 break;
+            }
             case "boolean":
                 type = "boolean";
                 break;

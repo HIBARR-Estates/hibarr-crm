@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import AnalysisFieldRow from "./center/AnalysisFieldRow";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -413,7 +414,10 @@ export default function AnalysisCustomFieldForm({
     }, [fields, categoryId]);
 
     const visibleFields = useMemo(() => {
-        const visibilityMap = evaluateAllFieldsVisibility(scopedFields, values);
+        const visibilityMap = evaluateAllFieldsVisibility(
+            scopedFields,
+            buildFieldValueMap({ customFieldsData: values }),
+        );
         return scopedFields.filter((f: any) => visibilityMap[f.id] !== false);
     }, [scopedFields, values]);
 
@@ -452,7 +456,10 @@ export function getCustomFieldCategoryProgress(
     const scoped = fields.filter(
         (f: any) => f.custom_field_category_id === categoryId && f.type !== "file",
     );
-    const visibilityMap = evaluateAllFieldsVisibility(scoped, values);
+    const visibilityMap = evaluateAllFieldsVisibility(
+        scoped,
+        buildFieldValueMap({ customFieldsData: values }),
+    );
     const visible = scoped.filter((f: any) => visibilityMap[f.id] !== false);
 
     const filled = visible.filter((f: any) => {

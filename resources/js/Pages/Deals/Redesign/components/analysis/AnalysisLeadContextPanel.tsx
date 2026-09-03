@@ -9,6 +9,7 @@ import {
 import AnalysisQuickNote from "./AnalysisQuickNote";
 import AnalysisCustomFieldRow from "./AnalysisCustomFieldRow";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -286,7 +287,11 @@ export default function AnalysisLeadContextPanel({
     }, [onLeadCustomFieldChange]);
 
     const visibilityMap = useMemo(
-        () => evaluateAllFieldsVisibility(regularCustomFields, leadCustomFieldsData),
+        () =>
+            evaluateAllFieldsVisibility(
+                regularCustomFields,
+                buildFieldValueMap({ customFieldsData: leadCustomFieldsData }),
+            ),
         [regularCustomFields, leadCustomFieldsData],
     );
 

@@ -1,4 +1,5 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { ANALYSIS_FIELD_META } from "../../config/analysisFieldMeta";
 import { formatDisplay, parseOptions } from "./AnalysisCustomFieldRow";
 import { isFieldFilled } from "./analysisProgress";
@@ -62,7 +63,10 @@ export function buildRailGroups(
                 (f: any) =>
                     f.custom_field_category_id === section.categoryId && f.type !== "file",
             );
-            const vis = evaluateAllFieldsVisibility(sectionFields, values);
+            const vis = evaluateAllFieldsVisibility(
+                sectionFields,
+                buildFieldValueMap({ customFieldsData: values }),
+            );
             for (const f of sectionFields) {
                 if (vis[f.id] === false) continue;
                 steps.push(fieldStep(f, section.id, values));

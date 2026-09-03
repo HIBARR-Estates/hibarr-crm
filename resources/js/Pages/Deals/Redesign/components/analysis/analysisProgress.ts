@@ -1,4 +1,5 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
 import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
 import type { AnalysisSection, AnalysisScriptItem } from "./types/analysisTypes";
@@ -106,7 +107,10 @@ export function computeAnalysisProgress(
     const allCustomFields = leadFields.length ? [...fields, ...leadFields] : fields;
     // One pass for every custom field the script might reference individually —
     // conditional fields must not count toward the denominator while hidden.
-    const customFieldVisibility = evaluateAllFieldsVisibility(allCustomFields, values);
+    const customFieldVisibility = evaluateAllFieldsVisibility(
+        allCustomFields,
+        buildFieldValueMap({ customFieldsData: values }),
+    );
     const customFieldById = new Map<number, any>(
         allCustomFields.map((f: any) => [Number(f.id), f]),
     );
@@ -125,7 +129,10 @@ export function computeAnalysisProgress(
             const sectionFields = fields.filter(
                 (f: any) => f.custom_field_category_id === section.categoryId && f.type !== "file",
             );
-            const visMap = evaluateAllFieldsVisibility(sectionFields, values);
+            const visMap = evaluateAllFieldsVisibility(
+                sectionFields,
+                buildFieldValueMap({ customFieldsData: values }),
+            );
             for (const f of sectionFields) {
                 if (visMap[f.id] !== false) {
                     counter++;

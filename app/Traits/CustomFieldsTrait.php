@@ -118,7 +118,7 @@ trait CustomFieldsTrait
                     \Log::warning('Failed to load custom field visibility rules in CustomFieldsTrait', [
                         'error' => $e->getMessage(),
                         'model' => $modelName,
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
                     ]);
 
                     // If tables don't exist yet, load without relationships
@@ -136,7 +136,7 @@ trait CustomFieldsTrait
 
     private static function customFieldGroupMemoKey(string $model, $companyId, bool $fields): string
     {
-        return 'custom-field-group.' . $model . '.' . ($companyId ?? 'none') . '.' . ($fields ? 'with-fields' : 'bare');
+        return 'custom-field-group.'.$model.'.'.($companyId ?? 'none').'.'.($fields ? 'with-fields' : 'bare');
     }
 
     /** Drop the memoised custom field values (call after writing them). */
@@ -355,7 +355,7 @@ trait CustomFieldsTrait
 
             if (! $customField) {
                 // Preserve findOrFail()'s exact exception (id not found at all).
-                throw (new \Illuminate\Database\Eloquent\ModelNotFoundException())
+                throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)
                     ->setModel(CustomField::class, [$id]);
             }
 

@@ -119,8 +119,13 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
         setRuleModalOpen(true);
     };
 
-    const handleRuleSaved = (fieldId: number, ruleSet: SettingsField["show_rule_set"]) => {
-        setFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, show_rule_set: ruleSet } : f)));
+    // custom-fields.save-rule-set returns the whole field freshly reloaded
+    // server-side (see saveRuleSet()'s doc comment) — replace the local copy
+    // wholesale rather than patching just show_rule_set, so this is always
+    // the one authoritative snapshot, never a merge with a possibly-stale
+    // separate field-save response.
+    const handleRuleSaved = (field: SettingsField) => {
+        setFields((prev) => prev.map((f) => (f.id === field.id ? field : f)));
     };
 
     const handleRemoveRule = async (field: SettingsField) => {
@@ -130,8 +135,8 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                 { rule_set: { enabled: false, default_visibility: true, group: { group_operator: "AND", criteria: [] } } },
                 { headers: { Accept: "application/json" } },
             );
-            if (res.data?.rule_set) {
-                handleRuleSaved(field.id, res.data.rule_set);
+            if (res.data?.field) {
+                handleRuleSaved(res.data.field);
                 message.success(td("Rule removed", { source: "en" }));
             } else {
                 message.error(res.data?.message || t("messages.somethingWentWrong"));
@@ -309,6 +314,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                     original ? fieldMutations.updateField(original.id, draft, original) : fieldMutations.createField(draft)
                 }
                 onOpenRuleBuilder={handleOpenRuleBuilder}
+                onRuleSetSaved={handleRuleSaved}
             />
 
             <CategoryModal

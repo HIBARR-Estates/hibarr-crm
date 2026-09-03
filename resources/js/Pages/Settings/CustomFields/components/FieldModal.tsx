@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
-import Switch from "@/Components/Redesign/primitives/Switch";
+import ToggleField from "@/Components/Redesign/primitives/ToggleField";
+import ChipToggle from "@/Components/Redesign/primitives/ChipToggle";
+import SectionLabel from "@/Components/Redesign/primitives/SectionLabel";
+import SettingsPanel from "@/Components/Redesign/primitives/SettingsPanel";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { message } from "antd";
+import usePipelineOptions from "@/lib/usePipelineOptions";
 import {
     FIELD_TYPE_LABELS,
     FieldDraft,
@@ -16,6 +22,7 @@ import {
     SettingsField,
     fieldHasRule,
 } from "../types";
+import { buildPipelineRuleSetPayload, extractPipelineIds, isSimplePipelineRule } from "../adapters/ruleSummary";
 
 const CREATABLE_TYPES = [
     "text",
@@ -43,6 +50,8 @@ interface Props {
     onClose: () => void;
     onSave: (draft: FieldDraft, original: SettingsField | null) => Promise<SettingsField | null>;
     onOpenRuleBuilder: (field: SettingsField) => void;
+    /** Replaces the field in the parent's local state with its full fresh snapshot after the simplified pipeline picker saves — this is Index.tsx's handleRuleSaved. */
+    onRuleSetSaved: (field: SettingsField) => void;
 }
 
 function emptyDraft(moduleId: number | null): FieldDraft {
@@ -56,6 +65,8 @@ function emptyDraft(moduleId: number | null): FieldDraft {
         export: false,
         display_order: 0,
         values: [""],
+        show_in_lead: false,
+        show_in_deal: true,
     };
 }
 
@@ -70,6 +81,8 @@ function draftFromField(field: SettingsField): FieldDraft {
         export: field.export,
         display_order: field.display_order,
         values: field.values.length ? [...field.values] : [""],
+        show_in_lead: field.show_in_lead,
+        show_in_deal: field.show_in_deal,
     };
 }
 
@@ -83,13 +96,21 @@ export default function FieldModal({
     onClose,
     onSave,
     onOpenRuleBuilder,
+    onRuleSetSaved,
 }: Props) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [draft, setDraft] = useState<FieldDraft>(() => emptyDraft(defaultModuleId));
+    // Only meaningful for a Lead-group FILE field whose current rule (if any)
+    // is exactly the shape this picker manages — see isSimplePipelineRule.
+    const [pipelineIds, setPipelineIds] = useState<number[]>([]);
+    const [savingPipelines, setSavingPipelines] = useState(false);
+    const pipelines = usePipelineOptions();
 
     useEffect(() => {
         if (!open) return;
         setDraft(editingField ? draftFromField(editingField) : emptyDraft(defaultModuleId));
+        setPipelineIds(editingField ? extractPipelineIds(editingField.show_rule_set) : []);
     }, [open, editingField, defaultModuleId]);
 
     const isEditing = !!editingField;
@@ -110,7 +131,24 @@ export default function FieldModal({
 
     const hasRule = editingField ? fieldHasRule(editingField) : false;
 
+    // The simplified picker only takes over a Lead FILE field, and only when
+    // its current rule (if any) is a rule that picker itself could have
+    // produced — a hand-built rule using another source, several groups, OR
+    // logic, negation, or a hide action keeps the generic "Edit visibility
+    // rule" link instead, so saving here can never silently discard it.
+    const moduleName = moduleGroups.find((g) => g.id === draft.module)?.name;
+    const isLeadFileField = draft.type === "file" && moduleName === "Lead";
+    const isDealFileField = draft.type === "file" && moduleName === "Deal";
+    const showPipelinePicker =
+        isLeadFileField &&
+        draft.show_in_deal &&
+        (!editingField || isSimplePipelineRule(editingField.show_rule_set));
+
     const patch = (partial: Partial<FieldDraft>) => setDraft((prev) => ({ ...prev, ...partial }));
+
+    const togglePipeline = (id: number) => {
+        setPipelineIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    };
 
     const handleSave = async () => {
         if (!draft.label.trim()) {
@@ -122,7 +160,38 @@ export default function FieldModal({
             return;
         }
         const saved = await onSave(draft, editingField);
-        if (saved) onClose();
+        if (!saved) return;
+
+        if (showPipelinePicker) {
+            const currentIds = extractPipelineIds(editingField?.show_rule_set);
+            const changed =
+                currentIds.length !== pipelineIds.length ||
+                !currentIds.every((id) => pipelineIds.includes(id));
+
+            if (changed) {
+                setSavingPipelines(true);
+                try {
+                    const res = await axios.post(
+                        route("custom-fields.save-rule-set", saved.id),
+                        { rule_set: buildPipelineRuleSetPayload(pipelineIds) },
+                        { headers: { Accept: "application/json" } },
+                    );
+                    if (res.data?.field) {
+                        onRuleSetSaved(res.data.field);
+                    } else {
+                        message.error(res.data?.message || t("messages.somethingWentWrong"));
+                        return;
+                    }
+                } catch (error: any) {
+                    message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
+                    return;
+                } finally {
+                    setSavingPipelines(false);
+                }
+            }
+        }
+
+        onClose();
     };
 
     return (
@@ -133,7 +202,7 @@ export default function FieldModal({
             dirty={draft.label.trim().length > 0}
             footer={
                 <div style={{ display: "flex", flex: "1 1 auto", alignItems: "center", justifyContent: "space-between" }}>
-                    {isEditing ? (
+                    {isEditing && !showPipelinePicker ? (
                         <button
                             type="button"
                             onClick={() => editingField && onOpenRuleBuilder(editingField)}
@@ -159,10 +228,15 @@ export default function FieldModal({
                         <span />
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <Button variant="ghost" onClick={onClose} disabled={saving}>
+                        <Button variant="ghost" onClick={onClose} disabled={saving || savingPipelines}>
                             {td("Cancel", { source: "en" })}
                         </Button>
-                        <Button variant="primary" onClick={handleSave} loading={saving} icon={<Icon name="check" size={15} />}>
+                        <Button
+                            variant="primary"
+                            onClick={handleSave}
+                            loading={saving || savingPipelines}
+                            icon={<Icon name="check" size={15} />}
+                        >
                             {isEditing ? td("Save changes", { source: "en" }) : td("Create field", { source: "en" })}
                         </Button>
                     </div>
@@ -221,10 +295,8 @@ export default function FieldModal({
             </div>
 
             {isOptionType && (
-                <div style={{ marginTop: 18, padding: 16, background: T.SURFACE_2, border: `1px solid ${T.BORDER_SOFT}`, borderRadius: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: T.TEXT_MUTED, marginBottom: 10 }}>
-                        {td("Options", { source: "en" })}
-                    </div>
+                <SettingsPanel>
+                    <SectionLabel>{td("Options", { source: "en" })}</SectionLabel>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {draft.values.map((value, index) => (
                             <div key={index} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -272,7 +344,61 @@ export default function FieldModal({
                         <Icon name="plus" size={15} />
                         {td("Add option", { source: "en" })}
                     </button>
-                </div>
+                </SettingsPanel>
+            )}
+
+            {isLeadFileField && (
+                <SettingsPanel stack>
+                    <ToggleField
+                        checked={draft.show_in_deal}
+                        onChange={() => patch({ show_in_deal: !draft.show_in_deal })}
+                        title={td("Show in Deal", { source: "en" })}
+                        description={td("Cross-populate this lead field onto a matching deal's own Files tab too, not just the lead's.", { source: "en" })}
+                    />
+
+                    {showPipelinePicker && (
+                        <div style={{ paddingTop: 14, borderTop: `1px solid ${T.BORDER_SOFT}` }}>
+                            <SectionLabel style={{ marginBottom: 4 }}>
+                                {td("Show for pipeline(s)", { source: "en" })}
+                            </SectionLabel>
+                            <p style={{ margin: "0 0 10px", fontSize: 12, color: T.TEXT_MUTED }}>
+                                {td(
+                                    "One slot per matching deal — on the deal itself, and once per such deal on the lead. Leave empty to cross-populate onto every deal on this lead.",
+                                    { source: "en" },
+                                )}
+                            </p>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                {pipelines.length === 0 ? (
+                                    <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>
+                                        {td("No pipelines found.", { source: "en" })}
+                                    </span>
+                                ) : (
+                                    pipelines.map((pipeline) => (
+                                        <ChipToggle
+                                            key={pipeline.id}
+                                            shape="pill"
+                                            active={pipelineIds.includes(pipeline.id)}
+                                            onClick={() => togglePipeline(pipeline.id)}
+                                        >
+                                            {pipeline.name}
+                                        </ChipToggle>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </SettingsPanel>
+            )}
+
+            {isDealFileField && (
+                <SettingsPanel>
+                    <ToggleField
+                        checked={draft.show_in_lead}
+                        onChange={() => patch({ show_in_lead: !draft.show_in_lead })}
+                        title={td("Show in Lead", { source: "en" })}
+                        description={td("Cross-populate this deal field onto its lead's Files tab too, grouped under that deal, not just the deal's own tab.", { source: "en" })}
+                    />
+                </SettingsPanel>
             )}
 
             {isRepeatable && (
@@ -286,32 +412,19 @@ export default function FieldModal({
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 18, alignItems: "start" }}>
                 <div>
-                    <div style={{ display: "block", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: T.TEXT_MUTED, marginBottom: 9 }}>
+                    <SectionLabel style={{ marginBottom: 9 }}>
                         {td("Required", { source: "en" })}
-                    </div>
+                    </SectionLabel>
                     <div style={{ display: "flex", gap: 8 }}>
-                        {(["yes", "no"] as const).map((option) => {
-                            const active = draft.required === option;
-                            return (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() => patch({ required: option })}
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        padding: "8px 18px",
-                                        borderRadius: 8,
-                                        cursor: "pointer",
-                                        border: `1px solid ${active ? T.BLUE : T.BORDER}`,
-                                        background: active ? T.BLUE_LIGHT : T.WHITE,
-                                        color: active ? T.BLUE_DARK : T.TEXT_MUTED,
-                                    }}
-                                >
-                                    {option === "yes" ? td("Yes", { source: "en" }) : td("No", { source: "en" })}
-                                </button>
-                            );
-                        })}
+                        {(["yes", "no"] as const).map((option) => (
+                            <ChipToggle
+                                key={option}
+                                active={draft.required === option}
+                                onClick={() => patch({ required: option })}
+                            >
+                                {option === "yes" ? td("Yes", { source: "en" }) : td("No", { source: "en" })}
+                            </ChipToggle>
+                        ))}
                     </div>
                 </div>
                 <ModalField label={td("Display order", { source: "en" })}>
@@ -326,28 +439,18 @@ export default function FieldModal({
             </div>
 
             <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14, paddingTop: 16, borderTop: `1px solid ${T.BORDER_SOFT}` }}>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 11, cursor: "pointer" }}>
-                    <Switch checked={draft.visible} onChange={() => patch({ visible: !draft.visible })} />
-                    <span>
-                        <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: T.TEXT }}>
-                            {td("Show in table", { source: "en" })}
-                        </span>
-                        <span style={{ display: "block", fontSize: 12, color: T.TEXT_MUTED, marginTop: 1 }}>
-                            {td("Display this field as a column in list views.", { source: "en" })}
-                        </span>
-                    </span>
-                </label>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 11, cursor: "pointer" }}>
-                    <Switch checked={draft.export} onChange={() => patch({ export: !draft.export })} />
-                    <span>
-                        <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: T.TEXT }}>
-                            {td("Include in exports", { source: "en" })}
-                        </span>
-                        <span style={{ display: "block", fontSize: 12, color: T.TEXT_MUTED, marginTop: 1 }}>
-                            {td("Add this field as a column when records are exported.", { source: "en" })}
-                        </span>
-                    </span>
-                </label>
+                <ToggleField
+                    checked={draft.visible}
+                    onChange={() => patch({ visible: !draft.visible })}
+                    title={td("Show in table", { source: "en" })}
+                    description={td("Display this field as a column in list views.", { source: "en" })}
+                />
+                <ToggleField
+                    checked={draft.export}
+                    onChange={() => patch({ export: !draft.export })}
+                    title={td("Include in exports", { source: "en" })}
+                    description={td("Add this field as a column when records are exported.", { source: "en" })}
+                />
             </div>
         </Modal>
     );

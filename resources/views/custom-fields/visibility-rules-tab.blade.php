@@ -170,16 +170,29 @@
                                 @endphp
                                 @if($group && $groupCriteria && $groupCriteria->count() > 0)
                                     @foreach($groupCriteria as $criterionIndex => $criterion)
-                                        <div class="criterion-item card mb-2" data-criterion-index="{{ $criterionIndex }}">
+                                        @php
+                                            $criterionSource = $criterion->reference_source ?? 'custom_field';
+                                        @endphp
+                                        <div class="criterion-item card mb-2" data-criterion-index="{{ $criterionIndex }}" data-reference-source="{{ $criterionSource }}">
                                             <div class="card-body">
+                                                @if($criterionSource !== 'custom_field')
+                                                    {{-- This legacy tab only has UI to edit custom_field criteria. A
+                                                         pipeline/pipeline_stage criterion (built in the newer React
+                                                         rule builder) is shown read-only here so saving this tab
+                                                         round-trips it unchanged instead of dropping or corrupting
+                                                         it into a broken custom_field criterion. --}}
+                                                    <div class="alert alert-secondary mb-2 py-1 px-2" style="font-size: 12px;">
+                                                        This criterion reads the deal's <strong>{{ $criterionSource === 'pipeline' ? 'pipeline' : 'pipeline stage' }}</strong> — edit it from the field's visibility rule builder, not here.
+                                                    </div>
+                                                @endif
                                                 <div class="row">
                                                     <div class="col-md-4">
                                                         <div class="form-group">
                                                             <label>Reference Field</label>
-                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8">
+                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
                                                                 <option value="">Select field...</option>
                                                                 @foreach($otherFields as $availableField)
-                                                                    <option value="{{ $availableField->id }}" 
+                                                                    <option value="{{ $availableField->id }}"
                                                                             {{ $criterion->reference_field_id == $availableField->id ? 'selected' : '' }}>
                                                                         {{ $availableField->label }} ({{ $availableField->type }})
                                                                     </option>
@@ -206,12 +219,13 @@
                                                     <div class="col-md-4">
                                                         <div class="form-group value-input-group">
                                                             <label>Value</label>
-                                                            <input type="text" 
-                                                                   name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]" 
+                                                            <input type="text"
+                                                                   name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
                                                                    id="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
-                                                                   class="form-control height-35 f-14 reference-value-input" 
+                                                                   class="form-control height-35 f-14 reference-value-input"
                                                                    value="{{ $criterion->reference_value ?? '' }}"
-                                                                   placeholder="Enter value" />
+                                                                   placeholder="Enter value"
+                                                                   @if($criterionSource !== 'custom_field') disabled @endif />
                                                         </div>
                                                     </div>
                                                     <div class="col-md-1">
@@ -771,10 +785,26 @@ $(document).ready(function() {
                 
                 const referenceValue = $(this).find('.reference-value-input').val();
                 const negate = $(this).find('input[name*="[negate]"]').is(':checked');
+                // This tab has no picker for a pipeline/pipeline_stage criterion's
+                // value (it's not a custom field, so reference_field_id is never
+                // set) — that criterion is rendered read-only (see the blade
+                // template) and must round-trip via this data attribute instead
+                // of being silently dropped by the `referenceFieldId && operator`
+                // check below.
+                const referenceSource = $(this).data('reference-source') || 'custom_field';
 
                 // Debug: Log each criterion being collected
 
-                if (referenceFieldId && operator) {
+                if (referenceSource !== 'custom_field' && operator) {
+                    group.criteria.push({
+                        reference_source: referenceSource,
+                        reference_field_id: null,
+                        operator: operator,
+                        reference_value: (operator === 'exists' || operator === 'boolean') ? null : (referenceValue ? String(referenceValue).trim() : null),
+                        negate: Boolean(negate)
+                    });
+                    hasCriteria = true;
+                } else if (referenceFieldId && operator) {
                     // Only require value for operators that need it
                     if (operator !== 'exists' && operator !== 'boolean') {
                         if (!referenceValue || referenceValue.trim() === '') {
@@ -785,12 +815,13 @@ $(document).ready(function() {
                     }
 
                     const criterionData = {
+                        reference_source: 'custom_field',
                         reference_field_id: parseInt(referenceFieldId),
                         operator: operator,
                         reference_value: (operator === 'exists' || operator === 'boolean') ? null : (referenceValue ? referenceValue.trim() : null),
                         negate: Boolean(negate)
                     };
-                    
+
                     group.criteria.push(criterionData);
                     hasCriteria = true;
                 }

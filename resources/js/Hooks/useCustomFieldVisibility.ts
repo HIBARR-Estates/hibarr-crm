@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Form } from 'antd';
 import { CustomField } from '@/Types';
 import { evaluateAllFieldsVisibility } from '@/lib/customFieldVisibility';
+import { buildFieldValueMap } from '@/lib/customFieldValueMap';
 
 interface UseCustomFieldVisibilityOptions {
     fields: CustomField[];
@@ -30,7 +31,10 @@ export function useCustomFieldVisibility({
         if (!form) {
             return {};
         }
-        return evaluateAllFieldsVisibility(fields, allFieldValues);
+        return evaluateAllFieldsVisibility(
+            fields,
+            buildFieldValueMap({ customFieldsData: allFieldValues }),
+        );
     }, [fields, allFieldValues, form]);
 
     /**

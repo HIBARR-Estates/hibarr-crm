@@ -95,6 +95,75 @@ class LeadContactFileController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Renames a file's display label (`description`, shown in place of the
+     * raw filename wherever one is set — see fileAdapter.ts) and/or replaces
+     * its stored content in place, same row/id.
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'description' => 'nullable|string|max:255',
+            'file' => 'nullable|file',
+        ]);
+
+        $file = LeadContactFile::findOrFail($id);
+        $lead = Lead::findOrFail($file->lead_id);
+        $this->assertLeadAccess($lead, 'edit_lead');
+
+        if ($request->hasFile('file')) {
+            $this->replaceStoredFile($file, $request->file('file'));
+        }
+
+        if ($request->has('description')) {
+            $file->description = $request->description;
+        }
+
+        $file->save();
+
+        return Reply::successWithData(__('messages.updateSuccess'), ['data' => $file]);
+    }
+
+    /**
+     * Swaps a LeadContactFile's stored content in place — same row/id, new
+     * filename/size/storage fields — deleting the old stored object first
+     * so a replace never leaves an orphaned upload behind.
+     */
+    private function replaceStoredFile(LeadContactFile $file, \Illuminate\Http\UploadedFile $newFile): void
+    {
+        if ($file->isExternallyStored() && ! empty($file->object_path)) {
+            try {
+                $this->fileStorageService->delete($file->object_path);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete old lead contact file from external storage during replace', [
+                    'file_id' => $file->id,
+                    'object_path' => $file->object_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } elseif (! empty($file->hashname)) {
+            Files::deleteFile($file->hashname, LeadContactFile::FILE_PATH.'/'.$file->lead_id);
+        }
+
+        $file->filename = $newFile->getClientOriginalName();
+        $file->size = (string) $newFile->getSize();
+
+        try {
+            $result = $this->fileStorageService->upload($newFile, 'lead-contact-files/'.$file->lead_id);
+            $file->external_url = $result['downloadUrl'];
+            $file->object_path = $result['objectPath'];
+            $file->hashname = '';
+        } catch (\Exception $e) {
+            Log::error('Lead contact file replace upload failed', [
+                'error' => $e->getMessage(),
+                'file_id' => $file->id,
+            ]);
+            $file->external_url = null;
+            $file->object_path = null;
+            $file->hashname = Files::uploadLocalOrS3($newFile, LeadContactFile::FILE_PATH.'/'.$file->lead_id);
+        }
+    }
+
     public function destroy(Request $request, $id)
     {
         $file = LeadContactFile::findOrFail($id);

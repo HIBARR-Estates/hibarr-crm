@@ -8,13 +8,114 @@ declare const process: {
 } | undefined;
 
 /**
+ * Deal context a rule set can be evaluated against, in addition to the
+ * ordinary field-value map. `stages` resolves a `pipeline_stage` criterion's
+ * ordering operators (>=, <=, ...) — stage ids are arbitrary, so ordering
+ * only makes sense compared by `priority`.
+ */
+export interface VisibilityEvaluationContext {
+    stages?: Array<{ id: number | string; priority: number }>;
+}
+
+function resolveStagePriority(
+    stageId: unknown,
+    stages: VisibilityEvaluationContext['stages']
+): number | null {
+    if (stageId === null || stageId === undefined || stageId === '') return null;
+    const match = stages?.find((s) => String(s.id) === String(stageId));
+    return match ? match.priority : null;
+}
+
+const ORDERING_OPERATORS = new Set(['>', '<', '>=', '<=']);
+
+/**
+ * An id-list criterion's `reference_value` can be a bare scalar ("11", for
+ * `equals`) or a JSON array ("[11,12]" or ["11","12"]) for `in`/`not_in` —
+ * and the array's elements can be numbers or strings depending on which UI
+ * wrote them (the simplified pipeline picker serializes real numbers, the
+ * generic rule builder's multi-selects serialize strings). `equals` already
+ * coerces both sides through String() below, but `in`/`not_in` compares
+ * array membership with strict equality — so without normalizing every
+ * element to the same type here, a numeric id never matches a same-valued
+ * string id. Leaves a bare scalar untouched.
+ */
+function normalizeIdListJson(raw: string): string {
+    if (raw === null || raw === undefined || raw === '') return raw;
+    const str = String(raw);
+    if (str.trim().startsWith('[')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed)) {
+                return JSON.stringify(parsed.map((v) => String(v)));
+            }
+        } catch {
+            // fall through, leave as-is
+        }
+    }
+    return str;
+}
+
+/**
+ * Resolve the value a criterion compares against, reading from the source it
+ * declares (a custom field's stored value by default, or a reserved deal
+ * context key — see buildFieldValueMap). Ordering operators on a
+ * `pipeline_stage` criterion compare stage *priority*, not the arbitrary id,
+ * so both sides are resolved through `context.stages` first.
+ */
+function resolveCriterionValues(
+    criterion: ShowCriterion,
+    allFieldValues: Record<string, any>,
+    context?: VisibilityEvaluationContext
+): { fieldValue: any; referenceValue: string } {
+    const source = criterion.reference_source ?? 'custom_field';
+    let referenceValue = criterion.reference_value;
+
+    let fieldValue: any;
+    switch (source) {
+        case 'pipeline':
+            fieldValue = allFieldValues.pipeline;
+            referenceValue = normalizeIdListJson(referenceValue);
+            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            break;
+        case 'pipeline_stage':
+            fieldValue = allFieldValues.pipeline_stage;
+            if (ORDERING_OPERATORS.has(criterion.operator)) {
+                const currentPriority = resolveStagePriority(fieldValue, context?.stages);
+                const targetPriority = resolveStagePriority(referenceValue, context?.stages);
+                fieldValue = currentPriority ?? '';
+                referenceValue = targetPriority !== null ? String(targetPriority) : referenceValue;
+            } else {
+                referenceValue = normalizeIdListJson(referenceValue);
+                fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            }
+            break;
+        case 'deal_package':
+            fieldValue = allFieldValues.package;
+            break;
+        case 'record':
+            fieldValue = allFieldValues.record;
+            referenceValue = normalizeIdListJson(referenceValue);
+            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            break;
+        case 'custom_field':
+        default:
+            fieldValue = allFieldValues[`field_${criterion.reference_field_id}`];
+            break;
+    }
+
+    return { fieldValue, referenceValue };
+}
+
+/**
  * Evaluate a single criterion
  */
 function evaluateCriterion(
     criterion: ShowCriterion,
-    fieldValue: any
+    fieldValue: any,
+    referenceValueOverride?: string
 ): boolean {
-    const { operator, reference_value, negate } = criterion;
+    const { operator, negate } = criterion;
+    const reference_value = referenceValueOverride ?? criterion.reference_value;
     let result = false;
 
     switch (operator) {
@@ -136,7 +237,8 @@ function evaluateCriterion(
  */
 export function evaluateFieldVisibility(
     field: CustomField,
-    allFieldValues: Record<string, any>
+    allFieldValues: Record<string, any>,
+    context?: VisibilityEvaluationContext
 ): boolean {
     const ruleSet = field.show_rule_set;
 
@@ -183,9 +285,8 @@ export function evaluateFieldVisibility(
 
         // Evaluate each criterion in the group
         for (const criterion of group.criteria) {
-            const fieldKey = `field_${criterion.reference_field_id}`;
-            const fieldValue = allFieldValues[fieldKey];
-            const result = evaluateCriterion(criterion, fieldValue);
+            const { fieldValue, referenceValue } = resolveCriterionValues(criterion, allFieldValues, context);
+            const result = evaluateCriterion(criterion, fieldValue, referenceValue);
             criteriaResults.push(result);
         }
 
@@ -301,13 +402,14 @@ function checkExclusionConditions(allFieldValues: Record<string, any>): boolean 
  */
 export function evaluateAllFieldsVisibility(
     fields: CustomField[],
-    allFieldValues: Record<string, any>
+    allFieldValues: Record<string, any>,
+    context?: VisibilityEvaluationContext
 ): Record<number, boolean> {
     const visibilityMap: Record<number, boolean> = {};
 
     for (const field of fields) {
         // Each field is evaluated independently with its own rules
-        visibilityMap[field.id] = evaluateFieldVisibility(field, allFieldValues);
+        visibilityMap[field.id] = evaluateFieldVisibility(field, allFieldValues, context);
         
         // Debug logging (can be removed in production)
         // Check for development mode

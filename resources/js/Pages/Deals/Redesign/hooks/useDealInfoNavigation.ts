@@ -7,7 +7,7 @@ import {
     selectFieldsForCompletionCount,
 } from "@/lib/customFieldCompletion";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
-import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import {
     buildCoreNavItem,
     CORE_SECTION_FIELD_LABELS,
@@ -81,33 +81,11 @@ function buildCustomFieldVisibilityMap(
     fields: CustomFieldDefinition[],
     customFieldsData: Deal["custom_fields_data"],
 ): Record<number, boolean> {
-    const fieldValuesForVisibility: Record<string, unknown> = {};
-
-    if (customFieldsData) {
-        Object.keys(customFieldsData).forEach((key) => {
-            const normalizedKey = key.startsWith("field_")
-                ? key
-                : `field_${key}`;
-            let fieldValue = customFieldsData[key];
-            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
-            const matchingField = fields.find((f) => Number(f.id) === fieldId);
-
-            if (
-                matchingField &&
-                (matchingField.type === "multiSelectCountry" ||
-                    matchingField.type === "multiselect" ||
-                    (matchingField.type === "checkbox" &&
-                        !!matchingField.values &&
-                        String(matchingField.values).trim() !== "" &&
-                        String(matchingField.values).trim() !== "[]" &&
-                        String(matchingField.values).trim() !== "{}"))
-            ) {
-                fieldValue = parseMultiSelectStoredValue(fieldValue);
-            }
-
-            fieldValuesForVisibility[normalizedKey] = fieldValue;
-        });
-    }
+    const fieldValuesForVisibility = buildFieldValueMap({
+        customFieldsData,
+        fields,
+        normalizeMultiSelect: true,
+    });
 
     const customFieldsForEvaluation: CustomField[] = fields.map((field) => {
         let valuesString: string | null = null;

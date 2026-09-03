@@ -53,13 +53,13 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
-use App\Support\FeatureFlags;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
+use App\Support\FeatureFlags;
 use App\Traits\DealAutomationTrait;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
@@ -572,7 +572,10 @@ class DealController extends AccountBaseController
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
 
-        // Lead custom fields — computed eagerly so the analysis modal has them on first open
+        // Lead custom fields — computed eagerly so the analysis modal has them on first open.
+        // A lead-owned FILE field's value is stored directly on the lead (shared
+        // across every deal on that lead), so the lead's own getCustomFieldsData()
+        // already has it — no per-deal lookup needed.
         if ($deal->contact) {
             $deal->contact->withCustomFields();
             $leadCustomFieldsData = $deal->contact->getCustomFieldsData()->toArray();
@@ -3412,7 +3415,6 @@ class DealController extends AccountBaseController
             'user_id' => auth()->id(),
             'timestamp' => now(),
         ]);
-
 
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);

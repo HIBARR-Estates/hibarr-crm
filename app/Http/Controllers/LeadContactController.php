@@ -18,6 +18,7 @@ use App\Http\Requests\Lead\StoreRequest;
 use App\Http\Requests\Lead\UpdateRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
+use App\Models\CustomField;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
@@ -381,6 +382,22 @@ class LeadContactController extends AccountBaseController
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
                 ->get(), 'workspace'),
+            // A lead-owned FILE field's value is stored directly on the lead
+            // (shared across every deal on that lead) — no per-deal lookup
+            // needed, the lead's own custom_fields_data (sent with the shell
+            // props above) already has it.
+            //
+            // The mirror direction (FieldModal's "Show in Lead" on a Deal
+            // FILE field): definitions only — each deal's own value is
+            // already on that deal's own custom_fields_data, sent with the
+            // `deals` shell prop above, so no per-deal value lookup is
+            // needed here either.
+            'dealFileFields' => Inertia::defer(fn () => CustomField::whereHas('fieldGroup', function ($q) {
+                $q->where('model', Deal::CUSTOM_FIELD_MODEL);
+            })
+                ->where('type', 'file')
+                ->where('show_in_lead', true)
+                ->get(['id', 'label', 'name', 'type', 'custom_field_category_id']), 'workspace'),
             // Behind crm.tasks-workspace-redesign, eager-load + serialize
             // through the same TaskPresenter the redesigned Tasks workspace
             // uses, so this tab's tasks can open in those modals (checklist/

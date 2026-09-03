@@ -42,6 +42,7 @@ return [
         'crm.notification-bypass',
         'crm.user-timezone',
         'packages.online-payment',
+        'crm.deal-files-grouping',
     ],
 
     /*
@@ -54,5 +55,19 @@ return [
     */
     'local_defaults' => [
         'crm.meeting-attendance-confirmation' => true,
+        'crm.deal-files-grouping' => true,
+    ],
+
+    /*
+    | Local-only override applied on top of the real remote response too —
+    | not just when it's unreachable (that's local_defaults, above). For a
+    | flag you're actively building that isn't registered on the remote
+    | flags service yet, so a live, reachable remote call doesn't silently
+    | resolve it to false forever. Only ever applied in
+    | local/development/codecanyon environments — staging and production
+    | always defer entirely to the real remote service.
+    */
+    'local_overrides' => [
+        'crm.deal-files-grouping' => true,
     ],
 ];
