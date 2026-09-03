@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
@@ -13,6 +14,7 @@ use App\Models\PartnerFlag;
 use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
+use App\Services\CrmEventService;
 use App\Services\MlmCommissionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -449,21 +451,33 @@ class DashboardMetricsService
      */
     public function todaySchedule(int $userId): array
     {
-        $followUps = DealFollowUp::query()
+        $followUps = $this->followUpQuery($userId)
+            ->whereBetween('next_follow_up_date', [now()->startOfDay(), now()->addDay()->endOfDay()])
+            ->orderBy('next_follow_up_date')
+            ->limit(12)
+            ->get();
+
+        return $this->mapFollowUps($followUps);
+    }
+
+    /** Base query shared by todaySchedule() and followUpsDue() — only the date window differs. */
+    private function followUpQuery(int $userId)
+    {
+        return DealFollowUp::query()
             ->visibleToUser($userId)
             ->where('status', '<>', 'cancelled')
-            ->whereBetween('next_follow_up_date', [now()->startOfDay(), now()->addDay()->endOfDay()])
             ->with([
                 'deal:id,name',
                 'lead:id,client_name',
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
-            ])
-            ->orderBy('next_follow_up_date')
-            ->limit(12)
-            ->get();
+            ]);
+    }
 
+    /** @return array<int, array<string, mixed>> */
+    private function mapFollowUps(Collection $followUps): array
+    {
         DealFollowUp::attachParticipantUsers($followUps);
 
         return $followUps
@@ -499,6 +513,77 @@ class DashboardMetricsService
             'funnel' => $this->stageFunnel($agentIds),
             'value' => $this->pipelineValueByCurrency($agentIds),
         ];
+    }
+
+    // ── Personal dashboard (plain employee, no v2 permission) ──────
+
+    /**
+     * Tasks due today or already overdue — the same shape actionQueue's
+     * overdueTasks() ships (full toFrontendArray() rows, so a row can open
+     * TaskDetailModal in place, plus the CRM record it hangs off), just a
+     * wider window: today's not-yet-due work belongs here too, not only
+     * what's already late.
+     */
+    public function todaysTasks(int $userId, int $limit = self::QUEUE_ROWS): array
+    {
+        $tasks = Task::query()
+            ->pending()
+            ->visibleToUser($userId)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now()->endOfDay())
+            ->with(['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->orderBy('due_date')
+            ->limit($limit)
+            ->get();
+
+        $related = $this->relatedRecords($tasks->pluck('id')->all());
+
+        return $tasks
+            ->map(function (Task $task) use ($related) {
+                $due = Carbon::parse($task->due_date)->startOfDay();
+                $today = now()->startOfDay();
+
+                return $task->toFrontendArray() + [
+                    'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
+                    'related' => $related[$task->id] ?? null,
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * Follow-ups due today or already overdue — todaySchedule()'s query
+     * narrowed from "today and tomorrow" to "needs action now".
+     */
+    public function followUpsDue(int $userId, int $limit = 12): array
+    {
+        $followUps = $this->followUpQuery($userId)
+            ->where('next_follow_up_date', '<=', now()->endOfDay())
+            ->orderBy('next_follow_up_date')
+            ->limit($limit)
+            ->get();
+
+        return $this->mapFollowUps($followUps);
+    }
+
+    /**
+     * The user's own recent activity, from the shared CRM Event Engine —
+     * every event `user_id` recorded, newest first. Same shape
+     * CrmEventController's API ships (CrmEvent::toTimelineArray()), so the
+     * existing CrmEventItem component can render a row without a second
+     * parser.
+     */
+    public function recentActivity(int $userId, int $companyId, CrmEventService $events, int $limit = 10): array
+    {
+        $paginated = $events->query([
+            'company_id' => $companyId,
+            'user_id' => $userId,
+            'per_page' => $limit,
+        ]);
+
+        return collect($paginated->items())
+            ->map(fn (CrmEvent $event) => $event->toTimelineArray())
+            ->all();
     }
 
     // ── Manager view ─────────────────────────────────────────────

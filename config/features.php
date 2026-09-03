@@ -41,6 +41,7 @@ return [
         'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
+        'crm.personal-dashboard',
         'packages.online-payment',
     ],
 

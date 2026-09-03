@@ -6,8 +6,10 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\TaskboardColumn;
+use App\Services\CrmEventService;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\MlmCommissionService;
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -45,11 +47,18 @@ class DashboardV2Controller extends AccountBaseController
     public function index(Request $request, DashboardMetricsService $metrics)
     {
         $user = user();
+        $userId = (int) $user->id;
         $availableViews = $this->availableViews();
 
         // Holding no v2 permission is the normal state for most accounts, not an
-        // error — send them to the dashboard they do have rather than a 403.
+        // error. Behind the flag, that's exactly who the personal dashboard is
+        // for — a plain employee with none of the view_*_dashboard permissions —
+        // so they land there instead of bouncing to the legacy dashboard.
         if (empty($availableViews)) {
+            if (FeatureFlags::enabled('crm.personal-dashboard')) {
+                return $this->personalDashboard($userId, (int) $user->company_id, $metrics);
+            }
+
             return redirect()->route('dashboard');
         }
 
@@ -57,7 +66,6 @@ class DashboardV2Controller extends AccountBaseController
             ? $request->query('view')
             : $availableViews[0];
 
-        $userId = (int) $user->id;
         $pipelineId = $request->integer('pipeline') ?: null;
         $days = $this->period($request);
 
@@ -67,6 +75,33 @@ class DashboardV2Controller extends AccountBaseController
             'period' => $days,
             'now' => now()->toIso8601String(),
             ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $days),
+        ]);
+    }
+
+    /**
+     * The task-oriented landing page for a plain employee — someone with none
+     * of the view_*_dashboard permissions, so no role-scoped view applies.
+     *
+     * Deliberately not one of VIEWS: it has no switcher, no period picker, and
+     * isn't scoped to a team or company, so it doesn't belong in deferredFor()'s
+     * per-view match. It reuses this controller's existing "where does a user
+     * with no v2 permission land" decision rather than adding a second one.
+     */
+    private function personalDashboard(int $userId, int $companyId, DashboardMetricsService $metrics)
+    {
+        return Inertia::render('Dashboard/V2/PersonalDashboard', [
+            'now' => now()->toIso8601String(),
+            'todaysTasks' => Inertia::defer(fn () => $metrics->todaysTasks($userId), 'tasks'),
+            'taskBoardColumns' => Inertia::defer(
+                fn () => TaskboardColumn::orderBy('priority')
+                    ->get(['id', 'slug', 'column_name', 'label_color', 'priority']),
+                'tasks'
+            ),
+            'followUpsDue' => Inertia::defer(fn () => $metrics->followUpsDue($userId), 'followups'),
+            'recentActivity' => Inertia::defer(
+                fn () => $metrics->recentActivity($userId, $companyId, app(CrmEventService::class)),
+                'activity'
+            ),
         ]);
     }
 

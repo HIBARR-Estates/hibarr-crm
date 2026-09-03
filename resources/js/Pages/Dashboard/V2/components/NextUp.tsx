@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
-export type Severity = "overdue" | "hot" | "stalled";
+export type Severity = "overdue" | "hot" | "stalled" | "due";
 
 export interface QueueItem {
     key: string;
@@ -23,6 +23,7 @@ const SEVERITY_DOT: Record<Severity, string> = {
     overdue: T.RED,
     hot: T.AMBER,
     stalled: T.TEXT_MUTED,
+    due: T.BLUE,
 };
 
 interface NextUpProps {
