@@ -138,11 +138,8 @@ const Index = ({
     const { props: pageProps } = usePage<PageProps>();
     const useFilterV2 =
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
-    // const showProductTour =
-    //     pageProps.featureFlags?.["crm.list-product-tours"] === true;
-    const showProductTour = true;
-    console.log(pageProps.featureFlags, "pageProps.featureFlags");
-    console.log(showProductTour, "showProductTour");
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
 
     const tourRef = useRef<ProductTourHandle>(null);
     const leadListTourSteps = useMemo(() => buildLeadListTourSteps(), []);
