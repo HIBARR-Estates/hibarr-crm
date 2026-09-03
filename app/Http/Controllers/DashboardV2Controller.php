@@ -6,19 +6,23 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\TaskboardColumn;
+use App\Models\TaskCategory;
 use App\Services\CrmEventService;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * The v2 role-scoped dashboards.
+ * The v2 dashboards: a personal landing page plus four role-scoped views.
  *
- * One controller, four scoped views. Which views a user can see comes from the
- * view_*_dashboard permissions, which are granted independently — a user may hold
- * several (leadership commonly holds agent + leadership) and gets a switcher.
+ * Behind crm.personal-dashboard, the personal dashboard (?view=personal, or no
+ * ?view= at all) is the default for everyone. The four role-scoped views are
+ * additional, unlocked independently by their own view_*_dashboard permission
+ * — a user may hold several (leadership commonly holds agent + leadership) and
+ * gets a switcher into them, but holding one never hides the personal view.
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
  *
@@ -49,21 +53,26 @@ class DashboardV2Controller extends AccountBaseController
         $user = user();
         $userId = (int) $user->id;
         $availableViews = $this->availableViews();
+        $requestedView = $request->query('view');
+        $personalDashboardEnabled = FeatureFlags::enabled('crm.personal-dashboard');
+
+        // Behind the flag, the personal dashboard is the default landing for
+        // everyone, not just accounts with no view_*_dashboard permission —
+        // holding one only adds role-scoped views to the switcher, it doesn't
+        // gate this one. A request for a role view falls through below.
+        if ($personalDashboardEnabled && ($requestedView === null || $requestedView === 'personal')) {
+            return $this->personalDashboard($user, $metrics, $availableViews);
+        }
 
         // Holding no v2 permission is the normal state for most accounts, not an
-        // error. Behind the flag, that's exactly who the personal dashboard is
-        // for — a plain employee with none of the view_*_dashboard permissions —
-        // so they land there instead of bouncing to the legacy dashboard.
+        // error. With the flag off (or a stale ?view= link), that's where a
+        // plain employee bounces to instead.
         if (empty($availableViews)) {
-            if (FeatureFlags::enabled('crm.personal-dashboard')) {
-                return $this->personalDashboard($userId, (int) $user->company_id, $metrics);
-            }
-
             return redirect()->route('dashboard');
         }
 
-        $activeView = in_array($request->query('view'), $availableViews, true)
-            ? $request->query('view')
+        $activeView = in_array($requestedView, $availableViews, true)
+            ? $requestedView
             : $availableViews[0];
 
         $pipelineId = $request->integer('pipeline') ?: null;
@@ -72,6 +81,7 @@ class DashboardV2Controller extends AccountBaseController
         return Inertia::render('Dashboard/V2/DashboardV2', [
             'availableViews' => $availableViews,
             'activeView' => $activeView,
+            'personalDashboardEnabled' => $personalDashboardEnabled,
             'period' => $days,
             'now' => now()->toIso8601String(),
             ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $days),
@@ -79,29 +89,86 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
-     * The task-oriented landing page for a plain employee — someone with none
-     * of the view_*_dashboard permissions, so no role-scoped view applies.
+     * The default landing page behind the flag: what one person owes now.
      *
-     * Deliberately not one of VIEWS: it has no switcher, no period picker, and
-     * isn't scoped to a team or company, so it doesn't belong in deferredFor()'s
-     * per-view match. It reuses this controller's existing "where does a user
-     * with no v2 permission land" decision rather than adding a second one.
+     * Everyone gets it first; anyone who also holds a view_*_dashboard
+     * permission gets a switcher into those role-scoped views via
+     * ?view=agent|manager|leadership|partner.
+     *
+     * Deliberately not one of VIEWS: it is scoped to a person rather than a
+     * team or company, and takes no window parameter at all — one fixed
+     * PERSONAL_WINDOW_DAYS look-ahead, not the role views' ?days= picker.
+     *
+     * Every panel is deferred and grouped so the shell paints immediately: the
+     * queue and its board columns land together (a row cannot render its status
+     * control without them), the rest arrive independently.
      */
-    private function personalDashboard(int $userId, int $companyId, DashboardMetricsService $metrics)
-    {
+    private function personalDashboard(
+        $user,
+        DashboardMetricsService $metrics,
+        array $availableViews
+    ) {
+        $userId = (int) $user->id;
+        $companyId = (int) $user->company_id;
+
         return Inertia::render('Dashboard/V2/PersonalDashboard', [
             'now' => now()->toIso8601String(),
-            'todaysTasks' => Inertia::defer(fn () => $metrics->todaysTasks($userId), 'tasks'),
+            // Only the team view is offered alongside My work. Company and
+            // Partner answer questions this page isn't asking, and a four-way
+            // switcher on a personal landing page buries the one view a
+            // manager actually crosses to.
+            'availableViews' => array_values(array_intersect($availableViews, ['manager'])),
+            // Ships so the page's copy and the queries can't drift apart.
+            'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
+            'userName' => $user->name,
+            // The stat strip's badges link into the Leads/Deals/Tasks lists
+            // scoped to this user, so the frontend needs the id explicitly
+            // rather than reaching into a shared auth prop.
+            'userId' => $userId,
+            'queue' => Inertia::defer(fn () => $metrics->personalQueue($userId), 'queue'),
+            // Same group as the queue: TaskDetailModal cannot render its status
+            // control without these, so they must land together.
             'taskBoardColumns' => Inertia::defer(
                 fn () => TaskboardColumn::orderBy('priority')
                     ->get(['id', 'slug', 'column_name', 'label_color', 'priority']),
-                'tasks'
+                'queue'
             ),
-            'followUpsDue' => Inertia::defer(fn () => $metrics->followUpsDue($userId), 'followups'),
-            'recentActivity' => Inertia::defer(
-                fn () => $metrics->recentActivity($userId, $companyId, app(CrmEventService::class)),
-                'activity'
+            'stats' => Inertia::defer(fn () => $metrics->personalStats($userId), 'stats'),
+            // null for anyone without a lead_agent record — the tile is
+            // dropped rather than showing a zero that reads as "you earned
+            // nothing".
+            'commission' => Inertia::defer(fn () => $metrics->commissionSummary($userId), 'stats'),
+            'agenda' => Inertia::defer(fn () => $metrics->upcomingMeetings($userId), 'agenda'),
+            'pipelines' => Inertia::defer(fn () => $metrics->openDealsByPipeline($userId), 'pipelines'),
+            // Feeds the agenda's "book a meeting" empty-state action — same
+            // permission-scoped queries and shape MeetingsController's own
+            // Schedule Meeting drawer already uses.
+            'userDeals' => Inertia::defer(
+                fn () => MeetingVisibilityService::schedulableDealsQuery()->get(),
+                'meetingOptions'
             ),
+            'userLeads' => Inertia::defer(
+                fn () => MeetingVisibilityService::schedulableLeadsQuery()
+                    ->get()
+                    ->map(fn (Lead $lead) => [
+                        'id' => $lead->id,
+                        'name' => $lead->company_name
+                            ? "{$lead->client_name} ({$lead->company_name})"
+                            : $lead->client_name,
+                    ]),
+                'meetingOptions'
+            ),
+            // Only consumed by the redesigned task edit form's category
+            // picker (crm.tasks-workspace-redesign) — same query
+            // LeadContactController's task-edit integration already ships.
+            'taskCategories' => Inertia::defer(fn () => TaskCategory::all(), 'queue'),
+            // "Activity on your records" panel is hidden for now (not useful
+            // in its current state) — drop the request+query along with it.
+            // Re-add when the panel comes back:
+            // 'recentActivity' => Inertia::defer(
+            //     fn () => $metrics->recentActivity($userId, $companyId, app(CrmEventService::class)),
+            //     'activity'
+            // ),
         ]);
     }
 

@@ -80,6 +80,13 @@ class DealFilters
             $query->where('deals.is_locked', $request->boolean('is_locked'));
         }
 
+        // "Idle N days" — no update since the cutoff. Same measurement the
+        // personal dashboard's pipeline split counts against (updated_at, not
+        // a stalled-stage rule — target_duration_days is NULL on every stage).
+        if ($request->filled('idle_days')) {
+            $query->where('deals.updated_at', '<', now()->subDays((int) $request->get('idle_days')));
+        }
+
         $this->applyDateRange($query, $request, 'deals.created_at', 'start_date', 'end_date');
         $this->applyDateRange($query, $request, 'deals.close_date', 'close_start', 'close_end');
 

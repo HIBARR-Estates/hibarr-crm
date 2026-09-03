@@ -11,6 +11,7 @@ import {
     Button,
 } from "antd";
 import { usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -53,7 +54,20 @@ const MyCommissions: React.FC<Props> = ({
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as { default_currency_symbol?: string };
     const [page, setPage] = useState(1);
-    const [filters, setFilters] = useState<Record<string, any>>({});
+    // Seeded once from the URL so a link from elsewhere (e.g. the personal
+    // dashboard's Commission tile) lands here pre-filtered — status=pending,
+    // date_from/date_to — rather than on the unfiltered list.
+    const [filters, setFilters] = useState<Record<string, any>>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const seeded: Record<string, any> = {};
+
+        for (const key of ["status", "type", "date_from", "date_to"]) {
+            const value = params.get(key);
+            if (value) seeded[key] = value;
+        }
+
+        return seeded;
+    });
 
     const { data: enrollmentData } = useMyEnrollment();
     const activeCycle = (enrollmentData as any)?.data?.active_cycle ?? null;
@@ -238,6 +252,7 @@ const MyCommissions: React.FC<Props> = ({
                                     placeholder="Status"
                                     allowClear
                                     className="w-36"
+                                    value={filters.status}
                                     options={Object.entries(
                                         COMMISSION_STATUS_LABELS,
                                     ).map(([v, l]) => ({ value: v, label: l }))}
@@ -252,6 +267,7 @@ const MyCommissions: React.FC<Props> = ({
                                     placeholder="Type"
                                     allowClear
                                     className="w-36"
+                                    value={filters.type}
                                     options={Object.entries(
                                         COMMISSION_TYPE_LABELS,
                                     ).map(([v, l]) => ({ value: v, label: l }))}
@@ -263,6 +279,14 @@ const MyCommissions: React.FC<Props> = ({
                                     }
                                 />
                                 <RangePicker
+                                    value={
+                                        filters.date_from && filters.date_to
+                                            ? [
+                                                  dayjs(filters.date_from),
+                                                  dayjs(filters.date_to),
+                                              ]
+                                            : null
+                                    }
                                     onChange={(dates) => {
                                         if (dates && dates[0] && dates[1]) {
                                             setFilters((f) => ({

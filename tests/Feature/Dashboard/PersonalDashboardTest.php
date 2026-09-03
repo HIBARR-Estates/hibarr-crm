@@ -22,13 +22,14 @@ use Tests\TestCase;
  * Auth requirement, so it gets exercised against real tables rather than
  * asserted from reading the code.
  *
- * todaysTasks() and followUpsDue() are not covered here: both are thin
- * date-window wrappers around Task::scopeVisibleToUser()/scopePending() and
- * DealFollowUp's existing followUpQuery(), which todaySchedule() already
- * ships in production — reproducing Task's full company/active-scope stack
- * in a hand-built schema is a much larger undertaking than this change's risk
- * warrants (see DashboardV2MigrationsTest's own note on why this directory
- * hand-rolls schema instead of running real migrations).
+ * personalQueue(), personalStats() and followUpsDue() are not covered here:
+ * all three are thin date-window wrappers around Task::scopeVisibleToUser()/
+ * scopePending() and DealFollowUp's existing followUpQuery(), which
+ * todaySchedule() already ships in production — reproducing Task's full
+ * company/active-scope stack in a hand-built schema is a much larger
+ * undertaking than this change's risk warrants (see DashboardV2MigrationsTest's
+ * own note on why this directory hand-rolls schema instead of running real
+ * migrations).
  */
 class PersonalDashboardTest extends TestCase
 {
@@ -129,20 +130,36 @@ class PersonalDashboardTest extends TestCase
 
         $row = $this->recentActivity($userId, $this->companyId)[0];
 
-        // Same keys CrmEventController's API ships, so the existing
-        // CrmEventItem component can render this row without a second parser.
+        // CrmEventController's API keys, plus `record` — the name of the thing
+        // the event happened on, which ActivityFeed needs because "note added"
+        // without saying on what is not activity anyone can read.
         $this->assertSame(
             [
                 'uuid', 'event_type', 'generation_type', 'status', 'direction',
                 'user_id', 'user', 'model_type', 'model_id', 'correlation_id',
                 'causation_id', 'source', 'ip_address', 'metadata', 'occurred_at',
-                'created_at',
+                'created_at', 'record',
             ],
             array_keys($row)
         );
         $this->assertSame('note_added', $row['event_type']['slug']);
         $this->assertSame('Notes', $row['event_type']['category']['name']);
         $this->assertSame('Jordan Rep', $row['user']['name']);
+    }
+
+    public function test_recent_activity_leaves_record_null_when_nothing_is_attached(): void
+    {
+        $categoryId = $this->seedCategory();
+        $typeId = $this->seedEventType($categoryId);
+
+        $userId = 50;
+        $this->seedUser($userId, $this->companyId);
+
+        // No model_type/model_id: a company-wide event belongs to no record,
+        // and the feed must render the row rather than skip or crash on it.
+        $this->seedEvent($typeId, $this->companyId, $userId, 'Unattached');
+
+        $this->assertNull($this->recentActivity($userId, $this->companyId)[0]['record']);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
