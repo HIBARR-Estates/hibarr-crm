@@ -12,6 +12,7 @@
         "v-dev": "vite",
         "v-build": "vite build",
         "v-preview": "vite preview",
+        "repo-map": "tsx scripts/generate-repo-map.ts",
         "env:pull": "infisical export --env=dev --format=dotenv --output-file=.env",
         "env:check": "infisical secrets --env=dev",
         "dev:infisical": "infisical run --env=dev -- npm run development",
@@ -39,6 +40,8 @@
         "sass-loader": "^12.1.0",
         "tailwindcss": "^4.1.11",
         "ts-loader": "^9.5.4",
+        "ts-morph": "^26.0.0",
+        "tsx": "^4.23.13",
         "typescript": "^5.9.3",
         "vite": "^6.4.1",
         "webpack": "^5.23.0"
