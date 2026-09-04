@@ -173,15 +173,15 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
         ...(canManageCompanySettings
             ? [
                   {
-                      key: "package-commissions",
+                      key: "packages",
                       icon: <DollarOutlined />,
                       iconBg: "bg-emerald-50",
                       iconColor: "text-emerald-500",
                       title: t("app.menu.packages"),
-                      description: t("app.settingsHub.packageCommissionsDesc"),
+                      description: t("app.settingsHub.packagesDesc"),
                       connected: true,
                       onOpen: () =>
-                          router.visit(route("package-commissions.index")),
+                          router.visit(route("package-settings.index")),
                   },
               ]
             : []),

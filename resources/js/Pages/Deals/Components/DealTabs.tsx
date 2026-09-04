@@ -371,17 +371,19 @@ export default function DealTabs({
         tabItems.find((item) => item.key === activeTab)?.children ??
         tabItems[0]?.children;
 
-    // Keep activeTab (and hence the URL + SideNavTabs' highlighted item) in
-    // sync when the tab it names is no longer visible — otherwise the
-    // sidebar highlights nothing (or a stale key) while the content pane
-    // above already fell back to the first tab.
+    // Tab visibility can change after mount (e.g. the Offers tab appears once
+    // its async eligibility check resolves) — if the active tab disappears,
+    // move activeTab (and the URL) to the first available tab so the sidebar
+    // highlight, getTabAction(), and the URL stay in sync with the rendered
+    // content above.
+    const visibleTabKeys = tabItems.map((item) => item.key).join(",");
     useEffect(() => {
         if (tabItems.length === 0) return;
         if (!tabItems.some((item) => item.key === activeTab)) {
             setActiveTab(tabItems[0].key);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tabItems, activeTab]);
+    }, [visibleTabKeys, activeTab]);
 
     return (
         <>

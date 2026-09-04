@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Card, Tag, Select, DatePicker, Empty, Space } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -23,6 +24,8 @@ interface Props extends PageProps {
 
 const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -104,7 +107,8 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                             {record.trigger_deal.name}
                         </div>
                         <div className="text-xs text-gray-500">
-                            ${record.trigger_deal.value?.toLocaleString()}
+                            {currencySymbol}
+                            {record.trigger_deal.value?.toLocaleString()}
                         </div>
                     </div>
                 ) : (

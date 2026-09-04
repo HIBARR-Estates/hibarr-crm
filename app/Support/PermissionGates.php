@@ -67,4 +67,23 @@ class PermissionGates
     {
         return self::allows($user, self::MANAGE_PROPERTY_CONFIGURATION);
     }
+
+    /**
+     * The deal-wide commission picture: what every leg paid out in total, and
+     * what the company kept. Reserved for partner-network managers and admins.
+     *
+     * Note there is no companion "can view my own commission" gate. Whether an
+     * agent sees their own earnings on a deal is not a permission question —
+     * it is answered by whether they actually have a commission leg on it, so
+     * it is derived from the commission engine rather than granted here. That
+     * is what lets an upline see their own cut without seeing the total, and
+     * without needing a second hierarchy walk to authorise it.
+     *
+     * Deal-independent by design: selling a deal is not a reason to see the
+     * house's margin on it, so this is a fact about the viewer alone.
+     */
+    public static function canViewFullDealCommission(User $user): bool
+    {
+        return self::canManagePartnerNetwork($user) || User::isAdmin($user->id);
+    }
 }

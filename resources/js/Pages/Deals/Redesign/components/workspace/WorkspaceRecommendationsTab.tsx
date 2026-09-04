@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
@@ -40,6 +41,8 @@ export default function WorkspaceRecommendationsTab({
 }: WorkspaceRecommendationsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     // v2.2 gate (deal-v2-2.jsx:2841): with the "1 package or property" CRM
     // config, adding is blocked once anything is already attached.
     const addBlocked =
@@ -70,6 +73,7 @@ export default function WorkspaceRecommendationsTab({
             recommendations.map((recommendation) => {
                 const item = toWorkspaceRecommendationListItem(recommendation, {
                     existingPropertyIds,
+                    currencySymbol,
                 });
 
                 return {
@@ -83,6 +87,7 @@ export default function WorkspaceRecommendationsTab({
             existingPropertyIds,
             isPropertyAdding,
             isPropertyInDeal,
+            currencySymbol,
         ],
     );
 

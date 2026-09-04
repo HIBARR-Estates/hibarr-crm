@@ -331,6 +331,13 @@ class OfferController extends AccountBaseController
             return Reply::error(__('messages.dealLocked'));
         }
 
+        // Discount removal changes calculated_value just as a package or
+        // product change would — a commission was already calculated against
+        // this deal's value.
+        if ($deal->isCommissionLocked()) {
+            return Reply::error(__('messages.dealValueLockedByCommission'));
+        }
+
         $this->dealOfferService->removeOffersFromDeal($deal);
 
         return Reply::success('All offers removed from deal');

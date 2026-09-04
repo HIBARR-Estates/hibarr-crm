@@ -624,6 +624,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
+    // Live reference FX rate, to prefill the deal value modal's exchange rate.
+    Route::get('api/exchange-rate', [\App\Http\Controllers\ExchangeRateController::class, 'show'])
+        ->name('exchange-rate.show');
+
     // Dynamic translation lookup API (auth-protected)
     Route::prefix('api/dynamic-translations')->group(function () {
         Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');
@@ -730,6 +734,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
+    Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 

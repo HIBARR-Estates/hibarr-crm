@@ -1346,7 +1346,7 @@ export default function EditableField({
                         canStartEditing ? (
                             <EditOutlined
                                 aria-hidden="true"
-                                className="mt-1 shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100"
+                                className="mt-1 hidden shrink-0 text-blue-600 group-hover:inline-flex"
                                 style={{ fontSize: 11 }}
                             />
                         ) : undefined

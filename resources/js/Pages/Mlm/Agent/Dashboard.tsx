@@ -9,6 +9,7 @@ import {
     Skeleton,
     Divider,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Users, Award, Clock } from "lucide-react";
@@ -47,6 +48,8 @@ interface Props extends PageProps {
 
 const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading } = useMlmAgentDashboard();
     const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
     const levelData: LevelData = (data as any)?.data;
@@ -55,7 +58,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
         {
             title: "Total Earnings",
             value: stats.total_earnings ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
             precision: 2,
             icon: <DollarSign size={20} />,
             iconBg: "bg-green-100 text-green-600",
@@ -63,7 +66,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
         {
             title: "Pending Earnings",
             value: stats.pending_earnings ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
             precision: 2,
             icon: <Clock size={20} />,
             iconBg: "bg-orange-100 text-orange-600",
@@ -119,7 +122,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -405,7 +408,7 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         formatter={(
                                                             value: any,
                                                         ) => [
-                                                            `$${Number(value).toLocaleString()}`,
+                                                            `${currencySymbol}${Number(value).toLocaleString()}`,
                                                             "Earnings",
                                                         ]}
                                                     />

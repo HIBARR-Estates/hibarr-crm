@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Deal } from "@/Types/api/deals";
@@ -6,15 +6,17 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
-import { resolveDealOutcome } from "@/lib/dealOutcome";
+import { resolveDealOutcome, isDealValueLocked } from "@/lib/dealOutcome";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EditableTitle from "@/Components/Redesign/primitives/EditableTitle";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import useDealOutcome, { DealOutcome } from "../../hooks/useDealOutcome";
+import useDealOutcomePreview from "../../hooks/useDealOutcomePreview";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
 import useDealInfoFieldUpdate from "../../hooks/useDealInfoFieldUpdate";
 import useDealTeam from "../../hooks/useDealTeam";
+import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
@@ -53,6 +55,8 @@ export default function DealStickyHeader({
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const header = useDealHeaderData(deal);
     const team = useDealTeam(deal);
     const dealPermissions = useDealPermissions(deal);
@@ -65,9 +69,79 @@ export default function DealStickyHeader({
     } | null>(null);
 
     const outcome = resolveDealOutcome(deal);
-    const isLocked = !!deal.is_locked || outcome === "won";
+    // Only the explicit is_locked flag locks a deal — a won deal is not
+    // locked on its own (see Deal::isLocked()); commission_locked only
+    // protects the value, gated separately below on DealValueBlock.
+    const isLocked = !!deal.is_locked;
+
+    // Leaving 'won' reverts commissions — fetch the real numbers only while
+    // that specific confirmation is open, so the dialog can show them
+    // instead of generic "commissions will be reverted" copy.
+    const leavingWon =
+        pendingOutcome !== null &&
+        pendingOutcome.value !== "won" &&
+        outcome === "won";
+    const { preview, isLoading: previewLoading } = useDealOutcomePreview(
+        deal.id,
+        leavingWon,
+    );
     const createdRel = deal.created_at ? dayjs(deal.created_at).fromNow() : "--";
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
+
+    const money = (amount: number) =>
+        `${currencySymbol}${amount.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
+
+    // Leaving 'won' with real numbers attached, once the preview has loaded —
+    // falls back to the generic copy while loading or if nothing comes back.
+    const revertMessage = (): ReactNode => {
+        const generic = t("pages.deals.header.outcome.confirm_revert");
+        if (!leavingWon || previewLoading || !preview?.currently_won) {
+            return generic;
+        }
+
+        const pending = preview.pending_commissions;
+        const paid = preview.paid_commissions;
+
+        if (!pending?.count && !paid?.count) {
+            return t("pages.deals.header.outcome.confirm_revert_none");
+        }
+
+        return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {!!pending?.count && (
+                    <div>
+                        {t("pages.deals.header.outcome.confirm_revert_pending", {
+                            count: pending.count,
+                            amount: money(pending.total_amount),
+                        })}
+                        <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                            {pending.legs.map((leg, index) => (
+                                <li key={index}>
+                                    {leg.agent_name} —{" "}
+                                    {COMMISSION_TYPE_LABELS[
+                                        leg.type as keyof typeof COMMISSION_TYPE_LABELS
+                                    ] ?? leg.type}
+                                    : {money(leg.amount)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {!!paid?.count && (
+                    <div>
+                        {t("pages.deals.header.outcome.confirm_revert_paid", {
+                            count: paid.count,
+                            amount: money(paid.total_amount),
+                        })}
+                    </div>
+                )}
+                <div>{t("pages.deals.header.outcome.confirm_revert_metrics")}</div>
+            </div>
+        );
+    };
 
     return (
         <div data-tour="deal-sticky-header">
@@ -82,9 +156,7 @@ export default function DealStickyHeader({
                     }}
                 >
                     <DealIcon name="info" size={15} />
-                    {!deal.is_locked && outcome === "won"
-                        ? t("pages.deals.locked_message_won")
-                        : t("pages.deals.locked_message")}
+                    {t("pages.deals.locked_message")}
                 </div>
             )}
 
@@ -240,7 +312,13 @@ export default function DealStickyHeader({
 
                     <div className="flex items-start gap-[18px]">
                         <div data-tour="deal-value">
-                            <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
+                            <DealValueBlock
+                                deal={deal}
+                                canEdit={
+                                    dealPermissions.canEdit &&
+                                    !isDealValueLocked(deal)
+                                }
+                            />
                         </div>
                         {deal.close_date && (
                             <div className="flex flex-col items-start">
@@ -256,8 +334,6 @@ export default function DealStickyHeader({
                             dealId={deal.id}
                             agent={team.agent}
                             canEdit={dealPermissions.canEdit}
-                            isWatcherOnly={dealPermissions.isWatcherOnly}
-                            onManageTeam={() => team.setTeamModalOpen(true)}
                         />
                     </div>
                 </div>
@@ -298,13 +374,13 @@ export default function DealStickyHeader({
                           ? "pages.deals.header.outcome.confirm_lost_title"
                           : "pages.deals.header.outcome.confirm_clear_title",
                 )}
-                message={t(
+                message={
                     pendingOutcome?.value === "won"
-                        ? "pages.deals.header.outcome.confirm_won"
+                        ? t("pages.deals.header.outcome.confirm_won")
                         : outcome === "won"
-                          ? "pages.deals.header.outcome.confirm_revert"
-                          : "pages.deals.header.outcome.confirm_simple",
-                )}
+                          ? revertMessage()
+                          : t("pages.deals.header.outcome.confirm_simple")
+                }
                 confirmLabel={t("pages.deals.header.outcome.confirm_button")}
                 onCancel={() => setPendingOutcome(null)}
                 onConfirm={async () => {

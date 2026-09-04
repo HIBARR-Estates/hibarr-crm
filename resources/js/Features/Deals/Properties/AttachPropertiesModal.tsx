@@ -28,11 +28,13 @@ import {
     ExportOutlined,
     GiftOutlined,
 } from "@ant-design/icons";
+import { usePage } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
+import { isDealValueLocked } from "@/lib/dealOutcome";
 import type {
     AttachedProperty,
     AttachPropertyPayload,
@@ -142,6 +144,12 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     deal,
     onRefresh,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
+    // Properties feed the deal value directly, so attach/detach stays
+    // locked once commission has been distributed, even if the deal itself
+    // isn't (see Deal::isCommissionLocked()).
+    const valueLocked = isDealValueLocked(deal);
     // ── State ─────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState("");
     const [propertySelectOpened, setPropertySelectOpened] = useState(false);
@@ -268,13 +276,14 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
 
     // ── Handlers ──────────────────────────────────────────────────
     const handleAttachExisting = () => {
-        if (!selectedPropertyId) return;
+        if (!selectedPropertyId || valueLocked) return;
         attachProperty({ property_id: selectedPropertyId });
         setSelectedPropertyId(null);
         setSearchQuery("");
     };
 
     const handleDetach = async (productId: number) => {
+        if (valueLocked) return;
         try {
             const res = await fetch(
                 route("deals.properties.destroy", [deal.id, productId]),
@@ -300,6 +309,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     };
 
     const handleAddFromUnitType = (unitType: DeveloperProjectUnitType) => {
+        if (valueLocked) return;
         const overrides = unitTypeOverrides[unitType.id] ?? {};
         attachProperty({
             unit_type_id: unitType.id,
@@ -330,11 +340,9 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     const formatPrice = (price: any) => {
         const num = typeof price === "object" ? price?.amount : price;
         if (!num || Number(num) === 0) return null;
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
+        return `${currencySymbol}${new Intl.NumberFormat("en-US", {
             maximumFractionDigits: 0,
-        }).format(Number(num));
+        }).format(Number(num))}`;
     };
 
     const formatFeatures = (label: string) =>
@@ -352,6 +360,12 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
             maskClosable={false}
         >
             <div className="flex flex-col gap-y-6">
+                {valueLocked && (
+                    <Text type="warning" className="text-xs">
+                        Commission has already been calculated for this deal,
+                        so its properties can no longer be changed.
+                    </Text>
+                )}
                 {/* ── Add Property Section ───────────────── */}
                 <Card size="small" className="border-gray-200">
                     <Tabs
@@ -371,6 +385,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                             <Select
                                                 className="flex-1"
                                                 showSearch
+                                                disabled={valueLocked}
                                                 placeholder="Search approved properties by name, city, area..."
                                                 optionLabelProp="displayLabel"
                                                 filterOption={false}
@@ -403,7 +418,10 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                 icon={<PlusOutlined />}
                                                 onClick={handleAttachExisting}
                                                 loading={attaching}
-                                                disabled={!selectedPropertyId}
+                                                disabled={
+                                                    !selectedPropertyId ||
+                                                    valueLocked
+                                                }
                                             >
                                                 Add
                                             </Button>
@@ -554,6 +572,9 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                                 adding={
                                                                     attaching
                                                                 }
+                                                                disabled={
+                                                                    valueLocked
+                                                                }
                                                                 formatPrice={
                                                                     formatPrice
                                                                 }
@@ -626,6 +647,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     type="text"
                                                     size="small"
                                                     danger
+                                                    disabled={valueLocked}
                                                     icon={<DeleteOutlined />}
                                                 />
                                             </Popconfirm>,
@@ -796,6 +818,7 @@ interface UnitTypeCardProps {
     onOverrideChange: (field: string, value: any) => void;
     onAdd: () => void;
     adding: boolean;
+    disabled?: boolean;
     formatPrice: (price: any) => string | null;
 }
 
@@ -807,6 +830,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     onOverrideChange,
     onAdd,
     adding,
+    disabled = false,
     formatPrice,
 }) => {
     const priceValue = overrides.price ?? unitType.starting_price;
@@ -1057,6 +1081,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             icon={<PlusOutlined />}
                             onClick={onAdd}
                             loading={adding}
+                            disabled={disabled}
                         >
                             Add to Deal
                         </Button>

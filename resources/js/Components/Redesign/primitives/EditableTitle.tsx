@@ -187,14 +187,12 @@ export default function EditableTitle({
                     >
                         {value || "—"}
                     </span>
-                    {canEdit ? (
+                    {showPencil ? (
                         <span
                             aria-hidden="true"
                             style={{
                                 display: "inline-flex",
                                 alignSelf: "center",
-                                opacity: showPencil ? 1 : 0,
-                                transition: "opacity 120ms ease",
                                 color: T.BLUE,
                             }}
                         >

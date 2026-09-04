@@ -107,11 +107,11 @@ class PropertyPublishRequestController extends AccountBaseController
             'message'            => $validated['message'] ?? null,
         ]);
 
-        // Notify all Sales Managers
-        $salesManagers = $this->getSalesManagers($requestingAgent->company_id);
-        if ($salesManagers->isNotEmpty()) {
-            Notification::send($salesManagers, new PublishRequestSubmitted($publishRequest));
-        }
+        // TODO: also notify users with manage_property_publish_requests = all.
+        Notification::send(
+            User::allAdmins((int) $publishRequest->company_id),
+            new PublishRequestSubmitted($publishRequest),
+        );
 
         return Reply::successWithData(
             'Publish request submitted successfully. A Sales Manager will review it shortly.',
@@ -211,34 +211,10 @@ class PropertyPublishRequestController extends AccountBaseController
     // ================================================================
 
     /**
-     * Check if user has SM-level property permissions.
-     */
-    /**
      * Only users with manage_property_publish_requests may approve/reject.
-     * manage_properties does not include this.
      */
     private function isPrivilegedUser(User $user): bool
     {
         return \App\Support\PermissionGates::canManagePropertyPublishRequests($user);
-    }
-
-    /**
-     * Users who can review property publish requests.
-     */
-    private function getSalesManagers(int $companyId)
-    {
-        $permissionIds = \App\Models\Permission::where(
-            'name',
-            \App\Support\PermissionGates::MANAGE_PROPERTY_PUBLISH_REQUESTS
-        )->pluck('id');
-
-        return User::where('company_id', $companyId)
-            ->whereIn('id', function ($query) use ($permissionIds) {
-                $query->select('user_id')
-                    ->from('user_permissions')
-                    ->whereIn('permission_id', $permissionIds)
-                    ->where('permission_type_id', 4);
-            })
-            ->get();
     }
 }

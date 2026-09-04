@@ -1060,7 +1060,7 @@ export default function CustomFieldDisplay({
                 ): React.ReactNode => {
                     if (v == null || v === "") return null;
                     if (schemaMap[k] === "currency") {
-                        const parsed = parseCurrencyValue(v);
+                        const parsed = parseCurrencyValue(v, appDefaultCurrency);
                         if (parsed)
                             return formatCurrencyAsNode(
                                 parsed.amount,
@@ -1122,7 +1122,7 @@ export default function CustomFieldDisplay({
                         }
                         case "sum_currency": {
                             const parsed = rawValues
-                                .map((v) => parseCurrencyValue(v))
+                                .map((v) => parseCurrencyValue(v, appDefaultCurrency))
                                 .filter((p): p is ParsedCurrency => p != null);
                             if (parsed.length === 0) {
                                 displayValue = formatCurrencyAsNode(

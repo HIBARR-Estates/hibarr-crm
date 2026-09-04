@@ -491,4 +491,75 @@ class PackageRoutingFieldCatalog
 
         return false;
     }
+
+    /**
+     * Semantic validation for a set of trigger rows (field enabled, match value
+     * present where the mode requires one) — the checks a plain `rules()` array
+     * can't express because they depend on other rows in the same field.
+     *
+     * Shared by StorePackageRequest (Blade package form) and
+     * PackageSettingsController (React packages settings page) so the two
+     * cannot drift.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<string, array<int, string>> messages keyed by
+     *         "routing_triggers.{index}.{field}", ready for
+     *         ValidationException::withMessages() or $validator->errors()->add().
+     */
+    public function validateTriggerRows(array $rows, ?int $companyId = null): array
+    {
+        $companyId = $companyId ?? company()?->id;
+        $enabledKeys = array_flip($this->enabledFieldKeys($companyId));
+        $errors = [];
+
+        foreach ($rows as $index => $row) {
+            if (!is_array($row) || $this->isEmptyTriggerRow($row)) {
+                continue;
+            }
+
+            $fieldKey = trim((string) ($row['field_key'] ?? ''));
+
+            if ($fieldKey === '') {
+                $errors["routing_triggers.{$index}.field_key"] = [
+                    __('validation.required', ['attribute' => 'deal field']),
+                ];
+
+                // No field key means nothing downstream can be validated either.
+                continue;
+            }
+
+            if (!isset($enabledKeys[$fieldKey])) {
+                $errors["routing_triggers.{$index}.field_key"] = [
+                    __('modules.deal.routingTriggerFieldDisabled'),
+                ];
+            }
+
+            if (empty($row['match_mode'])) {
+                $errors["routing_triggers.{$index}.match_mode"] = [
+                    __('validation.required', ['attribute' => 'match mode']),
+                ];
+            }
+
+            if (
+                ($row['match_mode'] ?? null) === self::MATCH_MODE_EXACT
+                && !filled($row['match_value'] ?? null)
+            ) {
+                $errors["routing_triggers.{$index}.match_value"] = [
+                    __('validation.required', ['attribute' => 'match value']),
+                ];
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    public function isEmptyTriggerRow(array $row): bool
+    {
+        return trim((string) ($row['field_key'] ?? '')) === ''
+            && trim((string) ($row['match_mode'] ?? '')) === ''
+            && trim((string) ($row['match_value'] ?? '')) === '';
+    }
 }

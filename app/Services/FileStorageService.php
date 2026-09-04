@@ -37,6 +37,18 @@ class FileStorageService
         $this->retryBaseDelayMs = config('file_storage.retry_base_delay_ms', 1000);
     }
 
+    /**
+     * Guard against sending the X-Api-Key to a non-HTTPS base URL.
+     *
+     * @throws \RuntimeException
+     */
+    protected function assertHttpsBaseUrl(): void
+    {
+        if (!str_starts_with(strtolower($this->baseUrl), 'https://')) {
+            throw new \RuntimeException('File storage base URL must use HTTPS.');
+        }
+    }
+
     // ========================================================================
     // Upload Operations
     // ========================================================================
@@ -52,6 +64,8 @@ class FileStorageService
      */
     public function upload(UploadedFile $file, ?string $targetFolder = null): array
     {
+        $this->assertHttpsBaseUrl();
+
         $folder = $targetFolder ?? $this->defaultTargetFolder;
 
         return $this->withRetry(function () use ($file, $folder) {
@@ -110,6 +124,8 @@ class FileStorageService
      */
     public function uploadFromPath(string $filePath, string $originalName, ?string $targetFolder = null): array
     {
+        $this->assertHttpsBaseUrl();
+
         $folder = $targetFolder ?? $this->defaultTargetFolder;
 
         return $this->withRetry(function () use ($filePath, $originalName, $folder) {
@@ -206,6 +222,8 @@ class FileStorageService
      */
     public function delete(string $objectPath): array
     {
+        $this->assertHttpsBaseUrl();
+
         try {
             $response = Http::timeout($this->timeout)
                 ->withHeaders([

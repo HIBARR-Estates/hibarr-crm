@@ -1,12 +1,13 @@
 import { snakeToReadable } from "@/lib/utils";
 
 /** Match ProjectCard price formatting for title clauses. */
-export function formatProjectsPrice(amount: number | string): string {
-    return new Intl.NumberFormat("en-GB", {
-        style: "currency",
-        currency: "GBP",
+export function formatProjectsPrice(
+    amount: number | string,
+    currencySymbol: string = "",
+): string {
+    return `${currencySymbol}${new Intl.NumberFormat("en-GB", {
         maximumFractionDigits: 0,
-    }).format(Number(amount));
+    }).format(Number(amount))}`;
 }
 
 export interface ProjectsTitleFilters {
@@ -18,6 +19,7 @@ export interface ProjectsTitleFilters {
     priceMin?: string | null;
     priceMax?: string | null;
     planMonths?: string | null;
+    currencySymbol?: string;
 }
 
 export interface ProjectsTitleResult {
@@ -38,15 +40,16 @@ function displayPlace(value: string): string {
 function buildPriceClause(
     priceMin?: string | null,
     priceMax?: string | null,
+    currencySymbol?: string,
 ): string | null {
     const hasMin = priceMin != null && String(priceMin).trim() !== "";
     const hasMax = priceMax != null && String(priceMax).trim() !== "";
     if (!hasMin && !hasMax) return null;
     if (hasMin && hasMax) {
-        return `between ${formatProjectsPrice(priceMin!)} and ${formatProjectsPrice(priceMax!)}`;
+        return `between ${formatProjectsPrice(priceMin!, currencySymbol)} and ${formatProjectsPrice(priceMax!, currencySymbol)}`;
     }
-    if (hasMax) return `under ${formatProjectsPrice(priceMax!)}`;
-    return `over ${formatProjectsPrice(priceMin!)}`;
+    if (hasMax) return `under ${formatProjectsPrice(priceMax!, currencySymbol)}`;
+    return `over ${formatProjectsPrice(priceMin!, currencySymbol)}`;
 }
 
 /**
@@ -78,7 +81,11 @@ export function buildProjectsTitle(
         clauses.push(`in the ${filters.categoryLabel.trim()} category`);
     }
 
-    const priceClause = buildPriceClause(filters.priceMin, filters.priceMax);
+    const priceClause = buildPriceClause(
+        filters.priceMin,
+        filters.priceMax,
+        filters.currencySymbol,
+    );
     if (priceClause) clauses.push(priceClause);
 
     if (filters.planMonths?.trim()) {

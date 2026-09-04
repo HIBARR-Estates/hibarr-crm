@@ -45,6 +45,8 @@ export interface Developer {
     project_list: string[] | null;
     whatsapp_group_link: string | null;
     google_drive_link: string | null;
+    /** Max total commission on deals for this developer's projects. Null = company default. */
+    commission_percentage: number | null;
     is_hidden?: boolean;
     created_at: string;
     updated_at: string;
@@ -167,6 +169,8 @@ export interface DeveloperProject {
     google_drive_link: string | null;
     availability_link: string | null;
     starting_price: number | null;
+    /** Overrides the developer's rate as the deal's commission ceiling. Null = inherit. */
+    commission_percentage: number | null;
     primary_categories: string[] | null;
     title_deed_type: string | null;
     unit_types: string[] | null;

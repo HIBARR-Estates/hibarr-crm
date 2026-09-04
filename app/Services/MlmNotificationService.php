@@ -112,9 +112,10 @@ class MlmNotificationService
         $commission = $dispute->commission;
 
         $recipients = collect([$this->agentUser($dispute->agent)])
-            ->merge($this->partnerNetworkManagers((int) $dispute->company_id))
+            ->merge(User::allAdmins((int) $dispute->company_id))
             ->filter()
             ->unique('id');
+        // TODO: also notify partner-network managers (manage_partner_network = all).
 
         $context = $commission
             ? $this->commissionContext($commission)
@@ -151,33 +152,19 @@ class MlmNotificationService
             'level_name' => $newLevel->name,
         ];
 
-        if ($newRank > $previousRank) {
-            $recipients = collect([$this->agentUser($agent)])
-                ->merge($this->uplineUsers($agent))
-                ->merge($this->partnerNetworkManagers((int) $agent->company_id))
-                ->filter()
-                ->unique('id');
+        $agentUser = $this->agentUser($agent);
 
-            $this->notify(
-                MlmNotificationEvent::AgentLevelUpgraded,
-                (int) $agent->company_id,
-                $recipients,
-                $context,
-                $triggeredByUserId,
-            );
-
+        if (! $agentUser) {
             return;
         }
 
-        $recipients = collect([$this->agentUser($agent)])
-            ->merge($this->partnerNetworkManagers((int) $agent->company_id))
-            ->filter()
-            ->unique('id');
-
+        // TODO: also notify the agent's upline on level upgrade (not downgrade).
         $this->notify(
-            MlmNotificationEvent::AgentLevelDowngraded,
+            $newRank > $previousRank
+                ? MlmNotificationEvent::AgentLevelUpgraded
+                : MlmNotificationEvent::AgentLevelDowngraded,
             (int) $agent->company_id,
-            $recipients,
+            collect([$agentUser]),
             $context,
             $triggeredByUserId,
         );
@@ -337,10 +324,7 @@ class MlmNotificationService
         $recruit->loadMissing('user');
         $upline->loadMissing('user');
 
-        $recipients = collect([$this->agentUser($upline)])
-            ->merge($this->partnerNetworkManagers((int) $recruit->company_id))
-            ->filter()
-            ->unique('id');
+        $recipients = User::allAdmins((int) $recruit->company_id);
 
         $this->notify(
             MlmNotificationEvent::NewRecruitAdded,
@@ -410,9 +394,15 @@ class MlmNotificationService
      */
     protected function commissionContext(MlmCommission $commission): array
     {
-        $commission->loadMissing(['deal.currency', 'level', 'company.currency']);
+        $commission->loadMissing(['level', 'company.currency']);
 
-        $currency = $commission->deal?->currency ?? $commission->company?->currency;
+        // Always the company's currency, never the deal's: MlmCommissionService
+        // converts every amount into company currency before writing it
+        // (deals.value * deals.exchange_rate for the level-based split,
+        // packages.value * the package's own rate for package commissions),
+        // so the deal's own currency has nothing to do with what this number
+        // is denominated in.
+        $currency = $commission->company?->currency;
         $symbol = $currency?->currency_symbol ?? '';
         $code = $currency?->currency_code ?? '';
         $amountFormatted = number_format((float) $commission->amount, 2);

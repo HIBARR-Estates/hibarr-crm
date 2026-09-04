@@ -1,4 +1,11 @@
-import { useMemo, useCallback, useEffect, useState, useRef, type ReactNode } from "react";
+import {
+    useMemo,
+    useCallback,
+    useEffect,
+    useState,
+    useRef,
+    type ReactNode,
+} from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, {
@@ -33,7 +40,7 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
-import {  MenuProps } from "antd";
+import { MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
@@ -133,6 +140,7 @@ const Index = ({
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
     const showProductTour =
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
+
     const tourRef = useRef<ProductTourHandle>(null);
     const leadListTourSteps = useMemo(() => buildLeadListTourSteps(), []);
 
@@ -506,8 +514,8 @@ const Index = ({
                                         <ClockCircleOutlined
                                             style={{ fontSize: 14 }}
                                         />
-                                        {td("Due this week", { source: "en" })} ·{" "}
-                                        {nextActionDueThisWeekCount}
+                                        {td("Due this week", { source: "en" })}{" "}
+                                        · {nextActionDueThisWeekCount}
                                     </button>
                                 )}
                         </Deferred>
@@ -628,54 +636,57 @@ const Index = ({
 
                     {/* Properties Table */}
                     <div data-tour="leads-list-table">
-                    <DataTable<Lead>
-                        columns={columns}
-                        dataSource={leads.data}
-                        rowKey="id"
-                        rowSelection={rowSelection}
-                        stripe={false}
-                        containerClassName="leads-table"
-                        paginationData={{
-                            current_page: leads.current_page,
-                            last_page: leads.last_page,
-                            per_page: leads.per_page,
-                            total: leads.total,
-                            from: leads.from,
-                            to: leads.to,
-                        }}
-                        onPageChange={(page) => {
-                            // X2: pagination only needs the leads list
-                            router.get(
-                                route("lead-contact.index"),
-                                mergeQueryParams({
-                                    page,
-                                    per_page: leads.per_page,
-                                }),
-                                {
-                                    only: ["leads"],
-                                    preserveState: true,
-                                    preserveScroll: true,
-                                },
-                            );
-                        }}
-                        onPageSizeChange={(pageSize) => {
-                            persistPageSize(pageSize);
-                            router.get(
-                                route("lead-contact.index"),
-                                mergeQueryParams({
-                                    page: 1,
-                                    per_page: pageSize,
-                                }),
-                                {
-                                    only: ["leads"],
-                                    preserveState: true,
-                                    preserveScroll: true,
-                                },
-                            );
-                        }}
-                        scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
-                        size="small"
-                    />
+                        <DataTable<Lead>
+                            columns={columns}
+                            dataSource={leads.data}
+                            rowKey="id"
+                            rowSelection={rowSelection}
+                            stripe={false}
+                            containerClassName="leads-table"
+                            paginationData={{
+                                current_page: leads.current_page,
+                                last_page: leads.last_page,
+                                per_page: leads.per_page,
+                                total: leads.total,
+                                from: leads.from,
+                                to: leads.to,
+                            }}
+                            onPageChange={(page) => {
+                                // X2: pagination only needs the leads list
+                                router.get(
+                                    route("lead-contact.index"),
+                                    mergeQueryParams({
+                                        page,
+                                        per_page: leads.per_page,
+                                    }),
+                                    {
+                                        only: ["leads"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            onPageSizeChange={(pageSize) => {
+                                persistPageSize(pageSize);
+                                router.get(
+                                    route("lead-contact.index"),
+                                    mergeQueryParams({
+                                        page: 1,
+                                        per_page: pageSize,
+                                    }),
+                                    {
+                                        only: ["leads"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            scroll={{
+                                x: "max-content",
+                                y: "calc(100vh - 220px)",
+                            }}
+                            size="small"
+                        />
                     </div>
                 </div>
             </PageLayout>
@@ -735,10 +746,7 @@ const Index = ({
                 data="preferredContactTimes"
                 fallback={
                     useFilterV2 ? (
-                        <LeadFilterModal
-                            config={filterConfig}
-                            optionsLoading
-                        />
+                        <LeadFilterModal config={filterConfig} optionsLoading />
                     ) : (
                         <UniversalFilterDrawer
                             config={filterConfig}
@@ -765,8 +773,6 @@ const Index = ({
     );
 };
 
-Index.layout = (page: ReactNode) => (
-    <DashboardLayout>{page}</DashboardLayout>
-);
+Index.layout = (page: ReactNode) => <DashboardLayout>{page}</DashboardLayout>;
 
 export default Index;

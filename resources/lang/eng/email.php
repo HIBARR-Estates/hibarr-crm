@@ -879,13 +879,13 @@ return [
         ],
         'mlm_agent_level_upgraded' => [
             'subject' => 'Agent level upgraded',
-            'intro' => ':agent_name reached level :level_name.',
+            'intro' => 'You reached level :level_name.',
             'footer' => 'Open your level dashboard to see updated criteria.',
             'action' => 'View my level',
         ],
         'mlm_agent_level_downgraded' => [
             'subject' => 'Agent level changed',
-            'intro' => ':agent_name is now at level :level_name.',
+            'intro' => 'You are now at level :level_name.',
             'footer' => 'Open your level dashboard for current requirements.',
             'action' => 'View my level',
         ],
