@@ -11,6 +11,8 @@ export type AnalysisRailTab = "steps" | "answers";
 interface Props {
     groups: RailSectionGroup[];
     activeSection: string;
+    /** Step being asked right now — the rail mirrors the centre panel's highlight. */
+    activeStepKey: string | null;
     onJump: (sectionId: string) => void;
     totalFilled: number;
     totalFields: number;
@@ -29,6 +31,7 @@ interface Props {
 export default function AnalysisRightRail({
     groups,
     activeSection,
+    activeStepKey,
     onJump,
     totalFilled,
     totalFields,
@@ -93,12 +96,14 @@ export default function AnalysisRightRail({
                     <AnalysisStepsPanel
                         groups={groups}
                         activeSection={activeSection}
+                        activeStepKey={activeStepKey}
                         onJump={onJump}
                     />
                 ) : (
                     <AnalysisAnswersPanel
                         groups={groups}
                         activeSection={activeSection}
+                        activeStepKey={activeStepKey}
                         onJump={onJump}
                     />
                 )}

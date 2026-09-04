@@ -299,6 +299,33 @@
     -webkit-box-orient: unset;
 }
 
+/* One step of the analysis script. Steps already asked stay mounted above the
+   current one; only the current one is lit, so an agent glancing back at the
+   screen mid-call can tell instantly which question they are on. */
+.analysis-step {
+    border-radius: 12px;
+    /* No bottom padding: the field row inside already carries its own margin. */
+    padding: 14px 16px 0;
+    margin: 0 -16px 2px;
+    border: 1px solid transparent;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.analysis-step--current {
+    background: #ffffff;
+    border-color: #7dd3fc;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18), 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+/* Everything already answered recedes, without going unreadable. */
+.analysis-step:not(.analysis-step--current) {
+    opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .analysis-step { transition: none; }
+}
+
 .analysis-section-heading {
     font-size: 11px;
     font-weight: 700;

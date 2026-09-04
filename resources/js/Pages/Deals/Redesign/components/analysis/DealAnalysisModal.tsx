@@ -67,7 +67,6 @@ export default function DealAnalysisModal({
     const scrollPanelRef = useRef<ScrollPanelHandle>(null);
     const titleId = "analysis-modal-title";
 
-    const [activeSection, setActiveSection] = useState<string>("");
     const [railTab, setRailTab] = useState<AnalysisRailTab>("steps");
     /** Focus mode hides both side rails so only the form column is left. */
     const [focusMode, setFocusMode] = useState(false);
@@ -93,10 +92,14 @@ export default function DealAnalysisModal({
     // Which action raised the missing-information warning. Closing and completing
     // share the same overlay — only the confirming button differs.
     const [confirmIntent, setConfirmIntent] = useState<null | "complete" | "close" | "required">(null);
-    // Stepped flow: the centre panel reveals one section at a time. Everything past
-    // currentStep stays locked until the footer's Next button advances it.
-    const [currentStep, setCurrentStep] = useState(0);
-    const lastStep = useRef(-1);
+    // Stepped flow: the centre panel reveals one question at a time. Everything past
+    // the current step stays locked until the footer's Next button advances it.
+    //
+    // Tracked by step key rather than index: conditional fields appear and vanish as
+    // answers land, and an index would silently come to point at a different question.
+    const [currentKey, setCurrentKey] = useState<string | null>(null);
+    const lastIndex = useRef(0);
+    const hasSeeded = useRef(false);
 
     // flushAll() dispatches pending writes right away and minimize() defers the
     // deal reload until they land, so closing never loses an edit.
@@ -141,9 +144,9 @@ export default function DealAnalysisModal({
         [analysisScript, dealInfoCategories],
     );
 
-    // Sections + progress + global numbering — all in one pass, shared with the
+    // Sections, the flat step list and progress — all in one pass, shared with the
     // deal-view status card so both use the same denominator.
-    const { sections, sectionProgress, totalFilled, totalFields, numberByKey, requiredMissing, customFieldVisibility, filledSteps } = useMemo(
+    const { sections, steps, sectionProgress, totalFilled, totalFields, requiredMissing, filledSteps } = useMemo(
         () => computeAnalysisProgress(scriptItems, fields, localValues, deal, leadCustomFields, resolvedSteps),
         [scriptItems, fields, localValues, deal, leadCustomFields, resolvedSteps],
     );
@@ -168,50 +171,58 @@ export default function DealAnalysisModal({
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
 
-    // Only the active section and the ones already stepped through are rendered.
-    const visibleSections = useMemo(
-        () => sections.slice(0, currentStep + 1),
-        [sections, currentStep],
+    // Where the tracked key sits in the current step list. If that step has just
+    // been hidden by another answer's show-rules, hold the position it occupied.
+    const currentStep = useMemo(() => {
+        if (steps.length === 0) return 0;
+        const found = currentKey ? steps.findIndex((s) => s.key === currentKey) : -1;
+        return found >= 0 ? found : Math.min(lastIndex.current, steps.length - 1);
+    }, [steps, currentKey]);
+
+    useEffect(() => {
+        lastIndex.current = currentStep;
+    }, [currentStep]);
+
+    const activeStep = steps[currentStep];
+    const activeStepKey = activeStep?.key ?? null;
+    const activeSection = activeStep?.sectionId ?? "";
+
+    // Re-anchor onto whatever now occupies the position, so the next advance moves
+    // from where the agent actually is.
+    useEffect(() => {
+        if (activeStepKey && activeStepKey !== currentKey) setCurrentKey(activeStepKey);
+    }, [activeStepKey, currentKey]);
+
+    // Only the current step and the ones already asked are rendered.
+    const visibleSteps = useMemo(
+        () => steps.slice(0, currentStep + 1),
+        [steps, currentStep],
+    );
+
+    /** Step keys revealed so far — what the right rail locks against. */
+    const unlockedStepKeys = useMemo(
+        () => new Set(visibleSteps.map((s) => s.key)),
+        [visibleSteps],
     );
 
     const goToStep = useCallback((index: number) => {
-        setCurrentStep(Math.max(0, Math.min(index, sections.length - 1)));
-    }, [sections.length]);
+        if (steps.length === 0) return;
+        setCurrentKey(steps[Math.max(0, Math.min(index, steps.length - 1))].key);
+    }, [steps]);
 
-    // Keep the step in range if the section list changes underneath us.
+    // On open, resume at the first step not settled yet, so a part-filled analysis
+    // is not walked through from the beginning again.
     useEffect(() => {
-        setCurrentStep((s) => Math.min(s, Math.max(0, sections.length - 1)));
-    }, [sections.length]);
-
-    // Sync the active section to the current step and scroll the newly revealed one
-    // into view. Guarded on the step actually changing: `sections` is rebuilt on every
-    // keystroke, and without this the panel would scroll while the user is typing.
-    useEffect(() => {
-        if (sections.length === 0) return;
-
-        // On open, unlock through the furthest section that already holds data so
-        // previously-filled sections aren't stepped through again.
-        if (lastStep.current === -1) {
-            let seeded = 0;
-            sections.forEach((s, i) => {
-                if ((sectionProgress[s.id]?.filled ?? 0) > 0) seeded = i;
-            });
-            lastStep.current = seeded;
-            setCurrentStep(seeded);
-            setActiveSection(sections[seeded].id);
-            return; // adopted without scrolling
-        }
-
-        if (lastStep.current === currentStep) return;
-        const target = sections[currentStep];
-        if (!target) return;
-        lastStep.current = currentStep;
-        setActiveSection(target.id);
-        const raf = requestAnimationFrame(() =>
-            scrollPanelRef.current?.scrollToSection(target.id),
-        );
-        return () => cancelAnimationFrame(raf);
-    }, [currentStep, sections, sectionProgress]);
+        // Not before the real script lands: the category fallback below it has a
+        // different step list, and seeding against that would strand the agent.
+        if (hasSeeded.current || steps.length === 0 || analysisScript === undefined) return;
+        hasSeeded.current = true;
+        let lastSettled = -1;
+        steps.forEach((s, i) => {
+            if (filledSteps.has(s.key) || resolvedSteps.has(s.key)) lastSettled = i;
+        });
+        setCurrentKey(steps[Math.min(lastSettled + 1, steps.length - 1)].key);
+    }, [steps, filledSteps, resolvedSteps, analysisScript]);
 
     // Fire-and-forget save for lead custom fields
     const handleLeadFieldSave = useCallback((fieldId: number, value: any) => {
@@ -307,13 +318,11 @@ export default function DealAnalysisModal({
 
     const handleJump = useCallback(
         (id: string) => {
-            // Sections past the current step aren't rendered yet — ignore the jump.
-            const index = sections.findIndex((s) => s.id === id);
-            if (index === -1 || index > currentStep) return;
-            setActiveSection(id);
+            // A section no step has reached yet is not rendered — ignore the jump.
+            if (!visibleSteps.some((s) => s.sectionId === id)) return;
             scrollPanelRef.current?.scrollToSection(id);
         },
-        [sections, currentStep],
+        [visibleSteps],
     );
 
     const handleKeyDown = useCallback(
@@ -374,8 +383,8 @@ export default function DealAnalysisModal({
     // it trails by a frame or two, which is invisible for a read-only summary.
     const deferredValues = useDeferredValue(localValues);
     const railGroups = useMemo(
-        () => buildRailGroups(sections, fields, leadCustomFields, deferredValues, deal, currentStep + 1),
-        [sections, fields, leadCustomFields, deferredValues, deal, currentStep],
+        () => buildRailGroups(sections, fields, leadCustomFields, deferredValues, deal, unlockedStepKeys),
+        [sections, fields, leadCustomFields, deferredValues, deal, unlockedStepKeys],
     );
 
     if (!analysis.isOpen || typeof document === "undefined") return null;
@@ -471,33 +480,30 @@ export default function DealAnalysisModal({
                     <div className="analysis-3col-center">
                         <AnalysisScrollPanel
                             ref={scrollPanelRef}
-                            sections={visibleSections}
+                            sections={sections}
+                            visibleSteps={visibleSteps}
+                            currentKey={activeStepKey}
                             currentStep={currentStep}
-                            stepCount={sections.length}
+                            stepCount={steps.length}
                             onPrevStep={() => goToStep(currentStep - 1)}
                             onNextStep={() => goToStep(currentStep + 1)}
                             onComplete={handleCompleteClick}
                             requiredMissing={requiredMissing}
                             isCompleting={analysis.isCompleting}
                             totalMissing={unfilledCount}
-                            fields={fields}
-                            leadFields={leadCustomFields}
                             localDealFieldValues={dealFieldValues}
                             canEdit={canEdit}
-                            numberByKey={numberByKey}
                             sectionProgress={sectionProgress}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
                             onFieldUpdate={handleScriptFieldSave}
                             onFieldChange={handleFieldChange}
                             unanswered={unanswered}
-                            customFieldVisibility={customFieldVisibility}
                             filledSteps={filledSteps}
                             answeredQuestions={answeredQuestions}
                             onToggleUnanswered={toggleUnanswered}
                             onQuestionAnswered={handleQuestionAnswered}
                             onQuestionCleared={handleQuestionCleared}
-                            onActiveSectionChange={setActiveSection}
                         />
                     </div>
 
@@ -506,12 +512,13 @@ export default function DealAnalysisModal({
                         <AnalysisRightRail
                             groups={railGroups}
                             activeSection={activeSection}
+                            activeStepKey={activeStepKey}
                             onJump={handleJump}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
                             allFilled={allFilled}
                             requiredMissing={requiredMissing}
-                            reachedEnd={currentStep >= sections.length - 1}
+                            reachedEnd={currentStep >= steps.length - 1}
                             isCompleting={analysis.isCompleting}
                             onComplete={handleCompleteClick}
                             tab={railTab}

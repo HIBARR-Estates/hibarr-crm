@@ -4,11 +4,13 @@ import type { RailSectionGroup, RailStep } from "./analysisRailItems";
 interface Props {
     groups: RailSectionGroup[];
     activeSection: string;
+    /** Step being asked right now — the rail mirrors the centre panel's highlight. */
+    activeStepKey: string | null;
     onJump: (sectionId: string) => void;
 }
 
 /** White "Captured answers" tab — only steps that actually hold a value. */
-export default function AnalysisAnswersPanel({ groups, activeSection, onJump }: Props) {
+export default function AnalysisAnswersPanel({ groups, activeSection, activeStepKey, onJump }: Props) {
     // Section name belongs on the group heading, not repeated on every card.
     const answeredGroups = groups
         .map((g) => ({ ...g, steps: g.steps.filter((s) => s.filled && s.value) }))
@@ -50,8 +52,8 @@ export default function AnalysisAnswersPanel({ groups, activeSection, onJump }: 
                                 <AnswerCard
                                     key={step.key}
                                     step={step}
-                                    locked={group.locked}
-                                    isActive={step.sectionId === activeSection}
+                                    locked={step.locked}
+                                    isActive={step.stepKey === activeStepKey}
                                     onJump={onJump}
                                 />
                             ))}
