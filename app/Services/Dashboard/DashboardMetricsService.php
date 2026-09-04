@@ -630,8 +630,9 @@ class DashboardMetricsService
      * Value stays split by currency inside each pipeline for the same reason
      * pipelineValueByCurrency() splits it — the stored exchange rates are
      * unmaintained, so one rolled-up total would look authoritative and be
-     * wrong. Totals are sorted largest first so the UI can lead with the
-     * dominant currency and footnote the rest.
+     * wrong. Totals are ordered company-default-currency-first (see
+     * mergeTotals()) rather than by amount, since amounts in different
+     * currencies aren't comparable.
      *
      * "Idle" is deals.updated_at, not a stalled-stage rule: stalled-ness reads
      * pipeline_stages.target_duration_days, which is NULL on every stage today.
@@ -694,10 +695,10 @@ class DashboardMetricsService
 
                 return $pipeline;
             })
-            // Ranked by each pipeline's own largest-currency total (totals[0]
-            // after the merge above) — the same figure the dashboard bar
-            // renders, so list order matches bar order.
-            ->sortByDesc(fn (array $pipeline) => $pipeline['totals'][0]['total'] ?? 0)
+            // Ranked by deal count — currency-agnostic, unlike totals, which
+            // can't be compared across pipelines quoted in different
+            // currencies without a rate. The dashboard bar mirrors this order.
+            ->sortByDesc(fn (array $pipeline) => $pipeline['deal_count'])
             ->values()
             ->all();
     }
@@ -733,11 +734,17 @@ class DashboardMetricsService
     }
 
     /**
-     * Fold per-currency rows into one entry each, largest first.
+     * Fold per-currency rows into one entry each, company default currency
+     * first (the one the UI should lead with), the rest alphabetical.
      *
      * Needed because currencyCode() maps NULL onto the company default, so two
      * SQL groups — "EUR" and "no currency" — can arrive as the same currency
      * and would otherwise render as two EUR lines.
+     *
+     * Deliberately not ordered by amount: totals in different currencies
+     * aren't comparable without an exchange rate, and the stored rates are
+     * unmaintained (see this method's callers), so ranking by raw total would
+     * silently pick whichever currency happens to have the largest number.
      *
      * @param  array<int, array{currency: string, total: float}>  $totals
      * @return array<int, array{currency: string, total: float}>
@@ -750,7 +757,18 @@ class DashboardMetricsService
             $merged[$row['currency']] = ($merged[$row['currency']] ?? 0) + $row['total'];
         }
 
-        arsort($merged);
+        $default = $this->defaultCurrencyCode();
+
+        uksort($merged, function (string $a, string $b) use ($default) {
+            if ($a === $default) {
+                return -1;
+            }
+            if ($b === $default) {
+                return 1;
+            }
+
+            return $a <=> $b;
+        });
 
         return array_map(
             fn ($currency, $total) => ['currency' => $currency, 'total' => (float) $total],

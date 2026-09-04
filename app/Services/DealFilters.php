@@ -83,7 +83,7 @@ class DealFilters
         // "Idle N days" — no update since the cutoff. Same measurement the
         // personal dashboard's pipeline split counts against (updated_at, not
         // a stalled-stage rule — target_duration_days is NULL on every stage).
-        if ($request->filled('idle_days')) {
+        if ($request->filled('idle_days') && (int) $request->get('idle_days') > 0) {
             $query->where('deals.updated_at', '<', now()->subDays((int) $request->get('idle_days')));
         }
 

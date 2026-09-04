@@ -109,15 +109,13 @@ class DashboardV2Controller extends AccountBaseController
         array $availableViews
     ) {
         $userId = (int) $user->id;
-        $companyId = (int) $user->company_id;
 
         return Inertia::render('Dashboard/V2/PersonalDashboard', [
             'now' => now()->toIso8601String(),
-            // Only the team view is offered alongside My work. Company and
-            // Partner answer questions this page isn't asking, and a four-way
-            // switcher on a personal landing page buries the one view a
-            // manager actually crosses to.
-            'availableViews' => array_values(array_intersect($availableViews, ['manager'])),
+            // Every role view the user is authorized for, so the switcher can
+            // offer all of them rather than silently dropping the ones this
+            // page doesn't itself render.
+            'availableViews' => $availableViews,
             // Ships so the page's copy and the queries can't drift apart.
             'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
             'userName' => $user->name,
@@ -161,7 +159,7 @@ class DashboardV2Controller extends AccountBaseController
             // Only consumed by the redesigned task edit form's category
             // picker (crm.tasks-workspace-redesign) — same query
             // LeadContactController's task-edit integration already ships.
-            'taskCategories' => Inertia::defer(fn () => TaskCategory::all(), 'queue'),
+            'taskCategories' => Inertia::defer(fn () => TaskCategory::allCategories(), 'queue'),
             // "Activity on your records" panel is hidden for now (not useful
             // in its current state) — drop the request+query along with it.
             // Re-add when the panel comes back:

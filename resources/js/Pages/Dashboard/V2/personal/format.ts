@@ -36,7 +36,7 @@ export function money(total: number, currency: string): string {
 }
 
 /**
- * Folds same-currency rows together and sorts largest first.
+ * Folds same-currency rows together, ordered alphabetically by currency.
  *
  * Each pipeline's own `totals` already comes pre-merged from the server —
  * one row per currency for that pipeline. But flattening several pipelines
@@ -44,6 +44,11 @@ export function money(total: number, currency: string): string {
  * currency in the list twice, from two different pipelines, and without
  * this a naive "take the first entry" reads whichever pipeline happens to
  * sort first rather than the true total in that currency.
+ *
+ * Deliberately not ranked by amount: totals in different currencies aren't
+ * comparable without an exchange rate, and the stored rates aren't
+ * maintained, so sorting by raw total would rank a currency as "dominant"
+ * purely because its unit happens to produce a bigger number.
  */
 export function mergeCurrencyTotals(totals: CurrencyTotal[]): CurrencyTotal[] {
     const merged = new Map<string, number>();
@@ -54,7 +59,7 @@ export function mergeCurrencyTotals(totals: CurrencyTotal[]): CurrencyTotal[] {
 
     return [...merged.entries()]
         .map(([currency, total]) => ({ currency, total }))
-        .sort((a, b) => b.total - a.total);
+        .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
 /**

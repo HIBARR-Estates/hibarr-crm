@@ -279,37 +279,47 @@ const MyCommissions: React.FC<Props> = ({
                                     }
                                 />
                                 <RangePicker
+                                    allowEmpty={[true, true]}
                                     value={
-                                        filters.date_from && filters.date_to
+                                        filters.date_from || filters.date_to
                                             ? [
-                                                  dayjs(filters.date_from),
-                                                  dayjs(filters.date_to),
+                                                  filters.date_from
+                                                      ? dayjs(filters.date_from)
+                                                      : null,
+                                                  filters.date_to
+                                                      ? dayjs(filters.date_to)
+                                                      : null,
                                               ]
                                             : null
                                     }
                                     onChange={(dates) => {
-                                        if (dates && dates[0] && dates[1]) {
-                                            setFilters((f) => ({
-                                                ...f,
-                                                date_from:
-                                                    dates[0]!.format(
-                                                        "YYYY-MM-DD",
-                                                    ),
-                                                date_to:
-                                                    dates[1]!.format(
-                                                        "YYYY-MM-DD",
-                                                    ),
-                                            }));
-                                        } else {
-                                            setFilters((f) => {
-                                                const {
-                                                    date_from,
-                                                    date_to,
-                                                    ...rest
-                                                } = f;
-                                                return rest;
-                                            });
-                                        }
+                                        setFilters((f) => {
+                                            const {
+                                                date_from,
+                                                date_to,
+                                                ...rest
+                                            } = f;
+
+                                            return {
+                                                ...rest,
+                                                ...(dates?.[0]
+                                                    ? {
+                                                          date_from:
+                                                              dates[0].format(
+                                                                  "YYYY-MM-DD",
+                                                              ),
+                                                      }
+                                                    : {}),
+                                                ...(dates?.[1]
+                                                    ? {
+                                                          date_to:
+                                                              dates[1].format(
+                                                                  "YYYY-MM-DD",
+                                                              ),
+                                                      }
+                                                    : {}),
+                                            };
+                                        });
                                     }}
                                 />
                                 {activeCycle && (

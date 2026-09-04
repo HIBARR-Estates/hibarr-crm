@@ -156,7 +156,7 @@
 
 .dashboard-v2 .dv2-badge-link:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #e8f1fb;
+    box-shadow: 0 0 0 2px #1a6bb5;
 }
 
 /* Personal dashboard shell: queue 8 / rail 4 on the 12-column grid, per the

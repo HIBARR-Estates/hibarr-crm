@@ -17,16 +17,19 @@ function barColour(share: number): string {
 }
 
 /**
- * Open deals grouped by pipeline, ranked by value — count, value and how
+ * Open deals grouped by pipeline, ranked by deal count — count, value and how
  * many have gone quiet.
  *
  * Grouped by pipeline rather than stage on purpose: the pipelines carry
  * different stage sets with no shared ordinal, so a single cross-pipeline
  * funnel would stack unlike things.
  *
- * The bar is a share of the largest pipeline's value. Rows arrive from the
- * server pre-sorted by that same value (largest first), so the longest bar
- * is always on top and the rest read relative to it at a glance.
+ * Ranked and bar-widthed by deal count rather than value: pipelines can be
+ * quoted in different currencies with no maintained exchange rate between
+ * them, so their raw totals aren't comparable. Deal count is currency-agnostic
+ * and safe to compare. Rows arrive from the server pre-sorted the same way, so
+ * the longest bar is always on top and the rest read relative to it at a
+ * glance.
  */
 export default function PipelineSplit({
     pipelines,
@@ -93,7 +96,7 @@ export default function PipelineSplit({
     }
 
     const largest = Math.max(
-        ...pipelines.map((pipeline) => pipeline.totals[0]?.total ?? 0),
+        ...pipelines.map((pipeline) => pipeline.deal_count),
         1,
     );
 
@@ -106,7 +109,7 @@ export default function PipelineSplit({
                     // rather than a figure with no unit on it.
                     const hasValue = pipeline.totals.length > 0;
                     const { label, rest } = dominantTotal(pipeline.totals);
-                    const share = (pipeline.totals[0]?.total ?? 0) / largest;
+                    const share = pipeline.deal_count / largest;
 
                     return (
                         <div key={pipeline.id}>
@@ -199,7 +202,7 @@ export default function PipelineSplit({
                 }}
             >
                 {td(
-                    "Ranked by value, highest first. Currencies are never converted or combined.",
+                    "Ranked by deal count, highest first. Currencies are never converted or combined.",
                 )}{" "}
                 <a href={dealsHref} style={{ fontWeight: 600 }}>
                     {td("Open the deal list")}

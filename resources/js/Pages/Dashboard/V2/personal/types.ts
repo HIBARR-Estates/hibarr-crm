@@ -34,7 +34,7 @@ export interface PipelineRow {
     deal_count: number;
     /** Deals untouched for a week. */
     idle_count: number;
-    /** Split by currency, largest first — the stored rates can't be trusted. */
+    /** Split by currency, company default first — the stored rates can't be trusted, so totals aren't ranked by amount. */
     totals: CurrencyTotal[];
 }
 

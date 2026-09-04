@@ -40,8 +40,14 @@ import type {
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-/** Only Team is offered next to My work — see the controller's own note. */
-type RoleView = "manager";
+type RoleView = "agent" | "manager" | "leadership" | "partner";
+
+const ROLE_VIEW_LABELS: Record<RoleView, string> = {
+    agent: "My work",
+    manager: "Team",
+    leadership: "Company",
+    partner: "Partner",
+};
 
 export interface PersonalDashboardProps {
     now: string;
@@ -50,7 +56,7 @@ export interface PersonalDashboardProps {
     userId: number;
     /** DashboardMetricsService::PERSONAL_WINDOW_DAYS — how far ahead we look. */
     windowDays: number;
-    /** ["manager"] for a manager, empty for everyone else. */
+    /** Every role view the user holds a view_*_dashboard permission for. */
     availableViews?: RoleView[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
@@ -324,28 +330,24 @@ export default function PersonalDashboard({
                             }}
                         >
                             {availableViews && availableViews.length > 0 && (
-                                <>
-                                    <SegmentedControl
-                                        label="Dashboard"
-                                        active="personal"
-                                        segments={[
-                                            {
-                                                value: "personal",
-                                                label: "My work",
-                                            },
-                                            {
-                                                value: "manager",
-                                                label: "Team",
-                                                // Deactivated for now.
-                                                disabled: true,
-                                            },
-                                        ]}
-                                        onSelect={(view) =>
-                                            view !== "personal" &&
-                                            go({ view })
-                                        }
-                                    />
-                                </>
+                                <SegmentedControl
+                                    label="Dashboard"
+                                    active="personal"
+                                    segments={[
+                                        {
+                                            value: "personal",
+                                            label: "My day",
+                                        },
+                                        ...availableViews.map((view) => ({
+                                            value: view,
+                                            label: ROLE_VIEW_LABELS[view],
+                                        })),
+                                    ]}
+                                    onSelect={(view) =>
+                                        view !== "personal" &&
+                                        go({ view })
+                                    }
+                                />
                             )}
                         </div>
                     </header>
