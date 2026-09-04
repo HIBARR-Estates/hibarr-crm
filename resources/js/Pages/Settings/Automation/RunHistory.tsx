@@ -7,7 +7,7 @@ import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect"
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
-import { LogStatus } from "./types";
+import { LogStatus, RunHistoryEntry, RunLogEntry } from "./types";
 import { channelIcon, statusToVariant } from "./shared";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationLogs from "./hooks/useAutomationLogs";
@@ -16,8 +16,13 @@ import RunLogDetailPanel from "./components/RunLogDetailPanel";
 type StatusFilter = "all" | LogStatus;
 
 const ROW_COLS = {
-    gridTemplateColumns: "150px minmax(140px,1.2fr) minmax(120px,1fr) 110px 100px minmax(160px,1.4fr) 24px",
+    gridTemplateColumns: "150px minmax(140px,1.2fr) minmax(120px,1fr) 130px 100px minmax(160px,1.4fr) 24px",
 };
+
+/** Distinct channels in a run, in the order its steps ran. */
+function runChannels(run: RunHistoryEntry): string[] {
+    return Array.from(new Set(run.steps.map((s) => s.channel).filter(Boolean) as string[]));
+}
 
 function RowSkeleton() {
     return (
@@ -32,6 +37,62 @@ function RowSkeleton() {
     );
 }
 
+/**
+ * One action inside a run. Expands to its diagnostics only when the step
+ * actually recorded any — most steps (a stage move, a field set) have nothing
+ * beyond their description, and an "expand" affordance that reveals nothing
+ * is worse than none.
+ */
+function StepRow({ step, index, t }: { step: RunLogEntry; index: number; t: (k: string) => string }) {
+    const [open, setOpen] = useState(false);
+    const expandable = step.details !== null;
+
+    return (
+        <div className="rounded-lg" style={{ border: `1px solid ${T.BORDER_SOFT}`, background: "#fff" }}>
+            <div
+                role={expandable ? "button" : undefined}
+                tabIndex={expandable ? 0 : undefined}
+                aria-expanded={expandable ? open : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 ${expandable ? "cursor-pointer" : ""}`}
+                onClick={expandable ? () => setOpen((v) => !v) : undefined}
+                onKeyDown={
+                    expandable
+                        ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setOpen((v) => !v);
+                              }
+                          }
+                        : undefined
+                }
+            >
+                <span
+                    className="rounded-md flex items-center justify-center shrink-0"
+                    style={{ width: 24, height: 24, background: T.SURFACE_2, border: `1px solid ${T.BORDER_SOFT}`, fontSize: 11, fontWeight: 700, color: T.TEXT_HINT }}
+                >
+                    {index + 1}
+                </span>
+
+                <Icon name={channelIcon(step.channel)} size={14} color={T.TEXT_HINT} />
+
+                <span className="flex-1 min-w-0" style={{ fontSize: 12, color: T.TEXT }}>
+                    {step.action}
+                </span>
+
+                <span className="shrink-0" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                    {new Date(step.executed_at).toLocaleTimeString()}
+                </span>
+
+                <Badge variant={statusToVariant(step.status)}>{t(`app.automation.results.${step.status}`)}</Badge>
+
+                {expandable && <Icon name={open ? "chevron-up" : "chevron-down"} size={13} color={T.TEXT_HINT} />}
+            </div>
+
+            {expandable && open && <RunLogDetailPanel entry={step} />}
+        </div>
+    );
+}
+
 export default function RunHistory() {
     const { t } = useTranslation();
     const { automations } = useAutomationWorkspace();
@@ -39,11 +100,9 @@ export default function RunHistory() {
     const [automationId, setAutomationId] = useState<number | undefined>(undefined);
     const [page, setPage] = useState(1);
     const [refreshKey, setRefreshKey] = useState(0);
-    // Which row's diagnostics are open. Only one at a time — the panel is tall
-    // and the point is to read one failure, not scan several.
-    const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
 
-    const { logs, meta, loading } = useAutomationLogs({
+    const { runs, meta, loading } = useAutomationLogs({
         status: status === "all" ? undefined : status,
         automationId,
         page,
@@ -120,7 +179,7 @@ export default function RunHistory() {
                     <span>{t("app.automation.columns.time")}</span>
                     <span>{t("app.automation.automation")}</span>
                     <span>{t("app.automation.columns.record")}</span>
-                    <span>{t("app.automation.columns.channel")}</span>
+                    <span>{t("app.automation.columns.steps")}</span>
                     <span>{t("app.automation.columns.result")}</span>
                     <span>{t("app.automation.columns.detail")}</span>
                     <span aria-hidden="true" />
@@ -128,7 +187,7 @@ export default function RunHistory() {
 
                 {loading && Array.from({ length: 5 }).map((_, i) => <RowSkeleton key={i} />)}
 
-                {!loading && logs.length === 0 && (
+                {!loading && runs.length === 0 && (
                     <div className="px-4.5 py-8">
                         <EmptyState
                             title={t("app.automation.noActivityYet")}
@@ -137,52 +196,67 @@ export default function RunHistory() {
                     </div>
                 )}
 
-                {!loading && logs.map((entry) => {
-                    const expanded = expandedId === entry.id;
+                {!loading && runs.map((run) => {
+                    const expanded = expandedRunId === run.run_id;
+                    const channels = runChannels(run);
 
                     return (
-                    <div key={entry.id} className="border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
-                    <div
-                        role="button"
-                        tabIndex={0}
-                        aria-expanded={expanded}
-                        className="grid gap-3.5 items-center min-w-[900px] px-4.5 py-3 cursor-pointer"
-                        style={ROW_COLS}
-                        onClick={() => setExpandedId(expanded ? null : entry.id)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setExpandedId(expanded ? null : entry.id);
-                            }
-                        }}
-                    >
-                        <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                            {new Date(entry.executed_at).toLocaleString()}
-                        </span>
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>
-                            {entry.automation?.name ?? "—"}
-                        </span>
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, color: T.TEXT_MUTED }}>
-                            {entry.deal?.name ?? entry.lead?.client_name ?? "—"}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            <Icon name={channelIcon(entry.channel)} size={13} color={T.TEXT_HINT} />
-                            {entry.channel ?? "—"}
-                        </span>
-                        <span>
-                            <Badge variant={statusToVariant(entry.status)}>{t(`app.automation.results.${entry.status}`)}</Badge>
-                        </span>
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                            {entry.action}
-                        </span>
-                        <Icon name={expanded ? "chevron-up" : "chevron-down"} size={14} color={T.TEXT_HINT} />
-                    </div>
-                    {expanded && (
-                        <div className="min-w-[900px]">
-                            <RunLogDetailPanel entry={entry} />
+                        <div key={run.run_id} className="border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={expanded}
+                                className="grid gap-3.5 items-center min-w-[900px] px-4.5 py-3 cursor-pointer"
+                                style={ROW_COLS}
+                                onClick={() => setExpandedRunId(expanded ? null : run.run_id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setExpandedRunId(expanded ? null : run.run_id);
+                                    }
+                                }}
+                            >
+                                <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                                    {new Date(run.executed_at).toLocaleString()}
+                                </span>
+                                <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>
+                                    {run.automation?.name ?? "—"}
+                                </span>
+                                <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, color: T.TEXT_MUTED }}>
+                                    {run.deal?.name ?? run.lead?.client_name ?? "—"}
+                                </span>
+
+                                {/* The action count for this one execution, with a
+                                    glance at which kinds of action it performed. */}
+                                <span className="inline-flex items-center gap-1.5" style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                    {channels.slice(0, 3).map((channel) => (
+                                        <Icon key={channel} name={channelIcon(channel as RunLogEntry["channel"])} size={13} color={T.TEXT_HINT} />
+                                    ))}
+                                    {run.steps_count === 1
+                                        ? t("app.automation.oneStep")
+                                        : t("app.automation.stepCount", { count: run.steps_count })}
+                                </span>
+
+                                <span>
+                                    <Badge variant={statusToVariant(run.status)}>{t(`app.automation.results.${run.status}`)}</Badge>
+                                </span>
+                                <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                                    {run.steps[0]?.action ?? "—"}
+                                </span>
+                                <Icon name={expanded ? "chevron-up" : "chevron-down"} size={14} color={T.TEXT_HINT} />
+                            </div>
+
+                            {expanded && (
+                                <div
+                                    className="min-w-[900px] px-4.5 py-3.5 flex flex-col gap-2"
+                                    style={{ background: T.SURFACE_2, borderTop: `1px solid ${T.BORDER}` }}
+                                >
+                                    {run.steps.map((step, i) => (
+                                        <StepRow key={step.id} step={step} index={i} t={t} />
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    )}
-                    </div>
                     );
                 })}
             </div>

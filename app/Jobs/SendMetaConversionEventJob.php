@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Job to send Meta Conversion API events in the background
@@ -176,6 +177,9 @@ class SendMetaConversionEventJob implements ShouldQueue
                 'deal_id' => $this->subject instanceof Deal ? $this->subject->id : null,
                 'lead_id' => $this->subject instanceof Lead ? $this->subject->id : null,
                 'automation_id' => $this->origin['automation_id'] ?? null,
+                // Joins the automation run that queued it. A stage-trigger event
+                // has no run to join, so it gets its own single-step id.
+                'run_id' => $this->origin['run_id'] ?? 'meta-'.Str::uuid(),
                 'action' => $description,
                 'status' => $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED,
                 'channel' => 'meta',

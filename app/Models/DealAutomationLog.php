@@ -25,6 +25,7 @@ class DealAutomationLog extends BaseModel
         'deal_id',
         'lead_id',
         'automation_id',
+        'run_id',
         'action',
         'status',
         'channel',

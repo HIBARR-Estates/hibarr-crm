@@ -189,17 +189,106 @@ class DealAutomationController extends AccountBaseController
     {
         abort_403(! AutomationV2Feature::enabled());
 
-        $query = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
+        $perPage = min(max($request->integer('per_page', 25), 1), 100);
+
+        // Paginate *runs*, not steps: one execution of a three-action
+        // automation is one row here, with its three steps nested under it.
+        $runs = DB::query()
+            ->fromSub($this->runsQuery($this->logFilters($request))->getQuery(), 'runs')
+            ->orderByDesc('executed_at')
+            ->paginate($perPage);
+
+        $runIds = collect($runs->items())->pluck('run_id')->all();
+
+        // Every step of the matched runs, filters deliberately not reapplied —
+        // filtering to status=failed should surface the runs that failed, but
+        // still show what else happened in them.
+        $steps = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
+            ->whereIn('run_id', $runIds)
+            ->orderBy('executed_at')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('run_id');
+
+        $runs->setCollection(
+            collect($runs->items())->map(function ($run) use ($steps) {
+                $runSteps = $steps->get($run->run_id, collect());
+                $first = $runSteps->first();
+
+                return [
+                    'run_id' => $run->run_id,
+                    'automation_id' => $first?->automation_id,
+                    'automation' => $first?->automation,
+                    'deal' => $first?->deal,
+                    'lead' => $first?->lead,
+                    'status' => $this->worstStepStatus($runSteps),
+                    'steps_count' => $runSteps->count(),
+                    'started_at' => $runSteps->min('executed_at'),
+                    'executed_at' => $runSteps->max('executed_at') ?? $run->executed_at,
+                    'steps' => $runSteps->values(),
+                ];
+            })->values()
+        );
+
+        return Reply::dataOnly(['status' => 'success', 'data' => $runs]);
+    }
+
+    /**
+     * The shared filter set for the log/stat endpoints. Applied to steps —
+     * a run matches when any of its steps does.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function logFilters(Request $request)
+    {
+        return DealAutomationLog::query()
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('channel'), fn ($q) => $q->where('channel', $request->channel))
             ->when($request->filled('date_from'), fn ($q) => $q->whereDate('executed_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to))
-            ->orderByDesc('executed_at');
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to));
+    }
 
-        $perPage = min(max($request->integer('per_page', 25), 1), 100);
+    /**
+     * Collapse step rows into one row per execution. Everything that counts
+     * "runs" goes through this, so a multi-action automation stops counting
+     * once per action.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function runsQuery($base)
+    {
+        // CASE rather than MySQL's `SUM(status = ...)` so the same query runs
+        // under the sqlite connection the test suite uses. deal_id/lead_id are
+        // constant within a run, so MIN() just picks that shared value.
+        return (clone $base)
+            ->selectRaw('run_id')
+            ->selectRaw('MIN(deal_id) as deal_id, MIN(lead_id) as lead_id')
+            ->selectRaw('COUNT(*) as steps')
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_steps', [DealAutomationLog::STATUS_FAILED])
+            ->selectRaw('MAX(executed_at) as executed_at')
+            ->groupBy('run_id');
+    }
 
-        return Reply::dataOnly(['status' => 'success', 'data' => $query->paginate($perPage)]);
+    /**
+     * A run is only as good as its worst step: one failed action makes the
+     * whole run failed, and an all-skipped run is skipped rather than a
+     * success it never was.
+     *
+     * @param  \Illuminate\Support\Collection<int, DealAutomationLog>  $steps
+     */
+    protected function worstStepStatus($steps): string
+    {
+        if ($steps->contains('status', DealAutomationLog::STATUS_FAILED)) {
+            return DealAutomationLog::STATUS_FAILED;
+        }
+
+        if ($steps->isNotEmpty() && ! $steps->contains('status', DealAutomationLog::STATUS_SUCCESS)) {
+            return DealAutomationLog::STATUS_SKIPPED;
+        }
+
+        return DealAutomationLog::STATUS_SUCCESS;
     }
 
     /**
@@ -214,12 +303,14 @@ class DealAutomationController extends AccountBaseController
         $base = DealAutomationLog::query()
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id));
 
-        $totalRuns = (clone $base)->count();
-        $successCount = (clone $base)->where('status', DealAutomationLog::STATUS_SUCCESS)->count();
+        // Every count here is over executions, not the individual action rows
+        // that make them up — a three-action automation is one run, not three.
+        $totalRuns = $this->countRuns($base);
+        $successCount = $this->countRuns($base, fn ($q) => $q->where('failed_steps', 0));
         $lastRun = (clone $base)->orderByDesc('executed_at')->value('executed_at');
 
-        $daily = (clone $base)
-            ->where('executed_at', '>=', now()->subDays(6)->startOfDay())
+        $daily = DB::query()
+            ->fromSub($this->runsQuery((clone $base)->where('executed_at', '>=', now()->subDays(6)->startOfDay()))->getQuery(), 'runs')
             ->selectRaw('DATE(executed_at) as day, COUNT(*) as total')
             ->groupBy('day')
             ->pluck('total', 'day');
@@ -230,12 +321,10 @@ class DealAutomationController extends AccountBaseController
             return ['day' => $date, 'value' => (int) ($daily[$date] ?? 0)];
         })->values();
 
-        // Only the per-automation view renders this, and the company-wide
-        // variant would group/count across every log row for nothing — so it's
-        // computed when scoped to one automation, or explicitly asked for.
-        $wantsFiredFor = $request->filled('automation_id') || $request->boolean('fired_for');
-
-        $firedFor = $wantsFiredFor
+        // Costs two extra grouped queries, so it's only built when the caller
+        // asks for it — today that's the Fired-for panel, which is behind a
+        // front-end toggle (SHOW_FIRED_FOR) and currently off.
+        $firedFor = $request->boolean('fired_for')
             ? $this->firedForBreakdown($base, min(max($request->integer('fired_for_limit', 25), 1), 100))
             : ['rows' => [], 'total' => 0];
 
@@ -247,6 +336,23 @@ class DealAutomationController extends AccountBaseController
             'fired_for' => $firedFor['rows'],
             'fired_for_total' => $firedFor['total'],
         ]]);
+    }
+
+    /**
+     * Count executions matching the filters, optionally narrowed by a
+     * condition on the grouped run (e.g. `failed_steps = 0`).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     */
+    protected function countRuns($base, ?callable $constrain = null): int
+    {
+        $query = DB::query()->fromSub($this->runsQuery($base)->getQuery(), 'runs');
+
+        if ($constrain) {
+            $constrain($query);
+        }
+
+        return $query->count();
     }
 
     /**
@@ -264,13 +370,14 @@ class DealAutomationController extends AccountBaseController
      */
     protected function firedForBreakdown($base, int $limit): array
     {
-        // CASE rather than MySQL's `SUM(status = ...)` so the same query runs
-        // under the sqlite connection the test suite uses.
-        $grouped = (clone $base)
+        // Runs per record, rolled up from the per-run subquery — so a record an
+        // automation fired for twice reads as 2, not as its total action count.
+        $grouped = DB::query()
+            ->fromSub($this->runsQuery($base)->getQuery(), 'runs')
             ->selectRaw('deal_id, lead_id, COUNT(*) as runs')
-            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as success_runs', [DealAutomationLog::STATUS_SUCCESS])
-            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_runs', [DealAutomationLog::STATUS_FAILED])
-            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as skipped_runs', [DealAutomationLog::STATUS_SKIPPED])
+            ->selectRaw('SUM(CASE WHEN failed_steps > 0 THEN 1 ELSE 0 END) as failed_runs')
+            ->selectRaw('SUM(CASE WHEN failed_steps = 0 THEN 1 ELSE 0 END) as success_runs')
+            ->selectRaw('SUM(steps) as total_steps')
             ->selectRaw('MAX(executed_at) as last_run_at')
             ->groupBy('deal_id', 'lead_id')
             ->orderByDesc('runs')
@@ -310,7 +417,9 @@ class DealAutomationController extends AccountBaseController
                 'runs' => (int) $row->runs,
                 'success_runs' => (int) $row->success_runs,
                 'failed_runs' => (int) $row->failed_runs,
-                'skipped_runs' => (int) $row->skipped_runs,
+                // Actions performed across those runs — the number the old
+                // "runs" figure was actually showing.
+                'total_steps' => (int) $row->total_steps,
                 'last_run_at' => $row->last_run_at,
             ];
         })->values()->all();

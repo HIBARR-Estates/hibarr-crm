@@ -13,6 +13,7 @@ import {
     describeCondition,
     describeConditionGate,
 } from "./adapters/automationSummary";
+import { SHOW_FIRED_FOR } from "./config/featureToggles";
 import useAutomationStats from "./hooks/useAutomationStats";
 import useAutomationLogs from "./hooks/useAutomationLogs";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
@@ -51,7 +52,7 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
     const { td } = useTd();
     const { catalog } = useAutomationWorkspace();
     const { stats, loading: statsLoading } = useAutomationStats(automation.id);
-    const { logs, loading: logsLoading } = useAutomationLogs({ automationId: automation.id });
+    const { runs, loading: logsLoading } = useAutomationLogs({ automationId: automation.id });
 
     const chart = stats?.runs_last_7_days ?? [];
     const barMax = Math.max(...chart.map((b) => b.value), BAR_MAX_FLOOR);
@@ -64,14 +65,16 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
         { label: t("app.automation.stats.totalRuns"), value: (stats?.total_runs ?? 0).toLocaleString("en-US"), sub: t("app.automation.stats.allTime") },
         { label: t("app.automation.stats.successRate"), value: stats?.success_rate != null ? `${stats.success_rate}%` : "—", sub: t("app.automation.stats.allTime") },
         { label: t("app.automation.stats.configuredWait"), value: waitLabel, sub: "" },
-        // Priority already has its own row in the Details card below, so this
-        // slot says something the run count alone can't: how many separate
-        // records those runs were spread across.
-        {
-            label: t("app.automation.stats.recordsFiredFor"),
-            value: (stats?.fired_for_total ?? 0).toLocaleString("en-US"),
-            sub: t("app.automation.stats.allTime"),
-        },
+        // With the Fired-for breakdown hidden, this slot goes back to Priority.
+        // When it's shown, it says something the run count alone can't: how
+        // many separate records those runs were spread across.
+        SHOW_FIRED_FOR
+            ? {
+                  label: t("app.automation.stats.recordsFiredFor"),
+                  value: (stats?.fired_for_total ?? 0).toLocaleString("en-US"),
+                  sub: t("app.automation.stats.allTime"),
+              }
+            : { label: t("app.automation.priority"), value: String(automation.priority), sub: "" },
     ];
 
     const firedFor = stats?.fired_for ?? [];
@@ -177,7 +180,9 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                         )}
                     </div>
                     {/* Who it actually fired for — the run count broken out per
-                        record, so "412 runs" isn't mistaken for 412 people. */}
+                        record, so "412 runs" isn't mistaken for 412 people.
+                        Hidden behind SHOW_FIRED_FOR for now. */}
+                    {SHOW_FIRED_FOR && (
                     <div className="rounded-[10px] border bg-white overflow-hidden" style={{ borderColor: T.BORDER }}>
                         <div
                             className="px-4.5 py-3.5 border-b flex items-center justify-between gap-3"
@@ -248,24 +253,33 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                                     </span>
 
                                     <span className="shrink-0 flex items-center gap-1.5">
+                                        {/* Runs, with the action total behind it — the
+                                            two differ whenever an automation has more
+                                            than one action. */}
                                         <Badge variant="gray">
                                             {row.runs === 1
                                                 ? t("app.automation.oneRun")
                                                 : t("app.automation.runCount", { count: row.runs })}
                                         </Badge>
+                                        <span style={{ fontSize: 11, color: T.TEXT_HINT, width: 62 }}>
+                                            {row.total_steps === 1
+                                                ? t("app.automation.oneStep")
+                                                : t("app.automation.stepCount", { count: row.total_steps })}
+                                        </span>
                                         {row.failed_runs > 0 && <Badge variant="red">{row.failed_runs}</Badge>}
                                     </span>
                                 </div>
                             );
                         })}
                     </div>
+                    )}
 
                     <div className="rounded-[10px] border bg-white overflow-hidden" style={{ borderColor: T.BORDER }}>
                         <div className="px-4.5 py-3.5 border-b" style={{ borderColor: T.BORDER_SOFT, fontSize: 15, fontWeight: 600, color: T.TEXT }}>
                             {t("app.automation.recentRuns")}
                         </div>
                         {logsLoading && Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)}
-                        {!logsLoading && logs.length === 0 && (
+                        {!logsLoading && runs.length === 0 && (
                             <div className="px-4.5 py-6">
                                 <EmptyState
                                     title={t("app.automation.noActivityYet")}
@@ -273,15 +287,19 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                                 />
                             </div>
                         )}
-                        {!logsLoading && logs.slice(0, 5).map((entry) => (
-                            <div key={entry.id} className="flex items-center gap-3 px-4.5 py-3 border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
+                        {!logsLoading && runs.slice(0, 5).map((run) => (
+                            <div key={run.run_id} className="flex items-center gap-3 px-4.5 py-3 border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
                                 <span className="shrink-0" style={{ fontSize: 12, color: T.TEXT_HINT, width: 130 }}>
-                                    {new Date(entry.executed_at).toLocaleString()}
+                                    {new Date(run.executed_at).toLocaleString()}
                                 </span>
                                 <span className="flex-1 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, color: T.TEXT }}>
-                                    {entry.deal?.name ?? entry.lead?.client_name ?? "—"} — {entry.action}
+                                    {run.deal?.name ?? run.lead?.client_name ?? "—"}
+                                    {" — "}
+                                    {run.steps_count === 1
+                                        ? t("app.automation.oneStep")
+                                        : t("app.automation.stepCount", { count: run.steps_count })}
                                 </span>
-                                <Badge variant={statusToVariant(entry.status)}>{t(`app.automation.results.${entry.status}`)}</Badge>
+                                <Badge variant={statusToVariant(run.status)}>{t(`app.automation.results.${run.status}`)}</Badge>
                             </div>
                         ))}
                     </div>

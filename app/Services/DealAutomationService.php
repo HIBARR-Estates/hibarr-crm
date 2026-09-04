@@ -34,6 +34,15 @@ class DealAutomationService
 
     protected MailDeliveryRecorder $mailDeliveryRecorder;
 
+    /**
+     * The execution currently running, stamped on every log row it writes so
+     * a multi-action automation reads as one run with N steps instead of N
+     * runs. Set by executeActions() and never read outside it — actions run
+     * synchronously to completion within a single call, so there is never
+     * more than one live execution per service instance.
+     */
+    protected ?string $currentRunId = null;
+
     public function __construct(
         FieldResolverService $fieldResolver,
         ConditionEvaluatorService $conditionEvaluator,
@@ -263,7 +272,9 @@ class DealAutomationService
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
 
-        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
+        // run_id is only set when a mid-sequence wait step queued this row —
+        // a pre-actions wait starts a fresh execution, so null is correct there.
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id);
     }
 
     /**
@@ -367,11 +378,18 @@ class DealAutomationService
      * deal-automations:process-pending-runs, same mechanism the automation's
      * own pre-actions wait already uses.
      *
+     * @param  string|null  $runId  Continues an execution a wait step paused;
+     *                              null starts a new one.
      * @return bool True when the full action list finished; false when a wait
      *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): bool
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null): bool
     {
+        // One id for this whole execution — every step's log row carries it,
+        // and a wait step hands it to the pending row so the steps that resume
+        // afterwards land in the same run rather than looking like a new one.
+        $this->currentRunId = $runId ?: (string) Str::uuid();
+
         $actions = $automation->actions->sortBy('id')->values();
 
         $startIndex = 0;
@@ -416,7 +434,7 @@ class DealAutomationService
                 $nextAction = $actions->get($i + 1);
 
                 if ($waitSeconds > 0 && $nextAction) {
-                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds);
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId);
                     $this->logAction(
                         $subject,
                         $automation,
@@ -455,8 +473,11 @@ class DealAutomationService
      * Queue a pending run resuming at $resumeActionId — used when a "wait"
      * action step is hit mid-sequence. updateOrCreate refreshes run_at and
      * resume_action_id when the same subject is already waiting.
+     *
+     * $runId carries the paused execution across the wait so its remaining
+     * steps log under the same run as the ones that already ran.
      */
-    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds): void
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null): void
     {
         try {
             DealAutomationPendingRun::updateOrCreate([
@@ -466,6 +487,7 @@ class DealAutomationService
             ], [
                 'company_id' => $subject->company_id,
                 'resume_action_id' => $resumeActionId,
+                'run_id' => $runId,
                 'run_at' => now()->addSeconds($waitSeconds),
             ]);
         } catch (\Exception $e) {
@@ -1170,6 +1192,9 @@ class DealAutomationService
             'source' => 'automation',
             'automation_id' => $automation?->id,
             'automation_name' => $automation?->name,
+            // So the outcome row the job writes later joins this same run
+            // rather than appearing as a run of its own.
+            'run_id' => $this->currentRunId,
         ];
 
         DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
@@ -1401,6 +1426,7 @@ class DealAutomationService
                 'deal_id' => $subject instanceof Deal ? $subject->id : null,
                 'lead_id' => $subject instanceof Lead ? $subject->id : null,
                 'automation_id' => $automation->id,
+                'run_id' => $this->currentRunId,
                 'action' => $description,
                 'status' => $status,
                 'channel' => $channel,

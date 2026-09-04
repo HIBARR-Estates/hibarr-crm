@@ -182,9 +182,12 @@ export interface RunLogDetails {
     [key: string]: unknown;
 }
 
+/** One action performed inside a run — the log table's own row shape. */
 export interface RunLogEntry {
     id: number;
     automation_id: number | null;
+    /** The execution this step belongs to. */
+    run_id: string | null;
     deal_id: number | null;
     lead_id: number | null;
     action: string;
@@ -192,6 +195,25 @@ export interface RunLogEntry {
     channel: LogChannel | null;
     details: RunLogDetails | null;
     executed_at: string;
+    automation?: { id: number; name: string } | null;
+    deal?: { id: number; name: string } | null;
+    lead?: { id: number; client_name: string } | null;
+}
+
+/**
+ * One execution of an automation, with every action it performed nested
+ * under it. An automation with three actions produces one of these, not
+ * three — `steps_count` is where the action count lives.
+ */
+export interface RunHistoryEntry {
+    run_id: string;
+    automation_id: number | null;
+    /** Worst step status: any failed step makes the whole run failed. */
+    status: LogStatus;
+    steps_count: number;
+    started_at: string | null;
+    executed_at: string;
+    steps: RunLogEntry[];
     automation?: { id: number; name: string } | null;
     deal?: { id: number; name: string } | null;
     lead?: { id: number; client_name: string } | null;
@@ -207,10 +229,13 @@ export interface AutomationFiredForRow {
     /** The person behind that record (a deal's linked contact). */
     person_name: string | null;
     person_email: string | null;
+    /** Executions, not actions — a 3-action automation run once counts as 1. */
     runs: number;
     success_runs: number;
+    /** Runs in which at least one action failed. */
     failed_runs: number;
-    skipped_runs: number;
+    /** Actions performed across those runs. */
+    total_steps: number;
     last_run_at: string | null;
 }
 
