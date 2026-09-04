@@ -7,6 +7,8 @@ const emptyStats: AutomationStatsSummary = {
     success_rate: null,
     last_run_at: null,
     runs_last_7_days: [],
+    fired_for: [],
+    fired_for_total: 0,
 };
 
 /** Fetch against deal-automations.stats — company-wide (no id) for

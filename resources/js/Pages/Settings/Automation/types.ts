@@ -134,7 +134,9 @@ export interface EmailDeliveryDetail {
     recipient: string;
     /** Ties this line to its row in email_delivery_logs. */
     correlation_id?: string;
-    status: "sent" | "failed";
+    /** "unconfirmed" = the send raised no error but no transport outcome was
+     * recorded, so delivery was never actually verified. */
+    status: "sent" | "failed" | "unconfirmed";
     system: MailSystem;
     uns_attempted: boolean;
     response_status: number | null;
@@ -195,11 +197,32 @@ export interface RunLogEntry {
     lead?: { id: number; client_name: string } | null;
 }
 
+/** One deal/lead the automation actually fired for, with its own run tally. */
+export interface AutomationFiredForRow {
+    subject_type: "deal" | "lead";
+    deal_id: number | null;
+    lead_id: number | null;
+    /** The record it ran against — a deal's name, or the lead's own name. */
+    record_name: string | null;
+    /** The person behind that record (a deal's linked contact). */
+    person_name: string | null;
+    person_email: string | null;
+    runs: number;
+    success_runs: number;
+    failed_runs: number;
+    skipped_runs: number;
+    last_run_at: string | null;
+}
+
 export interface AutomationStatsSummary {
     total_runs: number;
     success_rate: number | null;
     last_run_at: string | null;
     runs_last_7_days: { day: string; value: number }[];
+    /** Top records by run count — capped server-side (`fired_for_limit`). */
+    fired_for: AutomationFiredForRow[];
+    /** Distinct records overall, so the list can say "25 of 300". */
+    fired_for_total: number;
 }
 
 export interface CustomFieldOption {

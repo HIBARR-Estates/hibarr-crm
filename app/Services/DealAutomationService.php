@@ -840,7 +840,8 @@ class DealAutomationService
      * The outcome comes from MailDeliveryRecorder, which UnsRoutingTransport
      * fills in during the synchronous Mail::send() above. If it's missing —
      * e.g. a mail driver that never reaches the transport, like the array
-     * driver in tests — the record degrades to 'unknown' rather than lying.
+     * driver in tests — the record degrades to 'unknown'/'unconfirmed' rather
+     * than claiming a delivery nothing actually confirmed.
      *
      * @return array<string, mixed>
      */
@@ -854,7 +855,7 @@ class DealAutomationService
             'correlation_id' => $correlationId,
             'status' => $exceptionMessage !== null
                 ? EmailDeliveryLog::STATUS_FAILED
-                : ($outcome['status'] ?? EmailDeliveryLog::STATUS_SENT),
+                : ($outcome['status'] ?? EmailDeliveryLog::STATUS_UNCONFIRMED),
             'system' => $outcome['system'] ?? 'unknown',
             'uns_attempted' => (bool) ($outcome['uns_attempted'] ?? false),
             'response_status' => $outcome['response_status'] ?? null,

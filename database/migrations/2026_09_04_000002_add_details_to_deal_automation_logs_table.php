@@ -55,11 +55,24 @@ return new class extends Migration
         // Rows with no automation can't satisfy the NOT NULL constraint.
         DB::table('deal_automation_logs')->whereNull('automation_id')->delete();
 
+        // Same guard as up(): the FK may already be gone if a prior run of
+        // either direction stopped partway (MySQL auto-commits per DDL
+        // statement), and dropping a missing FK aborts the rollback.
+        if (in_array('automation_id', $this->existingForeignKeyColumns(), true)) {
+            Schema::table('deal_automation_logs', function (Blueprint $table) {
+                $table->dropForeign(['automation_id']);
+            });
+        }
+
         Schema::table('deal_automation_logs', function (Blueprint $table) {
-            $table->dropForeign(['automation_id']);
             $table->unsignedBigInteger('automation_id')->nullable(false)->change();
-            $table->foreign('automation_id')->references('id')->on('deal_automations')->onDelete('cascade');
         });
+
+        if (! in_array('automation_id', $this->existingForeignKeyColumns(), true)) {
+            Schema::table('deal_automation_logs', function (Blueprint $table) {
+                $table->foreign('automation_id')->references('id')->on('deal_automations')->onDelete('cascade');
+            });
+        }
     }
 
     /**

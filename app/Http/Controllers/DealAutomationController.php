@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Helper\Reply;
+use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\EmailTemplate;
+use App\Models\Lead;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\User;
@@ -228,12 +230,92 @@ class DealAutomationController extends AccountBaseController
             return ['day' => $date, 'value' => (int) ($daily[$date] ?? 0)];
         })->values();
 
+        // Only the per-automation view renders this, and the company-wide
+        // variant would group/count across every log row for nothing — so it's
+        // computed when scoped to one automation, or explicitly asked for.
+        $wantsFiredFor = $request->filled('automation_id') || $request->boolean('fired_for');
+
+        $firedFor = $wantsFiredFor
+            ? $this->firedForBreakdown($base, min(max($request->integer('fired_for_limit', 25), 1), 100))
+            : ['rows' => [], 'total' => 0];
+
         return Reply::dataOnly(['status' => 'success', 'data' => [
             'total_runs' => $totalRuns,
             'success_rate' => $totalRuns > 0 ? round($successCount / $totalRuns * 100, 1) : null,
             'last_run_at' => $lastRun,
             'runs_last_7_days' => $chart,
+            'fired_for' => $firedFor['rows'],
+            'fired_for_total' => $firedFor['total'],
         ]]);
+    }
+
+    /**
+     * Who the automation actually fired for — one entry per deal/lead it ran
+     * against, with that record's own run tally, rather than a single opaque
+     * "N runs" number. Ordered by run count so the records an automation keeps
+     * re-firing on (usually the interesting ones) come first.
+     *
+     * Names are hydrated in two follow-up queries instead of a join so the
+     * grouped aggregate stays a single simple statement — the log table is the
+     * only thing that grows here.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     * @return array{rows: array<int, array<string, mixed>>, total: int}
+     */
+    protected function firedForBreakdown($base, int $limit): array
+    {
+        // CASE rather than MySQL's `SUM(status = ...)` so the same query runs
+        // under the sqlite connection the test suite uses.
+        $grouped = (clone $base)
+            ->selectRaw('deal_id, lead_id, COUNT(*) as runs')
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as success_runs', [DealAutomationLog::STATUS_SUCCESS])
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_runs', [DealAutomationLog::STATUS_FAILED])
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as skipped_runs', [DealAutomationLog::STATUS_SKIPPED])
+            ->selectRaw('MAX(executed_at) as last_run_at')
+            ->groupBy('deal_id', 'lead_id')
+            ->orderByDesc('runs')
+            ->limit($limit)
+            ->get();
+
+        // Distinct subjects overall, so the UI can say "showing 25 of 300".
+        // Counted over a grouped subquery rather than MySQL's multi-column
+        // COUNT(DISTINCT a, b), which sqlite (the test connection) rejects.
+        $total = DB::query()->fromSub(
+            (clone $base)->select('deal_id', 'lead_id')->groupBy('deal_id', 'lead_id')->getQuery(),
+            'subjects'
+        )->count();
+
+        $deals = Deal::with('contact:id,client_name,client_email')
+            ->whereIn('id', $grouped->pluck('deal_id')->filter()->all())
+            ->get(['id', 'name', 'lead_id'])
+            ->keyBy('id');
+
+        $leads = Lead::whereIn('id', $grouped->pluck('lead_id')->filter()->all())
+            ->get(['id', 'client_name', 'client_email'])
+            ->keyBy('id');
+
+        $rows = $grouped->map(function ($row) use ($deals, $leads) {
+            $deal = $row->deal_id ? $deals->get($row->deal_id) : null;
+            $lead = $row->lead_id ? $leads->get($row->lead_id) : ($deal?->contact);
+
+            return [
+                'subject_type' => $deal ? 'deal' : 'lead',
+                'deal_id' => $row->deal_id,
+                'lead_id' => $row->lead_id ?: $deal?->lead_id,
+                // The record the automation ran against…
+                'record_name' => $deal?->name ?? $lead?->client_name,
+                // …and the person behind it (a deal's linked contact).
+                'person_name' => $lead?->client_name,
+                'person_email' => $lead?->client_email,
+                'runs' => (int) $row->runs,
+                'success_runs' => (int) $row->success_runs,
+                'failed_runs' => (int) $row->failed_runs,
+                'skipped_runs' => (int) $row->skipped_runs,
+                'last_run_at' => $row->last_run_at,
+            ];
+        })->values()->all();
+
+        return ['rows' => $rows, 'total' => (int) $total];
     }
 
     /**

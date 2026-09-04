@@ -58,6 +58,8 @@ function RawBlock({ label, body }: { label: string; body: string }) {
 
 function EmailDelivery({ delivery, td }: { delivery: EmailDeliveryDetail; td: TdFn }) {
     const failed = delivery.status === "failed";
+    // Neutral, not green: nothing confirmed this one actually went out.
+    const unconfirmed = delivery.status === "unconfirmed";
 
     return (
         <div
@@ -66,8 +68,8 @@ function EmailDelivery({ delivery, td }: { delivery: EmailDeliveryDetail; td: Td
         >
             <div className="flex items-center gap-2 flex-wrap">
                 <span style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>{delivery.recipient}</span>
-                <Badge variant={failed ? "red" : "green"}>
-                    {failed ? td("Failed") : td("Sent")}
+                <Badge variant={failed ? "red" : unconfirmed ? "gray" : "green"}>
+                    {failed ? td("Failed") : unconfirmed ? td("Not confirmed") : td("Sent")}
                 </Badge>
                 <Badge variant={delivery.system === "uns" ? "teal" : "gray"}>
                     {td(MAIL_SYSTEM_LABEL[delivery.system] ?? MAIL_SYSTEM_LABEL.unknown)}
@@ -85,6 +87,12 @@ function EmailDelivery({ delivery, td }: { delivery: EmailDeliveryDetail; td: Td
                     <Field label={td("Fallback reason")} value={delivery.fallback_reason} />
                 )}
             </div>
+
+            {unconfirmed && !delivery.error && (
+                <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                    {td("The send reported no error, but no delivery was recorded for it — delivery is unverified.")}
+                </div>
+            )}
 
             {delivery.error && <RawBlock label={td("Error")} body={delivery.error} />}
             {delivery.response_body && <RawBlock label={td("UNS response body")} body={delivery.response_body} />}

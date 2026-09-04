@@ -152,7 +152,10 @@ class UnsRoutingTransport implements TransportInterface
         array $outcome,
     ): void {
         $recipient = $this->resolveRecipient($message, $envelope);
-        $subject = $message instanceof Email ? (string) ($message->getSubject() ?? '') : '';
+        // `subject` is a varchar column — a long one would fail the insert and
+        // cost us the delivery record entirely, so trim it the same way an
+        // oversized provider response body is trimmed.
+        $subject = $message instanceof Email ? $this->truncate((string) ($message->getSubject() ?? ''), 250) : null;
         $correlationId = isset($context['correlation_id']) ? (string) $context['correlation_id'] : null;
 
         $outcome = $outcome + [
@@ -171,8 +174,11 @@ class UnsRoutingTransport implements TransportInterface
                 'sent_at' => now(),
             ]);
         } catch (\Throwable $exception) {
+            // Correlation id rather than the recipient address — this line goes
+            // to the shared application log, which has no business holding an
+            // end user's email address.
             Log::error('Failed to write email delivery log.', [
-                'recipient' => $recipient,
+                'correlation_id' => $correlationId,
                 'error' => $exception->getMessage(),
             ]);
         }
