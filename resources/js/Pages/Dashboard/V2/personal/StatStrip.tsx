@@ -203,7 +203,7 @@ export default function StatStrip({
                       // can have nothing paid out yet but plenty booked.
                       ratio: commission.pending.length
                           ? `${pending.label}${pending.rest ? ` ${pending.rest}` : ""} ${td("still pending")}`
-                          : "Paid on completion at notary",
+                          : "Nothing pending right now",
                       // Only when there's something paid this month to look
                       // at — with nothing earned, the destination is an
                       // empty list, not a click worth offering.
