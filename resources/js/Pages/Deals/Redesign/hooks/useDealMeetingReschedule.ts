@@ -2,10 +2,7 @@ import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     formatMeetingDateForApi,
@@ -76,7 +73,6 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                             ),
                             start_time: formatMeetingTimeForApi(input.startTime),
                             duration: input.duration,
-                            timezone: getBrowserTimezone(),
                         }),
                     },
                 );
