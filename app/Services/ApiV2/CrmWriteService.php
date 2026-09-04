@@ -5,6 +5,7 @@ namespace App\Services\ApiV2;
 use App\Enums\IntegrationOrigin;
 use App\Events\AutoFollowUpReminderEvent;
 use App\Helper\Files;
+use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
@@ -24,6 +25,7 @@ use App\Services\DealNotificationService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\Reminders\NoteReminderSync;
 use App\Services\Reminders\TaskReminderSync;
+use App\Support\UserTimezone;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,8 +80,8 @@ class CrmWriteService
             $task->status = $boardColumn->slug === 'completed' ? 'completed' : 'incomplete';
             $task->is_private = 0;
             $task->billable = 0;
-            $task->due_date = !empty($data['due_date']) ? Carbon::parse($data['due_date']) : null;
-            $task->start_date = !empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
+            $task->due_date = ! empty($data['due_date']) ? Carbon::parse($data['due_date']) : null;
+            $task->start_date = ! empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
             if (array_key_exists('reminders', $data)) {
                 $task->reminders = $data['reminders'];
             }
@@ -270,7 +272,7 @@ class CrmWriteService
         }
 
         $createdByUserId = $this->resolveCreatedByUserId($data, $deal, $lead);
-        $timezone = $data['timezone'] ?? $this->resolveCompanyTimezone($companyId);
+        $timezone = $this->resolveMeetingWriteTimezone($companyId, $data, $createdByUserId);
         $scheduledAt = Carbon::parse($data['scheduled_at'], $timezone)->setTimezone('UTC');
 
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -330,7 +332,7 @@ class CrmWriteService
     {
         $deal = $this->resolveDeal($companyId, $data, null);
         if ($deal === null) {
-            throw (new ModelNotFoundException())->setModel(Deal::class);
+            throw (new ModelNotFoundException)->setModel(Deal::class);
         }
 
         $currencyId = (int) ($data['currency_id'] ?? 0);
@@ -356,7 +358,7 @@ class CrmWriteService
             ->first();
 
         $created = $existing === null;
-        $payment = $existing ?? new Payment();
+        $payment = $existing ?? new Payment;
 
         $payment->company_id = $companyId;
         $payment->deal_id = $deal->id;
@@ -366,11 +368,11 @@ class CrmWriteService
         $payment->gateway = (string) $data['gateway'];
         $payment->status = $status;
 
-        if (!empty($data['checkout_url'])) {
+        if (! empty($data['checkout_url'])) {
             $payment->checkout_url = (string) $data['checkout_url'];
         }
 
-        if (!empty($data['expires_at'])) {
+        if (! empty($data['expires_at'])) {
             $payment->expires_at = Carbon::parse($data['expires_at']);
         }
 
@@ -388,7 +390,7 @@ class CrmWriteService
             $payment->verified_by_user_id = (int) $data['verified_by_user_id'];
         }
 
-        if (!empty($data['verified_at'])) {
+        if (! empty($data['verified_at'])) {
             $payment->verified_at = Carbon::parse($data['verified_at']);
         }
 
@@ -398,13 +400,13 @@ class CrmWriteService
                 : null;
         }
 
-        if (!empty($data['paid_on'])) {
+        if (! empty($data['paid_on'])) {
             $payment->paid_on = Carbon::parse($data['paid_on']);
         } elseif ($status === 'complete' && ($created || $payment->paid_on === null)) {
             $payment->paid_on = Carbon::now();
         }
 
-        $shouldStoreProof = $billFile !== null || !empty($data['proof_url']);
+        $shouldStoreProof = $billFile !== null || ! empty($data['proof_url']);
         $previousBill = $payment->bill;
 
         if ($shouldStoreProof) {
@@ -437,7 +439,7 @@ class CrmWriteService
             ->with(['currency', 'deal.leadStage', 'deal.pipeline'])
             ->where('company_id', $companyId);
 
-        if (!empty($filters['deal_id'])) {
+        if (! empty($filters['deal_id'])) {
             $query->where('deal_id', (int) $filters['deal_id']);
         }
 
@@ -504,7 +506,7 @@ class CrmWriteService
             return 'confirming';
         }
 
-        if ($crmStatus === 'pending' && (!empty($data['proof_url']) || !empty($data['bill']))) {
+        if ($crmStatus === 'pending' && (! empty($data['proof_url']) || ! empty($data['bill']))) {
             return 'confirming';
         }
 
@@ -521,11 +523,11 @@ class CrmWriteService
      */
     private function inferOlPaymentTypeFromWriteBack(array $data): ?string
     {
-        if (!empty($data['ol_payment_type'])) {
+        if (! empty($data['ol_payment_type'])) {
             return strtolower((string) $data['ol_payment_type']);
         }
 
-        if (!empty($data['payment_type'])) {
+        if (! empty($data['payment_type'])) {
             return strtolower((string) $data['payment_type']);
         }
 
@@ -558,7 +560,7 @@ class CrmWriteService
             ]);
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw ValidationException::withMessages([
                 'proof_url' => ['Unable to download proof file from the provided URL.'],
             ]);
@@ -566,7 +568,7 @@ class CrmWriteService
 
         $path = parse_url($proofUrl, PHP_URL_PATH);
         $basename = is_string($path) && $path !== '' ? basename($path) : 'proof.bin';
-        if ($basename === '' || $basename === '/' || !str_contains($basename, '.')) {
+        if ($basename === '' || $basename === '/' || ! str_contains($basename, '.')) {
             $basename = 'proof.pdf';
         }
 
@@ -657,7 +659,7 @@ class CrmWriteService
             $task->integration_origin = $data['integration_origin'];
         }
 
-        if (!empty($data['updated_by_user_id'])) {
+        if (! empty($data['updated_by_user_id'])) {
             $task->last_updated_by = (int) $data['updated_by_user_id'];
         }
 
@@ -669,12 +671,12 @@ class CrmWriteService
         }
 
         $fresh = $task->fresh([
-                'users',
-                'leads:id,client_name,client_email,mobile',
-                'deals:id,name,value,pipeline_stage_id,lead_pipeline_id',
-                'deals.leadStage:id,name',
-                'deals.pipeline:id,name',
-            ]);
+            'users',
+            'leads:id,client_name,client_email,mobile',
+            'deals:id,name,value,pipeline_stage_id,lead_pipeline_id',
+            'deals.leadStage:id,name',
+            'deals.pipeline:id,name',
+        ]);
         app(TaskReminderSync::class)->syncFromTask($fresh);
 
         return $fresh;
@@ -890,7 +892,11 @@ class CrmWriteService
         $followUp = $this->findMeeting($companyId, $meetingId);
 
         if (array_key_exists('scheduled_at', $data)) {
-            $timezone = $data['timezone'] ?? $this->resolveCompanyTimezone($companyId);
+            $timezone = $this->resolveMeetingWriteTimezone(
+                $companyId,
+                $data,
+                $followUp->added_by !== null ? (int) $followUp->added_by : null
+            );
             $followUp->next_follow_up_date = Carbon::parse($data['scheduled_at'], $timezone)->setTimezone('UTC');
         }
 
@@ -1402,6 +1408,27 @@ class CrmWriteService
             ->value('timezone');
 
         return is_string($timezone) && $timezone !== '' ? $timezone : 'UTC';
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveMeetingWriteTimezone(int $companyId, array $data, ?int $createdByUserId): string
+    {
+        $user = $createdByUserId !== null
+            ? User::withoutGlobalScopes()->find($createdByUserId)
+            : null;
+
+        $company = new Company;
+        $company->timezone = $this->resolveCompanyTimezone($companyId);
+
+        $override = $data['timezone'] ?? null;
+
+        return UserTimezone::forWrite(
+            $user instanceof User ? $user : null,
+            $company,
+            is_string($override) ? $override : null
+        );
     }
 
     /**
