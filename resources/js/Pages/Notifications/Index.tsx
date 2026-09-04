@@ -384,7 +384,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             exit={{ opacity: 0, height: 0 }}
             className="bg-blue-50 border-b border-blue-100"
         >
-            <div className="px-4 py-3 flex items-center justify-between">
+            <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-4">
                     <Checkbox
                         checked={allSelected}
@@ -400,7 +400,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                 </div>
 
                 {selectedCount > 0 && (
-                    <Space>
+                    <Space wrap>
                         <Button
                             size="small"
                             icon={<CheckOutlined />}
@@ -510,7 +510,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
         <div className="p-4 bg-gray-50 border-b border-gray-200">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 {/* Status filter */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <Select
                         value={status}
                         onChange={onStatusChange}
