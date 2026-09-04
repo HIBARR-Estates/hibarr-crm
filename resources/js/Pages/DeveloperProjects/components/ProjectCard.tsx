@@ -1,4 +1,4 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { Dropdown, Popconfirm } from "antd";
 import {
     Eye,
@@ -36,6 +36,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     onDelete,
     showHiddenBadge = false,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
     const canDelete = hasPermission("delete_developer_projects");
@@ -221,9 +223,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                                     Price From
                                 </p>
                                 <p className="font-bold text-sm text-slate-900">
+                                    {currencySymbol}
                                     {new Intl.NumberFormat("en-GB", {
-                                        style: "currency",
-                                        currency: "GBP",
                                         maximumFractionDigits: 0,
                                     }).format(Number(project.starting_price))}
                                 </p>

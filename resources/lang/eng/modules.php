@@ -2203,6 +2203,7 @@ return [
         'new-expenseadded-by-member' => 'New Expense/Added by Member',
         'expense-status-changed' => 'Expense Status Changed',
         'user-registrationadded-by-admin' => ' User Registration/Added by Admin',
+        'user-registration-added-by-admin' => 'User Registration/Added by Admin',
         'employee-assign-to-project' => 'Employee Assign to Project',
         'new-notice-published' => 'New Notice Published',
         'user-assign-to-task' => 'User Assign to Task',

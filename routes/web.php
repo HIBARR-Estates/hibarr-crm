@@ -76,9 +76,6 @@ use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\LeadSavedViewController;
-use App\Http\Controllers\ProjectSavedViewController;
-use App\Http\Controllers\TaskSavedViewController;
-use App\Http\Controllers\TaskCommentApiController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
@@ -108,6 +105,7 @@ use App\Http\Controllers\ProjectMemberController;
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProjectNoteController;
 use App\Http\Controllers\ProjectRatingController;
+use App\Http\Controllers\ProjectSavedViewController;
 use App\Http\Controllers\ProjectSubCategoryController;
 use App\Http\Controllers\ProjectTemplateController;
 use App\Http\Controllers\ProjectTemplateMemberController;
@@ -133,12 +131,14 @@ use App\Http\Controllers\SubTaskFileController;
 use App\Http\Controllers\TaskBoardController;
 use App\Http\Controllers\TaskCalendarController;
 use App\Http\Controllers\TaskCategoryController;
+use App\Http\Controllers\TaskCommentApiController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskFileController;
 use App\Http\Controllers\TaskLabelController;
 use App\Http\Controllers\TaskNoteController;
 use App\Http\Controllers\TaskReportController;
+use App\Http\Controllers\TaskSavedViewController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketCustomFormController;
 use App\Http\Controllers\TicketFileController;
@@ -535,6 +535,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Lead contact files (standalone multi-upload on the lead Files tab)
     Route::get('lead-contact-files/download/{id}', [LeadContactFileController::class, 'download'])->name('lead-contact-files.download');
     Route::post('lead-contact-files', [LeadContactFileController::class, 'store'])->name('lead-contact-files.store');
+    Route::put('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'update'])->name('lead-contact-files.update');
     Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
 
@@ -622,6 +623,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('{type}', [FormDataController::class, 'index'])->name('form-data.index');
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
+
+    // Live reference FX rate, to prefill the deal value modal's exchange rate.
+    Route::get('api/exchange-rate', [\App\Http\Controllers\ExchangeRateController::class, 'show'])
+        ->name('exchange-rate.show');
 
     // Dynamic translation lookup API (auth-protected)
     Route::prefix('api/dynamic-translations')->group(function () {
@@ -712,6 +717,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         // Accept both POST (for file uploads with method spoofing) and PATCH
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
         Route::patch('gathering/analysis-complete/{id}', [DealGatheringController::class, 'completeAnalysis'])->name('gathering.analysis_complete');
+        // Bulk write: deal + lead custom fields in one request/transaction.
+        // Same POST+PATCH acceptance as inline-update, same reason (file uploads).
+        Route::match(['post', 'patch'], 'gathering/custom-fields-bulk/{id}', [DealGatheringController::class, 'updateCustomFieldsBulk'])->name('gathering.custom_fields_bulk');
     });
 
     // Explicit deal routes (no resource)
@@ -726,6 +734,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
+    Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 

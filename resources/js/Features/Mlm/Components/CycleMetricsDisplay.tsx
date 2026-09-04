@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Card, Row, Col, Statistic, Switch } from "antd";
+import { usePage } from "@inertiajs/react";
 import { BarChart3 } from "lucide-react";
 
 interface MetricSet {
@@ -29,6 +30,8 @@ const CycleMetricsDisplay: React.FC<Props> = ({
     compact = false,
 }) => {
     const [showAllTime, setShowAllTime] = useState(false);
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
 
     const metrics =
         showAllTime && allTimeMetrics
@@ -57,12 +60,12 @@ const CycleMetricsDisplay: React.FC<Props> = ({
         {
             title: "Individual Revenue",
             value: metrics?.vsa ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
         },
         {
             title: "Team Revenue",
             value: metrics?.vsd ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
         },
     ];
 

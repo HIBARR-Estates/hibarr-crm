@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import type { DealExpose, DealExposeStatus, DealExposeSummary } from "@/Types/api/dealExposes";
+import type {
+    DealExpose,
+    DealExposeStatus,
+    DealExposeSummary,
+} from "@/Types/api/dealExposes";
 import {
     EXPOSE_STATUS_ORDER,
     exposeStatusMeta,
@@ -14,6 +18,7 @@ import {
 } from "../../adapters/dealExposeAdapter";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
+import EmptyState from "../primitives/DealEmptyState";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealEditableField from "../primitives/DealEditableField";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -124,124 +129,123 @@ export default function ExposesPanel({
         [td],
     );
 
-    const summaryRow: Array<{ status: DealExposeStatus; count: number; label: string }> = [
+    const summaryRow: Array<{
+        status: DealExposeStatus;
+        count: number;
+        label: string;
+    }> = [
         { status: "shown", count: summary.shown, label: "awaiting response" },
         { status: "accepted", count: summary.accepted, label: "accepted" },
-        { status: "not_accepted", count: summary.not_accepted, label: "not accepted" },
+        {
+            status: "not_accepted",
+            count: summary.not_accepted,
+            label: "not accepted",
+        },
         { status: "not_sent", count: summary.not_sent, label: "not sent" },
     ];
 
+    const hasExposes = exposes.length > 0;
+    const showAdd = onAdd && canEdit;
+
+    const renderAddMenu = (align: "header" | "empty") =>
+        addOpen && onAdd ? (
+            <div
+                className={`dr-menu absolute z-30 w-[264px] ${
+                    align === "header"
+                        ? "right-0 top-[calc(100%+6px)]"
+                        : "left-1/2 top-full mt-1.5 -translate-x-1/2"
+                }`}
+                role="menu"
+            >
+                <button
+                    type="button"
+                    role="menuitem"
+                    className="dr-menu-item items-start text-left"
+                    onClick={() => {
+                        setAddOpen(false);
+                        onAdd("linked");
+                    }}
+                >
+                    <DealIcon name="external-link" size={18} color={T.BLUE} />
+                    <span className="block">
+                        <span
+                            className="block text-sm font-semibold"
+                            style={{ color: T.TEXT }}
+                        >
+                            {t("pages.deals.workspace.exposes.add_linked")}
+                        </span>
+                        <span
+                            className="mt-0.5 block text-xs"
+                            style={{ color: T.TEXT_MUTED }}
+                        >
+                            {t("pages.deals.workspace.exposes.add_linked_hint")}
+                        </span>
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    role="menuitem"
+                    className="dr-menu-item items-start text-left"
+                    onClick={() => {
+                        setAddOpen(false);
+                        onAdd("manual");
+                    }}
+                >
+                    <DealIcon name="paperclip" size={18} color={T.NAVY} />
+                    <span className="block">
+                        <span
+                            className="block text-sm font-semibold"
+                            style={{ color: T.TEXT }}
+                        >
+                            {t("pages.deals.workspace.exposes.add_manual")}
+                        </span>
+                        <span
+                            className="mt-0.5 block text-xs"
+                            style={{ color: T.TEXT_MUTED }}
+                        >
+                            {t("pages.deals.workspace.exposes.add_manual_hint")}
+                        </span>
+                    </span>
+                </button>
+            </div>
+        ) : null;
+
     return (
         <div>
-            <div className="mb-4 flex items-start gap-4">
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2.5">
-                        <DealIcon name="file-text" size={18} color={T.NAVY} />
+            {hasExposes && (
+                <div className="mb-4 flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
                         <h2
                             className="m-0 text-base font-bold"
                             style={{ color: T.TEXT }}
                         >
                             {t("pages.deals.workspace.exposes.title")}
                         </h2>
-                        <span
-                            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full border px-1.5 text-xs font-semibold"
-                            style={{
-                                background: T.GRAY,
-                                borderColor: T.BORDER,
-                                color: T.TEXT_MUTED,
-                            }}
+                        <div
+                            className="mt-[-2px] text-[13px]"
+                            style={{ color: T.TEXT_MUTED }}
                         >
-                            {summary.total}
-                        </span>
+                            {subtitle}
+                        </div>
                     </div>
-                    <div
-                        className="mt-[5px] text-[13px]"
-                        style={{ color: T.TEXT_MUTED }}
-                    >
-                        {subtitle}
-                    </div>
-                </div>
 
-                {onAdd && canEdit && (
-                    <div ref={addRef} className="relative flex-none">
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-primary"
-                            aria-haspopup="menu"
-                            aria-expanded={addOpen}
-                            onClick={() => setAddOpen((open) => !open)}
-                        >
-                            <DealIcon name="plus" size={15} />
-                            {t("pages.deals.workspace.exposes.add")}
-                        </button>
-                        {addOpen && (
-                            <div
-                                className="dr-menu absolute right-0 top-[calc(100%+6px)] z-30 w-[264px]"
-                                role="menu"
+                    {showAdd && (
+                        <div ref={addRef} className="relative flex-none">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-primary dr-btn-sm"
+                                aria-haspopup="menu"
+                                aria-expanded={addOpen}
+                                onClick={() => setAddOpen((open) => !open)}
                             >
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="dr-menu-item items-start text-left"
-                                    onClick={() => {
-                                        setAddOpen(false);
-                                        onAdd("linked");
-                                    }}
-                                >
-                                    <DealIcon
-                                        name="external-link"
-                                        size={18}
-                                        color={T.BLUE}
-                                    />
-                                    <span className="block">
-                                        <span
-                                            className="block text-sm font-semibold"
-                                            style={{ color: T.TEXT }}
-                                        >
-                                            {t("pages.deals.workspace.exposes.add_linked")}
-                                        </span>
-                                        <span
-                                            className="mt-0.5 block text-xs"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            {t("pages.deals.workspace.exposes.add_linked_hint")}
-                                        </span>
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="dr-menu-item items-start text-left"
-                                    onClick={() => {
-                                        setAddOpen(false);
-                                        onAdd("manual");
-                                    }}
-                                >
-                                    <DealIcon
-                                        name="paperclip"
-                                        size={18}
-                                        color={T.NAVY}
-                                    />
-                                    <span className="block">
-                                        <span
-                                            className="block text-sm font-semibold"
-                                            style={{ color: T.TEXT }}
-                                        >
-                                            {t("pages.deals.workspace.exposes.add_manual")}
-                                        </span>
-                                        <span
-                                            className="mt-0.5 block text-xs"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            {t("pages.deals.workspace.exposes.add_manual_hint")}
-                                        </span>
-                                    </span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+                                <DealIcon name="plus" size={14} />
+                                {t("pages.deals.workspace.exposes.add")}
+                            </button>
+                            {renderAddMenu("header")}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {exposes.length > 0 && (
                 <div
@@ -261,7 +265,8 @@ export default function ExposesPanel({
                                 aria-hidden="true"
                                 className="h-2 w-2 rounded-full"
                                 style={{
-                                    background: exposeStatusMeta(entry.status).dot,
+                                    background: exposeStatusMeta(entry.status)
+                                        .dot,
                                 }}
                             />
                             {entry.count} {td(entry.label)}
@@ -273,50 +278,37 @@ export default function ExposesPanel({
             {loading ? (
                 <ExposesSkeleton />
             ) : loadFailed ? (
-                <div
+                <EmptyState
                     role="alert"
-                    className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-                    style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
-                >
-                    <div
-                        className="mb-[3px] text-[13px] font-semibold"
-                        style={{ color: T.TEXT }}
-                    >
-                        {t("pages.deals.workspace.exposes.load_failed")}
-                    </div>
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-sm mt-2"
-                        onClick={onRetry}
-                    >
-                        {t("pages.deals.workspace.exposes.retry")}
-                    </button>
-                </div>
+                    icon="info"
+                    title={t("pages.deals.workspace.exposes.load_failed")}
+                    action={{
+                        label: t("pages.deals.workspace.exposes.retry"),
+                        onClick: onRetry,
+                        icon: <DealIcon name="refresh" size={15} />,
+                    }}
+                />
             ) : exposes.length === 0 ? (
-                <div
-                    role="status"
-                    className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-                    style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
-                >
-                    <div
-                        aria-hidden="true"
-                        className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
-                        style={{ background: T.BLUE_LIGHT }}
-                    >
-                        <DealIcon name="file-text" size={17} color={T.BLUE} />
-                    </div>
-                    <div
-                        className="mb-[3px] text-[13px] font-semibold"
-                        style={{ color: T.TEXT }}
-                    >
-                        {t("pages.deals.workspace.exposes.empty")}
-                    </div>
-                    <div
-                        className="text-xs leading-relaxed"
-                        style={{ color: T.TEXT_MUTED }}
-                    >
-                        {t("pages.deals.workspace.exposes.empty_hint")}
-                    </div>
+                <div ref={addRef} className="relative">
+                    <EmptyState
+                        icon="layers"
+                        title={t("pages.deals.workspace.exposes.empty")}
+                        description={t(
+                            "pages.deals.workspace.exposes.empty_hint",
+                        )}
+                        action={
+                            showAdd
+                                ? {
+                                      label: t(
+                                          "pages.deals.workspace.exposes.add",
+                                      ),
+                                      onClick: () =>
+                                          setAddOpen((open) => !open),
+                                  }
+                                : undefined
+                        }
+                    />
+                    {renderAddMenu("empty")}
                 </div>
             ) : (
                 <div className="flex flex-col gap-[18px]">
@@ -349,8 +341,16 @@ export default function ExposesPanel({
                             )}
                             <div className="flex flex-col gap-2.5">
                                 {group.exposes.map((expose) => {
-                                    const meta = exposeStatusMeta(expose.status);
+                                    const meta = exposeStatusMeta(
+                                        expose.status,
+                                    );
                                     const linked = expose.source === "linked";
+                                    // The lead rollup shows exposes across several
+                                    // deals — one may be locked while others
+                                    // aren't, so editability is per-row, not just
+                                    // the panel-wide permission check.
+                                    const rowEditable =
+                                        canEdit && !expose.deal_is_locked;
                                     return (
                                         <div
                                             key={expose.id}
@@ -376,17 +376,21 @@ export default function ExposesPanel({
                                                             : "file-text"
                                                     }
                                                     size={19}
-                                                    color={linked ? T.BLUE : T.NAVY}
+                                                    color={
+                                                        linked ? T.BLUE : T.NAVY
+                                                    }
                                                 />
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="group min-w-0">
-                                                    {onUpdate && canEdit ? (
+                                                    {onUpdate && rowEditable ? (
                                                         <DealEditableField
                                                             value={expose.title}
                                                             fieldName="title"
                                                             fieldType="text"
-                                                            disabled={!canEdit}
+                                                            disabled={
+                                                                !rowEditable
+                                                            }
                                                             className="truncate text-[15px] font-semibold"
                                                             displayValue={
                                                                 <span
@@ -440,7 +444,9 @@ export default function ExposesPanel({
                                                 {expose.source_label && (
                                                     <div
                                                         className="mt-[3px] truncate text-[13px]"
-                                                        style={{ color: T.TEXT_MUTED }}
+                                                        style={{
+                                                            color: T.TEXT_MUTED,
+                                                        }}
                                                     >
                                                         {expose.source_label}
                                                     </div>
@@ -449,7 +455,8 @@ export default function ExposesPanel({
                                             <div className="mr-1.5 flex-none text-right">
                                                 {linked && (
                                                     <div className="group inline-block min-w-[88px]">
-                                                        {onUpdate && canEdit ? (
+                                                        {onUpdate &&
+                                                        rowEditable ? (
                                                             <DealEditableField
                                                                 value={
                                                                     expose.amount ??
@@ -457,7 +464,9 @@ export default function ExposesPanel({
                                                                 }
                                                                 fieldName="amount"
                                                                 fieldType="currency"
-                                                                disabled={!canEdit}
+                                                                disabled={
+                                                                    !rowEditable
+                                                                }
                                                                 className="text-[15px] font-bold text-right"
                                                                 displayValue={
                                                                     <span
@@ -481,7 +490,8 @@ export default function ExposesPanel({
                                                                     if (
                                                                         amount !==
                                                                             null &&
-                                                                        amount < 0
+                                                                        amount <
+                                                                            0
                                                                     ) {
                                                                         throw new Error(
                                                                             t(
@@ -492,13 +502,16 @@ export default function ExposesPanel({
                                                                     if (
                                                                         parseExposeAmount(
                                                                             expose.amount,
-                                                                        ) === amount
+                                                                        ) ===
+                                                                        amount
                                                                     ) {
                                                                         return;
                                                                     }
                                                                     await onUpdate(
                                                                         expose.id,
-                                                                        { amount },
+                                                                        {
+                                                                            amount,
+                                                                        },
                                                                     );
                                                                 }}
                                                             />
@@ -523,7 +536,9 @@ export default function ExposesPanel({
                                                             ? "mt-[3px] text-xs"
                                                             : "text-xs"
                                                     }
-                                                    style={{ color: T.TEXT_HINT }}
+                                                    style={{
+                                                        color: T.TEXT_HINT,
+                                                    }}
                                                 >
                                                     {formatExposeDate(expose)}
                                                 </div>
@@ -533,7 +548,7 @@ export default function ExposesPanel({
                                                     value={expose.status}
                                                     options={statusOptions}
                                                     align="right"
-                                                    disabled={!canEdit}
+                                                    disabled={!rowEditable}
                                                     onChange={(value) =>
                                                         onStatusChange(
                                                             expose.id,
@@ -547,7 +562,8 @@ export default function ExposesPanel({
                                                         borderRadius: 999,
                                                         fontSize: 13,
                                                         fontWeight: 600,
-                                                        background: meta.background,
+                                                        background:
+                                                            meta.background,
                                                         border: `1px solid ${meta.border}`,
                                                         color: meta.text,
                                                         whiteSpace: "nowrap",
@@ -561,18 +577,24 @@ export default function ExposesPanel({
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                                                     title={
                                                         linked
-                                                            ? td("Open expose", {
-                                                                  source: "en",
-                                                              })
+                                                            ? td(
+                                                                  "Open expose",
+                                                                  {
+                                                                      source: "en",
+                                                                  },
+                                                              )
                                                             : t(
                                                                   "pages.deals.workspace.files.download",
                                                               )
                                                     }
                                                     aria-label={
                                                         linked
-                                                            ? td("Open expose", {
-                                                                  source: "en",
-                                                              })
+                                                            ? td(
+                                                                  "Open expose",
+                                                                  {
+                                                                      source: "en",
+                                                                  },
+                                                              )
                                                             : t(
                                                                   "pages.deals.workspace.files.download",
                                                               )
@@ -594,11 +616,13 @@ export default function ExposesPanel({
                                                     />
                                                 </DealButton>
                                             )}
-                                            {onRemove && (
+                                            {onRemove && rowEditable && (
                                                 <button
                                                     type="button"
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
-                                                    title={t("pages.deals.common.delete")}
+                                                    title={t(
+                                                        "pages.deals.common.delete",
+                                                    )}
                                                     aria-label={t(
                                                         "pages.deals.common.delete",
                                                     )}

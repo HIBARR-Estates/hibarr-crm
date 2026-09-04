@@ -120,6 +120,19 @@ interface EditableFieldProps {
      * (v2.2's click-to-edit pattern — opt-in so existing double-click
      * consumers elsewhere in the app are unaffected). */
     activateOnSingleClick?: boolean;
+    /** Accessible name for the single-click edit trigger. Defaults to the
+     * humanized `fieldName`; pass the field's visible label where one exists
+     * (the parent DetailField/dossier row renders it, out of reach here). */
+    editLabel?: string;
+}
+
+/** Last-resort accessible name for the edit trigger, from the machine field
+ *  name ("date_of_birth" -> "Date of birth"). Callers that know the field's
+ *  visible label should pass `editLabel` instead. */
+function humanizeFieldName(fieldName: string): string {
+    const words = fieldName.replace(/[_.-]+/g, " ").trim();
+    if (!words) return "field";
+    return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** Wrap + clip long display values; offer "Show more" when content overflows. */
@@ -315,6 +328,7 @@ export default function EditableField({
     alwaysEditing = false,
     onChange,
     activateOnSingleClick = false,
+    editLabel,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries } = useCountries();
@@ -1326,6 +1340,27 @@ export default function EditableField({
         );
     }
 
+    // Not a real <button>: ClampedText renders its own "Show more" button, and
+    // nesting interactive elements is invalid and breaks the inner control. So
+    // the trigger takes the button role explicitly, plus the focusability and
+    // Enter/Space handling a <button> would have given it for free.
+    const triggerA11yProps = canStartEditing
+        ? {
+              role: "button",
+              tabIndex: 0,
+              "aria-label": editLabel ?? humanizeFieldName(fieldName),
+              onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+                  // Let the nested "Show more" button keep its own keys.
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                      // Space would otherwise scroll the page.
+                      event.preventDefault();
+                      startEditing();
+                  }
+              },
+          }
+        : {};
+
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
@@ -1334,6 +1369,7 @@ export default function EditableField({
                 } ${canStartEditing ? "cursor-pointer" : ""} ${className}`}
                 onClick={canStartEditing ? startEditing : undefined}
                 onDoubleClick={canStartEditing ? startEditing : undefined}
+                {...triggerA11yProps}
             >
                 <ClampedText
                     text={displayText}
@@ -1344,9 +1380,15 @@ export default function EditableField({
                     } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     trailing={
                         canStartEditing ? (
+                            // Revealed on hover/focus of the enclosing `group`
+                            // (DetailField, or the lead dossier row). Opacity,
+                            // not `hidden`: antd's own `.anticon{display:inline-flex}`
+                            // has the same specificity as Tailwind's `.hidden`
+                            // and loads later, so a display-based hide never
+                            // took effect and the pencil showed permanently.
                             <EditOutlined
                                 aria-hidden="true"
-                                className="mt-1 shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100"
+                                className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                                 style={{ fontSize: 11 }}
                             />
                         ) : undefined

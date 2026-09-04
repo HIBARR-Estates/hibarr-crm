@@ -11,6 +11,7 @@ import {
     Progress,
     Skeleton,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { Award, TrendingUp, History } from "lucide-react";
@@ -41,6 +42,8 @@ interface Props extends PageProps {
 
 const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading } = useMyLevel();
     const levelData: LevelData = (data as any)?.data ?? initialData;
 
@@ -66,7 +69,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
             render: (_: any, r: AgentLevelHistory) =>
                 r.trigger_deal ? (
                     <span className="text-sm">
-                        {r.trigger_deal.name} ($
+                        {r.trigger_deal.name} ({currencySymbol}
                         {r.trigger_deal.value?.toLocaleString()})
                     </span>
                 ) : (

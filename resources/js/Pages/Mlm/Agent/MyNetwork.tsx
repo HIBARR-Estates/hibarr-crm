@@ -38,7 +38,7 @@ import {
     History,
     ExternalLink,
 } from "lucide-react";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -70,6 +70,8 @@ interface Props extends PageProps {
 
 // ── Downline Deals Table (used inside the Drawer) ────────────────
 const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [page, setPage] = useState(1);
 
     const { data, isLoading } = useDownlineDeals(agentId, {
@@ -98,7 +100,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-medium">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -112,7 +114,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -348,6 +350,8 @@ const InvitationsTab: React.FC = () => {
 
 // ── Deals Tab ────────────────────────────────────────────────────
 const DealsTab: React.FC = () => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [selectedDownline, setSelectedDownline] = useState<number | null>(
@@ -451,7 +455,8 @@ const DealsTab: React.FC = () => {
             width: 110,
             align: "right" as const,
             render: (_: any, record: Deal) => {
-                const symbol = record.currency?.currency_symbol ?? "$";
+                const symbol =
+                    record.currency?.currency_symbol ?? currencySymbol;
                 return (
                     <span className="font-medium text-gray-900">
                         {symbol}
@@ -567,6 +572,8 @@ const DealsTab: React.FC = () => {
 const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     agentId,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading } = useLevelHistory({
         agent_id: agentId,
         per_page: 10,
@@ -607,7 +614,8 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                         </div>
                         {r.trigger_deal && (
                             <div className="text-xs text-gray-400 mt-0.5">
-                                Triggered by: {r.trigger_deal.name} ($
+                                Triggered by: {r.trigger_deal.name} (
+                                {currencySymbol}
                                 {r.trigger_deal.value?.toLocaleString()})
                             </div>
                         )}
@@ -628,6 +636,8 @@ const AgentDetailContent: React.FC<{
     node: AgentHierarchyNode;
     extraContent?: React.ReactNode;
 }> = ({ node, extraContent }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     return (
         <div className="flex flex-col gap-y-4">
             {/* Header */}
@@ -707,7 +717,8 @@ const AgentDetailContent: React.FC<{
                     </div>
                     <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
                         <div className="text-2xl font-bold text-green-700">
-                            ${(node.vsa ?? 0).toLocaleString()}
+                            {currencySymbol}
+                            {(node.vsa ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-green-600">
                             Individual Revenue
@@ -715,7 +726,8 @@ const AgentDetailContent: React.FC<{
                     </div>
                     <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
                         <div className="text-2xl font-bold text-amber-700">
-                            ${(node.vsd ?? 0).toLocaleString()}
+                            {currencySymbol}
+                            {(node.vsd ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-amber-600">
                             Team Revenue

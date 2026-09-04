@@ -148,17 +148,10 @@ class PackageController extends AccountBaseController
 
     protected function syncPackagePipeline(Package $package, Request $request): void
     {
-        PackagePipeline::where('package_id', $package->id)->delete();
-
-        if (!$request->filled('pipeline_id')) {
-            return;
-        }
-
-        PackagePipeline::create([
-            'company_id' => company()->id,
-            'package_id' => $package->id,
-            'pipeline_id' => $request->pipeline_id,
-            'default_stage_id' => $request->default_stage_id ?: null,
-        ]);
+        $this->packageRouter->syncPackagePipeline(
+            $package,
+            $request->filled('pipeline_id') ? (int) $request->pipeline_id : null,
+            $request->default_stage_id ? (int) $request->default_stage_id : null,
+        );
     }
 }

@@ -12,6 +12,7 @@ use App\Services\CycleService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MlmCommissionService;
+use App\Services\MlmNotificationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -137,6 +138,9 @@ class CommissionPreviewTest extends TestCase
             $levels,
             $cycles,
             Mockery::mock(CycleLevelSnapshotService::class),
+            // These tests assert commission arithmetic only; notification
+            // delivery is covered elsewhere.
+            Mockery::mock(MlmNotificationService::class)->shouldIgnoreMissing(),
         );
     }
 
@@ -165,7 +169,7 @@ class CommissionPreviewTest extends TestCase
 
     private function resetSchema(): void
     {
-        foreach (['mlm_commissions', 'mlm_settings', 'agent_cycle_enrollments', 'mlm_cycles', 'agent_level_history', 'mlm_levels', 'deals', 'lead_agents', 'companies'] as $table) {
+        foreach (['mlm_commissions', 'mlm_settings', 'agent_cycle_enrollments', 'mlm_cycles', 'agent_level_history', 'mlm_levels', 'deal_package', 'packages', 'deals', 'lead_agents', 'companies'] as $table) {
             Schema::dropIfExists($table);
         }
     }
@@ -192,6 +196,28 @@ class CommissionPreviewTest extends TestCase
             $table->decimal('value', 15, 2)->nullable();
             $table->decimal('max_commission_percentage', 5, 2)->nullable();
             $table->string('outcome_status')->nullable();
+            $table->timestamps();
+        });
+
+        // preview() checks every deal for a commission-configured package
+        // before falling through to the level-based split, so these have to
+        // exist even though this suite only exercises the level-based path.
+        Schema::create('packages', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
+            $table->decimal('value', 15, 2)->nullable();
+            $table->string('currency')->nullable();
+            $table->string('commission_type')->nullable();
+            $table->decimal('commission_value', 15, 2)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('deal_package', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('deal_id');
+            $table->unsignedInteger('package_id');
             $table->timestamps();
         });
 
@@ -248,6 +274,8 @@ class CommissionPreviewTest extends TestCase
             $table->unsignedInteger('agent_id')->nullable();
             $table->unsignedInteger('source_agent_id')->nullable();
             $table->unsignedInteger('level_id')->nullable();
+            // Set on package-priced legs; null on the level-based ones here.
+            $table->unsignedInteger('package_id')->nullable();
             $table->unsignedInteger('cycle_level_snapshot_id')->nullable();
             $table->decimal('percentage', 5, 2)->nullable();
             $table->decimal('amount', 15, 2)->nullable();

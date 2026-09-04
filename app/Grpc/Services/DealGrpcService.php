@@ -107,6 +107,20 @@ class DealGrpcService implements DealServiceInterface
                 throw new GRPCException("Deal not found with ID: {$id}", StatusCode::NOT_FOUND);
             }
 
+            // A commission was already calculated against this deal's value —
+            // refuse the whole update rather than silently drop the
+            // value-affecting fields, so an integration client finds out
+            // immediately instead of assuming they were applied.
+            if (
+                $deal->isCommissionLocked()
+                && ($in->hasCurrencyId() || $in->hasTotalValue() || count($in->getPackageIds()) > 0 || count($in->getProductIds()) > 0)
+            ) {
+                throw new GRPCException(
+                    __('messages.dealValueLockedByCommission'),
+                    StatusCode::FAILED_PRECONDITION
+                );
+            }
+
             $data = [];
             if ($in->hasName()) $data['name'] = $in->getName();
             if ($in->hasContactId()) $data['lead_id'] = $in->getContactId();

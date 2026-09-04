@@ -18,8 +18,6 @@ interface DealAgentCardProps {
     dealId: number;
     agent: AgentInfo | null;
     canEdit: boolean;
-    isWatcherOnly?: boolean;
-    onManageTeam: () => void;
 }
 
 /** Ported from v2.2's AgentCard + PeoplePicker (deal-v2-2.jsx:877-1017). */
@@ -27,14 +25,12 @@ export default function DealAgentCard({
     dealId,
     agent,
     canEdit,
-    isWatcherOnly = false,
-    onManageTeam,
 }: DealAgentCardProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
+    const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right", maxHeight: 360 });
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
     const isAssigning = isSaving("agent_id");
 
@@ -76,6 +72,64 @@ export default function DealAgentCard({
 
     const exclude = agent ? [agent.id] : [];
 
+    const chip = (
+        <>
+            {agent ? (
+                <DealAvatar type="agent" size={34} initials={agent.initials} />
+            ) : (
+                <span
+                    style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        background: T.BG,
+                        border: `1px dashed ${T.BORDER}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: T.TEXT_MUTED,
+                        flexShrink: 0,
+                    }}
+                >
+                    <DealIcon name="users" size={15} />
+                </span>
+            )}
+            <span>
+                <span className="dr-label" style={{ display: "block", fontSize: 12 }}>
+                    {t("pages.deals.header.team.agent_label")}
+                </span>
+                <span
+                    style={{
+                        display: "block",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: agent ? T.TEXT : T.BLUE,
+                    }}
+                >
+                    {agent ? agent.name : t("pages.deals.header.team.assign_agent")}
+                </span>
+            </span>
+        </>
+    );
+
+    if (!canEdit) {
+        return (
+            <div
+                style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    background: T.SURFACE,
+                    border: `1px solid ${T.BORDER}`,
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                }}
+            >
+                {chip}
+            </div>
+        );
+    }
+
     return (
         <div style={{ display: "inline-flex" }}>
             <button
@@ -104,43 +158,7 @@ export default function DealAgentCard({
                     textAlign: "left",
                 }}
             >
-                {agent ? (
-                    <DealAvatar type="agent" size={34} initials={agent.initials} />
-                ) : (
-                    <span
-                        style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: "50%",
-                            background: T.BG,
-                            border: `1px dashed ${T.BORDER}`,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: T.TEXT_MUTED,
-                            flexShrink: 0,
-                        }}
-                    >
-                        <DealIcon name="users" size={15} />
-                    </span>
-                )}
-                <span>
-                    <span className="dr-label" style={{ display: "block", fontSize: 12 }}>
-                        {t("pages.deals.header.team.agent_label")}
-                    </span>
-                    <span
-                        style={{
-                            display: "block",
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: agent ? T.TEXT : T.BLUE,
-                        }}
-                    >
-                        {agent
-                            ? agent.name
-                            : t("pages.deals.header.team.assign_agent")}
-                    </span>
-                </span>
+                {chip}
                 <span style={{ color: T.TEXT_MUTED, display: "flex", marginLeft: 2 }}>
                     {isAssigning ? (
                         <span
@@ -166,47 +184,31 @@ export default function DealAgentCard({
                         aria-label={t("pages.deals.header.team.assign_deal_agent")}
                         style={{ ...floatStyle, minWidth: 270, padding: 10 }}
                     >
-                        {canEdit && (
+                        <div className="dr-label" style={{ marginBottom: 6 }}>
+                            {t("pages.deals.header.team.assign_deal_agent")}
+                        </div>
+                        <DealAgentPicker
+                            exclude={exclude}
+                            onPick={(picked) => pick(picked.id)}
+                            pendingId={pendingPickId}
+                            autoFocus
+                        />
+                        {agent && (
                             <>
-                                <div className="dr-label" style={{ marginBottom: 6 }}>
-                                    {t("pages.deals.header.team.assign_deal_agent")}
-                                </div>
-                                <DealAgentPicker
-                                    exclude={exclude}
-                                    onPick={(picked) => pick(picked.id)}
-                                    pendingId={pendingPickId}
-                                    autoFocus
-                                />
                                 <div
                                     className="dr-menu-sep"
                                     role="separator"
                                     style={{ margin: "8px 0" }}
                                 />
-                                {agent && (
-                                    <button
-                                        type="button"
-                                        className="dr-menu-item danger"
-                                        onClick={() => pick(null)}
-                                    >
-                                        {t("pages.deals.header.team.unassign")} {agent.name}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    className="dr-menu-item danger"
+                                    onClick={() => pick(null)}
+                                >
+                                    {t("pages.deals.header.team.unassign")} {agent.name}
+                                </button>
                             </>
                         )}
-                        <button
-                            type="button"
-                            className="dr-menu-item"
-                            onClick={() => {
-                                setOpen(false);
-                                onManageTeam();
-                            }}
-                        >
-                            {t(
-                                isWatcherOnly
-                                    ? "pages.deals.header.team.view_team_ellipsis"
-                                    : "pages.deals.header.team.manage_team_ellipsis",
-                            )}
-                        </button>
                     </div>,
                     document.body,
                 )}

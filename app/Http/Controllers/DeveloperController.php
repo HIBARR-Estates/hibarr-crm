@@ -141,6 +141,7 @@ class DeveloperController extends AccountBaseController
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
             'google_drive_link' => 'nullable|url|max:500',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
         ];
 
         if (
@@ -163,6 +164,7 @@ class DeveloperController extends AccountBaseController
             'description' => $request->description,
             'whatsapp_group_link' => $request->whatsapp_group_link,
             'google_drive_link' => $request->google_drive_link,
+            'commission_percentage' => $request->commission_percentage,
         ];
 
         if (
@@ -194,6 +196,7 @@ class DeveloperController extends AccountBaseController
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
             'google_drive_link' => 'nullable|url|max:500',
+            'commission_percentage' => 'nullable|numeric|min:0|max:100',
         ];
 
         if (
@@ -209,7 +212,7 @@ class DeveloperController extends AccountBaseController
             return Reply::error($validator->errors()->first());
         }
 
-        $fields = ['name', 'logo_url', 'description', 'whatsapp_group_link', 'google_drive_link'];
+        $fields = ['name', 'logo_url', 'description', 'whatsapp_group_link', 'google_drive_link', 'commission_percentage'];
 
         if (
             DeveloperProjectVisibility::enabled()

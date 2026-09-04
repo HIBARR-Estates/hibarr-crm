@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { Button, Alert, Drawer } from "antd";
 import SideNavTabs, { SideNavItem } from "@/Components/SideNavTabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
 import FollowUpTab from "./Tabs/FollowUpTab";
@@ -10,7 +10,6 @@ import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
 import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
-import useDealRecommendationsFlag from "@/Hooks/useDealRecommendationsFlag";
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -77,7 +76,6 @@ export default function DealTabs({
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
-    const showRecommendations = useDealRecommendationsFlag();
     const offersEligible =
         permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
     // Visibility comes straight off the already-loaded deal payload — no
@@ -159,7 +157,7 @@ export default function DealTabs({
 
         // Recommendations Tab - AI-powered property recommendations.
         // Hidden for package pipelines, which do not sell properties.
-        if (showRecommendations && !pipelineHasPackages) {
+        if (!pipelineHasPackages) {
             items.push({
                 key: "recommendations",
                 label: t("pages.deals.tabs.recommendations"),
@@ -372,6 +370,20 @@ export default function DealTabs({
     const dealTabActiveContent =
         tabItems.find((item) => item.key === activeTab)?.children ??
         tabItems[0]?.children;
+
+    // Tab visibility can change after mount (e.g. the Offers tab appears once
+    // its async eligibility check resolves) — if the active tab disappears,
+    // move activeTab (and the URL) to the first available tab so the sidebar
+    // highlight, getTabAction(), and the URL stay in sync with the rendered
+    // content above.
+    const visibleTabKeys = tabItems.map((item) => item.key).join(",");
+    useEffect(() => {
+        if (tabItems.length === 0) return;
+        if (!tabItems.some((item) => item.key === activeTab)) {
+            setActiveTab(tabItems[0].key);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visibleTabKeys, activeTab]);
 
     return (
         <>

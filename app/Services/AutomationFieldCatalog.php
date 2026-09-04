@@ -28,6 +28,108 @@ class AutomationFieldCatalog
         'sales_contract' => 'Sales Contract',
     ];
 
+    /**
+     * lead_marketing columns exposed to automation conditions and merge tags.
+     * Read through the `lead_marketing_` prefix (FieldResolverService resolves
+     * it against the lead's marketing row — the deal's contact for a deal
+     * automation, the lead itself for a lead automation), so these keys can't
+     * collide with a same-named Lead or Deal column.
+     *
+     * Keys must match FieldResolverService::LEAD_MARKETING_FIELDS.
+     */
+    public const LEAD_MARKETING_FIELDS = [
+        // UTM & campaign tracking
+        'utm_source' => 'UTM Source',
+        'utm_medium' => 'UTM Medium',
+        'utm_campaign' => 'UTM Campaign',
+        'utm_content' => 'UTM Content',
+        'utm_term' => 'UTM Term',
+        'utm_audience' => 'UTM Audience',
+        'traffic_source_id' => 'Traffic Source',
+        // Ad-platform identifiers
+        'facebook_click_id' => 'Facebook Click ID',
+        'facebook_lead_id' => 'Facebook Lead ID',
+        'facebook_browser_id' => 'Facebook Browser ID',
+        'user_agent' => 'User Agent',
+        'ip_address' => 'IP Address',
+        // Engagement
+        'has_registered_for_the_webinar' => 'Registered For Webinar',
+        'has_attended_the_webinar' => 'Attended Webinar',
+        'last_webinar_date' => 'Last Webinar Date',
+        'registered_for_zoom_meeting' => 'Registered For Zoom Meeting',
+        'has_joined_the_facebook_group' => 'Joined Facebook Group',
+        'has_joined_the_whatsapp_group' => 'Joined WhatsApp Group',
+        'has_downloaded_the_ebook' => 'Downloaded Ebook',
+        // Scoring
+        'contact_score' => 'Contact Score',
+    ];
+
+    /**
+     * Marketing columns that must never leave the system through a merge tag.
+     *
+     * These are device/browser/ad-network identifiers — personal data under
+     * GDPR, and useless for personalization. A send_email action can address
+     * `custom_email` (any typed address), so a template resolving
+     * {{lead_marketing_ip_address}} would hand a lead's IP and browser
+     * fingerprint to an arbitrary third party. They stay fully available to
+     * *condition* evaluation, which never emits the value — only branches on
+     * it.
+     *
+     * Enforced at the single outbound chokepoint,
+     * DealAutomationService::resolveTagValue(), not just hidden in the
+     * pickers: a tag can also be hand-typed into a template body or POSTed
+     * straight into a variable mapping.
+     */
+    public const LEAD_MARKETING_CONDITION_ONLY_FIELDS = [
+        'ip_address',
+        'user_agent',
+        'facebook_click_id',
+        'facebook_lead_id',
+        'facebook_browser_id',
+    ];
+
+    /**
+     * The marketing fields a merge tag may resolve — campaign attribution,
+     * engagement and score, minus the raw identifiers above.
+     *
+     * @return array<string, string>
+     */
+    public static function outboundLeadMarketingFields(): array
+    {
+        return array_diff_key(
+            self::LEAD_MARKETING_FIELDS,
+            array_flip(self::LEAD_MARKETING_CONDITION_ONLY_FIELDS)
+        );
+    }
+
+    /**
+     * Whether a resolved field key is a marketing identifier barred from
+     * outbound use. Accepts the prefixed automation key
+     * ("lead_marketing_ip_address").
+     */
+    public static function isOutboundBlockedField(string $fieldKey): bool
+    {
+        if (! str_starts_with($fieldKey, 'lead_marketing_')) {
+            return false;
+        }
+
+        return in_array(
+            substr($fieldKey, strlen('lead_marketing_')),
+            self::LEAD_MARKETING_CONDITION_ONLY_FIELDS,
+            true
+        );
+    }
+
+    /** Marketing columns stored as 0/1 — offered as a Yes/No picker, not free text. */
+    public const LEAD_MARKETING_BOOLEAN_FIELDS = [
+        'has_registered_for_the_webinar',
+        'has_attended_the_webinar',
+        'registered_for_zoom_meeting',
+        'has_joined_the_facebook_group',
+        'has_joined_the_whatsapp_group',
+        'has_downloaded_the_ebook',
+    ];
+
     public const RELATED_FIELDS = [
         'followup_count' => 'Follow-up Count',
         'last_followup_days_ago' => 'Days Since Last Follow-up',

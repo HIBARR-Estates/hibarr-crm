@@ -29,7 +29,10 @@ import {
     formLinksPayload,
     type TaskFormValues,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
-import { afterUpdateTaskFormSubmit, patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import {
+    afterUpdateTaskFormSubmit,
+    patchTaskListExtrasCounts,
+} from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
 import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
 import {
@@ -39,6 +42,10 @@ import {
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import {
+    TasksEmptyState,
+    TasksFilterEmptyState,
+} from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import DealIcon from "../primitives/DealIcon";
 import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import DealMenuSelect from "../primitives/DealMenuSelect";
@@ -123,7 +130,9 @@ function BulkReassignButton({
                         ref={menuRef}
                         className="dr-menu"
                         role="dialog"
-                        aria-label={t("pages.deals.workspace.tasks.reassign_to")}
+                        aria-label={t(
+                            "pages.deals.workspace.tasks.reassign_to",
+                        )}
                         style={{ ...floatStyle, minWidth: 240, padding: 8 }}
                     >
                         <DealPeoplePicker
@@ -155,12 +164,9 @@ function canAddTasks(
     if (isWatcherOnly) return false;
     const permission = permissions.add_tasks;
     return (
-        permission === "all" ||
-        permission === "added" ||
-        permission === "both"
+        permission === "all" || permission === "added" || permission === "both"
     );
 }
-
 
 function taskStatusSlug(task: Task): string {
     return (
@@ -171,13 +177,11 @@ function taskStatusSlug(task: Task): string {
     );
 }
 
-function isTaskDone(
-    task: Task,
-    taskBoardColumns: TaskboardColumn[],
-): boolean {
+function isTaskDone(task: Task, taskBoardColumns: TaskboardColumn[]): boolean {
     const status = taskStatusSlug(task);
     return (
-        isCompletedColumn(status, taskBoardColumns) || Boolean(task.completed_on)
+        isCompletedColumn(status, taskBoardColumns) ||
+        Boolean(task.completed_on)
     );
 }
 
@@ -234,8 +238,7 @@ export default function WorkspaceTasksTab({
     // TaskPresenter behind this same flag (TaskController::dealTasks()).
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
     const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-    const editingTask =
-        tasks.find((task) => task.id === editingTaskId) ?? null;
+    const editingTask = tasks.find((task) => task.id === editingTaskId) ?? null;
     const setRedesignedTasks = (
         updater: (prev: RedesignedTask[]) => RedesignedTask[],
     ) =>
@@ -308,8 +311,7 @@ export default function WorkspaceTasksTab({
     // Backend hard-requires the full delete_tasks scope for bulk delete
     // (TaskController::deleteRecords aborts otherwise) — only show it when
     // we know it's allowed rather than exposing a button the API will reject.
-    const canBulkDelete =
-        !isWatcherOnly && permissions.delete_tasks === "all";
+    const canBulkDelete = !isWatcherOnly && permissions.delete_tasks === "all";
     const showSelectMode = !isWatcherOnly;
 
     const exitSelectMode = () => {
@@ -341,7 +343,11 @@ export default function WorkspaceTasksTab({
         if (!column) return;
         const ids = Array.from(selected);
         applyBulkAction(
-            { row_ids: ids.join(","), action_type: "change-status", status: columnId },
+            {
+                row_ids: ids.join(","),
+                action_type: "change-status",
+                status: columnId,
+            },
             {
                 onSuccess: () => {
                     setTasks((prev) =>
@@ -372,9 +378,7 @@ export default function WorkspaceTasksTab({
 
     const handleBulkReassign = (userId: number) => {
         const ids = Array.from(selected);
-        const assignee = employees?.find(
-            (employee) => employee.id === userId,
-        );
+        const assignee = employees?.find((employee) => employee.id === userId);
         applyBulkAction(
             {
                 row_ids: ids.join(","),
@@ -422,59 +426,73 @@ export default function WorkspaceTasksTab({
         );
     };
 
+    // Nothing to filter, select or sort through when the tab holds no tasks at
+    // all — the whole toolbar is hidden so an empty Tasks tab reads exactly
+    // like every other empty tab: icon, message, one primary action.
+    const hasTasks = taskItems.length > 0;
+
     return (
         <div>
-            <div className="mb-3.5 flex items-center justify-between gap-3">
-                <div
-                    className="flex gap-1"
-                    role="group"
-                    aria-label={t("pages.deals.workspace.tasks.filter_aria_label")}
-                >
-                    {(["open", "done", "all"] as const).map((option) => (
-                        <button
-                            key={option}
-                            type="button"
-                            className="dr-filter"
-                            aria-pressed={filter === option}
-                            onClick={() => setFilter(option)}
-                        >
-                            {filterLabels[option]}
-                        </button>
-                    ))}
-                </div>
+            {hasTasks && (
+                <div className="mb-3.5 flex items-center justify-between gap-3">
+                    <div
+                        className="flex gap-1"
+                        role="group"
+                        aria-label={t(
+                            "pages.deals.workspace.tasks.filter_aria_label",
+                        )}
+                    >
+                        {(["open", "done", "all"] as const).map((option) => (
+                            <button
+                                key={option}
+                                type="button"
+                                className="dr-filter"
+                                aria-pressed={filter === option}
+                                onClick={() => setFilter(option)}
+                            >
+                                {filterLabels[option]}
+                            </button>
+                        ))}
+                    </div>
 
-                <div className="flex gap-1.5">
-                    {canManageTaskCategories && (
-                        <DealButton
-                            variant="ghost"
-                            size="sm"
-                            icon={<SettingOutlined />}
-                            title={t("modules.tasks.taskCategory")}
-                            aria-label={t("modules.tasks.taskCategory")}
-                            onClick={() => setTaskSettingsOpen(true)}
-                        />
-                    )}
-                    {showSelectMode && (
-                        <DealButton
-                            variant="ghost"
-                            onClick={() =>
-                                selectMode
-                                    ? exitSelectMode()
-                                    : setSelectMode(true)
-                            }
-                        >
-                            {selectMode
-                                ? t("pages.deals.common.cancel")
-                                : t("pages.deals.common.select")}
-                        </DealButton>
-                    )}
-                    {showAddTask && (
-                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
-                            + {t("pages.deals.workspace.tasks.add_task")}
-                        </DealButton>
-                    )}
+                    <div className="flex gap-1.5">
+                        {canManageTaskCategories && (
+                            <DealButton
+                                variant="ghost"
+                                size="sm"
+                                icon={<SettingOutlined />}
+                                title={t("modules.tasks.taskCategory")}
+                                aria-label={t("modules.tasks.taskCategory")}
+                                onClick={() => setTaskSettingsOpen(true)}
+                            />
+                        )}
+                        {showSelectMode && (
+                            <DealButton
+                                variant="ghost"
+                                onClick={() =>
+                                    selectMode
+                                        ? exitSelectMode()
+                                        : setSelectMode(true)
+                                }
+                            >
+                                {selectMode
+                                    ? t("pages.deals.common.cancel")
+                                    : t("pages.deals.common.select")}
+                            </DealButton>
+                        )}
+                        {showAddTask && (
+                            <DealButton
+                                variant="primary"
+                                size="sm"
+                                icon={<DealIcon name="plus" size={14} />}
+                                onClick={onAddTask}
+                            >
+                                {t("pages.deals.workspace.tasks.add_task")}
+                            </DealButton>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {selectMode && (
                 <DealBulkActionBar
@@ -494,12 +512,18 @@ export default function WorkspaceTasksTab({
                     </button>
                     <DealMenuSelect
                         value={null}
-                        placeholder={t("pages.deals.workspace.tasks.set_status_placeholder")}
+                        placeholder={t(
+                            "pages.deals.workspace.tasks.set_status_placeholder",
+                        )}
                         size="sm"
                         disabled={!selected.size || isBulkActing}
                         width={140}
                         triggerClassName="dr-btn dr-btn-sm"
-                        triggerStyle={{ background: T.WHITE, color: T.NAVY, border: "none" }}
+                        triggerStyle={{
+                            background: T.WHITE,
+                            color: T.NAVY,
+                            border: "none",
+                        }}
                         options={taskBoardColumns
                             .slice()
                             .sort((a, b) => a.priority - b.priority)
@@ -507,7 +531,9 @@ export default function WorkspaceTasksTab({
                                 value: column.id,
                                 label: td(column.column_name, { source: "en" }),
                             }))}
-                        onChange={(value) => handleBulkStatusChange(Number(value))}
+                        onChange={(value) =>
+                            handleBulkStatusChange(Number(value))
+                        }
                     />
                     {canBulkReassign && (
                         <BulkReassignButton
@@ -530,31 +556,25 @@ export default function WorkspaceTasksTab({
                 </DealBulkActionBar>
             )}
 
-            {filteredTasks.length === 0 ? (
-                <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
-                    <DealIcon
-                        name="check-square"
-                        size={28}
-                        color={T.TEXT_HINT}
-                        className="mx-auto mb-2 opacity-50"
-                    />
-                    <p className="mb-3 text-[13px] text-[#5b6472]">
-                        {t("pages.deals.workspace.tasks.no_items_prefix")} {filterLabels[filter]}{" "}
-                        {t("pages.deals.workspace.tasks.tasks_label")}
-                    </p>
-                    {showAddTask && (
-                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
-                            + {t("pages.deals.workspace.tasks.add_task")}
-                        </DealButton>
-                    )}
-                </div>
+            {!hasTasks ? (
+                <TasksEmptyState
+                    entity="deal"
+                    onAdd={showAddTask ? onAddTask : undefined}
+                />
+            ) : filteredTasks.length === 0 ? (
+                <TasksFilterEmptyState
+                    filterLabel={filterLabels[filter]}
+                    onShowAll={() => setFilter("all")}
+                />
             ) : (
                 filteredTasks.map((task) => {
                     const rawTask = tasks.find((item) => item.id === task.id);
                     const done = rawTask
                         ? isTaskDone(rawTask, taskBoardColumns)
                         : !task.isOpen;
-                    const statusSlug = rawTask ? taskStatusSlug(rawTask) : "to_do";
+                    const statusSlug = rawTask
+                        ? taskStatusSlug(rawTask)
+                        : "to_do";
                     const overdue =
                         !done &&
                         task.dueDate != null &&
@@ -576,9 +596,12 @@ export default function WorkspaceTasksTab({
                                     <DealSelectCheckbox
                                         checked={selected.has(task.id)}
                                         onChange={() => toggleSelect(task.id)}
-                                        label={t("pages.deals.common.select_task", {
-                                            title: displayTitle,
-                                        })}
+                                        label={t(
+                                            "pages.deals.common.select_task",
+                                            {
+                                                title: displayTitle,
+                                            },
+                                        )}
                                     />
                                 </div>
                             )}
@@ -643,7 +666,10 @@ export default function WorkspaceTasksTab({
                                                 fontWeight: overdue ? 600 : 400,
                                             }}
                                         >
-                                            <DealIcon name="calendar" size={11} />
+                                            <DealIcon
+                                                name="calendar"
+                                                size={11}
+                                            />
                                             {task.dueDateLabel}
                                             {overdue &&
                                                 ` · ${t("pages.deals.workspace.tasks.overdue")}`}
@@ -683,7 +709,9 @@ export default function WorkspaceTasksTab({
                                             rawTask?.added_by !== userId)
                                     }
                                     loading={isPending(task.id)}
-                                    onChange={(slug) => setStatus(task.id, slug)}
+                                    onChange={(slug) =>
+                                        setStatus(task.id, slug)
+                                    }
                                 />
                             </div>
                         </article>
@@ -696,7 +724,9 @@ export default function WorkspaceTasksTab({
                     <TaskRedesignDetailModal
                         task={selectedTask as unknown as RedesignedTask | null}
                         columns={taskBoardColumns}
-                        permissions={permissions as unknown as TaskPermissionSet}
+                        permissions={
+                            permissions as unknown as TaskPermissionSet
+                        }
                         currentUser={{
                             id: props.auth?.user?.id ?? 0,
                             name: props.auth?.user?.name ?? "",
@@ -711,7 +741,8 @@ export default function WorkspaceTasksTab({
                         }
                         onClose={() => setSelectedTaskId(null)}
                         onEdit={() => {
-                            if (selectedTaskId) setEditingTaskId(selectedTaskId);
+                            if (selectedTaskId)
+                                setEditingTaskId(selectedTaskId);
                         }}
                         onToggleDone={() => {
                             if (!selectedTask) return;
@@ -734,7 +765,9 @@ export default function WorkspaceTasksTab({
                     <TaskRedesignFormModal
                         open={editingTaskId !== null}
                         mode="edit"
-                        editingTask={editingTask as unknown as RedesignedTask | null}
+                        editingTask={
+                            editingTask as unknown as RedesignedTask | null
+                        }
                         columns={taskBoardColumns}
                         categories={taskCategories}
                         users={employeeOptions.map((employee) => ({
@@ -798,7 +831,9 @@ export default function WorkspaceTasksTab({
                         ? t("pages.deals.workspace.tasks.item_singular")
                         : t("pages.deals.workspace.tasks.item_plural")
                 }?`}
-                message={t("pages.deals.workspace.tasks.delete_confirm_message")}
+                message={t(
+                    "pages.deals.workspace.tasks.delete_confirm_message",
+                )}
                 confirmLabel={t("pages.deals.workspace.tasks.delete_tasks")}
                 danger
                 confirmLoading={isBulkActing}
@@ -813,7 +848,10 @@ export default function WorkspaceTasksTab({
                 width={520}
                 destroyOnClose
                 maskClosable={false}
-                styles={{ content: { boxShadow: "none" }, wrapper: { boxShadow: "none" } }}
+                styles={{
+                    content: { boxShadow: "none" },
+                    wrapper: { boxShadow: "none" },
+                }}
             >
                 <TaskCategoryManager />
             </Drawer>

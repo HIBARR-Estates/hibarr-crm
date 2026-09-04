@@ -131,7 +131,8 @@ const MlmCommissionLedger: React.FC<Props> = ({
                     </div>
                     {record.deal?.total_value && (
                         <div className="text-xs text-gray-500">
-                            Value: ${record.deal.total_value.toLocaleString()}
+                            Value: {currencySymbol}
+                            {record.deal.total_value.toLocaleString()}
                         </div>
                     )}
                 </div>
@@ -274,7 +275,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                 <Statistic
                                     title="Total"
                                     value={summaryStats.total_amount}
-                                    prefix="$"
+                                    prefix={currencySymbol}
                                     precision={2}
                                     valueStyle={{ color: "#16a34a" }}
                                 />
@@ -285,7 +286,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                 <Statistic
                                     title="Pending"
                                     value={summaryStats.pending_amount}
-                                    prefix="$"
+                                    prefix={currencySymbol}
                                     precision={2}
                                     valueStyle={{ color: "#ea580c" }}
                                 />
@@ -296,7 +297,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                 <Statistic
                                     title="Paid"
                                     value={summaryStats.paid_amount}
-                                    prefix="$"
+                                    prefix={currencySymbol}
                                     precision={2}
                                     valueStyle={{ color: "#16a34a" }}
                                 />

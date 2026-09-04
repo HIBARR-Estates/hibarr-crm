@@ -13,6 +13,10 @@
         sans-serif;
     font-size: 14px;
     padding: 18px 22px 24px;
+    /* Matches the list pages' own max-w-screen-2xl (96rem) content width —
+       see Leads/Index.tsx, Deals/Index.tsx, Tasks/Index.tsx. */
+    max-width: 96rem;
+    margin: 0 auto;
 }
 
 .dashboard-v2 *,
@@ -47,6 +51,15 @@
 
 .dashboard-v2 .dv2-tab:hover {
     color: #1a1f2e;
+}
+
+.dashboard-v2 .dv2-tab:disabled {
+    color: #b0b6c0;
+    cursor: not-allowed;
+}
+
+.dashboard-v2 .dv2-tab:disabled:hover {
+    color: #b0b6c0;
 }
 
 .dashboard-v2 .dv2-tab[aria-current="page"] {
@@ -129,8 +142,111 @@
     overflow-x: auto;
 }
 
+/* A stat-tile chip that links to a filtered list (FilterBadge). Brightness
+   filter rather than a per-variant colour, since one rule then covers every
+   Badge variant's hover state instead of seven hand-matched palettes. */
+.dashboard-v2 .dv2-badge-link {
+    display: inline-flex;
+    border-radius: 999px;
+    text-decoration: none;
+    transition:
+        filter 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.dashboard-v2 .dv2-badge-link:hover {
+    filter: brightness(0.96);
+}
+
+.dashboard-v2 .dv2-badge-link:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #1a6bb5;
+}
+
+/* Personal dashboard shell: queue 8 / rail 4 on the 12-column grid, per the
+   breakpoint rules in the design handoff. */
+.dashboard-v2 .dv2-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+
+.dashboard-v2 .dv2-main,
+.dashboard-v2 .dv2-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.dashboard-v2 .dv2-main {
+    grid-column: span 8;
+}
+
+.dashboard-v2 .dv2-rail {
+    grid-column: span 4;
+}
+
+/* 768–1279: single column — agenda first (what's coming), then the queue and
+   pipeline. The rail is second in the markup (queue actions live below the
+   fold otherwise) but reads better above the task list once stacked. */
+@media (max-width: 1279px) {
+    .dashboard-v2 .dv2-main,
+    .dashboard-v2 .dv2-rail {
+        grid-column: span 12;
+    }
+
+    .dashboard-v2 .dv2-rail {
+        order: -1;
+    }
+}
+
 @media (max-width: 900px) {
     .dashboard-v2 {
         padding: 14px 12px 20px;
     }
+}
+
+/* < 768: the queue row stacks and its actions take the full width at the 44px
+   minimum touch target — two 30px buttons side by side fail that rule. */
+@media (max-width: 767px) {
+    .dashboard-v2 .dv2-signal > div {
+        flex-wrap: wrap;
+    }
+
+    .dashboard-v2 .dv2-signal .dr-btn {
+        min-height: 44px;
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+/* SnoozeModal's option rows. Unscoped (no .dashboard-v2 ancestor) — Modal
+   portals to document.body, outside that subtree, so a page-scoped selector
+   would never match here. */
+.dv2-snooze-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e5ea;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+
+.dv2-snooze-option:hover {
+    background: #f5f6f8;
+    border-color: #c7d0de;
+}
+
+.dv2-snooze-option:focus-visible {
+    outline: 2px solid #1a6bb5;
+    outline-offset: 1px;
 }

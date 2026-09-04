@@ -10,15 +10,19 @@ use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
+use App\Models\EmailDeliveryLog;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Services\Notifications\MailDeliveryRecorder;
 use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class DealAutomationService
 {
@@ -28,12 +32,25 @@ class DealAutomationService
 
     protected ConditionEvaluatorService $conditionEvaluator;
 
+    protected MailDeliveryRecorder $mailDeliveryRecorder;
+
+    /**
+     * The execution currently running, stamped on every log row it writes so
+     * a multi-action automation reads as one run with N steps instead of N
+     * runs. Set by executeActions() and never read outside it — actions run
+     * synchronously to completion within a single call, so there is never
+     * more than one live execution per service instance.
+     */
+    protected ?string $currentRunId = null;
+
     public function __construct(
         FieldResolverService $fieldResolver,
-        ConditionEvaluatorService $conditionEvaluator
+        ConditionEvaluatorService $conditionEvaluator,
+        MailDeliveryRecorder $mailDeliveryRecorder
     ) {
         $this->fieldResolver = $fieldResolver;
         $this->conditionEvaluator = $conditionEvaluator;
+        $this->mailDeliveryRecorder = $mailDeliveryRecorder;
     }
 
     /**
@@ -255,7 +272,9 @@ class DealAutomationService
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
 
-        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
+        // run_id is only set when a mid-sequence wait step queued this row —
+        // a pre-actions wait starts a fresh execution, so null is correct there.
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id);
     }
 
     /**
@@ -359,11 +378,18 @@ class DealAutomationService
      * deal-automations:process-pending-runs, same mechanism the automation's
      * own pre-actions wait already uses.
      *
+     * @param  string|null  $runId  Continues an execution a wait step paused;
+     *                              null starts a new one.
      * @return bool True when the full action list finished; false when a wait
      *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): bool
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null): bool
     {
+        // One id for this whole execution — every step's log row carries it,
+        // and a wait step hands it to the pending row so the steps that resume
+        // afterwards land in the same run rather than looking like a new one.
+        $this->currentRunId = $runId ?: (string) Str::uuid();
+
         $actions = $automation->actions->sortBy('id')->values();
 
         $startIndex = 0;
@@ -379,6 +405,22 @@ class DealAutomationService
             $startIndex = $found === false ? 0 : $found;
         }
 
+        // Snapshotted before any action runs, not read from $subject after the
+        // loop: every performXxx() call above does its own saveQuietly(), and
+        // each save() resets Eloquent's wasChanged()/getOriginal() to that
+        // save's own delta. An automation with a set_field_value(won) action
+        // followed by another action that saves the same subject again (e.g.
+        // a second set_field_value, or a stage_transition) would otherwise
+        // see wasChanged('outcome_status') already reset to false by that
+        // later save, and silently never fire DealWonEvent.
+        $wasWonBeforeActions = $subject instanceof Deal
+            && $subject->outcome_status === \App\Enums\OutcomeStatus::Won;
+        // Don't re-fire for a deal that already went through commission
+        // distribution in an earlier run — a *different* concern from
+        // is_locked (see ProcessDealWonJob), which lock_deal can set within
+        // this very automation without affecting this check at all.
+        $wasCommissionLockedBeforeActions = $subject instanceof Deal && (bool) $subject->commission_locked;
+
         // NOTE: A general rule of thumb should be that actions should save quietly, so that there is no recursive loop
         for ($i = $startIndex; $i < $actions->count(); $i++) {
             $action = $actions[$i];
@@ -392,7 +434,7 @@ class DealAutomationService
                 $nextAction = $actions->get($i + 1);
 
                 if ($waitSeconds > 0 && $nextAction) {
-                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds);
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId);
                     $this->logAction(
                         $subject,
                         $automation,
@@ -415,8 +457,12 @@ class DealAutomationService
         }
 
         // After the actions we then emit the necessary events, such as mlm engine DealWonEvent. This is because we save the dealModel quietly to avoid cascades because we do support an array of actions that will cannot afford to trigger the deal observer as this will lead to recursive updates ...
-        // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-        if ($subject->wasChanged('outcome_status') && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $subject->is_locked) {
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won' — judged
+        // against the snapshots taken before any action ran (see above), not
+        // against $subject's live wasChanged(), which a later action in this
+        // same sequence (another set_field_value, a stage_transition) may
+        // have already overwritten.
+        if (! $wasWonBeforeActions && $subject->outcome_status === \App\Enums\OutcomeStatus::Won && ! $wasCommissionLockedBeforeActions) {
             $this->fireDealWonEvent($subject);
         }
 
@@ -427,8 +473,11 @@ class DealAutomationService
      * Queue a pending run resuming at $resumeActionId — used when a "wait"
      * action step is hit mid-sequence. updateOrCreate refreshes run_at and
      * resume_action_id when the same subject is already waiting.
+     *
+     * $runId carries the paused execution across the wait so its remaining
+     * steps log under the same run as the ones that already ran.
      */
-    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds): void
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null): void
     {
         try {
             DealAutomationPendingRun::updateOrCreate([
@@ -438,6 +487,7 @@ class DealAutomationService
             ], [
                 'company_id' => $subject->company_id,
                 'resume_action_id' => $resumeActionId,
+                'run_id' => $runId,
                 'run_at' => now()->addSeconds($waitSeconds),
             ]);
         } catch (\Exception $e) {
@@ -742,13 +792,34 @@ class DealAutomationService
 
         $sent = [];
         $failed = [];
+        // One entry per recipient describing which mail system actually
+        // delivered it (UNS/Plunk or the PHP SMTP mailer) and what that
+        // system answered — stored on the log row so a failure can be
+        // diagnosed from Run History without server log access.
+        $deliveries = [];
 
         foreach ($recipients as $recipient) {
+            $correlationId = (string) Str::uuid();
+
+            $deliveryContext = [
+                'source' => 'deal_automation',
+                'correlation_id' => $correlationId,
+                'company_id' => $subject->company_id,
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+                'deal_id' => $subject instanceof Deal ? $subject->id : null,
+                'lead_id' => $subject instanceof Lead ? $subject->id : null,
+                'template_id' => $template->id,
+                'template_name' => $template->name,
+            ];
+
             try {
-                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables));
+                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables, $deliveryContext));
                 $sent[] = $recipient;
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, null);
             } catch (\Exception $e) {
                 $failed[$recipient] = $e->getMessage();
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, $e->getMessage());
                 Log::error("Failed to send automation email to {$recipient} for {$label}", [
                     'exception' => $e->getMessage(),
                 ]);
@@ -765,7 +836,13 @@ class DealAutomationService
         $description = "Email using template \"{$template->name}\" — ".implode('; ', $descriptionParts);
 
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email');
+        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email', [
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'plunk_template_id' => $plunkTemplateId,
+            'subject' => $subjectLine,
+            'deliveries' => $deliveries,
+        ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, ! empty($sent), [
             'action' => empty($failed) ? 'automation_email_sent' : 'automation_email_partial_failure',
@@ -775,6 +852,39 @@ class DealAutomationService
             'sent_to' => $sent,
             'failed_for' => array_keys($failed),
         ]);
+    }
+
+    /**
+     * Turn one recipient's send into the diagnostic record kept on the
+     * automation log: which system delivered it, whether UNS was tried first,
+     * and whatever that system (or the thrown exception) said about it.
+     *
+     * The outcome comes from MailDeliveryRecorder, which UnsRoutingTransport
+     * fills in during the synchronous Mail::send() above. If it's missing —
+     * e.g. a mail driver that never reaches the transport, like the array
+     * driver in tests — the record degrades to 'unknown'/'unconfirmed' rather
+     * than claiming a delivery nothing actually confirmed.
+     *
+     * @return array<string, mixed>
+     */
+    protected function describeDelivery(string $recipient, string $correlationId, ?string $exceptionMessage): array
+    {
+        $outcome = $this->mailDeliveryRecorder->pull($correlationId);
+
+        return [
+            'recipient' => $recipient,
+            // Ties this line to its email_delivery_logs row.
+            'correlation_id' => $correlationId,
+            'status' => $exceptionMessage !== null
+                ? EmailDeliveryLog::STATUS_FAILED
+                : ($outcome['status'] ?? EmailDeliveryLog::STATUS_UNCONFIRMED),
+            'system' => $outcome['system'] ?? 'unknown',
+            'uns_attempted' => (bool) ($outcome['uns_attempted'] ?? false),
+            'response_status' => $outcome['response_status'] ?? null,
+            'response_body' => $outcome['response_body'] ?? null,
+            'fallback_reason' => $outcome['fallback_reason'] ?? null,
+            'error' => $exceptionMessage ?? ($outcome['error'] ?? null),
+        ];
     }
 
     /**
@@ -1071,11 +1181,36 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        // The job's own ->afterCommit() only defers via the queue connection's
+        // enqueueUsing() — QUEUE_CONNECTION=sync bypasses that entirely and
+        // fires immediately (see SyncQueue::push()), so it would still run
+        // inside an open DB::transaction(). DB::afterCommit() defers at the
+        // connection/transaction-manager level instead, which works under
+        // every queue driver including sync, and fires immediately here if no
+        // transaction is open.
+        $origin = [
+            'source' => 'automation',
+            'automation_id' => $automation?->id,
+            'automation_name' => $automation?->name,
+            // So the outcome row the job writes later joins this same run
+            // rather than appearing as a run of its own.
+            'run_id' => $this->currentRunId,
+        ];
+
+        DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
+            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value, $origin);
+        });
 
         $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta');
+        // The queue-time row only records that the action fired. The job writes
+        // a second 'meta' row once Meta has actually answered — that's the one
+        // carrying the failure reason.
+        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta', [
+            'stage' => 'queued',
+            'event_name' => $eventName,
+            'value' => $value,
+        ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, true, [
             'action' => 'automation_meta_conversion_queued',
@@ -1217,6 +1352,23 @@ class DealAutomationService
         }
 
         $fieldKey = is_array($mapping) ? ($mapping['field'] ?? $tag) : $tag;
+
+        // Outbound gate. Every merge tag in the system funnels through here —
+        // email bodies/subjects, Plunk variables, CTA URLs, task/note text,
+        // Meta event names — so blocking here covers a hand-typed tag and a
+        // directly-POSTed variable mapping too, not just what the pickers
+        // offer. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
+        if (AutomationFieldCatalog::isOutboundBlockedField($fieldKey)) {
+            Log::warning('[DealAutomationService] Blocked a merge tag resolving to a restricted marketing identifier.', [
+                'tag' => $tag,
+                'field' => $fieldKey,
+                'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',
+                'subject_id' => $subject->id,
+            ]);
+
+            return '';
+        }
+
         $value = $this->fieldResolver->resolve($subject, $fieldKey);
 
         if ($value instanceof \Carbon\Carbon) {
@@ -1279,6 +1431,7 @@ class DealAutomationService
         string $description,
         string $status = DealAutomationLog::STATUS_SUCCESS,
         ?string $channel = null,
+        ?array $details = null,
     ): void {
         if (! $automation) {
             return;
@@ -1290,9 +1443,11 @@ class DealAutomationService
                 'deal_id' => $subject instanceof Deal ? $subject->id : null,
                 'lead_id' => $subject instanceof Lead ? $subject->id : null,
                 'automation_id' => $automation->id,
+                'run_id' => $this->currentRunId,
                 'action' => $description,
                 'status' => $status,
                 'channel' => $channel,
+                'details' => $details,
                 'executed_at' => now(),
             ]);
         } catch (\Exception $e) {

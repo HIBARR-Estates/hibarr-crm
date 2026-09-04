@@ -273,11 +273,6 @@ class DealObserver
                 $this->triggerMetaConversionEvent($deal);
             }
 
-            // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->is_locked) {
-                $this->fireDealWonEvent($deal);
-            }
-
             // ── CRM Events for specific deal changes ──
             $trackedDirtyFields = [];
 
@@ -508,6 +503,23 @@ class DealObserver
                 ]);
             }
         }
+
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won'.
+        // Deliberately NOT inside the `! isRunningInConsoleOrSeeding()` guard
+        // above: DealController::updateOutcome() is the one other production
+        // path (besides DealAutomationService, which already fires this
+        // unconditionally) that relies on this observer to queue commission
+        // distribution, and there's nothing seeding-specific about it — a
+        // console-invoked outcome change (an artisan command, a scheduled
+        // job, tinker) is a real win just as much as one from a web request.
+        // commission_locked (not is_locked — the general edit lock, which
+        // this check intentionally ignores so correcting a locked deal's
+        // outcome back to Won still fires it) skips commission processing a
+        // deal has specifically opted out of.
+        if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->commission_locked) {
+            $this->fireDealWonEvent($deal);
+        }
+
         // deal automation trigger
         if (! isRunningInConsoleOrSeeding() && ! $deal->is_locked) {
             $this->dealAutomation->process($deal, 'deal_updated');
@@ -629,6 +641,14 @@ class DealObserver
     {
         UniversalSearch::where('searchable_id', $deal->id)->where('module_type', 'lead')->delete();
 
+        // custom_fields_data.model_id has no FK, so nothing cascades on its
+        // own. Deal has no soft-deletes, so this is a hard delete and
+        // there's no "restore" path to preserve them for.
+        \Illuminate\Support\Facades\DB::table('custom_fields_data')
+            ->where('model', Deal::CUSTOM_FIELD_MODEL)
+            ->where('model_id', $deal->id)
+            ->delete();
+
         if (user()) {
             self::createEmployeeActivity(user()->id, 'deal-deleted');
         }
@@ -688,7 +708,10 @@ class DealObserver
 
             if ($trigger) {
                 // Dispatch job to send Meta conversion event with the trigger's value
-                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value);
+                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
+                    'source' => 'stage_trigger',
+                    'trigger_id' => $trigger->id,
+                ]);
 
                 \Log::info('Meta Conversion Event Job dispatched', [
                     'deal_id' => $deal->id,

@@ -33,7 +33,7 @@ import {
     History,
     ExternalLink,
 } from "lucide-react";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -64,6 +64,8 @@ import {
 const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     agentId,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { data, isLoading } = useLevelHistory({
         agent_id: agentId,
         per_page: 10,
@@ -104,7 +106,8 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                         </div>
                         {r.trigger_deal && (
                             <div className="text-xs text-gray-400 mt-0.5">
-                                Triggered by: {r.trigger_deal.name} ($
+                                Triggered by: {r.trigger_deal.name} (
+                                {currencySymbol}
                                 {r.trigger_deal.value?.toLocaleString()})
                             </div>
                         )}
@@ -127,6 +130,8 @@ const AgentDetailContent: React.FC<{
     showRemove?: boolean;
     extraContent?: React.ReactNode;
 }> = ({ node, onRemove, isRemoving, showRemove, extraContent }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     return (
         <div className="flex flex-col gap-y-4">
             {/* Header */}
@@ -212,7 +217,8 @@ const AgentDetailContent: React.FC<{
                     </div>
                     <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
                         <div className="text-2xl font-bold text-green-700">
-                            ${(node.vsa ?? 0).toLocaleString()}
+                            {currencySymbol}
+                            {(node.vsa ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-green-600">
                             Individual Revenue
@@ -220,7 +226,8 @@ const AgentDetailContent: React.FC<{
                     </div>
                     <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
                         <div className="text-2xl font-bold text-amber-700">
-                            ${(node.vsd ?? 0).toLocaleString()}
+                            {currencySymbol}
+                            {(node.vsd ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-amber-600">
                             Team Revenue

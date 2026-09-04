@@ -29,6 +29,7 @@ class Developer extends BaseModel
         'whatsapp_group_link',
         'google_drive_link',
         'is_hidden',
+        'commission_percentage',
     ];
 
     /**
@@ -40,6 +41,7 @@ class Developer extends BaseModel
         'deleted_at' => 'datetime',
         'project_list' => 'array',
         'is_hidden' => 'boolean',
+        'commission_percentage' => 'decimal:2',
     ];
 
     /**
