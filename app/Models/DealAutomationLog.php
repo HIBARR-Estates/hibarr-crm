@@ -28,10 +28,12 @@ class DealAutomationLog extends BaseModel
         'action',
         'status',
         'channel',
+        'details',
         'executed_at',
     ];
 
     protected $casts = [
+        'details' => 'array',
         'executed_at' => 'datetime',
     ];
 

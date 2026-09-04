@@ -125,14 +125,70 @@ export interface MetaEvent {
     using_automations: { id: number; name: string }[];
 }
 
+/** Which system actually delivered one automation email. "unknown" means the
+ * send never reached UnsRoutingTransport (e.g. the array mail driver). */
+export type MailSystem = "uns" | "smtp" | "unknown";
+
+/** One recipient's outcome, as recorded by UnsRoutingTransport. */
+export interface EmailDeliveryDetail {
+    recipient: string;
+    /** Ties this line to its row in email_delivery_logs. */
+    correlation_id?: string;
+    status: "sent" | "failed";
+    system: MailSystem;
+    uns_attempted: boolean;
+    response_status: number | null;
+    response_body: string | null;
+    /** Why UNS was skipped or abandoned in favour of the SMTP fallback. */
+    fallback_reason: string | null;
+    error: string | null;
+}
+
+/** Everything Meta's Conversions API said about one event. */
+export interface MetaDeliveryDetail {
+    success: boolean;
+    event_name?: string;
+    event_id?: string | null;
+    value?: number;
+    pixel_id?: string | null;
+    api_version?: string;
+    status_code?: number | null;
+    events_received?: number | null;
+    fbtrace_id?: string | null;
+    error?: string | null;
+    error_details?: Record<string, unknown> | null;
+    response_body?: string | null;
+}
+
+/** Structured diagnostics on a log row — shape depends on `channel`. */
+export interface RunLogDetails {
+    /** meta rows: "queued" when the job was enqueued, "delivery" for the result. */
+    stage?: "queued" | "delivery";
+    source?: string;
+    automation_name?: string | null;
+    attempt?: number;
+    // email
+    template_id?: number;
+    template_name?: string;
+    plunk_template_id?: string | null;
+    subject?: string;
+    deliveries?: EmailDeliveryDetail[];
+    // meta
+    event_name?: string;
+    value?: number;
+    meta?: MetaDeliveryDetail;
+    [key: string]: unknown;
+}
+
 export interface RunLogEntry {
     id: number;
-    automation_id: number;
+    automation_id: number | null;
     deal_id: number | null;
     lead_id: number | null;
     action: string;
     status: LogStatus;
     channel: LogChannel | null;
+    details: RunLogDetails | null;
     executed_at: string;
     automation?: { id: number; name: string } | null;
     deal?: { id: number; name: string } | null;

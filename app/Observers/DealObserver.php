@@ -696,7 +696,10 @@ class DealObserver
 
             if ($trigger) {
                 // Dispatch job to send Meta conversion event with the trigger's value
-                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value);
+                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
+                    'source' => 'stage_trigger',
+                    'trigger_id' => $trigger->id,
+                ]);
 
                 \Log::info('Meta Conversion Event Job dispatched', [
                     'deal_id' => $deal->id,

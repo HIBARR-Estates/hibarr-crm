@@ -11,11 +11,12 @@ import { LogStatus } from "./types";
 import { channelIcon, statusToVariant } from "./shared";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationLogs from "./hooks/useAutomationLogs";
+import RunLogDetailPanel from "./components/RunLogDetailPanel";
 
 type StatusFilter = "all" | LogStatus;
 
 const ROW_COLS = {
-    gridTemplateColumns: "150px minmax(140px,1.2fr) minmax(120px,1fr) 110px 100px minmax(160px,1.4fr)",
+    gridTemplateColumns: "150px minmax(140px,1.2fr) minmax(120px,1fr) 110px 100px minmax(160px,1.4fr) 24px",
 };
 
 function RowSkeleton() {
@@ -24,7 +25,7 @@ function RowSkeleton() {
             className="grid gap-3.5 items-center min-w-[900px] px-4.5 py-3 border-b last:border-b-0 animate-pulse"
             style={{ ...ROW_COLS, borderColor: "#f4f5f7" }}
         >
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 7 }).map((_, i) => (
                 <div key={i} className="h-3.5 rounded" style={{ background: "#eef1f5", width: i === 0 ? "70%" : "85%" }} />
             ))}
         </div>
@@ -38,6 +39,9 @@ export default function RunHistory() {
     const [automationId, setAutomationId] = useState<number | undefined>(undefined);
     const [page, setPage] = useState(1);
     const [refreshKey, setRefreshKey] = useState(0);
+    // Which row's diagnostics are open. Only one at a time — the panel is tall
+    // and the point is to read one failure, not scan several.
+    const [expandedId, setExpandedId] = useState<number | null>(null);
 
     const { logs, meta, loading } = useAutomationLogs({
         status: status === "all" ? undefined : status,
@@ -119,6 +123,7 @@ export default function RunHistory() {
                     <span>{t("app.automation.columns.channel")}</span>
                     <span>{t("app.automation.columns.result")}</span>
                     <span>{t("app.automation.columns.detail")}</span>
+                    <span aria-hidden="true" />
                 </div>
 
                 {loading && Array.from({ length: 5 }).map((_, i) => <RowSkeleton key={i} />)}
@@ -132,11 +137,24 @@ export default function RunHistory() {
                     </div>
                 )}
 
-                {!loading && logs.map((entry) => (
+                {!loading && logs.map((entry) => {
+                    const expanded = expandedId === entry.id;
+
+                    return (
+                    <div key={entry.id} className="border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
                     <div
-                        key={entry.id}
-                        className="grid gap-3.5 items-center min-w-[900px] px-4.5 py-3 border-b last:border-b-0"
-                        style={{ ...ROW_COLS, borderColor: "#f4f5f7" }}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={expanded}
+                        className="grid gap-3.5 items-center min-w-[900px] px-4.5 py-3 cursor-pointer"
+                        style={ROW_COLS}
+                        onClick={() => setExpandedId(expanded ? null : entry.id)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setExpandedId(expanded ? null : entry.id);
+                            }
+                        }}
                     >
                         <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
                             {new Date(entry.executed_at).toLocaleString()}
@@ -157,8 +175,16 @@ export default function RunHistory() {
                         <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 12, color: T.TEXT_HINT }}>
                             {entry.action}
                         </span>
+                        <Icon name={expanded ? "chevron-up" : "chevron-down"} size={14} color={T.TEXT_HINT} />
                     </div>
-                ))}
+                    {expanded && (
+                        <div className="min-w-[900px]">
+                            <RunLogDetailPanel entry={entry} />
+                        </div>
+                    )}
+                    </div>
+                    );
+                })}
             </div>
 
             {meta && meta.lastPage > 1 && (

@@ -10,16 +10,19 @@ use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
+use App\Models\EmailDeliveryLog;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Services\Notifications\MailDeliveryRecorder;
 use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class DealAutomationService
 {
@@ -29,12 +32,16 @@ class DealAutomationService
 
     protected ConditionEvaluatorService $conditionEvaluator;
 
+    protected MailDeliveryRecorder $mailDeliveryRecorder;
+
     public function __construct(
         FieldResolverService $fieldResolver,
-        ConditionEvaluatorService $conditionEvaluator
+        ConditionEvaluatorService $conditionEvaluator,
+        MailDeliveryRecorder $mailDeliveryRecorder
     ) {
         $this->fieldResolver = $fieldResolver;
         $this->conditionEvaluator = $conditionEvaluator;
+        $this->mailDeliveryRecorder = $mailDeliveryRecorder;
     }
 
     /**
@@ -763,13 +770,34 @@ class DealAutomationService
 
         $sent = [];
         $failed = [];
+        // One entry per recipient describing which mail system actually
+        // delivered it (UNS/Plunk or the PHP SMTP mailer) and what that
+        // system answered — stored on the log row so a failure can be
+        // diagnosed from Run History without server log access.
+        $deliveries = [];
 
         foreach ($recipients as $recipient) {
+            $correlationId = (string) Str::uuid();
+
+            $deliveryContext = [
+                'source' => 'deal_automation',
+                'correlation_id' => $correlationId,
+                'company_id' => $subject->company_id,
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+                'deal_id' => $subject instanceof Deal ? $subject->id : null,
+                'lead_id' => $subject instanceof Lead ? $subject->id : null,
+                'template_id' => $template->id,
+                'template_name' => $template->name,
+            ];
+
             try {
-                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables));
+                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables, $deliveryContext));
                 $sent[] = $recipient;
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, null);
             } catch (\Exception $e) {
                 $failed[$recipient] = $e->getMessage();
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, $e->getMessage());
                 Log::error("Failed to send automation email to {$recipient} for {$label}", [
                     'exception' => $e->getMessage(),
                 ]);
@@ -786,7 +814,13 @@ class DealAutomationService
         $description = "Email using template \"{$template->name}\" — ".implode('; ', $descriptionParts);
 
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email');
+        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email', [
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'plunk_template_id' => $plunkTemplateId,
+            'subject' => $subjectLine,
+            'deliveries' => $deliveries,
+        ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, ! empty($sent), [
             'action' => empty($failed) ? 'automation_email_sent' : 'automation_email_partial_failure',
@@ -796,6 +830,38 @@ class DealAutomationService
             'sent_to' => $sent,
             'failed_for' => array_keys($failed),
         ]);
+    }
+
+    /**
+     * Turn one recipient's send into the diagnostic record kept on the
+     * automation log: which system delivered it, whether UNS was tried first,
+     * and whatever that system (or the thrown exception) said about it.
+     *
+     * The outcome comes from MailDeliveryRecorder, which UnsRoutingTransport
+     * fills in during the synchronous Mail::send() above. If it's missing —
+     * e.g. a mail driver that never reaches the transport, like the array
+     * driver in tests — the record degrades to 'unknown' rather than lying.
+     *
+     * @return array<string, mixed>
+     */
+    protected function describeDelivery(string $recipient, string $correlationId, ?string $exceptionMessage): array
+    {
+        $outcome = $this->mailDeliveryRecorder->pull($correlationId);
+
+        return [
+            'recipient' => $recipient,
+            // Ties this line to its email_delivery_logs row.
+            'correlation_id' => $correlationId,
+            'status' => $exceptionMessage !== null
+                ? EmailDeliveryLog::STATUS_FAILED
+                : ($outcome['status'] ?? EmailDeliveryLog::STATUS_SENT),
+            'system' => $outcome['system'] ?? 'unknown',
+            'uns_attempted' => (bool) ($outcome['uns_attempted'] ?? false),
+            'response_status' => $outcome['response_status'] ?? null,
+            'response_body' => $outcome['response_body'] ?? null,
+            'fallback_reason' => $outcome['fallback_reason'] ?? null,
+            'error' => $exceptionMessage ?? ($outcome['error'] ?? null),
+        ];
     }
 
     /**
@@ -1099,13 +1165,26 @@ class DealAutomationService
         // connection/transaction-manager level instead, which works under
         // every queue driver including sync, and fires immediately here if no
         // transaction is open.
-        DB::afterCommit(function () use ($subject, $eventName, $value) {
-            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        $origin = [
+            'source' => 'automation',
+            'automation_id' => $automation?->id,
+            'automation_name' => $automation?->name,
+        ];
+
+        DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
+            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value, $origin);
         });
 
         $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta');
+        // The queue-time row only records that the action fired. The job writes
+        // a second 'meta' row once Meta has actually answered — that's the one
+        // carrying the failure reason.
+        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta', [
+            'stage' => 'queued',
+            'event_name' => $eventName,
+            'value' => $value,
+        ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, true, [
             'action' => 'automation_meta_conversion_queued',
@@ -1309,6 +1388,7 @@ class DealAutomationService
         string $description,
         string $status = DealAutomationLog::STATUS_SUCCESS,
         ?string $channel = null,
+        ?array $details = null,
     ): void {
         if (! $automation) {
             return;
@@ -1323,6 +1403,7 @@ class DealAutomationService
                 'action' => $description,
                 'status' => $status,
                 'channel' => $channel,
+                'details' => $details,
                 'executed_at' => now(),
             ]);
         } catch (\Exception $e) {
