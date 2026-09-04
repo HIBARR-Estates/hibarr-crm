@@ -55,13 +55,13 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
-use App\Support\FeatureFlags;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
+use App\Support\FeatureFlags;
 use App\Traits\DealAutomationTrait;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
@@ -531,10 +531,16 @@ class DealController extends AccountBaseController
             'products' => function ($query) {
                 $query->select('products.id', 'products.name')
                     ->with(['property' => function ($pq) {
-                        $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
+                        // `project_location_id` is selected so the appended
+                        // `effective_location` accessor can resolve; the two
+                        // location relations are eager-loaded so it does not
+                        // lazy-load one query per attached property.
+                        $pq->select('id', 'product_id', 'developer_project_id', 'project_location_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
                         $pq->with(['developerProject' => function ($dpq) {
-                            $dpq->select('id', 'name', 'availability_link');
+                            $dpq->select('id', 'name', 'availability_link', 'project_location_id')
+                                ->with(['location:id,name,city,area']);
                         }]);
+                        $pq->with(['projectLocation:id,name,city,area']);
                     }]);
             },
             'packages:id,name,value',
@@ -3524,7 +3530,6 @@ class DealController extends AccountBaseController
             'user_id' => auth()->id(),
             'timestamp' => now(),
         ]);
-
 
         $followUpId = $request->followup_id;
         $followUp = DealFollowUp::find($followUpId);

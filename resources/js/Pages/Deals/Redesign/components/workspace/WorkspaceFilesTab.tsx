@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
-import {
-    AttachmentFileCard,
-    FileDropzone,
-} from "@/Components/Redesign";
+import { AttachmentFileCard, FileDropzone } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
@@ -20,6 +17,7 @@ import useDealDocuments from "../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
+import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -146,7 +144,9 @@ export default function WorkspaceFilesTab({
         destroyFile(null, {
             onSuccess: () => {
                 setDeleteFile(null);
-                setFiles((prev) => prev.filter((item) => item.id !== deletedId));
+                setFiles((prev) =>
+                    prev.filter((item) => item.id !== deletedId),
+                );
                 message.success(
                     t("pages.deals.workspace.files.messages.deleted"),
                 );
@@ -166,7 +166,10 @@ export default function WorkspaceFilesTab({
                     <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
                         {t("pages.deals.workspace.documents.section_title")}
                     </div>
-                    <div className="mb-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
+                    <div
+                        className="mb-2 text-[12px]"
+                        style={{ color: T.TEXT_HINT }}
+                    >
                         {t("pages.deals.workspace.documents.section_hint")}
                     </div>
                     <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
@@ -206,9 +209,10 @@ export default function WorkspaceFilesTab({
             )}
 
             {visibleFiles.length === 0 ? (
-                <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {t("pages.deals.workspace.files.empty")}
-                </p>
+                <FilesEmptyState
+                    title={t("pages.deals.workspace.files.empty")}
+                    canUpload={showUpload}
+                />
             ) : (
                 visibleFiles.map((file) => (
                     <AttachmentFileCard
@@ -243,8 +247,12 @@ export default function WorkspaceFilesTab({
                 title={t("pages.deals.common.delete")}
                 message={
                     deleteFile
-                        ? t("pages.deals.workspace.files.delete_confirm_message")
-                        : t("pages.deals.workspace.files.delete_confirm_message")
+                        ? t(
+                              "pages.deals.workspace.files.delete_confirm_message",
+                          )
+                        : t(
+                              "pages.deals.workspace.files.delete_confirm_message",
+                          )
                 }
                 confirmLabel={t("pages.deals.common.delete")}
                 danger
