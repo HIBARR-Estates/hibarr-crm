@@ -47,6 +47,8 @@ import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import usePipelineHasPackages from "./hooks/usePipelineHasPackages";
 import {
     filterCategoriesByScope,
@@ -314,6 +316,60 @@ function DealViewRedesignInner(
         }
     }, [activeTab, nav]);
 
+    // Lead-owned FILE fields, whose value lives on the lead (shared across
+    // every deal on that lead) — one slot on this deal's Files tab, gated by
+    // the same visibility rules as any other custom file field.
+    const leadFileFields = useMemo(
+        () =>
+            ((pageProps.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS).filter(
+                (f: any) => f.type === "file",
+            ),
+        [pageProps.leadCustomFields],
+    );
+    const leadFileFieldsData =
+        (pageProps.leadCustomFieldsData as Record<string, any> | null | undefined) ?? {};
+
+    // Deal-context visibility for this deal's own + lead-owned file fields.
+    // Pipeline/stage context is the deal's for both, but `record` criteria are
+    // scoped to the record that *owns* the field: a lead field's "restrict to
+    // specific record(s)" rule lists lead ids, so evaluating it against the
+    // deal id would never match. Hence two passes over one shared value map.
+    const dealFileVisibilityMap = useMemo(() => {
+        const fileRelevantFields = [...fields, ...leadFileFields];
+        const customFieldsData = {
+            ...(deal.custom_fields_data ?? {}),
+            ...leadFileFieldsData,
+        };
+        const baseContext = {
+            pipeline: deal.lead_pipeline_id,
+            pipelineStage: deal.pipeline_stage_id,
+        };
+        const evaluateFor = (targetFields: any[], recordId: any) =>
+            evaluateAllFieldsVisibility(
+                targetFields,
+                buildFieldValueMap({
+                    customFieldsData,
+                    fields: fileRelevantFields,
+                    normalizeMultiSelect: true,
+                    context: { ...baseContext, recordId },
+                }),
+            );
+
+        return {
+            ...evaluateFor(fields, deal.id),
+            ...evaluateFor(leadFileFields, deal.lead_id),
+        };
+    }, [
+        fields,
+        leadFileFields,
+        deal.id,
+        deal.lead_id,
+        deal.custom_fields_data,
+        leadFileFieldsData,
+        deal.lead_pipeline_id,
+        deal.pipeline_stage_id,
+    ]);
+
     // Badge must count the same thing the Files tab body renders — document
     // slots (HIBARR/custom file fields) plus loose attachments, deduped — not
     // just the raw loose-attachment list, or the badge can read 0 while the
@@ -323,6 +379,9 @@ function DealViewRedesignInner(
         files,
         fields,
         pipelineCategoryIds,
+        dealFileVisibilityMap,
+        leadFileFields,
+        leadFileFieldsData,
     );
 
     const counts = useMemo(
@@ -653,9 +712,10 @@ function DealViewRedesignInner(
                                                     files={files}
                                                     permissions={permissions}
                                                     fields={fields}
-                                                    categoryIds={
-                                                        pipelineCategoryIds
-                                                    }
+                                                    categoryIds={pipelineCategoryIds}
+                                                    visibilityMap={dealFileVisibilityMap}
+                                                    leadFileFields={leadFileFields}
+                                                    leadFileFieldsData={leadFileFieldsData}
                                                 />
                                             ))}
                                         {activeTab === "offers" &&
@@ -740,6 +800,7 @@ function DealViewRedesignInner(
                                     files={files}
                                     fields={fields}
                                     categoryIds={pipelineCategoryIds}
+                                    visibilityMap={dealFileVisibilityMap}
                                     restrictPackageOrProperty={
                                         props.restrictPackageOrProperty
                                     }

@@ -807,6 +807,7 @@ export default function LeadInfoSectionPanel({
                 fields={fields}
                 customFieldsData={lead.custom_fields_data ?? {}}
                 categoryId={categoryId}
+                recordId={lead.id}
                 useContainerQuery
                 bare
                 column={2}

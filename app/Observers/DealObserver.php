@@ -512,6 +512,10 @@ class DealObserver
         // distribution, and there's nothing seeding-specific about it — a
         // console-invoked outcome change (an artisan command, a scheduled
         // job, tinker) is a real win just as much as one from a web request.
+        // commission_locked (not is_locked — the general edit lock, which
+        // this check intentionally ignores so correcting a locked deal's
+        // outcome back to Won still fires it) skips commission processing a
+        // deal has specifically opted out of.
         if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->commission_locked) {
             $this->fireDealWonEvent($deal);
         }
@@ -636,6 +640,14 @@ class DealObserver
     public function deleted(Deal $deal)
     {
         UniversalSearch::where('searchable_id', $deal->id)->where('module_type', 'lead')->delete();
+
+        // custom_fields_data.model_id has no FK, so nothing cascades on its
+        // own. Deal has no soft-deletes, so this is a hard delete and
+        // there's no "restore" path to preserve them for.
+        \Illuminate\Support\Facades\DB::table('custom_fields_data')
+            ->where('model', Deal::CUSTOM_FIELD_MODEL)
+            ->where('model_id', $deal->id)
+            ->delete();
 
         if (user()) {
             self::createEmployeeActivity(user()->id, 'deal-deleted');
