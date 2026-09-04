@@ -1,3 +1,4 @@
+import { Deferred } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -169,7 +170,17 @@ export default function StatStrip({
                       ? {
                             chip: `${meetings.missed} ${td("missed")}`,
                             tone: "down" as const,
-                            href: route("meetings.index"),
+                            // Same attendance_outcome and date window
+                            // personalStats() counted missed against, so the
+                            // list this opens actually matches the number on
+                            // the chip rather than every past meeting.
+                            href: route("meetings.index", {
+                                attendance: "no_show",
+                                date_from: dayjs()
+                                    .subtract(windowDays, "day")
+                                    .format("YYYY-MM-DD"),
+                                date_to: dayjs().format("YYYY-MM-DD"),
+                            }),
                         }
                       : {}),
               };
@@ -255,11 +266,13 @@ export default function StatStrip({
             ) : (
                 <StatCardSkeleton label="Deals" />
             )}
-            {meetingsTile ? (
-                <StatCard tile={meetingsTile} />
-            ) : (
-                <StatCardSkeleton label="Meetings" />
-            )}
+            <Deferred data="stats" fallback={<StatCardSkeleton label="Meetings" />}>
+                {meetingsTile ? (
+                    <StatCard tile={meetingsTile} />
+                ) : (
+                    <StatCardSkeleton label="Meetings" />
+                )}
+            </Deferred>
             {showCommissionSlot &&
                 (commissionTile ? (
                     <StatCard tile={commissionTile} />

@@ -81,6 +81,16 @@ class MeetingsController extends AccountBaseController
         $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
         $pastPerPage = (int) $request->get('past_per_page', 6);
 
+        // Optional attendance/date-window filters — used by links into this
+        // page that already know what they're looking for (e.g. the personal
+        // dashboard's "N missed" badge), so the list they land on actually
+        // matches what was counted rather than just "all your past meetings".
+        // Attendance is only meaningful for past meetings, so these apply to
+        // that query alone.
+        $attendanceFilter = $request->get('attendance');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
         // A meeting is "live" when it has started but not yet ended:
         //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
         // Live meetings should appear in Upcoming, not Past.
@@ -117,6 +127,9 @@ class MeetingsController extends AccountBaseController
                         [$defaultDuration, $now]
                     );
             })
+            ->when($attendanceFilter, fn ($q) => $q->where('attendance_outcome', $attendanceFilter))
+            ->when($dateFrom, fn ($q) => $q->where('next_follow_up_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('next_follow_up_date', '<=', Carbon::parse($dateTo)->endOfDay()))
             ->orderBy('next_follow_up_date', 'desc')
             ->paginate($pastPerPage, ['*'], 'past_page');
 
