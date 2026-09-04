@@ -13,9 +13,9 @@
         sans-serif;
     font-size: 14px;
     padding: 18px 22px 24px;
-    /* Matches the app's own max-w-7xl (80rem) content width — see
-       MyCommissions.tsx, Dashboard/V2/personal pages, etc. */
-    max-width: 80rem;
+    /* Matches the list pages' own max-w-screen-2xl (96rem) content width —
+       see Leads/Index.tsx, Deals/Index.tsx, Tasks/Index.tsx. */
+    max-width: 96rem;
     margin: 0 auto;
 }
 
