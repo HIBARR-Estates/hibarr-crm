@@ -41,6 +41,7 @@ return [
         'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
+        'crm.mobile-responsive-layout',
         'packages.online-payment',
     ],
 
@@ -54,5 +55,6 @@ return [
     */
     'local_defaults' => [
         'crm.meeting-attendance-confirmation' => true,
+        'crm.mobile-responsive-layout' => true,
     ],
 ];
