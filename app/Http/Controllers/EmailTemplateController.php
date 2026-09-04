@@ -195,6 +195,7 @@ class EmailTemplateController extends AccountBaseController
         $this->hibarrFields = AutomationFieldCatalog::HIBARR_FIELDS;
         $this->relatedFields = AutomationFieldCatalog::RELATED_FIELDS;
         $this->leadFields = AutomationFieldCatalog::LEAD_FIELDS;
+        $this->leadMarketingFields = AutomationFieldCatalog::LEAD_MARKETING_FIELDS;
         $this->customFields = AutomationFieldCatalog::dealCustomFields();
         $this->leadCustomFields = AutomationFieldCatalog::leadCustomFields();
         $this->ctaTargets = AutomationFieldCatalog::CTA_TARGETS;

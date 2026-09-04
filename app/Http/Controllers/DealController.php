@@ -563,6 +563,11 @@ class DealController extends AccountBaseController
         // Inertia response that reads none of it: 18 queries for 15 properties
         // referenced zero times.
 
+        // One query for the deal's and its lead's custom field values instead
+        // of two (CustomFieldsTrait::loadCustomFieldsDataBatch()) — primes
+        // both instances' caches before the reads below run.
+        Deal::primeCustomFieldsDataBatch([$deal, $deal->contact]);
+
         // Load custom fields data
         $deal = $deal->withCustomFields();
 

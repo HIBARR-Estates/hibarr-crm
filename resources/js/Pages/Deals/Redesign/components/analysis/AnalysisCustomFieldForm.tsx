@@ -1,8 +1,7 @@
-// Right-panel form experience: inputs are always visible and ready to fill.
-// Agent can Tab through fields rapidly during a live call — no click-to-activate.
+// Inputs are always visible and ready to fill: the agent can Tab straight into
+// the current step during a live call — no click-to-activate.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import AnalysisFieldRow from "./center/AnalysisFieldRow";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -371,96 +370,4 @@ export function FormField({ field, value: rawValue, fieldNumber, canEdit, onChan
             )}
         </AnalysisFieldRow>
     );
-}
-
-// ─── Form section ────────────────────────────────────────────────────────────
-
-interface Props {
-    fields: any[];
-    categoryId?: number;
-    values: Record<string, any>;
-    canEdit: boolean;
-    numberByKey?: Record<string, number>;
-    onSave: (fieldId: number, value: any) => void;
-    onChange?: (fieldId: number, value: any) => void;
-    onFileSelect?: (fieldId: number, file: File) => void;
-}
-
-export default function AnalysisCustomFieldForm({
-    fields,
-    categoryId,
-    values,
-    canEdit,
-    numberByKey,
-    onSave,
-    onChange,
-    onFileSelect,
-}: Props) {
-
-    // No local mirror of `values`: the modal owns the merged value store and an
-    // edit here is echoed straight back down through `values` in the same commit.
-    // Mirroring it cost an extra state update (so a second render) and a second
-    // visibility pass on every keystroke.
-    const handleFieldChange = useCallback((fieldId: number, value: any) => {
-        onChange?.(fieldId, value);
-    }, [onChange]);
-
-    const scopedFields = useMemo(() => {
-        let scoped = categoryId != null
-            ? fields.filter((f: any) => f.custom_field_category_id === categoryId)
-            : fields;
-        return scoped.filter((f: any) => f.type !== "file");
-    }, [fields, categoryId]);
-
-    const visibleFields = useMemo(() => {
-        const visibilityMap = evaluateAllFieldsVisibility(scopedFields, values);
-        return scopedFields.filter((f: any) => visibilityMap[f.id] !== false);
-    }, [scopedFields, values]);
-
-    if (visibleFields.length === 0) {
-        return (
-            <p style={{ fontSize: 13, color: A.TEXT_HINT, fontStyle: "italic", margin: 0 }}>
-                {"No fields in this section."}
-            </p>
-        );
-    }
-
-    return (
-        <div>
-            {visibleFields.map((field: any) => (
-                <FormField
-                    key={field.id}
-                    field={field}
-                    value={values[`field_${field.id}`] ?? null}
-                    fieldNumber={numberByKey?.[`deal_field_${field.id}`]}
-                    canEdit={canEdit}
-                    onChange={(value) => handleFieldChange(field.id, value)}
-                    onSave={(value) => onSave(field.id, value)}
-                    onFileSelect={onFileSelect}
-                />
-            ))}
-        </div>
-    );
-}
-
-/** Returns the count of visible (non-file) fields and how many are filled. */
-export function getCustomFieldCategoryProgress(
-    fields: any[],
-    categoryId: number,
-    values: Record<string, any>,
-): { total: number; filled: number } {
-    const scoped = fields.filter(
-        (f: any) => f.custom_field_category_id === categoryId && f.type !== "file",
-    );
-    const visibilityMap = evaluateAllFieldsVisibility(scoped, values);
-    const visible = scoped.filter((f: any) => visibilityMap[f.id] !== false);
-
-    const filled = visible.filter((f: any) => {
-        const v = values[`field_${f.id}`];
-        if (v === null || v === undefined || v === "") return false;
-        if (Array.isArray(v)) return v.length > 0;
-        return true;
-    }).length;
-
-    return { total: visible.length, filled };
 }

@@ -4,11 +4,13 @@ import type { RailSectionGroup, RailStep } from "./analysisRailItems";
 interface Props {
     groups: RailSectionGroup[];
     activeSection: string;
+    /** Step being asked right now — the rail mirrors the centre panel's highlight. */
+    activeStepKey: string | null;
     onJump: (sectionId: string) => void;
 }
 
 /** Navy "Script steps" tab — every step, grouped under its section. */
-export default function AnalysisStepsPanel({ groups, activeSection, onJump }: Props) {
+export default function AnalysisStepsPanel({ groups, activeSection, activeStepKey, onJump }: Props) {
     return (
         <div className="flex flex-col h-full min-h-0" style={{ background: T.NAVY }}>
             <div className="flex-1 overflow-y-auto min-h-0">
@@ -56,8 +58,8 @@ export default function AnalysisStepsPanel({ groups, activeSection, onJump }: Pr
                                     <StepItem
                                         key={step.key}
                                         step={step}
-                                        isActive={step.sectionId === activeSection}
-                                        locked={group.locked}
+                                        isActive={step.stepKey === activeStepKey}
+                                        locked={step.locked}
                                         onJump={onJump}
                                     />
                                 ))

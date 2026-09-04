@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -1091,7 +1092,16 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        // The job's own ->afterCommit() only defers via the queue connection's
+        // enqueueUsing() — QUEUE_CONNECTION=sync bypasses that entirely and
+        // fires immediately (see SyncQueue::push()), so it would still run
+        // inside an open DB::transaction(). DB::afterCommit() defers at the
+        // connection/transaction-manager level instead, which works under
+        // every queue driver including sync, and fires immediately here if no
+        // transaction is open.
+        DB::afterCommit(function () use ($subject, $eventName, $value) {
+            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        });
 
         $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");
@@ -1237,6 +1247,23 @@ class DealAutomationService
         }
 
         $fieldKey = is_array($mapping) ? ($mapping['field'] ?? $tag) : $tag;
+
+        // Outbound gate. Every merge tag in the system funnels through here —
+        // email bodies/subjects, Plunk variables, CTA URLs, task/note text,
+        // Meta event names — so blocking here covers a hand-typed tag and a
+        // directly-POSTed variable mapping too, not just what the pickers
+        // offer. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
+        if (AutomationFieldCatalog::isOutboundBlockedField($fieldKey)) {
+            Log::warning('[DealAutomationService] Blocked a merge tag resolving to a restricted marketing identifier.', [
+                'tag' => $tag,
+                'field' => $fieldKey,
+                'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',
+                'subject_id' => $subject->id,
+            ]);
+
+            return '';
+        }
+
         $value = $this->fieldResolver->resolve($subject, $fieldKey);
 
         if ($value instanceof \Carbon\Carbon) {

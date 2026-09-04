@@ -286,15 +286,21 @@ class LeadContactController extends AccountBaseController
                 'currency',
                 'leadFlightItineraries',
             ])
-            ->get()
-            ->map(function ($deal) {
-                $dealWithFields = $deal->withCustomFields();
-                $customFieldsData = $dealWithFields->getCustomFieldsData();
-                $dealArray = $deal->toArray();
-                $dealArray['custom_fields_data'] = $customFieldsData;
+            ->get();
 
-                return $dealArray;
-            });
+        // One query for every listed deal's custom field values instead of
+        // one per deal (CustomFieldsTrait::loadCustomFieldsDataBatch()) —
+        // primes each instance's cache before the map() below reads it.
+        Deal::primeCustomFieldsDataBatch($deals->all());
+
+        $deals = $deals->map(function ($deal) {
+            $dealWithFields = $deal->withCustomFields();
+            $customFieldsData = $dealWithFields->getCustomFieldsData();
+            $dealArray = $deal->toArray();
+            $dealArray['custom_fields_data'] = $customFieldsData;
+
+            return $dealArray;
+        });
 
         $dealPermissions = [
             'add_deals' => user()->permission('add_deals'),
