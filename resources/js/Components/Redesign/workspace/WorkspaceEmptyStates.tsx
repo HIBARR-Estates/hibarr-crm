@@ -158,7 +158,15 @@ export function ItineraryFilterEmptyState({
     );
 }
 
-export function FilesEmptyState({ title }: { title: string }) {
+export function FilesEmptyState({
+    title,
+    /** False when the user cannot upload — the dropzone is not rendered then,
+     *  so pointing at it would describe a control that is not on screen. */
+    canUpload = true,
+}: {
+    title: string;
+    canUpload?: boolean;
+}) {
     const { td } = useTd();
 
     return (
@@ -166,7 +174,9 @@ export function FilesEmptyState({ title }: { title: string }) {
             icon="paperclip"
             title={title}
             description={td(
-                "Drop a file above to attach contracts, IDs and other paperwork.",
+                canUpload
+                    ? "Drop a file above to attach contracts, IDs and other paperwork."
+                    : "Contracts, IDs and other paperwork attached here will show up in this list.",
                 { source: "en" },
             )}
         />

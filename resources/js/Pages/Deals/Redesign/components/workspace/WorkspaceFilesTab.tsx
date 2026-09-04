@@ -211,6 +211,7 @@ export default function WorkspaceFilesTab({
             {visibleFiles.length === 0 ? (
                 <FilesEmptyState
                     title={t("pages.deals.workspace.files.empty")}
+                    canUpload={showUpload}
                 />
             ) : (
                 visibleFiles.map((file) => (

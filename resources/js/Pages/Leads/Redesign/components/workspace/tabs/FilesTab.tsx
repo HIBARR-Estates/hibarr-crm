@@ -167,7 +167,10 @@ export default function FilesTab({
                     {td("Loading files…", { source: "en" })}
                 </p>
             ) : visibleFiles.length === 0 ? (
-                <FilesEmptyState title={td("No files yet", { source: "en" })} />
+                <FilesEmptyState
+                    title={td("No files yet", { source: "en" })}
+                    canUpload={canEdit}
+                />
             ) : (
                 visibleFiles.map((file) => (
                     <AttachmentFileCard
