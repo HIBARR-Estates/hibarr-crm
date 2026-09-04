@@ -178,6 +178,13 @@ export interface AutomationCatalog {
     leadMarketingFields: Record<string, string>;
     /** Which of those are 0/1 flags, so the Value input offers Yes/No. */
     leadMarketingBooleanFields: string[];
+    /**
+     * Marketing identifiers usable in conditions but never in a merge tag —
+     * they'd otherwise be emailable to any address. Enforced server-side in
+     * DealAutomationService::resolveTagValue(); the picker just doesn't offer
+     * them. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
+     */
+    leadMarketingConditionOnlyFields: string[];
     relatedFields: Record<string, string>;
     leadFields: Record<string, string>;
     leadSettableFields: Record<string, string>;

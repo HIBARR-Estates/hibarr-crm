@@ -16,7 +16,12 @@
     @endforeach
 </optgroup>
 <optgroup label="Lead Marketing">
-    @foreach(($leadMarketingFields ?? []) as $key => $label)
+    @php
+        $marketingOptions = ($outbound ?? false)
+            ? \App\Services\AutomationFieldCatalog::outboundLeadMarketingFields()
+            : ($leadMarketingFields ?? []);
+    @endphp
+    @foreach($marketingOptions as $key => $label)
         @php
             $type = 'string';
             if ($key === 'contact_score') $type = 'number';

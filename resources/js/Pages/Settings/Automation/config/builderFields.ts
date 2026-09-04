@@ -212,6 +212,12 @@ export function conditionFieldGroups(subjectType: SubjectType, catalog: Automati
     return groups.filter((g) => g.options.length > 0);
 }
 
+function omitKeys(dict: Record<string, string>, keys: string[] | undefined): Record<string, string> {
+    if (!keys?.length) return dict;
+    const blocked = new Set(keys);
+    return Object.fromEntries(Object.entries(dict).filter(([key]) => !blocked.has(key)));
+}
+
 function toOptions(dict: Record<string, string>, prefix = ""): { value: string; label: string }[] {
     return Object.entries(dict).map(([key, label]) => ({ value: `${prefix}${key}`, label }));
 }
@@ -247,7 +253,14 @@ export function mergeTagGroups(subjectType: SubjectType, catalog: AutomationCata
     groups.push({ label: "Lead Fields", options: toOptions(catalog.leadFields, "lead_field_") });
     groups.push({
         label: "Lead Marketing",
-        options: toOptions(catalog.leadMarketingFields, "lead_marketing_"),
+        // Identifiers (IP, user agent, ad-click ids) are condition-only — a
+        // merge tag is emitted, and a send_email action can address any typed
+        // address. The server blocks them regardless; this keeps them out of
+        // the picker so they're never offered in the first place.
+        options: toOptions(
+            omitKeys(catalog.leadMarketingFields, catalog.leadMarketingConditionOnlyFields),
+            "lead_marketing_",
+        ),
     });
     groups.push({
         label: "Lead Custom Fields",

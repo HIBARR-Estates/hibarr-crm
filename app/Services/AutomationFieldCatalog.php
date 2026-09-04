@@ -64,6 +64,62 @@ class AutomationFieldCatalog
         'contact_score' => 'Contact Score',
     ];
 
+    /**
+     * Marketing columns that must never leave the system through a merge tag.
+     *
+     * These are device/browser/ad-network identifiers — personal data under
+     * GDPR, and useless for personalization. A send_email action can address
+     * `custom_email` (any typed address), so a template resolving
+     * {{lead_marketing_ip_address}} would hand a lead's IP and browser
+     * fingerprint to an arbitrary third party. They stay fully available to
+     * *condition* evaluation, which never emits the value — only branches on
+     * it.
+     *
+     * Enforced at the single outbound chokepoint,
+     * DealAutomationService::resolveTagValue(), not just hidden in the
+     * pickers: a tag can also be hand-typed into a template body or POSTed
+     * straight into a variable mapping.
+     */
+    public const LEAD_MARKETING_CONDITION_ONLY_FIELDS = [
+        'ip_address',
+        'user_agent',
+        'facebook_click_id',
+        'facebook_lead_id',
+        'facebook_browser_id',
+    ];
+
+    /**
+     * The marketing fields a merge tag may resolve — campaign attribution,
+     * engagement and score, minus the raw identifiers above.
+     *
+     * @return array<string, string>
+     */
+    public static function outboundLeadMarketingFields(): array
+    {
+        return array_diff_key(
+            self::LEAD_MARKETING_FIELDS,
+            array_flip(self::LEAD_MARKETING_CONDITION_ONLY_FIELDS)
+        );
+    }
+
+    /**
+     * Whether a resolved field key is a marketing identifier barred from
+     * outbound use. Accepts the prefixed automation key
+     * ("lead_marketing_ip_address").
+     */
+    public static function isOutboundBlockedField(string $fieldKey): bool
+    {
+        if (! str_starts_with($fieldKey, 'lead_marketing_')) {
+            return false;
+        }
+
+        return in_array(
+            substr($fieldKey, strlen('lead_marketing_')),
+            self::LEAD_MARKETING_CONDITION_ONLY_FIELDS,
+            true
+        );
+    }
+
     /** Marketing columns stored as 0/1 — offered as a Yes/No picker, not free text. */
     public const LEAD_MARKETING_BOOLEAN_FIELDS = [
         'has_registered_for_the_webinar',

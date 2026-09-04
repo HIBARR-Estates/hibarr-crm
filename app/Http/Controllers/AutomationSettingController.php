@@ -63,6 +63,7 @@ class AutomationSettingController extends AccountBaseController
                 'hibarrFields' => AutomationFieldCatalog::HIBARR_FIELDS,
                 'leadMarketingFields' => AutomationFieldCatalog::LEAD_MARKETING_FIELDS,
                 'leadMarketingBooleanFields' => AutomationFieldCatalog::LEAD_MARKETING_BOOLEAN_FIELDS,
+                'leadMarketingConditionOnlyFields' => AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS,
                 'relatedFields' => AutomationFieldCatalog::RELATED_FIELDS,
                 'leadFields' => AutomationFieldCatalog::LEAD_FIELDS,
                 'leadSettableFields' => AutomationFieldCatalog::LEAD_SETTABLE_FIELDS,
