@@ -307,6 +307,10 @@ class MlmAgentController extends AccountBaseController
             $query->where('status', $request->input('status'));
         }
 
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+
         if ($request->filled('date_from')) {
             $query->where('created_at', '>=', $request->input('date_from'));
         }

@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
-import {
-    AttachmentFileCard,
-    FileDropzone,
-} from "@/Components/Redesign";
+import { AttachmentFileCard, FileDropzone } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useDealFilesGroupingFlag from "@/Hooks/useDealFilesGroupingFlag";
@@ -23,6 +20,7 @@ import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
 import useDealFileMutations from "../../hooks/useDealFileMutations";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
+import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -238,7 +236,9 @@ export default function WorkspaceFilesTab({
         destroyFile(null, {
             onSuccess: () => {
                 setDeleteFile(null);
-                setFiles((prev) => prev.filter((item) => item.id !== deletedId));
+                setFiles((prev) =>
+                    prev.filter((item) => item.id !== deletedId),
+                );
                 message.success(
                     t("pages.deals.workspace.files.messages.deleted"),
                 );
@@ -299,9 +299,10 @@ export default function WorkspaceFilesTab({
             {!filesGroupingEnabled && dropzone}
 
             {visibleFiles.length === 0 ? (
-                <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {t("pages.deals.workspace.files.empty")}
-                </p>
+                <FilesEmptyState
+                    title={t("pages.deals.workspace.files.empty")}
+                    canUpload={showUpload}
+                />
             ) : (
                 visibleFiles.map((file) => (
                     <AttachmentFileCard
@@ -353,8 +354,12 @@ export default function WorkspaceFilesTab({
                 title={t("pages.deals.common.delete")}
                 message={
                     deleteFile
-                        ? t("pages.deals.workspace.files.delete_confirm_message")
-                        : t("pages.deals.workspace.files.delete_confirm_message")
+                        ? t(
+                              "pages.deals.workspace.files.delete_confirm_message",
+                          )
+                        : t(
+                              "pages.deals.workspace.files.delete_confirm_message",
+                          )
                 }
                 confirmLabel={t("pages.deals.common.delete")}
                 danger

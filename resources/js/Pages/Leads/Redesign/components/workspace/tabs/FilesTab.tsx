@@ -13,6 +13,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealFilesGroupingFlag from "@/Hooks/useDealFilesGroupingFlag";
+import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import { isLoading } from "@/lib/utils";
 import type { LeadContactFile } from "@/Types/api/file";
 import type { CustomField } from "@/Types";
@@ -247,7 +248,9 @@ export default function FilesTab({
             onSuccess: () => {
                 const deletedId = deleteFile.id;
                 setDeleteFile(null);
-                setFiles((prev) => prev.filter((item) => item.id !== deletedId));
+                setFiles((prev) =>
+                    prev.filter((item) => item.id !== deletedId),
+                );
                 message.success(td("File deleted", { source: "en" }));
             },
             onError: () => {
@@ -398,9 +401,10 @@ export default function FilesTab({
                     {td("Loading files…", { source: "en" })}
                 </p>
             ) : visibleFiles.length === 0 ? (
-                <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {td("No files uploaded", { source: "en" })}
-                </p>
+                <FilesEmptyState
+                    title={td("No files yet", { source: "en" })}
+                    canUpload={canEdit}
+                />
             ) : (
                 visibleFiles.map((file) => (
                     <AttachmentFileCard
@@ -414,9 +418,7 @@ export default function FilesTab({
                         deleteLabel={td("Delete", { source: "en" })}
                         onDownload={() => downloadLeadContactFile(file.file)}
                         onDelete={
-                            canEdit
-                                ? () => setDeleteFile(file.file)
-                                : undefined
+                            canEdit ? () => setDeleteFile(file.file) : undefined
                         }
                         onRename={
                             canEdit
@@ -444,7 +446,10 @@ export default function FilesTab({
                 title={td("Delete file", { source: "en" })}
                 message={
                     deleteFile
-                        ? td(`Are you sure you want to delete ${deleteFile.filename}? This cannot be undone.`, { source: "en" })
+                        ? td(
+                              `Are you sure you want to delete ${deleteFile.filename}? This cannot be undone.`,
+                              { source: "en" },
+                          )
                         : td("Delete this file?", { source: "en" })
                 }
                 confirmLabel={td("Delete", { source: "en" })}
