@@ -28,7 +28,8 @@ export default function useLeadDealDocumentUpload() {
     // whichever request's `finally` ran first would clear the *other* slot's
     // still-in-flight indicator too.
     const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
-    const [deletingKey, setDeletingKey] = useState<string | null>(null);
+    // Same per-key tracking as uploadingKeys above, for the same reason.
+    const [deletingKeys, setDeletingKeys] = useState<Set<string>>(new Set());
 
     const patchDeal = useCallback(
         (dealId: number, updatedDeal: Record<string, unknown>) => {
@@ -89,7 +90,7 @@ export default function useLeadDealDocumentUpload() {
             if (!doc.fieldName || !doc.updateType) return;
             const key = `${dealId}:${doc.fieldName}`;
 
-            setDeletingKey(key);
+            setDeletingKeys((prev) => new Set(prev).add(key));
             try {
                 const response = await axios.patch(
                     route("deals.gathering.inline_update", { id: dealId }),
@@ -112,7 +113,11 @@ export default function useLeadDealDocumentUpload() {
                         t("pages.deals.workspace.documents.delete_failed"),
                 );
             } finally {
-                setDeletingKey(null);
+                setDeletingKeys((prev) => {
+                    const next = new Set(prev);
+                    next.delete(key);
+                    return next;
+                });
             }
         },
         [patchDeal, t],
@@ -124,6 +129,6 @@ export default function useLeadDealDocumentUpload() {
         isUploadingSlot: (dealId: number, fieldName?: string) =>
             Boolean(fieldName) && uploadingKeys.has(`${dealId}:${fieldName}`),
         isDeletingSlot: (dealId: number, fieldName?: string) =>
-            Boolean(fieldName) && deletingKey === `${dealId}:${fieldName}`,
+            Boolean(fieldName) && deletingKeys.has(`${dealId}:${fieldName}`),
     };
 }

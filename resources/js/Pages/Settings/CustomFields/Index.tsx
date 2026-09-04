@@ -34,7 +34,8 @@ interface Props {
 
 type ConfirmState =
     | { kind: "field"; id: number; label: string; module: string }
-    | { kind: "category"; id: number; label: string };
+    | { kind: "category"; id: number; label: string }
+    | { kind: "rule"; id: number; label: string };
 
 function TabSkeleton() {
     return (
@@ -128,7 +129,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
         setFields((prev) => prev.map((f) => (f.id === field.id ? field : f)));
     };
 
-    const handleRemoveRule = async (field: SettingsField) => {
+    const removeRule = async (field: Pick<SettingsField, "id">) => {
         try {
             const res = await axios.post(
                 route("custom-fields.save-rule-set", field.id),
@@ -151,6 +152,8 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
         setConfirmLoading(true);
         if (confirm.kind === "field") {
             await fieldMutations.deleteField(confirm.id);
+        } else if (confirm.kind === "rule") {
+            await removeRule({ id: confirm.id });
         } else {
             await categoryMutations.deleteCategory(confirm.id);
         }
@@ -180,6 +183,13 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                 title: td("Delete field?", { source: "en" }),
                 message: td(`This removes “${confirm.label}” and its stored values from ${confirm.module} records. It can't be undone.`, { source: "en" }),
                 confirmLabel: td("Delete field", { source: "en" }),
+            };
+        }
+        if (confirm.kind === "rule") {
+            return {
+                title: td("Remove visibility rule?", { source: "en" }),
+                message: td(`“${confirm.label}” will be shown to everyone, everywhere, instead of only when its conditions match. It can't be undone.`, { source: "en" }),
+                confirmLabel: td("Remove rule", { source: "en" }),
             };
         }
         return {
@@ -290,7 +300,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                                     setRuleModalFieldId(field.id);
                                     setRuleModalOpen(true);
                                 }}
-                                onRemove={handleRemoveRule}
+                                onRemove={(field) => setConfirm({ kind: "rule", id: field.id, label: field.label })}
                                 onAdd={() => {
                                     setRuleModalFieldId(null);
                                     setRuleModalOpen(true);

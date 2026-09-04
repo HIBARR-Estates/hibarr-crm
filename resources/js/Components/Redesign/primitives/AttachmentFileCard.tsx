@@ -71,12 +71,23 @@ export default function AttachmentFileCard({
         setEditing(true);
     };
 
-    const save = () => {
+    // Stays in edit mode until the rename actually lands: closing optimistically
+    // would drop the user's text on a failed request, with the row silently
+    // reverting to the old name. The caller surfaces the error message; this
+    // just keeps the draft editable so it can be retried.
+    const save = async () => {
         const trimmed = draft.trim();
-        if (trimmed && trimmed !== name) {
-            onRename?.(trimmed);
+        if (!trimmed || trimmed === name) {
+            setEditing(false);
+            return;
         }
-        setEditing(false);
+
+        try {
+            await onRename?.(trimmed);
+            setEditing(false);
+        } catch {
+            // keep `editing` and `draft` as-is for a retry
+        }
     };
 
     if (editing) {
@@ -98,7 +109,7 @@ export default function AttachmentFileCard({
                     disabled={renaming}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter") save();
+                        if (e.key === "Enter") void save();
                         if (e.key === "Escape") setEditing(false);
                     }}
                 />
@@ -107,7 +118,7 @@ export default function AttachmentFileCard({
                     <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={renaming}>
                         {renameCancelLabel}
                     </Button>
-                    <Button variant="primary" size="sm" onClick={save} loading={renaming} disabled={!draft.trim()}>
+                    <Button variant="primary" size="sm" onClick={() => void save()} loading={renaming} disabled={!draft.trim()}>
                         {renameSaveLabel}
                     </Button>
                 </div>

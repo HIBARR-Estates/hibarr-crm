@@ -20,21 +20,45 @@ interface Props {
     onDuplicated: (field: SettingsField) => void;
 }
 
-/** Builds the same `rule_set` payload shape CustomFieldRuleBuilder's handleSave sends. */
+/**
+ * Builds the same `rule_set` payload shape CustomFieldRuleBuilder's handleSave
+ * sends — every group, not just the first.
+ *
+ * normalizeRuleSet() collapses `groups[]` down to `group` = groups[0] for the
+ * single-group readers, so duplicating off that would silently drop groups 2..N
+ * and the groups_operator that combines them. Each criterion also carries its
+ * reference_source: without it a pipeline/record criterion would be copied as a
+ * `custom_field` one with no reference_field_id, which the server rejects.
+ */
 function buildDuplicatePayload(sourceField: SettingsField) {
-    const normalized = normalizeRuleSet(sourceField.show_rule_set);
+    const ruleSet = sourceField.show_rule_set;
+    const normalized = normalizeRuleSet(ruleSet);
+
+    const sourceGroups = ruleSet?.groups?.length
+        ? ruleSet.groups
+        : normalized?.group
+          ? [normalized.group]
+          : [];
+
+    const mapCriteria = (criteria: any[] | undefined) =>
+        (criteria ?? []).map((c) => ({
+            reference_source: c.reference_source ?? "custom_field",
+            reference_field_id: c.reference_field_id,
+            operator: c.operator,
+            reference_value: c.reference_value,
+            negate: c.negate,
+        }));
+
     return {
         default_visibility: normalized?.default_visibility ?? true,
         enabled: normalized?.enabled ?? false,
-        group: {
-            group_operator: normalized?.group?.group_operator ?? "AND",
-            criteria: (normalized?.group?.criteria ?? []).map((c) => ({
-                reference_field_id: c.reference_field_id,
-                operator: c.operator,
-                reference_value: c.reference_value,
-                negate: c.negate,
-            })),
-        },
+        groups_operator: ruleSet?.groups_operator ?? "AND",
+        groups: sourceGroups.map((group) => ({
+            group_operator: group.group_operator ?? "AND",
+            enabled: group.enabled ?? true,
+            visibility_action: group.visibility_action ?? "show",
+            criteria: mapCriteria(group.criteria),
+        })),
     };
 }
 

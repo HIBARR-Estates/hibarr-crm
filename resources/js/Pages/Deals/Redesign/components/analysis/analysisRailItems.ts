@@ -1,5 +1,6 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { ANALYSIS_FIELD_META } from "../../config/analysisFieldMeta";
 import { formatDisplay, parseOptions } from "./AnalysisCustomFieldRow";
 import { isFieldFilled } from "./analysisProgress";
@@ -63,9 +64,11 @@ export function buildRailGroups(
                 (f: any) =>
                     f.custom_field_category_id === section.categoryId && f.type !== "file",
             );
+            const dealContext = buildDealVisibilityContext(deal);
             const vis = evaluateAllFieldsVisibility(
                 sectionFields,
-                buildFieldValueMap({ customFieldsData: values }),
+                buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+                dealContext.evaluation,
             );
             for (const f of sectionFields) {
                 if (vis[f.id] === false) continue;

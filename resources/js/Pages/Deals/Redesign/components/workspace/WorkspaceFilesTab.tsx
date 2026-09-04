@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import axios from "axios";
 import { message } from "antd";
 import {
     AttachmentFileCard,
@@ -21,6 +20,7 @@ import {
 import useDealFileUpload from "../../hooks/useDealFileUpload";
 import useDealDocuments, { type DealDocumentItem } from "../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
+import useDealFileMutations from "../../hooks/useDealFileMutations";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -165,71 +165,12 @@ export default function WorkspaceFilesTab({
     // edit the deal at all.
     const { canEdit: canEditDeal } = useDealPermissions(deal);
     const [deleteFile, setDeleteFile] = useState<DealFile | null>(null);
-    const [renamingId, setRenamingId] = useState<number | null>(null);
-    const [replacingId, setReplacingId] = useState<number | null>(null);
     const { uploadFiles, isUploading, uploadProgress } = useDealFileUpload(
         deal.id,
     );
+    const { rename, replace, isRenaming, isReplacing } = useDealFileMutations();
+    // Still needed here for the delete flow below, which useApiMutate drives.
     const { setFiles } = useDealWorkspace();
-
-    const handleRename = async (file: DealFile, label: string) => {
-        setRenamingId(file.id);
-        try {
-            const res = await axios.put(
-                route("deal-files.update", file.id),
-                { description: label },
-                { headers: { Accept: "application/json" } },
-            );
-            if (res.data?.data) {
-                setFiles((prev) =>
-                    prev.map((f) => (f.id === file.id ? { ...f, description: label } : f)),
-                );
-                message.success(t("pages.deals.workspace.files.messages.renamed"));
-            } else {
-                message.error(
-                    res.data?.message || t("pages.deals.workspace.files.messages.rename_failed"),
-                );
-            }
-        } catch (error: any) {
-            message.error(
-                error?.response?.data?.message ||
-                    t("pages.deals.workspace.files.messages.rename_failed"),
-            );
-        } finally {
-            setRenamingId(null);
-        }
-    };
-
-    const handleReplace = async (file: DealFile, newFile: File) => {
-        setReplacingId(file.id);
-        try {
-            const formData = new FormData();
-            formData.append("_method", "PUT");
-            formData.append("file", newFile);
-            const res = await axios.post(
-                route("deal-files.update", file.id),
-                formData,
-                { headers: { Accept: "application/json" } },
-            );
-            if (res.data?.data) {
-                setFiles((prev) =>
-                    prev.map((f) => (f.id === file.id ? { ...f, ...res.data.data } : f)),
-                );
-                message.success(t("pages.deals.workspace.files.messages.replaced"));
-            } else {
-                message.error(
-                    res.data?.message || t("pages.deals.workspace.files.messages.replace_failed"),
-                );
-            }
-        } catch (error: any) {
-            message.error(
-                error?.response?.data?.message ||
-                    t("pages.deals.workspace.files.messages.replace_failed"),
-            );
-        } finally {
-            setReplacingId(null);
-        }
-    };
 
     const deletePath = deleteFile?.id
         ? route("deal-files.destroy", deleteFile.id)
@@ -388,21 +329,21 @@ export default function WorkspaceFilesTab({
                         }
                         onRename={
                             canEditDeal
-                                ? (label) => handleRename(file.file, label)
+                                ? (label) => rename(file.file, label)
                                 : undefined
                         }
                         renameLabel={t("pages.deals.workspace.files.rename")}
                         renameSaveLabel={t("pages.deals.common.save")}
                         renameCancelLabel={t("pages.deals.common.cancel")}
                         renamePlaceholder={t("pages.deals.workspace.files.rename_placeholder")}
-                        renaming={renamingId === file.file.id}
+                        renaming={isRenaming(file.file.id)}
                         onReplace={
                             canEditDeal
-                                ? (newFile) => handleReplace(file.file, newFile)
+                                ? (newFile) => replace(file.file, newFile)
                                 : undefined
                         }
                         replaceLabel={t("pages.deals.workspace.files.replace")}
-                        replacing={replacingId === file.file.id}
+                        replacing={isReplacing(file.file.id)}
                     />
                 ))
             )}

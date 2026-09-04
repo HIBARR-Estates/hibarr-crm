@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import AnalysisFieldRow from "./center/AnalysisFieldRow";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -381,6 +382,15 @@ interface Props {
     categoryId?: number;
     values: Record<string, any>;
     canEdit: boolean;
+    /** The deal being analysed — supplies the pipeline/stage/package/record context its fields' visibility rules read. */
+    deal?: any;
+    /**
+     * The visibility map computeAnalysisProgress() already evaluated with the
+     * full deal context. Preferred over recomputing here: the denominator the
+     * progress count uses and the fields this form renders then cannot
+     * disagree, because there is only one evaluation.
+     */
+    visibilityMap?: Record<number, boolean>;
     numberByKey?: Record<string, number>;
     onSave: (fieldId: number, value: any) => void;
     onChange?: (fieldId: number, value: any) => void;
@@ -392,6 +402,8 @@ export default function AnalysisCustomFieldForm({
     categoryId,
     values,
     canEdit,
+    deal,
+    visibilityMap,
     numberByKey,
     onSave,
     onChange,
@@ -414,12 +426,20 @@ export default function AnalysisCustomFieldForm({
     }, [fields, categoryId]);
 
     const visibleFields = useMemo(() => {
-        const visibilityMap = evaluateAllFieldsVisibility(
-            scopedFields,
-            buildFieldValueMap({ customFieldsData: values }),
-        );
-        return scopedFields.filter((f: any) => visibilityMap[f.id] !== false);
-    }, [scopedFields, values]);
+        // An empty map means the caller had nothing evaluated yet (its own
+        // default), not "everything is visible" — fall back to computing.
+        const provided =
+            visibilityMap && Object.keys(visibilityMap).length > 0 ? visibilityMap : null;
+        const resolved = provided ?? (() => {
+            const dealContext = buildDealVisibilityContext(deal);
+            return evaluateAllFieldsVisibility(
+                scopedFields,
+                buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+                dealContext.evaluation,
+            );
+        })();
+        return scopedFields.filter((f: any) => resolved[f.id] !== false);
+    }, [scopedFields, values, deal, visibilityMap]);
 
     if (visibleFields.length === 0) {
         return (
@@ -452,13 +472,16 @@ export function getCustomFieldCategoryProgress(
     fields: any[],
     categoryId: number,
     values: Record<string, any>,
+    deal?: any,
 ): { total: number; filled: number } {
     const scoped = fields.filter(
         (f: any) => f.custom_field_category_id === categoryId && f.type !== "file",
     );
+    const dealContext = buildDealVisibilityContext(deal);
     const visibilityMap = evaluateAllFieldsVisibility(
         scoped,
-        buildFieldValueMap({ customFieldsData: values }),
+        buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+        dealContext.evaluation,
     );
     const visible = scoped.filter((f: any) => visibilityMap[f.id] !== false);
 

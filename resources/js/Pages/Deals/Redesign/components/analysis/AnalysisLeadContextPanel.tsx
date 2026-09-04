@@ -10,6 +10,7 @@ import AnalysisQuickNote from "./AnalysisQuickNote";
 import AnalysisCustomFieldRow from "./AnalysisCustomFieldRow";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -287,12 +288,18 @@ export default function AnalysisLeadContextPanel({
     }, [onLeadCustomFieldChange]);
 
     const visibilityMap = useMemo(
-        () =>
-            evaluateAllFieldsVisibility(
+        () => {
+            const dealContext = buildDealVisibilityContext(deal);
+            return evaluateAllFieldsVisibility(
                 regularCustomFields,
-                buildFieldValueMap({ customFieldsData: leadCustomFieldsData }),
-            ),
-        [regularCustomFields, leadCustomFieldsData],
+                buildFieldValueMap({
+                    customFieldsData: leadCustomFieldsData,
+                    context: dealContext.valueMap,
+                }),
+                dealContext.evaluation,
+            );
+        },
+        [regularCustomFields, leadCustomFieldsData, deal],
     );
 
     // Group visible custom fields by category

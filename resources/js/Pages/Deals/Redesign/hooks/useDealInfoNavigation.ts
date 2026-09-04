@@ -8,6 +8,7 @@ import {
 } from "@/lib/customFieldCompletion";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../adapters/dealVisibilityContext";
 import {
     buildCoreNavItem,
     CORE_SECTION_FIELD_LABELS,
@@ -80,13 +81,14 @@ function getHibarrValue(deal: Deal, key: string): unknown {
 function buildCustomFieldVisibilityMap(
     fields: CustomFieldDefinition[],
     customFieldsData: Deal["custom_fields_data"],
-    recordId?: number,
+    deal?: Deal,
 ): Record<number, boolean> {
+    const dealContext = buildDealVisibilityContext(deal);
     const fieldValuesForVisibility = buildFieldValueMap({
         customFieldsData,
         fields,
         normalizeMultiSelect: true,
-        context: recordId !== undefined ? { recordId } : undefined,
+        context: dealContext.valueMap,
     });
 
     const customFieldsForEvaluation: CustomField[] = fields.map((field) => {
@@ -118,6 +120,7 @@ function buildCustomFieldVisibilityMap(
     return evaluateAllFieldsVisibility(
         customFieldsForEvaluation,
         fieldValuesForVisibility,
+        dealContext.evaluation,
     );
 }
 
@@ -275,7 +278,7 @@ export default function useDealInfoNavigation(
         const visibilityMap = buildCustomFieldVisibilityMap(
             fields,
             deal.custom_fields_data,
-            deal.id,
+            deal,
         );
 
         const coreSearchTerms = (

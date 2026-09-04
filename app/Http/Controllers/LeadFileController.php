@@ -115,30 +115,53 @@ class LeadFileController extends AccountBaseController
         $deal = Deal::findOrFail($file->deal_id);
         abort_403(! $this->canEditDealFiles($deal));
 
-        if ($request->hasFile('file')) {
-            $this->replaceStoredFile($file, $request->file('file'));
-        }
+        $replacement = $request->hasFile('file')
+            ? $this->replaceStoredFile($file, $request->file('file'))
+            : null;
 
         if ($request->has('description')) {
             $file->description = $request->description;
         }
 
-        $file->save();
+        try {
+            $file->save();
+        } catch (\Throwable $e) {
+            // The row still points at the previous object, so drop the
+            // replacement we just uploaded rather than orphaning it.
+            if ($replacement !== null) {
+                $this->discardStoredObject($replacement['new'], $file->deal_id);
+            }
+
+            throw $e;
+        }
+
+        // Only now that the new descriptor is persisted is the old object
+        // genuinely unreferenced and safe to delete.
+        if ($replacement !== null) {
+            $this->discardStoredObject($replacement['previous'], $file->deal_id);
+        }
 
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $file]);
     }
 
     /**
-     * Swaps a DealFile's stored content in place — same row/id, new
-     * filename/size/storage fields. Uploads the replacement first and only
-     * deletes the previous stored object once that succeeds, so a failed
-     * upload never leaves the row pointing at content that's already gone.
+     * Swaps a DealFile's stored content in place - same row/id, new
+     * filename/size/storage fields. Uploads the replacement first, and hands
+     * back both storage descriptors rather than deleting anything itself:
+     * the caller deletes the previous object only once the new descriptor is
+     * persisted (and drops the new one if that persistence fails), so neither
+     * a failed upload nor a failed save can leave the row pointing at content
+     * that's already gone.
+     *
+     * @return array{previous: array{external: bool, object_path: ?string, hashname: ?string}, new: array{external: bool, object_path: ?string, hashname: ?string}}
      */
-    private function replaceStoredFile(DealFile $file, \Illuminate\Http\UploadedFile $newFile): void
+    private function replaceStoredFile(DealFile $file, \Illuminate\Http\UploadedFile $newFile): array
     {
-        $wasExternallyStored = $file->isExternallyStored();
-        $previousObjectPath = $file->object_path;
-        $previousHashname = $file->hashname;
+        $previous = [
+            'external' => $file->isExternallyStored(),
+            'object_path' => $file->object_path,
+            'hashname' => $file->hashname,
+        ];
 
         $file->filename = $newFile->getClientOriginalName();
         $file->size = $newFile->getSize();
@@ -158,18 +181,41 @@ class LeadFileController extends AccountBaseController
             $file->hashname = Files::uploadLocalOrS3($newFile, DealFile::FILE_PATH.'/'.$file->deal_id);
         }
 
-        if ($wasExternallyStored && ! empty($previousObjectPath)) {
+        return [
+            'previous' => $previous,
+            'new' => [
+                'external' => ! empty($file->object_path),
+                'object_path' => $file->object_path,
+                'hashname' => $file->hashname,
+            ],
+        ];
+    }
+
+    /**
+     * Deletes one stored object described by a replaceStoredFile() descriptor.
+     * Never throws - a cleanup failure is logged, not surfaced, since by the
+     * time it runs the authoritative row has already been written.
+     *
+     * @param  array{external: bool, object_path: ?string, hashname: ?string}  $descriptor
+     */
+    private function discardStoredObject(array $descriptor, int $dealId): void
+    {
+        if ($descriptor['external'] && ! empty($descriptor['object_path'])) {
             try {
-                $this->fileStorageService->delete($previousObjectPath);
+                $this->fileStorageService->delete($descriptor['object_path']);
             } catch (\Exception $e) {
-                Log::warning('Failed to delete old file from external storage during replace', [
-                    'file_id' => $file->id,
-                    'object_path' => $previousObjectPath,
+                Log::warning('Failed to delete file from external storage during replace', [
+                    'deal_id' => $dealId,
+                    'object_path' => $descriptor['object_path'],
                     'error' => $e->getMessage(),
                 ]);
             }
-        } elseif (! empty($previousHashname)) {
-            Files::deleteFile($previousHashname, DealFile::FILE_PATH.'/'.$file->deal_id);
+
+            return;
+        }
+
+        if (! empty($descriptor['hashname'])) {
+            Files::deleteFile($descriptor['hashname'], DealFile::FILE_PATH.'/'.$dealId);
         }
     }
 

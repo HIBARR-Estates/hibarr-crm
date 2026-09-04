@@ -105,7 +105,7 @@ export default function FieldModal({
     // is exactly the shape this picker manages — see isSimplePipelineRule.
     const [pipelineIds, setPipelineIds] = useState<number[]>([]);
     const [savingPipelines, setSavingPipelines] = useState(false);
-    const pipelines = usePipelineOptions();
+    const { pipelines } = usePipelineOptions();
 
     useEffect(() => {
         if (!open) return;

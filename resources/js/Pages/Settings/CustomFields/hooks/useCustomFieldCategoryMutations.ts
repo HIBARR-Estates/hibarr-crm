@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useRef, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
@@ -20,6 +20,14 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
     const { td } = useTd();
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const reorderRequestRef = useRef(0);
+    const reorderChainRef = useRef<Promise<void>>(Promise.resolve());
+    /**
+     * The last category order actually confirmed persisted by the server —
+     * the only safe thing to roll back to, since a per-call snapshot could
+     * restore an order the server never had (see reorderCategories).
+     */
+    const confirmedCategoriesRef = useRef<SettingsCategory[] | null>(null);
 
     const withModuleName = useCallback(
         (category: SettingsCategory): SettingsCategory => ({
@@ -111,27 +119,66 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
         [setCategories, t, td],
     );
 
-    /** Persists a new global category order (sortCategories renumbers exactly the ids sent, 1..N). */
+    /**
+     * Persists a new global category order (sortCategories renumbers exactly
+     * the ids sent, 1..N).
+     *
+     * Mirrors useCustomFieldMutations.reorderFields: requests are versioned
+     * and serialized through a promise chain, and failures roll back to the
+     * last order the server actually confirmed. Without that, two quick drags
+     * could land out of order (the server applies whichever arrives last), and
+     * a failed one could restore a pre-optimistic snapshot the server never
+     * had — overwriting a newer, successful reorder.
+     */
     const reorderCategories = useCallback(
         async (orderedIds: number[]) => {
+            const requestId = ++reorderRequestRef.current;
+
             setCategories((prev) => {
+                // Baseline the confirmed order from the state that preceded any
+                // client-side reordering, the first time this ever runs.
+                if (!confirmedCategoriesRef.current) {
+                    confirmedCategoriesRef.current = prev;
+                }
                 const byId = new Map(prev.map((c) => [c.id, c]));
                 return orderedIds.map((id) => byId.get(id)).filter(Boolean) as SettingsCategory[];
             });
-            try {
-                const res = await axios.post(
-                    route("custom-field-categories.sort"),
-                    { sortedIds: orderedIds },
-                    { headers: { Accept: "application/json" } },
-                );
-                if (res.data?.status === "success") {
-                    message.success(td("Category order updated", { source: "en" }));
-                } else {
-                    message.error(res.data?.message || t("messages.somethingWentWrong"));
+
+            reorderChainRef.current = reorderChainRef.current.then(async () => {
+                // A newer drag already superseded this one — it carries the
+                // full order anyway, so this request is pure noise.
+                if (reorderRequestRef.current !== requestId) return;
+
+                try {
+                    const res = await axios.post(
+                        route("custom-field-categories.sort"),
+                        { sortedIds: orderedIds },
+                        { headers: { Accept: "application/json" } },
+                    );
+
+                    if (res.data?.status === "success") {
+                        // The server now holds exactly this order, so it is
+                        // always safe to advance the baseline.
+                        setCategories((prev) => {
+                            confirmedCategoriesRef.current = prev;
+                            return prev;
+                        });
+                        message.success(td("Category order updated", { source: "en" }));
+                    } else {
+                        message.error(res.data?.message || t("messages.somethingWentWrong"));
+                        if (reorderRequestRef.current === requestId && confirmedCategoriesRef.current) {
+                            setCategories(confirmedCategoriesRef.current);
+                        }
+                    }
+                } catch (error: any) {
+                    message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
+                    if (reorderRequestRef.current === requestId && confirmedCategoriesRef.current) {
+                        setCategories(confirmedCategoriesRef.current);
+                    }
                 }
-            } catch (error: any) {
-                message.error(error?.response?.data?.message || t("messages.somethingWentWrong"));
-            }
+            });
+
+            return reorderChainRef.current;
         },
         [setCategories, t, td],
     );

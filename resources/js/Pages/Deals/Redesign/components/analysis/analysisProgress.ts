@@ -1,5 +1,6 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
 import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
 import type { AnalysisSection, AnalysisScriptItem } from "./types/analysisTypes";
@@ -105,19 +106,16 @@ export function computeAnalysisProgress(
     const sections = adaptScriptItems(scriptItems);
 
     const allCustomFields = leadFields.length ? [...fields, ...leadFields] : fields;
-    // Deal context so pipeline / pipeline_stage / record-source visibility
-    // criteria resolve correctly — matches the context shape built in
-    // DealViewRedesign.tsx / useLeadCrossDealDocuments.ts.
-    const dealVisibilityContext = {
-        pipeline: deal?.lead_pipeline_id,
-        pipelineStage: deal?.pipeline_stage_id,
-        recordId: deal?.id,
-    };
+    // Full deal context (pipeline, stage, packages, record) plus the stage
+    // list, so every source a rule can read resolves the same way it does in
+    // the deal view — see buildDealVisibilityContext.
+    const dealContext = buildDealVisibilityContext(deal);
     // One pass for every custom field the script might reference individually —
     // conditional fields must not count toward the denominator while hidden.
     const customFieldVisibility = evaluateAllFieldsVisibility(
         allCustomFields,
-        buildFieldValueMap({ customFieldsData: values, context: dealVisibilityContext }),
+        buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+        dealContext.evaluation,
     );
     const customFieldById = new Map<number, any>(
         allCustomFields.map((f: any) => [Number(f.id), f]),
@@ -139,7 +137,8 @@ export function computeAnalysisProgress(
             );
             const visMap = evaluateAllFieldsVisibility(
                 sectionFields,
-                buildFieldValueMap({ customFieldsData: values, context: dealVisibilityContext }),
+                buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+                dealContext.evaluation,
             );
             for (const f of sectionFields) {
                 if (visMap[f.id] !== false) {
@@ -170,7 +169,7 @@ export function computeAnalysisProgress(
         let total = 0;
 
         if (section.kind === "category" && section.categoryId !== null) {
-            const p = getCustomFieldCategoryProgress(fields, section.categoryId, values);
+            const p = getCustomFieldCategoryProgress(fields, section.categoryId, values, deal);
             filled += p.filled;
             total += p.total;
         }

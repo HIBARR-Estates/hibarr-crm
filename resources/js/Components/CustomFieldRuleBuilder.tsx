@@ -542,7 +542,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
     const [form] = Form.useForm();
     const [enabled, setEnabled] = useState(ruleSet?.enabled ?? false);
     const [saving, setSaving] = useState(false);
-    const pipelines = usePipelineOptions();
+    const { pipelines } = usePipelineOptions();
 
     useEffect(() => {
         if (ruleSet) {

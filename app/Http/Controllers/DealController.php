@@ -1636,15 +1636,19 @@ class DealController extends AccountBaseController
         // Same as packages above: only sync products when the field is present.
         // The diff below must be scoped the same way — without it, a request
         // that omits product_id entirely reads as "every existing product was
-        // removed" and fires notifyPropertyUnlinked for all of them.
+        // removed" and fires notifyPropertyUnlinked for all of them. Normalize
+        // once so sync() and both diffs agree on the same value: a scalar
+        // product_id would otherwise sync as [] but reach array_diff() as a
+        // scalar (a TypeError).
+        $requestedProductIds = is_array($request->product_id) ? $request->product_id : [];
         $newProductIds = [];
         $removedProductIds = [];
         if ($request->has('product_id')) {
-            $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
+            $deal->products()->sync($requestedProductIds);
 
             // Record CRM events and notifications for product/property changes
-            $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
-            $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
+            $newProductIds = array_diff($requestedProductIds, $oldProductIds);
+            $removedProductIds = array_diff($oldProductIds, $requestedProductIds);
         }
 
         if (! empty($newProductIds) || ! empty($removedProductIds)) {

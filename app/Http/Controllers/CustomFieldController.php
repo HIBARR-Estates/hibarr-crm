@@ -357,6 +357,11 @@ class CustomFieldController extends AccountBaseController
      * criterion — the field's own module (its custom_field_groups.model)
      * decides which table/display-column to search; a module with no known
      * mapping returns no options rather than guessing.
+     *
+     * `ids` returns those specific records *in addition to* the search page,
+     * so a rule's already-selected records always come back with a real label
+     * even when they fall outside the current search's first 20 hits —
+     * otherwise RecordSelect renders them as bare ids.
      */
     public function recordOptions(Request $request, $id)
     {
@@ -364,6 +369,7 @@ class CustomFieldController extends AccountBaseController
         $model = $field->fieldGroup->model ?? null;
         $companyId = company()->id;
         $search = trim((string) $request->input('q', ''));
+        $requestedIds = $this->criterionReferenceIds($request->input('ids'));
 
         $config = [
             \App\Models\Deal::class => ['table' => 'deals', 'column' => 'name', 'softDeletes' => false],
@@ -374,19 +380,32 @@ class CustomFieldController extends AccountBaseController
             return response()->json(['data' => []]);
         }
 
-        $query = DB::table($config['table'])
+        $baseQuery = fn () => DB::table($config['table'])
             ->where('company_id', $companyId)
+            ->when($config['softDeletes'], fn ($q) => $q->whereNull('deleted_at'))
             ->select('id', $config['column'].' as name');
 
-        if ($config['softDeletes']) {
-            $query->whereNull('deleted_at');
-        }
+        $query = $baseQuery();
 
         if ($search !== '') {
             $query->where($config['column'], 'like', '%'.$search.'%');
         }
 
         $records = $query->orderBy($config['column'])->limit(20)->get();
+
+        if ($requestedIds !== []) {
+            $found = $records->pluck('id')->all();
+            $missing = array_values(array_diff($requestedIds, $found));
+
+            if ($missing !== []) {
+                $records = $baseQuery()
+                    ->whereIn('id', $missing)
+                    ->orderBy($config['column'])
+                    ->get()
+                    ->concat($records)
+                    ->values();
+            }
+        }
 
         return response()->json(['data' => $records]);
     }

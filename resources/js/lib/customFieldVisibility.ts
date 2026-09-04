@@ -29,6 +29,21 @@ function resolveStagePriority(
 const ORDERING_OPERATORS = new Set(['>', '<', '>=', '<=']);
 
 /**
+ * Stringify one side of an id comparison without flattening a list.
+ * `in`/`not_in` compare array membership element-by-element (against the
+ * normalized reference list), so an array-valued side — a deal's package ids,
+ * most notably — must stay an array of strings rather than being cast to
+ * "3,7". Mirrors CustomFieldVisibilityService::normalizeIdValue.
+ */
+function normalizeIdValue(value: any): any {
+    if (value == null) return value;
+    if (Array.isArray(value)) {
+        return value.map((item) => (item == null ? item : String(item)));
+    }
+    return String(value);
+}
+
+/**
  * An id-list criterion's `reference_value` can be a bare scalar ("11", for
  * `equals`) or a JSON array ("[11,12]" or ["11","12"]) for `in`/`not_in` —
  * and the array's elements can be numbers or strings depending on which UI
@@ -75,7 +90,7 @@ function resolveCriterionValues(
         case 'pipeline':
             fieldValue = allFieldValues.pipeline;
             referenceValue = normalizeIdListJson(referenceValue);
-            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            fieldValue = normalizeIdValue(fieldValue);
             break;
         case 'pipeline_stage':
             fieldValue = allFieldValues.pipeline_stage;
@@ -89,18 +104,22 @@ function resolveCriterionValues(
                 referenceValue = targetPriority !== null ? String(targetPriority) : null;
             } else {
                 referenceValue = normalizeIdListJson(referenceValue);
-                fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+                fieldValue = normalizeIdValue(fieldValue);
             }
             break;
         case 'deal_package':
+            // A deal carries MANY packages, so this side is normally a list —
+            // normalizeIdValue() keeps it a list of strings so
+            // evaluateCriterion()'s `in`/`not_in` array branch can test
+            // membership per id, instead of collapsing to "3,7".
             fieldValue = allFieldValues.package;
             referenceValue = normalizeIdListJson(referenceValue);
-            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            fieldValue = normalizeIdValue(fieldValue);
             break;
         case 'record':
             fieldValue = allFieldValues.record;
             referenceValue = normalizeIdListJson(referenceValue);
-            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
+            fieldValue = normalizeIdValue(fieldValue);
             break;
         case 'custom_field':
         default:

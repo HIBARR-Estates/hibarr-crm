@@ -214,9 +214,13 @@ export default function QualifyLeadContextPanel({
         () =>
             evaluateAllFieldsVisibility(
                 regularCustomFields,
-                buildFieldValueMap({ customFieldsData }),
+                buildFieldValueMap({
+                    customFieldsData,
+                    // A record-source rule ("show only for these leads") reads this.
+                    context: { recordId: record?.id },
+                }),
             ),
-        [regularCustomFields, customFieldsData],
+        [regularCustomFields, customFieldsData, record?.id],
     );
     const customFieldGroups = useMemo(() => {
         const visible = regularCustomFields.filter(

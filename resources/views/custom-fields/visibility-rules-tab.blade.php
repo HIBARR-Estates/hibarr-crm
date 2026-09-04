@@ -177,10 +177,12 @@
                                             <div class="card-body">
                                                 @if($criterionSource !== 'custom_field')
                                                     {{-- This legacy tab only has UI to edit custom_field criteria. A
-                                                         pipeline/pipeline_stage criterion (built in the newer React
-                                                         rule builder) is shown read-only here so saving this tab
-                                                         round-trips it unchanged instead of dropping or corrupting
-                                                         it into a broken custom_field criterion. --}}
+                                                         pipeline/pipeline_stage/deal_package/record criterion (built in
+                                                         the newer React rule builder) is shown fully read-only here —
+                                                         reference, value, operator and negate are all disabled and the
+                                                         remove button is hidden — so saving this tab round-trips it
+                                                         unchanged instead of dropping it or corrupting it into a
+                                                         broken custom_field criterion. --}}
                                                     @php
                                                         $criterionSourceLabel = [
                                                             'pipeline' => 'pipeline',
@@ -211,7 +213,7 @@
                                                     <div class="col-md-3">
                                                         <div class="form-group">
                                                             <label>Operator</label>
-                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][operator]" class="form-control select-picker operator-select" data-size="8">
+                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][operator]" class="form-control select-picker operator-select" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
                                                                 <option value="equals" {{ $criterion->operator == 'equals' ? 'selected' : '' }}>equals</option>
                                                                 <option value="exists" {{ $criterion->operator == 'exists' ? 'selected' : '' }}>exists</option>
                                                                 <option value="boolean" {{ $criterion->operator == 'boolean' ? 'selected' : '' }}>is boolean</option>
@@ -239,17 +241,20 @@
                                                     <div class="col-md-1">
                                                         <div class="form-group">
                                                             <label>&nbsp;</label>
-                                                            <button type="button" class="btn btn-danger btn-sm remove-criterion" style="display: block;">
-                                                                <i class="fa fa-trash"></i>
-                                                            </button>
+                                                            @if($criterionSource === 'custom_field')
+                                                                <button type="button" class="btn btn-danger btn-sm remove-criterion" style="display: block;">
+                                                                    <i class="fa fa-trash"></i>
+                                                                </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-md-12">
                                                         <label>
-                                                            <input type="checkbox" name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][negate]" value="1" 
-                                                                   {{ $criterion->negate ? 'checked' : '' }} />
+                                                            <input type="checkbox" name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][negate]" value="1"
+                                                                   {{ $criterion->negate ? 'checked' : '' }}
+                                                                   @if($criterionSource !== 'custom_field') disabled @endif />
                                                             Negate (NOT) - Reverse the condition
                                                         </label>
                                                     </div>

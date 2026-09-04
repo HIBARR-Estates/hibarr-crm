@@ -38,6 +38,12 @@ export default function useAnalysisFieldSave(dealId: number) {
 
     const pending = useRef<Map<string, PendingWrite>>(new Map());
     const customFieldPending = useRef<Map<string, CustomFieldEntry>>(new Map());
+    // Bumped every time a key receives a new value. A batch captures the
+    // revision of each key it sends, so a failure can tell "this key's value
+    // is still the one that failed" from "the user has typed since" — only
+    // the former is worth offering a retry for, and retrying the latter would
+    // resurrect a superseded value over the newer one.
+    const customFieldRevisions = useRef<Map<string, number>>(new Map());
     const customFieldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inFlight = useRef<Set<Promise<unknown>>>(new Set());
     const [failedKeys, setFailedKeys] = useState<FailedKey[]>([]);
@@ -120,16 +126,41 @@ export default function useAnalysisFieldSave(dealId: number) {
             if (Object.keys(lead).length) body.lead = lead;
 
             const keys = [...entries.keys()];
+            // Snapshot of what each key's value was when this batch went out.
+            const sentRevisions = new Map(
+                keys.map((key) => [key, customFieldRevisions.current.get(key) ?? 0]),
+            );
 
             return track(
                 saveCustomFieldsBulk(body, { lean: true }).catch(() => {
+                    // A key the user has changed since this batch left is no
+                    // longer failing *this* value — the newer write owns it.
+                    const stillCurrent = keys.filter(
+                        (key) =>
+                            (customFieldRevisions.current.get(key) ?? 0) ===
+                            sentRevisions.get(key),
+                    );
+
+                    if (stillCurrent.length === 0) return;
+
                     setFailedKeys((prev) => {
                         const filtered = prev.filter(
-                            (f) => !keys.includes(f.key),
+                            (f) => !stillCurrent.includes(f.key),
                         );
-                        const retried = keys.map((key) => ({
+                        const retried = stillCurrent.map((key) => ({
                             key,
                             retry: () => {
+                                // Superseded between the failure and the click.
+                                if (
+                                    (customFieldRevisions.current.get(key) ?? 0) !==
+                                    sentRevisions.get(key)
+                                ) {
+                                    setFailedKeys((p) =>
+                                        p.filter((f) => f.key !== key),
+                                    );
+                                    return;
+                                }
+
                                 const entry = entries.get(key);
                                 if (!entry) return;
                                 setFailedKeys((p) =>
@@ -291,6 +322,10 @@ export default function useAnalysisFieldSave(dealId: number) {
     const save = useCallback(
         (key: string, value: unknown) => {
             if (bulkWriteEnabled && isCustomFieldKey(key)) {
+                customFieldRevisions.current.set(
+                    key,
+                    (customFieldRevisions.current.get(key) ?? 0) + 1,
+                );
                 customFieldPending.current.set(
                     key,
                     toCustomFieldEntry(key, value),

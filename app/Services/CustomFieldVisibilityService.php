@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CustomField;
+use App\Models\PipelineStage;
 use App\Models\ShowCriterion;
 
 class CustomFieldVisibilityService
@@ -14,10 +15,17 @@ class CustomFieldVisibilityService
      *                                reserved deal-context keys ('pipeline', 'pipeline_stage', 'package', 'record')
      * @param  array<int, array{id: int, priority: int}>  $stages  Pipeline stages (id + priority), used to
      *                                                             resolve ordering operators (>=, <=, ...) on a `pipeline_stage` criterion —
-     *                                                             stage ids are arbitrary, only priority is orderable.
+     *                                                             stage ids are arbitrary, only priority is orderable. Left empty, they
+     *                                                             are loaded here (see loadStagesFor()) so a caller that has no stage
+     *                                                             list of its own — CustomFieldController::evaluateVisibility() — can
+     *                                                             still resolve an ordering criterion instead of silently not matching.
      */
     public function evaluate(int $fieldId, array $currentValues, array $stages = []): bool
     {
+        if ($stages === []) {
+            $stages = $this->loadStagesFor($currentValues);
+        }
+
         // Load rule set with only enabled groups to improve performance
         $field = CustomField::with([
             'showRuleSet' => function ($query) {
@@ -144,7 +152,7 @@ class CustomFieldVisibilityService
             case 'pipeline':
                 $fieldValue = $currentValues['pipeline'] ?? null;
                 $referenceValue = $this->normalizeIdListJson($referenceValue);
-                $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
+                $fieldValue = $this->normalizeIdValue($fieldValue);
                 break;
 
             case 'pipeline_stage':
@@ -160,20 +168,24 @@ class CustomFieldVisibilityService
                     $referenceValue = $targetPriority !== null ? (string) $targetPriority : null;
                 } else {
                     $referenceValue = $this->normalizeIdListJson($referenceValue);
-                    $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
+                    $fieldValue = $this->normalizeIdValue($fieldValue);
                 }
                 break;
 
             case 'deal_package':
+                // A deal carries MANY packages, so this side is normally a
+                // list — normalizeIdValue() keeps it a list of strings so
+                // evaluateCriterion()'s `in`/`not_in` array branch can test
+                // membership per id, instead of collapsing to "3,7".
                 $fieldValue = $currentValues['package'] ?? null;
                 $referenceValue = $this->normalizeIdListJson($referenceValue);
-                $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
+                $fieldValue = $this->normalizeIdValue($fieldValue);
                 break;
 
             case 'record':
                 $fieldValue = $currentValues['record'] ?? null;
                 $referenceValue = $this->normalizeIdListJson($referenceValue);
-                $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
+                $fieldValue = $this->normalizeIdValue($fieldValue);
                 break;
 
             case 'custom_field':
@@ -183,6 +195,30 @@ class CustomFieldVisibilityService
         }
 
         return [$fieldValue, $referenceValue];
+    }
+
+    /**
+     * Stringify one side of an id comparison without flattening a list.
+     * `in`/`not_in` compare array membership element-by-element (with strict
+     * comparison against the normalized reference list), so an array-valued
+     * side — a deal's package ids, most notably — must stay an array of
+     * strings rather than being cast to "3,7". Mirrors
+     * resources/js/lib/customFieldVisibility.ts::normalizeIdValue.
+     *
+     * @param  mixed  $value
+     * @return mixed
+     */
+    protected function normalizeIdValue($value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            return array_map(fn ($item) => $item === null ? $item : (string) $item, $value);
+        }
+
+        return (string) $value;
     }
 
     /**
@@ -209,6 +245,37 @@ class CustomFieldVisibilityService
         }
 
         return $raw;
+    }
+
+    /**
+     * The stage list an ordering `pipeline_stage` criterion resolves against,
+     * for callers that pass none. Scoped to the deal's own pipeline when
+     * $currentValues carries one (the only stages an ordering comparison can
+     * meaningfully span), else to the current company. Mirrors what the
+     * client passes as `context.stages` (deal.pipeline.stages).
+     *
+     * @return array<int, array{id: int, priority: int}>
+     */
+    protected function loadStagesFor(array $currentValues): array
+    {
+        $query = PipelineStage::query()->select('id', 'priority');
+
+        $pipelineId = $currentValues['pipeline'] ?? null;
+
+        if ($pipelineId !== null && $pipelineId !== '') {
+            $query->where('lead_pipeline_id', $pipelineId);
+        } elseif (function_exists('company') && company()) {
+            $query->where('company_id', company()->id);
+        } else {
+            // No pipeline context and no company to scope by — a global stage
+            // list would be meaningless (ids are arbitrary across pipelines).
+            return [];
+        }
+
+        return $query->orderBy('priority')
+            ->get()
+            ->map(fn ($stage) => ['id' => (int) $stage->id, 'priority' => (int) $stage->priority])
+            ->all();
     }
 
     /**

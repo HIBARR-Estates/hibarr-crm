@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { usePage } from "@inertiajs/react";
+import { Deferred, usePage } from "@inertiajs/react";
 import axios from "axios";
 import { message } from "antd";
 import {
@@ -80,18 +80,24 @@ export default function FilesTab({
                 { description: label },
                 { headers: { Accept: "application/json" } },
             );
-            if (res.data?.data) {
-                setFiles((prev) =>
-                    prev.map((f) => (f.id === file.id ? { ...f, description: label } : f)),
-                );
-                message.success(td("File renamed", { source: "en" }));
-            } else {
+            if (!res.data?.data) {
                 message.error(res.data?.message || td("Could not rename file", { source: "en" }));
+                // Rethrow so AttachmentFileCard keeps the editor open with the
+                // typed draft intact instead of closing over a failed save.
+                throw new Error("rename_failed");
             }
-        } catch (error: any) {
-            message.error(
-                error?.response?.data?.message || td("Could not rename file", { source: "en" }),
+
+            setFiles((prev) =>
+                prev.map((f) => (f.id === file.id ? { ...f, description: label } : f)),
             );
+            message.success(td("File renamed", { source: "en" }));
+        } catch (error: any) {
+            if (error?.message !== "rename_failed") {
+                message.error(
+                    error?.response?.data?.message || td("Could not rename file", { source: "en" }),
+                );
+            }
+            throw error;
         } finally {
             setRenamingId(null);
         }
@@ -108,18 +114,22 @@ export default function FilesTab({
                 formData,
                 { headers: { Accept: "application/json" } },
             );
-            if (res.data?.data) {
-                setFiles((prev) =>
-                    prev.map((f) => (f.id === file.id ? { ...f, ...res.data.data } : f)),
-                );
-                message.success(td("File replaced", { source: "en" }));
-            } else {
+            if (!res.data?.data) {
                 message.error(res.data?.message || td("Could not replace file", { source: "en" }));
+                throw new Error("replace_failed");
             }
-        } catch (error: any) {
-            message.error(
-                error?.response?.data?.message || td("Could not replace file", { source: "en" }),
+
+            setFiles((prev) =>
+                prev.map((f) => (f.id === file.id ? { ...f, ...res.data.data } : f)),
             );
+            message.success(td("File replaced", { source: "en" }));
+        } catch (error: any) {
+            if (error?.message !== "replace_failed") {
+                message.error(
+                    error?.response?.data?.message || td("Could not replace file", { source: "en" }),
+                );
+            }
+            throw error;
         } finally {
             setReplacingId(null);
         }
@@ -312,7 +322,22 @@ export default function FilesTab({
                 </section>
             ) : null}
 
-            {filesGroupingEnabled && dealFileGroups.length > 0 ? (
+            {filesGroupingEnabled ? (
+                // dealFileFields is an Inertia::defer prop (LeadContactController)
+                // — render a placeholder while it loads rather than letting the
+                // `?? []` fallback silently present "no deal files" as settled.
+                <Deferred
+                    data="dealFileFields"
+                    fallback={
+                        <section className="mb-5">
+                            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                                {td("Deal files", { source: "en" })}
+                            </div>
+                            <div className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f6f7f9]" />
+                        </section>
+                    }
+                >
+                    {dealFileGroups.length > 0 ? (
                 <section className="mb-5">
                     <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
                         {td("Deal files", { source: "en" })}
@@ -332,6 +357,8 @@ export default function FilesTab({
                         ))}
                     </div>
                 </section>
+                    ) : null}
+                </Deferred>
             ) : null}
 
             {hasDocumentSlots ? (

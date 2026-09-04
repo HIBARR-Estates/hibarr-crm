@@ -12,6 +12,13 @@ use Illuminate\Support\Facades\Log;
 return new class extends Migration
 {
     /**
+     * Stamped into display_config on fields this migration creates, so down()
+     * only ever deletes its own — never a field that already existed under
+     * the same group + label before this ran.
+     */
+    private const OWNER_KEY = 'created_by_migration_2026_09_04_hibarr_deal_documents';
+
+    /**
      * label => [hibarr_deal_custom_fields raw column, its resolved-URL accessor]
      *
      * The resolved URL (HibarrDealFields::getXUrlAttribute(), already
@@ -63,6 +70,13 @@ return new class extends Migration
                         'export' => 0,
                         'visible' => 'false',
                         'display_order' => 0,
+                        // Durable ownership marker, so down() can tell a field
+                        // this migration created apart from a pre-existing one
+                        // firstOrCreate() merely matched. display_config is
+                        // only read for `repeatable` fields (see
+                        // CustomFieldController), so it is inert on this
+                        // file-typed field.
+                        'display_config' => [self::OWNER_KEY => true],
                     ]
                 );
 
@@ -113,8 +127,9 @@ return new class extends Migration
      * here would then destroy a pre-existing field and *all* of its data,
      * not just what this migration added. So each custom_fields_data row is
      * only removed if its value matches the exact URL up() would have
-     * written for it, and the field itself is only removed once none of its
-     * data remains — never a blanket match on label alone.
+     * written for it, and the field itself is only removed when it carries
+     * this migration's own OWNER_KEY marker — never on a label match, and
+     * never because it happens to have no data left.
      */
     public function down(): void
     {
@@ -158,11 +173,17 @@ return new class extends Migration
                     }
                 });
 
-                $stillReferenced = DB::table('custom_fields_data')
-                    ->where('custom_field_id', $field->id)
-                    ->exists();
+                // Only a field this migration actually created is ours to
+                // remove. A pre-existing field that up()'s firstOrCreate()
+                // merely matched carries no marker and is always kept, with
+                // whatever data it had before (the migrated values were
+                // already removed above, by exact value match).
+                $config = $field->display_config;
+                if (is_string($config)) {
+                    $config = json_decode($config, true);
+                }
 
-                if (!$stillReferenced) {
+                if (is_array($config) && ($config[self::OWNER_KEY] ?? false)) {
                     $field->delete();
                 }
             }

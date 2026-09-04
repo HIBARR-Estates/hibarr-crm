@@ -256,6 +256,7 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
                         categoryId={section.categoryId}
                         values={localDealFieldValues}
                         canEdit={canEdit}
+                        visibilityMap={customFieldVisibility}
                         numberByKey={numberByKey}
                         onSave={(fieldId, value) =>
                             onFieldUpdate(`deal_field_${fieldId}`, value, "custom_field")

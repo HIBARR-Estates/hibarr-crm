@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\CustomFields;
 
+use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
@@ -22,11 +23,25 @@ class ContextVisibilityTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $companyId;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         CustomFieldGroup::firstOrCreate(['name' => 'Deal'], ['model' => Deal::CUSTOM_FIELD_MODEL]);
+
+        // No CompanyFactory exists in this codebase, and Company has no
+        // $fillable (default $guarded = ['*']), so Company::create() would
+        // throw a MassAssignmentException — set attributes directly instead.
+        // (Matches CustomFieldsWriteOptimizationTest's setUp.)
+        $company = new Company;
+        $company->company_name = 'Context Visibility Co';
+        $company->company_email = 'context@example.com';
+        $company->company_phone = '0000000000';
+        $company->address = 'Test address';
+        $company->save();
+        $this->companyId = $company->id;
     }
 
     private function makeDealField(string $label): CustomField
@@ -50,7 +65,7 @@ class ContextVisibilityTest extends TestCase
     {
         $pipeline = new LeadPipeline;
         $pipeline->name = $name;
-        $pipeline->company_id = 1;
+        $pipeline->company_id = $this->companyId;
         $pipeline->save();
 
         return $pipeline;
@@ -63,7 +78,7 @@ class ContextVisibilityTest extends TestCase
         $stage->name = $name;
         $stage->type = $name;
         $stage->priority = $priority;
-        $stage->company_id = 1;
+        $stage->company_id = $this->companyId;
         $stage->save();
 
         return $stage;
