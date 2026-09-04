@@ -104,20 +104,50 @@
                 @endphp
                 
                 @foreach($groupsToShow as $groupIndex => $group)
+                    @php
+                        // Access criteria from already-eager-loaded relationship
+                        // Criteria should be loaded via eager loading in controller (criteria.referenceField)
+                        $groupCriteria = collect();
+                        if ($group && isset($group->criteria)) {
+                            // Access the already-loaded criteria relationship
+                            if (is_object($group->criteria) && method_exists($group->criteria, 'sortBy')) {
+                                $groupCriteria = $group->criteria->sortBy('id')->values();
+                            } elseif (is_array($group->criteria)) {
+                                $groupCriteria = collect($group->criteria)->sortBy('id')->values();
+                            } else {
+                                $groupCriteria = collect($group->criteria);
+                            }
+                        }
+
+                        // A group holding even one criterion this tab can't edit is
+                        // locked whole: its criteria are already read-only below, but
+                        // leaving the group's own controls live let this tab flip a
+                        // React-built rule's action/operator/enabled state — or delete
+                        // the group outright, taking the uneditable criterion with it.
+                        $groupIsLocked = $groupCriteria->contains(
+                            fn ($criterion) => ($criterion->reference_source ?? 'custom_field') !== 'custom_field'
+                        );
+                    @endphp
                     <div class="group-item card mb-3" data-group-index="{{ $groupIndex }}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Rule Group {{ $groupIndex + 1 }}</h5>
-                            @if(count($groupsToShow) > 1)
+                            @if(count($groupsToShow) > 1 && !$groupIsLocked)
                                 <button type="button" class="btn btn-danger btn-sm remove-group">
                                     <i class="fa fa-trash"></i> Remove Group
                                 </button>
                             @endif
                         </div>
                         <div class="card-body">
+                            @if($groupIsLocked)
+                                <div class="alert alert-secondary mb-3 py-1 px-2" style="font-size: 12px;">
+                                    This group contains a criterion this tab can't edit — edit the whole group from the field's visibility rule builder, not here.
+                                </div>
+                            @endif
                             <div class="form-group mb-3">
                                 <label class="control-label">
                                     <input type="checkbox" name="groups[{{ $groupIndex }}][enabled]" value="1" 
-                                           {{ (!$group || $group->enabled !== false) ? 'checked' : '' }} />
+                                           {{ (!$group || $group->enabled !== false) ? 'checked' : '' }}
+                                           @if($groupIsLocked) disabled @endif />
                                     Enable this group
                                 </label>
                                 <small class="form-text text-muted">
@@ -127,7 +157,7 @@
                             
                             <div class="form-group mb-3">
                                 <label class="control-label">Visibility Action</label>
-                                <select name="groups[{{ $groupIndex }}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8">
+                                <select name="groups[{{ $groupIndex }}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="show" {{ (!$group || $group->visibility_action == 'show' || !$group->visibility_action) ? 'selected' : '' }}>
                                         Show field when this group matches
                                     </option>
@@ -142,7 +172,7 @@
                             
                             <div class="form-group">
                                 <label class="control-label">Group Operator</label>
-                                <select name="groups[{{ $groupIndex }}][group_operator]" class="form-control select-picker group-operator-select" data-size="8">
+                                <select name="groups[{{ $groupIndex }}][group_operator]" class="form-control select-picker group-operator-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="AND" {{ (!$group || $group->group_operator == 'AND') ? 'selected' : '' }}>
                                         AND (all criteria must match)
                                     </option>
@@ -153,21 +183,6 @@
                             </div>
 
                             <div class="criteria-container" data-group-index="{{ $groupIndex }}">
-                                @php
-                                    // Access criteria from already-eager-loaded relationship
-                                    // Criteria should be loaded via eager loading in controller (criteria.referenceField)
-                                    $groupCriteria = collect();
-                                    if ($group && isset($group->criteria)) {
-                                        // Access the already-loaded criteria relationship
-                                        if (is_object($group->criteria) && method_exists($group->criteria, 'sortBy')) {
-                                            $groupCriteria = $group->criteria->sortBy('id')->values();
-                                        } elseif (is_array($group->criteria)) {
-                                            $groupCriteria = collect($group->criteria)->sortBy('id')->values();
-                                        } else {
-                                            $groupCriteria = collect($group->criteria);
-                                        }
-                                    }
-                                @endphp
                                 @if($group && $groupCriteria && $groupCriteria->count() > 0)
                                     @foreach($groupCriteria as $criterionIndex => $criterion)
                                         @php

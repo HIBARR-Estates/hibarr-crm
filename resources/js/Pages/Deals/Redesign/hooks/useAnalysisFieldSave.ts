@@ -46,6 +46,12 @@ export default function useAnalysisFieldSave(dealId: number) {
     const customFieldRevisions = useRef<Map<string, number>>(new Map());
     const customFieldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inFlight = useRef<Set<Promise<unknown>>>(new Set());
+    // Tail of the write chain per custom-field key. A batch touching a key
+    // that already has a request on the wire queues behind it, so a slow
+    // older request can't land after a newer one and resurrect a stale value.
+    // Keys are chained independently — a batch only waits on the keys it
+    // actually carries.
+    const customFieldChains = useRef<Map<string, Promise<unknown>>>(new Map());
     const [failedKeys, setFailedKeys] = useState<FailedKey[]>([]);
 
     // Saving state is published to subscribers rather than held in state here:
@@ -131,7 +137,7 @@ export default function useAnalysisFieldSave(dealId: number) {
                 keys.map((key) => [key, customFieldRevisions.current.get(key) ?? 0]),
             );
 
-            return track(
+            const doSend = () =>
                 saveCustomFieldsBulk(body, { lean: true }).catch(() => {
                     // A key the user has changed since this batch left is no
                     // longer failing *this* value — the newer write owns it.
@@ -171,8 +177,30 @@ export default function useAnalysisFieldSave(dealId: number) {
                         }));
                         return [...filtered, ...retried];
                     });
-                }),
-            );
+                });
+
+            const predecessors = keys
+                .map((key) => customFieldChains.current.get(key))
+                .filter((p): p is Promise<unknown> => p !== undefined);
+
+            const request = (
+                predecessors.length
+                    ? Promise.allSettled(predecessors)
+                    : Promise.resolve()
+            ).then(doSend);
+
+            keys.forEach((key) => customFieldChains.current.set(key, request));
+            request.catch(() => {}).then(() => {
+                // Only clear a key still pointing at *this* request — a newer
+                // batch may already have claimed the tail.
+                keys.forEach((key) => {
+                    if (customFieldChains.current.get(key) === request) {
+                        customFieldChains.current.delete(key);
+                    }
+                });
+            });
+
+            return track(request);
         },
         [saveCustomFieldsBulk, track],
     );

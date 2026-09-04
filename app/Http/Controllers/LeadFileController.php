@@ -9,7 +9,9 @@ use App\Models\DealFile;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
 use App\Traits\IconTrait;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -115,30 +117,46 @@ class LeadFileController extends AccountBaseController
         $deal = Deal::findOrFail($file->deal_id);
         abort_403(! $this->canEditDealFiles($deal));
 
-        $replacement = $request->hasFile('file')
-            ? $this->replaceStoredFile($file, $request->file('file'))
-            : null;
-
-        if ($request->has('description')) {
-            $file->description = $request->description;
-        }
+        // Two replacements racing on the same row would each capture the same
+        // "previous" descriptor and each delete it, orphaning whichever upload
+        // lost the save. Serialize the whole read-replace-persist-cleanup cycle
+        // per file so the descriptor we capture is the one actually persisted.
+        $lock = Cache::lock('deal-file-update:'.$file->id, 120);
 
         try {
-            $file->save();
-        } catch (\Throwable $e) {
-            // The row still points at the previous object, so drop the
-            // replacement we just uploaded rather than orphaning it.
-            if ($replacement !== null) {
-                $this->discardStoredObject($replacement['new'], $file->deal_id);
-            }
+            $file = $lock->block(10, function () use ($request, $id) {
+                $file = DealFile::findOrFail($id);
 
-            throw $e;
-        }
+                $replacement = $request->hasFile('file')
+                    ? $this->replaceStoredFile($file, $request->file('file'))
+                    : null;
 
-        // Only now that the new descriptor is persisted is the old object
-        // genuinely unreferenced and safe to delete.
-        if ($replacement !== null) {
-            $this->discardStoredObject($replacement['previous'], $file->deal_id);
+                if ($request->has('description')) {
+                    $file->description = $request->description;
+                }
+
+                try {
+                    $file->save();
+                } catch (\Throwable $e) {
+                    // The row still points at the previous object, so drop the
+                    // replacement we just uploaded rather than orphaning it.
+                    if ($replacement !== null) {
+                        $this->discardStoredObject($replacement['new'], $file->deal_id);
+                    }
+
+                    throw $e;
+                }
+
+                // Only now that the new descriptor is persisted is the old object
+                // genuinely unreferenced and safe to delete.
+                if ($replacement !== null) {
+                    $this->discardStoredObject($replacement['previous'], $file->deal_id);
+                }
+
+                return $file;
+            });
+        } catch (LockTimeoutException $e) {
+            return Reply::error('This file is already being updated. Please try again.');
         }
 
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $file]);

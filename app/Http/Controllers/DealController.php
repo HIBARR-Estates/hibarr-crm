@@ -1550,8 +1550,16 @@ class DealController extends AccountBaseController
         $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
-        $newProductIds = array_diff($request->product_id ?? $oldProductIds, $oldProductIds);
-        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? $oldProductIds);
+        // Normalize product_id once, here, and reuse it for both diffs and for
+        // the sync() further down. A scalar product_id (a single-select posting
+        // "7" rather than ["7"]) syncs as [] but would reach array_diff() as a
+        // scalar — a TypeError. Absent product_id still means "unchanged"; a
+        // *present* one means exactly what the sync below will write, so the
+        // commission guard and the write can't disagree.
+        $requestedProductIds = is_array($request->product_id) ? $request->product_id : [];
+        $comparableProductIds = $request->has('product_id') ? $requestedProductIds : $oldProductIds;
+        $newProductIds = array_diff($comparableProductIds, $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $comparableProductIds);
 
         if ($deal->isCommissionLocked() && (
             $deal->isDirty(['manual_value', 'value', 'value_source'])
@@ -1634,21 +1642,14 @@ class DealController extends AccountBaseController
         // any of this method's writes.
 
         // Same as packages above: only sync products when the field is present.
-        // The diff below must be scoped the same way — without it, a request
-        // that omits product_id entirely reads as "every existing product was
-        // removed" and fires notifyPropertyUnlinked for all of them. Normalize
-        // once so sync() and both diffs agree on the same value: a scalar
-        // product_id would otherwise sync as [] but reach array_diff() as a
-        // scalar (a TypeError).
-        $requestedProductIds = is_array($request->product_id) ? $request->product_id : [];
-        $newProductIds = [];
-        $removedProductIds = [];
+        // $requestedProductIds / $newProductIds / $removedProductIds were all
+        // normalized and computed up front (see the commission guard), so the
+        // guard and this write are working from the same value. A request that
+        // omits product_id leaves both diffs empty rather than reading as
+        // "every existing product was removed" and firing
+        // notifyPropertyUnlinked for all of them.
         if ($request->has('product_id')) {
             $deal->products()->sync($requestedProductIds);
-
-            // Record CRM events and notifications for product/property changes
-            $newProductIds = array_diff($requestedProductIds, $oldProductIds);
-            $removedProductIds = array_diff($oldProductIds, $requestedProductIds);
         }
 
         if (! empty($newProductIds) || ! empty($removedProductIds)) {

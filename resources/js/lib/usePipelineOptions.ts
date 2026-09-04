@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 
 export interface PipelineOption {
@@ -18,25 +18,45 @@ export interface PipelineOptionsResult {
  * Pipelines (with stages) this company's custom-field visibility UI can
  * target — the generic rule builder's Pipeline/Pipeline stage source picker,
  * and the simplified "show for pipeline(s)" picker on a Lead FILE field.
- * Fetched once per mount.
+ *
+ * `enabled` gates the request: the Lead FILE picker lives inside a modal that
+ * is mounted (closed) for the whole Custom Fields settings page, so fetching
+ * on mount cost every visit an XHR for a picker most visits never open. Pass
+ * false until the picker is actually on screen; the fetch then runs once, the
+ * first time it flips true.
  *
  * `error` is reported separately from an empty list: a failed fetch used to
  * be indistinguishable from a company that genuinely has no pipelines, so the
  * picker rendered "no pipelines" either way.
  */
-export default function usePipelineOptions(): PipelineOptionsResult {
+export default function usePipelineOptions(enabled: boolean = true): PipelineOptionsResult {
     const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState(false);
+    // `enabled` typically toggles with a form control, so latch the fetch:
+    // flipping the picker off and back on shouldn't re-request the list.
+    const fetched = useRef(false);
 
     useEffect(() => {
+        if (!enabled || fetched.current) return;
+        fetched.current = true;
         let cancelled = false;
         setLoading(true);
         setError(false);
         axios
             .get(route('custom-fields.pipeline-options'), { headers: { Accept: 'application/json' } })
             .then((res) => {
-                if (!cancelled) setPipelines(res.data?.pipelines ?? []);
+                if (cancelled) return;
+                const raw: PipelineOption[] = res.data?.pipelines ?? [];
+                // `stages` is non-optional on PipelineOption and consumers index
+                // into it directly, so guarantee the array rather than trusting
+                // the payload to always have carried the eager-loaded relation.
+                setPipelines(
+                    raw.map((pipeline) => ({
+                        ...pipeline,
+                        stages: Array.isArray(pipeline?.stages) ? pipeline.stages : [],
+                    })),
+                );
             })
             .catch(() => {
                 if (cancelled) return;
@@ -49,7 +69,7 @@ export default function usePipelineOptions(): PipelineOptionsResult {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [enabled]);
 
     return useMemo(
         () => ({ pipelines, loading, error }),

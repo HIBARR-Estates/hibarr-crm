@@ -105,7 +105,6 @@ export default function FieldModal({
     // is exactly the shape this picker manages — see isSimplePipelineRule.
     const [pipelineIds, setPipelineIds] = useState<number[]>([]);
     const [savingPipelines, setSavingPipelines] = useState(false);
-    const { pipelines } = usePipelineOptions();
 
     useEffect(() => {
         if (!open) return;
@@ -143,6 +142,11 @@ export default function FieldModal({
         isLeadFileField &&
         draft.show_in_deal &&
         (!editingField || isSimplePipelineRule(editingField.show_rule_set));
+
+    // Gated on the picker actually being on screen: this modal stays mounted
+    // (closed) for the whole Custom Fields page, so an unconditional fetch
+    // cost every visit an XHR for a picker most visits never reach.
+    const { pipelines, loading: pipelinesLoading } = usePipelineOptions(showPipelinePicker);
 
     const patch = (partial: Partial<FieldDraft>) => setDraft((prev) => ({ ...prev, ...partial }));
 
@@ -368,7 +372,11 @@ export default function FieldModal({
                                 )}
                             </p>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                                {pipelines.length === 0 ? (
+                                {pipelinesLoading ? (
+                                    <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>
+                                        {td("Loading pipelines…", { source: "en" })}
+                                    </span>
+                                ) : pipelines.length === 0 ? (
                                     <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>
                                         {td("No pipelines found.", { source: "en" })}
                                     </span>

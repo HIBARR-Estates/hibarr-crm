@@ -26,6 +26,19 @@ class CustomFieldVisibilityService
             $stages = $this->loadStagesFor($currentValues);
         }
 
+        return $this->evaluateWithStages($fieldId, $currentValues, $stages);
+    }
+
+    /**
+     * The evaluation itself, against an already-resolved stage list. Split out
+     * of evaluate() so a batch can resolve the default stages once rather than
+     * per field — an empty list here means "resolved, and there are none",
+     * never "resolve them for me".
+     *
+     * @param  array<int, array{id: int, priority: int}>  $stages
+     */
+    protected function evaluateWithStages(int $fieldId, array $currentValues, array $stages): bool
+    {
         // Load rule set with only enabled groups to improve performance
         $field = CustomField::with([
             'showRuleSet' => function ($query) {
@@ -482,10 +495,18 @@ class CustomFieldVisibilityService
      */
     public function evaluateMultiple(array $fieldIds, array $currentValues, array $stages = []): array
     {
+        // Resolve the default stage list once for the whole batch. Deferring to
+        // evaluate() would re-run loadStagesFor() per field, and a legitimately
+        // empty result would re-query on every iteration since [] is also the
+        // "not supplied" marker there.
+        if ($stages === []) {
+            $stages = $this->loadStagesFor($currentValues);
+        }
+
         $results = [];
 
         foreach ($fieldIds as $fieldId) {
-            $results['field_'.$fieldId] = $this->evaluate($fieldId, $currentValues, $stages);
+            $results['field_'.$fieldId] = $this->evaluateWithStages($fieldId, $currentValues, $stages);
         }
 
         return $results;

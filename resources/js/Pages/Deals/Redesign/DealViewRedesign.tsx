@@ -309,28 +309,41 @@ function DealViewRedesignInner(
     const leadFileFieldsData =
         (pageProps.leadCustomFieldsData as Record<string, any> | null | undefined) ?? {};
 
-    // Deal-context visibility for this deal's own + lead-owned file fields —
-    // 'pipeline'/'pipeline_stage'/'record' criteria resolve against *this* deal.
+    // Deal-context visibility for this deal's own + lead-owned file fields.
+    // Pipeline/stage context is the deal's for both, but `record` criteria are
+    // scoped to the record that *owns* the field: a lead field's "restrict to
+    // specific record(s)" rule lists lead ids, so evaluating it against the
+    // deal id would never match. Hence two passes over one shared value map.
     const dealFileVisibilityMap = useMemo(() => {
         const fileRelevantFields = [...fields, ...leadFileFields];
-        const valueMap = buildFieldValueMap({
-            customFieldsData: {
-                ...(deal.custom_fields_data ?? {}),
-                ...leadFileFieldsData,
-            },
-            fields: fileRelevantFields,
-            normalizeMultiSelect: true,
-            context: {
-                pipeline: deal.lead_pipeline_id,
-                pipelineStage: deal.pipeline_stage_id,
-                recordId: deal.id,
-            },
-        });
-        return evaluateAllFieldsVisibility(fileRelevantFields, valueMap);
+        const customFieldsData = {
+            ...(deal.custom_fields_data ?? {}),
+            ...leadFileFieldsData,
+        };
+        const baseContext = {
+            pipeline: deal.lead_pipeline_id,
+            pipelineStage: deal.pipeline_stage_id,
+        };
+        const evaluateFor = (targetFields: any[], recordId: any) =>
+            evaluateAllFieldsVisibility(
+                targetFields,
+                buildFieldValueMap({
+                    customFieldsData,
+                    fields: fileRelevantFields,
+                    normalizeMultiSelect: true,
+                    context: { ...baseContext, recordId },
+                }),
+            );
+
+        return {
+            ...evaluateFor(fields, deal.id),
+            ...evaluateFor(leadFileFields, deal.lead_id),
+        };
     }, [
         fields,
         leadFileFields,
         deal.id,
+        deal.lead_id,
         deal.custom_fields_data,
         leadFileFieldsData,
         deal.lead_pipeline_id,

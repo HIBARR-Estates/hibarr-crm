@@ -8,7 +8,9 @@ use App\Models\Lead;
 use App\Models\LeadContactFile;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -111,30 +113,46 @@ class LeadContactFileController extends AccountBaseController
         $lead = Lead::findOrFail($file->lead_id);
         $this->assertLeadAccess($lead, 'edit_lead');
 
-        $replacement = $request->hasFile('file')
-            ? $this->replaceStoredFile($file, $request->file('file'))
-            : null;
-
-        if ($request->has('description')) {
-            $file->description = $request->description;
-        }
+        // Two replacements racing on the same row would each capture the same
+        // "previous" descriptor and each delete it, orphaning whichever upload
+        // lost the save. Serialize the whole read-replace-persist-cleanup cycle
+        // per file so the descriptor we capture is the one actually persisted.
+        $lock = Cache::lock('lead-contact-file-update:'.$file->id, 120);
 
         try {
-            $file->save();
-        } catch (\Throwable $e) {
-            // The row still points at the previous object, so drop the
-            // replacement we just uploaded rather than orphaning it.
-            if ($replacement !== null) {
-                $this->discardStoredObject($replacement['new'], $file->lead_id);
-            }
+            $file = $lock->block(10, function () use ($request, $id) {
+                $file = LeadContactFile::findOrFail($id);
 
-            throw $e;
-        }
+                $replacement = $request->hasFile('file')
+                    ? $this->replaceStoredFile($file, $request->file('file'))
+                    : null;
 
-        // Only now that the new descriptor is persisted is the old object
-        // genuinely unreferenced and safe to delete.
-        if ($replacement !== null) {
-            $this->discardStoredObject($replacement['previous'], $file->lead_id);
+                if ($request->has('description')) {
+                    $file->description = $request->description;
+                }
+
+                try {
+                    $file->save();
+                } catch (\Throwable $e) {
+                    // The row still points at the previous object, so drop the
+                    // replacement we just uploaded rather than orphaning it.
+                    if ($replacement !== null) {
+                        $this->discardStoredObject($replacement['new'], $file->lead_id);
+                    }
+
+                    throw $e;
+                }
+
+                // Only now that the new descriptor is persisted is the old object
+                // genuinely unreferenced and safe to delete.
+                if ($replacement !== null) {
+                    $this->discardStoredObject($replacement['previous'], $file->lead_id);
+                }
+
+                return $file;
+            });
+        } catch (LockTimeoutException $e) {
+            return Reply::error('This file is already being updated. Please try again.');
         }
 
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $file]);
@@ -221,7 +239,7 @@ class LeadContactFileController extends AccountBaseController
         $lead = Lead::findOrFail($file->lead_id);
         $this->assertLeadAccess($lead, 'edit_lead');
 
-        if ($file->isExternallyStored() && !empty($file->object_path)) {
+        if ($file->isExternallyStored() && ! empty($file->object_path)) {
             try {
                 $this->fileStorageService->delete($file->object_path);
             } catch (\Exception $e) {
@@ -231,10 +249,10 @@ class LeadContactFileController extends AccountBaseController
                     'error' => $e->getMessage(),
                 ]);
             }
-        } elseif (!empty($file->hashname)) {
+        } elseif (! empty($file->hashname)) {
             Files::deleteFile(
                 $file->hashname,
-                LeadContactFile::FILE_PATH . '/' . $file->lead_id
+                LeadContactFile::FILE_PATH.'/'.$file->lead_id
             );
         }
 
@@ -255,7 +273,7 @@ class LeadContactFileController extends AccountBaseController
 
         return download_local_s3(
             $file,
-            LeadContactFile::FILE_PATH . '/' . $file->lead_id . '/' . $file->hashname
+            LeadContactFile::FILE_PATH.'/'.$file->lead_id.'/'.$file->hashname
         );
     }
 
@@ -268,6 +286,6 @@ class LeadContactFileController extends AccountBaseController
             'added' => 'added_by',
             'owned' => 'lead_owner',
         ]);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
     }
 }

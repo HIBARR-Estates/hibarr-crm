@@ -56,6 +56,24 @@ export function buildRailGroups(
     for (const f of fields) byId.set(Number(f.id), f);
     for (const f of leadFields) byId.set(Number(f.id), f);
 
+    // One visibility pass covering every field the rail can list — the
+    // category sections below *and* the hand-placed deal_custom_field /
+    // lead_custom_field items, which used to skip the check entirely and so
+    // listed steps the centre panel had hidden. `record` criteria resolve
+    // against the record that owns the field, so lead fields are evaluated
+    // against the lead id rather than the deal's.
+    const dealContext = buildDealVisibilityContext(deal);
+    const valueMap = buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap });
+    const leadValueMap = buildFieldValueMap({
+        customFieldsData: values,
+        context: { ...dealContext.valueMap, recordId: deal?.lead_id },
+    });
+    const visibility: Record<string, boolean> = {
+        ...evaluateAllFieldsVisibility(fields, valueMap, dealContext.evaluation),
+        ...evaluateAllFieldsVisibility(leadFields, leadValueMap, dealContext.evaluation),
+    };
+    const isHidden = (field: any) => visibility[field.id] === false;
+
     return sections.map((section, index) => {
         const steps: RailStep[] = [];
 
@@ -64,14 +82,8 @@ export function buildRailGroups(
                 (f: any) =>
                     f.custom_field_category_id === section.categoryId && f.type !== "file",
             );
-            const dealContext = buildDealVisibilityContext(deal);
-            const vis = evaluateAllFieldsVisibility(
-                sectionFields,
-                buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
-                dealContext.evaluation,
-            );
             for (const f of sectionFields) {
-                if (vis[f.id] === false) continue;
+                if (isHidden(f)) continue;
                 steps.push(fieldStep(f, section.id, values));
             }
         }
@@ -96,7 +108,7 @@ export function buildRailGroups(
 
             if (item.kind === "deal_custom_field" || item.kind === "lead_custom_field") {
                 const field = byId.get(Number(s.item_key));
-                if (!field) continue;
+                if (!field || isHidden(field)) continue;
                 steps.push(fieldStep(field, section.id, values, s.label_override));
                 continue;
             }

@@ -304,23 +304,47 @@ export default function FilesTab({
         />
     ) : null;
 
+    const leadDocumentsSection =
+        leadLevelSlots.length > 0 ? (
+            <section className="mb-5">
+                <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                    {td("Lead documents", { source: "en" })}
+                </div>
+                <div className="mb-2 text-[12px] text-[#9ca3af]">
+                    {td("Required or optional file fields for this lead. Upload each into its slot.", { source: "en" })}
+                </div>
+                <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+                    {leadLevelSlots.map(renderDocRow)}
+                </div>
+            </section>
+        ) : null;
+
     return (
         <div>
             {filesGroupingEnabled && dropzone}
 
-            {leadLevelSlots.length > 0 ? (
-                <section className="mb-5">
-                    <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
-                        {td("Lead documents", { source: "en" })}
-                    </div>
-                    <div className="mb-2 text-[12px] text-[#9ca3af]">
-                        {td("Required or optional file fields for this lead. Upload each into its slot.", { source: "en" })}
-                    </div>
-                    <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
-                        {leadLevelSlots.map(renderDocRow)}
-                    </div>
-                </section>
-            ) : null}
+            {filesGroupingEnabled ? (
+                leadDocumentsSection
+            ) : (
+                // Flag off, this flat list also carries the deal-owned
+                // cross-populated slots, which derive from the deferred
+                // `dealFileFields` prop — same reasoning as the grouped branch
+                // below: show a placeholder rather than a list that's silently
+                // missing them while the prop is still in flight.
+                <Deferred
+                    data="dealFileFields"
+                    fallback={
+                        <section className="mb-5">
+                            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                                {td("Lead documents", { source: "en" })}
+                            </div>
+                            <div className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f6f7f9]" />
+                        </section>
+                    }
+                >
+                    {leadDocumentsSection}
+                </Deferred>
+            )}
 
             {filesGroupingEnabled ? (
                 // dealFileFields is an Inertia::defer prop (LeadContactController)

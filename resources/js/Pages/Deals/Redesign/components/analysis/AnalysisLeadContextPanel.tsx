@@ -294,7 +294,15 @@ export default function AnalysisLeadContextPanel({
                 regularCustomFields,
                 buildFieldValueMap({
                     customFieldsData: leadCustomFieldsData,
-                    context: dealContext.valueMap,
+                    context: {
+                        ...dealContext.valueMap,
+                        // These are lead-owned fields, so a `record` criterion
+                        // ("restrict to specific record(s)") lists lead ids —
+                        // the deal id buildDealVisibilityContext supplies would
+                        // never match one. Pipeline/stage/package context stays
+                        // the deal's.
+                        recordId: deal?.lead_id,
+                    },
                 }),
                 dealContext.evaluation,
             );

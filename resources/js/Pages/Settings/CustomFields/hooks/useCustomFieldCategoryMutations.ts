@@ -133,6 +133,9 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
     const reorderCategories = useCallback(
         async (orderedIds: number[]) => {
             const requestId = ++reorderRequestRef.current;
+            // The exact order this request persists, captured up front so a
+            // drag that lands while it is in flight can't be mistaken for it.
+            let requestOrder: SettingsCategory[] | null = null;
 
             setCategories((prev) => {
                 // Baseline the confirmed order from the state that preceded any
@@ -141,7 +144,11 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                     confirmedCategoriesRef.current = prev;
                 }
                 const byId = new Map(prev.map((c) => [c.id, c]));
-                return orderedIds.map((id) => byId.get(id)).filter(Boolean) as SettingsCategory[];
+                const next = orderedIds
+                    .map((id) => byId.get(id))
+                    .filter(Boolean) as SettingsCategory[];
+                requestOrder = next;
+                return next;
             });
 
             reorderChainRef.current = reorderChainRef.current.then(async () => {
@@ -157,12 +164,15 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                     );
 
                     if (res.data?.status === "success") {
-                        // The server now holds exactly this order, so it is
-                        // always safe to advance the baseline.
-                        setCategories((prev) => {
-                            confirmedCategoriesRef.current = prev;
-                            return prev;
-                        });
+                        // The server now holds exactly *this* request's order,
+                        // so that is the baseline to advance to. Reading current
+                        // state instead would promote a drag that landed while
+                        // this request was in flight — an order the server has
+                        // never confirmed — and a later failure would then roll
+                        // back to it.
+                        if (requestOrder) {
+                            confirmedCategoriesRef.current = requestOrder;
+                        }
                         message.success(td("Category order updated", { source: "en" }));
                     } else {
                         message.error(res.data?.message || t("messages.somethingWentWrong"));
