@@ -41,6 +41,13 @@ interface StatStripProps {
     userId: number;
     /** How far the page looks back and ahead, from the server. */
     windowDays: number;
+    /**
+     * The server's own clock (ISO 8601), matching what personalStats()
+     * counted against — used instead of the browser's clock so the
+     * missed-meetings link's date window can't drift from the count it's
+     * labeling under a client/server timezone or clock skew.
+     */
+    now: string;
     stats?: PersonalStats;
     pipelines?: PipelineRow[];
     /** undefined while loading; null for anyone who isn't an agent — that
@@ -69,6 +76,7 @@ const IDLE_DAYS = 7;
 export default function StatStrip({
     userId,
     windowDays,
+    now,
     stats,
     pipelines,
     commission,
@@ -176,10 +184,10 @@ export default function StatStrip({
                             // the chip rather than every past meeting.
                             href: route("meetings.index", {
                                 attendance: "no_show",
-                                date_from: dayjs()
+                                date_from: dayjs(now)
                                     .subtract(windowDays, "day")
                                     .format("YYYY-MM-DD"),
-                                date_to: dayjs().format("YYYY-MM-DD"),
+                                date_to: dayjs(now).format("YYYY-MM-DD"),
                             }),
                         }
                       : {}),

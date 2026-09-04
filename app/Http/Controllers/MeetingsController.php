@@ -88,8 +88,20 @@ class MeetingsController extends AccountBaseController
         // Attendance is only meaningful for past meetings, so these apply to
         // that query alone.
         $attendanceFilter = $request->get('attendance');
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
+
+        // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
+        // throws, and a malformed link shouldn't 500 the page.
+        $isValidDate = function ($value): bool {
+            if (! is_string($value)) {
+                return false;
+            }
+
+            $parsed = \DateTime::createFromFormat('Y-m-d', $value);
+
+            return $parsed !== false && $parsed->format('Y-m-d') === $value;
+        };
+        $dateFrom = $isValidDate($request->get('date_from')) ? $request->get('date_from') : null;
+        $dateTo = $isValidDate($request->get('date_to')) ? $request->get('date_to') : null;
 
         // A meeting is "live" when it has started but not yet ended:
         //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'

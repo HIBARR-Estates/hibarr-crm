@@ -354,6 +354,7 @@ export default function PersonalDashboard({
                         <StatStrip
                             userId={userId}
                             windowDays={windowDays}
+                            now={now}
                             stats={stats}
                             pipelines={pipelines}
                             commission={commission}
