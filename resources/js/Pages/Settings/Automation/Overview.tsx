@@ -42,7 +42,7 @@ export default function Overview({
     const { automations, automationsLoading, automationStats } = useAutomationWorkspace();
     const { toggleStatus } = useAutomationMutations();
     const { stats, loading: statsLoading } = useAutomationStats();
-    const { logs, loading: logsLoading } = useAutomationLogs({});
+    const { runs, loading: logsLoading } = useAutomationLogs({});
 
     const activeCount = automations.filter((a) => a.active).length;
     const pausedCount = automations.length - activeCount;
@@ -148,7 +148,7 @@ export default function Overview({
                     </div>
                     <div className="px-4.5 pb-2.5 pt-1.5 flex-1" style={{ overflowY: "auto" }}>
                         {logsLoading && Array.from({ length: 4 }).map((_, i) => <RowSkeleton key={i} />)}
-                        {!logsLoading && logs.length === 0 && (
+                        {!logsLoading && runs.length === 0 && (
                             <div className="py-4">
                                 <EmptyState
                                     title={t("app.automation.noActivityYet")}
@@ -156,9 +156,9 @@ export default function Overview({
                                 />
                             </div>
                         )}
-                        {!logsLoading && logs.map((entry) => (
+                        {!logsLoading && runs.map((entry) => (
                             <div
-                                key={entry.id}
+                                key={entry.run_id}
                                 className="flex items-center gap-3 py-2.5 border-b last:border-b-0"
                                 style={{ borderColor: "#f4f5f7" }}
                             >
@@ -166,7 +166,7 @@ export default function Overview({
                                     className="w-[34px] h-[34px] rounded-lg flex items-center justify-center shrink-0"
                                     style={statusIconWrap(entry.status)}
                                 >
-                                    <Icon name={channelIcon(entry.channel)} size={16} />
+                                    <Icon name={channelIcon(entry.steps[0]?.channel ?? null)} size={16} />
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>
