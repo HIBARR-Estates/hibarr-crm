@@ -98,7 +98,7 @@ export default function DossierField({
             type="button"
             className={`v2-dossier-value v2-dossier-value--copy${
                 tone === "green" ? " green" : ""
-            }`}
+            }${copied ? " is-copied" : ""}`}
             onClick={handleCopy}
             title={
                 copyFailed
@@ -108,8 +108,13 @@ export default function DossierField({
                       : td("Copy", { source: "en" })
             }
         >
-            <span>{value}</span>
-            <DealIcon name={copied ? "check" : "copy"} size={12} />
+            <span className="v2-dossier-value__text">{value}</span>
+            {/* Hidden until the row is hovered or focused (and while the
+                "copied" tick shows) so the dossier reads as plain values
+                rather than a column of icons — see lead-redesign.css. */}
+            <span className="v2-dossier-value__action" aria-hidden="true">
+                <DealIcon name={copied ? "check" : "copy"} size={12} />
+            </span>
         </button>
     );
 }

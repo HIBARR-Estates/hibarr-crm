@@ -25,6 +25,16 @@ const EMPTY_SUMMARY: DealExposeSummary = {
     not_accepted: 0,
 };
 
+/**
+ * Rows already fetched for a given index URL, kept for the lifetime of the
+ * browser tab. The Exposes tab unmounts whenever another workspace tab is
+ * selected, so without this every re-selection would drop back to the
+ * skeleton. First open in a page session still shows the skeleton; after
+ * that the cached list renders immediately and is reconciled in the
+ * background. Keyed by index URL, so each deal/lead caches separately.
+ */
+const exposeListCache = new Map<string, DealExpose[]>();
+
 /** CRM JSON responses use Reply::{success,error} with HTTP 200 for both. */
 function extractExposeFromStoreResponse(body: unknown): DealExpose | null {
     if (!body || typeof body !== "object") return null;
@@ -267,16 +277,19 @@ export default function useDealExposes(scope: Scope) {
         uploadBytesLoaded,
         uploadBytesTotal,
     } = useDealFileUpload(dealId);
-    const [exposes, setExposes] = useState<DealExpose[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [loadFailed, setLoadFailed] = useState(false);
-    const statusRequestRef = useRef<Map<number, number>>(new Map());
-
     const indexUrl =
         scope.type === "deal"
             ? route("deals.exposes.index", scope.dealId)
             : route("leads.exposes.index", scope.leadId);
+
+    const cached = exposeListCache.get(indexUrl);
+    const [exposes, setExposes] = useState<DealExpose[]>(cached ?? []);
+    const [loading, setLoading] = useState(cached === undefined);
+    const [saving, setSaving] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const statusRequestRef = useRef<Map<number, number>>(new Map());
+    /** Which index URL this instance has already kicked a fetch off for. */
+    const loadedUrlRef = useRef<string | null>(null);
 
     const fetchExposes = useCallback(async (): Promise<DealExpose[] | null> => {
         try {
@@ -355,9 +368,21 @@ export default function useDealExposes(scope: Scope) {
         [reconcileExposes],
     );
 
+    // Only publish to the cache once a fetch has actually succeeded — seeding
+    // it with the pre-fetch empty list would make the next mount skip the
+    // skeleton and render "no exposés" while the first request is still out.
     useEffect(() => {
-        void load();
-    }, [load]);
+        if (loading || loadFailed) return;
+        exposeListCache.set(indexUrl, exposes);
+    }, [indexUrl, exposes, loading, loadFailed]);
+
+    useEffect(() => {
+        if (loadedUrlRef.current === indexUrl) return;
+        loadedUrlRef.current = indexUrl;
+        // Rows from an earlier visit to this tab: refresh them silently
+        // instead of flashing the skeleton again.
+        void (exposeListCache.has(indexUrl) ? reconcileExposes() : load());
+    }, [indexUrl, load, reconcileExposes]);
 
     const summary = useMemo<DealExposeSummary>(() => {
         const count = (status: DealExposeStatus) =>

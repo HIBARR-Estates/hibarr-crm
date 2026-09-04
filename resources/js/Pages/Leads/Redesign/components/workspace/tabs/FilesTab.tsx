@@ -10,6 +10,7 @@ import type { PageProps } from "@/Components/DashboardLayout";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import { isLoading } from "@/lib/utils";
 import type { LeadContactFile } from "@/Types/api/file";
 import DealDocumentSlotRow from "@/Pages/Deals/Redesign/components/workspace/DealDocumentSlotRow";
@@ -90,7 +91,9 @@ export default function FilesTab({
             onSuccess: () => {
                 const deletedId = deleteFile.id;
                 setDeleteFile(null);
-                setFiles((prev) => prev.filter((item) => item.id !== deletedId));
+                setFiles((prev) =>
+                    prev.filter((item) => item.id !== deletedId),
+                );
                 message.success(td("File deleted", { source: "en" }));
             },
             onError: () => {
@@ -107,7 +110,10 @@ export default function FilesTab({
                         {td("Documents", { source: "en" })}
                     </div>
                     <div className="mb-2 text-[12px] text-[#9ca3af]">
-                        {td("Required or optional file fields for this lead. Upload each into its slot.", { source: "en" })}
+                        {td(
+                            "Required or optional file fields for this lead. Upload each into its slot.",
+                            { source: "en" },
+                        )}
                     </div>
                     <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
                         {slots.map((doc) => (
@@ -143,9 +149,13 @@ export default function FilesTab({
                 <FileDropzone
                     isUploading={isUploading}
                     uploadProgress={uploadProgress}
-                    dropHint={td("Drop files here or click to upload", { source: "en" })}
+                    dropHint={td("Drop files here or click to upload", {
+                        source: "en",
+                    })}
                     uploadingLabel={td("Uploading", { source: "en" })}
-                    sizeHint={td("PDF, images, ZIP — max 200 MB", { source: "en" })}
+                    sizeHint={td("PDF, images, ZIP — max 200 MB", {
+                        source: "en",
+                    })}
                     onFilesSelected={(fileList) => {
                         void handleFilesSelected(fileList);
                     }}
@@ -157,9 +167,7 @@ export default function FilesTab({
                     {td("Loading files…", { source: "en" })}
                 </p>
             ) : visibleFiles.length === 0 ? (
-                <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {td("No files uploaded", { source: "en" })}
-                </p>
+                <FilesEmptyState title={td("No files yet", { source: "en" })} />
             ) : (
                 visibleFiles.map((file) => (
                     <AttachmentFileCard
@@ -173,9 +181,7 @@ export default function FilesTab({
                         deleteLabel={td("Delete", { source: "en" })}
                         onDownload={() => downloadLeadContactFile(file.file)}
                         onDelete={
-                            canEdit
-                                ? () => setDeleteFile(file.file)
-                                : undefined
+                            canEdit ? () => setDeleteFile(file.file) : undefined
                         }
                     />
                 ))
@@ -186,7 +192,10 @@ export default function FilesTab({
                 title={td("Delete file", { source: "en" })}
                 message={
                     deleteFile
-                        ? td(`Are you sure you want to delete ${deleteFile.filename}? This cannot be undone.`, { source: "en" })
+                        ? td(
+                              `Are you sure you want to delete ${deleteFile.filename}? This cannot be undone.`,
+                              { source: "en" },
+                          )
                         : td("Delete this file?", { source: "en" })
                 }
                 confirmLabel={td("Delete", { source: "en" })}

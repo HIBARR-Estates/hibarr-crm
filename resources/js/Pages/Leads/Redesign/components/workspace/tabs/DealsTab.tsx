@@ -34,34 +34,49 @@ export default function DealsTab({
 
     return (
         <div>
-            <div className="mb-4 flex items-center justify-between gap-2">
-                <span className="text-xs text-[#6b7280]">
-                    {deals.length} deal{deals.length === 1 ? "" : "s"}
-                </span>
-                <Button
-                    variant="primary"
-                    icon={<Icon name="plus" size={14} />}
-                    onClick={() => {
-                        clearErrors();
-                        setModalOpen(true);
-                    }}
-                >
-                    {td(deals.length === 0
-                            ? "Create deal"
-                            : "Create another deal", { source: "en" })}
-                </Button>
-            </div>
+            {/* Count and header action belong to a populated list — with no
+                deals the empty state carries the only call to action. */}
+            {deals.length > 0 && (
+                <div className="mb-4 flex items-center justify-between gap-2">
+                    <span className="text-xs text-[#6b7280]">
+                        {deals.length} deal{deals.length === 1 ? "" : "s"}
+                    </span>
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        icon={<Icon name="plus" size={14} />}
+                        onClick={() => {
+                            clearErrors();
+                            setModalOpen(true);
+                        }}
+                    >
+                        {td("Create another deal", { source: "en" })}
+                    </Button>
+                </div>
+            )}
 
             {deals.length === 0 ? (
                 <EmptyState
+                    icon="briefcase"
                     title={td("No deals yet", { source: "en" })}
-                    description={td("Create a deal for this lead. You can add more deals later.", { source: "en" })}
+                    description={td(
+                        "Create a deal for this lead. You can add more deals later.",
+                        { source: "en" },
+                    )}
+                    action={{
+                        label: td("Create deal", { source: "en" }),
+                        onClick: () => {
+                            clearErrors();
+                            setModalOpen(true);
+                        },
+                    }}
                 />
             ) : (
                 deals.map((deal) => (
                     <DealCard
                         key={deal.id}
                         deal={deal}
+                        href={route("deals.show", deal.id)}
                         onClick={() => openDeal(deal)}
                     />
                 ))

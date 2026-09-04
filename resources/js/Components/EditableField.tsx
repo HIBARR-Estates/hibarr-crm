@@ -1344,9 +1344,15 @@ export default function EditableField({
                     } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     trailing={
                         canStartEditing ? (
+                            // Revealed on hover/focus of the enclosing `group`
+                            // (DetailField, or the lead dossier row). Opacity,
+                            // not `hidden`: antd's own `.anticon{display:inline-flex}`
+                            // has the same specificity as Tailwind's `.hidden`
+                            // and loads later, so a display-based hide never
+                            // took effect and the pencil showed permanently.
                             <EditOutlined
                                 aria-hidden="true"
-                                className="mt-1 hidden shrink-0 text-blue-600 group-hover:inline-flex"
+                                className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                                 style={{ fontSize: 11 }}
                             />
                         ) : undefined
