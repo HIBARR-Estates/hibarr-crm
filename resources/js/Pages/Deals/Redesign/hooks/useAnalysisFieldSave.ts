@@ -98,6 +98,19 @@ export default function useAnalysisFieldSave(dealId: number) {
         [],
     );
 
+    // Drops a key's stale failure when a newer value is queued for it. The old
+    // banner refers to a value the user has already replaced, and if the newer
+    // write also fails the send path re-adds the key with the current revision.
+    // Returns `prev` untouched when there is nothing to clear so the common
+    // keystroke path doesn't re-render the modal.
+    const clearFailure = useCallback((key: string) => {
+        setFailedKeys((prev) =>
+            prev.some((f) => f.key === key)
+                ? prev.filter((f) => f.key !== key)
+                : prev,
+        );
+    }, []);
+
     const toCustomFieldEntry = useCallback(
         (key: string, value: unknown): CustomFieldEntry => {
             if (key.startsWith("deal_field_")) {
@@ -329,6 +342,7 @@ export default function useAnalysisFieldSave(dealId: number) {
 
     const saveLegacy = useCallback(
         (key: string, value: unknown) => {
+            clearFailure(key);
             const existing = pending.current.get(key);
             if (existing) clearTimeout(existing.timer);
 
@@ -344,12 +358,13 @@ export default function useAnalysisFieldSave(dealId: number) {
             pending.current.set(key, { timer, payload });
             notify();
         },
-        [resolveUpdateType, buildData, sendLegacy, notify],
+        [resolveUpdateType, buildData, sendLegacy, notify, clearFailure],
     );
 
     const save = useCallback(
         (key: string, value: unknown) => {
             if (bulkWriteEnabled && isCustomFieldKey(key)) {
+                clearFailure(key);
                 customFieldRevisions.current.set(
                     key,
                     (customFieldRevisions.current.get(key) ?? 0) + 1,
@@ -373,6 +388,7 @@ export default function useAnalysisFieldSave(dealId: number) {
             flushCustomFields,
             notify,
             saveLegacy,
+            clearFailure,
         ],
     );
 

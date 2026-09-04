@@ -280,9 +280,11 @@
                                 @endif
                             </div>
 
-                            <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="{{ $groupIndex }}">
-                                <i class="fa fa-plus"></i> Add Criterion
-                            </button>
+                            @if(!$groupIsLocked)
+                                <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="{{ $groupIndex }}">
+                                    <i class="fa fa-plus"></i> Add Criterion
+                                </button>
+                            @endif
                         </div>
                     </div>
                 @endforeach

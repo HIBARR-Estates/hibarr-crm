@@ -3,16 +3,21 @@ import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { ANALYSIS_FIELD_META } from "../../config/analysisFieldMeta";
 import { formatDisplay, parseOptions } from "./AnalysisCustomFieldRow";
-import { isFieldFilled } from "./analysisProgress";
+import { fieldStepKeyOf, isFieldFilled, stepKeyOf } from "./analysisProgress";
 import type { AnalysisSection } from "./types/analysisTypes";
 
 export interface RailStep {
+    /** Canonical step key — the same one the centre panel and the unanswered
+     *  store use, so locking and jumping can be resolved per step. */
+    stepKey: string;
     /** Unique within the rail; used for React keys only. */
     key: string;
     /** Section this step belongs to — what a jump actually targets. */
     sectionId: string;
     title: string;
     filled: boolean;
+    /** Not revealed yet — the agent has not stepped this far. */
+    locked: boolean;
     /** Formatted captured value, empty when nothing is stored. */
     value: string;
 }
@@ -26,16 +31,20 @@ export interface RailSectionGroup {
 
 function fieldStep(
     field: any,
+    stepKey: string,
     sectionId: string,
     values: Record<string, any>,
+    unlocked: ReadonlySet<string>,
     labelOverride?: string | null,
 ): RailStep {
     const raw = values[`field_${field.id}`];
     return {
-        key: `f_${sectionId}_${field.id}`,
+        stepKey,
+        key: `${sectionId}_${stepKey}`,
         sectionId,
         title: labelOverride || field.label,
         filled: isFieldFilled(raw),
+        locked: !unlocked.has(stepKey),
         value: formatDisplay(field.type, raw, parseOptions(field.values)),
     };
 }
@@ -43,6 +52,10 @@ function fieldStep(
 /**
  * Flattens sections into the per-step rows the right rail lists, resolving each
  * step's label and captured value the same way the centre panel renders it.
+ *
+ * `unlocked` holds the step keys revealed so far. Locking is per step rather than
+ * per section now that the flow advances one question at a time — a section is
+ * locked only while none of its steps have been reached.
  */
 export function buildRailGroups(
     sections: AnalysisSection[],
@@ -50,7 +63,7 @@ export function buildRailGroups(
     leadFields: any[],
     values: Record<string, any>,
     deal: any,
-    unlockedCount: number,
+    unlocked: ReadonlySet<string>,
 ): RailSectionGroup[] {
     const byId = new Map<number, any>();
     for (const f of fields) byId.set(Number(f.id), f);
@@ -74,7 +87,7 @@ export function buildRailGroups(
     };
     const isHidden = (field: any) => visibility[field.id] === false;
 
-    return sections.map((section, index) => {
+    return sections.map((section) => {
         const steps: RailStep[] = [];
 
         if (section.kind === "category" && section.categoryId !== null) {
@@ -84,23 +97,28 @@ export function buildRailGroups(
             );
             for (const f of sectionFields) {
                 if (isHidden(f)) continue;
-                steps.push(fieldStep(f, section.id, values));
+                steps.push(
+                    fieldStep(f, fieldStepKeyOf(Number(f.id)), section.id, values, unlocked),
+                );
             }
         }
 
         for (const item of section.items) {
             const s = item.scriptItem;
+            const stepKey = stepKeyOf(s.id);
 
             // Instructions are guidance for the agent, not a step to capture.
             if (item.kind === "instruction") continue;
 
             if (item.kind === "question") {
                 steps.push({
-                    key: `s_${s.id}`,
+                    stepKey,
+                    key: `${section.id}_${stepKey}`,
                     sectionId: section.id,
                     // Prompt body lives in guide_text; older rows put it in label_override.
                     title: s.guide_text || s.label_override || s.item_key,
                     filled: false,
+                    locked: !unlocked.has(stepKey),
                     value: "",
                 });
                 continue;
@@ -109,7 +127,9 @@ export function buildRailGroups(
             if (item.kind === "deal_custom_field" || item.kind === "lead_custom_field") {
                 const field = byId.get(Number(s.item_key));
                 if (!field || isHidden(field)) continue;
-                steps.push(fieldStep(field, section.id, values, s.label_override));
+                steps.push(
+                    fieldStep(field, stepKey, section.id, values, unlocked, s.label_override),
+                );
                 continue;
             }
 
@@ -122,10 +142,12 @@ export function buildRailGroups(
                       : deal?.contact?.[s.item_key];
 
             steps.push({
-                key: `s_${s.id}`,
+                stepKey,
+                key: `${section.id}_${stepKey}`,
                 sectionId: section.id,
                 title: s.label_override || meta?.label || s.item_key,
                 filled: isFieldFilled(raw),
+                locked: !unlocked.has(stepKey),
                 // FK columns store an id — read the label off the deal's loaded
                 // relation, or the rail would list "3" as the captured answer.
                 // meta.options matters for select/radio too: without it a stored
@@ -141,7 +163,10 @@ export function buildRailGroups(
         return {
             sectionId: section.id,
             sectionTitle: section.title,
-            locked: index >= unlockedCount,
+            // A section opens as soon as any of its steps has been reached. One with
+            // nothing to list (instructions only) is never "locked" — there is
+            // nothing behind the lock.
+            locked: steps.length > 0 && !steps.some((step) => !step.locked),
             steps,
         };
     });

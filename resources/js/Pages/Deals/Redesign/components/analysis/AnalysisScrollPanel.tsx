@@ -1,7 +1,17 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import AnalysisSectionBlock from "./AnalysisSectionBlock";
+import AnalysisStepStream from "./AnalysisStepStream";
 import { completeButtonState } from "./analysisProgress";
+import type { AnalysisFlatStep } from "./analysisProgress";
 import type { AnalysisSection } from "./types/analysisTypes";
 
 export interface ScrollPanelHandle {
@@ -10,14 +20,16 @@ export interface ScrollPanelHandle {
 
 interface Props {
     sections: AnalysisSection[];
-    fields: any[];
-    leadFields?: any[];
+    /** Only the steps revealed so far; the last one is the current step. */
+    visibleSteps: AnalysisFlatStep[];
+    /** Key of the step being asked right now. */
+    currentKey: string | null;
     localDealFieldValues: Record<string, any>;
     canEdit: boolean;
-    numberByKey?: Record<string, number>;
     sectionProgress?: Record<string, { filled: number; total: number }>;
     totalFilled: number;
     totalFields: number;
+    /** 0-based index of the current step in the full step list. */
     currentStep: number;
     stepCount: number;
     onPrevStep: () => void;
@@ -30,11 +42,8 @@ interface Props {
     totalMissing: number;
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
-    onActiveSectionChange: (id: string) => void;
-    /** Required-step resolution — see AnalysisSectionBlock. */
+    /** Required-step resolution — see AnalysisStepStream. */
     unanswered: Record<string, unknown>;
-    /** Show-rule result per custom field id, from computeAnalysisProgress. */
-    customFieldVisibility: Record<number, boolean>;
     filledSteps: ReadonlySet<string>;
     answeredQuestions: ReadonlySet<string>;
     onToggleUnanswered: (stepKey: string, on: boolean) => void;
@@ -42,14 +51,16 @@ interface Props {
     onQuestionCleared: (stepKey: string) => void;
 }
 
+/** Breathing room under the current step, and between it and the sticky header. */
+const STEP_GAP = 16;
+
 const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) => {
     const {
         sections,
-        fields,
-        leadFields,
+        visibleSteps,
+        currentKey,
         localDealFieldValues,
         canEdit,
-        numberByKey,
         sectionProgress,
         totalFilled,
         totalFields,
@@ -63,9 +74,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         totalMissing,
         onFieldUpdate,
         onFieldChange,
-        onActiveSectionChange,
         unanswered,
-        customFieldVisibility,
         filledSteps,
         answeredQuestions,
         onToggleUnanswered,
@@ -77,44 +86,106 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
     const { ready, label } = completeButtonState(requiredMissing, totalMissing, isCompleting);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const stickyRef = useRef<HTMLDivElement>(null);
+    /** Filler under the last step so it can be scrolled all the way to the top —
+     *  which is what keeps the current question the only thing in view. */
+    const [spacer, setSpacer] = useState(0);
+    /** Last step actually scrolled to — the scroll is a step transition, not
+     *  something to redo every time the step's own height changes. */
+    const scrolledToRef = useRef<string | null>(null);
+
+    /** The block to pin to the top: the current step, preceded by its section
+     *  heading when the step opens a new section. */
+    const measure = useCallback(() => {
+        const container = containerRef.current;
+        if (!container || !currentKey) return null;
+        const step = container.querySelector<HTMLElement>(
+            `[data-step-key="${CSS.escape(currentKey)}"]`,
+        );
+        if (!step) return null;
+
+        const previous = step.previousElementSibling as HTMLElement | null;
+        const anchor =
+            previous && previous.hasAttribute("data-section-id") ? previous : step;
+
+        const containerTop = container.getBoundingClientRect().top;
+        const top = anchor.getBoundingClientRect().top - containerTop + container.scrollTop;
+        const bottom = step.getBoundingClientRect().bottom - containerTop + container.scrollTop;
+        const stickyHeight = stickyRef.current?.offsetHeight ?? 0;
+
+        return { top, height: bottom - top, stickyHeight };
+    }, [currentKey]);
+
+    const resize = useCallback(() => {
+        const container = containerRef.current;
+        const m = measure();
+        if (!container || !m) return;
+        const available = container.clientHeight - m.stickyHeight;
+        setSpacer(Math.max(0, available - m.height - STEP_GAP * 2));
+    }, [measure]);
+
+    // The spacer has to be in place before the scroll, or the container cannot
+    // scroll far enough to bring the current step to the top.
+    useLayoutEffect(resize, [resize, visibleSteps.length]);
+
+    // A step can grow after it renders — a select opening, an answer box being
+    // typed into — and the filler under it has to keep pace.
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container || typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(resize);
+        observer.observe(container);
+        if (currentKey) {
+            const step = container.querySelector<HTMLElement>(
+                `[data-step-key="${CSS.escape(currentKey)}"]`,
+            );
+            if (step) observer.observe(step);
+        }
+        return () => observer.disconnect();
+    }, [resize, currentKey]);
+
+    // Bring the current step to the top of the view. Everything already asked stays
+    // mounted above it, reachable only by scrolling back up.
+    useEffect(() => {
+        if (scrolledToRef.current === currentKey) return;
+        const container = containerRef.current;
+        const m = measure();
+        if (!container || !m) return;
+        container.scrollTo({
+            top: Math.max(0, m.top - m.stickyHeight - STEP_GAP),
+            // The opening position is not a transition — only later steps animate.
+            behavior: scrolledToRef.current === null ? "auto" : "smooth",
+        });
+        scrolledToRef.current = currentKey;
+    }, [measure, spacer, currentKey]);
 
     useImperativeHandle(ref, () => ({
         scrollToSection: (id: string) => {
-            const el = sectionRefs.current[id];
-            if (el && containerRef.current) {
-                containerRef.current.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
-            }
+            const container = containerRef.current;
+            const el = container?.querySelector<HTMLElement>(
+                `[data-section-id="${CSS.escape(id)}"]`,
+            );
+            if (!container || !el) return;
+            const top =
+                el.getBoundingClientRect().top -
+                container.getBoundingClientRect().top +
+                container.scrollTop;
+            const stickyHeight = stickyRef.current?.offsetHeight ?? 0;
+            container.scrollTo({
+                top: Math.max(0, top - stickyHeight - STEP_GAP),
+                behavior: "smooth",
+            });
         },
     }));
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (entry.isIntersecting) {
-                        const id = entry.target.getAttribute("data-section-id");
-                        if (id) onActiveSectionChange(id);
-                    }
-                }
-            },
-            { root: container, rootMargin: "-20% 0px -60% 0px", threshold: 0 },
-        );
-
-        sections.forEach((s) => {
-            const el = sectionRefs.current[s.id];
-            if (el) observer.observe(el);
-        });
-
-        return () => observer.disconnect();
-    }, [sections, onActiveSectionChange]);
-
     const progressPct = totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
 
-    if (sections.length === 0) {
+    const currentSectionTitle = useMemo(() => {
+        const step = visibleSteps[visibleSteps.length - 1];
+        return sections.find((s) => s.id === step?.sectionId)?.title ?? "";
+    }, [sections, visibleSteps]);
+
+    if (stepCount === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-400">
                 <p className="text-sm">{"No analysis steps configured."}</p>
@@ -131,6 +202,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
             {/* Sticky progress bar */}
             <div
+                ref={stickyRef}
                 className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-slate-50/95 backdrop-blur-sm"
                 style={{ borderBottom: "1px solid #e2e8f0" }}
             >
@@ -155,33 +227,29 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 </div>
             </div>
 
-            <div className="px-6 pt-5 pb-16">
-                {sections.map((section) => (
-                    <AnalysisSectionBlock
-                        key={section.id}
-                        ref={(el) => { sectionRefs.current[section.id] = el; }}
-                        section={section}
-                        fields={fields}
-                        leadFields={leadFields}
-                        localDealFieldValues={localDealFieldValues}
-                        canEdit={canEdit}
-                        numberByKey={numberByKey}
-                        progress={sectionProgress?.[section.id]}
-                        onFieldUpdate={onFieldUpdate}
-                        onFieldChange={onFieldChange}
-                        unanswered={unanswered}
-                        customFieldVisibility={customFieldVisibility}
-                        filledSteps={filledSteps}
-                        answeredQuestions={answeredQuestions}
-                        onToggleUnanswered={onToggleUnanswered}
-                        onQuestionAnswered={onQuestionAnswered}
-                        onQuestionCleared={onQuestionCleared}
-                    />
-                ))}
+            <div className="px-6 pt-5">
+                <AnalysisStepStream
+                    sections={sections}
+                    steps={visibleSteps}
+                    currentKey={currentKey}
+                    values={localDealFieldValues}
+                    canEdit={canEdit}
+                    sectionProgress={sectionProgress}
+                    onFieldUpdate={onFieldUpdate}
+                    onFieldChange={onFieldChange}
+                    unanswered={unanswered}
+                    filledSteps={filledSteps}
+                    answeredQuestions={answeredQuestions}
+                    onToggleUnanswered={onToggleUnanswered}
+                    onQuestionAnswered={onQuestionAnswered}
+                    onQuestionCleared={onQuestionCleared}
+                />
+                {/* Nothing sits under the current step but empty room */}
+                <div aria-hidden style={{ height: spacer }} />
             </div>
         </div>
 
-        {/* Step footer — the only way to reach a section that isn't revealed yet */}
+        {/* Step footer — the only way to reach a step that is not revealed yet */}
         <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-slate-200">
             <button
                 type="button"
@@ -195,8 +263,13 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 {"Previous"}
             </button>
 
-            <span className="text-xs font-medium tabular-nums text-slate-500">
-                {"Section"} {Math.min(currentStep + 1, stepCount)} {"of"} {stepCount}
+            <span className="min-w-0 truncate text-xs font-medium text-slate-500">
+                <span className="tabular-nums">
+                    {"Step"} {Math.min(currentStep + 1, stepCount)} {"of"} {stepCount}
+                </span>
+                {currentSectionTitle && (
+                    <span className="text-slate-400">{` · ${currentSectionTitle}`}</span>
+                )}
             </span>
 
             {isLast ? (

@@ -146,7 +146,11 @@ export default function FieldModal({
     // Gated on the picker actually being on screen: this modal stays mounted
     // (closed) for the whole Custom Fields page, so an unconditional fetch
     // cost every visit an XHR for a picker most visits never reach.
-    const { pipelines, loading: pipelinesLoading } = usePipelineOptions(showPipelinePicker);
+    const {
+        pipelines,
+        loading: pipelinesLoading,
+        error: pipelinesError,
+    } = usePipelineOptions(open && showPipelinePicker);
 
     const patch = (partial: Partial<FieldDraft>) => setDraft((prev) => ({ ...prev, ...partial }));
 
@@ -375,6 +379,14 @@ export default function FieldModal({
                                 {pipelinesLoading ? (
                                     <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>
                                         {td("Loading pipelines…", { source: "en" })}
+                                    </span>
+                                ) : pipelinesError ? (
+                                    // A failed request is not the same as a company
+                                    // with no pipelines — saying "none" here would
+                                    // invite the agent to leave the picker empty and
+                                    // cross-populate onto every deal by accident.
+                                    <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>
+                                        {td("Couldn't load pipelines. Close and reopen this field to try again.", { source: "en" })}
                                     </span>
                                 ) : pipelines.length === 0 ? (
                                     <span style={{ fontSize: 13, color: T.TEXT_MUTED, fontStyle: "italic" }}>

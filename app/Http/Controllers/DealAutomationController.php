@@ -247,6 +247,7 @@ class DealAutomationController extends AccountBaseController
         $this->customFields = AutomationFieldCatalog::dealCustomFields();
         $this->leadCustomFields = AutomationFieldCatalog::leadCustomFields();
         $this->hibarrFields = AutomationFieldCatalog::HIBARR_FIELDS;
+        $this->leadMarketingFields = AutomationFieldCatalog::LEAD_MARKETING_FIELDS;
         $this->relatedFields = AutomationFieldCatalog::RELATED_FIELDS;
         $this->leadFields = AutomationFieldCatalog::LEAD_FIELDS;
         $this->leadSettableFields = AutomationFieldCatalog::LEAD_SETTABLE_FIELDS;

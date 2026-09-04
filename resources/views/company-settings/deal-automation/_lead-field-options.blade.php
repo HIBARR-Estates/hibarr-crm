@@ -2,7 +2,8 @@
      groups on a Deal-subject condition/mapping picker (lead_field_*/lead_custom_field_*
      resolve against the deal's contact), and as the FULL field list on a Lead-subject
      automation (same keys resolve directly against the lead, since it IS the subject).
-     Expects $selectedField (string, may be ''), plus $leadFields, $leadCustomFields. --}}
+     Expects $selectedField (string, may be ''), plus $leadFields, $leadMarketingFields,
+     $leadCustomFields. --}}
 @php $selectedField = $selectedField ?? ''; @endphp
 <optgroup label="Lead Fields">
     @foreach($leadFields as $key => $label)
@@ -12,6 +13,22 @@
             elseif (in_array($key, ['date_of_birth', 'assigned_at', 'first_contacted_at', 'created_at'])) $type = 'date';
         @endphp
         <option value="lead_field_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_field_'.$key ? 'selected' : '' }}>{{ $label }}</option>
+    @endforeach
+</optgroup>
+<optgroup label="Lead Marketing">
+    @php
+        $marketingOptions = ($outbound ?? false)
+            ? \App\Services\AutomationFieldCatalog::outboundLeadMarketingFields()
+            : ($leadMarketingFields ?? []);
+    @endphp
+    @foreach($marketingOptions as $key => $label)
+        @php
+            $type = 'string';
+            if ($key === 'contact_score') $type = 'number';
+            elseif ($key === 'last_webinar_date') $type = 'date';
+            elseif (in_array($key, \App\Services\AutomationFieldCatalog::LEAD_MARKETING_BOOLEAN_FIELDS, true)) $type = 'boolean';
+        @endphp
+        <option value="lead_marketing_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_marketing_'.$key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
 <optgroup label="Lead Custom Fields">

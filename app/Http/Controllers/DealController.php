@@ -1551,12 +1551,21 @@ class DealController extends AccountBaseController
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
         // Normalize product_id once, here, and reuse it for both diffs and for
-        // the sync() further down. A scalar product_id (a single-select posting
-        // "7" rather than ["7"]) syncs as [] but would reach array_diff() as a
-        // scalar — a TypeError. Absent product_id still means "unchanged"; a
-        // *present* one means exactly what the sync below will write, so the
-        // commission guard and the write can't disagree.
-        $requestedProductIds = is_array($request->product_id) ? $request->product_id : [];
+        // the sync() further down. A single-select posts a scalar ("7" rather
+        // than ["7"]), so wrap it — the same shape normalizePackageIds() gives
+        // packages, and what the create path at the top of this controller
+        // already does. Collapsing a scalar to [] instead would both reach
+        // array_diff() as a scalar (a TypeError) and, once guarded, silently
+        // read as "unlink every product" for a request that asked to link one.
+        // Present-but-empty (null / "") still legitimately means "clear all";
+        // absent still means "unchanged", so the commission guard and the
+        // write below can't disagree.
+        $rawProductIds = $request->product_id;
+        $requestedProductIds = match (true) {
+            is_array($rawProductIds) => $rawProductIds,
+            $rawProductIds === null, $rawProductIds === '' => [],
+            default => [$rawProductIds],
+        };
         $comparableProductIds = $request->has('product_id') ? $requestedProductIds : $oldProductIds;
         $newProductIds = array_diff($comparableProductIds, $oldProductIds);
         $removedProductIds = array_diff($oldProductIds, $comparableProductIds);

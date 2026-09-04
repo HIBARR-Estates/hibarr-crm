@@ -1,9 +1,14 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { isCustomFieldRequired } from "@/lib/customFieldCompletion";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
-import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
 import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
-import type { AnalysisSection, AnalysisScriptItem } from "./types/analysisTypes";
+import type {
+    AnalysisSection,
+    AnalysisScriptItem,
+    AnalysisSectionItem,
+    AnalysisSectionItemKind,
+} from "./types/analysisTypes";
 
 export function isFieldFilled(value: unknown): boolean {
     if (value === null || value === undefined || value === "") return false;
@@ -33,12 +38,41 @@ export function buildScriptItems(
     }));
 }
 
+/**
+ * One answerable (or readable) unit of the script, in the exact order the centre
+ * panel reveals them. The stepped flow walks this list one entry at a time, so it
+ * carries everything a step needs: what to render, what number it wears, and
+ * whether it is required.
+ *
+ * A field pulled in by a `custom_field_category` section is a step in its own
+ * right here — that is what gives it the same required marker, "no answer
+ * provided" escape hatch and "clear answer" action as a hand-placed step.
+ */
+export interface AnalysisFlatStep {
+    /** Stable key — `script_{itemId}` or `field_{customFieldId}`. */
+    key: string;
+    sectionId: string;
+    /** Display number, absent for instructions (they capture nothing). */
+    number?: number;
+    /** From the script item, OR inherited from the custom field definition. */
+    required: boolean;
+    /** `custom_field` = expanded out of a category section. */
+    kind: "custom_field" | AnalysisSectionItemKind;
+    /** Resolved custom field definition, for custom-field steps. */
+    field?: any;
+    /** The script item behind the step, absent for category-expanded fields. */
+    item?: AnalysisSectionItem;
+    /** Saves route to the lead rather than the deal. */
+    isLead: boolean;
+}
+
 export interface AnalysisProgress {
     sections: AnalysisSection[];
+    /** Every step, flattened in reveal order. */
+    steps: AnalysisFlatStep[];
     sectionProgress: Record<string, { filled: number; total: number }>;
     totalFilled: number;
     totalFields: number;
-    numberByKey: Record<string, number>;
     /** Required steps with neither a value nor an explicit "not answered" mark. */
     requiredMissing: number;
     /** Show-rule result per custom field id. Surfaced so the renderer hides exactly
@@ -51,15 +85,15 @@ export interface AnalysisProgress {
 
 /**
  * Label + colour for the Complete button, shared by the right rail and the step
- * footer so the two can't disagree.
+ * footer so the two cannot disagree.
  *
  * Green means "ready": every required step settled AND the agent has stepped
- * through to the last section. Finishing early is still allowed — the button
- * just doesn't invite it. Until required is clear, the count shown is the
- * outstanding *required* steps, not the optional empties.
+ * through to the last step. Finishing early is still allowed — the button just
+ * does not invite it. Until required is clear, the count shown is the outstanding
+ * *required* steps, not the optional empties.
  *
- * `reachedEnd` defaults to true for the step footer, which only renders on the
- * last section in the first place.
+ * `reachedEnd` defaults to true for the step footer, which only offers Complete
+ * on the last step in the first place.
  */
 export function completeButtonState(
     requiredMissing: number,
@@ -77,15 +111,20 @@ export function completeButtonState(
 }
 
 /** Step keys the agent has settled another way — answered a question, or marked
- *  it as one the customer wouldn't answer. */
+ *  it as one the customer would not answer. */
 const NO_RESOLVED: ReadonlySet<string> = new Set();
 
-/** The key a script item is tracked under, in both `numberByKey` and the
+/** The key a script item is tracked under, in both the flat step list and the
  *  deal's `analysis_unanswered` store. */
 export const stepKeyOf = (scriptItemId: number): string => `script_${scriptItemId}`;
 
+/** The key a category-expanded custom field is tracked under. Distinct from
+ *  `stepKeyOf` so the same field placed both ways stays two separate steps. */
+export const fieldStepKeyOf = (customFieldId: number): string => `field_${customFieldId}`;
+
 /**
- * Sections, per-section progress and global field numbering in one pass.
+ * Sections, the flat step list, per-section progress and global field numbering
+ * in one pass.
  *
  * Shared by the analysis modal (fed the in-memory value store) and the deal-view
  * status card (fed saved values) so both report the same denominator — the
@@ -122,7 +161,7 @@ export function computeAnalysisProgress(
     );
 
     const sectionProgress: Record<string, { filled: number; total: number }> = {};
-    const numberByKey: Record<string, number> = {};
+    const steps: AnalysisFlatStep[] = [];
     let totalFilled = 0;
     let totalFields = 0;
     let requiredMissing = 0;
@@ -130,7 +169,11 @@ export function computeAnalysisProgress(
     let counter = 0;
 
     for (const section of sections) {
-        // Number deal custom fields first (they render before script items in each section)
+        let filled = 0;
+        let total = 0;
+
+        // A category section is the whole category — every visible field in it, in
+        // order, each one a step in its own right.
         if (section.kind === "category" && section.categoryId !== null) {
             const sectionFields = fields.filter(
                 (f: any) => f.custom_field_category_id === section.categoryId && f.type !== "file",
@@ -141,78 +184,86 @@ export function computeAnalysisProgress(
                 dealContext.evaluation,
             );
             for (const f of sectionFields) {
-                if (visMap[f.id] !== false) {
-                    counter++;
-                    numberByKey[`deal_field_${f.id}`] = counter;
-                }
-            }
-        }
+                if (visMap[f.id] === false) continue;
 
-        // Number script items
-        for (const item of section.items) {
-            if (
-                ["question", "native_field", "hibarr_field", "lead_field"].includes(item.kind)
-            ) {
                 counter++;
-                numberByKey[`script_${item.scriptItem.id}`] = counter;
-            } else if ((CUSTOM_FIELD_KINDS as readonly string[]).includes(item.kind)) {
-                const field = customFieldById.get(Number(item.scriptItem.item_key));
-                if (field && customFieldVisibility[field.id] !== false) {
-                    counter++;
-                    numberByKey[`script_${item.scriptItem.id}`] = counter;
-                }
+                const key = fieldStepKeyOf(f.id);
+
+                // Required is inherited from the field definition — the same flag the
+                // deal-info sidebar counts by.
+                const required = isCustomFieldRequired(f);
+                const has = isFieldFilled(values[`field_${f.id}`]);
+                total += 1;
+                filled += has ? 1 : 0;
+                if (has) filledSteps.add(key);
+                if (required && !has && !resolvedSteps.has(key)) requiredMissing += 1;
+
+                steps.push({
+                    key,
+                    sectionId: section.id,
+                    number: counter,
+                    required,
+                    kind: "custom_field",
+                    field: f,
+                    isLead: false,
+                });
             }
         }
 
-        // Progress for the section
-        let filled = 0;
-        let total = 0;
-
-        if (section.kind === "category" && section.categoryId !== null) {
-            const p = getCustomFieldCategoryProgress(fields, section.categoryId, values, deal);
-            filled += p.filled;
-            total += p.total;
-        }
-
         for (const item of section.items) {
-            // Required is only settable on answerable steps, and a step the agent
-            // resolved another way (answered question / marked unanswered) counts.
-            const required = !!item.scriptItem.is_required;
-            const resolved = resolvedSteps.has(stepKeyOf(item.scriptItem.id));
-            const countRequired = (has: boolean) => {
-                if (has) filledSteps.add(stepKeyOf(item.scriptItem.id));
-                if (required && !has && !resolved) requiredMissing += 1;
-            };
+            const s = item.scriptItem;
+            const key = stepKeyOf(s.id);
+            const isCustom = (CUSTOM_FIELD_KINDS as readonly string[]).includes(item.kind);
+
+            let field: any;
+            // A script item can force a step required; a custom field also brings its
+            // own definition's flag, so either one makes the step required.
+            let required = !!s.is_required;
+
+            if (isCustom) {
+                field = customFieldById.get(Number(s.item_key));
+                // A field that no longer exists, or is hidden by its own show-rules,
+                // is not a step at all — no input, no number, no denominator entry.
+                if (!field || customFieldVisibility[field.id] === false) continue;
+                required = required || isCustomFieldRequired(field);
+            }
+
+            // Instructions are guidance to read out, not something to capture.
+            const capturing = item.kind !== "instruction";
+            if (capturing) counter++;
+
+            // Questions hold no value — they are settled by saving the answer as a
+            // note, or by marking them unanswered — so they sit outside the ratio.
+            const counts = capturing && item.kind !== "question";
+            let has = false;
 
             if (item.kind === "native_field") {
-                const has = isFieldFilled(deal?.[item.scriptItem.item_key]);
-                total += 1;
-                filled += has ? 1 : 0;
-                countRequired(has);
+                has = isFieldFilled(deal?.[s.item_key]);
             } else if (item.kind === "hibarr_field") {
-                const has = isFieldFilled(deal?.hibarrFields?.[item.scriptItem.item_key]);
-                total += 1;
-                filled += has ? 1 : 0;
-                countRequired(has);
+                has = isFieldFilled(deal?.hibarrFields?.[s.item_key]);
             } else if (item.kind === "lead_field") {
-                const has = isFieldFilled(deal?.contact?.[item.scriptItem.item_key]);
-                total += 1;
-                filled += has ? 1 : 0;
-                countRequired(has);
-            } else if (item.kind === "question") {
-                // Questions hold no value — they are settled by saving the answer
-                // as a note, or by marking them unanswered.
-                countRequired(false);
-            } else if ((CUSTOM_FIELD_KINDS as readonly string[]).includes(item.kind)) {
-                const field = customFieldById.get(Number(item.scriptItem.item_key));
-                // A field that no longer exists, or is hidden by its own show-rules,
-                // must not inflate the denominator.
-                if (!field || customFieldVisibility[field.id] === false) continue;
-                const has = isFieldFilled(values[`field_${field.id}`]);
-                total += 1;
-                filled += has ? 1 : 0;
-                countRequired(has);
+                has = isFieldFilled(deal?.contact?.[s.item_key]);
+            } else if (isCustom) {
+                has = isFieldFilled(values[`field_${field.id}`]);
             }
+
+            if (counts) {
+                total += 1;
+                filled += has ? 1 : 0;
+            }
+            if (has) filledSteps.add(key);
+            if (capturing && required && !has && !resolvedSteps.has(key)) requiredMissing += 1;
+
+            steps.push({
+                key,
+                sectionId: section.id,
+                number: capturing ? counter : undefined,
+                required: capturing && required,
+                kind: item.kind,
+                field,
+                item,
+                isLead: item.kind === "lead_custom_field",
+            });
         }
 
         sectionProgress[section.id] = { filled, total };
@@ -222,10 +273,10 @@ export function computeAnalysisProgress(
 
     return {
         sections,
+        steps,
         sectionProgress,
         totalFilled,
         totalFields,
-        numberByKey,
         requiredMissing,
         customFieldVisibility,
         filledSteps,

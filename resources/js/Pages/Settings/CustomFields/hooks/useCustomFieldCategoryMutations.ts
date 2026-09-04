@@ -28,6 +28,26 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
      * restore an order the server never had (see reorderCategories).
      */
     const confirmedCategoriesRef = useRef<SettingsCategory[] | null>(null);
+    /** Bumped by every server-confirmed create/update/delete, so a reorder that
+     *  was already in flight can tell its captured order is out of date. */
+    const crudVersionRef = useRef(0);
+
+    /**
+     * Applies a server-confirmed create/update/delete to the rendered list *and*
+     * to the rollback baseline. Without the second half, a later failed reorder
+     * would roll back to an order captured before this change — resurrecting a
+     * deleted category, dropping a created one, or reverting a rename.
+     */
+    const applyConfirmedChange = useCallback(
+        (transform: (prev: SettingsCategory[]) => SettingsCategory[]) => {
+            crudVersionRef.current += 1;
+            setCategories(transform);
+            if (confirmedCategoriesRef.current) {
+                confirmedCategoriesRef.current = transform(confirmedCategoriesRef.current);
+            }
+        },
+        [setCategories],
+    );
 
     const withModuleName = useCallback(
         (category: SettingsCategory): SettingsCategory => ({
@@ -50,7 +70,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 );
                 if (res.data?.status === "success" && res.data?.category) {
                     const created = withModuleName(res.data.category as SettingsCategory);
-                    setCategories((prev) => [...prev, created].sort(byOrder));
+                    applyConfirmedChange((prev) => [...prev, created].sort(byOrder));
                     message.success(td("Category saved", { source: "en" }));
                     return created;
                 }
@@ -63,7 +83,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 setSaving(false);
             }
         },
-        [setCategories, t, td, withModuleName],
+        [applyConfirmedChange, t, td, withModuleName],
     );
 
     const updateCategory = useCallback(
@@ -77,7 +97,9 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 );
                 if (res.data?.status === "success" && res.data?.category) {
                     const updated = withModuleName(res.data.category as SettingsCategory);
-                    setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)).sort(byOrder));
+                    applyConfirmedChange((prev) =>
+                        prev.map((c) => (c.id === id ? updated : c)).sort(byOrder),
+                    );
                     message.success(td("Category saved", { source: "en" }));
                     return updated;
                 }
@@ -90,7 +112,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 setSaving(false);
             }
         },
-        [setCategories, t, td, withModuleName],
+        [applyConfirmedChange, t, td, withModuleName],
     );
 
     const deleteCategory = useCallback(
@@ -101,7 +123,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                     headers: { Accept: "application/json" },
                 });
                 if (res.data?.status === "success") {
-                    setCategories((prev) => prev.filter((c) => c.id !== id));
+                    applyConfirmedChange((prev) => prev.filter((c) => c.id !== id));
                     message.success(td("Category deleted", { source: "en" }));
                     return true;
                 }
@@ -116,7 +138,7 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                 setDeletingId(null);
             }
         },
-        [setCategories, t, td],
+        [applyConfirmedChange, t, td],
     );
 
     /**
@@ -136,6 +158,9 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
             // The exact order this request persists, captured up front so a
             // drag that lands while it is in flight can't be mistaken for it.
             let requestOrder: SettingsCategory[] | null = null;
+            // CRUD state this order was captured against — a create/update/delete
+            // confirmed while this request is on the wire makes the capture stale.
+            const crudVersionAtCapture = crudVersionRef.current;
 
             setCategories((prev) => {
                 // Baseline the confirmed order from the state that preceded any
@@ -170,7 +195,21 @@ export default function useCustomFieldCategoryMutations({ setCategories, moduleG
                         // this request was in flight — an order the server has
                         // never confirmed — and a later failure would then roll
                         // back to it.
-                        if (requestOrder) {
+                        //
+                        // Two things can make the capture unsafe to commit: a
+                        // newer reorder has superseded this one, or a CRUD write
+                        // landed since the capture (so it still lists a deleted
+                        // category, or is missing a created one). In either case
+                        // leave the baseline alone — applyConfirmedChange has
+                        // already kept it CRUD-correct, and the next reorder
+                        // brings the order along with it. A slightly stale order
+                        // is a far better rollback target than one that
+                        // resurrects or drops a category.
+                        if (
+                            requestOrder &&
+                            reorderRequestRef.current === requestId &&
+                            crudVersionRef.current === crudVersionAtCapture
+                        ) {
                             confirmedCategoriesRef.current = requestOrder;
                         }
                         message.success(td("Category order updated", { source: "en" }));

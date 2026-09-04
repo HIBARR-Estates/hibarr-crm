@@ -34,7 +34,9 @@ export default function usePipelineOptions(enabled: boolean = true): PipelineOpt
     const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState(false);
     // `enabled` typically toggles with a form control, so latch the fetch:
-    // flipping the picker off and back on shouldn't re-request the list.
+    // flipping the picker off and back on shouldn't re-request the list. The
+    // latch is released again on failure, so a reopened picker retries rather
+    // than showing the error state forever.
     const fetched = useRef(false);
 
     useEffect(() => {
@@ -59,6 +61,10 @@ export default function usePipelineOptions(enabled: boolean = true): PipelineOpt
                 );
             })
             .catch(() => {
+                // Released even when cancelled: the request never produced a
+                // usable list, so the next time the picker is shown it should
+                // be free to ask again.
+                fetched.current = false;
                 if (cancelled) return;
                 setPipelines([]);
                 setError(true);
