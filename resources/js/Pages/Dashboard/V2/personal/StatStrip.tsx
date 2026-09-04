@@ -74,6 +74,7 @@ export default function StatStrip({
 }: StatStripProps) {
     const { td } = useTd();
     const lookBack = `${td("last")} ${windowDays} ${td("days")}`;
+    const lookAhead = `${td("next")} ${windowDays} ${td("days")}`;
 
     const leadsTile: Tile | undefined = stats
         ? (() => {
@@ -145,41 +146,30 @@ export default function StatStrip({
           })()
         : undefined;
 
-    const dayTile: Tile | undefined = stats
+    const meetingsTile: Tile | undefined = stats
         ? (() => {
-              const { day } = stats;
-              const left =
-                  day.tasksDone === null ? null : day.tasksDue - day.tasksDone;
-              // Actionable when there's a task left to filter to — known and
-              // still outstanding, or unknown but at least one exists due
-              // this week. Not when everything's done, or nothing's due at all.
-              const actionable = left === null ? day.tasksDue > 0 : left > 0;
+              const { meetings } = stats;
+              const logged = meetings.attended + meetings.missed;
 
               return {
-                  key: "day",
+                  key: "meetings",
                   label: "Meetings",
-                  value: `${day.meetings} ${day.meetings === 1 ? td("meeting") : td("meetings")}`,
-                  sub: "",
-                  ratio:
-                      day.tasksDone === null
-                          ? "Nothing is marked done in this window"
-                          : `${day.tasksDone} ${td("of")} ${day.tasksDue} ${td("tasks done")}`,
-                  ...(actionable
+                  value: `${meetings.upcoming} ${td("upcoming")}`,
+                  sub: lookAhead,
+                  // Reads what already happened, not what's still ahead —
+                  // attendance is logged after the fact (see "Log attendance"
+                  // on a held meeting), so a meeting with nothing logged yet
+                  // is unknown, not missed.
+                  ratio: logged
+                      ? `${meetings.attended} ${td("attended")} · ${meetings.missed} ${td("missed")}`
+                      : "Nothing logged in this window yet",
+                  // Only when there's a miss to flag — "none missed" is good
+                  // news, not a click worth offering.
+                  ...(meetings.missed
                       ? {
-                            chip: left === null ? "Upcoming" : `${left} ${td("left")}`,
-                            tone: "flat" as const,
-                            href: route("tasks.index", {
-                                assigned_to: userId,
-                                due_start_date: dayjs().format("YYYY-MM-DD"),
-                                due_end_date: dayjs()
-                                    .add(windowDays, "day")
-                                    .format("YYYY-MM-DD"),
-                                // Only when "done" is a known concept here —
-                                // see tasksDone's own null-vs-zero note above.
-                                ...(day.tasksDone !== null
-                                    ? { status: "pending" }
-                                    : {}),
-                            }),
+                            chip: `${meetings.missed} ${td("missed")}`,
+                            tone: "down" as const,
+                            href: route("meetings.index"),
                         }
                       : {}),
               };
@@ -265,8 +255,8 @@ export default function StatStrip({
             ) : (
                 <StatCardSkeleton label="Deals" />
             )}
-            {dayTile ? (
-                <StatCard tile={dayTile} />
+            {meetingsTile ? (
+                <StatCard tile={meetingsTile} />
             ) : (
                 <StatCardSkeleton label="Meetings" />
             )}

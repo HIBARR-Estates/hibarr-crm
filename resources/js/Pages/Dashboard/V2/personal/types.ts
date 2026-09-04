@@ -40,11 +40,13 @@ export interface PipelineRow {
 
 export interface PersonalStats {
     leads: { new: number; contacted: number; uncontacted: number };
-    day: {
-        meetings: number;
-        tasksDue: number;
-        /** null when no done column is configured — not the same as zero. */
-        tasksDone: number | null;
+    meetings: {
+        /** Booked ahead, inside the window — not yet happened. */
+        upcoming: number;
+        /** Logged attendance_outcome = attended, inside the window behind. */
+        attended: number;
+        /** Logged attendance_outcome = no_show, inside the window behind. */
+        missed: number;
     };
 }
 

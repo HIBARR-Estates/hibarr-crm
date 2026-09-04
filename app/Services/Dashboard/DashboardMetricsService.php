@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\MeetingAttendanceOutcome;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Models\CrmEvent;
@@ -781,9 +782,10 @@ class DashboardMetricsService
     /**
      * The stat strip: leads just in, and the shape of the week ahead.
      *
-     * Leads look back over the window (what arrived), the day looks forward
-     * (what is booked) — the two tiles answer different questions and a single
-     * direction would make one of them meaningless.
+     * Leads look back over the window (what arrived), meetings look both ways
+     * — attended/missed behind, upcoming ahead — the two tiles answer
+     * different questions and a single direction would make one of them
+     * meaningless.
      *
      * There is no target anywhere. Nothing in this schema stores a quota, so
      * one would have to be invented, and a fabricated number on a landing page
@@ -794,13 +796,8 @@ class DashboardMetricsService
     {
         $since = now()->subDays(self::PERSONAL_WINDOW_DAYS);
         $until = now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay();
-        $doneColumnId = TaskboardColumn::completeColumn()?->id;
 
         $ownedLeads = fn () => Lead::query()->where('lead_owner', $userId);
-        $dueTasks = fn () => Task::query()
-            ->visibleToUser($userId)
-            ->whereNotNull('due_date')
-            ->whereBetween('due_date', [now()->startOfDay(), $until]);
 
         // One aggregate query instead of three — same owned-leads base, only
         // the bucket condition differs.
@@ -814,24 +811,24 @@ class DashboardMetricsService
             )
             ->first();
 
-        // Same collapse for tasksDue/tasksDone, when there's a done column to
-        // split on at all — otherwise tasksDue alone is already the one query.
-        if ($doneColumnId) {
-            $taskCounts = $dueTasks()
-                ->toBase()
-                ->selectRaw(
-                    'COUNT(*) as due, SUM(CASE WHEN tasks.board_column_id = ? THEN 1 ELSE 0 END) as done',
-                    [$doneColumnId]
-                )
-                ->first();
-            $tasksDue = (int) ($taskCounts->due ?? 0);
-            $tasksDone = (int) ($taskCounts->done ?? 0);
-        } else {
-            $tasksDue = $dueTasks()->count();
-            // null, not 0, when no done column is configured — the tile
-            // renders "3 tasks due" rather than a false "0 of 3 done".
-            $tasksDone = null;
-        }
+        // Upcoming counts what's booked ahead; attended/missed reads the
+        // outcome an agent already logged behind (see MeetingAttendanceOutcome
+        // and QueueRowActions' "Log attendance" action) — never inferred from
+        // whether a meeting is merely in the past, since a meeting with no
+        // outcome logged yet is unknown, not missed.
+        $meetingCounts = $this->followUpQuery($userId)
+            ->toBase()
+            ->selectRaw(
+                'SUM(CASE WHEN next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as upcoming,
+                 SUM(CASE WHEN attendance_outcome = ? AND next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as attended,
+                 SUM(CASE WHEN attendance_outcome = ? AND next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as missed',
+                [
+                    now(), $until,
+                    MeetingAttendanceOutcome::Attended->value, $since, now(),
+                    MeetingAttendanceOutcome::NoShow->value, $since, now(),
+                ]
+            )
+            ->first();
 
         return [
             'leads' => [
@@ -841,12 +838,10 @@ class DashboardMetricsService
                 // uncontacted today, and that is the number worth acting on.
                 'uncontacted' => (int) ($leadCounts->uncontacted ?? 0),
             ],
-            'day' => [
-                'meetings' => $this->followUpQuery($userId)
-                    ->whereBetween('next_follow_up_date', [now(), $until])
-                    ->count(),
-                'tasksDue' => $tasksDue,
-                'tasksDone' => $tasksDone,
+            'meetings' => [
+                'upcoming' => (int) ($meetingCounts->upcoming ?? 0),
+                'attended' => (int) ($meetingCounts->attended ?? 0),
+                'missed' => (int) ($meetingCounts->missed ?? 0),
             ],
         ];
     }
