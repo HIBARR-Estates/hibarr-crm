@@ -22,6 +22,8 @@ import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealMeetingDetailModal from "./DealMeetingDetailModal";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
 
 interface WorkspaceMeetingsTabProps {
     deal: Deal;
@@ -95,6 +97,8 @@ export default function WorkspaceMeetingsTab({
 }: WorkspaceMeetingsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    useUserDateTime();
+    const dateTimeVersion = getUserDateTimeContextVersion();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const { isWatcherOnly } = useDealPermissions(deal);
@@ -123,7 +127,7 @@ export default function WorkspaceMeetingsTab({
 
     const meetings = useMemo(
         () => followUps.map((followup) => toWorkspaceMeetingListItem(followup)),
-        [followUps],
+        [followUps, dateTimeVersion],
     );
 
     const upcoming = useMemo(

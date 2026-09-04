@@ -49,7 +49,6 @@ export interface SaveFollowupFormData {
     duration?: number | null;
     reminders: Reminder[];
     remark?: string;
-    timezone?: string;
     participants?: number[];
 }
 
@@ -365,7 +364,6 @@ export default function SaveFollowup({
         }
 
         const customReminders = values.reminders || [];
-        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
         const formData: SaveFollowupFormData = {
             next_follow_up_date: values.next_follow_up_date.format("DD-MM-YYYY"),
@@ -377,7 +375,6 @@ export default function SaveFollowup({
             reminders:           customReminders,
             remark:              values.remark || "",
             participants:        participants,
-            timezone:            browserTimezone,
             ...(values.duration ? { duration: values.duration } : {}),
         };
 
