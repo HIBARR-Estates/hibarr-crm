@@ -188,31 +188,23 @@
     grid-column: span 4;
 }
 
-.dashboard-v2 .dv2-pair {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-    /* Grid's default is stretch, which forces both panels to the row's
-       tallest cell — Pipeline split and Activity have unrelated content
-       lengths and shouldn't be pinned to each other's height. */
-    align-items: start;
-}
-
-/* 768–1279: single column — queue first, then the rail, then the pair. */
+/* 768–1279: single column — agenda first (what's coming), then the queue and
+   pipeline. The rail is second in the markup (queue actions live below the
+   fold otherwise) but reads better above the task list once stacked. */
 @media (max-width: 1279px) {
     .dashboard-v2 .dv2-main,
     .dashboard-v2 .dv2-rail {
         grid-column: span 12;
+    }
+
+    .dashboard-v2 .dv2-rail {
+        order: -1;
     }
 }
 
 @media (max-width: 900px) {
     .dashboard-v2 {
         padding: 14px 12px 20px;
-    }
-
-    .dashboard-v2 .dv2-pair {
-        grid-template-columns: minmax(0, 1fr);
     }
 }
 

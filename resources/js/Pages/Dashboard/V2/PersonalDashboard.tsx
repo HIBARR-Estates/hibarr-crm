@@ -442,28 +442,24 @@ export default function PersonalDashboard({
                                 </Deferred>
                             </DashboardPanel>
 
-                            <div className="dv2-pair">
-                                <DashboardPanel title="Open deals by pipeline">
-                                    <Deferred
-                                        data="pipelines"
-                                        fallback={<PanelSkeleton rows={4} />}
-                                    >
-                                        <PipelineSplit
-                                            pipelines={pipelines ?? []}
-                                            dealsHref={dealsHref}
-                                        />
-                                    </Deferred>
-                                </DashboardPanel>
-
-                                {/* "Activity on your records" is hidden for
-                                    now — not useful in its current state.
-                                    Data plumbing (recentActivity prop,
-                                    ActivityFeed, the deferred backend query)
-                                    is left in place to re-enable later. This
-                                    empty cell keeps Pipeline at its original
-                                    one-column width instead of stretching
-                                    full-width. */}
-                            </div>
+                            {/* "Activity on your records" is hidden for now —
+                                not useful in its current state. Data plumbing
+                                (recentActivity prop, ActivityFeed, the
+                                deferred backend query) is left in place to
+                                re-enable later; Pipeline takes the full row
+                                until then instead of leaving an empty cell
+                                beside it. */}
+                            <DashboardPanel title="Open deals by pipeline">
+                                <Deferred
+                                    data="pipelines"
+                                    fallback={<PanelSkeleton rows={4} />}
+                                >
+                                    <PipelineSplit
+                                        pipelines={pipelines ?? []}
+                                        dealsHref={dealsHref}
+                                    />
+                                </Deferred>
+                            </DashboardPanel>
                         </div>
 
                         <div className="dv2-rail">
