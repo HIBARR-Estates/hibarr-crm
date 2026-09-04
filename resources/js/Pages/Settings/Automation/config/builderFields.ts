@@ -115,6 +115,18 @@ function customFieldValueOptions(field: CustomFieldOption | undefined): { value:
 export function conditionValueOptions(fieldKey: string | null | undefined, catalog: AutomationCatalog | null): { value: string; label: string }[] | null {
     if (!fieldKey || !catalog) return null;
 
+    if (fieldKey.startsWith("lead_marketing_")) {
+        const column = fieldKey.slice("lead_marketing_".length);
+        // Stored 0/1 (FieldResolverService reads them raw, uncast).
+        if ((catalog.leadMarketingBooleanFields ?? []).includes(column)) {
+            return [
+                { value: "1", label: "True / Yes" },
+                { value: "0", label: "False / No" },
+            ];
+        }
+        return null;
+    }
+
     if (fieldKey.startsWith("custom_field_")) {
         const id = Number(fieldKey.slice("custom_field_".length));
         return customFieldValueOptions(catalog.dealCustomFields.find((f) => f.id === id));
@@ -186,6 +198,10 @@ export function conditionFieldGroups(subjectType: SubjectType, catalog: Automati
         options: toOptions(catalog.leadFields, "lead_field_"),
     });
     groups.push({
+        label: "Lead Marketing",
+        options: toOptions(catalog.leadMarketingFields, "lead_marketing_"),
+    });
+    groups.push({
         label: "Lead Custom Fields",
         options: catalog.leadCustomFields.map((f) => ({
             value: `lead_custom_field_${f.id}`,
@@ -229,6 +245,10 @@ export function mergeTagGroups(subjectType: SubjectType, catalog: AutomationCata
     }
 
     groups.push({ label: "Lead Fields", options: toOptions(catalog.leadFields, "lead_field_") });
+    groups.push({
+        label: "Lead Marketing",
+        options: toOptions(catalog.leadMarketingFields, "lead_marketing_"),
+    });
     groups.push({
         label: "Lead Custom Fields",
         options: catalog.leadCustomFields.map((f) => ({ value: `lead_custom_field_${f.id}`, label: f.label })),
@@ -307,6 +327,14 @@ const LEAD_FIELD_TYPES: Record<string, FieldValueType> = {
     created_at: "date",
 };
 
+/** lead_marketing columns, keyed without the `lead_marketing_` prefix.
+ *  Booleans are classified from the catalog at call time (the backend owns
+ *  that list), so only the non-boolean exceptions need naming here. */
+const LEAD_MARKETING_FIELD_TYPES: Record<string, FieldValueType> = {
+    contact_score: "number",
+    last_webinar_date: "date",
+};
+
 /** Keyed by CustomField::$type (see CustomFieldController's $types list). */
 const CUSTOM_FIELD_TYPE_CATEGORY: Record<string, FieldValueType> = {
     text: "string",
@@ -347,6 +375,12 @@ export function fieldValueType(fieldKey: string | null | undefined, catalog: Aut
         const id = Number(fieldKey.slice("lead_custom_field_".length));
         const field = catalog.leadCustomFields.find((f) => f.id === id);
         return (field && CUSTOM_FIELD_TYPE_CATEGORY[field.type]) || "unknown";
+    }
+
+    if (fieldKey.startsWith("lead_marketing_")) {
+        const column = fieldKey.slice("lead_marketing_".length);
+        if ((catalog.leadMarketingBooleanFields ?? []).includes(column)) return "select";
+        return LEAD_MARKETING_FIELD_TYPES[column] ?? "string";
     }
 
     if (fieldKey.startsWith("lead_field_")) {

@@ -174,6 +174,10 @@ export interface AutomationCatalog {
     leadLifecycleStatuses: { id: number; name: string }[];
     leadAgents: { id: number; name: string | null }[];
     hibarrFields: Record<string, string>;
+    /** lead_marketing columns — addressed as `lead_marketing_{key}`. */
+    leadMarketingFields: Record<string, string>;
+    /** Which of those are 0/1 flags, so the Value input offers Yes/No. */
+    leadMarketingBooleanFields: string[];
     relatedFields: Record<string, string>;
     leadFields: Record<string, string>;
     leadSettableFields: Record<string, string>;
