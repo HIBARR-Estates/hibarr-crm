@@ -10,7 +10,6 @@ import HistoryTab from "./Tabs/HistoryTab";
 import GdprTab from "./Tabs/GdprTab";
 import RecommendationsTab from "./Tabs/RecommendationsTab";
 import usePipelineHasPackages from "../Redesign/hooks/usePipelineHasPackages";
-import useDealRecommendationsFlag from "@/Hooks/useDealRecommendationsFlag";
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 import { Note } from "@/Types/api/note";
 import { DealFollowup } from "@/Types/api/deal-followup";
@@ -77,7 +76,6 @@ export default function DealTabs({
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
-    const showRecommendations = useDealRecommendationsFlag();
     const offersEligible =
         permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
     // Visibility comes straight off the already-loaded deal payload — no
@@ -159,7 +157,7 @@ export default function DealTabs({
 
         // Recommendations Tab - AI-powered property recommendations.
         // Hidden for package pipelines, which do not sell properties.
-        if (showRecommendations && !pipelineHasPackages) {
+        if (!pipelineHasPackages) {
             items.push({
                 key: "recommendations",
                 label: t("pages.deals.tabs.recommendations"),
