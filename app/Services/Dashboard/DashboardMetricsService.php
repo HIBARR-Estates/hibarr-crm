@@ -3,6 +3,7 @@
 namespace App\Services\Dashboard;
 
 use App\Enums\MlmCommissionStatus;
+use App\Enums\MlmCommissionType;
 use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
@@ -876,12 +877,21 @@ class DashboardMetricsService
      *
      * Returns null when the account has no lead_agent record — that is not an
      * error, it is most employees, and the caller drops the tile rather than
-     * rendering a zero that reads as "you earned nothing".
+     * rendering a zero that reads as "you earned nothing". Also null when the
+     * company has no default currency configured — there is then no currency
+     * to label a figure with.
      *
      * `earned` is paid commission stamped inside the month; `pending` is what
-     * is booked but not yet paid. Split by currency for the same reason every
-     * other total here is — the stored exchange rates are unmaintained, so the
-     * caller leads with the dominant currency instead of summing across them.
+     * is booked but not yet paid. Unlike deal value, commission amounts are
+     * always reported in the company's own currency, never split or summed
+     * across currencies — mlm_commissions carries no currency of its own, and
+     * every commission an agent is paid is paid in the company's currency
+     * regardless of what currency the underlying deal was quoted in.
+     *
+     * System-type legs (the house's retained cut, MlmCommissionType::System)
+     * are excluded — they were never this agent's to begin with, matching
+     * every other commission query in the app (MlmAgentController,
+     * MlmAdminController, MlmCommissionService).
      */
     public function commissionSummary(int $userId): ?array
     {
@@ -891,51 +901,48 @@ class DashboardMetricsService
             return null;
         }
 
+        $currency = $this->defaultCurrencyCode();
+
+        if ($currency === null) {
+            return null;
+        }
+
         $currentStart = now()->startOfMonth();
         $currentEnd = now()->endOfMonth();
         $previousStart = now()->subMonthNoOverflow()->startOfMonth();
         $previousEnd = now()->subMonthNoOverflow()->endOfMonth();
 
-        // One grouped query computing all three figures per currency, instead
-        // of running the same join three times with a different status/date
-        // filter. Rows with nothing in any bucket (e.g. an all-reverted
-        // currency) are dropped per-bucket below, matching what the old
-        // per-status WHERE clauses would have excluded from each result.
-        $rows = MlmCommission::query()
-            ->join('deals', 'deals.id', '=', 'mlm_commissions.deal_id')
-            ->leftJoin('currencies', 'currencies.id', '=', 'deals.currency_id')
-            ->where('mlm_commissions.agent_id', $agentId)
-            ->groupBy('currencies.currency_code')
+        // One query computing all three figures at once, instead of running
+        // the same filter three times with a different status/date clause.
+        $totals = MlmCommission::query()
+            ->where('agent_id', $agentId)
+            ->where('type', '!=', MlmCommissionType::System->value)
             ->toBase()
-            ->selectRaw('currencies.currency_code')
             ->selectRaw(
-                'SUM(CASE WHEN mlm_commissions.status = ? AND mlm_commissions.paid_at BETWEEN ? AND ? THEN mlm_commissions.amount ELSE 0 END) as earned',
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as earned',
                 [MlmCommissionStatus::Paid->value, $currentStart, $currentEnd]
             )
             ->selectRaw(
-                'SUM(CASE WHEN mlm_commissions.status = ? AND mlm_commissions.paid_at BETWEEN ? AND ? THEN mlm_commissions.amount ELSE 0 END) as previous',
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as previous',
                 [MlmCommissionStatus::Paid->value, $previousStart, $previousEnd]
             )
             ->selectRaw(
-                'SUM(CASE WHEN mlm_commissions.status = ? THEN mlm_commissions.amount ELSE 0 END) as pending',
+                'SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending',
                 [MlmCommissionStatus::Pending->value]
             )
-            ->get();
+            ->first();
 
-        $split = fn (string $field) => $this->mergeTotals(
-            $rows->map(fn ($row) => [
-                'currency' => $this->currencyCode($row->currency_code),
-                'total' => (float) $row->{$field},
-            ])
-                ->filter(fn (array $row) => $row['currency'] !== null && $row['total'] != 0)
-                ->values()
-                ->all()
-        );
+        // A single-entry array per bucket (empty when zero) so the frontend's
+        // CurrencyTotal[] shape — built for deal value's real currency
+        // splits — doesn't need a second shape just for this one caller.
+        $bucket = fn (string $field) => (float) ($totals->{$field} ?? 0) != 0.0
+            ? [['currency' => $currency, 'total' => (float) $totals->{$field}]]
+            : [];
 
         return [
-            'earned' => $split('earned'),
-            'previous' => $split('previous'),
-            'pending' => $split('pending'),
+            'earned' => $bucket('earned'),
+            'previous' => $bucket('previous'),
+            'pending' => $bucket('pending'),
         ];
     }
 

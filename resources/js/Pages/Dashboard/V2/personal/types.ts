@@ -50,7 +50,12 @@ export interface PersonalStats {
 
 /**
  * Commission for this account, or null when it holds no lead_agent record —
- * which is most employees. The tile is dropped rather than zeroed.
+ * which is most employees — or the company has no default currency. The tile
+ * is dropped rather than zeroed.
+ *
+ * Unlike deal value, always a single entry in the company's own currency
+ * (empty array when that bucket is zero) — commission is never split across
+ * currencies. System-type legs (the house's cut) are already excluded.
  */
 export interface CommissionSummary {
     earned: CurrencyTotal[];
