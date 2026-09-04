@@ -61,6 +61,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
     DealWorkspaceProvider,
     useDealWorkspace,
@@ -117,6 +118,7 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -473,7 +475,11 @@ function DealViewRedesignInner(
                 labels={DEAL_TOUR_LABELS}
             />
 
-            <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
+            <div
+                className={`deal-redesign min-h-screen bg-[#f5f6f8] ${
+                    isMobileResponsive ? "dr-mobile-responsive" : ""
+                }`}
+            >
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <DealStickyHeader
                         deal={deal}
