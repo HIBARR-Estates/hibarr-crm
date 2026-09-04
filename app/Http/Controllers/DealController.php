@@ -1449,6 +1449,37 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * Replaces a deal's linked products and reports what actually changed.
+     *
+     * The read, the sync and the diff all happen inside one transaction, under
+     * an exclusive lock on the deal row, so a concurrent writer can neither
+     * interleave between the read and the sync nor leave the caller describing
+     * a change that did not survive. The returned sets are the *committed*
+     * before/after difference, which is what the activity events and property
+     * link/unlink notifications are driven from — diffs computed earlier in the
+     * request (the commission guard's) are a pre-flight check and can be stale
+     * by the time the write lands.
+     *
+     * @param  array  $requestedProductIds  The full product list the deal should end up with.
+     * @return array{0: array, 1: array} [$linkedProductIds, $unlinkedProductIds]
+     */
+    private function syncDealProducts(Deal $deal, array $requestedProductIds): array
+    {
+        return DB::transaction(function () use ($deal, $requestedProductIds) {
+            // Serializes against any other writer taking this same row lock.
+            Deal::whereKey($deal->id)->lockForUpdate()->first();
+
+            $committedOldIds = $deal->products()->pluck('products.id')->toArray();
+            $deal->products()->sync($requestedProductIds);
+
+            return [
+                array_values(array_diff($requestedProductIds, $committedOldIds)),
+                array_values(array_diff($committedOldIds, $requestedProductIds)),
+            ];
+        });
+    }
+
+    /**
      * @param  int  $id
      * @return array|void
      *
@@ -1651,25 +1682,36 @@ class DealController extends AccountBaseController
         // any of this method's writes.
 
         // Same as packages above: only sync products when the field is present.
-        // $requestedProductIds / $newProductIds / $removedProductIds were all
-        // normalized and computed up front (see the commission guard), so the
-        // guard and this write are working from the same value. A request that
-        // omits product_id leaves both diffs empty rather than reading as
-        // "every existing product was removed" and firing
-        // notifyPropertyUnlinked for all of them.
+        // $requestedProductIds was normalized up front (see the commission
+        // guard) so the guard and this write agree on the same value. A request
+        // that omits product_id sends no sync at all, rather than reading as
+        // "every existing product was removed" and firing notifyPropertyUnlinked
+        // for all of them.
+        //
+        // The read-diff-sync cycle runs under an exclusive lock on the deal row,
+        // inside one transaction. The up-front diffs above are a pre-flight
+        // check computed before any write; by the time we get here another
+        // request may have changed the deal's products, so they are not safe to
+        // report as what actually happened. Re-reading inside the lock gives the
+        // committed before/after sets — the events and notifications below are
+        // driven by those, so two concurrent updates can't each announce having
+        // linked a product when only one of them survived the race.
+        $linkedProductIds = [];
+        $unlinkedProductIds = [];
+
         if ($request->has('product_id')) {
-            $deal->products()->sync($requestedProductIds);
+            [$linkedProductIds, $unlinkedProductIds] = $this->syncDealProducts($deal, $requestedProductIds);
         }
 
-        if (! empty($newProductIds) || ! empty($removedProductIds)) {
+        if (! empty($linkedProductIds) || ! empty($unlinkedProductIds)) {
             $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
             $notificationService = app(\App\Services\DealNotificationService::class);
             $changedProducts = Product::with('property')
-                ->whereIn('id', array_merge($newProductIds, $removedProductIds))
+                ->whereIn('id', array_merge($linkedProductIds, $unlinkedProductIds))
                 ->get()
                 ->keyBy('id');
 
-            foreach ($newProductIds as $productId) {
+            foreach ($linkedProductIds as $productId) {
                 $productModel = $changedProducts->get($productId);
                 if (! $productModel) {
                     continue;
@@ -1686,7 +1728,7 @@ class DealController extends AccountBaseController
                 }
             }
 
-            foreach ($removedProductIds as $productId) {
+            foreach ($unlinkedProductIds as $productId) {
                 $productModel = $changedProducts->get($productId);
                 if ($productModel?->property) {
                     $notificationService->notifyPropertyUnlinked(
