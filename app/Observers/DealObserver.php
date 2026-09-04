@@ -273,11 +273,6 @@ class DealObserver
                 $this->triggerMetaConversionEvent($deal);
             }
 
-            // MLM: Fire DealWonEvent when outcome_status changes to 'won'
-            if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won && ! $deal->is_locked) {
-                $this->fireDealWonEvent($deal);
-            }
-
             // ── CRM Events for specific deal changes ──
             $trackedDirtyFields = [];
 
@@ -508,6 +503,15 @@ class DealObserver
                 ]);
             }
         }
+
+        // MLM: Fire DealWonEvent when outcome_status changes to 'won'. Kept
+        // outside the isRunningInConsoleOrSeeding() guard above (unlike the
+        // notification/CRM-event block it used to live in) so a console- or
+        // automation-driven win still triggers MLM commission processing.
+        if ($deal->isDirty('outcome_status') && $deal->outcome_status === \App\Enums\OutcomeStatus::Won) {
+            $this->fireDealWonEvent($deal);
+        }
+
         // deal automation trigger
         if (! isRunningInConsoleOrSeeding() && ! $deal->is_locked) {
             $this->dealAutomation->process($deal, 'deal_updated');

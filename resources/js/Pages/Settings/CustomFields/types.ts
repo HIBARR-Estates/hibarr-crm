@@ -102,7 +102,8 @@ export interface FieldDraft {
 export interface CategoryDraft {
     name: string;
     custom_field_group_id: number | "";
-    order: number;
+    /** "" (not 0) for a new category — lets CustomFieldCategoryController::store() compute the append position. */
+    order: number | "";
 }
 
 export function fieldHasRule(field: SettingsField): boolean {

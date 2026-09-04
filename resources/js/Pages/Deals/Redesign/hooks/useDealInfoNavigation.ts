@@ -80,11 +80,13 @@ function getHibarrValue(deal: Deal, key: string): unknown {
 function buildCustomFieldVisibilityMap(
     fields: CustomFieldDefinition[],
     customFieldsData: Deal["custom_fields_data"],
+    recordId?: number,
 ): Record<number, boolean> {
     const fieldValuesForVisibility = buildFieldValueMap({
         customFieldsData,
         fields,
         normalizeMultiSelect: true,
+        context: recordId !== undefined ? { recordId } : undefined,
     });
 
     const customFieldsForEvaluation: CustomField[] = fields.map((field) => {
@@ -273,6 +275,7 @@ export default function useDealInfoNavigation(
         const visibilityMap = buildCustomFieldVisibilityMap(
             fields,
             deal.custom_fields_data,
+            deal.id,
         );
 
         const coreSearchTerms = (

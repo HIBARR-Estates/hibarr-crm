@@ -181,8 +181,16 @@
                                                          rule builder) is shown read-only here so saving this tab
                                                          round-trips it unchanged instead of dropping or corrupting
                                                          it into a broken custom_field criterion. --}}
+                                                    @php
+                                                        $criterionSourceLabel = [
+                                                            'pipeline' => 'pipeline',
+                                                            'pipeline_stage' => 'pipeline stage',
+                                                            'deal_package' => 'package',
+                                                            'record' => 'record',
+                                                        ][$criterionSource] ?? 'pipeline stage';
+                                                    @endphp
                                                     <div class="alert alert-secondary mb-2 py-1 px-2" style="font-size: 12px;">
-                                                        This criterion reads the deal's <strong>{{ $criterionSource === 'pipeline' ? 'pipeline' : 'pipeline stage' }}</strong> — edit it from the field's visibility rule builder, not here.
+                                                        This criterion reads the deal's <strong>{{ $criterionSourceLabel }}</strong> — edit it from the field's visibility rule builder, not here.
                                                     </div>
                                                 @endif
                                                 <div class="row">

@@ -20,6 +20,7 @@ export default function ChipToggle({
         <button
             type="button"
             onClick={onClick}
+            aria-pressed={active}
             style={{
                 fontSize: 13,
                 fontWeight: 600,

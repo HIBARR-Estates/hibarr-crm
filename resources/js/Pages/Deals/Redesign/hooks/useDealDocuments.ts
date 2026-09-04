@@ -122,7 +122,11 @@ export default function useDealDocuments(
             if (field.type !== "file") continue;
             if (field.show_in_deal === false) continue;
             if (!isVisible(field.id)) continue;
-            const value = readCustomFieldValue(deal.custom_fields_data, field.id, leadFileFieldsData);
+            // The value genuinely lives on the lead — read leadFileFieldsData
+            // first so a null/stale entry on this deal's own custom_fields_data
+            // (e.g. a batch fetch that included the key with no value) can't
+            // suppress a value that's actually present on the lead.
+            const value = readCustomFieldValue(leadFileFieldsData, field.id, deal.custom_fields_data);
             items.push({
                 id: `lead-${field.id}`,
                 label: normalizeLabel(field),

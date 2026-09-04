@@ -105,11 +105,19 @@ export function computeAnalysisProgress(
     const sections = adaptScriptItems(scriptItems);
 
     const allCustomFields = leadFields.length ? [...fields, ...leadFields] : fields;
+    // Deal context so pipeline / pipeline_stage / record-source visibility
+    // criteria resolve correctly — matches the context shape built in
+    // DealViewRedesign.tsx / useLeadCrossDealDocuments.ts.
+    const dealVisibilityContext = {
+        pipeline: deal?.lead_pipeline_id,
+        pipelineStage: deal?.pipeline_stage_id,
+        recordId: deal?.id,
+    };
     // One pass for every custom field the script might reference individually —
     // conditional fields must not count toward the denominator while hidden.
     const customFieldVisibility = evaluateAllFieldsVisibility(
         allCustomFields,
-        buildFieldValueMap({ customFieldsData: values }),
+        buildFieldValueMap({ customFieldsData: values, context: dealVisibilityContext }),
     );
     const customFieldById = new Map<number, any>(
         allCustomFields.map((f: any) => [Number(f.id), f]),
@@ -131,7 +139,7 @@ export function computeAnalysisProgress(
             );
             const visMap = evaluateAllFieldsVisibility(
                 sectionFields,
-                buildFieldValueMap({ customFieldsData: values }),
+                buildFieldValueMap({ customFieldsData: values, context: dealVisibilityContext }),
             );
             for (const f of sectionFields) {
                 if (visMap[f.id] !== false) {

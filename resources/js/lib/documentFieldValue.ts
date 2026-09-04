@@ -88,5 +88,5 @@ export function resolveFileUrl(value: unknown, dir: string): string | undefined 
     }
 
     if (!filename) return undefined;
-    return IS_URL.test(filename) ? filename : `/user-uploads/${dir}/${filename}`;
+    return IS_URL.test(filename) ? filename : `/user-uploads/${dir}/${encodeURIComponent(filename)}`;
 }

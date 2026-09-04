@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -33,6 +34,15 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // A pipeline/pipeline_stage/deal_package/record criterion has no
+        // reference_field_id (it's null by design — see up()'s comment).
+        // Restoring the NOT NULL constraint without first clearing those
+        // rows would fail the ALTER (or, depending on SQL mode, silently
+        // corrupt them) the moment any such criterion exists.
+        if (Schema::hasColumn('show_criteria', 'reference_source')) {
+            DB::table('show_criteria')->where('reference_source', '!=', 'custom_field')->delete();
+        }
+
         Schema::table('show_criteria', function (Blueprint $table) {
             $table->dropForeign(['reference_field_id']);
             $table->unsignedInteger('reference_field_id')->nullable(false)->change();

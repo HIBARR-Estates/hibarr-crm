@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { Button, Alert, Drawer } from "antd";
 import SideNavTabs, { SideNavItem } from "@/Components/SideNavTabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
 import FollowUpTab from "./Tabs/FollowUpTab";
@@ -370,6 +370,18 @@ export default function DealTabs({
     const dealTabActiveContent =
         tabItems.find((item) => item.key === activeTab)?.children ??
         tabItems[0]?.children;
+
+    // Keep activeTab (and hence the URL + SideNavTabs' highlighted item) in
+    // sync when the tab it names is no longer visible — otherwise the
+    // sidebar highlights nothing (or a stale key) while the content pane
+    // above already fell back to the first tab.
+    useEffect(() => {
+        if (tabItems.length === 0) return;
+        if (!tabItems.some((item) => item.key === activeTab)) {
+            setActiveTab(tabItems[0].key);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tabItems, activeTab]);
 
     return (
         <>

@@ -56,6 +56,7 @@ class CustomFieldSettingsController extends AccountBaseController
             }, 'customFields'),
 
             'categories' => Inertia::defer(fn () => CustomFieldCategory::with('customFieldGroup:id,name')
+                ->where('company_id', company()->id)
                 ->orderBy(DB::raw('`order`'), 'asc')
                 ->orderBy('id', 'asc')
                 ->get()

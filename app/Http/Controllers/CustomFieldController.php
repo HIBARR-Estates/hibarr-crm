@@ -765,8 +765,7 @@ class CustomFieldController extends AccountBaseController
             return false;
         }
 
-        $table = (new $modelClass)->getTable();
-        $found = DB::table($table)->where('company_id', $companyId)->whereIn('id', $unique)->count();
+        $found = $modelClass::query()->where('company_id', $companyId)->whereIn('id', $unique)->count();
 
         return $found === count($unique);
     }

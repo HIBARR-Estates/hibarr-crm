@@ -599,24 +599,32 @@ trait CustomFieldsTrait
                     'field_keys' => array_column($customFieldChanges, 'custom_field_id'),
                 ]);
 
-                // CRM timeline event: Deal-only today (DealActivityEventService::
-                // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
-                // out of scope for wiring up the automation trigger below.
-                if ($isDeal) {
-                    app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
-                }
-
-                // Deal automation trigger 'custom_field_updated' — this is what
-                // actually makes an automation configured with that trigger fire.
-                // process() itself already skips locked deals; no need to
-                // duplicate that check here.
-                if (! isRunningInConsoleOrSeeding()) {
+                // Deferred to afterCommit: a caller (e.g. DealGatheringController::
+                // updateCustomFieldsBulk) may wrap a deal-branch and a lead-branch
+                // call to this method in one shared transaction — dispatching the
+                // activity event / automation here, mid-transaction, would let
+                // automation act on (and notify/webhook about) data that the
+                // other branch's later failure then rolls back.
+                DB::afterCommit(function () use ($isDeal, $customFieldChanges) {
+                    // CRM timeline event: Deal-only today (DealActivityEventService::
+                    // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
+                    // out of scope for wiring up the automation trigger below.
                     if ($isDeal) {
-                        app(DealAutomationService::class)->process($this, 'custom_field_updated');
-                    } else {
-                        app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                        app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
                     }
-                }
+
+                    // Deal automation trigger 'custom_field_updated' — this is what
+                    // actually makes an automation configured with that trigger fire.
+                    // process() itself already skips locked deals; no need to
+                    // duplicate that check here.
+                    if (! isRunningInConsoleOrSeeding()) {
+                        if ($isDeal) {
+                            app(DealAutomationService::class)->process($this, 'custom_field_updated');
+                        } else {
+                            app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                        }
+                    }
+                });
             } else {
                 Log::debug('[CustomFieldsTrait] No custom field changes detected after save.', [
                     'model' => $isDeal ? 'deal' : 'lead',

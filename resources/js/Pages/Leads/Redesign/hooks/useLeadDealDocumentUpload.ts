@@ -22,7 +22,12 @@ function extractBackendMessage(error: unknown): string | undefined {
 export default function useLeadDealDocumentUpload() {
     const { setDeals } = useLeadWorkspace();
     const { t } = useTranslation();
-    const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+    // A Set (not a single key) so two slots uploading concurrently each stay
+    // blocked until their own request settles — a single shared key would
+    // have the second upload's start overwrite the first's key, then
+    // whichever request's `finally` ran first would clear the *other* slot's
+    // still-in-flight indicator too.
+    const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
     const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
     const patchDeal = useCallback(
@@ -41,7 +46,7 @@ export default function useLeadDealDocumentUpload() {
             if (!doc.fieldName || !doc.updateType) return;
             const key = `${dealId}:${doc.fieldName}`;
 
-            setUploadingKey(key);
+            setUploadingKeys((prev) => new Set(prev).add(key));
             try {
                 const formData = new FormData();
                 formData.append("_method", "PATCH");
@@ -69,7 +74,11 @@ export default function useLeadDealDocumentUpload() {
                         t("pages.deals.workspace.files.messages.upload_failed"),
                 );
             } finally {
-                setUploadingKey(null);
+                setUploadingKeys((prev) => {
+                    const next = new Set(prev);
+                    next.delete(key);
+                    return next;
+                });
             }
         },
         [patchDeal, t],
@@ -113,7 +122,7 @@ export default function useLeadDealDocumentUpload() {
         uploadToSlot,
         deleteSlot,
         isUploadingSlot: (dealId: number, fieldName?: string) =>
-            Boolean(fieldName) && uploadingKey === `${dealId}:${fieldName}`,
+            Boolean(fieldName) && uploadingKeys.has(`${dealId}:${fieldName}`),
         isDeletingSlot: (dealId: number, fieldName?: string) =>
             Boolean(fieldName) && deletingKey === `${dealId}:${fieldName}`,
     };

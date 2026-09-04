@@ -154,9 +154,10 @@ class CustomFieldVisibilityService
                     $currentPriority = $this->resolveStagePriority($fieldValue, $stages);
                     $targetPriority = $this->resolveStagePriority($referenceValue, $stages);
                     $fieldValue = $currentPriority;
-                    if ($targetPriority !== null) {
-                        $referenceValue = (string) $targetPriority;
-                    }
+                    // Explicit null (not the raw unresolved stage id) when the target
+                    // stage doesn't resolve, so evaluateCriterion()'s guard can tell
+                    // "unresolved" apart from a real priority.
+                    $referenceValue = $targetPriority !== null ? (string) $targetPriority : null;
                 } else {
                     $referenceValue = $this->normalizeIdListJson($referenceValue);
                     $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
@@ -165,6 +166,8 @@ class CustomFieldVisibilityService
 
             case 'deal_package':
                 $fieldValue = $currentValues['package'] ?? null;
+                $referenceValue = $this->normalizeIdListJson($referenceValue);
+                $fieldValue = $fieldValue === null ? $fieldValue : (string) $fieldValue;
                 break;
 
             case 'record':
@@ -236,6 +239,21 @@ class CustomFieldVisibilityService
     protected function evaluateCriterion($criterion, $fieldValue, $referenceValue = null): bool
     {
         $operator = $criterion->operator;
+
+        // A pipeline_stage ordering criterion resolves both sides to a stage
+        // priority before reaching here (see resolveCriterionValues()) — a
+        // null on either side means the stage id didn't resolve (unknown
+        // stage), not a priority of 0. Coercing null to (float) 0 below would
+        // make an unresolved stage silently satisfy/fail the comparison
+        // instead of simply not matching.
+        if (
+            ($criterion->reference_source ?? 'custom_field') === 'pipeline_stage'
+            && in_array($operator, ['>', '<', '>=', '<='], true)
+            && ($fieldValue === null || $referenceValue === null)
+        ) {
+            return false;
+        }
+
         $referenceValue = $referenceValue ?? $criterion->reference_value;
 
         switch ($operator) {

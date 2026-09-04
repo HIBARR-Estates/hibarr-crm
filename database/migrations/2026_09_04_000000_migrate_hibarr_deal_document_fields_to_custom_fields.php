@@ -108,28 +108,64 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      *
-     * Deletes only what this migration itself would have created (matched
-     * by group + label, the same lookup `up()` uses) — never touches the
-     * original hibarr_deal_custom_fields columns, which this migration
-     * never modifies.
+     * `up()`'s firstOrCreate() can match a field that already existed before
+     * this migration ran (same group + label) — a blanket delete-by-label
+     * here would then destroy a pre-existing field and *all* of its data,
+     * not just what this migration added. So each custom_fields_data row is
+     * only removed if its value matches the exact URL up() would have
+     * written for it, and the field itself is only removed once none of its
+     * data remains — never a blanket match on label alone.
      */
     public function down(): void
     {
-        foreach (array_keys(self::FIELDS) as $label) {
-            $fieldIds = CustomField::whereHas('fieldGroup', function ($q) {
-                $q->where('model', Deal::CUSTOM_FIELD_MODEL);
-            })->where('label', $label)->pluck('id');
+        Company::query()->pluck('id')->each(function ($companyId) {
+            $group = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)
+                ->where('company_id', $companyId)
+                ->first();
 
-            if ($fieldIds->isEmpty()) {
-                continue;
+            if (!$group) {
+                return;
             }
 
-            DB::table('custom_fields_data')
-                ->where('model', Deal::CUSTOM_FIELD_MODEL)
-                ->whereIn('custom_field_id', $fieldIds)
-                ->delete();
+            foreach (self::FIELDS as $label => [$column, $urlAccessor]) {
+                $field = CustomField::where('custom_field_group_id', $group->id)
+                    ->where('label', $label)
+                    ->first();
 
-            CustomField::whereIn('id', $fieldIds)->delete();
-        }
+                if (!$field) {
+                    continue;
+                }
+
+                HibarrDealFields::whereHas('deal', function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId);
+                })->chunkById(200, function ($rows) use ($field, $column, $urlAccessor) {
+                    foreach ($rows as $row) {
+                        if (empty($row->{$column})) {
+                            continue;
+                        }
+
+                        $value = $row->{$urlAccessor};
+                        if (empty($value)) {
+                            continue;
+                        }
+
+                        DB::table('custom_fields_data')
+                            ->where('model', Deal::CUSTOM_FIELD_MODEL)
+                            ->where('model_id', $row->deal_id)
+                            ->where('custom_field_id', $field->id)
+                            ->where('value', $value)
+                            ->delete();
+                    }
+                });
+
+                $stillReferenced = DB::table('custom_fields_data')
+                    ->where('custom_field_id', $field->id)
+                    ->exists();
+
+                if (!$stillReferenced) {
+                    $field->delete();
+                }
+            }
+        });
     }
 };

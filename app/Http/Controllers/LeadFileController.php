@@ -130,24 +130,15 @@ class LeadFileController extends AccountBaseController
 
     /**
      * Swaps a DealFile's stored content in place — same row/id, new
-     * filename/size/storage fields — deleting the old stored object first
-     * so a replace never leaves an orphaned upload behind.
+     * filename/size/storage fields. Uploads the replacement first and only
+     * deletes the previous stored object once that succeeds, so a failed
+     * upload never leaves the row pointing at content that's already gone.
      */
     private function replaceStoredFile(DealFile $file, \Illuminate\Http\UploadedFile $newFile): void
     {
-        if ($file->isExternallyStored() && ! empty($file->object_path)) {
-            try {
-                $this->fileStorageService->delete($file->object_path);
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete old file from external storage during replace', [
-                    'file_id' => $file->id,
-                    'object_path' => $file->object_path,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        } elseif (! empty($file->hashname)) {
-            Files::deleteFile($file->hashname, DealFile::FILE_PATH.'/'.$file->deal_id);
-        }
+        $wasExternallyStored = $file->isExternallyStored();
+        $previousObjectPath = $file->object_path;
+        $previousHashname = $file->hashname;
 
         $file->filename = $newFile->getClientOriginalName();
         $file->size = $newFile->getSize();
@@ -165,6 +156,20 @@ class LeadFileController extends AccountBaseController
             $file->external_url = null;
             $file->object_path = null;
             $file->hashname = Files::uploadLocalOrS3($newFile, DealFile::FILE_PATH.'/'.$file->deal_id);
+        }
+
+        if ($wasExternallyStored && ! empty($previousObjectPath)) {
+            try {
+                $this->fileStorageService->delete($previousObjectPath);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete old file from external storage during replace', [
+                    'file_id' => $file->id,
+                    'object_path' => $previousObjectPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } elseif (! empty($previousHashname)) {
+            Files::deleteFile($previousHashname, DealFile::FILE_PATH.'/'.$file->deal_id);
         }
     }
 

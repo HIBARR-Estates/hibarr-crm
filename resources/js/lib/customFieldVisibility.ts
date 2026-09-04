@@ -39,7 +39,7 @@ const ORDERING_OPERATORS = new Set(['>', '<', '>=', '<=']);
  * element to the same type here, a numeric id never matches a same-valued
  * string id. Leaves a bare scalar untouched.
  */
-function normalizeIdListJson(raw: string): string {
+function normalizeIdListJson(raw: string | null): string | null {
     if (raw === null || raw === undefined || raw === '') return raw;
     const str = String(raw);
     if (str.trim().startsWith('[')) {
@@ -66,9 +66,9 @@ function resolveCriterionValues(
     criterion: ShowCriterion,
     allFieldValues: Record<string, any>,
     context?: VisibilityEvaluationContext
-): { fieldValue: any; referenceValue: string } {
+): { fieldValue: any; referenceValue: string | null } {
     const source = criterion.reference_source ?? 'custom_field';
-    let referenceValue = criterion.reference_value;
+    let referenceValue: string | null = criterion.reference_value;
 
     let fieldValue: any;
     switch (source) {
@@ -82,8 +82,11 @@ function resolveCriterionValues(
             if (ORDERING_OPERATORS.has(criterion.operator)) {
                 const currentPriority = resolveStagePriority(fieldValue, context?.stages);
                 const targetPriority = resolveStagePriority(referenceValue, context?.stages);
-                fieldValue = currentPriority ?? '';
-                referenceValue = targetPriority !== null ? String(targetPriority) : referenceValue;
+                // Explicit null (not a coerced '' or the raw unresolved stage id) when
+                // either side doesn't resolve, so evaluateCriterion()'s guard can tell
+                // "unresolved" apart from a real priority of 0.
+                fieldValue = currentPriority;
+                referenceValue = targetPriority !== null ? String(targetPriority) : null;
             } else {
                 referenceValue = normalizeIdListJson(referenceValue);
                 fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
@@ -91,6 +94,8 @@ function resolveCriterionValues(
             break;
         case 'deal_package':
             fieldValue = allFieldValues.package;
+            referenceValue = normalizeIdListJson(referenceValue);
+            fieldValue = fieldValue == null ? fieldValue : String(fieldValue);
             break;
         case 'record':
             fieldValue = allFieldValues.record;
@@ -112,11 +117,28 @@ function resolveCriterionValues(
 function evaluateCriterion(
     criterion: ShowCriterion,
     fieldValue: any,
-    referenceValueOverride?: string
+    referenceValueOverride?: string | null
 ): boolean {
     const { operator, negate } = criterion;
-    const reference_value = referenceValueOverride ?? criterion.reference_value;
     let result = false;
+
+    // A pipeline_stage ordering criterion resolves both sides to a stage
+    // priority before reaching here (see resolveCriterionValues()) — an
+    // explicit null on either side means the stage id didn't resolve (unknown
+    // stage), not a priority of 0. Coercing null to Number(...) === 0 below
+    // would make an unresolved stage silently satisfy/fail the comparison
+    // instead of simply not matching.
+    const isUnresolvedStageOrdering =
+        (criterion.reference_source ?? 'custom_field') === 'pipeline_stage' &&
+        ORDERING_OPERATORS.has(operator) &&
+        (fieldValue === null || fieldValue === undefined ||
+            referenceValueOverride === null || referenceValueOverride === undefined);
+
+    const reference_value = referenceValueOverride ?? criterion.reference_value;
+
+    if (isUnresolvedStageOrdering) {
+        return negate ? true : false;
+    }
 
     switch (operator) {
         case 'equals':

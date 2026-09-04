@@ -104,7 +104,7 @@ class LeadContactFileController extends AccountBaseController
     {
         $request->validate([
             'description' => 'nullable|string|max:255',
-            'file' => 'nullable|file',
+            'file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,gif,webp,zip|max:204800',
         ]);
 
         $file = LeadContactFile::findOrFail($id);
@@ -126,24 +126,15 @@ class LeadContactFileController extends AccountBaseController
 
     /**
      * Swaps a LeadContactFile's stored content in place — same row/id, new
-     * filename/size/storage fields — deleting the old stored object first
-     * so a replace never leaves an orphaned upload behind.
+     * filename/size/storage fields. Uploads the replacement first and only
+     * deletes the previous stored object once that succeeds, so a failed
+     * upload never leaves the row pointing at content that's already gone.
      */
     private function replaceStoredFile(LeadContactFile $file, \Illuminate\Http\UploadedFile $newFile): void
     {
-        if ($file->isExternallyStored() && ! empty($file->object_path)) {
-            try {
-                $this->fileStorageService->delete($file->object_path);
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete old lead contact file from external storage during replace', [
-                    'file_id' => $file->id,
-                    'object_path' => $file->object_path,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        } elseif (! empty($file->hashname)) {
-            Files::deleteFile($file->hashname, LeadContactFile::FILE_PATH.'/'.$file->lead_id);
-        }
+        $wasExternallyStored = $file->isExternallyStored();
+        $previousObjectPath = $file->object_path;
+        $previousHashname = $file->hashname;
 
         $file->filename = $newFile->getClientOriginalName();
         $file->size = (string) $newFile->getSize();
@@ -161,6 +152,20 @@ class LeadContactFileController extends AccountBaseController
             $file->external_url = null;
             $file->object_path = null;
             $file->hashname = Files::uploadLocalOrS3($newFile, LeadContactFile::FILE_PATH.'/'.$file->lead_id);
+        }
+
+        if ($wasExternallyStored && ! empty($previousObjectPath)) {
+            try {
+                $this->fileStorageService->delete($previousObjectPath);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete old lead contact file from external storage during replace', [
+                    'file_id' => $file->id,
+                    'object_path' => $previousObjectPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } elseif (! empty($previousHashname)) {
+            Files::deleteFile($previousHashname, LeadContactFile::FILE_PATH.'/'.$file->lead_id);
         }
     }
 
