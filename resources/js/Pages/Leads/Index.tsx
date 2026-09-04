@@ -41,7 +41,8 @@ import {
 } from "@ant-design/icons";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
 import { MenuProps } from "antd";
-import { DataTable } from "@/Components/DataTable";
+import { DataTable, withMobileResponsiveColumns } from "@/Components/DataTable";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -403,16 +404,22 @@ const Index = ({
         [handleEditLead, handleAction, t, td, canMergeLeads],
     );
 
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+
     const columns = useMemo(
         () =>
-            LEAD_TABLE_COLUMNS({
-                actionItems: getActionItems,
-                t,
-                td,
-                onScheduleNextStep: setScheduleNextStepLead,
-                onOpenNextAction: setOpenNextAction,
-            }),
-        [getActionItems, t, td],
+            withMobileResponsiveColumns(
+                LEAD_TABLE_COLUMNS({
+                    actionItems: getActionItems,
+                    t,
+                    td,
+                    onScheduleNextStep: setScheduleNextStepLead,
+                    onOpenNextAction: setOpenNextAction,
+                }),
+                ["category", "source", "temperature", "created_at"],
+                isMobileResponsive,
+            ),
+        [getActionItems, t, td, isMobileResponsive],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────

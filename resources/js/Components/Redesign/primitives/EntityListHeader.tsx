@@ -162,10 +162,10 @@ export default function EntityListHeader({
             }}
         >
             <div
-                className="mx-auto w-full px-6 pt-[18px] pb-4 space-y-4 max-w-screen-2xl"
+                className="mx-auto w-full px-3 sm:px-6 pt-[18px] pb-4 space-y-4 max-w-screen-2xl"
                 style={{ maxWidth, fontFamily: REDESIGN_FONT_STACK }}
             >
-                <div className="flex flex-wrap items-start justify-between gap-6">
+                <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-6">
                     <div
                         className="flex flex-col gap-1"
                         {...(titleTourTarget
@@ -192,7 +192,7 @@ export default function EntityListHeader({
                         ) : null}
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                         {showViewToggle && (
                             <div
                                 className="flex gap-0.5 p-0.5"
@@ -288,7 +288,7 @@ export default function EntityListHeader({
                         : {})}
                 >
                     <div
-                        className="mx-auto w-full px-6"
+                        className="mx-auto w-full px-3 sm:px-6"
                         style={{ maxWidth, fontFamily: REDESIGN_FONT_STACK }}
                     >
                         {filterSentence}

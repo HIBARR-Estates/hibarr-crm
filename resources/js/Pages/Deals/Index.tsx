@@ -40,9 +40,10 @@ import {
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { MenuProps, Spin } from "antd";
-import { DataTable } from "@/Components/DataTable";
+import { DataTable, withMobileResponsiveColumns } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
@@ -152,6 +153,7 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const showProductTour =
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
     const tourRef = useRef<ProductTourHandle>(null);
@@ -524,13 +526,17 @@ const Index = ({
         ];
     };
 
-    const columns = DEAL_TABLE_COLUMNS({
-        actionItems: getActionItems,
-        onAgentChange: handleAgentChange,
-        canEdit: canEditDeal,
-        t,
-        td,
-    });
+    const columns = withMobileResponsiveColumns(
+        DEAL_TABLE_COLUMNS({
+            actionItems: getActionItems,
+            onAgentChange: handleAgentChange,
+            canEdit: canEditDeal,
+            t,
+            td,
+        }),
+        ["created_at", "lead_source", "updated_at"],
+        isMobileResponsive,
+    );
 
     const valueLeadPipelineId = activePipelineId;
 

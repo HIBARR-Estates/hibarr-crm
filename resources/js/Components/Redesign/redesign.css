@@ -445,6 +445,18 @@
 .workspace-note-card-clamp .workspace-note-html.html-content ol {
     padding-left: 1.2em;
 }
+/*
+ * HIB-1402 — below the app's lg breakpoint (1024px), bump the shared list
+ * toolbar buttons up to a ~44px touch target. Desktop density (.dr-btn's
+ * normal 9px/16px padding) is untouched at >=1024px.
+ */
+@media (max-width: 1023px) {
+    .dr-btn {
+        min-height: 44px;
+        padding: 11px 16px;
+    }
+}
+
 .workspace-note-card-clamp .workspace-note-html.html-content li {
     margin-bottom: 0;
 }
