@@ -1,6 +1,9 @@
 {{-- Shared <option>/<optgroup> list for Deal/Lead field pickers (automation conditions,
      email template variable mappings). Expects $selectedField (string, may be ''), plus
-     $hibarrFields, $relatedFields, $customFields, $leadFields, $leadCustomFields in scope. --}}
+     $hibarrFields, $relatedFields, $customFields, $leadFields, $leadCustomFields in scope.
+     Pass $outbound = true where the picked field is emitted somewhere (email
+     variable mappings) rather than only evaluated — it drops the marketing
+     identifiers that must not leave the system. --}}
 @php $selectedField = $selectedField ?? ''; @endphp
 <optgroup label="Native Fields" class="subject-group-deal">
     <option value="value" data-type="number" {{ $selectedField == 'value' ? 'selected' : '' }}>Deal Value</option>
@@ -49,4 +52,4 @@
         </option>
     @endforeach
 </optgroup>
-@include('company-settings.deal-automation._lead-field-options', ['selectedField' => $selectedField])
+@include('company-settings.deal-automation._lead-field-options', ['selectedField' => $selectedField, 'outbound' => $outbound ?? false])

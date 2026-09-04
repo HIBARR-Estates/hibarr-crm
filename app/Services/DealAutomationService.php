@@ -1247,6 +1247,23 @@ class DealAutomationService
         }
 
         $fieldKey = is_array($mapping) ? ($mapping['field'] ?? $tag) : $tag;
+
+        // Outbound gate. Every merge tag in the system funnels through here —
+        // email bodies/subjects, Plunk variables, CTA URLs, task/note text,
+        // Meta event names — so blocking here covers a hand-typed tag and a
+        // directly-POSTed variable mapping too, not just what the pickers
+        // offer. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
+        if (AutomationFieldCatalog::isOutboundBlockedField($fieldKey)) {
+            Log::warning('[DealAutomationService] Blocked a merge tag resolving to a restricted marketing identifier.', [
+                'tag' => $tag,
+                'field' => $fieldKey,
+                'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',
+                'subject_id' => $subject->id,
+            ]);
+
+            return '';
+        }
+
         $value = $this->fieldResolver->resolve($subject, $fieldKey);
 
         if ($value instanceof \Carbon\Carbon) {
