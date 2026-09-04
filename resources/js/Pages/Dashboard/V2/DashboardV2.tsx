@@ -95,7 +95,7 @@ export default function DashboardV2(props: DashboardV2Props) {
                                         className="dv2-tab"
                                         onClick={() => go({ view: "personal" })}
                                     >
-                                        {td("My day")}
+                                        {td("My work")}
                                     </button>
                                 )}
                                 {availableViews.map((view) => (
