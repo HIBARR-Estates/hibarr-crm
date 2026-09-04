@@ -39,7 +39,10 @@ export default function DealsTab({
             {deals.length > 0 && (
                 <div className="mb-4 flex items-center justify-between gap-2">
                     <span className="text-xs text-[#6b7280]">
-                        {deals.length} deal{deals.length === 1 ? "" : "s"}
+                        {deals.length}{" "}
+                        {td(deals.length === 1 ? "deal" : "deals", {
+                            source: "en",
+                        })}
                     </span>
                     <Button
                         variant="primary"

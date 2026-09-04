@@ -94,7 +94,8 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
     // degrades in steps: named packages -> a property count -> "No package".
     const packageNames = (deal.packages ?? [])
         .map((pkg) => pkg.name?.trim())
-        .filter((name): name is string => Boolean(name));
+        .filter((name): name is string => Boolean(name))
+        .map((name) => td(name, { source: "en" }));
     const propertyCount = deal.products_count ?? deal.products?.length ?? 0;
     const packageLabel = packageNames.length
         ? packageNames.join(", ")
@@ -137,7 +138,7 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
         },
         {
             label: td("Category", { source: "en" }),
-            value: categoryName ?? "—",
+            value: categoryName ? td(categoryName, { source: "en" }) : "—",
             tone: categoryName ? undefined : "muted",
         },
         {
@@ -174,7 +175,10 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                         {deal.name}
                     </span>
                     {stageName ? (
-                        <StagePill name={stageName} color={stageColor} />
+                        <StagePill
+                            name={td(stageName, { source: "en" })}
+                            color={stageColor}
+                        />
                     ) : (
                         <span className="text-[11px] text-[#9ca3af]">
                             {td("No stage", { source: "en" })}
@@ -199,8 +203,9 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                     <span className="flex min-w-0 items-center gap-1.5">
                         <Icon name="grid" size={12} color="#6b7280" />
                         <span className="truncate font-semibold text-[#374151]">
-                            {pipelineName ??
-                                td("No pipeline", { source: "en" })}
+                            {pipelineName
+                                ? td(pipelineName, { source: "en" })
+                                : td("No pipeline", { source: "en" })}
                         </span>
                     </span>
                     <span aria-hidden="true" className="text-[#d1d5db]">
