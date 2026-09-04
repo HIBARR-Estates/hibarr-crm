@@ -126,7 +126,6 @@ class MetaConversionsService
             $client = new Client([
                 'timeout' => 30,
                 'connect_timeout' => 15,
-                'verify' => false,
                 // Meta explains *why* it rejected an event in the body of a 4xx
                 // response. Guzzle's default would throw that body away as a
                 // RequestException, which is the whole reason failures used to
@@ -234,9 +233,18 @@ class MetaConversionsService
                 $userData['ph'] = hash('sha256', $phone);
             }
         }
-        // Add Gender if available
+        // Meta expects ge = SHA-256 of a single lowercase letter: m or f.
         if ($contact && ! empty($contact->gender)) {
-            $userData['gender'] = $contact->gender;
+            $gender = strtolower(trim((string) ($contact->gender?->value ?? $contact->gender)));
+            $metaGender = match ($gender) {
+                'male' => 'm',
+                'female' => 'f',
+                default => null,
+            };
+
+            if ($metaGender !== null) {
+                $userData['ge'] = hash('sha256', $metaGender);
+            }
         }
 
         // Add Date of Birth if available

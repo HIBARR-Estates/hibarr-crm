@@ -193,7 +193,10 @@ export interface RunLogEntry {
     action: string;
     status: LogStatus;
     channel: LogChannel | null;
-    details: RunLogDetails | null;
+    /** Present on detail fetch; omitted from the run-history list payload. */
+    details?: RunLogDetails | null;
+    /** True when structured diagnostics exist and can be fetched on expand. */
+    has_details?: boolean;
     executed_at: string;
     automation?: { id: number; name: string } | null;
     deal?: { id: number; name: string } | null;

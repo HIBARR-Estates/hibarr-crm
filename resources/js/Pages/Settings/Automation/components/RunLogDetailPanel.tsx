@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { TdFn } from "@/lib/dynamicTranslation";
-import { EmailDeliveryDetail, MailSystem, RunLogEntry } from "../types";
+import { EmailDeliveryDetail, MailSystem, RunLogDetails, RunLogEntry } from "../types";
 
 /** Human label for the mail system that actually delivered a message. */
 const MAIL_SYSTEM_LABEL: Record<MailSystem, string> = {
@@ -100,24 +102,16 @@ function EmailDelivery({ delivery, td }: { delivery: EmailDeliveryDetail; td: Td
     );
 }
 
-/**
- * Expanded diagnostics for a Run History row: which mail system handled each
- * recipient and why it failed, or exactly what Meta answered for a conversion
- * event. Falls back to a raw JSON dump for channels with no dedicated view, so
- * a new `details` shape is still readable without a UI change.
- */
-export default function RunLogDetailPanel({ entry }: { entry: RunLogEntry }) {
-    const { td } = useTd();
-    const details = entry.details;
+function DetailSkeleton() {
+    return (
+        <div className="px-4.5 py-3.5 flex flex-col gap-2.5 animate-pulse" style={{ background: T.SURFACE_2, borderTop: `1px solid ${T.BORDER}` }}>
+            <div className="h-3 rounded" style={{ background: "#eef1f5", width: "40%" }} />
+            <div className="h-16 rounded-md" style={{ background: "#eef1f5" }} />
+        </div>
+    );
+}
 
-    if (!details) {
-        return (
-            <div className="px-4.5 py-3" style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                {td("No additional detail was recorded for this run.")}
-            </div>
-        );
-    }
-
+function DetailBody({ entry, details, td }: { entry: RunLogEntry; details: RunLogDetails; td: TdFn }) {
     const deliveries = details.deliveries ?? [];
     const meta = details.meta;
 
@@ -191,4 +185,70 @@ export default function RunLogDetailPanel({ entry }: { entry: RunLogEntry }) {
             )}
         </div>
     );
+}
+
+/**
+ * Expanded diagnostics for a Run History row: which mail system handled each
+ * recipient and why it failed, or exactly what Meta answered for a conversion
+ * event. Details are fetched on expand so the list payload stays lightweight.
+ */
+export default function RunLogDetailPanel({ entry }: { entry: RunLogEntry }) {
+    const { td } = useTd();
+    const [details, setDetails] = useState<RunLogDetails | null>(entry.details ?? null);
+    const [loading, setLoading] = useState(entry.details === undefined);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (entry.details !== undefined) {
+            setDetails(entry.details);
+            setLoading(false);
+            setError(false);
+            return;
+        }
+
+        let cancelled = false;
+        setLoading(true);
+        setError(false);
+
+        axios
+            .get(route("deal-automations.log-detail", entry.id), { headers: { Accept: "application/json" } })
+            .then((res) => {
+                if (cancelled) return;
+                setDetails(res.data?.data?.details ?? null);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setDetails(null);
+                setError(true);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [entry.id, entry.details]);
+
+    if (loading) {
+        return <DetailSkeleton />;
+    }
+
+    if (error) {
+        return (
+            <div className="px-4.5 py-3" style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                {td("Could not load diagnostics for this step.")}
+            </div>
+        );
+    }
+
+    if (!details) {
+        return (
+            <div className="px-4.5 py-3" style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                {td("No additional detail was recorded for this run.")}
+            </div>
+        );
+    }
+
+    return <DetailBody entry={entry} details={details} td={td} />;
 }

@@ -37,6 +37,7 @@ use App\Http\Controllers\MessageSettingController;
 use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
 use App\Http\Controllers\NotificationSettingController;
+use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PackageSettingsController;
@@ -46,7 +47,6 @@ use App\Http\Controllers\ProfileSettingController;
 use App\Http\Controllers\ProjectSettingController;
 use App\Http\Controllers\PusherSettingsController;
 use App\Http\Controllers\PushNotificationController;
-use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
@@ -371,8 +371,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::get('company-settings/deal-automations', [SettingsController::class, 'deal_automations'])->name('company-settings.deal_automations');
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
-    Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
     Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
+    Route::get('deal-automation-logs/{id}', [DealAutomationController::class, 'logDetail'])->name('deal-automations.log-detail');
+    Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
     Route::resource('deal-automations', DealAutomationController::class);
 
     // Email Templates (used by deal automation "Send Email" actions)
