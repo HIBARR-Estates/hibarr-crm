@@ -9,6 +9,7 @@ use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\CrmEventService;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
 use App\Support\FeatureFlags;
@@ -16,15 +17,18 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * The v2 dashboards: a personal landing page plus four role-scoped views.
+ * The v2 dashboards: a personal landing page plus the role-scoped views.
  *
  * Behind crm.personal-dashboard, the personal dashboard (?view=personal, or no
- * ?view= at all) is the default for everyone. The four role-scoped views are
+ * ?view= at all) is the default for everyone. The role-scoped views are
  * additional, unlocked independently by their own view_*_dashboard permission
  * — a user may hold several (leadership commonly holds agent + leadership) and
  * gets a switcher into them, but holding one never hides the personal view.
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
+ * Team is gated twice as well: on view_team_dashboard, and on the
+ * crm.team-dashboard flag — it is the first surface to show commission across a
+ * whole hierarchy, so it rolls out per manager rather than all at once.
  *
  * Every panel is deferred. The synchronous payload is just enough to draw the
  * shell and the switcher, matching the pattern in DealController@show.
@@ -35,6 +39,7 @@ class DashboardV2Controller extends AccountBaseController
     private const VIEWS = [
         'view_agent_dashboard' => 'agent',
         'view_manager_dashboard' => 'manager',
+        'view_team_dashboard' => 'team',
         'view_leadership_dashboard' => 'leadership',
         'view_partner_dashboard' => 'partner',
     ];
@@ -93,7 +98,7 @@ class DashboardV2Controller extends AccountBaseController
      *
      * Everyone gets it first; anyone who also holds a view_*_dashboard
      * permission gets a switcher into those role-scoped views via
-     * ?view=agent|manager|leadership|partner.
+     * ?view=agent|manager|team|leadership|partner.
      *
      * Deliberately not one of VIEWS: it is scoped to a person rather than a
      * team or company, and takes no window parameter at all — one fixed
@@ -233,6 +238,8 @@ class DashboardV2Controller extends AccountBaseController
                 ),
             ],
 
+            'team' => $this->teamPanels($userId, $days),
+
             'leadership' => [
                 'trend' => Inertia::defer(fn () => $metrics->trend(), 'trend'),
                 'marketSegments' => Inertia::defer(fn () => $metrics->marketSegments(), 'segments'),
@@ -271,6 +278,42 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
+     * The team view's panels: the tree, rolled up by generation and by agent.
+     *
+     * Split into three groups rather than one so the tiles paint while the
+     * tables are still resolving. The two tables share a group deliberately:
+     * both need the commission forecast, which runs the commission engine over
+     * the tree's open deals, and TeamDownlineService memoises it for the
+     * request — landing them separately would pay for it twice.
+     *
+     * @return array<string, mixed>
+     */
+    private function teamPanels(int $userId, int $days): array
+    {
+        $downline = app(TeamDownlineService::class);
+
+        // Deferred rather than resolved here: an account with no lead_agent row
+        // has no tree, and the lookup belongs behind the same skeleton as the
+        // data it anchors.
+        $root = fn () => $downline->rootAgent($userId);
+
+        return [
+            'downlineSummary' => Inertia::defer(
+                fn () => ($agent = $root()) ? $downline->summary($agent, $days) : null,
+                'downline'
+            ),
+            'downlineLevels' => Inertia::defer(
+                fn () => ($agent = $root()) ? $downline->levelRollup($agent, $days) : null,
+                'rollup'
+            ),
+            'downlineAgents' => Inertia::defer(
+                fn () => ($agent = $root()) ? $downline->agentRollup($agent, $days) : null,
+                'rollup'
+            ),
+        ];
+    }
+
+    /**
      * No agent record means nothing was ever attributed to this account. Return
      * null rather than falling back to a wider scope — this view sits outside
      * the trust boundary, so an unscoped query is the one thing it must not do.
@@ -291,6 +334,11 @@ class DashboardV2Controller extends AccountBaseController
             ->filter(fn ($view, $permission) => $user->permission($permission) === 'all')
             // Permission says "may see the partner view"; this says "has one".
             ->reject(fn ($view) => $view === 'partner' && ! $this->hasPartnerData((int) $user->id))
+            // The flag is the second gate on the team view — see the class
+            // docblock. Rejecting here rather than in the switcher alone means
+            // a hand-typed ?view=team with the flag off falls through to the
+            // first view the user does hold, not to an ungated render.
+            ->reject(fn ($view) => $view === 'team' && ! FeatureFlags::enabled('crm.team-dashboard'))
             ->values()
             ->all();
     }

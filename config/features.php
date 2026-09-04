@@ -42,6 +42,7 @@ return [
         'crm.notification-bypass',
         'crm.user-timezone',
         'crm.personal-dashboard',
+        'crm.team-dashboard',
         'packages.online-payment',
         'crm.deal-files-grouping',
     ],

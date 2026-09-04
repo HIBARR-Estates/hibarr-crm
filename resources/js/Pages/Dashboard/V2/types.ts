@@ -223,3 +223,74 @@ export interface PartnerFlagRow {
     status: string;
     days_open: number;
 }
+
+// ── Team (downline) view ─────────────────────────────────────────
+
+/**
+ * Commission figures are plain numbers in the company's own currency, not the
+ * CurrencyTotal[] split deal value uses: MlmCommissionService converts a deal
+ * through its snapshotted exchange rate before writing a leg, so a commission
+ * is never split across currencies. `currency` is null when the company has no
+ * default currency configured — the panels then render bare numbers rather
+ * than stamping the wrong symbol on them.
+ */
+export interface DownlineMoney {
+    /** Paid inside the selected window, by paid_at. */
+    paid: number;
+    /** Standing balance — deliberately not windowed. */
+    pending: number;
+}
+
+export interface DownlineSummary extends DownlineMoney {
+    /** Size of the tree below the viewer. Excludes the viewer themselves. */
+    agents: number;
+    direct_reports: number;
+    /** Deepest generation reached, 0 when nobody reports to them. */
+    generations: number;
+    root: { agent_id: number; name: string | null; level: string | null };
+    deals_won: number;
+    currency: string | null;
+    days: number;
+}
+
+/** Fields both rollup tables carry about the forecast they show. */
+interface DownlineForecastMeta {
+    currency: string | null;
+    /** True when more open deals exist than the forecast priced. */
+    forecast_truncated: boolean;
+    /** How many open deals the forecast actually covers. */
+    forecast_deals: number;
+    days: number;
+}
+
+export interface DownlineLevelRow extends DownlineMoney {
+    /** 0 is the viewer, 1 their direct reports, 2 those agents' reports. */
+    depth: number;
+    agents: number;
+    deals_won: number;
+    deals_open: number;
+    forecast: number;
+}
+
+export interface DownlineLevels extends DownlineForecastMeta {
+    rows: DownlineLevelRow[];
+}
+
+export interface DownlineAgentRow extends DownlineMoney {
+    agent_id: number;
+    user_id: number | null;
+    name: string;
+    image: string | null;
+    depth: number;
+    parent_agent_id: number | null;
+    /** MLM level name, null for an agent who has never been assigned one. */
+    level: string | null;
+    direct_reports: number;
+    deals_won: number;
+    deals_open: number;
+    forecast: number;
+}
+
+export interface DownlineAgents extends DownlineForecastMeta {
+    rows: DownlineAgentRow[];
+}

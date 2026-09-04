@@ -8,16 +8,21 @@ import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import AgentView, { AgentViewProps } from "./views/AgentView";
 import ManagerView, { ManagerViewProps } from "./views/ManagerView";
+import TeamView, { TeamViewProps } from "./views/TeamView";
 import LeadershipView, { LeadershipViewProps } from "./views/LeadershipView";
 import PartnerView, { PartnerViewProps } from "./views/PartnerView";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-type ViewKey = "agent" | "manager" | "leadership" | "partner";
+type ViewKey = "agent" | "manager" | "team" | "leadership" | "partner";
 
 const VIEW_LABELS: Record<ViewKey, string> = {
     agent: "My work",
     manager: "Team",
+    // Not "Team": that is the manager view, one flat level of direct reports.
+    // This one walks the whole tree, which is what the business calls a
+    // downline.
+    team: "Downline",
     leadership: "Company",
     partner: "Partner",
 };
@@ -30,7 +35,7 @@ const PERIODS = [
 ];
 
 /** Views whose panels are windowed, and so get the period picker. */
-const WINDOWED: ViewKey[] = ["manager"];
+const WINDOWED: ViewKey[] = ["manager", "team"];
 
 /**
  * The deferred panel props all arrive as top-level page props, so the shell
@@ -44,11 +49,12 @@ type DashboardV2Props = {
     personalDashboardEnabled?: boolean;
 } & AgentViewProps &
     ManagerViewProps &
+    TeamViewProps &
     LeadershipViewProps &
     PartnerViewProps;
 
 /**
- * Shell for the four role-scoped dashboards.
+ * Shell for the role-scoped dashboards.
  *
  * Which views appear comes from independent view_*_dashboard permissions, so a
  * user holding several (leadership commonly holds agent + leadership) gets a
@@ -188,6 +194,9 @@ export default function DashboardV2(props: DashboardV2Props) {
                     {activeView === "agent" && <AgentView {...props} />}
                     {activeView === "manager" && (
                         <ManagerView {...props} currentUserId={auth?.user?.id} />
+                    )}
+                    {activeView === "team" && (
+                        <TeamView {...props} currentUserId={auth?.user?.id} />
                     )}
                     {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}
