@@ -411,9 +411,10 @@ class Deal extends BaseModel
      * Commission having been calculated is a narrower, separate fact from the
      * deal being fully locked: a deal can be commission_locked (its value can
      * no longer change, because a commission was already computed against it)
-     * while everything else about it — stage, agent, notes — stays editable.
-     * Set by ProcessDealWonJob once distribution completes; cleared by
-     * DealOutcomeService::apply() when a won deal is reverted.
+     * while stage and notes stay editable. The agent is also frozen: payout
+     * already ran against that agent. Set by ProcessDealWonJob once
+     * distribution completes; cleared by DealOutcomeService::apply() when a
+     * won deal is reverted.
      */
     public function isCommissionLocked(): bool
     {
@@ -462,5 +463,34 @@ class Deal extends BaseModel
         }
 
         return false;
+    }
+
+    /**
+     * True when $data includes agent_id. Distinct from VALUE_AFFECTING_KEYS:
+     * changing the agent does not change the deal's value, but it is still
+     * refused once commission has been calculated against the current agent.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function touchesAgentField(array $data): bool
+    {
+        return array_key_exists('agent_id', $data);
+    }
+
+    /**
+     * True when $newAgentId is a different agent (or a clear) from the one
+     * currently stored. Presence of the same id is not a change.
+     */
+    public function agentWouldChange(mixed $newAgentId): bool
+    {
+        $current = $this->agent_id === null ? null : (int) $this->agent_id;
+
+        if ($newAgentId === null || $newAgentId === '') {
+            $incoming = null;
+        } else {
+            $incoming = (int) $newAgentId;
+        }
+
+        return $current !== $incoming;
     }
 }
