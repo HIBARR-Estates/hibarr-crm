@@ -414,6 +414,9 @@ const Index = ({
     // Handle agent change from table or card
     const handleAgentChange = useCallback(
         (deal: Deal, agentId: number | null) => {
+            if (deal.commission_locked) {
+                return;
+            }
             changeAgent(
                 { deal_id: deal.id, agent_id: agentId },
                 {
