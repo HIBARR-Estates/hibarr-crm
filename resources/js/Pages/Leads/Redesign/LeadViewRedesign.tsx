@@ -16,6 +16,7 @@ import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -117,6 +118,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -639,7 +641,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 { name: pageTitle },
             ]}
         >
-            <div className="lead-redesign">
+            <div
+                className={`lead-redesign ${
+                    isMobileResponsive ? "lr-mobile-responsive" : ""
+                }`}
+            >
                 {showProductTour && (
                     <ProductTour
                         ref={tourRef}
@@ -704,6 +710,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
+                            <div className="mb-4">
+                                <DossierQuickActions
+                                    onLogAction={() => setLogActionOpen(true)}
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            </div>
+
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
                                     leadId={lead.id}
@@ -769,11 +785,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
-                            <DossierQuickActions
-                                onLogAction={() => setLogActionOpen(true)}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onScheduleMeeting={() => setAddMeetingOpen(true)}
-                            />
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(

@@ -1261,6 +1261,9 @@
 .lead-redesign .v2-quick-stat-meta-inline {
     font-size: 11px;
     color: var(--lr-text-muted);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 .lead-redesign .v2-quick-stat-chips {
@@ -1479,6 +1482,45 @@
     }
     .lead-redesign .v2-quick-stat:last-child {
         border-bottom: none;
+    }
+}
+
+/*
+ * HIB-1404 — widen the stacking breakpoint from 960px to the app's 1024px
+ * (lg) convention so tablets in the 961-1023px range also get the
+ * single-column layout instead of a cramped 300px dossier rail. Scoped to
+ * .lr-mobile-responsive (only added when crm.mobile-responsive-layout is on)
+ * so the existing 960px behavior above is untouched while this is staged.
+ */
+@media (max-width: 1023px) {
+    .lr-mobile-responsive .v2-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .lr-mobile-responsive .v2-dossier-column {
+        position: static !important;
+    }
+    .lr-mobile-responsive .v2-overview-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .lr-mobile-responsive .v2-quick-stats {
+        grid-template-columns: 1fr;
+    }
+    .lr-mobile-responsive .v2-quick-stat {
+        min-height: 140px;
+        border-right: none;
+        border-bottom: 1px solid var(--lr-border);
+    }
+    .lr-mobile-responsive .v2-quick-stat:last-child {
+        border-bottom: none;
+    }
+
+    /* The lead-owner chip sits at the end of the header's flex-wrap row —
+       on desktop it's the last item on the title line, but once the header
+       wraps on mobile it lands alone on its own line as a small pill with
+       a lot of unused space beside it. Let it fill that line instead. */
+    .lr-mobile-responsive .lr-owner-card {
+        display: flex;
+        width: 100%;
     }
 }
 
@@ -1774,6 +1816,14 @@
 @media (max-width: 960px) {
     .lead-redesign .qualify-3col-left,
     .lead-redesign .qualify-3col-right {
+        display: none;
+    }
+}
+
+/* HIB-1404 — same widened breakpoint as the .v2-grid rule above. */
+@media (max-width: 1023px) {
+    .lr-mobile-responsive .qualify-3col-left,
+    .lr-mobile-responsive .qualify-3col-right {
         display: none;
     }
 }

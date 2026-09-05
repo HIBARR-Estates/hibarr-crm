@@ -310,7 +310,7 @@ export default function DealStickyHeader({
                         </div>
                     </div>
 
-                    <div className="flex items-start gap-[18px]">
+                    <div className="flex flex-wrap items-start gap-[18px]">
                         <div data-tour="deal-value">
                             <DealValueBlock
                                 deal={deal}
