@@ -33,7 +33,7 @@ export function actionTypeSubtitle(actionType: ActionType): string {
         case "create_note":
             return "Adds a note";
         case "meta_conversion":
-            return "Queues a Meta Conversion event";
+            return "Sends a Meta Conversion event";
         case "wait":
             return "Pauses the flow before continuing";
         default:

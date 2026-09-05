@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, SendOutlined } from "@ant-design/icons";
 import Button from "@/Components/Redesign/primitives/Button";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
@@ -9,6 +9,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { MetaEvent } from "./types";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useMetaEventMutations from "./hooks/useMetaEventMutations";
+import useMetaEventTestSend from "./hooks/useMetaEventTestSend";
 
 interface MetaEventsListProps {
     onOpenAutomation: (id: number) => void;
@@ -20,6 +21,7 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
     const { t } = useTranslation();
     const { metaEvents, metaEventsLoading } = useAutomationWorkspace();
     const { createMetaEvent, updateMetaEvent, deleteMetaEvent, savingId } = useMetaEventMutations();
+    const { sendTest, sending, result: testResult, errorMessage: testError, reset: resetTest } = useMetaEventTestSend();
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<MetaEvent | null>(null);
@@ -28,6 +30,35 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
     const [description, setDescription] = useState("");
     const [deleteTarget, setDeleteTarget] = useState<MetaEvent | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    const [testModalOpen, setTestModalOpen] = useState(false);
+    const [testLeadId, setTestLeadId] = useState("");
+    const [testEventName, setTestEventName] = useState("");
+    const [testValue, setTestValue] = useState("");
+
+    function openTestModal() {
+        resetTest();
+        setTestLeadId("");
+        setTestEventName(metaEvents[0]?.name ?? "");
+        setTestValue(metaEvents[0]?.value != null ? String(metaEvents[0].value) : "");
+        setTestModalOpen(true);
+    }
+
+    function closeTestModal() {
+        setTestModalOpen(false);
+    }
+
+    async function handleSendTest() {
+        const leadId = Number(testLeadId);
+        const trimmedEventName = testEventName.trim();
+        if (!leadId || !trimmedEventName) return;
+
+        await sendTest({
+            lead_id: leadId,
+            event_name: trimmedEventName,
+            value: testValue.trim() ? Number(testValue) : 0,
+        });
+    }
 
     const isSaving = savingId === (editing?.id ?? "new");
 
@@ -88,9 +119,14 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                         {t("app.automation.metaEventsSubtitle")}
                     </p>
                 </div>
-                <Button variant="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                    {t("app.automation.newMetaEvent")}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" icon={<SendOutlined />} onClick={openTestModal}>
+                        {t("app.automation.sendTestEvent")}
+                    </Button>
+                    <Button variant="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                        {t("app.automation.newMetaEvent")}
+                    </Button>
+                </div>
             </div>
 
             {!metaEventsLoading && metaEvents.length === 0 && (
@@ -249,6 +285,122 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                 onConfirm={() => void handleDelete()}
                 onCancel={() => setDeleteTarget(null)}
             />
+
+            <Modal
+                open={testModalOpen}
+                title={t("app.automation.sendTestEvent")}
+                onClose={closeTestModal}
+                footer={
+                    <>
+                        <Button variant="ghost" onClick={closeTestModal}>
+                            {t("app.cancel")}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            icon={<SendOutlined />}
+                            onClick={() => void handleSendTest()}
+                            loading={sending}
+                            disabled={!testLeadId.trim() || !testEventName.trim()}
+                        >
+                            {t("app.automation.sendTestEvent")}
+                        </Button>
+                    </>
+                }
+            >
+                <p className="mt-0 mb-3" style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                    {t("app.automation.sendTestEventHint")}
+                </p>
+
+                <ModalField label={t("app.automation.testLeadId")}>
+                    <input
+                        type="number"
+                        min={1}
+                        value={testLeadId}
+                        onChange={(e) => setTestLeadId(e.target.value)}
+                        placeholder={t("app.automation.testLeadIdPlaceholder")}
+                        className="dr-input w-full"
+                        autoFocus
+                    />
+                </ModalField>
+
+                {metaEvents.length > 0 && (
+                    <ModalField label={t("app.automation.metaEvents")}>
+                        <select
+                            className="dr-input w-full"
+                            defaultValue=""
+                            onChange={(e) => {
+                                const picked = metaEvents.find((ev) => String(ev.id) === e.target.value);
+                                if (picked) {
+                                    setTestEventName(picked.name);
+                                    setTestValue(picked.value != null ? String(picked.value) : "");
+                                }
+                            }}
+                        >
+                            <option value="" disabled>
+                                {t("app.automation.selectValue")}
+                            </option>
+                            {metaEvents.map((ev) => (
+                                <option key={ev.id} value={ev.id}>
+                                    {ev.name}
+                                </option>
+                            ))}
+                        </select>
+                    </ModalField>
+                )}
+
+                <ModalField label={t("app.automation.eventName")}>
+                    <input
+                        value={testEventName}
+                        onChange={(e) => setTestEventName(e.target.value)}
+                        placeholder={t("app.automation.eventNamePlaceholder")}
+                        className="dr-input w-full"
+                    />
+                </ModalField>
+                <ModalField label={t("app.automation.eventValue")}>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={testValue}
+                        onChange={(e) => setTestValue(e.target.value)}
+                        className="dr-input w-full"
+                    />
+                </ModalField>
+
+                {testError && (
+                    <div
+                        className="rounded-lg mt-3"
+                        style={{ background: T.RED_SOFT, border: `1px solid ${T.RED}`, padding: "10px 12px", fontSize: 12, color: T.RED }}
+                    >
+                        {testError}
+                    </div>
+                )}
+
+                {testResult && (
+                    <div
+                        className="rounded-lg mt-3"
+                        style={{
+                            background: testResult.success ? T.BLUE_LIGHT : T.RED_SOFT,
+                            border: `1px solid ${testResult.success ? T.BLUE_DARK : T.RED}`,
+                            padding: "10px 12px",
+                            fontSize: 12,
+                            color: testResult.success ? T.BLUE_DARK : T.RED,
+                        }}
+                    >
+                        <div className="font-semibold mb-1">
+                            {testResult.success
+                                ? t("app.automation.testEventAccepted", { status: String(testResult.status_code ?? "") })
+                                : t("app.automation.testEventFailed")}
+                        </div>
+                        {testResult.error && <div>{testResult.error}</div>}
+                        {testResult.fbtrace_id && (
+                            <div style={{ fontFamily: "ui-monospace, monospace", marginTop: 4 }}>
+                                fbtrace_id: {testResult.fbtrace_id}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }

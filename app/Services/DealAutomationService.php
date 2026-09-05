@@ -60,8 +60,10 @@ class DealAutomationService
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
-        // Skip automation for locked deals (full freeze or commission already paid)
-        if ($deal->is_locked || $deal->isCommissionLocked()) {
+        // Skip automation only for fully locked deals — a commission-locked
+        // deal (commission already paid/distributed) still allows automations
+        // to run; only the general edit lock freezes them.
+        if ($deal->is_locked) {
             Log::info("Skipping automations for locked Deal ID: {$deal->id}");
 
             return;
@@ -125,7 +127,7 @@ class DealAutomationService
             return;
         }
 
-        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
+        if ($subject instanceof Deal && $subject->is_locked) {
             Log::info("Skipping date-based automation for locked Deal ID: {$subject->id}");
 
             return;
@@ -264,7 +266,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
+        if ($subject instanceof Deal && $subject->is_locked) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
 
             return true;
@@ -1165,12 +1167,14 @@ class DealAutomationService
     }
 
     /**
-     * Perform a meta_conversion action: queue a Meta (Facebook) Conversions
+     * Perform a meta_conversion action: send a Meta (Facebook) Conversions
      * API event for the deal/lead. Event name supports merge tags (e.g. a
-     * lead field), value is optional and defaults to 0. Actually sending is
-     * backgrounded via SendMetaConversionEventJob — MetaConversionsService
-     * fails soft (returns false, never throws) so a misconfigured/rejected
-     * Meta account can't break the rest of the automation's actions.
+     * lead field), value is optional and defaults to 0. Sending runs
+     * synchronously via SendMetaConversionEventJob (no queue — see that
+     * class) so this action's own run-log step reflects Meta's real answer
+     * instead of only "queued"; MetaConversionsService still fails soft
+     * (returns false, never throws) so a misconfigured/rejected Meta account
+     * can't break the rest of the automation's actions.
      */
     protected function performMetaConversion(Deal|Lead $subject, $action, ?DealAutomation $automation = null): void
     {
@@ -1187,40 +1191,38 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        // The job's own ->afterCommit() only defers via the queue connection's
-        // enqueueUsing() — QUEUE_CONNECTION=sync bypasses that entirely and
-        // fires immediately (see SyncQueue::push()), so it would still run
-        // inside an open DB::transaction(). DB::afterCommit() defers at the
-        // connection/transaction-manager level instead, which works under
-        // every queue driver including sync, and fires immediately here if no
-        // transaction is open.
         $origin = [
             'source' => 'automation',
             'automation_id' => $automation?->id,
             'automation_name' => $automation?->name,
-            // So the outcome row the job writes later joins this same run
-            // rather than appearing as a run of its own.
+            // So the 'meta' outcome row SendMetaConversionEventJob writes
+            // joins this same run rather than appearing as a run of its own.
             'run_id' => $this->currentRunId,
         ];
 
+        // SendMetaConversionEventJob is not queued (see that class) — it runs
+        // synchronously the moment DB::afterCommit fires, which is either
+        // right here (no open transaction) or right after the enclosing
+        // transaction commits, so the subject's own field changes are already
+        // persisted before Meta receives them.
         DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
             \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value, $origin);
         });
 
-        $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
+        // The job itself writes the definitive 'meta' log row with Meta's
+        // actual response (or failure reason) once it runs. This second,
+        // step-level log just records that the automation dispatched it.
+        $description = "Meta Conversion event sent: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
         Log::info("Action executed for {$label}. {$description}");
-        // The queue-time row only records that the action fired. The job writes
-        // a second 'meta' row once Meta has actually answered — that's the one
-        // carrying the failure reason.
         $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta', [
-            'stage' => 'queued',
+            'stage' => 'dispatched',
             'event_name' => $eventName,
             'value' => $value,
         ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-            'action' => 'automation_meta_conversion_queued',
-            'comment' => "Meta Conversion event queued by automation: {$eventName}",
+            'action' => 'automation_meta_conversion_sent',
+            'comment' => "Meta Conversion event sent by automation: {$eventName}",
             'meta_event_name' => $eventName,
             'meta_event_value' => $value,
         ]);
