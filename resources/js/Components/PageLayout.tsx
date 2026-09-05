@@ -18,8 +18,12 @@ import {
     SettingOutlined,
 } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
+import { MenuOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useMobileSidebar } from "@/contexts/MobileSidebarContext";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import TimezoneIndicator from "./TimezoneIndicator";
@@ -55,7 +59,7 @@ export default function PageLayout({
     searchComp,
     filterSection,
     config = defaultConfig,
-    mainContentClassName = "px-6 py-6",
+    mainContentClassName,
     onRefresh,
     isRefreshing = false,
 }: PageLayoutProps) {
@@ -88,9 +92,26 @@ export default function PageLayout({
 
     const { message } = App.useApp();
     const { t } = useTranslation();
+    const { td } = useTd();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const { openMobileSidebar } = useMobileSidebar();
     const { props } = usePage<PageProps>();
     const { auth, appName, flash } = props;
     const { user } = auth;
+
+    // Flag off preserves the exact previous default/classes at every width.
+    const resolvedMainContentClassName =
+        mainContentClassName ??
+        (isMobileResponsive ? "px-3 sm:px-6 py-4 sm:py-6" : "px-6 py-6");
+    const topbarPaddingClassName = isMobileResponsive
+        ? "px-3 sm:px-6 py-3 sm:py-4"
+        : "px-6 py-4";
+    const topbarRowClassName = isMobileResponsive
+        ? "flex items-center gap-x-3 sm:gap-x-6 flex-wrap sm:flex-nowrap"
+        : "flex items-center gap-x-6";
+    const searchWrapperClassName = isMobileResponsive
+        ? "order-3 sm:order-none basis-full sm:basis-0 sm:flex-1"
+        : "flex-1";
 
     useEffect(() => {
         if (flash?.success) {
@@ -160,12 +181,24 @@ export default function PageLayout({
 
             <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
-                <div className="bg-white border-b border-gray-200 px-6 py-4">
-                    <div className="flex items-center gap-x-6">
-                        <div className="">
+                <div
+                    className={`bg-white border-b border-gray-200 ${topbarPaddingClassName}`}
+                >
+                    <div className={topbarRowClassName}>
+                        {isMobileResponsive && (
+                            <button
+                                type="button"
+                                onClick={openMobileSidebar}
+                                aria-label={td("Open menu", { source: "en" })}
+                                className="lg:hidden flex items-center justify-center w-11 h-11 -ml-2 flex-shrink-0 rounded-lg text-gray-600 hover:bg-gray-100"
+                            >
+                                <MenuOutlined className="text-lg" />
+                            </button>
+                        )}
+                        <div className="min-w-0">
                             <div className="flex items-center space-x-3">
                                 {config.showTitle && (
-                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
+                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-[60vw] sm:max-w-xs">
                                         {title}
                                     </h1>
                                 )}
@@ -183,7 +216,7 @@ export default function PageLayout({
 
                         {/* Search Component */}
                         {searchComp && (
-                            <div className="flex-1">
+                            <div className={searchWrapperClassName}>
                                 {/* set a max width so it doesn't stretch too far */}
                                 <div className="max-w-lg mx-auto">
                                     {searchComp}
@@ -237,7 +270,7 @@ export default function PageLayout({
                 )}
 
                 {/* Main Content */}
-                <div className={mainContentClassName}>{children}</div>
+                <div className={resolvedMainContentClassName}>{children}</div>
             </div>
         </>
     );

@@ -35,6 +35,9 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isPermissionAll } from "@/lib/permissionUtils";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useIsDesktopViewport } from "@/Hooks/useMediaQuery";
+import { useMobileSidebar } from "@/contexts/MobileSidebarContext";
 
 interface Pipeline {
     id: number;
@@ -77,6 +80,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
     const isAdmin = useIsAdminRole();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const { mobileOpen, closeMobileSidebar } = useMobileSidebar();
+    const isDesktopViewport = useIsDesktopViewport();
+    // On mobile the sidebar is a full-width drawer; density collapsing is a
+    // desktop-only affordance, so ignore `collapsed` below the lg breakpoint.
+    const effectiveCollapsed =
+        isMobileResponsive && !isDesktopViewport ? false : collapsed;
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -450,10 +460,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     ];
 
     // Navigate to a link
-    const handleNavigate = useCallback((href: string, e?: React.MouseEvent) => {
-        e?.preventDefault();
-        router.visit(href);
-    }, []);
+    const handleNavigate = useCallback(
+        (href: string, e?: React.MouseEvent) => {
+            e?.preventDefault();
+            router.visit(href);
+            closeMobileSidebar();
+        },
+        [closeMobileSidebar],
+    );
 
     // Render a navigation item
     const renderNavItem = useCallback(
@@ -500,7 +514,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     )}
 
                     {/* Label */}
-                    {!collapsed && (
+                    {!effectiveCollapsed && (
                         <>
                             <span className="flex-1 text-sm font-medium truncate">
                                 {item.label}
@@ -537,7 +551,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
 
             // Wrap in tooltip when collapsed
-            const wrappedContent = collapsed ? (
+            const wrappedContent = effectiveCollapsed ? (
                 <Tooltip title={item.label} placement="right">
                     {itemContent}
                 </Tooltip>
@@ -550,7 +564,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     {wrappedContent}
 
                     {/* Children */}
-                    {hasChildren && !collapsed && (
+                    {hasChildren && !effectiveCollapsed && (
                         <div
                             className={`
                                 overflow-hidden transition-all duration-300 ease-out
@@ -571,46 +585,82 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 </a>
             );
         },
-        [collapsed, expandedItems, isActive, toggleExpanded, handleNavigate],
+        [effectiveCollapsed, expandedItems, isActive, toggleExpanded, handleNavigate],
     );
+
+    const isMobileDrawer = isMobileResponsive && !isDesktopViewport;
+    const mobileTranslateClass = isMobileDrawer
+        ? mobileOpen
+            ? "translate-x-0"
+            : isRtl
+              ? "translate-x-full"
+              : "-translate-x-full"
+        : "";
 
     return (
         <aside
             className={`
-                fixed top-0 h-screen z-40
+                fixed top-0 h-screen
                 flex flex-col
                 bg-[#001529]
                 transition-all duration-300 ease-out
+                ${isMobileDrawer ? "z-50" : "z-40"}
                 ${isRtl ? "right-0 border-l border-slate-700/50" : "left-0 border-r border-slate-700/50"}
-                ${collapsed ? "w-[72px]" : "w-[260px]"}
+                ${isMobileDrawer ? "w-full max-w-[320px]" : effectiveCollapsed ? "w-[72px]" : "w-[260px]"}
+                ${mobileTranslateClass}
             `}
         >
             {/* Header / Brand */}
             <div
                 className={`
                     flex items-center h-16 border-b border-slate-700/50
-                    ${collapsed ? "justify-center px-4" : "justify-center px-3"}
+                    ${effectiveCollapsed ? "justify-center px-4" : "justify-between px-3"}
                 `}
             >
-                {!collapsed && company?.logo_url ? (
-                    <img
-                        src={company.logo_url}
-                        alt={appName}
-                        className="h-10 w-full max-w-full object-contain"
-                    />
-                ) : (
-                    <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-lg">
-                            {appName?.charAt(0) || "H"}
-                        </span>
-                    </div>
+                <div className="flex items-center justify-center flex-1 min-w-0">
+                    {!effectiveCollapsed && company?.logo_url ? (
+                        <img
+                            src={company.logo_url}
+                            alt={appName}
+                            className="h-10 w-full max-w-full object-contain"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                            <span className="text-white font-bold text-lg">
+                                {appName?.charAt(0) || "H"}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {isMobileDrawer && (
+                    <button
+                        type="button"
+                        onClick={closeMobileSidebar}
+                        aria-label={td("Close", { source: "en" })}
+                        className="flex items-center justify-center w-11 h-11 -mr-1 flex-shrink-0 rounded-lg text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                    >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                 )}
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 {/* Section label */}
-                {/* {!collapsed && (
+                {/* {!effectiveCollapsed && (
                     <div className="px-3 mb-3">
                         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                             Main Menu
@@ -646,11 +696,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                             flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer mb-2
                             text-slate-300 hover:bg-slate-700/50 hover:text-white
                             transition-all duration-200
-                            ${collapsed ? "justify-center" : ""}
+                            ${effectiveCollapsed ? "justify-center" : ""}
                         `}
                     >
                         <AppstoreOutlined className="text-lg text-slate-400" />
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                             <span className="text-sm font-medium">
                                 {t("app.menu.integrationsHub")}
                             </span>
@@ -669,11 +719,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                             flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer mb-2
                             text-slate-300 hover:bg-slate-700/50 hover:text-white
                             transition-all duration-200
-                            ${collapsed ? "justify-center" : ""}
+                            ${effectiveCollapsed ? "justify-center" : ""}
                         `}
                     >
                         <QuestionCircleOutlined className="text-lg text-slate-400" />
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                             <span className="text-sm font-medium">
                                 {t("app.support")}
                             </span>
@@ -688,14 +738,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                             flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer mb-2
                             text-slate-300 hover:bg-slate-700/50 hover:text-white
                             transition-all duration-200
-                            ${collapsed ? "justify-center" : ""}
+                            ${effectiveCollapsed ? "justify-center" : ""}
                         `}
                         onClick={() =>
                             router.visit("/account/settings/overview")
                         }
                     >
                         <SettingOutlined className="text-lg text-slate-400" />
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                             <span className="text-sm font-medium">
                                 {t("app.menu.settings")}
                             </span>
@@ -703,7 +753,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     </div>
                 )}
 
-                {/* Collapse toggle button - always at bottom */}
+                {/* Collapse toggle button - desktop density affordance only */}
+                {!isMobileDrawer && (
                 <button
                     onClick={() => onCollapse(!collapsed)}
                     className={`
@@ -734,6 +785,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                         </span>
                     )}
                 </button>
+                )}
             </div>
         </aside>
     );
