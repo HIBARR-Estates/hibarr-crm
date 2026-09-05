@@ -193,8 +193,10 @@ class DealAutomationController extends AccountBaseController
 
         // Paginate *runs*, not steps: one execution of a three-action
         // automation is one row here, with its three steps nested under it.
+        // Status is applied to the derived run status, not individual steps.
         $runs = DB::query()
-            ->fromSub($this->runsQuery($this->logFilters($request))->getQuery(), 'runs')
+            ->fromSub($this->runsQuery($this->logFilters($request, exceptStatus: true))->getQuery(), 'runs')
+            ->when($request->filled('status'), fn ($q) => $q->whereRaw($this->derivedRunStatusSql().' = ?', [$request->status]))
             ->orderByDesc('executed_at')
             ->paginate($perPage);
 
@@ -225,7 +227,7 @@ class DealAutomationController extends AccountBaseController
                     'steps_count' => $runSteps->count(),
                     'started_at' => $runSteps->min('executed_at'),
                     'executed_at' => $runSteps->max('executed_at') ?? $run->executed_at,
-                    'steps' => $runSteps->values(),
+                    'steps' => $runSteps->map(fn (DealAutomationLog $step) => $this->summarizeLogStep($step))->values(),
                 ];
             })->values()
         );
@@ -234,16 +236,56 @@ class DealAutomationController extends AccountBaseController
     }
 
     /**
+     * Structured diagnostics for one log step — fetched on demand when a run
+     * history row is expanded, so the list payload stays a step summary.
+     */
+    public function logDetail($id)
+    {
+        abort_403(! AutomationV2Feature::enabled());
+
+        $log = DealAutomationLog::findOrFail($id);
+
+        return Reply::dataOnly(['status' => 'success', 'data' => [
+            'id' => $log->id,
+            'details' => $log->details,
+        ]]);
+    }
+
+    /**
+     * Step summary for the run-history list — omits the heavy `details` blob.
+     *
+     * @return array<string, mixed>
+     */
+    protected function summarizeLogStep(DealAutomationLog $step): array
+    {
+        return [
+            'id' => $step->id,
+            'automation_id' => $step->automation_id,
+            'run_id' => $step->run_id,
+            'deal_id' => $step->deal_id,
+            'lead_id' => $step->lead_id,
+            'action' => $step->action,
+            'status' => $step->status,
+            'channel' => $step->channel,
+            'executed_at' => $step->executed_at,
+            'has_details' => ! empty($step->details),
+            'automation' => $step->automation,
+            'deal' => $step->deal,
+            'lead' => $step->lead,
+        ];
+    }
+
+    /**
      * The shared filter set for the log/stat endpoints. Applied to steps —
      * a run matches when any of its steps does.
      *
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function logFilters(Request $request)
+    protected function logFilters(Request $request, bool $exceptStatus = false)
     {
         return DealAutomationLog::query()
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when(! $exceptStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('channel'), fn ($q) => $q->where('channel', $request->channel))
             ->when($request->filled('date_from'), fn ($q) => $q->whereDate('executed_at', '>=', $request->date_from))
             ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to));
@@ -267,8 +309,15 @@ class DealAutomationController extends AccountBaseController
             ->selectRaw('MIN(deal_id) as deal_id, MIN(lead_id) as lead_id')
             ->selectRaw('COUNT(*) as steps')
             ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_steps', [DealAutomationLog::STATUS_FAILED])
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as successful_steps', [DealAutomationLog::STATUS_SUCCESS])
             ->selectRaw('MAX(executed_at) as executed_at')
             ->groupBy('run_id');
+    }
+
+    /** SQL expression for a run's derived status from grouped step counts. */
+    protected function derivedRunStatusSql(): string
+    {
+        return "CASE WHEN failed_steps > 0 THEN 'failed' WHEN successful_steps = 0 THEN 'skipped' ELSE 'success' END";
     }
 
     /**
@@ -306,7 +355,7 @@ class DealAutomationController extends AccountBaseController
         // Every count here is over executions, not the individual action rows
         // that make them up — a three-action automation is one run, not three.
         $totalRuns = $this->countRuns($base);
-        $successCount = $this->countRuns($base, fn ($q) => $q->where('failed_steps', 0));
+        $successCount = $this->countRuns($base, fn ($q) => $q->where('failed_steps', 0)->where('successful_steps', '>', 0));
         $lastRun = (clone $base)->orderByDesc('executed_at')->value('executed_at');
 
         $daily = DB::query()
@@ -376,7 +425,7 @@ class DealAutomationController extends AccountBaseController
             ->fromSub($this->runsQuery($base)->getQuery(), 'runs')
             ->selectRaw('deal_id, lead_id, COUNT(*) as runs')
             ->selectRaw('SUM(CASE WHEN failed_steps > 0 THEN 1 ELSE 0 END) as failed_runs')
-            ->selectRaw('SUM(CASE WHEN failed_steps = 0 THEN 1 ELSE 0 END) as success_runs')
+            ->selectRaw('SUM(CASE WHEN failed_steps = 0 AND successful_steps > 0 THEN 1 ELSE 0 END) as success_runs')
             ->selectRaw('SUM(steps) as total_steps')
             ->selectRaw('MAX(executed_at) as last_run_at')
             ->groupBy('deal_id', 'lead_id')
