@@ -498,7 +498,7 @@ function DealViewRedesignInner(
 
                     <div className="">
                         <div
-                            className="mb-[14px] flex items-stretch gap-4"
+                            className="mb-[14px] flex flex-col lg:flex-row lg:items-stretch gap-4"
                             data-tour="deal-pipeline-stepper"
                         >
                             <div className="min-w-0 flex-1">
