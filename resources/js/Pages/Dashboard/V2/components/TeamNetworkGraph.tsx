@@ -247,7 +247,7 @@ export default function TeamNetworkGraph({
                                             {amount(own.paid, data.currency)}
                                         </div>
                                         <div className="dv2-tree-card-stat-label">
-                                            {td("paid")}
+                                            {td("Paid")}
                                         </div>
                                     </div>
                                     <div>
@@ -255,18 +255,18 @@ export default function TeamNetworkGraph({
                                             {own.active_deals}
                                         </div>
                                         <div className="dv2-tree-card-stat-label">
-                                            {td("active")}
+                                            {td("Active deals")}
                                         </div>
                                     </div>
                                     {branchDiffers && (
                                         <div
                                             className="dv2-tree-card-branch"
                                             title={td(
-                                                "Including everyone below them",
+                                                "This person's own figures are above. This line adds everyone below them in the network.",
                                             )}
                                         >
-                                            {td("branch")}: {network.active_deals}{" "}
-                                            {td("deals")}
+                                            {td("Branch")}: {network.active_deals}{" "}
+                                            {td("active deals")}
                                         </div>
                                     )}
                                 </div>

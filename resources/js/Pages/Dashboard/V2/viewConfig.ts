@@ -39,7 +39,7 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
  */
 export const VIEW_SUBTEXT: Record<ViewKey, string> = {
     manager: "How the agents reporting to you are doing.",
-    team: "What your network is doing — everyone below you, and not you.",
+    team: "Commissions, deals and leads across everyone below you — not your own activity.",
     leadership: "Company-wide movement across every team.",
     partner: "Your referrals only — no deal values.",
 };

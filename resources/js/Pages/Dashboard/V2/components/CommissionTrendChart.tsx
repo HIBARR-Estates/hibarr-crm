@@ -2,6 +2,7 @@ import {
     Area,
     AreaChart,
     CartesianGrid,
+    Legend,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -56,15 +57,22 @@ export default function CommissionTrendChart({
                 <Tooltip
                     formatter={(value) => [
                         amount(Number(value ?? 0), data.currency),
-                        td("Paid"),
+                        td("Commission paid"),
                     ]}
+                />
+                <Legend
+                    formatter={() => td("Commission paid")}
+                    wrapperStyle={{ fontSize: 12 }}
                 />
                 <Area
                     type="monotone"
                     dataKey="amount"
+                    name="amount"
                     stroke="#177a5b"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     fill="url(#teamCommissionTrend)"
+                    dot={{ r: 3, fill: "#177a5b", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
                 />
             </AreaChart>
         </ResponsiveContainer>

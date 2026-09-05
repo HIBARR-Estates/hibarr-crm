@@ -47,7 +47,7 @@ export default function RecentCommissionsList({
                     {td("No commission activity yet")}
                 </p>
                 <p style={{ margin: "4px 0 0", fontSize: 13, color: T.TEXT_MUTED }}>
-                    {td("Legs appear here as soon as a deal in the network closes.")}
+                    {td("Entries appear here as soon as a deal anywhere in the network closes.")}
                 </p>
             </div>
         );
