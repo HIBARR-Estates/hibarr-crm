@@ -193,6 +193,26 @@ class DealObserver
             }
         }
 
+        // Commission lock is narrower than is_locked: only the agent and
+        // value-feeding columns are reverted. Name/stage/notes and the
+        // outcome revert path (outcome_status, won_at, commission_locked)
+        // stay writable.
+        if ($deal->getOriginal('commission_locked') && ! $deal->isDirty('commission_locked')) {
+            $protected = array_merge(['agent_id'], Deal::VALUE_AFFECTING_KEYS);
+            $blocked = [];
+
+            foreach ($protected as $field) {
+                if ($deal->isDirty($field)) {
+                    $deal->{$field} = $deal->getOriginal($field);
+                    $blocked[] = $field;
+                }
+            }
+
+            if ($blocked !== []) {
+                \Log::warning("DealObserver: Attempted to modify commission-locked deal {$deal->id}. Blocked fields: ".implode(', ', $blocked));
+            }
+        }
+
         if ($deal->isDirty('pipeline_stage_id')) {
             self::createDealHistory($deal->id, 'stage-updated', agentId: $deal->agent_id, stageFromId: $deal->getOriginal('pipeline_stage_id'), stageToId: $deal->pipeline_stage_id);
         }
