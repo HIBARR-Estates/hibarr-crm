@@ -81,6 +81,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
+use App\Http\Controllers\MeetingSavedViewController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\MeetingTypeController;
 use App\Http\Controllers\MessageController;
@@ -759,7 +760,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
+    Route::post('meeting-saved-views', [MeetingSavedViewController::class, 'store'])->name('meeting-saved-views.store');
+    Route::patch('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'update'])->name('meeting-saved-views.update');
+    Route::delete('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'destroy'])->name('meeting-saved-views.destroy');
+    Route::get('meetings/{followUp}', [\App\Http\Controllers\MeetingsController::class, 'show'])->name('meetings.show')->whereNumber('followUp');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
+    Route::post('meetings/{followUp}/report', [\App\Http\Controllers\MeetingsController::class, 'report'])->name('meetings.report');
     Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)

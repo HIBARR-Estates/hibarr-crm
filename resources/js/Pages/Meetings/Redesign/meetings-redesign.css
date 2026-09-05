@@ -39,3 +39,57 @@
         transition: none;
     }
 }
+
+/* List layout — rows sit inside one bordered card, so the last divider
+   would double up with the card's own border. */
+.dr-meeting-row {
+    transition: background-color 120ms ease;
+}
+
+.dr-meeting-row:last-child {
+    border-bottom: none;
+}
+
+.dr-meeting-row:hover {
+    background: #f8f9fb;
+}
+
+/* Calendar — an empty cell is the "book this day" target, and a chip is the
+   "open this meeting" target sitting on top of it. */
+.dr-cal-cell:hover {
+    background: #fbfcfe !important;
+}
+
+.dr-cal-chip {
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 120ms ease;
+}
+
+.dr-cal-chip:hover {
+    filter: brightness(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dr-meeting-row,
+    .dr-cal-chip {
+        transition: none;
+    }
+}
+
+/* Live banner — the one row that is louder than the list around it. */
+.dr-meeting-live {
+    transition: box-shadow 120ms ease;
+}
+
+.dr-meeting-live:hover {
+    box-shadow:
+        inset 4px 0 0 0 #d92d20,
+        0 2px 10px rgba(217, 45, 32, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dr-meeting-live {
+        transition: none;
+    }
+}

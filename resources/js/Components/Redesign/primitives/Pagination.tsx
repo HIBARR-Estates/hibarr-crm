@@ -16,6 +16,15 @@ interface PaginationProps {
     /** Noun in the "Showing 1–9 of 42 tasks" line — pass your own entity. */
     itemLabel?: string;
     itemLabelPlural?: string;
+    /**
+     * Offers "Auto" alongside the fixed sizes — a page that sizes itself to
+     * the window. Only lists that actually compute one (Meetings) pass this.
+     */
+    allowAutoPageSize?: boolean;
+    /** Whether "Auto" is the current selection. */
+    autoPageSize?: boolean;
+    /** Called when the reader picks "Auto" back. */
+    onAutoPageSize?: () => void;
 }
 
 const NAV_BTN_BASE =
@@ -29,6 +38,9 @@ export default function Pagination({
     onPageSizeChange,
     itemLabel = "task",
     itemLabelPlural = "tasks",
+    allowAutoPageSize = false,
+    autoPageSize = false,
+    onAutoPageSize,
 }: PaginationProps) {
     const { td } = useTd();
     const selectId = useId();
@@ -64,8 +76,7 @@ export default function Pagination({
                     {"–"}
                     <span className="font-semibold" style={{ color: T.TEXT }}>
                         {to}
-                    </span>
-                    {" "}
+                    </span>{" "}
                     {td("of")}{" "}
                     <span className="font-semibold" style={{ color: T.TEXT }}>
                         {totalItems}
@@ -82,11 +93,26 @@ export default function Pagination({
                     </label>
                     <select
                         id={selectId}
-                        value={pageSize}
-                        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                        value={autoPageSize ? "auto" : pageSize}
+                        onChange={(e) => {
+                            if (e.target.value === "auto") {
+                                onAutoPageSize?.();
+                                return;
+                            }
+                            onPageSizeChange(Number(e.target.value));
+                        }}
                         className="text-sm rounded-md px-2 py-1 cursor-pointer outline-none transition-colors hover:border-[#c7d0de] focus:border-[#b8d4f0] focus:shadow-[0_0_0_2px_#e8f1fb]"
-                        style={{ border: `1px solid ${T.BORDER}`, color: T.TEXT }}
+                        style={{
+                            border: `1px solid ${T.BORDER}`,
+                            color: T.TEXT,
+                        }}
                     >
+                        {allowAutoPageSize && (
+                            <option value="auto">
+                                {td("Auto")}
+                                {autoPageSize ? ` (${pageSize})` : ""}
+                            </option>
+                        )}
                         {PAGE_SIZE_OPTIONS.map((option) => (
                             <option key={option} value={option}>
                                 {option}
@@ -110,11 +136,17 @@ export default function Pagination({
                         aria-atomic="true"
                     >
                         {td("Page")}{" "}
-                        <span className="font-semibold" style={{ color: T.TEXT }}>
+                        <span
+                            className="font-semibold"
+                            style={{ color: T.TEXT }}
+                        >
                             {safePage}
                         </span>{" "}
                         {td("of")}{" "}
-                        <span className="font-semibold" style={{ color: T.TEXT }}>
+                        <span
+                            className="font-semibold"
+                            style={{ color: T.TEXT }}
+                        >
                             {totalPages}
                         </span>
                     </span>
@@ -163,7 +195,10 @@ export default function Pagination({
                                               background: T.BLUE,
                                               color: T.WHITE,
                                           }
-                                        : { borderColor: T.BORDER, color: T.TEXT_MUTED }
+                                        : {
+                                              borderColor: T.BORDER,
+                                              color: T.TEXT_MUTED,
+                                          }
                                 }
                             >
                                 {entry}

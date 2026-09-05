@@ -1,34 +1,18 @@
 import { router } from "@inertiajs/react";
-import {
-    DeleteOutlined,
-    EditOutlined,
-    EyeOutlined,
-    LinkOutlined,
-} from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { useUserDateTime } from "@/Hooks/useUserDateTime";
-import AvatarStack, {
-    type AvatarStackPerson,
-} from "@/Components/Redesign/primitives/AvatarStack";
+import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
-import RowActionMenu, {
-    type RowAction,
-} from "@/Components/Redesign/primitives/RowActionMenu";
-import { REDESIGN_RADIUS as R, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import type { DealFollowup } from "@/Types/api/deal-followup";
+import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
+import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import {
-    canJoinMeeting,
-    hasMeetingPermission,
-    meetingDateParts,
-    meetingRange,
-    meetingRecordLink,
-    meetingSummaryState,
-    platformIconName,
-    platformLabelKey,
-    type MeetingBucket,
-} from "../adapters/meetingViewModel";
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
+import type { DealFollowup } from "@/Types/api/deal-followup";
+import useMeetingPresentation from "../hooks/useMeetingPresentation";
+import type { MeetingBucket } from "../adapters/meetingViewModel";
 
 interface MeetingCardProps {
     meeting: DealFollowup;
@@ -38,6 +22,10 @@ interface MeetingCardProps {
     onView: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    /** Opens the post-meeting report form. */
+    onReport: () => void;
+    selected: boolean;
+    onToggleSelect: () => void;
 }
 
 export default function MeetingCard({
@@ -48,97 +36,54 @@ export default function MeetingCard({
     onView,
     onEdit,
     onDelete,
+    onReport,
+    selected,
+    onToggleSelect,
 }: MeetingCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { timezone, formatTime } = useUserDateTime();
-
-    const live = bucket === "live";
-    const past = bucket === "past";
-    const { month, day, weekday } = meetingDateParts(
-        meeting.next_follow_up_date,
-        timezone,
-    );
-    const { end } = meetingRange(meeting, timezone);
-    const record = meetingRecordLink(meeting);
-    const summaryState = meetingSummaryState(meeting, bucket);
-    const showJoin = canJoinMeeting(meeting, bucket);
-
-    const labelKey = platformLabelKey(meeting.location);
-    // A free-text place is stored in `location` itself, so there's no lang key
-    // to resolve — translate the stored string on the fly instead.
-    const platformLabel = labelKey ? t(labelKey) : td(meeting.location);
-
-    const timeRange = `${formatTime(meeting.next_follow_up_date)} – ${formatTime(end)}`;
-    const timeMeta = live ? `${td("Now")} · ${timeRange}` : timeRange;
-
-    const participants: AvatarStackPerson[] = (
-        meeting.participant_users ?? []
-    ).map((person) => ({
-        id: person.id,
-        name: person.name,
-        // image_url is always set (gravatar placeholder), so key off the raw
-        // `image` column to decide between a photo and initials.
-        image: person.image ? (person.image_url ?? null) : null,
-        type:
-            person.id === (meeting.host_id ?? meeting.added_by?.id)
-                ? ("agent" as const)
-                : ("participant" as const),
-    }));
-
-    const actions: RowAction[] = [];
-    if (hasMeetingPermission(permissions.view_lead_follow_up, meeting, userId)) {
-        actions.push({
-            key: "view",
-            label: t("pages.meetings.card.actions.view"),
-            icon: <EyeOutlined />,
-            onSelect: onView,
-        });
-    }
-    if (hasMeetingPermission(permissions.edit_lead_follow_up, meeting, userId)) {
-        actions.push({
-            key: "edit",
-            label: t("pages.meetings.card.actions.edit"),
-            icon: <EditOutlined />,
-            onSelect: onEdit,
-        });
-    }
-    if (showJoin) {
-        actions.push({
-            key: "join",
-            label: t("pages.meetings.card.actions.join_meeting"),
-            icon: <LinkOutlined />,
-            onSelect: () =>
-                window.open(
-                    meeting.meeting_link,
-                    "_blank",
-                    "noopener,noreferrer",
-                ),
-        });
-    }
-    if (
-        hasMeetingPermission(permissions.delete_lead_follow_up, meeting, userId)
-    ) {
-        actions.push({
-            key: "delete",
-            label: t("pages.meetings.card.actions.delete"),
-            icon: <DeleteOutlined />,
-            danger: true,
-            onSelect: onDelete,
-        });
-    }
+    const {
+        live,
+        past,
+        month,
+        day,
+        weekday,
+        timeMeta,
+        title,
+        platformLabel,
+        platformIcon,
+        record,
+        summaryState,
+        showJoin,
+        participants,
+        actions,
+    } = useMeetingPresentation({
+        meeting,
+        bucket,
+        permissions,
+        userId,
+        onView,
+        onEdit,
+        onDelete,
+        onReport,
+    });
 
     return (
         <div
             className="dr-meeting-card cursor-pointer p-4"
             onClick={onView}
             style={{
-                background: T.WHITE,
-                border: `1px solid ${live ? T.RED_MID : T.BORDER}`,
+                background: selected ? T.BLUE_LIGHT : T.WHITE,
+                border: `1px solid ${selected ? T.BLUE_MID : live ? T.RED_MID : T.BORDER}`,
                 borderRadius: 10,
             }}
         >
             <div className="flex items-start gap-3">
+                <SelectCheckbox
+                    checked={selected}
+                    onChange={onToggleSelect}
+                    label={td("Select meeting")}
+                />
                 <DateBlock
                     monthLabel={month}
                     dayLabel={day}
@@ -153,18 +98,13 @@ export default function MeetingCard({
                             className="flex shrink-0"
                             style={{ color: T.TEXT_MUTED }}
                         >
-                            <Icon
-                                name={platformIconName(meeting.location)}
-                                size={15}
-                            />
+                            <Icon name={platformIcon} size={15} />
                         </span>
                         <span
                             className="truncate font-semibold"
                             style={{ fontSize: 15, color: T.TEXT }}
                         >
-                            {meeting.meeting_type?.name
-                                ? td(meeting.meeting_type.name)
-                                : platformLabel}
+                            {title}
                         </span>
                         {live && (
                             <span

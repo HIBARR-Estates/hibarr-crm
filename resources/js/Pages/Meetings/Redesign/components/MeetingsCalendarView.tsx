@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezonePlugin from "dayjs/plugin/timezone";
@@ -9,9 +9,15 @@ import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
-import { REDESIGN_RADIUS as R, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import { isVideoPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { platformLabelKey, type MeetingBucket } from "../adapters/meetingViewModel";
+import {
+    platformLabelKey,
+    type MeetingBucket,
+} from "../adapters/meetingViewModel";
 import {
     userEventDayKey,
     userEventHasTime,
@@ -59,6 +65,13 @@ interface MeetingsCalendarViewProps {
     visibleOverlayTypes: UserCalendarEventType[];
     onToggleOverlayType: (type: UserCalendarEventType) => void;
     currentUserId?: number;
+    /** Opens the meeting's detail dialog. */
+    onSelectMeeting: (meetingId: number) => void;
+    /**
+     * Empty space in a day cell — books a new meeting on that date. Left out
+     * when the viewer can't schedule, in which case cells aren't clickable.
+     */
+    onCreateAt?: (dayKey: string) => void;
 }
 
 /** Chips per cell before the rest collapse into "+N more". */
@@ -99,10 +112,24 @@ export default function MeetingsCalendarView({
     visibleOverlayTypes,
     onToggleOverlayType,
     currentUserId,
+    onSelectMeeting,
+    onCreateAt,
 }: MeetingsCalendarViewProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const { timezone, formatTime } = useUserDateTime();
+
+    // Hover preview. Positioned from the pointer rather than nested in the
+    // cell, because the calendar card clips its own overflow and a popover
+    // inside a cell would be cut off at the edges of the grid.
+    const [preview, setPreview] = useState<{
+        event: CalendarEvent;
+        x: number;
+        y: number;
+    } | null>(null);
+
+    /** Day whose "+N more" has been opened; only ever one at a time. */
+    const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
     const monthStart = dayjs(`${data.month}-01`);
 
@@ -127,7 +154,10 @@ export default function MeetingsCalendarView({
             ) {
                 return;
             }
-            const key = dayjs.utc(event.start).tz(timezone).format("YYYY-MM-DD");
+            const key = dayjs
+                .utc(event.start)
+                .tz(timezone)
+                .format("YYYY-MM-DD");
             const bucket = map.get(key);
             if (bucket) bucket.push(event);
             else map.set(key, [event]);
@@ -138,7 +168,8 @@ export default function MeetingsCalendarView({
     // The overlay is the *viewer's* own schedule, so it only makes sense while
     // the calendar is showing everyone or the viewer themselves.
     const overlayApplies =
-        personId === null || (currentUserId != null && personId === currentUserId);
+        personId === null ||
+        (currentUserId != null && personId === currentUserId);
 
     /**
      * A toggle appears when the month actually has rows of that type — no dead
@@ -369,10 +400,12 @@ export default function MeetingsCalendarView({
 
                     // Meetings claim the visible slots first — this is the
                     // Meetings page, so a task must never push one out of view.
-                    const shownMeetings = dayMeetings.slice(0, MAX_CHIPS);
+                    const expanded = expandedDay === dayKey;
+                    const limit = expanded ? Infinity : MAX_CHIPS;
+                    const shownMeetings = dayMeetings.slice(0, limit);
                     const shownOverlay = dayOverlay.slice(
                         0,
-                        Math.max(0, MAX_CHIPS - shownMeetings.length),
+                        Math.max(0, limit - shownMeetings.length),
                     );
                     const overflow =
                         dayMeetings.length +
@@ -383,11 +416,24 @@ export default function MeetingsCalendarView({
                     return (
                         <div
                             key={key}
-                            className="flex min-h-[118px] flex-col gap-1 p-2"
+                            className={`flex min-h-[118px] flex-col gap-1 p-2${
+                                date && onCreateAt ? " dr-cal-cell" : ""
+                            }`}
+                            // The whole cell is the target: clicking anywhere
+                            // that isn't a chip books that day. Chips stop the
+                            // event, so there's no ambiguity about which won.
+                            onClick={
+                                date && onCreateAt
+                                    ? () =>
+                                          onCreateAt(date.format("YYYY-MM-DD"))
+                                    : undefined
+                            }
                             style={{
                                 background: date ? T.WHITE : T.SURFACE_2,
                                 borderRight: `1px solid ${T.BORDER_SOFT}`,
                                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                                cursor:
+                                    date && onCreateAt ? "pointer" : undefined,
                             }}
                         >
                             {date && (
@@ -416,14 +462,24 @@ export default function MeetingsCalendarView({
                                                 ? t(labelKey)
                                                 : td(event.location));
                                         return (
-                                            <div
+                                            <button
                                                 key={`m-${event.id}`}
-                                                title={`${td(label)}${
-                                                    event.record_name
-                                                        ? ` — ${event.record_name}`
-                                                        : ""
-                                                }`}
-                                                className="overflow-hidden"
+                                                type="button"
+                                                className="dr-cal-chip block w-full overflow-hidden text-left"
+                                                onClick={(clickEvent) => {
+                                                    clickEvent.stopPropagation();
+                                                    onSelectMeeting(event.id);
+                                                }}
+                                                onMouseEnter={(hoverEvent) =>
+                                                    setPreview({
+                                                        event,
+                                                        x: hoverEvent.clientX,
+                                                        y: hoverEvent.clientY,
+                                                    })
+                                                }
+                                                onMouseLeave={() =>
+                                                    setPreview(null)
+                                                }
                                                 style={{
                                                     borderRadius: R.SM,
                                                     padding: "3px 7px",
@@ -449,7 +505,7 @@ export default function MeetingsCalendarView({
                                                 >
                                                     {formatTime(event.start)}
                                                 </div>
-                                            </div>
+                                            </button>
                                         );
                                     })}
 
@@ -517,15 +573,37 @@ export default function MeetingsCalendarView({
                                     })}
 
                                     {overflow > 0 && (
-                                        <span
-                                            className="font-semibold"
+                                        <button
+                                            type="button"
+                                            className="dr-meeting-link text-left font-semibold"
+                                            onClick={(clickEvent) => {
+                                                clickEvent.stopPropagation();
+                                                setExpandedDay(dayKey ?? null);
+                                            }}
                                             style={{
                                                 fontSize: 11,
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >
                                             +{overflow} {td("more")}
-                                        </span>
+                                        </button>
+                                    )}
+
+                                    {expanded && (
+                                        <button
+                                            type="button"
+                                            className="dr-meeting-link text-left font-semibold"
+                                            onClick={(clickEvent) => {
+                                                clickEvent.stopPropagation();
+                                                setExpandedDay(null);
+                                            }}
+                                            style={{
+                                                fontSize: 11,
+                                                color: T.TEXT_MUTED,
+                                            }}
+                                        >
+                                            {td("Show less")}
+                                        </button>
                                     )}
                                 </>
                             )}
@@ -533,6 +611,74 @@ export default function MeetingsCalendarView({
                     );
                 })}
             </div>
+
+            {preview && (
+                <div
+                    role="tooltip"
+                    className="pointer-events-none fixed z-50 max-w-[260px]"
+                    style={{
+                        // Nudged off the pointer so the chip underneath keeps
+                        // its hover, and flipped left near the right edge.
+                        top: Math.min(preview.y + 14, window.innerHeight - 140),
+                        left: Math.min(preview.x + 14, window.innerWidth - 276),
+                        background: T.WHITE,
+                        border: `1px solid ${T.BORDER}`,
+                        borderRadius: R.MD,
+                        boxShadow: "0 8px 24px rgba(16, 24, 40, 0.12)",
+                        padding: "10px 12px",
+                    }}
+                >
+                    <div
+                        className="font-semibold"
+                        style={{ fontSize: 13, color: T.NAVY }}
+                    >
+                        {td(
+                            preview.event.title ??
+                                (platformLabelKey(preview.event.location)
+                                    ? t(
+                                          platformLabelKey(
+                                              preview.event.location,
+                                          )!,
+                                      )
+                                    : preview.event.location),
+                        )}
+                    </div>
+                    {preview.event.record_name && (
+                        <div
+                            className="mt-0.5 truncate"
+                            style={{ fontSize: 12, color: T.BLUE }}
+                        >
+                            {td(preview.event.record_name)}
+                        </div>
+                    )}
+                    <div
+                        className="mt-1.5 flex items-center gap-1.5"
+                        style={{ fontSize: 12, color: T.TEXT_MUTED }}
+                    >
+                        <Icon name="clock" size={12} />
+                        {formatTime(preview.event.start)} ·{" "}
+                        {preview.event.duration} {td("min")}
+                    </div>
+                    <div
+                        className="mt-1 flex items-center gap-1.5"
+                        style={{ fontSize: 12, color: T.TEXT_MUTED }}
+                    >
+                        <Icon name="users" size={12} />
+                        {preview.event.participants.length}{" "}
+                        {td(
+                            preview.event.participants.length === 1
+                                ? "participant"
+                                : "participants",
+                        )}
+                    </div>
+                    <div
+                        className="mt-2"
+                        style={{ fontSize: 11, color: T.TEXT_HINT }}
+                    >
+                        {td("Click to open")}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

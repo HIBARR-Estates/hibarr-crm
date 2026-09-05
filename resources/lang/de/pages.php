@@ -1392,6 +1392,7 @@ return [
                 'view' => 'Anzeigen',
                 'edit' => 'Bearbeiten',
                 'join_meeting' => 'Meeting beitreten',
+                'report' => 'Nachbereitungsbericht',
                 'delete' => 'Löschen',
             ],
         ],

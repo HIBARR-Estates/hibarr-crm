@@ -267,6 +267,16 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
+    list: (
+        <>
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+        </>
+    ),
     grid: (
         <>
             <rect x="3" y="3" width="7" height="7" />

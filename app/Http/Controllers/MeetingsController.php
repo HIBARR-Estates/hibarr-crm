@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
+use App\Models\MeetingSavedView;
+use App\Models\MeetingSummary;
 use App\Models\MeetingType;
 use App\Models\User;
+use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingVisibilityService;
 use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MeetingsController extends AccountBaseController
@@ -18,8 +22,15 @@ class MeetingsController extends AccountBaseController
     /** Redesigned Meetings index (tab-driven list + month calendar). */
     private const REDESIGN_FLAG = 'crm.meetings-page-redesign';
 
-    /** Filter tabs the redesigned list accepts. */
-    private const TABS = ['all', 'upcoming', 'live', 'past'];
+    /**
+     * Filter tabs the redesigned list accepts.
+     *
+     * No 'live' tab: a live meeting is called out in the list itself, so a
+     * tab that normally reads zero would only be a worse second route to it.
+     * The live *scope* is still needed — Upcoming includes live meetings, and
+     * the calendar colours them.
+     */
+    private const TABS = ['all', 'upcoming', 'past'];
 
     /** Hard ceiling on chips the calendar month query will return. */
     private const CALENDAR_EVENT_LIMIT = 500;
@@ -99,6 +110,98 @@ class MeetingsController extends AccountBaseController
                 });
         };
 
+        // ── Shared list filters ────────────────────────────────────────
+        // Same contract as the lead/deal/task lists: the filter modal writes
+        // these query params, and a deep link (the dashboard's "N missed"
+        // badge) writes the same ones, so a filter set either way behaves
+        // identically. Everything is applied to the tab tallies as well —
+        // a tab whose count disagreed with the list it opens is worse than
+        // no count at all.
+        $csv = function ($value): array {
+            if (is_array($value)) {
+                return array_values(array_filter($value, 'strlen'));
+            }
+
+            return is_string($value) && $value !== ''
+                ? array_values(array_filter(explode(',', $value), 'strlen'))
+                : [];
+        };
+
+        // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
+        // throws, and a malformed link shouldn't 500 the page.
+        $isValidDate = function ($value): bool {
+            if (! is_string($value)) {
+                return false;
+            }
+
+            $parsed = \DateTime::createFromFormat('Y-m-d', $value);
+
+            return $parsed !== false && $parsed->format('Y-m-d') === $value;
+        };
+
+        $search = is_string($request->get('search')) ? trim($request->get('search')) : '';
+        $meetingTypeIds = $csv($request->get('meeting_type_id'));
+        $statuses = array_values(array_intersect(
+            $csv($request->get('status')),
+            ['scheduled', 'completed', 'cancelled']
+        ));
+        $locations = $csv($request->get('location'));
+        $hostIds = $csv($request->get('host_id'));
+        $attendanceValues = array_values(array_intersect(
+            $csv($request->get('attendance')),
+            ['attended', 'no_show']
+        ));
+        $recordType = in_array($request->get('record_type'), ['deal', 'lead'], true)
+            ? $request->get('record_type')
+            : null;
+        $dateFrom = $isValidDate($request->get('date_from')) ? $request->get('date_from') : null;
+        $dateTo = $isValidDate($request->get('date_to')) ? $request->get('date_to') : null;
+
+        // Kept as its own closure because the legacy branch below narrows by
+        // date alone; the redesign uses the full set.
+        $applyDateWindow = function ($query) use ($dateFrom, $dateTo) {
+            return $query
+                ->when($dateFrom, fn ($q) => $q->where('next_follow_up_date', '>=', $dateFrom))
+                ->when($dateTo, fn ($q) => $q->where('next_follow_up_date', '<=', Carbon::parse($dateTo)->endOfDay()));
+        };
+
+        $applyFilters = function ($query) use (
+            $applyDateWindow,
+            $search,
+            $meetingTypeIds,
+            $statuses,
+            $locations,
+            $hostIds,
+            $attendanceValues,
+            $recordType
+        ) {
+            $applyDateWindow($query);
+
+            return $query
+                ->when($meetingTypeIds, fn ($q) => $q->whereIn('meeting_type_id', $meetingTypeIds))
+                ->when($statuses, fn ($q) => $q->whereIn('status', $statuses))
+                ->when($locations, fn ($q) => $q->whereIn('location', $locations))
+                ->when($attendanceValues, fn ($q) => $q->whereIn('attendance_outcome', $attendanceValues))
+                // "Host" reads as whoever owns the meeting: the named host
+                // where one is set, otherwise the person who booked it.
+                ->when($hostIds, fn ($q) => $q->where(function ($inner) use ($hostIds) {
+                    $inner->whereIn('host_id', $hostIds)
+                        ->orWhere(function ($fallback) use ($hostIds) {
+                            $fallback->whereNull('host_id')->whereIn('added_by', $hostIds);
+                        });
+                }))
+                ->when($recordType === 'deal', fn ($q) => $q->whereNotNull('deal_id'))
+                ->when($recordType === 'lead', fn ($q) => $q->whereNull('deal_id')->whereNotNull('lead_id'))
+                ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
+                    $like = '%'.$search.'%';
+                    $inner->where('remark', 'like', $like)
+                        ->orWhereHas('deal', fn ($deal) => $deal->where('name', 'like', $like))
+                        ->orWhereHas('lead', fn ($lead) => $lead->where('client_name', 'like', $like)
+                            ->orWhere('company_name', 'like', $like))
+                        ->orWhereHas('meetingType', fn ($type) => $type->where('name', 'like', $like));
+                }));
+        };
+
         // ── Overview stats ─────────────────────────────────────────────
         $weekStart = Carbon::now('UTC')->startOfWeek();
         $weekEnd = Carbon::now('UTC')->endOfWeek();
@@ -110,21 +213,23 @@ class MeetingsController extends AccountBaseController
         // The last three sums are the redesign's tab tallies; they restate the
         // scopes above in SQL so a tab's count matches the list it opens.
         $liveSql = "status = 'scheduled'"
-            . ' AND next_follow_up_date <= ?'
-            . ' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?';
+            .' AND next_follow_up_date <= ?'
+            .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?';
         $pastSql = 'next_follow_up_date < ?'
-            . " AND (status != 'scheduled'"
-            . ' OR DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?)';
+            ." AND (status != 'scheduled'"
+            .' OR DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?)';
 
-        $counts = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
+        $counts = $applyFilters(
+            MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
+        )
             ->selectRaw(
                 'COUNT(*) as total,'
-                . ' SUM(next_follow_up_date >= ?) as upcoming,'
-                . ' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
-                . " SUM($liveSql) as live,"
-                . " SUM(status = 'completed') as completed,"
-                . " SUM(next_follow_up_date >= ? OR ($liveSql)) as upcoming_tab,"
-                . " SUM($pastSql) as past_tab",
+                .' SUM(next_follow_up_date >= ?) as upcoming,'
+                .' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
+                ." SUM($liveSql) as live,"
+                ." SUM(status = 'completed') as completed,"
+                ." SUM(next_follow_up_date >= ? OR ($liveSql)) as upcoming_tab,"
+                ." SUM($pastSql) as past_tab",
                 [
                     $now, $weekStart, $weekEnd,
                     $now, $defaultDuration, $now,
@@ -144,37 +249,12 @@ class MeetingsController extends AccountBaseController
         $tabCounts = [
             'all' => (int) ($counts->total ?? 0),
             'upcoming' => (int) ($counts->upcoming_tab ?? 0),
-            'live' => (int) ($counts->live ?? 0),
             'past' => (int) ($counts->past_tab ?? 0),
         ];
 
-        // Optional attendance/date-window filters — used by links into this
-        // page that already know what they're looking for (e.g. the personal
-        // dashboard's "N missed" badge), so the list they land on actually
-        // matches what was counted rather than just "all your past meetings".
-        // Attendance is only meaningful for past meetings, so it applies to
-        // that query alone.
-        $attendanceFilter = $request->get('attendance');
-
-        // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
-        // throws, and a malformed link shouldn't 500 the page.
-        $isValidDate = function ($value): bool {
-            if (! is_string($value)) {
-                return false;
-            }
-
-            $parsed = \DateTime::createFromFormat('Y-m-d', $value);
-
-            return $parsed !== false && $parsed->format('Y-m-d') === $value;
-        };
-        $dateFrom = $isValidDate($request->get('date_from')) ? $request->get('date_from') : null;
-        $dateTo = $isValidDate($request->get('date_to')) ? $request->get('date_to') : null;
-
-        $applyDateWindow = function ($query) use ($dateFrom, $dateTo) {
-            return $query
-                ->when($dateFrom, fn ($q) => $q->where('next_follow_up_date', '>=', $dateFrom))
-                ->when($dateTo, fn ($q) => $q->where('next_follow_up_date', '<=', Carbon::parse($dateTo)->endOfDay()));
-        };
+        // An attendance deep link is about meetings that already happened, so
+        // it also picks the tab the page lands on.
+        $attendanceFilter = $attendanceValues[0] ?? null;
 
         $upcomingMeetings = null;
         $pastMeetings = null;
@@ -199,19 +279,16 @@ class MeetingsController extends AccountBaseController
 
             // Upcoming/Live read forwards (soonest first); Past and All read
             // backwards (most recent first).
-            $ascending = in_array($activeTab, ['upcoming', 'live'], true);
+            $ascending = $activeTab === 'upcoming';
 
-            if ($activeTab === 'live') {
-                $listQuery->where($scopeLive);
-            } elseif ($activeTab === 'past') {
-                $listQuery->where($scopePast)
-                    ->when($attendanceFilter, fn ($q) => $q->where('attendance_outcome', $attendanceFilter));
+            if ($activeTab === 'past') {
+                $listQuery->where($scopePast);
             } elseif ($activeTab === 'upcoming') {
                 $listQuery->where($scopeUpcoming);
             }
             // 'all' takes every bucket — no extra scope.
 
-            $meetings = $applyDateWindow($listQuery)
+            $meetings = $applyFilters($listQuery)
                 ->orderBy('next_follow_up_date', $ascending ? 'asc' : 'desc')
                 ->paginate($perPage, ['*'], 'page')
                 ->withQueryString();
@@ -304,13 +381,15 @@ class MeetingsController extends AccountBaseController
             $props['meetings'] = $meetings;
             $props['tabCounts'] = $tabCounts;
             $props['activeTab'] = $activeTab;
-            // Named apart from Inertia's shared `filters` prop, which other
-            // index pages already use for their own filter shape.
-            $props['meetingFilters'] = [
-                'attendance' => $attendanceFilter,
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
-            ];
+
+            // Filter-modal chrome. All three are deferred: the modal is closed
+            // on first paint, the facet counts are several GROUP BY queries,
+            // and none of it is needed to render the list.
+            $props['filterPeople'] = Inertia::defer(fn () => $this->filterPeople($userId));
+            $props['filterFacets'] = Inertia::defer(
+                fn () => app(MeetingFilterFacetsService::class)->facets($userId)
+            );
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser($userId));
 
             // The month grid is a different query over a different window, and
             // only the calendar view can show it — register it as a deferred
@@ -326,7 +405,7 @@ class MeetingsController extends AccountBaseController
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
                 $props['calendarRequestedMonth'] = $calendarMonth->format('Y-m');
                 $props['calendarMeetings'] = Inertia::defer(
-                    fn () => $this->calendarPayload($calendarMonth, $userId, $now, $defaultDuration)
+                    fn () => $this->calendarPayload($calendarMonth, $userId, $now, $defaultDuration, $applyFilters)
                 );
             }
         } else {
@@ -359,19 +438,33 @@ class MeetingsController extends AccountBaseController
      * side because cells are placed by the *viewer's* local date, which can
      * pull a boundary meeting into the neighbouring month.
      */
-    private function calendarPayload(Carbon $month, int $userId, Carbon $now, int $defaultDuration): array
-    {
+    private function calendarPayload(
+        Carbon $month,
+        int $userId,
+        Carbon $now,
+        int $defaultDuration,
+        ?callable $applyFilters = null
+    ): array {
         $windowStart = $month->copy()->startOfMonth()->subDay();
         $windowEnd = $month->copy()->endOfMonth()->addDay();
 
-        $records = MeetingVisibilityService::scopeVisibleToUser(
+        $query = MeetingVisibilityService::scopeVisibleToUser(
             DealFollowUp::with([
                 'deal:id,name',
                 'lead:id,client_name,salutation,company_name',
                 'meetingType:id,name',
             ]),
             $userId
-        )
+        );
+
+        // The month grid shows the same filtered set as the list — switching
+        // to the calendar with a filter on must not quietly widen it. The
+        // date window is the one exception: the month itself is the window.
+        if ($applyFilters) {
+            $applyFilters($query);
+        }
+
+        $records = $query
             ->whereBetween('next_follow_up_date', [$windowStart, $windowEnd])
             ->orderBy('next_follow_up_date', 'asc')
             // A month of meetings is a bounded set in practice; the cap only
@@ -428,6 +521,183 @@ class MeetingsController extends AccountBaseController
             'events' => $events,
             'people' => $people,
         ];
+    }
+
+    /**
+     * File a follow-up report against a meeting that has taken place.
+     *
+     * The report is written as the meeting's `MeetingSummary` — the same
+     * record the AI summariser writes to — so a meeting has exactly one
+     * "what happened", whoever produced it, and the detail dialog's Summary
+     * tab renders both without knowing the difference. Re-filing a report
+     * overwrites the previous one rather than accumulating orphan rows.
+     */
+    public function report(Request $request, DealFollowUp $followUp)
+    {
+        abort_403(! (
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        // Visible on the list is the bar for writing to it, same as show().
+        abort_403(! MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::query()->whereKey($followUp->getKey()),
+            user()->id
+        )->exists());
+
+        $validated = $request->validate([
+            'discussed' => 'required|string|max:5000',
+            'outcome' => 'nullable|string|max:5000',
+            'next_steps' => 'nullable|string|max:5000',
+            'client_attended' => 'present|nullable|boolean',
+            'mark_completed' => 'boolean',
+        ]);
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A meeting can only be reported on once it has started.',
+            ], 422);
+        }
+
+        // Only the answered prompts are stored: the Summary tab renders the
+        // object key by key, so an empty "Next steps" would otherwise show as
+        // a heading with nothing under it.
+        $summaryObject = array_filter([
+            'discussed' => trim($validated['discussed']),
+            'outcome' => trim($validated['outcome'] ?? ''),
+            'next_steps' => trim($validated['next_steps'] ?? ''),
+        ], 'strlen');
+
+        DB::transaction(function () use ($followUp, $summaryObject, $validated) {
+            $summary = $followUp->meetingSummary;
+
+            if ($summary) {
+                $summary->update([
+                    'summary_object' => $summaryObject,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                ]);
+            } else {
+                $summary = MeetingSummary::create([
+                    'summary_object' => $summaryObject,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    // Nullable: a meeting booked against a lead alone has no
+                    // deal to hang the summary off, and still gets a report.
+                    'deal_id' => $followUp->deal_id,
+                ]);
+                $followUp->summary_id = $summary->id;
+            }
+
+            $attended = $validated['client_attended'];
+            $followUp->client_attended = $attended === null ? null : (bool) $attended;
+
+            if (($validated['mark_completed'] ?? false) && $followUp->status !== 'cancelled') {
+                $followUp->status = 'completed';
+            }
+
+            $followUp->last_updated_by = user()->id;
+            $followUp->save();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.updateSuccess'),
+        ]);
+    }
+
+    /**
+     * The viewer's saved meeting filter views, plus anything shared with the
+     * team. Shape matches the lead/task presenters, because one frontend
+     * component renders all three.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function savedViewsForUser(int $userId): array
+    {
+        return MeetingSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (MeetingSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
+    }
+
+    /**
+     * People who appear on the viewer's visible meetings, as the named host
+     * or as the person who booked it — the options for the host filter.
+     *
+     * Drawn from the meetings themselves rather than from the whole user
+     * table, so the filter can't offer a name that would return nothing.
+     */
+    private function filterPeople(int $userId): array
+    {
+        $ids = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
+            ->selectRaw('COALESCE(host_id, added_by) as person_id')
+            ->distinct()
+            ->pluck('person_id')
+            ->filter()
+            ->values();
+
+        return User::whereIn('id', $ids)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name])
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * One meeting, shaped exactly like a row of the index list.
+     *
+     * The calendar carries only enough per chip to draw it (time, location,
+     * record name); opening one has to show the full meeting, and it may not
+     * be on the list page currently loaded. Fetching it by id keeps that a
+     * single small request instead of pulling the whole list back.
+     */
+    public function show(DealFollowUp $followUp)
+    {
+        abort_403($this->viewFollowUpPermission === 'none');
+
+        // Visibility is the list's own rule, restated for one record — a
+        // meeting you can't see on the index must not be readable by id.
+        $visible = MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::query()->whereKey($followUp->getKey()),
+            user()->id
+        )->exists();
+
+        abort_403(! $visible);
+
+        $followUp->load([
+            'deal:id,name,agent_id,value,currency_id,pipeline_stage_id',
+            'deal.leadStage:id,name,slug,label_color',
+            'deal.contact:id,client_name',
+            'deal.currency:id,currency_symbol',
+            'lead:id,client_name,salutation,company_name',
+            'addedBy:id,name,image',
+            'meetingType',
+            'meetingSummary',
+        ]);
+
+        $followUp->effective_duration = $followUp->getEffectiveDuration();
+        $followUp->participant_users = User::whereIn('id', $followUp->participants ?? [])
+            ->get(['id', 'name', 'image', 'email'])
+            ->values()
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'data' => $followUp,
+        ]);
     }
 
     /**

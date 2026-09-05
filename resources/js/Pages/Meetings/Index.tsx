@@ -46,8 +46,8 @@ import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
 import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
 import type {
     MeetingsTab,
+    MeetingsTabCounts,
 } from "./Redesign/adapters/meetingViewModel";
-import type { MeetingsTabCounts } from "./Redesign/components/MeetingsFilterBar";
 import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
 dayjs.extend(utc);
@@ -88,12 +88,15 @@ export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
     calendarMeetings?: CalendarPayload;
     /** Month this render registered the deferred calendar for, else null. */
     calendarRequestedMonth: string | null;
-    /** Deep-link narrowing (e.g. the dashboard's "N missed" badge). */
-    meetingFilters: {
-        attendance: string | null;
-        date_from: string | null;
-        date_to: string | null;
-    };
+    /** Host-filter options; deferred, so undefined until they arrive. */
+    filterPeople?: Array<{ id: number; name: string }>;
+    /**
+     * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
+     * the page itself rather than through props, so these are declared for
+     * the page's own loading checks, not to be passed down.
+     */
+    filterFacets?: Record<string, unknown>;
+    savedViews?: Array<Record<string, unknown>>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -437,7 +440,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         }}
                     >
                         {meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name}
+                            meeting.lead.client_name}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -804,7 +807,11 @@ const Index = () => {
     const useRedesign =
         page.props.featureFlags?.["crm.meetings-page-redesign"] === true;
 
-    return useRedesign ? <MeetingsWorkspaceRedesign /> : <LegacyMeetingsIndex />;
+    return useRedesign ? (
+        <MeetingsWorkspaceRedesign />
+    ) : (
+        <LegacyMeetingsIndex />
+    );
 };
 
 Index.layout = (page: React.ReactNode) => (

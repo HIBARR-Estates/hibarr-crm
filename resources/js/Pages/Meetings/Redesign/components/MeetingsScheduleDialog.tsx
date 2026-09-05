@@ -3,6 +3,7 @@ import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import { ModalField } from "@/Components/Redesign/primitives/Modal";
 import SearchableSelect, {
     type SearchableSelectGroup,
@@ -17,6 +18,7 @@ import useScheduleRecordSource, {
     parseRecordKey,
     recordKey,
     type ScheduleRecordKey,
+    type ScheduleRecordType,
 } from "../hooks/useScheduleRecordSource";
 
 interface MeetingsScheduleDialogProps {
@@ -26,6 +28,8 @@ interface MeetingsScheduleDialogProps {
     userDeals: Array<{ id: number; name: string }>;
     userLeads: Array<{ id: number; name: string }>;
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    /** Slot the calendar was clicked on, when the dialog was opened that way. */
+    initialStart?: { date: string; startTime: string };
 }
 
 /**
@@ -41,6 +45,7 @@ export default function MeetingsScheduleDialog({
     userDeals,
     userLeads,
     meetingTypes,
+    initialStart,
 }: MeetingsScheduleDialogProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -48,6 +53,10 @@ export default function MeetingsScheduleDialog({
     const currentUserId = props.auth?.user?.id;
     const currentUserEmail = props.auth?.user?.email;
 
+    // Which kind of record this meeting is for. A tab rather than one mixed
+    // list: picking the wrong entity type is the mistake worth preventing,
+    // and a deal and a lead of the same client read almost identically.
+    const [recordType, setRecordType] = useState<ScheduleRecordType>("deal");
     const [selectedKey, setSelectedKey] = useState<ScheduleRecordKey | null>(
         null,
     );
@@ -59,6 +68,7 @@ export default function MeetingsScheduleDialog({
     // would silently book against the wrong deal.
     useEffect(() => {
         if (!open) {
+            setRecordType("deal");
             setSelectedKey(null);
             clearErrors();
         }
@@ -75,33 +85,27 @@ export default function MeetingsScheduleDialog({
         ? { ...parsed, hasOwner: mustIncludeOwner !== null }
         : null;
 
+    // Only the active tab's records — the group label stays so the list still
+    // says what it is holding.
     const recordOptions = useMemo(() => {
         const groups: SearchableSelectGroup[] = [];
-        if (userDeals.length > 0) {
+        const records = recordType === "deal" ? userDeals : userLeads;
+        if (records.length > 0) {
             groups.push({
-                label: t("app.meetings.entity_type_deal"),
-                options: userDeals.map((deal) => ({
-                    value: recordKey("deal", deal.id),
-                    label: deal.name,
-                })),
-            });
-        }
-        if (userLeads.length > 0) {
-            groups.push({
-                label: t("app.meetings.entity_type_lead"),
-                options: userLeads.map((lead) => ({
-                    value: recordKey("lead", lead.id),
-                    label: lead.name,
+                label:
+                    recordType === "deal"
+                        ? t("app.meetings.entity_type_deal")
+                        : t("app.meetings.entity_type_lead"),
+                options: records.map((record) => ({
+                    value: recordKey(recordType, record.id),
+                    label: record.name,
                 })),
             });
         }
         return groups;
-    }, [userDeals, userLeads, t]);
+    }, [recordType, userDeals, userLeads, t]);
 
-    const dialogErrors = [
-        ...(error ? [t(error)] : []),
-        ...errors,
-    ];
+    const dialogErrors = [...(error ? [t(error)] : []), ...errors];
 
     const handleClose = () => {
         if (isCreating) return;
@@ -135,25 +139,55 @@ export default function MeetingsScheduleDialog({
                 cancel: t("pages.deals.common.cancel"),
                 submit: t("app.meetings.actions.schedule"),
             }}
+            initialStart={initialStart}
             extraFields={
-                <ModalField label={td("Related record")}>
-                    <SearchableSelect<ScheduleRecordKey>
-                        className="w-full"
-                        value={selectedKey ?? undefined}
-                        onChange={(value) => {
-                            setSelectedKey(value ?? null);
-                            clearErrors();
-                        }}
-                        options={recordOptions}
-                        disabled={isCreating}
-                        loading={loading}
-                        allowClear
-                        placeholder={td("Choose a deal or lead")}
-                        notFoundContent={t(
-                            "pages.meetings.schedule.no_entities_available",
-                        )}
-                    />
-                </ModalField>
+                <>
+                    <ModalField label={td("Schedule for")}>
+                        <Segmented<ScheduleRecordType>
+                            value={recordType}
+                            onChange={(next) => {
+                                setRecordType(next);
+                                // The chosen record belongs to the tab that was
+                                // open; keeping it would book against a record
+                                // the list no longer shows.
+                                setSelectedKey(null);
+                                clearErrors();
+                            }}
+                            ariaLabel={td("Record type")}
+                            options={[
+                                {
+                                    value: "deal",
+                                    label: t("app.meetings.entity_type_deal"),
+                                    count: userDeals.length,
+                                },
+                                {
+                                    value: "lead",
+                                    label: t("app.meetings.entity_type_lead"),
+                                    count: userLeads.length,
+                                },
+                            ]}
+                        />
+                    </ModalField>
+
+                    <ModalField label={td("Related record")}>
+                        <SearchableSelect<ScheduleRecordKey>
+                            className="w-full"
+                            value={selectedKey ?? undefined}
+                            onChange={(value) => {
+                                setSelectedKey(value ?? null);
+                                clearErrors();
+                            }}
+                            options={recordOptions}
+                            disabled={isCreating}
+                            loading={loading}
+                            allowClear
+                            placeholder={td("Choose a deal or lead")}
+                            notFoundContent={t(
+                                "pages.meetings.schedule.no_entities_available",
+                            )}
+                        />
+                    </ModalField>
+                </>
             }
         />
     );

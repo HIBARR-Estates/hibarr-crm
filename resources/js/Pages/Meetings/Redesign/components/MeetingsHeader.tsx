@@ -1,93 +1,131 @@
+import type { ReactNode } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
-import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
-import type { MeetingsViewMode } from "../adapters/meetingViewModel";
+import EntityListHeader, {
+    type EntityListHeaderViewOption,
+} from "@/Components/Redesign/primitives/EntityListHeader";
+import type {
+    MeetingsTab,
+    MeetingsTabCounts,
+    MeetingsViewMode,
+} from "../adapters/meetingViewModel";
 
 interface MeetingsHeaderProps {
     view: MeetingsViewMode;
     onViewChange: (view: MeetingsViewMode) => void;
+    /** Hidden on the calendar, which shows every bucket at once. */
+    showTabs: boolean;
+    tab: MeetingsTab;
+    onTabChange: (tab: MeetingsTab) => void;
+    counts: MeetingsTabCounts;
     onRefresh: () => void;
     refreshing: boolean;
     onSchedule: () => void;
     canSchedule: boolean;
+    /** The active-filter sentence band, when any filter is set. */
+    filterSentence?: ReactNode;
+    /** Badge on the Filters button. */
+    filtersCount: number;
+    onOpenFilters: () => void;
+    filtersLabel: string;
 }
 
+const VIEW_OPTIONS: EntityListHeaderViewOption[] = [
+    { value: "cards", label: "Cards", icon: <Icon name="grid" size={13} /> },
+    { value: "list", label: "List", icon: <Icon name="list" size={13} /> },
+    {
+        value: "calendar",
+        label: "Calendar",
+        icon: <Icon name="calendar" size={13} />,
+    },
+];
+
+const TAB_LABELS: Array<{ value: MeetingsTab; label: string }> = [
+    { value: "all", label: "All meetings" },
+    { value: "upcoming", label: "Upcoming" },
+    { value: "past", label: "Past" },
+];
+
+/**
+ * Meetings' band of the shared `EntityListHeader`, so this page frames itself
+ * the way Deals/Leads/Tasks do. The Upcoming/Past/Live tabs live in the
+ * header's toolbar row — they are the list's primary filter, not a control
+ * that belongs to the results below it.
+ */
 export default function MeetingsHeader({
     view,
     onViewChange,
+    showTabs,
+    tab,
+    onTabChange,
+    counts,
     onRefresh,
     refreshing,
     onSchedule,
     canSchedule,
+    filterSentence,
+    filtersCount,
+    onOpenFilters,
+    filtersLabel,
 }: MeetingsHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
 
     return (
-        <div className="flex flex-wrap items-start justify-between gap-4 pb-4">
-            <div className="flex flex-col gap-1">
-                <h1
-                    className="m-0 font-bold leading-tight"
-                    style={{
-                        fontSize: REDESIGN_TYPE.DISPLAY,
-                        color: T.NAVY,
-                    }}
-                >
-                    {t("app.meetings.my_meetings")}
-                </h1>
-                <p className="m-0" style={{ fontSize: 13, color: T.TEXT_MUTED }}>
-                    {td("Everything scheduled across your leads and deals.")}
-                </p>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-                <Segmented<MeetingsViewMode>
-                    value={view}
-                    onChange={onViewChange}
-                    variant="raised"
-                    ariaLabel={td("Meeting view")}
-                    options={[
-                        {
-                            value: "cards",
-                            label: td("Cards"),
-                            icon: <Icon name="grid" size={14} />,
-                        },
-                        {
-                            value: "calendar",
-                            label: td("Calendar"),
-                            icon: <Icon name="calendar" size={14} />,
-                        },
-                    ]}
-                />
-
-                <Button
-                    variant="ghost"
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                    icon={
+        <EntityListHeader
+            title={t("app.meetings.my_meetings")}
+            subtitle={td("Everything scheduled across your leads and deals.")}
+            sticky
+            viewOptions={VIEW_OPTIONS}
+            viewValue={view}
+            onViewChange={(next) => onViewChange(next as MeetingsViewMode)}
+            actions={
+                <>
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-ghost"
+                        onClick={onRefresh}
+                        disabled={refreshing}
+                    >
                         <Icon
                             name="refresh"
-                            size={15}
+                            size={13}
                             className={refreshing ? "animate-spin" : undefined}
                         />
-                    }
-                >
-                    {td("Refresh")}
-                </Button>
-
-                {canSchedule && (
-                    <Button
-                        variant="primary"
-                        onClick={onSchedule}
-                        icon={<Icon name="plus" size={15} />}
-                    >
-                        {t("app.meetings.actions.schedule")}
-                    </Button>
-                )}
-            </div>
-        </div>
+                        {td("Refresh")}
+                    </button>
+                    {canSchedule && (
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-primary"
+                            onClick={onSchedule}
+                        >
+                            <Icon name="plus" size={13} />
+                            {t("app.meetings.actions.schedule")}
+                        </button>
+                    )}
+                </>
+            }
+            filtersCount={filtersCount}
+            onOpenFilters={onOpenFilters}
+            filtersLabel={filtersLabel}
+            toolbarLeft={
+                showTabs ? (
+                    <Segmented<MeetingsTab>
+                        value={tab}
+                        onChange={onTabChange}
+                        ariaLabel={td("Filter meetings")}
+                        options={TAB_LABELS.map((option) => ({
+                            value: option.value,
+                            label: td(option.label),
+                            count: counts[option.value],
+                        }))}
+                    />
+                ) : undefined
+            }
+            filterSentence={filterSentence}
+        />
     );
 }

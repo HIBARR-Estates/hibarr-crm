@@ -10,10 +10,29 @@ dayjs.extend(timezonePlugin);
 /** The bucket a meeting falls in — mirrors the controller's SQL scopes. */
 export type MeetingBucket = "upcoming" | "live" | "past";
 
-/** Filter tabs on the cards view. `all` is every bucket. */
-export type MeetingsTab = "all" | MeetingBucket;
+/**
+ * Filter tabs on the list.
+ *
+ * There is deliberately no "Live" tab: a live meeting is called out in the
+ * list itself as a full-width card, so a tab that usually reads "0" would
+ * only be a second, worse way to find something already impossible to miss.
+ */
+export type MeetingsTab = "all" | "upcoming" | "past";
 
-export type MeetingsViewMode = "cards" | "calendar";
+/** Tab tallies the header renders next to each tab label. */
+export type MeetingsTabCounts = Record<MeetingsTab, number>;
+
+/**
+ * How the meetings are laid out. `cards` and `list` are the same paginated
+ * set rendered two ways (the deal/lead lists offer the same choice); only
+ * `calendar` reads from a different, month-scoped query.
+ */
+export type MeetingsViewMode = "cards" | "list" | "calendar";
+
+/** The two views driven by the paginated `meetings` prop. */
+export function isListLikeView(view: MeetingsViewMode): boolean {
+    return view === "cards" || view === "list";
+}
 
 const DEFAULT_DURATION = 30;
 

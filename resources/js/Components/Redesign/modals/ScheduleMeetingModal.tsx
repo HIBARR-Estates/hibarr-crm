@@ -33,6 +33,11 @@ interface ScheduleMeetingModalProps {
     extraFields?: ReactNode;
     /** Deal agent / lead owner — forced into participants (and locked) when not chosen as host. */
     mustIncludeOwner?: { id: number; name: string } | null;
+    /**
+     * Opens on this date/time instead of "in 15 minutes" — for callers that
+     * already know the slot, such as clicking an empty day on the calendar.
+     */
+    initialStart?: { date: string; startTime: string };
 }
 
 export default function ScheduleMeetingModal({
@@ -46,6 +51,7 @@ export default function ScheduleMeetingModal({
     labels,
     extraFields,
     mustIncludeOwner = null,
+    initialStart,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
@@ -61,10 +67,14 @@ export default function ScheduleMeetingModal({
             return;
         }
         if (!seededForOpenRef.current) {
-            setForm({ ...initialForm, ...defaultMeetingStart() });
+            setForm({
+                ...initialForm,
+                ...defaultMeetingStart(),
+                ...(initialStart ?? {}),
+            });
             seededForOpenRef.current = true;
         }
-    }, [open, initialForm]);
+    }, [open, initialForm, initialStart]);
 
     const handleClose = () => {
         if (saving) return;
