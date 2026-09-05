@@ -484,6 +484,7 @@ export default function PersonalDashboard({
                         markingHeld={
                             openMeeting ? isMarkingHeld(openMeeting.id) : false
                         }
+                        reloadKeys={["agenda", "stats"]}
                     />
 
                     <ScheduleMeetingDrawer

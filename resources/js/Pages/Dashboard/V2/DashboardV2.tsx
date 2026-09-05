@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import DashboardHeader, {
     HeaderSubtext,
 } from "./components/DashboardHeader";
@@ -15,7 +13,6 @@ import {
     type ViewKey,
 } from "./viewConfig";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import AgentView, { AgentViewProps } from "./views/AgentView";
 import ManagerView, { ManagerViewProps } from "./views/ManagerView";
 import TeamView, { TeamViewProps } from "./views/TeamView";
 import LeadershipView, { LeadershipViewProps } from "./views/LeadershipView";
@@ -35,8 +32,7 @@ type DashboardV2Props = {
     /** Greeted in the shared header, same as on the personal dashboard. */
     userName: string;
     personalDashboardEnabled?: boolean;
-} & AgentViewProps &
-    ManagerViewProps &
+} & ManagerViewProps &
     TeamViewProps &
     LeadershipViewProps &
     PartnerViewProps;
@@ -45,7 +41,7 @@ type DashboardV2Props = {
  * Shell for the role-scoped dashboards.
  *
  * Which views appear comes from independent view_*_dashboard permissions, so a
- * user holding several (leadership commonly holds agent + leadership) gets a
+ * user holding several (a manager commonly holds team + downline) gets a
  * switcher. Switching is a real visit with ?view= rather than client state —
  * only the active view's panels are deferred server-side, so we never pay to
  * compute panels nobody is looking at.
@@ -55,7 +51,6 @@ export default function DashboardV2(props: DashboardV2Props) {
         props;
     const { td } = useTd();
     const { auth } = usePage<PageProps>().props;
-    const [addLeadOpen, setAddLeadOpen] = useState(false);
 
     const go = (params: Record<string, string | number>) =>
         router.visit(
@@ -123,21 +118,10 @@ export default function DashboardV2(props: DashboardV2Props) {
                                         ))}
                                     </select>
                                 )}
-
-                                {activeView === "agent" && (
-                                    <button
-                                        type="button"
-                                        className="dr-btn dr-btn-primary"
-                                        onClick={() => setAddLeadOpen(true)}
-                                    >
-                                        {td("Add lead")}
-                                    </button>
-                                )}
                             </>
                         }
                     />
 
-                    {activeView === "agent" && <AgentView {...props} />}
                     {activeView === "manager" && (
                         <ManagerView {...props} currentUserId={auth?.user?.id} />
                     )}
@@ -146,20 +130,6 @@ export default function DashboardV2(props: DashboardV2Props) {
                     )}
                     {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}
-
-                    {/* SaveLeadModal reloads the keys it's given on success, so
-                        the new lead lands in the queue without a page visit. */}
-                    {addLeadOpen && (
-                        <SaveLeadModal
-                            open
-                            onClose={() => setAddLeadOpen(false)}
-                            reloadKeys={[
-                                "actionQueue",
-                                "agentWeek",
-                                "agentPipeline",
-                            ]}
-                        />
-                    )}
                 </div>
             </PageLayout>
         </DashboardLayout>

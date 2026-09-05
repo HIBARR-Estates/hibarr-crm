@@ -1727,11 +1727,6 @@ class Module extends BaseModel
                 [
                     'allowed_permissions' => Permission::ALL_NONE,
                     'is_custom' => 1,
-                    'name' => 'view_agent_dashboard',
-                ],
-                [
-                    'allowed_permissions' => Permission::ALL_NONE,
-                    'is_custom' => 1,
                     'name' => 'view_manager_dashboard',
                 ],
                 [

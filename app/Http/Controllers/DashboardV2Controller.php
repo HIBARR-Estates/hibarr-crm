@@ -22,7 +22,7 @@ use Inertia\Inertia;
  * Behind crm.personal-dashboard, the personal dashboard (?view=personal, or no
  * ?view= at all) is the default for everyone. The role-scoped views are
  * additional, unlocked independently by their own view_*_dashboard permission
- * — a user may hold several (leadership commonly holds agent + leadership) and
+ * — a user may hold several (a manager commonly holds team + downline) and
  * gets a switcher into them, but holding one never hides the personal view.
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
@@ -37,7 +37,6 @@ class DashboardV2Controller extends AccountBaseController
 {
     /** Permission name => view key. Order defines switcher order and the default. */
     private const VIEWS = [
-        'view_agent_dashboard' => 'agent',
         'view_manager_dashboard' => 'manager',
         'view_team_dashboard' => 'team',
         'view_leadership_dashboard' => 'leadership',
@@ -101,7 +100,7 @@ class DashboardV2Controller extends AccountBaseController
      *
      * Everyone gets it first; anyone who also holds a view_*_dashboard
      * permission gets the same switcher the role views carry, into
-     * ?view=agent|manager|team|leadership|partner.
+     * ?view=manager|team|leadership|partner.
      *
      * Deliberately not one of VIEWS: it is scoped to a person rather than a
      * team or company, and takes no window parameter at all — one fixed
@@ -208,20 +207,6 @@ class DashboardV2Controller extends AccountBaseController
         $team = fn () => $metrics->teamAgentIds($userId);
 
         return match ($view) {
-            'agent' => [
-                'actionQueue' => Inertia::defer(fn () => $metrics->actionQueue($userId), 'queue'),
-                'agentWeek' => Inertia::defer(fn () => $metrics->agentWeek($userId), 'stats'),
-                'todaySchedule' => Inertia::defer(fn () => $metrics->todaySchedule($userId), 'schedule'),
-                'agentPipeline' => Inertia::defer(fn () => $metrics->agentPipeline($userId), 'pipeline'),
-                // Same group as actionQueue: TaskDetailModal cannot render its
-                // status control without these, so they must land together.
-                'taskBoardColumns' => Inertia::defer(
-                    fn () => TaskboardColumn::orderBy('priority')
-                        ->get(['id', 'slug', 'column_name', 'label_color', 'priority']),
-                    'queue'
-                ),
-            ],
-
             'manager' => [
                 'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($team(), $days), 'kpis'),
                 'lifecycleFunnel' => Inertia::defer(

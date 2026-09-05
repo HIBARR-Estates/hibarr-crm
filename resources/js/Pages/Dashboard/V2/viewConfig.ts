@@ -14,14 +14,13 @@
  */
 
 /** Role-scoped views. Must match DashboardV2Controller::VIEWS. */
-export type ViewKey = "agent" | "manager" | "team" | "leadership" | "partner";
+export type ViewKey = "manager" | "team" | "leadership" | "partner";
 
 /** Every switcher destination, including the personal landing page. */
 export type SwitcherKey = ViewKey | "personal";
 
 export const VIEW_LABELS: Record<SwitcherKey, string> = {
     personal: "My work",
-    agent: "My work",
     manager: "Team",
     // Not "Team": that is the manager view, one flat level of direct reports.
     // This one walks the whole tree, which is what the business calls a
@@ -38,7 +37,6 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
  * live counts (StatusLine), not written copy.
  */
 export const VIEW_SUBTEXT: Record<ViewKey, string> = {
-    agent: "Your queue, your week and your pipeline.",
     manager: "How the agents reporting to you are doing.",
     team: "Your whole downline, generation by generation.",
     leadership: "Company-wide movement across every team.",
@@ -81,23 +79,18 @@ interface SwitcherSegment {
  *  - Access first. A view the account doesn't hold is absent, never greyed:
  *    availableViews is already the permission- and flag-gated list from
  *    DashboardV2Controller, so anything missing from it must not be hinted at.
- *  - The agent view is dropped whenever the personal dashboard is on. Both
- *    are called "My work", and two tabs with one name is worse than one tab.
- *    With the flag off, agent *is* the My work tab.
+ *  - The personal dashboard leads when its flag is on. It is the only "My
+ *    work" there is: the old agent view that shared the name is gone.
  */
 export function buildSwitcher(
     availableViews: ViewKey[],
     personalDashboardEnabled: boolean,
 ): SwitcherSegment[] {
-    const roleViews = availableViews.filter(
-        (view) => !(personalDashboardEnabled && view === "agent"),
-    );
-
     return [
         ...(personalDashboardEnabled
             ? [{ value: "personal" as const, label: VIEW_LABELS.personal }]
             : []),
-        ...roleViews.map((view) => ({
+        ...availableViews.map((view) => ({
             value: view,
             label: VIEW_LABELS[view],
             ...(COMING_SOON.includes(view)

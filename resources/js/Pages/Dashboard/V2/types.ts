@@ -22,50 +22,6 @@ export type QueueTask = Task & {
     related: RelatedRecord | null;
 };
 
-export interface ActionQueueData {
-    overdueTasks: QueueTask[];
-    hotLeads: Array<{
-        id: number;
-        client_name: string;
-        temperature: string | null;
-        waiting_hours: number;
-    }>;
-    stalledDeals: Array<{
-        id: number;
-        name: string;
-        stage_name: string;
-        days_in_stage: number;
-        target_days: number;
-    }>;
-    /** Open records with no next-step task nominated. */
-    noNextStep: Array<{
-        type: "lead" | "deal";
-        id: number;
-        name: string;
-        days_open: number;
-    }>;
-    /**
-     * True totals. The row arrays above are capped, so anything showing "how
-     * many" must read these — an agent with 85 overdue tasks must not be told
-     * 25 because that is how many rows we chose to ship.
-     */
-    counts: {
-        overdueTasks: number;
-        hotLeads: number;
-        stalledDeals: number;
-        noNextStep: number;
-    };
-}
-
-export interface AgentWeek {
-    weekStart: string;
-    meetings: number;
-    dealsCreated: number;
-    leadsContacted: number;
-    /** null when no lead of theirs was both assigned and contacted this week. */
-    medianResponseMinutes: number | null;
-}
-
 /**
  * A full follow-up, so the row can open MeetingDetailModal in place.
  *
@@ -86,24 +42,6 @@ export interface CurrencyTotal {
     currency: string;
     total: number;
     deal_count: number;
-}
-
-export interface AgentPipeline {
-    funnel: {
-        pipelines: Array<{ id: number; name: string; deal_count: number }>;
-        pipeline_id: number | null;
-        stages: Array<{
-            id: number;
-            name: string;
-            count: number;
-            /** Days the deals currently in this stage have been here. */
-            open_median_days: number | null;
-            /** Historic transit time; null under three samples. */
-            median_days: number | null;
-            samples: number;
-        }>;
-    };
-    value: CurrencyTotal[];
 }
 
 export interface Kpi {
