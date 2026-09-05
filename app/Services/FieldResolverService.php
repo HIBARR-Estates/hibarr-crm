@@ -135,6 +135,45 @@ class FieldResolverService
     }
 
     /**
+     * The underlying Eloquent attribute name on $subject itself when $field
+     * resolves directly to one of its own columns — the only case a
+     * 'changed' condition can be evaluated, since Eloquent's wasChanged()
+     * only tracks the model it's called on. Returns null for anything that
+     * isn't a plain attribute of $subject: a custom field (DB-queried, no
+     * in-memory dirty-tracking), a hibarr/lead_marketing/followup field
+     * (lives on a related model or row), or a lead_field_/lead_custom_field_
+     * hop from a Deal onto its contact (a different model than $subject).
+     */
+    public function nativeColumn(Deal|Lead $subject, string $field): ?string
+    {
+        if ($subject instanceof Lead) {
+            if (Str::startsWith($field, 'lead_custom_field_')
+                || Str::startsWith($field, 'custom_field_')
+                || Str::startsWith($field, 'lead_marketing_')
+                || Str::startsWith($field, 'followup_')
+                || Str::startsWith($field, 'last_followup_')) {
+                return null;
+            }
+
+            $column = Str::startsWith($field, 'lead_field_') ? Str::after($field, 'lead_field_') : $field;
+
+            return in_array($column, self::LEAD_FIELDS, true) ? $column : null;
+        }
+
+        if ($this->isHibarrField($field)
+            || Str::startsWith($field, 'custom_field_')
+            || Str::startsWith($field, 'followup_')
+            || Str::startsWith($field, 'last_followup_')
+            || Str::startsWith($field, 'lead_marketing_')
+            || Str::startsWith($field, 'lead_custom_field_')
+            || Str::startsWith($field, 'lead_field_')) {
+            return null;
+        }
+
+        return $field;
+    }
+
+    /**
      * Resolve a field against a Lead that is itself the automation subject
      * (not a Deal's related contact). Accepts the same lead_field_ /
      * lead_custom_field_ prefixed keys used elsewhere for consistency, plus

@@ -83,12 +83,30 @@ class LeadAutomationService
 
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($lead, $condition->field);
-            if (! $this->conditionEvaluator->evaluate($fieldValue, $condition)) {
+            $fieldChanged = $condition->operator === 'changed' ? $this->fieldChanged($lead, $condition->field) : null;
+
+            if (! $this->conditionEvaluator->evaluate($fieldValue, $condition, $fieldChanged)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Same reasoning as DealAutomationService::fieldChanged() — only
+     * answerable for a native Lead column, only within the same in-memory
+     * instance that was just saved, and false for a brand-new record.
+     */
+    protected function fieldChanged(Lead $lead, string $field): bool
+    {
+        if ($lead->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($lead, $field);
+
+        return $column !== null && (bool) $lead->wasChanged($column);
     }
 
     protected function executeActions(Lead $lead, LeadAutomation $automation): void

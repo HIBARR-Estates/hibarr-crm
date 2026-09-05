@@ -727,11 +727,18 @@ class DealObserver
                 ->first();
 
             if ($trigger) {
-                // Dispatch job to send Meta conversion event with the trigger's value
-                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
-                    'source' => 'stage_trigger',
-                    'trigger_id' => $trigger->id,
-                ]);
+                // Deferred to after commit — the job now runs synchronously
+                // (see SendMetaConversionEventJob), so dispatching it inside
+                // this save's own transaction would send the event before
+                // the deal's new stage is actually persisted; a rollback
+                // would then leave an external Meta event for state that
+                // was never committed.
+                \Illuminate\Support\Facades\DB::afterCommit(function () use ($deal, $trigger) {
+                    SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
+                        'source' => 'stage_trigger',
+                        'trigger_id' => $trigger->id,
+                    ]);
+                });
 
                 \Log::info('Meta Conversion Event Job dispatched', [
                     'deal_id' => $deal->id,

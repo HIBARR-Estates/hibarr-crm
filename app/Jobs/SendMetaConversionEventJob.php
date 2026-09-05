@@ -7,7 +7,6 @@ use App\Models\DealAutomationLog;
 use App\Models\Lead;
 use App\Services\MetaConversionsService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -15,33 +14,28 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Job to send Meta Conversion API events in the background
+ * Job to send a Meta Conversion API event for the deal-stage trigger path
+ * (DealObserver::triggerMetaConversionEvent() — a deal moving to a stage
+ * with a Meta conversion trigger configured, no automation involved). A
+ * deal/lead automation's own "Meta Conversion" action calls
+ * MetaConversionsService directly instead (see
+ * DealAutomationService::performMetaConversion()), since it needs the real
+ * result in hand to log the automation's outcome accurately.
  *
- * Queued either when a deal moves to a stage with a Meta conversion trigger
- * configured, or when a deal/lead automation runs a "Meta Conversion" action.
+ * Deliberately NOT a queued job (no ShouldQueue) — it runs synchronously on
+ * ::dispatch() so the outcome is known immediately, instead of depending on
+ * a queue worker actually being run (which this deployment cannot
+ * guarantee). Callers defer the dispatch via DB::afterCommit() so it never
+ * fires while the triggering save could still roll back.
  *
  * Whatever Meta answers is written to deal_automation_logs (channel "meta")
  * so the Run History screen can show the actual rejection reason — status
  * code, Meta's error message/code and its fbtrace_id — instead of only
- * recording that the event was queued.
+ * recording that the event was sent.
  */
-class SendMetaConversionEventJob implements ShouldQueue
+class SendMetaConversionEventJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    /**
-     * The number of times the job may be attempted.
-     *
-     * @var int
-     */
-    public $tries = 3;
-
-    /**
-     * The number of seconds to wait before retrying the job.
-     *
-     * @var int
-     */
-    public $backoff = 10;
 
     /**
      * The deal or lead that triggered this event — a lead-subject automation
@@ -135,21 +129,6 @@ class SendMetaConversionEventJob implements ShouldQueue
             // Don't rethrow the exception - fail gracefully
             // We don't want to block the queue or cause cascading failures
         }
-    }
-
-    /**
-     * Handle a job failure.
-     */
-    public function failed(\Throwable $exception): void
-    {
-        $logContext = $this->subject instanceof Lead
-            ? ['lead_id' => $this->subject->id]
-            : ['deal_id' => $this->subject->id];
-
-        Log::error('Meta Conversion Event Job failed permanently', $logContext + [
-            'event_name' => $this->eventName,
-            'exception_message' => $exception->getMessage(),
-        ]);
     }
 
     /**

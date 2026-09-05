@@ -277,6 +277,18 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             className="w-full"
                         />
 
+                        {!trigger && (
+                            <div
+                                className="rounded-lg flex items-start gap-2 mt-2.5"
+                                style={{ background: T.AMBER_SOFT, border: `1px solid ${T.AMBER_MID}`, padding: "10px 12px", fontSize: 12, color: T.AMBER }}
+                            >
+                                <span style={{ marginTop: 1 }}>
+                                    <Icon name="info" size={13} />
+                                </span>
+                                <span>{t("app.automation.noTriggerWarning")}</span>
+                            </div>
+                        )}
+
                         {trigger === "date_based" && catalog && (
                             <div className="grid grid-cols-2 gap-3 mt-3">
                                 <div>

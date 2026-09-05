@@ -385,6 +385,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
 
     // Meta Events (used by deal automation "Meta Conversion" actions)
+    Route::post('meta-events/send-test', [MetaEventController::class, 'sendTest'])->name('meta-events.send-test');
     Route::resource('meta-events', MetaEventController::class)->except(['show', 'create', 'edit']);
 
     // CRM Event Engine Settings
