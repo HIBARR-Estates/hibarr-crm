@@ -58,7 +58,7 @@ export default function PageLayout({
     searchComp,
     filterSection,
     config = defaultConfig,
-    mainContentClassName = "px-3 sm:px-6 py-4 sm:py-6",
+    mainContentClassName,
     onRefresh,
     isRefreshing = false,
 }: PageLayoutProps) {
@@ -97,6 +97,20 @@ export default function PageLayout({
     const { props } = usePage<PageProps>();
     const { auth, appName, flash } = props;
     const { user } = auth;
+
+    // Flag off preserves the exact previous default/classes at every width.
+    const resolvedMainContentClassName =
+        mainContentClassName ??
+        (isMobileResponsive ? "px-3 sm:px-6 py-4 sm:py-6" : "px-6 py-6");
+    const topbarPaddingClassName = isMobileResponsive
+        ? "px-3 sm:px-6 py-3 sm:py-4"
+        : "px-6 py-4";
+    const topbarRowClassName = isMobileResponsive
+        ? "flex items-center gap-x-3 sm:gap-x-6 flex-wrap sm:flex-nowrap"
+        : "flex items-center gap-x-6";
+    const searchWrapperClassName = isMobileResponsive
+        ? "order-3 sm:order-none basis-full sm:basis-0 sm:flex-1"
+        : "flex-1";
 
     useEffect(() => {
         if (flash?.success) {
@@ -166,8 +180,10 @@ export default function PageLayout({
 
             <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
-                <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
-                    <div className="flex items-center gap-x-3 sm:gap-x-6 flex-wrap sm:flex-nowrap">
+                <div
+                    className={`bg-white border-b border-gray-200 ${topbarPaddingClassName}`}
+                >
+                    <div className={topbarRowClassName}>
                         {isMobileResponsive && (
                             <button
                                 type="button"
@@ -199,7 +215,7 @@ export default function PageLayout({
 
                         {/* Search Component */}
                         {searchComp && (
-                            <div className="order-3 sm:order-none basis-full sm:basis-0 sm:flex-1">
+                            <div className={searchWrapperClassName}>
                                 {/* set a max width so it doesn't stretch too far */}
                                 <div className="max-w-lg mx-auto">
                                     {searchComp}
@@ -250,7 +266,7 @@ export default function PageLayout({
                 )}
 
                 {/* Main Content */}
-                <div className={mainContentClassName}>{children}</div>
+                <div className={resolvedMainContentClassName}>{children}</div>
             </div>
         </>
     );
