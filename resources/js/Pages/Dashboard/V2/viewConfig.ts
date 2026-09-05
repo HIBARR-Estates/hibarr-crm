@@ -21,11 +21,12 @@ export type SwitcherKey = ViewKey | "personal";
 
 export const VIEW_LABELS: Record<SwitcherKey, string> = {
     personal: "My work",
-    manager: "Team",
-    // Not "Team": that is the manager view, one flat level of direct reports.
-    // This one walks the whole tree, which is what the business calls a
-    // downline.
-    team: "Downline",
+    // One flat level of direct reports, and closer to a manager's view of
+    // the business than a team lead's. Being reworked under its own ticket.
+    manager: "Manager",
+    // The whole sub-agent network below you — what the business means by
+    // "your team".
+    team: "Team",
     leadership: "Company",
     partner: "Partner",
 };
@@ -38,7 +39,7 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
  */
 export const VIEW_SUBTEXT: Record<ViewKey, string> = {
     manager: "How the agents reporting to you are doing.",
-    team: "Your whole downline, generation by generation.",
+    team: "What your network is doing — everyone below you, and not you.",
     leadership: "Company-wide movement across every team.",
     partner: "Your referrals only — no deal values.",
 };
@@ -100,9 +101,25 @@ export function buildSwitcher(
     ];
 }
 
-/** Windows offered by the picker. Must match the controller's whitelist. */
+/**
+ * Presets offered by the range picker. Must match DashboardDateRange::PRESETS,
+ * which is what the server will actually accept as ?days=.
+ *
+ * A preset is rolling — "last 30 days" moves with today — so picking one sends
+ * ?days=N rather than the two dates it currently resolves to. Anything else the
+ * user drags out is sent as ?from=&to=.
+ */
 export const PERIODS = [
     { days: 30, label: "Last 30 days" },
     { days: 90, label: "Last 90 days" },
     { days: 365, label: "Last 12 months" },
 ];
+
+/** The window a view is being read over, as the server resolved it. */
+export interface DashboardRange {
+    from: string;
+    to: string;
+    days: number;
+    /** Null when the user picked their own dates. */
+    preset: number | null;
+}

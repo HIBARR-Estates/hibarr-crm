@@ -5,11 +5,12 @@ import DashboardHeader, {
     HeaderSubtext,
 } from "./components/DashboardHeader";
 import SegmentedControl from "./personal/SegmentedControl";
+import DateRangePicker from "./components/DateRangePicker";
 import {
     buildSwitcher,
-    PERIODS,
     VIEW_SUBTEXT,
     WINDOWED,
+    type DashboardRange,
     type ViewKey,
 } from "./viewConfig";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -27,7 +28,8 @@ import "./dashboard-v2.css";
 type DashboardV2Props = {
     availableViews: ViewKey[];
     activeView: ViewKey;
-    period: number;
+    /** The window, as the server resolved it — preset or custom. */
+    range: DashboardRange;
     now: string;
     /** Greeted in the shared header, same as on the personal dashboard. */
     userName: string;
@@ -36,6 +38,16 @@ type DashboardV2Props = {
     TeamViewProps &
     LeadershipViewProps &
     PartnerViewProps;
+
+/**
+ * How the window reads in the subtext: rolling for a preset, dated for a range
+ * the user picked. English source strings — translated at the call site.
+ */
+function windowLabel(range: DashboardRange): string {
+    return range.preset
+        ? `Last ${range.preset} days.`
+        : `${range.from} to ${range.to}.`;
+}
 
 /**
  * Shell for the role-scoped dashboards.
@@ -47,14 +59,25 @@ type DashboardV2Props = {
  * compute panels nobody is looking at.
  */
 export default function DashboardV2(props: DashboardV2Props) {
-    const { availableViews, activeView, period, now, userName, personalDashboardEnabled } =
+    const { availableViews, activeView, range, now, userName, personalDashboardEnabled } =
         props;
     const { td } = useTd();
     const { auth } = usePage<PageProps>().props;
 
+    // The current window travels with every visit so switching views keeps it.
+    // A custom range carries from/to; a preset carries days — sending both
+    // would let the server pick the wrong one.
+    const windowParams = range.preset
+        ? { days: range.preset }
+        : { from: range.from, to: range.to };
+
     const go = (params: Record<string, string | number>) =>
         router.visit(
-            route("dashboard.v2", { view: activeView, days: period, ...params }),
+            route("dashboard.v2", {
+                view: activeView,
+                ...windowParams,
+                ...params,
+            }),
             { preserveScroll: true },
         );
 
@@ -77,7 +100,7 @@ export default function DashboardV2(props: DashboardV2Props) {
                         subtext={
                             <HeaderSubtext>
                                 {WINDOWED.includes(activeView)
-                                    ? `${VIEW_SUBTEXT[activeView]} Last ${period} days.`
+                                    ? `${VIEW_SUBTEXT[activeView]} ${windowLabel(range)}`
                                     : VIEW_SUBTEXT[activeView]}
                             </HeaderSubtext>
                         }
@@ -99,34 +122,40 @@ export default function DashboardV2(props: DashboardV2Props) {
                                 )}
 
                                 {WINDOWED.includes(activeView) && (
-                                    <select
-                                        className="dr-input"
-                                        aria-label={td("Period")}
-                                        value={period}
-                                        style={{ minHeight: 38, width: "auto" }}
-                                        onChange={(event) =>
-                                            go({ days: event.target.value })
+                                    <DateRangePicker
+                                        value={range}
+                                        // A new window replaces the old one
+                                        // rather than merging with it, so a
+                                        // preset never leaves stale from/to
+                                        // behind (and vice versa).
+                                        onChange={(params) =>
+                                            router.visit(
+                                                route("dashboard.v2", {
+                                                    view: activeView,
+                                                    ...params,
+                                                }),
+                                                { preserveScroll: true },
+                                            )
                                         }
-                                    >
-                                        {PERIODS.map((option) => (
-                                            <option
-                                                key={option.days}
-                                                value={option.days}
-                                            >
-                                                {td(option.label)}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
                                 )}
                             </>
                         }
                     />
 
                     {activeView === "manager" && (
-                        <ManagerView {...props} currentUserId={auth?.user?.id} />
+                        <ManagerView
+                            {...props}
+                            period={range.days}
+                            currentUserId={auth?.user?.id}
+                        />
                     )}
                     {activeView === "team" && (
-                        <TeamView {...props} currentUserId={auth?.user?.id} />
+                        <TeamView
+                            {...props}
+                            period={range.days}
+                            currentUserId={auth?.user?.id}
+                        />
                     )}
                     {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}

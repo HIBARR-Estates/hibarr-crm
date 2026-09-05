@@ -250,3 +250,32 @@
     outline: 2px solid #1a6bb5;
     outline-offset: 1px;
 }
+
+/* Expand/collapse control on the team tree. Sized to the row's avatar so
+   names stay aligned whether or not a person has reports under them. */
+.dashboard-v2 .dv2-tree-toggle {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid #e3e6ea;
+    border-radius: 4px;
+    background: #fff;
+    color: #5b6472;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.dashboard-v2 .dv2-tree-toggle:hover {
+    border-color: #b8d4f0;
+    color: #1a6bb5;
+}
+
+.dashboard-v2 .dv2-tree-toggle:focus-visible {
+    outline: 2px solid #1a6bb5;
+    outline-offset: 1px;
+}

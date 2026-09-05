@@ -9,6 +9,7 @@
 
 import type { Task } from "@/Types/api/tasks";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { DashboardRange } from "./viewConfig";
 
 export interface RelatedRecord {
     type: "lead" | "deal";
@@ -162,73 +163,93 @@ export interface PartnerFlagRow {
     days_open: number;
 }
 
-// ── Team (downline) view ─────────────────────────────────────────
+// ── Team view ────────────────────────────────────────────────────
 
 /**
- * Commission figures are plain numbers in the company's own currency, not the
+ * Every figure on the team view covers the network *below* the viewer and
+ * excludes them. A manager's own book would otherwise hide an idle team.
+ *
+ * Commission is a plain number in the company's own currency, not the
  * CurrencyTotal[] split deal value uses: MlmCommissionService converts a deal
  * through its snapshotted exchange rate before writing a leg, so a commission
  * is never split across currencies. `currency` is null when the company has no
  * default currency configured — the panels then render bare numbers rather
  * than stamping the wrong symbol on them.
  */
-export interface DownlineMoney {
-    /** Paid inside the selected window, by paid_at. */
+export interface TeamMetrics {
+    /** Open deals. Not windowed — a running deal is running today. */
+    active_deals: number;
+    /** Won inside the selected window. */
+    deals_won: number;
+    /** Contacted and not yet at a terminal lifecycle status. */
+    leads_active: number;
+    /** Open, but nobody has made first contact. */
+    leads_untouched: number;
+    /** Paid inside the window, by paid_at. */
     paid: number;
     /** Standing balance — deliberately not windowed. */
     pending: number;
 }
 
-export interface DownlineSummary extends DownlineMoney {
-    /** Size of the tree below the viewer. Excludes the viewer themselves. */
+export interface TeamSummary extends TeamMetrics {
+    /** People below the viewer, at any depth. Excludes the viewer. */
     agents: number;
     direct_reports: number;
     /** Deepest generation reached, 0 when nobody reports to them. */
     generations: number;
-    root: { agent_id: number; name: string | null; level: string | null };
-    deals_won: number;
+    /** Agents who joined the network inside the window. */
+    joined: number;
     currency: string | null;
-    days: number;
+    range: DashboardRange;
 }
 
-/** Fields both rollup tables carry about the forecast they show. */
-interface DownlineForecastMeta {
-    currency: string | null;
-    /** True when more open deals exist than the forecast priced. */
-    forecast_truncated: boolean;
-    /** How many open deals the forecast actually covers. */
-    forecast_deals: number;
-    days: number;
+/**
+ * A type alias, not an interface: TrendLine takes
+ * `Record<string, string | number>[]`, and only aliases get the implicit index
+ * signature that makes them assignable to it.
+ */
+export type TeamGrowthPoint = {
+    period: string;
+    label: string;
+    /** Agents who joined in this month. */
+    joined: number;
+    /** Running network size at the end of it. */
+    total: number;
+};
+
+export interface TeamGrowth {
+    points: TeamGrowthPoint[];
+    joined: number;
+    /** Network size before the window opened — where the curve starts. */
+    before: number;
 }
 
-export interface DownlineLevelRow extends DownlineMoney {
-    /** 0 is the viewer, 1 their direct reports, 2 those agents' reports. */
-    depth: number;
-    agents: number;
-    deals_won: number;
-    deals_open: number;
-    forecast: number;
-}
-
-export interface DownlineLevels extends DownlineForecastMeta {
-    rows: DownlineLevelRow[];
-}
-
-export interface DownlineAgentRow extends DownlineMoney {
+/**
+ * One person in the network.
+ *
+ * `own` is what this person did; `network` is that plus everyone under them,
+ * which is how you tell a strong closer from someone who has built a team that
+ * closes without them.
+ */
+export interface TeamTreeNode {
     agent_id: number;
     user_id: number | null;
     name: string;
     image: string | null;
-    depth: number;
-    parent_agent_id: number | null;
-    /** MLM level name, null for an agent who has never been assigned one. */
+    /** MLM level name, null for an agent never assigned one. */
     level: string | null;
-    direct_reports: number;
-    deals_won: number;
-    deals_open: number;
-    forecast: number;
+    /** 1 is a direct report of the viewer. */
+    depth: number;
+    own: TeamMetrics;
+    network: TeamMetrics & { agents: number };
+    children: TeamTreeNode[];
 }
 
-export interface DownlineAgents extends DownlineForecastMeta {
-    rows: DownlineAgentRow[];
+export interface TeamTree {
+    /** The viewer's direct reports; everyone else hangs off them. */
+    nodes: TeamTreeNode[];
+    currency: string | null;
+    range: DashboardRange;
+    /** The viewer's own level — it sets the differential they earn below. */
+    your_level: string | null;
 }

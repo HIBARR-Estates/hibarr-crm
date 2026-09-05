@@ -8,7 +8,7 @@ use App\Models\Module;
 use App\Services\Dashboard\TeamDownlineService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
-use App\Services\MlmCommissionService;
+use App\Support\DashboardDateRange;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -18,22 +18,17 @@ use ReflectionClass;
 use Tests\TestCase;
 
 /**
- * The team dashboard's downline rollup.
+ * The team dashboard: everything below you, and nothing of your own.
  *
- * Two things make this worth testing against real tables rather than reading:
+ * Three things make this worth testing against real tables rather than reading:
  * the tree walk, which has to reach past one level without ever reaching
- * sideways into someone else's downline; and the commission rollup, which is
- * money. A funnel that reads 3% low is a bug; a commission column that shows a
- * manager an agent who does not report to them is a data leak.
+ * sideways into someone else's network; the exclusion of the viewer, which is
+ * the whole premise of the page and is invisible if you get it wrong on a
+ * manager who sells nothing; and the commission rollup, which is money.
  *
  * Schema is hand-built here, as everywhere else in this directory — see
  * DashboardV2MigrationsTest's note on why running the real migration stack for
  * a read-only panel is not a trade this suite makes.
- *
- * The commission engine itself is mocked. preview() has its own coverage in
- * CommissionPreviewTest, and what matters here is the opposite question: given
- * legs, does the rollup attribute them to the right agent and drop the ones
- * that belong to nobody in this tree.
  */
 class TeamDownlineTest extends TestCase
 {
@@ -86,8 +81,6 @@ class TeamDownlineTest extends TestCase
         $views = (new ReflectionClass(DashboardV2Controller::class))
             ->getConstant('VIEWS');
 
-        // The naming convention the other four follow, and what the migration
-        // and Module::MODULE_LIST entry both have to agree with.
         $this->assertSame('team', $views['view_team_dashboard'] ?? null);
     }
 
@@ -97,11 +90,10 @@ class TeamDownlineTest extends TestCase
     {
         [$root] = $this->threeGenerations();
 
-        $depths = $this->service()->downlineDepths($root);
-
+        // The root is absent: it is not part of its own team.
         $this->assertSame(
-            [1 => 0, 2 => 1, 3 => 1, 4 => 2, 5 => 3],
-            $depths,
+            [2 => 1, 3 => 1, 4 => 2, 5 => 3],
+            $this->service()->teamDepths($root),
             'The walk stopped short of the full subtree'
         );
     }
@@ -110,11 +102,11 @@ class TeamDownlineTest extends TestCase
     {
         [$root] = $this->threeGenerations();
 
-        // agent_hierarchy is empty in this product today, which is why the
-        // walk falls back to parent_agent_id — but the preferred path has to
-        // be right for the day it is backfilled. The rows below deliberately
-        // disagree with parent_agent_id (agent 4 at depth 5, agent 5 absent),
-        // so a result matching them can only have come from the closure table.
+        // agent_hierarchy is empty in this product today, which is why the walk
+        // falls back to parent_agent_id — but the preferred path has to be right
+        // for the day it is backfilled. These rows deliberately disagree with
+        // parent_agent_id (agent 4 at depth 5, agent 5 absent), so a result
+        // matching them can only have come from the closure table.
         foreach ([[1, 2, 1], [1, 3, 1], [1, 4, 5]] as [$ancestor, $descendant, $depth]) {
             DB::table('agent_hierarchy')->insert([
                 'company_id' => $this->companyId,
@@ -124,35 +116,35 @@ class TeamDownlineTest extends TestCase
             ]);
         }
 
-        $this->assertSame([1 => 0, 2 => 1, 3 => 1, 4 => 5], $this->service()->downlineDepths($root));
+        $this->assertSame([2 => 1, 3 => 1, 4 => 5], $this->service()->teamDepths($root));
     }
 
-    public function test_a_manager_with_no_sub_agents_is_alone_in_their_tree(): void
+    public function test_a_lead_with_no_sub_agents_has_an_empty_team(): void
     {
         $root = $this->agent(id: 1, userId: 100);
 
-        $this->assertSame([1 => 0], $this->service()->downlineDepths($root));
+        $this->assertSame([], $this->service()->teamDepths($root));
 
-        $summary = $this->service()->summary($root, 30);
+        $summary = $this->service()->summary($root, $this->range());
 
-        // Zero, not an error: a manager who has not recruited anyone yet is a
-        // normal state, and the page renders an empty table for it.
+        // Zero, not an error: someone who has not recruited anyone yet is a
+        // normal state, and the page renders an empty tree for it.
         $this->assertSame(0, $summary['agents']);
         $this->assertSame(0, $summary['generations']);
+        $this->assertSame([], $this->service()->tree($root, $this->range())['nodes']);
     }
 
-    public function test_another_managers_downline_is_not_visible(): void
+    public function test_another_leads_network_is_not_visible(): void
     {
         [$root] = $this->threeGenerations();
 
-        // A separate tree entirely: their own root, with a report under it.
         $this->agent(id: 20, userId: 120);
         $this->agent(id: 21, userId: 121, parentId: 20);
 
-        $depths = $this->service()->downlineDepths($root);
+        $depths = $this->service()->teamDepths($root);
 
-        $this->assertArrayNotHasKey(20, $depths, 'Another manager leaked into the tree');
-        $this->assertArrayNotHasKey(21, $depths, 'Another downline leaked into the tree');
+        $this->assertArrayNotHasKey(20, $depths, 'Another lead leaked into the team');
+        $this->assertArrayNotHasKey(21, $depths, 'Another network leaked into the team');
     }
 
     public function test_a_parent_cycle_terminates_instead_of_walking_forever(): void
@@ -164,42 +156,39 @@ class TeamDownlineTest extends TestCase
         // can point a parent back at its own descendant.
         DB::table('lead_agents')->where('id', 1)->update(['parent_agent_id' => 2]);
 
-        $this->assertSame([1 => 0, 2 => 1], $this->service()->downlineDepths($root));
+        $this->assertSame([2 => 1], $this->service()->teamDepths($root));
     }
 
-    // ── Commission rollups ──────────────────────────────────────────────────
+    // ── The viewer is never in their own figures ────────────────────────────
 
-    public function test_level_totals_match_a_manual_sum_across_the_whole_tree(): void
+    public function test_the_viewers_own_work_is_excluded_from_every_figure(): void
     {
         [$root] = $this->threeGenerations();
 
-        $this->commission(agentId: 1, amount: 500, status: 'paid', paidAt: now()->subDays(2));
-        $this->commission(agentId: 2, amount: 300, status: 'paid', paidAt: now()->subDay());
-        $this->commission(agentId: 3, amount: 200, status: 'pending');
-        $this->commission(agentId: 4, amount: 150, status: 'paid', paidAt: now());
-        $this->commission(agentId: 5, amount: 75, status: 'pending');
+        // A strong personal book on the root, and one modest team member.
+        $this->commission(agentId: 1, amount: 9000, status: 'paid', paidAt: now());
+        $this->commission(agentId: 1, amount: 4000, status: 'pending');
+        $this->deal(id: 1, agentId: 1, open: true);
+        $this->deal(id: 2, agentId: 1, open: false, wonAt: now());
+        $this->lead(id: 1, ownerId: 100, contacted: true);
 
-        $rollup = $this->service()->levelRollup($root, 30);
-        $rows = collect($rollup['rows'])->keyBy('depth');
+        $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now());
+        $this->deal(id: 3, agentId: 2, open: true);
+        $this->lead(id: 2, ownerId: 101, contacted: true);
 
-        $this->assertSame([0, 1, 2, 3], $rows->keys()->all());
-        $this->assertSame(500.0, $rows[0]['paid']);
-        $this->assertSame(300.0, $rows[1]['paid']);
-        $this->assertSame(200.0, $rows[1]['pending']);
-        $this->assertSame(150.0, $rows[2]['paid']);
-        $this->assertSame(75.0, $rows[3]['pending']);
+        $summary = $this->service()->summary($root, $this->range());
 
-        // The whole point of rolling up by the receiving agent: the levels add
-        // up to the tree total, with nothing counted twice and nothing lost.
-        $this->assertSame(950.0, array_sum(array_column($rollup['rows'], 'paid')));
-        $this->assertSame(275.0, array_sum(array_column($rollup['rows'], 'pending')));
-        $this->assertSame(5, array_sum(array_column($rollup['rows'], 'agents')));
-
-        // And the tile row has to agree with the table under it.
-        $summary = $this->service()->summary($root, 30);
-        $this->assertSame(950.0, $summary['paid']);
-        $this->assertSame(275.0, $summary['pending']);
+        // Every one of these would be dominated by the root's own numbers if
+        // the exclusion regressed — which is exactly why it is worth pinning.
+        $this->assertSame(100.0, $summary['paid']);
+        $this->assertSame(0.0, $summary['pending']);
+        $this->assertSame(1.0, $summary['active_deals']);
+        $this->assertSame(0.0, $summary['deals_won']);
+        $this->assertSame(1.0, $summary['leads_active']);
+        $this->assertSame(4, $summary['agents']);
     }
+
+    // ── Commission ──────────────────────────────────────────────────────────
 
     public function test_each_status_lands_in_its_own_bucket(): void
     {
@@ -210,11 +199,10 @@ class TeamDownlineTest extends TestCase
         // Neither owed nor earned — a clawed-back leg must fall out of both.
         $this->commission(agentId: 2, amount: 999, status: 'reverted');
 
-        $row = collect($this->service()->agentRollup($root, 30)['rows'])
-            ->firstWhere('agent_id', 2);
+        $node = $this->nodeFor($this->service()->tree($root, $this->range()), 2);
 
-        $this->assertSame(100.0, $row['paid']);
-        $this->assertSame(40.0, $row['pending']);
+        $this->assertSame(100.0, $node['own']['paid']);
+        $this->assertSame(40.0, $node['own']['pending']);
     }
 
     public function test_the_houses_own_cut_is_never_shown_as_an_agents(): void
@@ -224,10 +212,9 @@ class TeamDownlineTest extends TestCase
         $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now());
         $this->commission(agentId: 2, amount: 900, status: 'paid', paidAt: now(), type: 'system');
 
-        $row = collect($this->service()->agentRollup($root, 30)['rows'])
-            ->firstWhere('agent_id', 2);
+        $node = $this->nodeFor($this->service()->tree($root, $this->range()), 2);
 
-        $this->assertSame(100.0, $row['paid'], 'A system leg was credited to an agent');
+        $this->assertSame(100.0, $node['own']['paid'], 'A system leg was credited to an agent');
     }
 
     public function test_paid_respects_the_window_and_pending_deliberately_does_not(): void
@@ -236,121 +223,166 @@ class TeamDownlineTest extends TestCase
 
         $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now()->subDays(5));
         $this->commission(agentId: 2, amount: 500, status: 'paid', paidAt: now()->subDays(200));
-        // An unpaid balance is standing, not earned on a date — a manager
-        // asking what is owed does not mean "owed since last month".
+        // A standing balance is not earned on a date — a lead asking what their
+        // team is owed does not mean "owed since last month".
         $this->commission(agentId: 2, amount: 70, status: 'pending');
 
-        $summary = $this->service()->summary($root, 30);
+        $summary = $this->service()->summary($root, $this->range());
 
         $this->assertSame(100.0, $summary['paid']);
         $this->assertSame(70.0, $summary['pending']);
 
-        $this->assertSame(600.0, $this->service()->summary($root, 365)['paid']);
+        $this->assertSame(
+            600.0,
+            $this->service()->summary($root, $this->range(365))['paid'],
+            'A wider window did not reach the older payment'
+        );
     }
 
-    public function test_a_commission_paid_to_an_agent_outside_the_tree_is_not_counted(): void
+    public function test_a_commission_paid_outside_the_team_is_not_counted(): void
     {
         [$root] = $this->threeGenerations();
 
         $this->agent(id: 20, userId: 120);
         $this->commission(agentId: 20, amount: 5000, status: 'paid', paidAt: now());
 
-        $this->assertSame(0.0, $this->service()->summary($root, 30)['paid']);
+        $this->assertSame(0.0, $this->service()->summary($root, $this->range())['paid']);
     }
 
-    // ── Forecast ────────────────────────────────────────────────────────────
+    // ── Deals and leads ─────────────────────────────────────────────────────
 
-    public function test_forecast_credits_the_agent_the_leg_would_pay(): void
-    {
-        [$root] = $this->threeGenerations();
-        $this->deal(id: 1, agentId: 4, open: true);
-
-        // A sub-agent's open deal pays them their own leg and the manager an
-        // upline differential. Both are inside the tree, on different rows.
-        $service = $this->service(legs: [
-            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
-            ['agent_id' => 1, 'amount' => 200, 'type' => 'upline'],
-        ]);
-
-        $rows = collect($service->agentRollup($root, 30)['rows'])->keyBy('agent_id');
-
-        $this->assertSame(800.0, $rows[4]['forecast']);
-        $this->assertSame(200.0, $rows[1]['forecast']);
-    }
-
-    public function test_forecast_drops_legs_for_agents_outside_the_tree(): void
-    {
-        [$root] = $this->threeGenerations();
-        $this->agent(id: 20, userId: 120);
-        $this->deal(id: 1, agentId: 4, open: true);
-
-        // An upline leg can legitimately point at an ancestor above this
-        // manager. It is not theirs to see, and it must not inflate the tree.
-        $service = $this->service(legs: [
-            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
-            ['agent_id' => 20, 'amount' => 300, 'type' => 'upline'],
-            ['agent_id' => 4, 'amount' => 100, 'type' => 'system'],
-        ]);
-
-        $rollup = $service->levelRollup($root, 30);
-
-        $this->assertSame(
-            800.0,
-            array_sum(array_column($rollup['rows'], 'forecast')),
-            'A leg belonging to someone outside the tree, or to the house, was rolled in'
-        );
-    }
-
-    public function test_a_closed_deal_is_not_forecast(): void
-    {
-        [$root] = $this->threeGenerations();
-        $this->deal(id: 1, agentId: 4, open: false);
-
-        $service = $this->service(legs: [
-            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
-        ]);
-
-        $rollup = $service->levelRollup($root, 30);
-
-        $this->assertSame(0, $rollup['forecast_deals']);
-        $this->assertSame(0.0, array_sum(array_column($rollup['rows'], 'forecast')));
-    }
-
-    // ── Deal counts ─────────────────────────────────────────────────────────
-
-    public function test_won_deals_are_counted_per_agent_inside_the_window(): void
+    public function test_active_deals_ignore_the_window_but_won_deals_respect_it(): void
     {
         [$root] = $this->threeGenerations();
 
-        $this->deal(id: 1, agentId: 2, open: false, wonAt: now()->subDay());
-        $this->deal(id: 2, agentId: 2, open: false, wonAt: now()->subDays(200));
-        $this->deal(id: 3, agentId: 5, open: false, wonAt: now());
-        $this->deal(id: 4, agentId: 5, open: true);
+        // Opened long before the window and still running: active today.
+        $this->deal(id: 1, agentId: 2, open: true, createdAt: now()->subDays(400));
+        $this->deal(id: 2, agentId: 2, open: false, wonAt: now()->subDay());
+        $this->deal(id: 3, agentId: 2, open: false, wonAt: now()->subDays(300));
 
-        $rows = collect($this->service()->agentRollup($root, 30)['rows'])->keyBy('agent_id');
+        $summary = $this->service()->summary($root, $this->range());
 
-        $this->assertSame(1, $rows[2]['deals_won']);
-        $this->assertSame(1, $rows[5]['deals_won']);
-        $this->assertSame(1, $rows[5]['deals_open']);
-        $this->assertSame(2, $this->service()->summary($root, 30)['deals_won']);
+        $this->assertSame(1.0, $summary['active_deals']);
+        $this->assertSame(1.0, $summary['deals_won']);
     }
 
-    public function test_agent_rows_are_ordered_by_level_then_name(): void
+    public function test_leads_split_into_being_worked_and_never_touched(): void
     {
         [$root] = $this->threeGenerations();
 
-        $rows = $this->service()->agentRollup($root, 30)['rows'];
+        $this->lead(id: 1, ownerId: 101, contacted: true);
+        $this->lead(id: 2, ownerId: 101, contacted: true);
+        $this->lead(id: 3, ownerId: 101, contacted: false);
 
-        $this->assertSame([0, 1, 1, 2, 3], array_column($rows, 'depth'));
-        // The viewer's own row leads, so a manager reads down from themselves.
-        $this->assertSame(1, $rows[0]['agent_id']);
-        $this->assertSame(2, $rows[0]['direct_reports']);
+        $summary = $this->service()->summary($root, $this->range());
+
+        $this->assertSame(2.0, $summary['leads_active']);
+        $this->assertSame(1.0, $summary['leads_untouched']);
+    }
+
+    public function test_a_finished_lead_is_not_in_play(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $this->lead(id: 1, ownerId: 101, contacted: true);
+        $this->lead(id: 2, ownerId: 101, contacted: true, status: 'converted');
+        $this->lead(id: 3, ownerId: 101, contacted: true, status: 'lost');
+        $this->lead(id: 4, ownerId: 101, contacted: true, status: 'not_fit');
+        // An unrecognised status counts as open: under-claiming progress beats
+        // inventing it.
+        $this->lead(id: 5, ownerId: 101, contacted: true, status: 'qualifying');
+
+        $this->assertSame(2.0, $this->service()->summary($root, $this->range())['leads_active']);
+    }
+
+    // ── The tree ────────────────────────────────────────────────────────────
+
+    public function test_the_tree_nests_by_who_recruited_whom(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $tree = $this->service()->tree($root, $this->range());
+
+        // Root's direct reports are the top level; the rest hang off them.
+        $this->assertSame([2, 3], array_column($tree['nodes'], 'agent_id'));
+
+        $bo = $this->nodeFor($tree, 2);
+        $this->assertSame([4], array_column($bo['children'], 'agent_id'));
+        $this->assertSame([5], array_column($bo['children'][0]['children'], 'agent_id'));
+    }
+
+    public function test_a_branch_total_includes_its_head_and_everyone_under_them(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now());
+        $this->commission(agentId: 4, amount: 30, status: 'paid', paidAt: now());
+        $this->commission(agentId: 5, amount: 7, status: 'paid', paidAt: now());
+        $this->deal(id: 1, agentId: 5, open: true);
+
+        $bo = $this->nodeFor($this->service()->tree($root, $this->range()), 2);
+
+        $this->assertSame(100.0, $bo['own']['paid'], 'Own should be this person alone');
+        $this->assertSame(137.0, $bo['network']['paid'], 'Branch should include the two below');
+        // Bo, Di and Eli.
+        $this->assertSame(3, $bo['network']['agents']);
+        $this->assertSame(0, $bo['own']['active_deals']);
+        $this->assertSame(1, $bo['network']['active_deals']);
+    }
+
+    public function test_every_team_member_appears_exactly_once(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $seen = [];
+        $walk = function (array $nodes) use (&$walk, &$seen): void {
+            foreach ($nodes as $node) {
+                $seen[] = $node['agent_id'];
+                $walk($node['children']);
+            }
+        };
+        $walk($this->service()->tree($root, $this->range())['nodes']);
+
+        sort($seen);
+        $this->assertSame([2, 3, 4, 5], $seen);
+    }
+
+    // ── Growth ──────────────────────────────────────────────────────────────
+
+    public function test_growth_counts_joins_per_month_on_top_of_who_was_already_there(): void
+    {
+        $root = $this->agent(id: 1, userId: 100);
+        $this->agent(id: 2, userId: 101, parentId: 1, createdAt: now()->subMonths(6));
+        $this->agent(id: 3, userId: 102, parentId: 1, createdAt: now()->subMonth());
+        $this->agent(id: 4, userId: 103, parentId: 1, createdAt: now());
+
+        $growth = $this->service()->growth($root, $this->range(90));
+        $points = collect($growth['points']);
+
+        // Agent 2 predates a 90-day window, so it is the running total's floor
+        // rather than a join inside it.
+        $this->assertSame(1, $growth['before']);
+        $this->assertSame(2, $growth['joined']);
+        $this->assertSame(3, $points->last()['total']);
+        $this->assertSame(2, $points->sum('joined'));
+    }
+
+    public function test_growth_emits_a_zero_for_a_month_nobody_joined(): void
+    {
+        $root = $this->agent(id: 1, userId: 100);
+        $this->agent(id: 2, userId: 101, parentId: 1, createdAt: now());
+
+        $points = $this->service()->growth($root, $this->range(90))['points'];
+
+        // A stall has to read as a flat line, not as a gap the eye closes over.
+        $this->assertGreaterThanOrEqual(3, count($points));
+        $this->assertContains(0, array_column($points, 'joined'));
     }
 
     // ── Fixtures ────────────────────────────────────────────────────────────
 
     /**
-     * A three-generation tree rooted at agent 1:
+     * A three-generation network rooted at agent 1:
      *
      *   1 ─┬─ 2 ── 4 ── 5
      *      └─ 3
@@ -368,26 +400,49 @@ class TeamDownlineTest extends TestCase
         return [$root];
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $legs  What preview() returns for every open deal.
-     */
-    private function service(array $legs = []): TeamDownlineService
+    private function service(): TeamDownlineService
     {
-        $commissions = Mockery::mock(MlmCommissionService::class);
-        $commissions->shouldReceive('preview')->andReturn($legs);
-
         $levels = Mockery::mock(LevelService::class);
         $levels->shouldReceive('getCurrentLevel')->andReturn(null);
 
-        return new TeamDownlineService(
-            app(HierarchyService::class),
-            $levels,
-            $commissions,
-        );
+        return new TeamDownlineService(app(HierarchyService::class), $levels);
     }
 
-    private function agent(int $id, int $userId, ?int $parentId = null, string $name = 'Agent'): LeadAgent
+    private function range(int $days = 30): DashboardDateRange
     {
+        return DashboardDateRange::preset($days);
+    }
+
+    /** Find one agent's node anywhere in the tree. */
+    private function nodeFor(array $tree, int $agentId): array
+    {
+        $find = function (array $nodes) use (&$find, $agentId): ?array {
+            foreach ($nodes as $node) {
+                if ($node['agent_id'] === $agentId) {
+                    return $node;
+                }
+
+                if ($hit = $find($node['children'])) {
+                    return $hit;
+                }
+            }
+
+            return null;
+        };
+
+        $node = $find($tree['nodes']);
+        $this->assertNotNull($node, "Agent {$agentId} is missing from the tree");
+
+        return $node;
+    }
+
+    private function agent(
+        int $id,
+        int $userId,
+        ?int $parentId = null,
+        string $name = 'Agent',
+        $createdAt = null
+    ): LeadAgent {
         // Inserted directly: LeadAgentObserver fans out to metrics, levels and
         // cycle bookkeeping on save, none of which these tests are about.
         DB::table('users')->insert([
@@ -402,6 +457,8 @@ class TeamDownlineTest extends TestCase
             'company_id' => $this->companyId,
             'user_id' => $userId,
             'parent_agent_id' => $parentId,
+            'created_at' => $createdAt ?? now()->subYear(),
+            'updated_at' => now(),
         ]);
 
         return LeadAgent::find($id);
@@ -424,26 +481,59 @@ class TeamDownlineTest extends TestCase
         ]);
     }
 
-    private function deal(int $id, int $agentId, bool $open, $wonAt = null): void
-    {
+    private function deal(
+        int $id,
+        int $agentId,
+        bool $open,
+        $wonAt = null,
+        $createdAt = null
+    ): void {
         DB::table('deals')->insert([
             'id' => $id,
             'company_id' => $this->companyId,
             'name' => "Deal {$id}",
             'agent_id' => $agentId,
-            'value' => 100000,
             'outcome_status' => $open ? null : 'won',
             'won_at' => $wonAt,
-            'created_at' => now(),
+            'created_at' => $createdAt ?? now(),
             'updated_at' => $wonAt ?? now(),
+        ]);
+    }
+
+    private function lead(
+        int $id,
+        int $ownerId,
+        bool $contacted,
+        ?string $status = null
+    ): void {
+        DB::table('leads')->insert([
+            'id' => $id,
+            'company_id' => $this->companyId,
+            'client_name' => "Lead {$id}",
+            'lead_owner' => $ownerId,
+            'first_contacted_at' => $contacted ? now()->subDay() : null,
+            'lead_lifecycle_status_id' => $status ? $this->statusId($status) : null,
+            'created_at' => now()->subDays(5),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function statusId(string $key): int
+    {
+        $existing = DB::table('lead_lifecycle_statuses')->where('key', $key)->value('id');
+
+        return $existing ?? DB::table('lead_lifecycle_statuses')->insertGetId([
+            'company_id' => $this->companyId,
+            'key' => $key,
+            'label' => ucfirst($key),
         ]);
     }
 
     private function resetSchema(): void
     {
         foreach ([
-            'mlm_commissions', 'deals', 'agent_hierarchy',
-            'lead_agents', 'users', 'companies',
+            'mlm_commissions', 'deals', 'leads', 'lead_lifecycle_statuses',
+            'agent_hierarchy', 'lead_agents', 'users', 'companies',
         ] as $table) {
             Schema::dropIfExists($table);
         }
@@ -483,12 +573,30 @@ class TeamDownlineTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('key');
+            $table->string('label')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('leads', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('client_name');
+            $table->unsignedInteger('lead_owner')->nullable();
+            $table->unsignedInteger('lead_lifecycle_status_id')->nullable();
+            $table->timestamp('first_contacted_at')->nullable();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+
         Schema::create('deals', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
             $table->string('name');
             $table->unsignedInteger('agent_id')->nullable();
-            $table->decimal('value', 15, 2)->nullable();
             $table->string('outcome_status')->nullable();
             $table->timestamp('won_at')->nullable();
             $table->softDeletes();

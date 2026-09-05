@@ -5,27 +5,30 @@ namespace App\Services\Dashboard;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\LeadAgent;
+use App\Models\LeadLifecycleStatus;
 use App\Models\MlmCommission;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
-use App\Services\MlmCommissionService;
+use App\Support\DashboardDateRange;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The team dashboard's downline rollup.
+ * The team dashboard: everything your network is doing, and nothing you are.
  *
- * The manager view answers "how is my team doing" over one flat level of
- * direct reports. This answers the question a manager with sub-agents actually
- * has: what does my *whole* downline look like, generation by generation, and
- * what has it earned.
+ * "Team" here means every agent below you in the hierarchy, at any depth —
+ * your direct reports, their reports, and so on. You are deliberately not in
+ * any figure on this page. A manager reading it is asking how their people are
+ * performing, and folding their own deals into the total is the fastest way to
+ * make that number unreadable: a strong manager's personal book can hide an
+ * idle team completely.
  *
  * Nothing here recalculates commission. Paid and pending come from
- * mlm_commissions rows as written by MlmCommissionService; forecast comes from
- * that same service's preview() over open deals. The legacy flat `commissions`
- * table (employee_id-keyed, no company scope) is deliberately not read — it has
- * no writer and no reader anywhere in the app, and a dual-read would make two
- * disagreeing numbers possible. MlmCommission is the only source of truth.
+ * mlm_commissions rows as MlmCommissionService wrote them. The legacy flat
+ * `commissions` table (employee_id-keyed, no company scope) is deliberately
+ * not read — it has no writer and no reader anywhere in the app, and a
+ * dual-read would make two disagreeing numbers possible.
  *
  * Money is always in the company's own currency: MlmCommissionService converts
  * a deal's value through its snapshotted exchange rate before writing a leg, so
@@ -33,31 +36,28 @@ use Illuminate\Support\Facades\DB;
  */
 class TeamDownlineService
 {
-    /**
-     * Open deals the forecast will price, most recently touched first.
-     *
-     * preview() resolves levels, cycle snapshots and the full ancestor chain
-     * per deal — a handful of queries each — so a large downline would turn one
-     * panel into thousands of round trips. Past this many the panel says so
-     * (`forecast_truncated`) rather than quietly reporting a partial number as
-     * the whole picture.
-     */
-    private const FORECAST_MAX_DEALS = 150;
-
     /** System legs are the house's retained cut, never an agent's to see. */
     private const EARNABLE_TYPES = [
         MlmCommissionType::Agent->value,
         MlmCommissionType::Upline->value,
     ];
 
+    /**
+     * Lifecycle statuses that mean a lead is finished, by key.
+     *
+     * Everything else counts as in play, including keys a company added
+     * itself: treating an unrecognised status as open under-claims progress
+     * rather than inventing it, which is the safer direction to be wrong in.
+     */
+    private const CLOSED_LEAD_KEYS = ['converted', 'lost', 'not_fit'];
+
     public function __construct(
         private HierarchyService $hierarchy,
         private LevelService $levels,
-        private MlmCommissionService $commissions,
     ) {}
 
     /**
-     * The manager's own agent record — the root of the tree this view shows.
+     * The viewer's own agent record — the anchor the team hangs off.
      *
      * Null for an account with no lead_agent row, which is most employees. The
      * caller renders an empty state rather than widening the scope: this view
@@ -65,8 +65,6 @@ class TeamDownlineService
      */
     public function rootAgent(int $userId): ?LeadAgent
     {
-        // Memoised: the panels in one deferred group each ask for the root
-        // before they can do anything, and it is the same row every time.
         return $this->once(
             'root:'.$userId,
             fn () => LeadAgent::where('user_id', $userId)->first()
@@ -74,180 +72,213 @@ class TeamDownlineService
     }
 
     /**
-     * The full tree as [agent id => depth], the root itself at depth 0.
+     * The team as [agent id => depth], depth 1 being a direct report.
+     *
+     * The root is absent by construction — it is not part of its own team.
      *
      * @return array<int, int>
      */
-    public function downlineDepths(LeadAgent $root): array
+    public function teamDepths(LeadAgent $root): array
     {
-        return [(int) $root->id => 0] + $this->hierarchy->getSubtreeDepths($root);
+        return $this->once(
+            'depths:'.$root->id,
+            fn () => $this->hierarchy->getSubtreeDepths($root)
+        );
     }
 
     /**
-     * Headline figures for the tile row: how big the tree is and what it has
-     * earned. Cheap enough to land before the tables.
+     * The headline row: how big the team is, what it is working, what it earns.
      *
-     * `paid` is windowed on paid_at — it answers "what did this downline earn
-     * in this period". `pending` deliberately is not: an unpaid commission is a
-     * standing balance, and a manager asking what is owed to their team does
-     * not mean "owed since a date I picked from a dropdown".
+     * `paid` is windowed on paid_at — what the team was actually paid in this
+     * period. `pending` is not: an unpaid commission is a standing balance, and
+     * a manager asking what their team is owed does not mean "owed since a date
+     * I picked from a dropdown". Both say so on the tile.
      */
-    public function summary(LeadAgent $root, int $days): array
+    public function summary(LeadAgent $root, DashboardDateRange $range): array
     {
-        $depths = $this->downlineDepths($root);
+        $depths = $this->teamDepths($root);
         $agentIds = array_keys($depths);
-        $totals = $this->commissionTotals($agentIds, $days);
 
-        $paid = 0.0;
-        $pending = 0.0;
-
-        foreach ($totals as $row) {
-            $paid += $row['paid'];
-            $pending += $row['pending'];
-        }
-
-        $rootLevel = $this->levels->getCurrentLevel($root);
+        $commissions = $this->commissionTotals($agentIds, $range);
+        $deals = $this->dealTotals($agentIds, $range);
+        $leads = $this->leadTotals($agentIds);
 
         return [
-            // The root is not part of their own downline.
-            'agents' => count($depths) - 1,
-            'direct_reports' => count(array_filter($depths, fn ($depth) => $depth === 1)),
+            'agents' => count($depths),
+            'direct_reports' => count(array_filter($depths, fn ($d) => $d === 1)),
             'generations' => $depths ? max($depths) : 0,
-            'root' => [
-                'agent_id' => (int) $root->id,
-                'name' => $root->user?->name,
-                'level' => $rootLevel?->name,
-            ],
-            'deals_won' => array_sum(array_column($this->dealTotals($agentIds, $days), 'won')),
-            'paid' => round($paid, 2),
-            'pending' => round($pending, 2),
+            // Network growth, as a number: agents who joined the team inside
+            // the window. The growth panel plots the same thing over time.
+            'joined' => $this->joinedInRange($agentIds, $range),
+            'active_deals' => $this->sumOf($deals, 'open'),
+            'deals_won' => $this->sumOf($deals, 'won'),
+            'leads_active' => $this->sumOf($leads, 'active'),
+            'leads_untouched' => $this->sumOf($leads, 'untouched'),
+            'paid' => round($this->sumOf($commissions, 'paid'), 2),
+            'pending' => round($this->sumOf($commissions, 'pending'), 2),
             'currency' => $this->currencyCode(),
-            'days' => $days,
+            'range' => $range->toArray(),
         ];
     }
 
     /**
-     * One row per generation: depth 1 is the direct reports, 2 their reports.
+     * How the network grew, month by month.
      *
-     * Rolled up by the agent who *receives* each leg, not the agent whose deal
-     * produced it. That is what makes the depths add up to the tree total
-     * without double counting — an upline leg belongs to the ancestor it pays,
-     * and appears at that ancestor's depth once.
+     * Two series rather than one: joins per month is the recruiting signal, and
+     * the running total is the size that produces everything else on the page.
+     * A month with no joins is emitted as a zero rather than skipped, so a
+     * stall reads as a flat line instead of a gap the eye closes over.
      *
-     * @return array<int, array<string, mixed>>
+     * Counted from lead_agents.created_at — when the agent record was made,
+     * which is the only join date this schema records.
      */
-    public function levelRollup(LeadAgent $root, int $days): array
+    public function growth(LeadAgent $root, DashboardDateRange $range): array
     {
-        $depths = $this->downlineDepths($root);
-        $agentIds = array_keys($depths);
+        $agentIds = array_keys($this->teamDepths($root));
 
-        $commissions = $this->commissionTotals($agentIds, $days);
-        $deals = $this->dealTotals($agentIds, $days);
-        $forecast = $this->forecast($agentIds);
+        if (empty($agentIds)) {
+            return ['points' => [], 'joined' => 0, 'before' => 0];
+        }
 
-        $rows = [];
+        $byMonth = LeadAgent::query()
+            ->whereIn('id', $agentIds)
+            ->whereBetween('created_at', [$range->from, $range->to])
+            ->groupBy('period')
+            ->toBase()
+            ->get([
+                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                DB::raw('COUNT(*) as total'),
+            ])
+            ->keyBy('period');
 
-        foreach ($depths as $agentId => $depth) {
-            $row = $rows[$depth] ?? [
-                'depth' => $depth,
-                'agents' => 0,
-                'deals_won' => 0,
-                'deals_open' => 0,
-                'paid' => 0.0,
-                'pending' => 0.0,
-                'forecast' => 0.0,
+        // The team already had this many members when the window opened —
+        // without it the running total starts at zero and reads as a team
+        // built from nothing inside the period.
+        $before = LeadAgent::query()
+            ->whereIn('id', $agentIds)
+            ->where('created_at', '<', $range->from)
+            ->count();
+
+        $points = [];
+        $running = $before;
+        $cursor = $range->from->copy()->startOfMonth();
+        $last = $range->to->copy()->startOfMonth();
+
+        while ($cursor->lessThanOrEqualTo($last)) {
+            $key = $cursor->format('Y-m');
+            $joined = (int) ($byMonth->get($key)->total ?? 0);
+            $running += $joined;
+
+            $points[] = [
+                'period' => $key,
+                'label' => $cursor->format('M Y'),
+                'joined' => $joined,
+                'total' => $running,
             ];
 
-            $row['agents']++;
-            $row['deals_won'] += $deals[$agentId]['won'] ?? 0;
-            $row['deals_open'] += $deals[$agentId]['open'] ?? 0;
-            $row['paid'] += $commissions[$agentId]['paid'] ?? 0.0;
-            $row['pending'] += $commissions[$agentId]['pending'] ?? 0.0;
-            $row['forecast'] += $forecast['byAgent'][$agentId] ?? 0.0;
-
-            $rows[$depth] = $row;
+            $cursor->addMonth();
         }
 
-        ksort($rows);
-
         return [
-            'rows' => array_map(
-                fn (array $row) => [
-                    ...$row,
-                    'paid' => round($row['paid'], 2),
-                    'pending' => round($row['pending'], 2),
-                    'forecast' => round($row['forecast'], 2),
-                ],
-                array_values($rows)
-            ),
-            'currency' => $this->currencyCode(),
-            'forecast_truncated' => $forecast['truncated'],
-            'forecast_deals' => $forecast['deal_count'],
-            'days' => $days,
+            'points' => $points,
+            'joined' => $running - $before,
+            'before' => $before,
         ];
     }
 
     /**
-     * One row per agent in the tree, the root included and marked at depth 0.
+     * The team as a tree, each node carrying its own numbers and its network's.
      *
-     * Ordered by depth then name rather than by earnings — see the sort below.
+     * Both halves matter and they answer different questions. "Own" is what
+     * this person did. "Network" is what everything under them did, themselves
+     * included — which is how you tell a strong closer from someone who has
+     * built a team that closes without them.
      *
      * @return array<string, mixed>
      */
-    public function agentRollup(LeadAgent $root, int $days): array
+    public function tree(LeadAgent $root, DashboardDateRange $range): array
     {
-        $depths = $this->downlineDepths($root);
+        $depths = $this->teamDepths($root);
         $agentIds = array_keys($depths);
 
-        // The level accessor reads currentLevelHistory, the same relation
-        // LevelService::getCurrentLevel() resolves — eager-loaded here rather
-        // than called per agent, which would be one query per row.
+        if (empty($agentIds)) {
+            return ['nodes' => [], 'currency' => $this->currencyCode(), 'range' => $range->toArray()];
+        }
+
         $agents = LeadAgent::with(['user:id,name,image', 'currentLevelHistory.level'])
             ->whereIn('id', $agentIds)
             ->get()
             ->keyBy('id');
 
-        $commissions = $this->commissionTotals($agentIds, $days);
-        $deals = $this->dealTotals($agentIds, $days);
-        $forecast = $this->forecast($agentIds);
-        $childCounts = $this->directReportCounts($agentIds);
+        $commissions = $this->commissionTotals($agentIds, $range);
+        $deals = $this->dealTotals($agentIds, $range);
+        $leads = $this->leadTotals($agentIds);
 
-        $rows = collect($depths)
-            ->map(function (int $depth, int $agentId) use ($agents, $commissions, $deals, $forecast, $childCounts) {
-                $agent = $agents->get($agentId);
+        // Children keyed by parent. An agent whose parent is outside the team —
+        // possible when the walk stopped at MAX_SUBTREE_DEPTH — is attached to
+        // the root instead of being dropped: a missing person is worse than a
+        // person shown one level too high.
+        $childrenOf = [];
 
-                return [
-                    'agent_id' => $agentId,
-                    'user_id' => $agent?->user_id ? (int) $agent->user_id : null,
-                    // An agent row with no user attached is a data fault, not a
-                    // person — named as such rather than dropped, because
-                    // dropping it would silently lose their commissions from
-                    // the totals above.
-                    'name' => $agent?->user?->name ?? 'Unknown agent',
-                    'image' => $agent?->user?->image_url,
-                    'depth' => $depth,
-                    'parent_agent_id' => $agent?->parent_agent_id ? (int) $agent->parent_agent_id : null,
-                    'level' => $agent?->current_level?->name,
-                    'direct_reports' => $childCounts[$agentId] ?? 0,
-                    'deals_won' => $deals[$agentId]['won'] ?? 0,
-                    'deals_open' => $deals[$agentId]['open'] ?? 0,
-                    'paid' => round($commissions[$agentId]['paid'] ?? 0.0, 2),
-                    'pending' => round($commissions[$agentId]['pending'] ?? 0.0, 2),
-                    'forecast' => round($forecast['byAgent'][$agentId] ?? 0.0, 2),
-                ];
-            })
-            // Depth first, then name: this is a map of a hierarchy, so who
-            // sits under whom has to be readable before the numbers are.
-            ->sortBy(fn (array $row) => [$row['depth'], mb_strtolower($row['name'])])
-            ->values()
-            ->all();
+        foreach ($agentIds as $id) {
+            $parent = (int) ($agents->get($id)?->parent_agent_id ?? 0);
+            $key = isset($depths[$parent]) || $parent === (int) $root->id ? $parent : (int) $root->id;
+            $childrenOf[$key][] = $id;
+        }
+
+        $build = function (int $id) use (
+            &$build, $agents, $depths, $childrenOf, $commissions, $deals, $leads
+        ): array {
+            $agent = $agents->get($id);
+
+            $own = [
+                'active_deals' => $deals[$id]['open'] ?? 0,
+                'deals_won' => $deals[$id]['won'] ?? 0,
+                'leads_active' => $leads[$id]['active'] ?? 0,
+                'leads_untouched' => $leads[$id]['untouched'] ?? 0,
+                'paid' => round($commissions[$id]['paid'] ?? 0.0, 2),
+                'pending' => round($commissions[$id]['pending'] ?? 0.0, 2),
+            ];
+
+            $children = array_map($build, $childrenOf[$id] ?? []);
+
+            // Network includes this person: "their network" is the branch they
+            // head, and excluding its head would make the branch totals fail to
+            // add up against the tile row.
+            $network = array_merge(['agents' => 1], $own);
+
+            foreach ($children as $child) {
+                foreach ($child['network'] as $key => $value) {
+                    $network[$key] += $value;
+                }
+            }
+
+            return [
+                'agent_id' => $id,
+                'user_id' => $agent?->user_id ? (int) $agent->user_id : null,
+                // An agent row with no user attached is a data fault, not a
+                // person — named as such rather than dropped, because dropping
+                // it would silently lose their numbers from the totals above.
+                'name' => $agent?->user?->name ?? 'Unknown agent',
+                'image' => $agent?->user?->image_url,
+                'level' => $agent?->current_level?->name,
+                'depth' => $depths[$id] ?? 1,
+                'own' => $own,
+                'network' => array_map(
+                    fn ($value) => is_float($value) ? round($value, 2) : $value,
+                    $network
+                ),
+                'children' => $children,
+            ];
+        };
 
         return [
-            'rows' => $rows,
+            'nodes' => array_map($build, $childrenOf[(int) $root->id] ?? []),
             'currency' => $this->currencyCode(),
-            'forecast_truncated' => $forecast['truncated'],
-            'forecast_deals' => $forecast['deal_count'],
-            'days' => $days,
+            'range' => $range->toArray(),
+            // The viewer's own level still belongs on the page: it sets the
+            // differential they earn on everything below.
+            'your_level' => $this->levels->getCurrentLevel($root)?->name,
         ];
     }
 
@@ -257,9 +288,7 @@ class TeamDownlineService
      * Per-instance memo for the resolvers on this class.
      *
      * Deferred props in the same group are resolved inside one request, so the
-     * level and agent panels both ask for the same root, tree and rollups — and
-     * forecast() runs the commission engine over every open deal in the tree.
-     * Without this, landing them together would pay for it twice.
+     * tile row and the tree both ask for the same team and the same rollups.
      *
      * A null result is not memoised (`??=`), which only costs a repeat of the
      * one cheap lookup that can return null.
@@ -275,24 +304,41 @@ class TeamDownlineService
     }
 
     /**
-     * Paid and pending commission per agent, in one query for the whole tree.
+     * @param  array<int, array<string, int|float>>  $rows
+     */
+    private function sumOf(array $rows, string $key): float
+    {
+        return array_sum(array_column($rows, $key));
+    }
+
+    /** How many of these agents joined inside the window. */
+    private function joinedInRange(array $agentIds, DashboardDateRange $range): int
+    {
+        if (empty($agentIds)) {
+            return 0;
+        }
+
+        return LeadAgent::query()
+            ->whereIn('id', $agentIds)
+            ->whereBetween('created_at', [$range->from, $range->to])
+            ->count();
+    }
+
+    /**
+     * Paid and pending commission per agent, in one query for the whole team.
      *
-     * Reverted legs are excluded by both branches: a clawed-back commission is
-     * neither owed nor earned, and counting it as either would overstate the
-     * downline.
+     * Reverted legs are excluded from both: a clawed-back commission is neither
+     * owed nor earned, and counting it as either would overstate the team.
      *
-     * @param  array<int, int>  $agentIds
      * @return array<int, array{paid: float, pending: float}>
      */
-    private function commissionTotals(array $agentIds, int $days): array
+    private function commissionTotals(array $agentIds, DashboardDateRange $range): array
     {
         if (empty($agentIds)) {
             return [];
         }
 
-        return $this->once('commissions:'.$days.':'.md5(implode(',', $agentIds)), function () use ($agentIds, $days) {
-            $since = now()->subDays($days)->startOfDay();
-
+        return $this->once('commissions:'.$this->key($agentIds, $range), function () use ($agentIds, $range) {
             return MlmCommission::query()
                 ->whereIn('agent_id', $agentIds)
                 ->whereIn('type', self::EARNABLE_TYPES)
@@ -300,8 +346,8 @@ class TeamDownlineService
                 ->toBase()
                 ->selectRaw('agent_id')
                 ->selectRaw(
-                    'SUM(CASE WHEN status = ? AND paid_at >= ? THEN amount ELSE 0 END) as paid',
-                    [MlmCommissionStatus::Paid->value, $since]
+                    'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as paid',
+                    [MlmCommissionStatus::Paid->value, $range->from, $range->to]
                 )
                 ->selectRaw(
                     'SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending',
@@ -319,25 +365,26 @@ class TeamDownlineService
     }
 
     /**
-     * Deals won inside the window and deals still open, per agent.
+     * Open deals and deals won inside the window, per agent.
+     *
+     * "Active" is deliberately not windowed: a deal opened last year and still
+     * running is active today, and a manager asking what their team is working
+     * on right now does not mean "started inside my date filter".
      *
      * won_at is the truthful timestamp but is not backfilled on every historic
      * row, so updated_at stands in where it is missing — the same COALESCE
      * DashboardMetricsService::teamAgents() already uses, so the two screens
      * cannot disagree about what "won this month" means.
      *
-     * @param  array<int, int>  $agentIds
-     * @return array<int, array{won: int, open: int}>
+     * @return array<int, array{open: int, won: int}>
      */
-    private function dealTotals(array $agentIds, int $days): array
+    private function dealTotals(array $agentIds, DashboardDateRange $range): array
     {
         if (empty($agentIds)) {
             return [];
         }
 
-        return $this->once('deals:'.$days.':'.md5(implode(',', $agentIds)), function () use ($agentIds, $days) {
-            $since = now()->subDays($days)->startOfDay();
-
+        return $this->once('deals:'.$this->key($agentIds, $range), function () use ($agentIds, $range) {
             return Deal::query()
                 ->whereIn('agent_id', $agentIds)
                 ->groupBy('agent_id')
@@ -345,14 +392,14 @@ class TeamDownlineService
                 ->selectRaw('agent_id')
                 ->selectRaw('SUM(outcome_status IS NULL) as open_deals')
                 ->selectRaw(
-                    "SUM(outcome_status = 'won' AND COALESCE(won_at, updated_at) >= ?) as won_deals",
-                    [$since]
+                    "SUM(outcome_status = 'won' AND COALESCE(won_at, updated_at) BETWEEN ? AND ?) as won_deals",
+                    [$range->from, $range->to]
                 )
                 ->get()
                 ->mapWithKeys(fn ($row) => [
                     (int) $row->agent_id => [
-                        'won' => (int) $row->won_deals,
                         'open' => (int) $row->open_deals,
+                        'won' => (int) $row->won_deals,
                     ],
                 ])
                 ->all();
@@ -360,90 +407,91 @@ class TeamDownlineService
     }
 
     /**
-     * What the tree's open deals would pay each of its members, per
-     * MlmCommissionService::preview().
+     * Leads the team is working, per agent.
      *
-     * Legs are attributed to the agent that would *receive* them and then
-     * filtered to the tree, which is the whole point of a downline forecast: a
-     * manager's own upline differential on a sub-agent's deal is theirs, and
-     * shows up on their row, not the seller's.
+     * `active` is what the request calls "currently being interacted with":
+     * contact has started and the lead has not reached a terminal lifecycle
+     * status. `untouched` is the same open set with no first contact logged —
+     * shipped alongside because a team with a hundred live leads and eighty
+     * untouched ones is not the same team as one with twenty of each, and a
+     * single "leads" number cannot tell those apart.
      *
-     * @param  array<int, int>  $agentIds
-     * @return array{byAgent: array<int, float>, deal_count: int, truncated: bool}
+     * Neither is windowed, for the same reason active deals aren't: a lead
+     * sitting untouched since before the window is still untouched now.
+     *
+     * Ownership is leads.lead_owner (a user id), matching how the manager view
+     * already counts a team's leads — reading a different column here would
+     * make the two screens disagree about whose lead it is.
+     *
+     * @return array<int, array{active: int, untouched: int}>
      */
-    private function forecast(array $agentIds): array
-    {
-        if (empty($agentIds)) {
-            return ['byAgent' => [], 'deal_count' => 0, 'truncated' => false];
-        }
-
-        return $this->once('forecast:'.md5(implode(',', $agentIds)), fn () => $this->resolveForecast($agentIds));
-    }
-
-    /**
-     * @param  array<int, int>  $agentIds
-     * @return array{byAgent: array<int, float>, deal_count: int, truncated: bool}
-     */
-    private function resolveForecast(array $agentIds): array
-    {
-        $openDeals = Deal::query()
-            ->whereIn('agent_id', $agentIds)
-            ->whereNull('outcome_status')
-            ->count();
-
-        $deals = Deal::query()
-            ->whereIn('agent_id', $agentIds)
-            ->whereNull('outcome_status')
-            ->orderByDesc('updated_at')
-            ->limit(self::FORECAST_MAX_DEALS)
-            ->get();
-
-        $inTree = array_flip($agentIds);
-        $byAgent = [];
-
-        foreach ($deals as $deal) {
-            foreach ($this->commissions->preview($deal) as $leg) {
-                $agentId = (int) ($leg['agent_id'] ?? 0);
-
-                if (! isset($inTree[$agentId]) || ! in_array($leg['type'] ?? null, self::EARNABLE_TYPES, true)) {
-                    continue;
-                }
-
-                $byAgent[$agentId] = ($byAgent[$agentId] ?? 0.0) + (float) $leg['amount'];
-            }
-        }
-
-        return [
-            'byAgent' => $byAgent,
-            'deal_count' => min($openDeals, self::FORECAST_MAX_DEALS),
-            'truncated' => $openDeals > self::FORECAST_MAX_DEALS,
-        ];
-    }
-
-    /**
-     * How many agents report directly to each member of the tree.
-     *
-     * Counted across all agents rather than only those in the tree so the
-     * bottom generation still reports its own reports — the walk stops at
-     * MAX_SUBTREE_DEPTH, and a leaf row reading "0 reports" when it has three
-     * would be a lie rather than a truncation.
-     *
-     * @param  array<int, int>  $agentIds
-     * @return array<int, int>
-     */
-    private function directReportCounts(array $agentIds): array
+    private function leadTotals(array $agentIds): array
     {
         if (empty($agentIds)) {
             return [];
         }
 
-        return LeadAgent::query()
-            ->whereIn('parent_agent_id', $agentIds)
-            ->groupBy('parent_agent_id')
-            ->toBase()
-            ->get(['parent_agent_id', DB::raw('COUNT(*) as total')])
-            ->mapWithKeys(fn ($row) => [(int) $row->parent_agent_id => (int) $row->total])
-            ->all();
+        return $this->once('leads:'.$this->key($agentIds), function () use ($agentIds) {
+            $ownerToAgent = LeadAgent::query()
+                ->whereIn('id', $agentIds)
+                ->whereNotNull('user_id')
+                ->pluck('id', 'user_id')
+                ->all();
+
+            if (empty($ownerToAgent)) {
+                return [];
+            }
+
+            // Through the model so the company scope applies: statuses are
+            // seeded per company, and the same key exists once per tenant.
+            $closed = LeadLifecycleStatus::whereIn('key', self::CLOSED_LEAD_KEYS)
+                ->pluck('id')
+                ->all();
+
+            $rows = Lead::query()
+                ->whereIn('lead_owner', array_keys($ownerToAgent))
+                ->when(
+                    ! empty($closed),
+                    fn ($query) => $query->where(
+                        fn ($q) => $q->whereNull('lead_lifecycle_status_id')
+                            ->orWhereNotIn('lead_lifecycle_status_id', $closed)
+                    )
+                )
+                ->groupBy('lead_owner')
+                ->toBase()
+                ->get([
+                    'lead_owner',
+                    DB::raw('SUM(first_contacted_at IS NOT NULL) as active'),
+                    DB::raw('SUM(first_contacted_at IS NULL) as untouched'),
+                ]);
+
+            $totals = [];
+
+            foreach ($rows as $row) {
+                $agentId = $ownerToAgent[$row->lead_owner] ?? null;
+
+                if ($agentId === null) {
+                    continue;
+                }
+
+                // A user can hold more than one lead_agent row, so this adds
+                // rather than assigns.
+                $totals[(int) $agentId] = [
+                    'active' => ($totals[(int) $agentId]['active'] ?? 0) + (int) $row->active,
+                    'untouched' => ($totals[(int) $agentId]['untouched'] ?? 0) + (int) $row->untouched,
+                ];
+            }
+
+            return $totals;
+        });
+    }
+
+    /** Memo key for a set of agents, optionally over a window. */
+    private function key(array $agentIds, ?DashboardDateRange $range = null): string
+    {
+        $window = $range ? $range->from->toDateString().':'.$range->to->toDateString() : 'all';
+
+        return $window.':'.md5(implode(',', $agentIds));
     }
 
     /** Memoised: company() is session-cached but the relation is not. */

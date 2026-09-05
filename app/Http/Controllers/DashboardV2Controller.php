@@ -12,6 +12,7 @@ use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
+use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,9 +43,6 @@ class DashboardV2Controller extends AccountBaseController
         'view_leadership_dashboard' => 'leadership',
         'view_partner_dashboard' => 'partner',
     ];
-
-    /** Selectable windows, in days. */
-    private const PERIODS = [30, 90, 365];
 
     public function __construct()
     {
@@ -80,18 +78,21 @@ class DashboardV2Controller extends AccountBaseController
             : $availableViews[0];
 
         $pipelineId = $request->integer('pipeline') ?: null;
-        $days = $this->period($request);
+        $range = DashboardDateRange::fromRequest($request);
 
         return Inertia::render('Dashboard/V2/DashboardV2', [
             'availableViews' => $availableViews,
             'activeView' => $activeView,
             'personalDashboardEnabled' => $personalDashboardEnabled,
-            'period' => $days,
+            // The resolved window, not the raw query string: a custom range
+            // the picker sends back has already been validated by the time the
+            // page renders it, so the two can never disagree.
+            'range' => $range->toArray(),
             'now' => now()->toIso8601String(),
             // Every view wears the same greeting header as the personal
             // dashboard, so the name travels with the role views too.
             'userName' => $user->name,
-            ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $days),
+            ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $range),
         ]);
     }
 
@@ -181,17 +182,6 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
-     * Window for the team and partner views. Whitelisted rather than clamped —
-     * the value reaches raw date arithmetic in the metrics service.
-     */
-    private function period(Request $request): int
-    {
-        $days = $request->integer('days');
-
-        return in_array($days, self::PERIODS, true) ? $days : 30;
-    }
-
-    /**
      * Only the active view's data is deferred — switching views is a fresh visit
      * with ?view=, so we never pay for panels nobody is looking at.
      */
@@ -200,8 +190,14 @@ class DashboardV2Controller extends AccountBaseController
         int $userId,
         DashboardMetricsService $metrics,
         ?int $pipelineId = null,
-        int $days = 30
+        ?DashboardDateRange $range = null
     ): array {
+        $range ??= DashboardDateRange::preset(DashboardDateRange::DEFAULT_DAYS);
+
+        // The manager view's panels still take a day count. Handing them the
+        // resolved range's length keeps one picker driving both views without
+        // rewriting metrics this change isn't touching.
+        $days = $range->days();
         // Resolved once per request rather than inside every closure: each view
         // fans out to several panels that all need the same scope.
         $team = fn () => $metrics->teamAgentIds($userId);
@@ -228,7 +224,7 @@ class DashboardV2Controller extends AccountBaseController
                 ),
             ],
 
-            'team' => $this->teamPanels($userId, $days),
+            'team' => $this->teamPanels($userId, $range),
 
             'leadership' => [
                 'trend' => Inertia::defer(fn () => $metrics->trend(), 'trend'),
@@ -268,37 +264,36 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
-     * The team view's panels: the tree, rolled up by generation and by agent.
+     * The team view's panels: the headline row, the growth curve, the tree.
      *
-     * Split into three groups rather than one so the tiles paint while the
-     * tables are still resolving. The two tables share a group deliberately:
-     * both need the commission forecast, which runs the commission engine over
-     * the tree's open deals, and TeamDownlineService memoises it for the
-     * request — landing them separately would pay for it twice.
+     * Three groups so the tiles paint while the heavier panels resolve. The
+     * tree is on its own because it is the expensive one — it fans the same
+     * rollups out per agent — and the growth chart is two cheap aggregates
+     * that should not wait behind it.
      *
      * @return array<string, mixed>
      */
-    private function teamPanels(int $userId, int $days): array
+    private function teamPanels(int $userId, DashboardDateRange $range): array
     {
-        $downline = app(TeamDownlineService::class);
+        $team = app(TeamDownlineService::class);
 
         // Deferred rather than resolved here: an account with no lead_agent row
-        // has no tree, and the lookup belongs behind the same skeleton as the
+        // has no team, and the lookup belongs behind the same skeleton as the
         // data it anchors.
-        $root = fn () => $downline->rootAgent($userId);
+        $root = fn () => $team->rootAgent($userId);
 
         return [
-            'downlineSummary' => Inertia::defer(
-                fn () => ($agent = $root()) ? $downline->summary($agent, $days) : null,
-                'downline'
+            'teamSummary' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->summary($agent, $range) : null,
+                'summary'
             ),
-            'downlineLevels' => Inertia::defer(
-                fn () => ($agent = $root()) ? $downline->levelRollup($agent, $days) : null,
-                'rollup'
+            'teamGrowth' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->growth($agent, $range) : null,
+                'growth'
             ),
-            'downlineAgents' => Inertia::defer(
-                fn () => ($agent = $root()) ? $downline->agentRollup($agent, $days) : null,
-                'rollup'
+            'teamTree' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->tree($agent, $range) : null,
+                'tree'
             ),
         ];
     }
