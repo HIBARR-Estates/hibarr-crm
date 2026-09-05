@@ -3,11 +3,10 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ScheduleEntry } from "../types";
 import type { PersonalQueue, PipelineRow } from "./types";
-import { dominantTotal, greetingFor, mergeCurrencyTotals } from "./format";
+import { dominantTotal, mergeCurrencyTotals } from "./format";
 
 interface StatusLineProps {
-    name: string;
-    /** Server clock, so the greeting doesn't flip on a stale browser. */
+    /** Server clock, so "next is" doesn't drift on a stale browser. */
     now: string;
     queue?: PersonalQueue;
     agenda?: ScheduleEntry[];
@@ -15,14 +14,14 @@ interface StatusLineProps {
 }
 
 /**
- * Three lines: who's greeted, what needs them (as a real sentence), and
- * what's next on the clock.
+ * The personal dashboard's subtext: what needs this person (as a real
+ * sentence), and what's next on the clock.
  *
- * Replaces the gradient greeting hero: a status line states the same thing in
- * a quarter of the height, and the numbers in it are the ones the page is
- * about. Every line degrades a fact at a time — a panel still in flight
- * simply drops its clause rather than blocking the line or showing a
- * skeleton, since the greeting alone is already useful.
+ * Sits under the greeting DashboardHeader renders — this component owns the
+ * two derived lines only, so every view's header is the same shape and only
+ * the sentence under it changes. Each line degrades a fact at a time: a panel
+ * still in flight drops its clause rather than blocking the line or showing a
+ * skeleton, since the greeting above is already useful on its own.
  *
  * The summary line is deliberately a sentence, not a fragment list like the
  * rest of this page — it's the one place the dashboard tells the person what
@@ -34,7 +33,6 @@ interface StatusLineProps {
  * trend on a landing page is worse than a missing one.
  */
 export default function StatusLine({
-    name,
     now,
     queue,
     agenda,
@@ -97,13 +95,7 @@ export default function StatusLine({
     ].filter(Boolean);
 
     return (
-        <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 20, lineHeight: 1.3 }}>
-                <span style={{ fontWeight: 700, color: T.NAVY }}>
-                    {td(greetingFor(now))}, {name}.
-                </span>
-            </p>
-
+        <>
             {summary && (
                 <p
                     style={{
@@ -129,6 +121,6 @@ export default function StatusLine({
                     {schedule.join(" · ")}
                 </p>
             )}
-        </div>
+        </>
     );
 }

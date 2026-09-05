@@ -250,3 +250,132 @@
     outline: 2px solid #1a6bb5;
     outline-offset: 1px;
 }
+
+/* The team network graph: cards rendered inside react-d3-tree's SVG via
+   foreignObject, so plain CSS classes apply exactly as they would to normal
+   DOM — but scoped under .dashboard-v2 like everything else on these pages. */
+.dashboard-v2 .dv2-tree-card {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dashboard-v2 .dv2-tree-card:hover {
+    border-color: #b8d4f0;
+    box-shadow: 0 2px 6px rgba(16, 24, 40, 0.1);
+}
+
+.dashboard-v2 .dv2-tree-card[data-you] {
+    background: #e8f1fb;
+    border-color: #b8d4f0;
+}
+
+.dashboard-v2 .dv2-tree-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.dashboard-v2 .dv2-tree-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #16294d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-tree-card-you {
+    font-weight: 400;
+    color: #1a6bb5;
+}
+
+.dashboard-v2 .dv2-tree-card-level {
+    font-size: 11px;
+    color: #9ca3af;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-tree-card-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eef0f3;
+}
+
+.dashboard-v2 .dv2-tree-card-stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1f2e;
+    font-variant-numeric: tabular-nums;
+}
+
+.dashboard-v2 .dv2-tree-card-stat-label {
+    font-size: 10px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.dashboard-v2 .dv2-tree-card-branch {
+    margin-left: auto;
+    font-size: 10px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+/* The "You" card's call-to-action line, under its stats rather than beside
+   them — it reads as a sentence, not a third stat column. */
+.dashboard-v2 .dv2-tree-card-hint {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #1a6bb5;
+    font-weight: 500;
+}
+
+/* "+N more" / "Show less" pills inside the graph. */
+.dashboard-v2 .dv2-tree-pill {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+.dashboard-v2 .dv2-tree-pill-more {
+    background: #e8f1fb;
+    border: 1px dashed #b8d4f0;
+    color: #14538c;
+}
+
+.dashboard-v2 .dv2-tree-pill-more:hover {
+    background: #d8e9fa;
+}
+
+.dashboard-v2 .dv2-tree-pill-less {
+    background: #f8f9fb;
+    border: 1px solid #e3e6ea;
+    color: #5b6472;
+}
+
+.dashboard-v2 .dv2-tree-pill-less:hover {
+    background: #eef0f3;
+}

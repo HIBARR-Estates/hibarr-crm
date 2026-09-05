@@ -11,6 +11,15 @@ use Illuminate\Support\Facades\Log;
 class HierarchyService
 {
     /**
+     * How many generations getSubtreeDepths() will walk by default.
+     *
+     * A guard against a cyclic or absurdly deep parent chain, not a product
+     * limit: no real hierarchy in this system is close to ten deep, and the
+     * commission engine itself stops paying long before that.
+     */
+    public const MAX_SUBTREE_DEPTH = 10;
+
+    /**
      * Set the parent for a child agent and rebuild the closure table entries.
      *
      * This handles both initial assignment and re-parenting.
@@ -99,6 +108,76 @@ class HierarchyService
             ->where('agent_hierarchy.ancestor_id', $agent->id)
             ->orderBy('agent_hierarchy.depth', 'asc')
             ->get();
+    }
+
+    /**
+     * The whole downline of an agent as [agent id => depth], nearest first.
+     *
+     * Depth 1 is a direct report, 2 their reports, and so on; the root agent is
+     * not in the result. This is the depth-aware companion to getDescendants()
+     * — the team dashboard needs to know which generation a rollup belongs to,
+     * not just who is under whom.
+     *
+     * Reads the agent_hierarchy closure table first, because that is one query
+     * for an arbitrarily deep tree. The table is derived, though, and is empty
+     * for any company whose agents predate it (see rebuildAll()), so an empty
+     * closure result falls back to walking parent_agent_id — the actual source
+     * of truth — breadth-first. The fallback is bounded by $maxDepth and keeps
+     * a seen-set, so a parent chain that loops back on itself terminates
+     * instead of walking forever; parent_agent_id is writable directly with no
+     * FK-level cycle check, so bad data can produce one.
+     *
+     * @return array<int, int> agent id => depth
+     */
+    public function getSubtreeDepths(LeadAgent $agent, int $maxDepth = self::MAX_SUBTREE_DEPTH): array
+    {
+        $fromClosure = AgentHierarchy::where('ancestor_id', $agent->id)
+            ->where('depth', '<=', $maxDepth)
+            ->orderBy('depth')
+            ->pluck('depth', 'descendant_id')
+            ->map(fn ($depth) => (int) $depth)
+            ->all();
+
+        if (! empty($fromClosure)) {
+            return $fromClosure;
+        }
+
+        return $this->walkChildren($agent, $maxDepth);
+    }
+
+    /**
+     * Breadth-first walk of parent_agent_id, one query per generation.
+     *
+     * Scoped to the root's company: parent_agent_id carries no company
+     * constraint of its own, and this feeds a view that must never reach
+     * outside the viewer's own tenant.
+     *
+     * @return array<int, int> agent id => depth
+     */
+    private function walkChildren(LeadAgent $agent, int $maxDepth): array
+    {
+        $depths = [];
+        $frontier = [$agent->id];
+        $seen = [$agent->id => true];
+
+        for ($depth = 1; $depth <= $maxDepth && ! empty($frontier); $depth++) {
+            $children = LeadAgent::whereIn('parent_agent_id', $frontier)
+                ->when($agent->company_id, fn ($query, $companyId) => $query->where('company_id', $companyId))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->reject(fn ($id) => isset($seen[$id]))
+                ->all();
+
+            $frontier = [];
+
+            foreach ($children as $id) {
+                $seen[$id] = true;
+                $depths[$id] = $depth;
+                $frontier[] = $id;
+            }
+        }
+
+        return $depths;
     }
 
     /**
