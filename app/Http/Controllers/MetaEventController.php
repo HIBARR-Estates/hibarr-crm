@@ -102,6 +102,11 @@ class MetaEventController extends AccountBaseController
             'lead_id' => 'required|integer',
             'event_name' => 'required|string|max:255',
             'value' => 'nullable|numeric|min:0',
+            // Meta's Events Manager > Test Events code (e.g. "TEST12345") —
+            // optional alternative to the manual query-param approach; when
+            // given, Meta routes the event to the live Test Events view
+            // instead of counting it toward real ad reporting.
+            'test_event_code' => 'nullable|string|max:255',
         ]);
 
         $lead = Lead::where('company_id', company()->id)->find($validated['lead_id']);
@@ -113,7 +118,8 @@ class MetaEventController extends AccountBaseController
         $result = app(MetaConversionsService::class)->send(
             trim($validated['event_name']),
             (float) ($validated['value'] ?? 0),
-            $lead
+            $lead,
+            $validated['test_event_code'] ?? null
         );
 
         return Reply::dataOnly([

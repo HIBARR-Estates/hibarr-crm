@@ -15,6 +15,9 @@ interface TestSendPayload {
     lead_id: number;
     event_name: string;
     value: number;
+    /** Meta's Events Manager > Test Events code (e.g. "TEST12345") — routes
+     * the event to the live Test Events view instead of real ad reporting. */
+    test_event_code?: string;
 }
 
 /** Sends a real Meta Conversions API event for one lead outside of any

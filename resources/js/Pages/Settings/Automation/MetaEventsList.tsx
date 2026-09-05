@@ -10,6 +10,7 @@ import { MetaEvent } from "./types";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useMetaEventMutations from "./hooks/useMetaEventMutations";
 import useMetaEventTestSend from "./hooks/useMetaEventTestSend";
+import LeadPicker, { LeadOption } from "./components/LeadPicker";
 
 interface MetaEventsListProps {
     onOpenAutomation: (id: number) => void;
@@ -32,15 +33,17 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const [testModalOpen, setTestModalOpen] = useState(false);
-    const [testLeadId, setTestLeadId] = useState("");
+    const [testLead, setTestLead] = useState<LeadOption | null>(null);
     const [testEventName, setTestEventName] = useState("");
     const [testValue, setTestValue] = useState("");
+    const [testEventCode, setTestEventCode] = useState("");
 
     function openTestModal() {
         resetTest();
-        setTestLeadId("");
+        setTestLead(null);
         setTestEventName(metaEvents[0]?.name ?? "");
         setTestValue(metaEvents[0]?.value != null ? String(metaEvents[0].value) : "");
+        setTestEventCode("");
         setTestModalOpen(true);
     }
 
@@ -49,14 +52,14 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
     }
 
     async function handleSendTest() {
-        const leadId = Number(testLeadId);
         const trimmedEventName = testEventName.trim();
-        if (!leadId || !trimmedEventName) return;
+        if (!testLead || !trimmedEventName) return;
 
         await sendTest({
-            lead_id: leadId,
+            lead_id: testLead.id,
             event_name: trimmedEventName,
             value: testValue.trim() ? Number(testValue) : 0,
+            test_event_code: testEventCode.trim() || undefined,
         });
     }
 
@@ -300,7 +303,7 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                             icon={<SendOutlined />}
                             onClick={() => void handleSendTest()}
                             loading={sending}
-                            disabled={!testLeadId.trim() || !testEventName.trim()}
+                            disabled={!testLead || !testEventName.trim()}
                         >
                             {t("app.automation.sendTestEvent")}
                         </Button>
@@ -312,15 +315,7 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                 </p>
 
                 <ModalField label={t("app.automation.testLeadId")}>
-                    <input
-                        type="number"
-                        min={1}
-                        value={testLeadId}
-                        onChange={(e) => setTestLeadId(e.target.value)}
-                        placeholder={t("app.automation.testLeadIdPlaceholder")}
-                        className="dr-input w-full"
-                        autoFocus
-                    />
+                    <LeadPicker value={testLead} onChange={setTestLead} placeholder={t("app.automation.testLeadIdPlaceholder")} autoFocus />
                 </ModalField>
 
                 {metaEvents.length > 0 && (
@@ -366,6 +361,19 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                         className="dr-input w-full"
                         aria-label={t("app.automation.eventValue")}
                     />
+                </ModalField>
+
+                <ModalField label={t("app.automation.testEventCode")}>
+                    <input
+                        value={testEventCode}
+                        onChange={(e) => setTestEventCode(e.target.value)}
+                        placeholder={t("app.automation.testEventCodePlaceholder")}
+                        className="dr-input w-full"
+                        style={{ fontFamily: "ui-monospace, monospace" }}
+                    />
+                    <p className="mt-1 mb-0" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                        {t("app.automation.testEventCodeHint")}
+                    </p>
                 </ModalField>
 
                 {testError && (
