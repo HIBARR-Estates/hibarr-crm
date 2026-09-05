@@ -1,13 +1,9 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import {
     toWorkspaceMeetingPreview,
     type WorkspaceMeetingPreview,
 } from "./meetingAdapter";
-import { formatTime } from "./dateFormat";
-
-dayjs.extend(utc);
+import { formatUserTime } from "@/lib/userDateTime";
 
 export type MeetingSummaryStatus = "available" | "pending" | "none";
 
@@ -152,7 +148,7 @@ export function toWorkspaceMeetingListItem(
     const endDate = startsAt
         ? new Date(startsAt.getTime() + duration * 60 * 1000)
         : null;
-    const endTimeLabel = formatTime(endDate);
+    const endTimeLabel = formatUserTime(endDate);
     const timeRangeLabel = `${preview.timeLabel} – ${endTimeLabel}`;
     const meetingLink =
         meeting.meeting_link && /^https?:\/\//i.test(meeting.meeting_link)

@@ -7,6 +7,7 @@ import {
     formatCompanyDate,
     formatCompanyDateTime,
     formatCompanyTime,
+    mapPhpToDayjsFormat,
     omitYearFromDayjsFormat,
     type FormatCompanyDateOptions,
 } from "@/lib/companyDateTime";
@@ -129,4 +130,17 @@ export function formatUserDateTime(
     if (!d) return options?.fallback ?? "--";
     const separator = options?.separator ?? " · ";
     return `${d.format(resolveZonedDateFormat(d, options?.omitCurrentYear))}${separator}${d.format(companyTimeDayjsFormat())}`;
+}
+
+export function formatUserMonthShort(
+    value: Date | Dayjs | string | null | undefined,
+    fallback = "--",
+): string {
+    if (!enabled) {
+        if (!value) return fallback;
+        const d = dayjs.isDayjs(value) ? value : dayjs(value);
+        return d.isValid() ? d.format(mapPhpToDayjsFormat("M")) : fallback;
+    }
+    const d = toZonedDayjs(value);
+    return d ? d.format(mapPhpToDayjsFormat("M")) : fallback;
 }
