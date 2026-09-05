@@ -158,7 +158,7 @@ class SendMetaConversionEventJob
                 'automation_id' => $this->origin['automation_id'] ?? null,
                 // Joins the automation run that queued it. A stage-trigger event
                 // has no run to join, so it gets its own single-step id.
-                'run_id' => $this->origin['run_id'] ?? 'meta-'.Str::uuid(),
+                'run_id' => $this->origin['run_id'] ?? (string) Str::uuid(),
                 'action' => $description,
                 'status' => $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED,
                 'channel' => 'meta',

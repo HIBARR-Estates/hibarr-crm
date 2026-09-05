@@ -240,9 +240,18 @@ class MetaConversionsService
                 $userData['ph'] = hash('sha256', $phone);
             }
         }
-        // Add Gender if available
+        // Meta expects ge = SHA-256 of a single lowercase letter: m or f.
         if ($contact && ! empty($contact->gender)) {
-            $userData['gender'] = $contact->gender;
+            $gender = strtolower(trim((string) ($contact->gender?->value ?? $contact->gender)));
+            $metaGender = match ($gender) {
+                'male' => 'm',
+                'female' => 'f',
+                default => null,
+            };
+
+            if ($metaGender !== null) {
+                $userData['ge'] = hash('sha256', $metaGender);
+            }
         }
 
         // Add Date of Birth if available
