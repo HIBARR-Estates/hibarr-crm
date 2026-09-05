@@ -11,7 +11,7 @@ import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import type { Task } from "@/Types/api/tasks";
 import DashboardHeader from "./components/DashboardHeader";
-import { VIEW_LABELS, type ViewKey } from "./viewConfig";
+import { buildSwitcher, type ViewKey } from "./viewConfig";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
@@ -42,13 +42,7 @@ import type {
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-/**
- * Role views offered next to My work. Not all five — Company and Partner
- * answer questions this page isn't asking, and a wide switcher on a personal
- * landing page buries the ones a manager actually crosses to. The controller
- * narrows availableViews to these two before it ships them.
- */
-type RoleView = Extract<ViewKey, "manager" | "team">;
+
 
 export interface PersonalDashboardProps {
     now: string;
@@ -57,8 +51,13 @@ export interface PersonalDashboardProps {
     userId: number;
     /** DashboardMetricsService::PERSONAL_WINDOW_DAYS — how far ahead we look. */
     windowDays: number;
-    /** Whichever of manager/team this account holds; empty for everyone else. */
-    availableViews?: RoleView[];
+    /**
+     * Every role view this account holds, permission- and flag-gated by the
+     * controller. buildSwitcher decides which become tabs — this page does not
+     * narrow the list itself, or its switcher would differ from the one on the
+     * view you land on.
+     */
+    availableViews?: ViewKey[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
@@ -175,6 +174,11 @@ export default function PersonalDashboard({
 
     const go = (next: Record<string, string>) =>
         router.visit(route("dashboard.v2", next), { preserveScroll: true });
+
+    // This page is always the personal dashboard, so the flag that gates it is
+    // on by definition — buildSwitcher's other caller is the one that has to
+    // pass it through.
+    const switcher = buildSwitcher(availableViews ?? [], true);
 
     const visitRecord = useCallback(
         (record: { type: "lead" | "deal"; id: number }) =>
@@ -316,21 +320,13 @@ export default function PersonalDashboard({
                             />
                         }
                         actions={
-                            /* Built from availableViews rather than a fixed
-                               list: the segments have to be the views this
-                               account actually holds, or the switcher offers a
-                               tab the server will refuse. */
-                            !!availableViews?.length && (
+                            /* One segment is not a switcher: an account with
+                               no role view has nowhere else to go. */
+                            switcher.length > 1 && (
                                 <SegmentedControl
                                     label="Dashboard"
                                     active="personal"
-                                    segments={[
-                                        { value: "personal", label: VIEW_LABELS.personal },
-                                        ...availableViews.map((view) => ({
-                                            value: view,
-                                            label: VIEW_LABELS[view],
-                                        })),
-                                    ]}
+                                    segments={switcher}
                                     onSelect={(view) =>
                                         view !== "personal" && go({ view })
                                     }

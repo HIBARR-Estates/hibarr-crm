@@ -6,6 +6,11 @@ export interface Segment<T extends string> {
     label: string;
     /** Shown but not selectable — greyed out, no click. */
     disabled?: boolean;
+    /**
+     * Hover text. Mostly for disabled segments: a greyed tab with no reason
+     * given reads as broken rather than as not-yet-built.
+     */
+    title?: string;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -38,6 +43,7 @@ export default function SegmentedControl<T extends string>({
                     type="button"
                     className="dv2-tab"
                     disabled={segment.disabled}
+                    title={segment.title ? td(segment.title) : undefined}
                     aria-current={segment.value === active ? "page" : undefined}
                     onClick={() =>
                         !segment.disabled && onSelect(segment.value)

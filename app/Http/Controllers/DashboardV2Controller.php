@@ -100,7 +100,7 @@ class DashboardV2Controller extends AccountBaseController
      * The default landing page behind the flag: what one person owes now.
      *
      * Everyone gets it first; anyone who also holds a view_*_dashboard
-     * permission gets a switcher into those role-scoped views via
+     * permission gets the same switcher the role views carry, into
      * ?view=agent|manager|team|leadership|partner.
      *
      * Deliberately not one of VIEWS: it is scoped to a person rather than a
@@ -120,12 +120,13 @@ class DashboardV2Controller extends AccountBaseController
 
         return Inertia::render('Dashboard/V2/PersonalDashboard', [
             'now' => now()->toIso8601String(),
-            // Only the two team-shaped views are offered alongside My work:
-            // Team (direct reports) and Downline (the whole sub-agent tree).
-            // Company and Partner answer questions this page isn't asking, and
-            // a five-way switcher on a personal landing page buries the views a
-            // manager actually crosses to. Order follows VIEWS.
-            'availableViews' => array_values(array_intersect($availableViews, ['manager', 'team'])),
+            // The full permission- and flag-gated list, same as the role views
+            // get. Which of them become tabs — and which are shown greyed as
+            // not-yet-offered — is buildSwitcher's call on the frontend, so
+            // both pages render the same switcher. Narrowing it here instead
+            // would make the personal dashboard's switcher disagree with the
+            // one on the view it switches to.
+            'availableViews' => $availableViews,
             // Ships so the page's copy and the queries can't drift apart.
             'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
             'userName' => $user->name,

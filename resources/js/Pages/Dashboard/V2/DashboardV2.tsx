@@ -8,8 +8,8 @@ import DashboardHeader, {
 } from "./components/DashboardHeader";
 import SegmentedControl from "./personal/SegmentedControl";
 import {
+    buildSwitcher,
     PERIODS,
-    VIEW_LABELS,
     VIEW_SUBTEXT,
     WINDOWED,
     type ViewKey,
@@ -63,18 +63,9 @@ export default function DashboardV2(props: DashboardV2Props) {
             { preserveScroll: true },
         );
 
-    // Every destination this account can reach, in VIEWS order, with the
-    // personal dashboard first when it is on. Same control the personal
-    // dashboard renders, so the switcher doesn't change shape when you use it.
-    const switcher = [
-        ...(personalDashboardEnabled
-            ? [{ value: "personal" as const, label: "My work" }]
-            : []),
-        ...availableViews.map((view) => ({
-            value: view,
-            label: VIEW_LABELS[view],
-        })),
-    ];
+    // Identical to the personal dashboard's, by construction — see
+    // buildSwitcher. The switcher must not change shape when you use it.
+    const switcher = buildSwitcher(availableViews, !!personalDashboardEnabled);
 
     return (
         <DashboardLayout>
