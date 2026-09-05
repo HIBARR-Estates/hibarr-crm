@@ -18,9 +18,11 @@ use App\Http\Requests\Lead\StoreRequest;
 use App\Http\Requests\Lead\UpdateRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
+use App\Models\CustomField;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
+use App\Models\DealExpose;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\LeadAgent;
@@ -285,7 +287,11 @@ class LeadContactController extends AccountBaseController
                 'category:id,category_name',
                 'currency',
                 'leadFlightItineraries',
+                // Deal cards in the Deals tab lead on package + pipeline, so
+                // the package names have to travel with the shell payload.
+                'packages:id,name',
             ])
+            ->withCount('products')
             ->get();
 
         // One query for every listed deal's custom field values instead of
@@ -342,6 +348,19 @@ class LeadContactController extends AccountBaseController
             'edit_lead' => user()->permission('edit_lead'),
         ];
 
+        // The lead's Exposes tab is a read-only rollup of exposes attached to
+        // this lead's deals — an expose is created on a deal, never here. So
+        // unlike the deal view (where the tab is always available, because it
+        // is where the first expose gets added), the lead tab only earns its
+        // place once at least one expose actually exists.
+        $proposalViewPermission = user()->permission('view_lead_proposals');
+        $hasLeadExposes = FeatureFlags::enabled(DealExposeController::FEATURE_FLAG)
+            && in_array($proposalViewPermission, ['all', 'added'], true)
+            && DealExpose::where('company_id', user()->company_id)
+                ->where('lead_id', (int) $id)
+                ->when($proposalViewPermission === 'added', fn ($query) => $query->where('added_by', user()->id))
+                ->exists();
+
         $leadId = (int) $id;
         $leadContact = $this->leadContact;
 
@@ -352,6 +371,7 @@ class LeadContactController extends AccountBaseController
             'deleteLeadPermission' => $this->deleteLeadPermission,
             'deals' => $deals,
             'dealPermissions' => $dealPermissions,
+            'hasLeadExposes' => $hasLeadExposes,
             'notePermissions' => $notePermissions,
             'taskPermissions' => $taskPermissions,
             // Legacy TasksTab reads `permissions`
@@ -381,6 +401,22 @@ class LeadContactController extends AccountBaseController
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
                 ->get(), 'workspace'),
+            // A lead-owned FILE field's value is stored directly on the lead
+            // (shared across every deal on that lead) — no per-deal lookup
+            // needed, the lead's own custom_fields_data (sent with the shell
+            // props above) already has it.
+            //
+            // The mirror direction (FieldModal's "Show in Lead" on a Deal
+            // FILE field): definitions only — each deal's own value is
+            // already on that deal's own custom_fields_data, sent with the
+            // `deals` shell prop above, so no per-deal value lookup is
+            // needed here either.
+            'dealFileFields' => Inertia::defer(fn () => CustomField::whereHas('fieldGroup', function ($q) {
+                $q->where('model', Deal::CUSTOM_FIELD_MODEL);
+            })
+                ->where('type', 'file')
+                ->where('show_in_lead', true)
+                ->get(['id', 'label', 'name', 'type', 'custom_field_category_id']), 'workspace'),
             // Behind crm.tasks-workspace-redesign, eager-load + serialize
             // through the same TaskPresenter the redesigned Tasks workspace
             // uses, so this tab's tasks can open in those modals (checklist/

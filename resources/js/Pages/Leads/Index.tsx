@@ -44,6 +44,7 @@ import { MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -114,6 +115,7 @@ const Index = ({
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { timezone: viewerTimezone } = useUserDateTime();
 
     // Header stats line — each piece is deferred server-side, so the line
     // only appears once every count has actually arrived; no partial or
@@ -412,7 +414,7 @@ const Index = ({
                 onScheduleNextStep: setScheduleNextStepLead,
                 onOpenNextAction: setOpenNextAction,
             }),
-        [getActionItems, t, td],
+        [getActionItems, t, td, viewerTimezone],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────

@@ -5,8 +5,15 @@ import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { Automation } from "./types";
+import { Automation, AutomationFiredForRow } from "./types";
 import { actionTypeIcon, actionTypeLabel, statusToVariant, triggerIcon, triggerLabel } from "./shared";
+import {
+    describeAction,
+    describeAutomationWait,
+    describeCondition,
+    describeConditionGate,
+} from "./adapters/automationSummary";
+import { SHOW_FIRED_FOR } from "./config/featureToggles";
 import useAutomationStats from "./hooks/useAutomationStats";
 import useAutomationLogs from "./hooks/useAutomationLogs";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
@@ -18,6 +25,18 @@ interface AutomationDetailProps {
 }
 
 const BAR_MAX_FLOOR = 1;
+
+/** Small uppercase kicker above each step's own name in the Flow card. */
+const STEP_KICKER = {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase" as const,
+    color: T.TEXT_HINT,
+};
+
+/** One clause of "what this step actually does". */
+const STEP_LINE = { fontSize: 12, color: T.TEXT_MUTED, marginTop: 2 };
 
 function RowSkeleton() {
     return (
@@ -33,7 +52,7 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
     const { td } = useTd();
     const { catalog } = useAutomationWorkspace();
     const { stats, loading: statsLoading } = useAutomationStats(automation.id);
-    const { logs, loading: logsLoading } = useAutomationLogs({ automationId: automation.id });
+    const { runs, loading: logsLoading } = useAutomationLogs({ automationId: automation.id });
 
     const chart = stats?.runs_last_7_days ?? [];
     const barMax = Math.max(...chart.map((b) => b.value), BAR_MAX_FLOOR);
@@ -46,8 +65,27 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
         { label: t("app.automation.stats.totalRuns"), value: (stats?.total_runs ?? 0).toLocaleString("en-US"), sub: t("app.automation.stats.allTime") },
         { label: t("app.automation.stats.successRate"), value: stats?.success_rate != null ? `${stats.success_rate}%` : "—", sub: t("app.automation.stats.allTime") },
         { label: t("app.automation.stats.configuredWait"), value: waitLabel, sub: "" },
-        { label: t("app.automation.priority"), value: String(automation.priority), sub: "" },
+        // With the Fired-for breakdown hidden, this slot goes back to Priority.
+        // When it's shown, it says something the run count alone can't: how
+        // many separate records those runs were spread across.
+        SHOW_FIRED_FOR
+            ? {
+                  label: t("app.automation.stats.recordsFiredFor"),
+                  value: (stats?.fired_for_total ?? 0).toLocaleString("en-US"),
+                  sub: t("app.automation.stats.allTime"),
+              }
+            : { label: t("app.automation.priority"), value: String(automation.priority), sub: "" },
     ];
+
+    const firedFor = stats?.fired_for ?? [];
+    const firedForTotal = stats?.fired_for_total ?? 0;
+
+    const recordUrl = (row: AutomationFiredForRow): string | null => {
+        if (row.subject_type === "deal" && row.deal_id) return route("deals.show", row.deal_id);
+        if (row.lead_id) return route("lead-contact.show", row.lead_id);
+
+        return null;
+    };
 
     return (
         <div>
@@ -102,7 +140,9 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                 ))}
             </div>
 
-            <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+            {/* Flow now spells out each condition and action, so it needs more
+                room than the old icon-and-label list did. */}
+            <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "1.2fr 1fr" }}>
                 <div className="flex flex-col gap-4">
                     <div className="rounded-[10px] border bg-white p-4.5" style={{ borderColor: T.BORDER }}>
                         <div className="mb-4" style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>
@@ -139,12 +179,28 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                             </div>
                         )}
                     </div>
+                    {/* Who it actually fired for — the run count broken out per
+                        record, so "412 runs" isn't mistaken for 412 people.
+                        Hidden behind SHOW_FIRED_FOR for now. */}
+                    {SHOW_FIRED_FOR && (
                     <div className="rounded-[10px] border bg-white overflow-hidden" style={{ borderColor: T.BORDER }}>
-                        <div className="px-4.5 py-3.5 border-b" style={{ borderColor: T.BORDER_SOFT, fontSize: 15, fontWeight: 600, color: T.TEXT }}>
-                            {t("app.automation.recentRuns")}
+                        <div
+                            className="px-4.5 py-3.5 border-b flex items-center justify-between gap-3"
+                            style={{ borderColor: T.BORDER_SOFT }}
+                        >
+                            <span style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>
+                                {t("app.automation.firedFor")}
+                            </span>
+                            {firedForTotal > firedFor.length && (
+                                <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                                    {`${firedFor.length} / ${firedForTotal.toLocaleString("en-US")}`}
+                                </span>
+                            )}
                         </div>
-                        {logsLoading && Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)}
-                        {!logsLoading && logs.length === 0 && (
+
+                        {statsLoading && Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)}
+
+                        {!statsLoading && firedFor.length === 0 && (
                             <div className="px-4.5 py-6">
                                 <EmptyState
                                     title={t("app.automation.noActivityYet")}
@@ -152,15 +208,98 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                                 />
                             </div>
                         )}
-                        {!logsLoading && logs.slice(0, 5).map((entry) => (
-                            <div key={entry.id} className="flex items-center gap-3 px-4.5 py-3 border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
+
+                        {!statsLoading && firedFor.map((row) => {
+                            const href = recordUrl(row);
+                            const name = row.person_name || row.record_name || t("app.automation.deletedRecord");
+                            // The deal's own name only earns a line when it differs
+                            // from the person's — often a deal is named after them.
+                            const secondary = [
+                                row.record_name && row.record_name !== name ? row.record_name : null,
+                                row.person_email,
+                            ]
+                                .filter(Boolean)
+                                .join(" · ");
+
+                            return (
+                                <div
+                                    key={`${row.subject_type}-${row.deal_id ?? "x"}-${row.lead_id ?? "x"}`}
+                                    className="flex items-center gap-3 px-4.5 py-3 border-b last:border-b-0"
+                                    style={{ borderColor: "#f4f5f7" }}
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        {href ? (
+                                            <a
+                                                href={href}
+                                                className="whitespace-nowrap overflow-hidden text-ellipsis block"
+                                                style={{ fontSize: 13, fontWeight: 600, color: T.BLUE_DARK }}
+                                            >
+                                                {name}
+                                            </a>
+                                        ) : (
+                                            <div className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>
+                                                {name}
+                                            </div>
+                                        )}
+                                        {secondary && (
+                                            <div className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                                                {secondary}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <span className="shrink-0 text-right" style={{ fontSize: 12, color: T.TEXT_HINT, width: 120 }}>
+                                        {row.last_run_at ? new Date(row.last_run_at).toLocaleString() : "—"}
+                                    </span>
+
+                                    <span className="shrink-0 flex items-center gap-1.5">
+                                        {/* Runs, with the action total behind it — the
+                                            two differ whenever an automation has more
+                                            than one action. */}
+                                        <Badge variant="gray">
+                                            {row.runs === 1
+                                                ? t("app.automation.oneRun")
+                                                : t("app.automation.runCount", { count: row.runs })}
+                                        </Badge>
+                                        <span style={{ fontSize: 11, color: T.TEXT_HINT, width: 62 }}>
+                                            {row.total_steps === 1
+                                                ? t("app.automation.oneStep")
+                                                : t("app.automation.stepCount", { count: row.total_steps })}
+                                        </span>
+                                        {row.failed_runs > 0 && <Badge variant="red">{row.failed_runs}</Badge>}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    )}
+
+                    <div className="rounded-[10px] border bg-white overflow-hidden" style={{ borderColor: T.BORDER }}>
+                        <div className="px-4.5 py-3.5 border-b" style={{ borderColor: T.BORDER_SOFT, fontSize: 15, fontWeight: 600, color: T.TEXT }}>
+                            {t("app.automation.recentRuns")}
+                        </div>
+                        {logsLoading && Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)}
+                        {!logsLoading && runs.length === 0 && (
+                            <div className="px-4.5 py-6">
+                                <EmptyState
+                                    title={t("app.automation.noActivityYet")}
+                                    description={t("app.automation.noActivityYetDescription")}
+                                />
+                            </div>
+                        )}
+                        {!logsLoading && runs.slice(0, 5).map((run) => (
+                            <div key={run.run_id} className="flex items-center gap-3 px-4.5 py-3 border-b last:border-b-0" style={{ borderColor: "#f4f5f7" }}>
                                 <span className="shrink-0" style={{ fontSize: 12, color: T.TEXT_HINT, width: 130 }}>
-                                    {new Date(entry.executed_at).toLocaleString()}
+                                    {new Date(run.executed_at).toLocaleString()}
                                 </span>
                                 <span className="flex-1 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 13, color: T.TEXT }}>
-                                    {entry.deal?.name ?? entry.lead?.client_name ?? "—"} — {entry.action}
+                                    {run.deal?.name ?? run.lead?.client_name ?? "—"}
+                                    {" — "}
+                                    {run.steps_count === 1
+                                        ? t("app.automation.oneStep")
+                                        : t("app.automation.stepCount", { count: run.steps_count })}
                                 </span>
-                                <Badge variant={statusToVariant(entry.status)}>{t(`app.automation.results.${entry.status}`)}</Badge>
+                                <Badge variant={statusToVariant(run.status)}>{t(`app.automation.results.${run.status}`)}</Badge>
                             </div>
                         ))}
                     </div>
@@ -171,30 +310,80 @@ export default function AutomationDetail({ automation, onBack, onEditFlow }: Aut
                         <div className="mb-3.5" style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>
                             {t("app.automation.flow")}
                         </div>
-                        <div className="flex items-center gap-2.5 pb-3">
+                        <div className="flex items-start gap-2.5 pb-3">
                             <span className="rounded-lg flex items-center justify-center shrink-0" style={{ width: 30, height: 30, background: T.NAVY, color: T.WHITE }}>
                                 <Icon name={triggerIcon(automation.trigger)} size={16} color={T.WHITE} />
                             </span>
-                            <div>
-                                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: T.TEXT_HINT }}>
-                                    {t("app.automation.when")}
-                                </div>
+                            <div className="min-w-0">
+                                <div style={STEP_KICKER}>{t("app.automation.when")}</div>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>{td(triggerLabel(automation.trigger))}</div>
+                                <div style={STEP_LINE}>{td(describeAutomationWait(automation, catalog))}</div>
                             </div>
                         </div>
+
+                        {/* What has to be true before any action runs — every condition
+                            must pass (AND), matching evaluateConditions() server-side. */}
+                        <div className="flex items-start gap-2.5 py-2.5 border-t" style={{ borderColor: "#f4f5f7" }}>
+                            <span
+                                className="rounded-lg flex items-center justify-center shrink-0"
+                                style={{ width: 30, height: 30, background: T.SURFACE_2, border: `1px solid ${T.BORDER_SOFT}`, color: T.TEXT_MUTED }}
+                            >
+                                <Icon name="filter" size={15} color={T.TEXT_MUTED} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div style={STEP_KICKER}>{t("app.automation.conditions")}</div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>
+                                    {td(describeConditionGate(automation))}
+                                </div>
+                                {automation.conditions.map((condition, i) => {
+                                    const summary = describeCondition(condition, automation.subject_type, catalog);
+
+                                    return (
+                                        <div key={condition.id ?? i} className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                            {i > 0 && (
+                                                <span style={{ fontSize: 10, fontWeight: 700, color: T.TEXT_HINT }}>{td("AND")}</span>
+                                            )}
+                                            <span style={{ fontSize: 12, fontWeight: 600, color: T.TEXT }}>{td(summary.field)}</span>
+                                            <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{td(summary.operator)}</span>
+                                            {summary.value !== null && (
+                                                <span
+                                                    className="rounded px-1.5 py-0.5"
+                                                    style={{ fontSize: 12, fontWeight: 600, color: T.NAVY, background: T.SURFACE_2, border: `1px solid ${T.BORDER_SOFT}` }}
+                                                >
+                                                    {summary.value}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         {automation.actions.map((step, i) => (
-                            <div key={i} className="flex items-center gap-2.5 py-2.5 border-t" style={{ borderColor: "#f4f5f7" }}>
+                            <div key={step.id ?? i} className="flex items-start gap-2.5 py-2.5 border-t" style={{ borderColor: "#f4f5f7" }}>
                                 <span
                                     className="rounded-lg flex items-center justify-center shrink-0"
                                     style={{ width: 30, height: 30, background: T.SURFACE_2, border: `1px solid ${T.BORDER_SOFT}`, color: T.TEXT_MUTED }}
                                 >
                                     <Icon name={actionTypeIcon(step.action_type)} size={15} color={T.TEXT_MUTED} />
                                 </span>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
+                                    <div style={STEP_KICKER}>{`${t("app.automation.step")} ${i + 1}`}</div>
                                     <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT }}>{td(actionTypeLabel(step.action_type))}</div>
+                                    {describeAction(step, catalog).map((line) => (
+                                        <div key={line} style={STEP_LINE}>
+                                            {td(line)}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
+
+                        {automation.actions.length === 0 && (
+                            <div className="py-2.5 border-t" style={{ borderColor: "#f4f5f7", fontSize: 12, color: T.TEXT_HINT }}>
+                                {td("No actions configured yet — this automation does nothing when it fires.")}
+                            </div>
+                        )}
                     </div>
                     <div className="rounded-[10px] border bg-white p-4.5" style={{ borderColor: T.BORDER }}>
                         <div className="mb-3" style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>

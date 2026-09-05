@@ -57,6 +57,7 @@ class LeadService
         'utm_term',
         'utm_audience',
         'next_action',
+        'contact_status',
     ];
 
     /** Urgency buckets the Next Action column can be filtered by. */
@@ -252,6 +253,16 @@ class LeadService
     }
 
     /** Urgency bucket filter — same boundaries the table cell colours by. */
+    /** Whether `first_contacted_at` has been stamped yet. */
+    private function applyContactStatusFilter(Builder $query, mixed $status): void
+    {
+        match ($status) {
+            'contacted' => $query->whereNotNull('first_contacted_at'),
+            'uncontacted' => $query->whereNull('first_contacted_at'),
+            default => null,
+        };
+    }
+
     private function applyNextActionFilter(Builder $query, mixed $bucket): void
     {
         [$sql, $bindings] = $this->nextActionAtSql();
@@ -607,6 +618,10 @@ class LeadService
 
         if ($request->filled('next_action')) {
             $this->applyNextActionFilter($query, $request->get('next_action'));
+        }
+
+        if ($request->filled('contact_status')) {
+            $this->applyContactStatusFilter($query, $request->get('contact_status'));
         }
 
         if ($request->filled('language')) {

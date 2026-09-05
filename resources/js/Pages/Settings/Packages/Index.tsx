@@ -121,6 +121,7 @@ export default function PackagesIndex({
 
                 {packages.length === 0 ? (
                     <EmptyState
+                        icon="layers"
                         title={td("No packages yet", { source: "en" })}
                         description={td(
                             "Create a package to price it and set how it pays commission.",

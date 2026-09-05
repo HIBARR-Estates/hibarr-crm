@@ -125,10 +125,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
+    // An expose is always created on a deal, so the deal view keeps its tab
+    // unconditionally. The lead tab is only a rollup of what those deals hold:
+    // with nothing attached anywhere it would open on a permanently empty
+    // list, so it stays hidden until the lead actually has one
+    // (`hasLeadExposes`, resolved in LeadContactController@show).
     const showExposes =
         featureFlags?.[DEAL_EXPOSES_FLAG] === true &&
         (page.props.auth?.permissions?.view_lead_proposals ?? "none") !==
-            "none";
+            "none" &&
+        (props.hasLeadExposes ?? page.props.hasLeadExposes) === true;
 
     const {
         lead,
@@ -754,9 +760,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 onCreateDeal={() => setCreateDealOpen(true)}
                                 onOpenMeeting={setDetailMeeting}
                                 onOpenTask={setDetailTask}
-                                onOpenDeal={(deal) =>
-                                    router.visit(route("deals.show", deal.id))
-                                }
                                 onViewAllDeals={() => nav.setTab("deals")}
                             />
 

@@ -2,26 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\Files;
 use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealFile;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
 use App\Traits\IconTrait;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
-use App\Helper\Files;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class LeadFileController extends AccountBaseController
 {
-
     use IconTrait;
 
     /**
      * ManageLeadFileController constructor.
      */
-
     protected FileStorageService $fileStorageService;
 
     public function __construct(FileStorageService $fileStorageService)
@@ -37,25 +37,24 @@ class LeadFileController extends AccountBaseController
      *
      * @return \Illuminate\Http\Response
      */
-
     public function create()
     {
         $addPermission = user()->permission('add_lead_files');
-        abort_403(!in_array($addPermission, ['all', 'added']));
+        abort_403(! in_array($addPermission, ['all', 'added']));
 
         return view('leads.lead-files.create', $this->data);
     }
 
     /**
-     * @param Request $request
      * @return array
+     *
      * @throws \GuzzleHttp\Exception\GuzzleException
      * @throws \Throwable
      */
     public function store(Request $request)
     {
         $addPermission = user()->permission('add_lead_files');
-        abort_403(!in_array($addPermission, ['all', 'added']));
+        abort_403(! in_array($addPermission, ['all', 'added']));
 
         $createdFiles = [];
 
@@ -66,11 +65,11 @@ class LeadFileController extends AccountBaseController
 
         if (is_array($uploaded)) {
             foreach ($uploaded as $fileData) {
-                if (!$fileData instanceof \Illuminate\Http\UploadedFile) {
+                if (! $fileData instanceof \Illuminate\Http\UploadedFile) {
                     continue;
                 }
 
-                $file = new DealFile();
+                $file = new DealFile;
 
                 $file->deal_id = $request->lead_id;
                 $file->user_id = $this->user->id;
@@ -81,7 +80,7 @@ class LeadFileController extends AccountBaseController
                 // Upload via the external FileStorageService (matches storeFromExternal /
                 // CustomFieldsTrait), falling back to legacy local/S3 storage if unavailable.
                 try {
-                    $result = $this->fileStorageService->upload($fileData, 'deal-files/' . $request->lead_id);
+                    $result = $this->fileStorageService->upload($fileData, 'deal-files/'.$request->lead_id);
                     $file->external_url = $result['downloadUrl'];
                     $file->object_path = $result['objectPath'];
                     $file->hashname = '';
@@ -90,7 +89,7 @@ class LeadFileController extends AccountBaseController
                         'error' => $e->getMessage(),
                         'deal_id' => $request->lead_id,
                     ]);
-                    $file->hashname = Files::uploadLocalOrS3($fileData, DealFile::FILE_PATH . '/' . $request->lead_id);
+                    $file->hashname = Files::uploadLocalOrS3($fileData, DealFile::FILE_PATH.'/'.$request->lead_id);
                 }
 
                 $file->save();
@@ -104,20 +103,155 @@ class LeadFileController extends AccountBaseController
     }
 
     /**
-     * @param Request $request
-     * @param int $id
+     * @param  int  $id
      * @return array
      */
     public function update(Request $request, $id)
     {
-        $editPermission = user()->permission('edit_lead_files');
+        $request->validate([
+            'description' => 'nullable|string|max:255',
+            'file' => 'nullable|file',
+        ]);
+
         $file = DealFile::findOrFail($id);
-        abort_403(!($editPermission == 'all' || ($editPermission == 'added' && $file->added_by == user()->id)));
+        $deal = Deal::findOrFail($file->deal_id);
+        abort_403(! $this->canEditDealFiles($deal));
 
-        $file->description = $request->description;
-        $file->save();
+        // Two replacements racing on the same row would each capture the same
+        // "previous" descriptor and each delete it, orphaning whichever upload
+        // lost the save. Serialize the whole read-replace-persist-cleanup cycle
+        // per file so the descriptor we capture is the one actually persisted.
+        $lock = Cache::lock('deal-file-update:'.$file->id, 120);
 
-        return Reply::success(__('messages.updateSuccess'));
+        try {
+            $file = $lock->block(10, function () use ($request, $id) {
+                $file = DealFile::findOrFail($id);
+
+                $replacement = $request->hasFile('file')
+                    ? $this->replaceStoredFile($file, $request->file('file'))
+                    : null;
+
+                if ($request->has('description')) {
+                    $file->description = $request->description;
+                }
+
+                try {
+                    $file->save();
+                } catch (\Throwable $e) {
+                    // The row still points at the previous object, so drop the
+                    // replacement we just uploaded rather than orphaning it.
+                    if ($replacement !== null) {
+                        $this->discardStoredObject($replacement['new'], $file->deal_id);
+                    }
+
+                    throw $e;
+                }
+
+                // Only now that the new descriptor is persisted is the old object
+                // genuinely unreferenced and safe to delete.
+                if ($replacement !== null) {
+                    $this->discardStoredObject($replacement['previous'], $file->deal_id);
+                }
+
+                return $file;
+            });
+        } catch (LockTimeoutException $e) {
+            return Reply::error('This file is already being updated. Please try again.');
+        }
+
+        return Reply::successWithData(__('messages.updateSuccess'), ['data' => $file]);
+    }
+
+    /**
+     * Swaps a DealFile's stored content in place - same row/id, new
+     * filename/size/storage fields. Uploads the replacement first, and hands
+     * back both storage descriptors rather than deleting anything itself:
+     * the caller deletes the previous object only once the new descriptor is
+     * persisted (and drops the new one if that persistence fails), so neither
+     * a failed upload nor a failed save can leave the row pointing at content
+     * that's already gone.
+     *
+     * @return array{previous: array{external: bool, object_path: ?string, hashname: ?string}, new: array{external: bool, object_path: ?string, hashname: ?string}}
+     */
+    private function replaceStoredFile(DealFile $file, \Illuminate\Http\UploadedFile $newFile): array
+    {
+        $previous = [
+            'external' => $file->isExternallyStored(),
+            'object_path' => $file->object_path,
+            'hashname' => $file->hashname,
+        ];
+
+        $file->filename = $newFile->getClientOriginalName();
+        $file->size = $newFile->getSize();
+
+        try {
+            $result = $this->fileStorageService->upload($newFile, 'deal-files/'.$file->deal_id);
+            $file->external_url = $result['downloadUrl'];
+            $file->object_path = $result['objectPath'];
+            $file->hashname = '';
+        } catch (\Exception $e) {
+            Log::error('Deal file replace upload failed', [
+                'error' => $e->getMessage(),
+                'file_id' => $file->id,
+            ]);
+            $file->external_url = null;
+            $file->object_path = null;
+            $file->hashname = Files::uploadLocalOrS3($newFile, DealFile::FILE_PATH.'/'.$file->deal_id);
+        }
+
+        return [
+            'previous' => $previous,
+            'new' => [
+                'external' => ! empty($file->object_path),
+                'object_path' => $file->object_path,
+                'hashname' => $file->hashname,
+            ],
+        ];
+    }
+
+    /**
+     * Deletes one stored object described by a replaceStoredFile() descriptor.
+     * Never throws - a cleanup failure is logged, not surfaced, since by the
+     * time it runs the authoritative row has already been written.
+     *
+     * @param  array{external: bool, object_path: ?string, hashname: ?string}  $descriptor
+     */
+    private function discardStoredObject(array $descriptor, int $dealId): void
+    {
+        if ($descriptor['external'] && ! empty($descriptor['object_path'])) {
+            try {
+                $this->fileStorageService->delete($descriptor['object_path']);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete file from external storage during replace', [
+                    'deal_id' => $dealId,
+                    'object_path' => $descriptor['object_path'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return;
+        }
+
+        if (! empty($descriptor['hashname'])) {
+            Files::deleteFile($descriptor['hashname'], DealFile::FILE_PATH.'/'.$dealId);
+        }
+    }
+
+    /**
+     * Write gate for a deal's loose file attachments — there is no
+     * dedicated "edit_lead_files" permission in this system (only
+     * view/add/delete exist), so this mirrors
+     * DealGatheringController::canEditDeal()'s real 'edit_deals' scope
+     * check instead of a file-specific permission that was never seeded.
+     */
+    private function canEditDealFiles(Deal $deal): bool
+    {
+        $editPermission = user()->permission('edit_deals');
+
+        return $editPermission === 'all'
+            || ($editPermission === 'added' && $deal->added_by === user()->id)
+            || ($editPermission === 'owned' && $deal->hasTeamMemberAccess(user()->id))
+            || ($editPermission === 'both' && ($deal->added_by === user()->id || $deal->hasTeamMemberAccess(user()->id)));
     }
 
     /**
@@ -126,13 +260,12 @@ class LeadFileController extends AccountBaseController
      * The frontend uploads files directly to the external storage API,
      * then calls this endpoint with the upload results to create DealFile records.
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function storeFromExternal(Request $request)
     {
         $addPermission = user()->permission('add_lead_files');
-        abort_403(!in_array($addPermission, ['all', 'added']));
+        abort_403(! in_array($addPermission, ['all', 'added']));
 
         $request->validate([
             'deal_id' => 'required|integer|exists:deals,id',
@@ -147,7 +280,7 @@ class LeadFileController extends AccountBaseController
         $createdFiles = [];
 
         foreach ($request->input('files') as $fileData) {
-            $file = new DealFile();
+            $file = new DealFile;
             $file->deal_id = $deal->id;
             $file->user_id = $this->user->id;
             $file->filename = $fileData['originalName'];
@@ -169,19 +302,17 @@ class LeadFileController extends AccountBaseController
     }
 
     /**
-     * @param Request $request
-     * @param int $id
+     * @param  int  $id
      * @return array|void
      */
-
     public function destroy(Request $request, $id)
     {
         $deletePermission = user()->permission('delete_lead_files');
         $file = DealFile::findOrFail($id);
-        abort_403(!($deletePermission == 'all' || ($deletePermission == 'added' && $file->added_by == user()->id)));
+        abort_403(! ($deletePermission == 'all' || ($deletePermission == 'added' && $file->added_by == user()->id)));
 
         // If the file is stored externally, also delete from external storage
-        if ($file->isExternallyStored() && !empty($file->object_path)) {
+        if ($file->isExternallyStored() && ! empty($file->object_path)) {
             try {
                 $fileStorageService = app(FileStorageService::class);
                 $fileStorageService->delete($file->object_path);
@@ -214,7 +345,7 @@ class LeadFileController extends AccountBaseController
             'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
 
         $files = $deal->files()->orderBy('created_at', 'desc')->get();
         if (user()->permission('view_lead_files') == 'added') {
@@ -225,14 +356,14 @@ class LeadFileController extends AccountBaseController
     }
 
     /**
-     * @param mixed $id
+     * @param  mixed  $id
      * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Symfony\Component\HttpFoundation\StreamedResponse|void
      */
     public function download($id)
     {
         $viewPermission = user()->permission('view_lead_files');
         $file = DealFile::findOrFail($id);
-        abort_403(!($viewPermission == 'all' || ($viewPermission == 'added' && $file->added_by == user()->id)));
+        abort_403(! ($viewPermission == 'all' || ($viewPermission == 'added' && $file->added_by == user()->id)));
 
         // External files: redirect to the external URL
         if ($file->isExternallyStored()) {
@@ -240,17 +371,16 @@ class LeadFileController extends AccountBaseController
         }
 
         // Legacy files: serve from local/S3 storage
-        return download_local_s3($file, DealFile::FILE_PATH . '/' . $file->deal_id . '/' . $file->hashname);
+        return download_local_s3($file, DealFile::FILE_PATH.'/'.$file->deal_id.'/'.$file->hashname);
     }
 
     /**
-     * @param Request $request
      * @return mixed
      */
     public function layout(Request $request)
     {
         $viewPermission = user()->permission('view_lead_files');
-        abort_403(!in_array($viewPermission, ['all', 'added']));
+        abort_403(! in_array($viewPermission, ['all', 'added']));
 
         $this->deal = Deal::with('files')->findOrFail($request->id);
 
@@ -260,5 +390,4 @@ class LeadFileController extends AccountBaseController
 
         return Reply::dataOnly(['status' => 'success', 'html' => $view]);
     }
-
 }

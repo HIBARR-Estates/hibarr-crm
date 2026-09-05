@@ -9,6 +9,7 @@ class ShowCriterion extends Model
 {
     protected $fillable = [
         'group_id',
+        'reference_source',
         'reference_field_id',
         'operator',
         'reference_value',

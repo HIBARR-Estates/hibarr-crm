@@ -58,6 +58,7 @@ import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
@@ -140,6 +141,7 @@ const Index = ({
     addLeadPermission = "all",
 }: IndexProps) => {
     const { t } = useTranslation();
+    useUserDateTime();
 
     // Get current user and permissions for deal permission checks
     const { props: pageProps } = usePage<any>();
@@ -414,6 +416,9 @@ const Index = ({
     // Handle agent change from table or card
     const handleAgentChange = useCallback(
         (deal: Deal, agentId: number | null) => {
+            if (deal.commission_locked) {
+                return;
+            }
             changeAgent(
                 { deal_id: deal.id, agent_id: agentId },
                 {

@@ -34,7 +34,8 @@ interface Props {
 
 type ConfirmState =
     | { kind: "field"; id: number; label: string; module: string }
-    | { kind: "category"; id: number; label: string };
+    | { kind: "category"; id: number; label: string }
+    | { kind: "rule"; id: number; label: string };
 
 function TabSkeleton() {
     return (
@@ -119,19 +120,24 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
         setRuleModalOpen(true);
     };
 
-    const handleRuleSaved = (fieldId: number, ruleSet: SettingsField["show_rule_set"]) => {
-        setFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, show_rule_set: ruleSet } : f)));
+    // custom-fields.save-rule-set returns the whole field freshly reloaded
+    // server-side (see saveRuleSet()'s doc comment) — replace the local copy
+    // wholesale rather than patching just show_rule_set, so this is always
+    // the one authoritative snapshot, never a merge with a possibly-stale
+    // separate field-save response.
+    const handleRuleSaved = (field: SettingsField) => {
+        setFields((prev) => prev.map((f) => (f.id === field.id ? field : f)));
     };
 
-    const handleRemoveRule = async (field: SettingsField) => {
+    const removeRule = async (field: Pick<SettingsField, "id">) => {
         try {
             const res = await axios.post(
                 route("custom-fields.save-rule-set", field.id),
                 { rule_set: { enabled: false, default_visibility: true, group: { group_operator: "AND", criteria: [] } } },
                 { headers: { Accept: "application/json" } },
             );
-            if (res.data?.rule_set) {
-                handleRuleSaved(field.id, res.data.rule_set);
+            if (res.data?.field) {
+                handleRuleSaved(res.data.field);
                 message.success(td("Rule removed", { source: "en" }));
             } else {
                 message.error(res.data?.message || t("messages.somethingWentWrong"));
@@ -146,6 +152,8 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
         setConfirmLoading(true);
         if (confirm.kind === "field") {
             await fieldMutations.deleteField(confirm.id);
+        } else if (confirm.kind === "rule") {
+            await removeRule({ id: confirm.id });
         } else {
             await categoryMutations.deleteCategory(confirm.id);
         }
@@ -175,6 +183,13 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                 title: td("Delete field?", { source: "en" }),
                 message: td(`This removes “${confirm.label}” and its stored values from ${confirm.module} records. It can't be undone.`, { source: "en" }),
                 confirmLabel: td("Delete field", { source: "en" }),
+            };
+        }
+        if (confirm.kind === "rule") {
+            return {
+                title: td("Remove visibility rule?", { source: "en" }),
+                message: td(`“${confirm.label}” will be shown to everyone, everywhere, instead of only when its conditions match. It can't be undone.`, { source: "en" }),
+                confirmLabel: td("Remove rule", { source: "en" }),
             };
         }
         return {
@@ -285,7 +300,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                                     setRuleModalFieldId(field.id);
                                     setRuleModalOpen(true);
                                 }}
-                                onRemove={handleRemoveRule}
+                                onRemove={(field) => setConfirm({ kind: "rule", id: field.id, label: field.label })}
                                 onAdd={() => {
                                     setRuleModalFieldId(null);
                                     setRuleModalOpen(true);
@@ -309,6 +324,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                     original ? fieldMutations.updateField(original.id, draft, original) : fieldMutations.createField(draft)
                 }
                 onOpenRuleBuilder={handleOpenRuleBuilder}
+                onRuleSetSaved={handleRuleSaved}
             />
 
             <CategoryModal

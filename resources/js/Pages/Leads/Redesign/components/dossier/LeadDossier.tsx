@@ -141,7 +141,14 @@ export default function LeadDossier({
                             const EditableField = EDITABLE_FIELDS[field.key];
 
                             return (
-                                <div key={field.key} className="v2-dossier-row">
+                                // `group` is what reveals the inline-edit pencil (and the
+                                // dashed underline) on the hovered row — the shared
+                                // EditableField renders it as `hidden group-hover:inline-flex`,
+                                // so without this marker class it never appears at all.
+                                <div
+                                    key={field.key}
+                                    className="v2-dossier-row group"
+                                >
                                     <span style={{ color: "var(--lr-text-dim)" }}>
                                         {td(field.label, { source: "en" })}
                                     </span>

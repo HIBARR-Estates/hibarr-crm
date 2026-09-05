@@ -65,6 +65,16 @@ class StoreCustomField extends CoreRequest
             $rules['display_config.format'] = 'nullable|string|max:200';
         }
 
+        // Only meaningful for a FILE field on the Lead module (the "Show
+        // for pipeline(s)" picker's sibling controls) — accepted from any
+        // caller since it's a harmless no-op for other field types/modules.
+        if ($this->has('show_in_lead')) {
+            $rules['show_in_lead'] = 'boolean';
+        }
+        if ($this->has('show_in_deal')) {
+            $rules['show_in_deal'] = 'boolean';
+        }
+
         return $rules;
     }
 

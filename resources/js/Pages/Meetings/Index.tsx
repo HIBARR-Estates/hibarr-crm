@@ -517,10 +517,15 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
     onDelete,
 }) => {
     const handlePageChange = (page: number, pageSize: number) => {
-        const params: Record<string, number> = {
-            [`${pageName}_page`]: page,
-            [`${pageName}_per_page`]: pageSize,
-        };
+        // Start from whatever's already on the URL (attendance, date_from,
+        // date_to, the other section's own page/per_page) so paging one
+        // section doesn't drop filters or reset the other — router.get()
+        // replaces the query string wholesale, it doesn't merge into it.
+        const params: Record<string, string | number> = Object.fromEntries(
+            new URLSearchParams(window.location.search),
+        );
+        params[`${pageName}_page`] = page;
+        params[`${pageName}_per_page`] = pageSize;
         router.get("/account/meetings", params, {
             preserveState: true,
             preserveScroll: true,

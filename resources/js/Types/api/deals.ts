@@ -65,6 +65,8 @@ export interface Deal {
     downpayment_confirmed?: number;
 
     // Counts for kanban card display
+    /** withCount('products') — linked properties, without loading the rows. */
+    products_count?: number;
     tasks_count?: number;
     meetings_count?: number;
     activities_count?: number;
@@ -377,6 +379,13 @@ export interface PropertySummary {
     land_size: string | null;
     status: string | null;
     photos: string[] | null;
+    /** Appended on the model — project location first, own columns last. */
+    effective_location?: { city: string | null; area: string | null } | null;
+    unit_style?: string[] | null;
+    view_types?: string[] | null;
+    furniture_status?: string | null;
+    primary_category?: string | null;
+    construction_status?: string | null;
     developer_project?: {
         id: number;
         name: string;

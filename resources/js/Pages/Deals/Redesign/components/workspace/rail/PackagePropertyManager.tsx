@@ -10,6 +10,7 @@ import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropert
 import usePipelineHasPackages from "../../../hooks/usePipelineHasPackages";
 import useSinglePackageMode from "../../../hooks/useSinglePackageMode";
 import type { Deal } from "@/Types/api/deals";
+import { propertyDisplayName } from "../../../adapters/propertyDisplay";
 import DealIcon from "../../primitives/DealIcon";
 import DealMenuSelect from "../../primitives/DealMenuSelect";
 import useDealPackages from "../../../hooks/useDealPackages";
@@ -126,7 +127,9 @@ export default function PackagePropertyManager({
 
     const currencySymbol = deal.currency?.currency_symbol || "";
     const money = (value?: number | null) =>
-        value == null ? "" : `${currencySymbol}${Number(value).toLocaleString()}`;
+        value == null
+            ? ""
+            : `${currencySymbol}${Number(value).toLocaleString()}`;
 
     const bannerMessage = overLimit
         ? t("pages.deals.dossier.banner_over_limit")
@@ -147,7 +150,11 @@ export default function PackagePropertyManager({
                         borderColor: T.AMBER_MID,
                     }}
                 >
-                    <DealIcon name="info" size={13} className="mt-0.5 shrink-0" />
+                    <DealIcon
+                        name="info"
+                        size={13}
+                        className="mt-0.5 shrink-0"
+                    />
                     <span>{bannerMessage}</span>
                 </div>
             )}
@@ -165,32 +172,53 @@ export default function PackagePropertyManager({
                             ? t("pages.deals.dossier.package_singular")
                             : t("pages.deals.dossier.package_plural")}
                         {isDealValueLocked(deal) && (
-                            <Tooltip title={t("pages.deals.value_locked_tooltip")}>
-                                <span className="normal-case" style={{ display: "flex" }}>
+                            <Tooltip
+                                title={t("pages.deals.value_locked_tooltip")}
+                            >
+                                <span
+                                    className="normal-case"
+                                    style={{ display: "flex" }}
+                                >
                                     <DealIcon name="lock" size={11} />
                                 </span>
                             </Tooltip>
                         )}
                     </div>
                     {packages.length === 0 ? (
-                        <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
+                        <div
+                            className="mb-2 text-xs italic"
+                            style={{ color: T.TEXT_MUTED }}
+                        >
                             {t("pages.deals.dossier.no_packages")}
                         </div>
                     ) : (
                         packages.map((pkg) => (
-                            <div key={pkg.id} className="dr-card flex items-center gap-2">
+                            <div
+                                key={pkg.id}
+                                className="dr-card flex items-center gap-2"
+                            >
                                 <div
                                     className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg"
-                                    style={{ background: T.SURFACE_2, border: `1px solid ${T.BORDER}` }}
+                                    style={{
+                                        background: T.SURFACE_2,
+                                        border: `1px solid ${T.BORDER}`,
+                                    }}
                                 >
-                                    <DealIcon name="briefcase" size={12} color={T.TEXT_MUTED} />
+                                    <DealIcon
+                                        name="briefcase"
+                                        size={12}
+                                        color={T.TEXT_MUTED}
+                                    />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate text-xs font-semibold">
                                         {td(pkg.name, { source: "en" })}
                                     </div>
                                     {pkg.value != null && (
-                                        <div className="text-[12px]" style={{ color: T.TEXT_MUTED }}>
+                                        <div
+                                            className="text-[12px]"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
                                             {money(pkg.value)}
                                         </div>
                                     )}
@@ -221,7 +249,9 @@ export default function PackagePropertyManager({
                                 placeholder={`+ ${t("pages.deals.dossier.add_package")}`}
                                 size="sm"
                                 width={150}
-                                disabled={saving || availablePackages.length === 0}
+                                disabled={
+                                    saving || availablePackages.length === 0
+                                }
                                 options={availablePackages.map((option) => ({
                                     value: option.id,
                                     label: option.value
@@ -248,8 +278,13 @@ export default function PackagePropertyManager({
                             ? t("pages.deals.dossier.property_singular")
                             : t("pages.deals.dossier.property_plural")}
                         {isDealValueLocked(deal) && (
-                            <Tooltip title={t("pages.deals.value_locked_tooltip")}>
-                                <span className="normal-case" style={{ display: "flex" }}>
+                            <Tooltip
+                                title={t("pages.deals.value_locked_tooltip")}
+                            >
+                                <span
+                                    className="normal-case"
+                                    style={{ display: "flex" }}
+                                >
                                     <DealIcon name="lock" size={11} />
                                 </span>
                             </Tooltip>
@@ -263,24 +298,43 @@ export default function PackagePropertyManager({
                         )}
                     </div>
                     {products.length === 0 ? (
-                        <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
+                        <div
+                            className="mb-2 text-xs italic"
+                            style={{ color: T.TEXT_MUTED }}
+                        >
                             {t("pages.deals.dossier.no_properties_attached")}
                         </div>
                     ) : (
                         products.map((product) => (
-                            <div key={product.id} className="dr-card flex items-center gap-2">
+                            <div
+                                key={product.id}
+                                className="dr-card flex items-center gap-2"
+                            >
                                 <div
                                     className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg"
-                                    style={{ background: T.SURFACE_2, border: `1px solid ${T.BORDER}` }}
+                                    style={{
+                                        background: T.SURFACE_2,
+                                        border: `1px solid ${T.BORDER}`,
+                                    }}
                                 >
-                                    <DealIcon name="building" size={12} color={T.TEXT_MUTED} />
+                                    <DealIcon
+                                        name="building"
+                                        size={12}
+                                        color={T.TEXT_MUTED}
+                                    />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate text-xs font-semibold">
-                                        {product.property?.title || product.name}
+                                        {propertyDisplayName(
+                                            product.property,
+                                            product.name,
+                                        )}
                                     </div>
                                     {product.property?.price != null && (
-                                        <div className="text-[12px]" style={{ color: T.TEXT_MUTED }}>
+                                        <div
+                                            className="text-[12px]"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
                                             {money(product.property.price)}
                                         </div>
                                     )}
@@ -294,9 +348,13 @@ export default function PackagePropertyManager({
                                             background: "transparent",
                                             border: "none",
                                         }}
-                                        disabled={removingProductId === product.id}
-                                        aria-label={`${t("pages.deals.common.remove")} ${product.property?.title || product.name}`}
-                                        onClick={() => removeProperty(product.id)}
+                                        disabled={
+                                            removingProductId === product.id
+                                        }
+                                        aria-label={`${t("pages.deals.common.remove")} ${propertyDisplayName(product.property, product.name)}`}
+                                        onClick={() =>
+                                            removeProperty(product.id)
+                                        }
                                     >
                                         {t("pages.deals.common.remove")}
                                     </button>
