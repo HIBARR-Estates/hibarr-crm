@@ -364,7 +364,8 @@ class DealAutomationService
 
             $passed = $this->conditionEvaluator->evaluate(
                 $fieldValue,
-                $condition
+                $condition,
+                $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
             );
 
             if (! $passed) {
@@ -373,6 +374,27 @@ class DealAutomationService
         }
 
         return true;
+    }
+
+    /**
+     * Whether $field changed on $subject during the save that led to this
+     * evaluation. Only answerable for a native column on $subject itself
+     * (see FieldResolverService::nativeColumn()) and only within the same
+     * in-memory instance that was just saved — a freshly reloaded subject
+     * (a waited/date-based run resuming later) has no unsaved changes to
+     * report, so this correctly comes back false there rather than guessing.
+     * A brand-new record (wasRecentlyCreated) also reads false: nothing
+     * "changed" on creation, it was simply set.
+     */
+    protected function fieldChanged(Deal|Lead $subject, string $field): bool
+    {
+        if ($subject->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($subject, $field);
+
+        return $column !== null && (bool) $subject->wasChanged($column);
     }
 
     /**

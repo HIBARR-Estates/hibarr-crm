@@ -90,4 +90,26 @@ class FieldResolverServiceTest extends TestCase
 
         $this->assertNull($value);
     }
+
+    public function test_native_column_resolves_plain_deal_attributes_only()
+    {
+        $deal = Deal::factory()->create();
+
+        $this->assertSame('value', $this->service->nativeColumn($deal, 'value'));
+        $this->assertNull($this->service->nativeColumn($deal, 'interested_in')); // hibarr field
+        $this->assertNull($this->service->nativeColumn($deal, 'custom_field_123'));
+        $this->assertNull($this->service->nativeColumn($deal, 'last_followup_remark'));
+        $this->assertNull($this->service->nativeColumn($deal, 'lead_field_client_name'));
+        $this->assertNull($this->service->nativeColumn($deal, 'lead_marketing_utm_source'));
+    }
+
+    public function test_native_column_resolves_whitelisted_lead_attributes_only()
+    {
+        $lead = \App\Models\Lead::factory()->create();
+
+        $this->assertSame('client_name', $this->service->nativeColumn($lead, 'client_name'));
+        $this->assertSame('client_name', $this->service->nativeColumn($lead, 'lead_field_client_name'));
+        $this->assertNull($this->service->nativeColumn($lead, 'custom_field_123'));
+        $this->assertNull($this->service->nativeColumn($lead, 'not_a_whitelisted_column'));
+    }
 }
