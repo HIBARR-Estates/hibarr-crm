@@ -31,7 +31,7 @@ class PackagePipelineRouterService
     {
         $deal->loadMissing('company', 'packages');
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return 'deal_locked';
         }
 
@@ -151,7 +151,7 @@ class PackagePipelineRouterService
     {
         $deal->loadMissing('company');
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return false;
         }
 
@@ -237,7 +237,7 @@ class PackagePipelineRouterService
 
         $deal->loadMissing(['company', 'packages']);
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return false;
         }
 

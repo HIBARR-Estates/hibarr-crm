@@ -60,8 +60,8 @@ class DealAutomationService
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
-        // Skip automation for locked deals
-        if ($deal->is_locked) {
+        // Skip automation for locked deals (full freeze or commission already paid)
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             Log::info("Skipping automations for locked Deal ID: {$deal->id}");
 
             return;
@@ -122,6 +122,12 @@ class DealAutomationService
     public function runDateBased(Deal|Lead $subject, DealAutomation $automation): void
     {
         if (! AutomationV2Feature::enabled()) {
+            return;
+        }
+
+        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
+            Log::info("Skipping date-based automation for locked Deal ID: {$subject->id}");
+
             return;
         }
 
@@ -258,7 +264,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && $subject->is_locked) {
+        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
 
             return true;
