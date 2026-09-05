@@ -448,7 +448,7 @@ const LegacyTasksIndex = ({
                             </Space>
                         </Col>
                         <Col>
-                            <Space>
+                            <Space wrap>
                                 {/* View Toggle */}
                                 <div className="flex bg-gray-100 rounded-md p-1">
                                     <Button
