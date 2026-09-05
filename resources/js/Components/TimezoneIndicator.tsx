@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Popover } from "antd";
-import { ClockCircleOutlined, RightOutlined } from "@ant-design/icons";
+import { RightOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
@@ -155,16 +155,23 @@ export default function TimezoneIndicator() {
                 },
             }}
         >
-            <Button
-                icon={<ClockCircleOutlined />}
+            <button
+                type="button"
                 aria-label={`${td("Timezone", { source: "en" })}: ${chipLabel}`}
                 aria-expanded={open}
-                className="inline-flex items-center"
+                aria-haspopup="dialog"
+                data-open={open ? "true" : undefined}
+                className="group inline-flex cursor-pointer appearance-none border-0 bg-transparent p-0 font-medium leading-none tracking-[0.015em] text-[#5b6472] hover:text-[#16294d] focus-visible:text-[#16294d] focus-visible:outline-none data-[open=true]:text-[#16294d]"
+                style={{
+                    fontFamily: REDESIGN_FONT_STACK,
+                    fontSize: REDESIGN_TYPE.CAPTION,
+                }}
             >
-                <span className="hidden whitespace-nowrap tabular-nums sm:inline">
-                    {chipLabel}
+                <span className="whitespace-nowrap border-b border-dotted border-current pb-[2.5px] tabular-nums">
+                    <span className="hidden sm:inline">{chipLabel}</span>
+                    <span className="sm:hidden">{offset}</span>
                 </span>
-            </Button>
+            </button>
         </Popover>
     );
 }

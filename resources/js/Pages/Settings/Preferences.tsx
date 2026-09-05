@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { App } from "antd";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, {
@@ -222,6 +222,24 @@ export default function Preferences({
             setUserDateTimeContext({
                 enabled: isUserDateTimeEnabled(),
                 timezone: savedTimezone,
+            });
+            router.replace({
+                preserveScroll: true,
+                preserveState: true,
+                props: (current) => ({
+                    ...current,
+                    viewerTimezone: savedTimezone,
+                    auth: current.auth
+                        ? {
+                              ...current.auth,
+                              user: {
+                                  ...current.auth.user,
+                                  timezone: savedTimezone,
+                                  timezone_locked: savedLocked,
+                              },
+                          }
+                        : current.auth,
+                }),
             });
         } catch (error) {
             setSelectedTimezone(previousTimezone);
