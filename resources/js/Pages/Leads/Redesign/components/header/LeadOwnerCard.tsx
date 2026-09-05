@@ -152,6 +152,7 @@ export default function LeadOwnerCard({
     if (!canEdit) {
         return (
             <div
+                className="lr-owner-card"
                 style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -181,7 +182,7 @@ export default function LeadOwnerCard({
               : "";
 
     return (
-        <div style={{ display: "inline-flex" }}>
+        <div className="lr-owner-card" style={{ display: "inline-flex" }}>
             <button
                 ref={btnRef}
                 type="button"
@@ -197,6 +198,8 @@ export default function LeadOwnerCard({
                 style={{
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
                     gap: 10,
                     background: "var(--lr-surface)",
                     border: "1px solid var(--lr-border)",

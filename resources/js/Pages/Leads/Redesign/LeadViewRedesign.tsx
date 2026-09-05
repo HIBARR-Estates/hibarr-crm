@@ -724,6 +724,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
+                            <div className="mb-4">
+                                <DossierQuickActions
+                                    onLogAction={() => setLogActionOpen(true)}
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            </div>
+
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
                                     leadId={lead.id}
@@ -789,11 +799,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
-                            <DossierQuickActions
-                                onLogAction={() => setLogActionOpen(true)}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onScheduleMeeting={() => setAddMeetingOpen(true)}
-                            />
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(

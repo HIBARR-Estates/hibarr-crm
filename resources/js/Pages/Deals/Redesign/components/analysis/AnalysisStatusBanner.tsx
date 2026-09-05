@@ -60,14 +60,12 @@ export default function AnalysisStatusBanner({ analysis, totalFilled, totalField
         <button
             type="button"
             onClick={analysis.open}
-            className={`${shouldPulse ? "analysis-banner-pulse " : ""}shrink-0 cursor-pointer text-left h-full overflow-hidden flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+            className={`${shouldPulse ? "analysis-banner-pulse " : ""}w-full lg:w-[220px] lg:min-w-[200px] shrink-0 cursor-pointer text-left h-full overflow-hidden flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
             style={{
                 background: theme.background,
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
-                width: 220,
-                minWidth: 200,
             }}
         >
             {/* Title row with status dot */}

@@ -1261,6 +1261,9 @@
 .lead-redesign .v2-quick-stat-meta-inline {
     font-size: 11px;
     color: var(--lr-text-muted);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 .lead-redesign .v2-quick-stat-chips {
@@ -1509,6 +1512,15 @@
     }
     .lr-mobile-responsive .v2-quick-stat:last-child {
         border-bottom: none;
+    }
+
+    /* The lead-owner chip sits at the end of the header's flex-wrap row —
+       on desktop it's the last item on the title line, but once the header
+       wraps on mobile it lands alone on its own line as a small pill with
+       a lot of unused space beside it. Let it fill that line instead. */
+    .lr-mobile-responsive .lr-owner-card {
+        display: flex;
+        width: 100%;
     }
 }
 

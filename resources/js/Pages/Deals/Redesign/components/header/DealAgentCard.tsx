@@ -94,7 +94,7 @@ export default function DealAgentCard({
                     <DealIcon name="users" size={15} />
                 </span>
             )}
-            <span>
+            <span style={{ minWidth: 0, maxWidth: 160 }}>
                 <span className="dr-label" style={{ display: "block", fontSize: 12 }}>
                     {t("pages.deals.header.team.agent_label")}
                 </span>
@@ -104,6 +104,9 @@ export default function DealAgentCard({
                         fontSize: 13,
                         fontWeight: 600,
                         color: agent ? T.TEXT : T.BLUE,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                     }}
                 >
                     {agent ? agent.name : t("pages.deals.header.team.assign_agent")}
