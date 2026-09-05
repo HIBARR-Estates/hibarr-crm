@@ -125,18 +125,118 @@ export interface MetaEvent {
     using_automations: { id: number; name: string }[];
 }
 
+/** Which system actually delivered one automation email. "unknown" means the
+ * send never reached UnsRoutingTransport (e.g. the array mail driver). */
+export type MailSystem = "uns" | "smtp" | "unknown";
+
+/** One recipient's outcome, as recorded by UnsRoutingTransport. */
+export interface EmailDeliveryDetail {
+    recipient: string;
+    /** Ties this line to its row in email_delivery_logs. */
+    correlation_id?: string;
+    /** "unconfirmed" = the send raised no error but no transport outcome was
+     * recorded, so delivery was never actually verified. */
+    status: "sent" | "failed" | "unconfirmed";
+    system: MailSystem;
+    uns_attempted: boolean;
+    response_status: number | null;
+    response_body: string | null;
+    /** Why UNS was skipped or abandoned in favour of the SMTP fallback. */
+    fallback_reason: string | null;
+    error: string | null;
+}
+
+/** Everything Meta's Conversions API said about one event. */
+export interface MetaDeliveryDetail {
+    success: boolean;
+    event_name?: string;
+    event_id?: string | null;
+    value?: number;
+    pixel_id?: string | null;
+    api_version?: string;
+    status_code?: number | null;
+    events_received?: number | null;
+    fbtrace_id?: string | null;
+    error?: string | null;
+    error_details?: Record<string, unknown> | null;
+    response_body?: string | null;
+}
+
+/** Structured diagnostics on a log row — shape depends on `channel`. */
+export interface RunLogDetails {
+    /** meta rows: "queued" when the job was enqueued, "delivery" for the result. */
+    stage?: "queued" | "delivery";
+    source?: string;
+    automation_name?: string | null;
+    attempt?: number;
+    // email
+    template_id?: number;
+    template_name?: string;
+    plunk_template_id?: string | null;
+    subject?: string;
+    deliveries?: EmailDeliveryDetail[];
+    // meta
+    event_name?: string;
+    value?: number;
+    meta?: MetaDeliveryDetail;
+    [key: string]: unknown;
+}
+
+/** One action performed inside a run — the log table's own row shape. */
 export interface RunLogEntry {
     id: number;
-    automation_id: number;
+    automation_id: number | null;
+    /** The execution this step belongs to. */
+    run_id: string | null;
     deal_id: number | null;
     lead_id: number | null;
     action: string;
     status: LogStatus;
     channel: LogChannel | null;
+    details: RunLogDetails | null;
     executed_at: string;
     automation?: { id: number; name: string } | null;
     deal?: { id: number; name: string } | null;
     lead?: { id: number; client_name: string } | null;
+}
+
+/**
+ * One execution of an automation, with every action it performed nested
+ * under it. An automation with three actions produces one of these, not
+ * three — `steps_count` is where the action count lives.
+ */
+export interface RunHistoryEntry {
+    run_id: string;
+    automation_id: number | null;
+    /** Worst step status: any failed step makes the whole run failed. */
+    status: LogStatus;
+    steps_count: number;
+    started_at: string | null;
+    executed_at: string;
+    steps: RunLogEntry[];
+    automation?: { id: number; name: string } | null;
+    deal?: { id: number; name: string } | null;
+    lead?: { id: number; client_name: string } | null;
+}
+
+/** One deal/lead the automation actually fired for, with its own run tally. */
+export interface AutomationFiredForRow {
+    subject_type: "deal" | "lead";
+    deal_id: number | null;
+    lead_id: number | null;
+    /** The record it ran against — a deal's name, or the lead's own name. */
+    record_name: string | null;
+    /** The person behind that record (a deal's linked contact). */
+    person_name: string | null;
+    person_email: string | null;
+    /** Executions, not actions — a 3-action automation run once counts as 1. */
+    runs: number;
+    success_runs: number;
+    /** Runs in which at least one action failed. */
+    failed_runs: number;
+    /** Actions performed across those runs. */
+    total_steps: number;
+    last_run_at: string | null;
 }
 
 export interface AutomationStatsSummary {
@@ -144,6 +244,10 @@ export interface AutomationStatsSummary {
     success_rate: number | null;
     last_run_at: string | null;
     runs_last_7_days: { day: string; value: number }[];
+    /** Top records by run count — capped server-side (`fired_for_limit`). */
+    fired_for: AutomationFiredForRow[];
+    /** Distinct records overall, so the list can say "25 of 300". */
+    fired_for_total: number;
 }
 
 export interface CustomFieldOption {

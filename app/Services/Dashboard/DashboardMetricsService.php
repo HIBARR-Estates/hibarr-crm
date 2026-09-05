@@ -2,6 +2,10 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\MeetingAttendanceOutcome;
+use App\Enums\MlmCommissionStatus;
+use App\Enums\MlmCommissionType;
+use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
@@ -13,7 +17,10 @@ use App\Models\PartnerFlag;
 use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
+use App\Services\CrmEventService;
 use App\Services\MlmCommissionService;
+use App\Support\FeatureFlags;
+use App\Support\TaskPresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -449,21 +456,33 @@ class DashboardMetricsService
      */
     public function todaySchedule(int $userId): array
     {
-        $followUps = DealFollowUp::query()
+        $followUps = $this->followUpQuery($userId)
+            ->whereBetween('next_follow_up_date', [now()->startOfDay(), now()->addDay()->endOfDay()])
+            ->orderBy('next_follow_up_date')
+            ->limit(12)
+            ->get();
+
+        return $this->mapFollowUps($followUps);
+    }
+
+    /** Base query shared by todaySchedule() and followUpsDue() — only the date window differs. */
+    private function followUpQuery(int $userId)
+    {
+        return DealFollowUp::query()
             ->visibleToUser($userId)
             ->where('status', '<>', 'cancelled')
-            ->whereBetween('next_follow_up_date', [now()->startOfDay(), now()->addDay()->endOfDay()])
             ->with([
                 'deal:id,name',
                 'lead:id,client_name',
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
-            ])
-            ->orderBy('next_follow_up_date')
-            ->limit(12)
-            ->get();
+            ]);
+    }
 
+    /** @return array<int, array<string, mixed>> */
+    private function mapFollowUps(Collection $followUps): array
+    {
         DealFollowUp::attachParticipantUsers($followUps);
 
         return $followUps
@@ -499,6 +518,500 @@ class DashboardMetricsService
             'funnel' => $this->stageFunnel($agentIds),
             'value' => $this->pipelineValueByCurrency($agentIds),
         ];
+    }
+
+    // ── Personal dashboard ─────────────────────────────────────────
+
+    /**
+     * How far ahead the personal dashboard looks, in days.
+     *
+     * One window for the whole page rather than a Today/This week toggle. The
+     * queue is a list of work, and a task due the day after tomorrow needs the
+     * same glance as one due tonight — splitting them behind a switch hid half
+     * the answer and made every panel take a scope argument it barely used.
+     *
+     * Also the bound that keeps these queries honest: without it the queue
+     * scans every task the user can see, and a lead assigned a year ago is not
+     * something a dashboard should be paging in.
+     */
+    public const PERSONAL_WINDOW_DAYS = 7;
+
+    /**
+     * The signal queue: overdue tasks plus everything falling due inside the
+     * window, each carrying the CRM record it hangs off.
+     *
+     * Rows carry `days_overdue` and `related` (the lead/deal the task hangs
+     * off) either way. Behind crm.tasks-workspace-redesign, the row is also
+     * run through TaskPresenter::present() — the same shape every other
+     * surface (Tasks page, Deal/Lead workspace tabs) already opens in the
+     * redesigned task modals — merged with those two extra fields, so this
+     * queue's rows can open there too without a second fetch. Off, it's the
+     * older toFrontendArray() shape the classic TaskDetailModal expects.
+     *
+     * Bucketing into overdue / due today / later is left to the client: it is
+     * a pure function of due_date, and splitting here would ship three arrays
+     * that have to be re-merged to sort.
+     *
+     * `counts` are the true totals and `tasks` is capped — an employee with 60
+     * overdue tasks must be told 60, not the 25 rows we chose to send.
+     * `uncovered` is the footer line: open records nobody nominated a next
+     * step on, which is why they never earn a row of their own.
+     */
+    public function personalQueue(int $userId, int $limit = self::QUEUE_ROWS): array
+    {
+        $today = now()->startOfDay();
+        $endOfToday = now()->endOfDay();
+        $until = now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay();
+        $useRedesignedTasks = FeatureFlags::enabled('crm.tasks-workspace-redesign');
+
+        $pending = fn () => Task::query()
+            ->pending()
+            ->visibleToUser($userId)
+            ->whereNotNull('due_date');
+
+        $tasksQuery = $pending()
+            ->where('due_date', '<=', $until)
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->orderBy('due_date')
+            ->limit($limit);
+
+        if ($useRedesignedTasks) {
+            $tasksQuery->withCount(TaskPresenter::COUNTS);
+        }
+
+        $tasks = $tasksQuery->get();
+
+        $related = $this->relatedRecords($tasks->pluck('id')->all());
+
+        // One aggregate query instead of three separate counts — same
+        // `pending()` base, only the due_date bucket differs.
+        $dueCounts = $pending()
+            ->toBase()
+            ->selectRaw(
+                'SUM(CASE WHEN due_date < ? THEN 1 ELSE 0 END) as overdue,
+                 SUM(CASE WHEN due_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as today,
+                 SUM(CASE WHEN due_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as later',
+                [$today, $today, $endOfToday, now()->addDay()->startOfDay(), $until]
+            )
+            ->first();
+
+        return [
+            'tasks' => $tasks
+                ->map(function (Task $task) use ($related, $today, $useRedesignedTasks) {
+                    $due = Carbon::parse($task->due_date)->startOfDay();
+                    $base = $useRedesignedTasks ? TaskPresenter::present($task) : $task->toFrontendArray();
+
+                    return $base + [
+                        'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
+                        'related' => $related[$task->id] ?? null,
+                    ];
+                })
+                ->all(),
+            'counts' => [
+                // Overdue is deliberately unbounded below: something six months
+                // late is the most urgent row on the page, not the least.
+                'overdue' => (int) ($dueCounts->overdue ?? 0),
+                'today' => (int) ($dueCounts->today ?? 0),
+                'later' => (int) ($dueCounts->later ?? 0),
+            ],
+            'uncovered' => [
+                'leads' => $this->leadsWithoutNextStep($userId)->count(),
+                'deals' => $this->dealsWithoutNextStep($this->agentIdsForUser($userId))?->count() ?? 0,
+            ],
+        ];
+    }
+
+    /**
+     * Open deals grouped by pipeline — count, value and how many have gone
+     * untouched for a week.
+     *
+     * Grouped by pipeline, never by stage: the pipelines carry different stage
+     * sets with no shared ordinal (see stageFunnel()'s own note), so a single
+     * cross-pipeline funnel would stack unlike things.
+     *
+     * Value stays split by currency inside each pipeline for the same reason
+     * pipelineValueByCurrency() splits it — the stored exchange rates are
+     * unmaintained, so one rolled-up total would look authoritative and be
+     * wrong. Totals are ordered company-default-currency-first (see
+     * mergeTotals()) rather than by amount, since amounts in different
+     * currencies aren't comparable.
+     *
+     * "Idle" is deals.updated_at, not a stalled-stage rule: stalled-ness reads
+     * pipeline_stages.target_duration_days, which is NULL on every stage today.
+     */
+    public function openDealsByPipeline(int $userId, int $idleDays = 7): array
+    {
+        $agentIds = $this->agentIdsForUser($userId);
+
+        if (empty($agentIds)) {
+            return [];
+        }
+
+        $rows = Deal::query()
+            ->join('lead_pipelines', 'lead_pipelines.id', '=', 'deals.lead_pipeline_id')
+            ->leftJoin('currencies', 'currencies.id', '=', 'deals.currency_id')
+            ->whereNull('deals.outcome_status')
+            ->whereIn('deals.agent_id', $agentIds)
+            ->groupBy('lead_pipelines.id', 'lead_pipelines.name', 'currencies.currency_code')
+            ->toBase()
+            ->selectRaw('lead_pipelines.id, lead_pipelines.name, currencies.currency_code')
+            ->selectRaw('COUNT(deals.id) as deal_count')
+            ->selectRaw('COALESCE(SUM(deals.value), 0) as total')
+            ->selectRaw(
+                'SUM(CASE WHEN deals.updated_at < ? THEN 1 ELSE 0 END) as idle_count',
+                [now()->subDays($idleDays)]
+            )
+            ->get();
+
+        $pipelines = [];
+
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+
+            $pipelines[$id] ??= [
+                'id' => $id,
+                'name' => $row->name,
+                'deal_count' => 0,
+                'idle_count' => 0,
+                'totals' => [],
+            ];
+
+            // Counts always accrue; only the money needs a currency to label
+            // it. A deal with no currency still exists and is still open.
+            $pipelines[$id]['deal_count'] += (int) $row->deal_count;
+            $pipelines[$id]['idle_count'] += (int) $row->idle_count;
+
+            $currency = $this->currencyCode($row->currency_code);
+
+            if ($currency !== null) {
+                $pipelines[$id]['totals'][] = [
+                    'currency' => $currency,
+                    'total' => (float) $row->total,
+                ];
+            }
+        }
+
+        return collect($pipelines)
+            ->map(function (array $pipeline) {
+                $pipeline['totals'] = $this->mergeTotals($pipeline['totals']);
+
+                return $pipeline;
+            })
+            // Ranked by deal count — currency-agnostic, unlike totals, which
+            // can't be compared across pipelines quoted in different
+            // currencies without a rate. The dashboard bar mirrors this order.
+            ->sortByDesc(fn (array $pipeline) => $pipeline['deal_count'])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * A usable currency code, or null.
+     *
+     * Falls back to the company's own default when a record carries none —
+     * most deals are quoted in it, so labelling those totals with it is far
+     * closer to the truth than the literal string "unknown", which is not a
+     * currency and renders as one. Null when the company has no default
+     * either, and the caller then shows the count without a value rather than
+     * putting a number on screen it cannot name.
+     */
+    private function currencyCode(?string $code): ?string
+    {
+        return $code ?: $this->defaultCurrencyCode();
+    }
+
+    /** Memoised: company() is session-cached but the relation is not. */
+    private ?string $defaultCurrency = null;
+
+    private bool $defaultCurrencyResolved = false;
+
+    private function defaultCurrencyCode(): ?string
+    {
+        if (! $this->defaultCurrencyResolved) {
+            $this->defaultCurrencyResolved = true;
+            $this->defaultCurrency = company()?->currency?->currency_code;
+        }
+
+        return $this->defaultCurrency;
+    }
+
+    /**
+     * Fold per-currency rows into one entry each, company default currency
+     * first (the one the UI should lead with), the rest alphabetical.
+     *
+     * Needed because currencyCode() maps NULL onto the company default, so two
+     * SQL groups — "EUR" and "no currency" — can arrive as the same currency
+     * and would otherwise render as two EUR lines.
+     *
+     * Deliberately not ordered by amount: totals in different currencies
+     * aren't comparable without an exchange rate, and the stored rates are
+     * unmaintained (see this method's callers), so ranking by raw total would
+     * silently pick whichever currency happens to have the largest number.
+     *
+     * @param  array<int, array{currency: string, total: float}>  $totals
+     * @return array<int, array{currency: string, total: float}>
+     */
+    private function mergeTotals(array $totals): array
+    {
+        $merged = [];
+
+        foreach ($totals as $row) {
+            $merged[$row['currency']] = ($merged[$row['currency']] ?? 0) + $row['total'];
+        }
+
+        $default = $this->defaultCurrencyCode();
+
+        uksort($merged, function (string $a, string $b) use ($default) {
+            if ($a === $default) {
+                return -1;
+            }
+            if ($b === $default) {
+                return 1;
+            }
+
+            return $a <=> $b;
+        });
+
+        return array_map(
+            fn ($currency, $total) => ['currency' => $currency, 'total' => (float) $total],
+            array_keys($merged),
+            $merged
+        );
+    }
+
+    /**
+     * The stat strip: leads just in, and the shape of the week ahead.
+     *
+     * Leads look back over the window (what arrived), meetings look both ways
+     * — attended/missed behind, upcoming ahead — the two tiles answer
+     * different questions and a single direction would make one of them
+     * meaningless.
+     *
+     * There is no target anywhere. Nothing in this schema stores a quota, so
+     * one would have to be invented, and a fabricated number on a landing page
+     * is worse than a missing one. The deals tile is derived client-side from
+     * openDealsByPipeline() rather than re-queried here.
+     */
+    public function personalStats(int $userId): array
+    {
+        $since = now()->subDays(self::PERSONAL_WINDOW_DAYS);
+        $until = now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay();
+
+        $ownedLeads = fn () => Lead::query()->where('lead_owner', $userId);
+
+        // One aggregate query instead of three — same owned-leads base, only
+        // the bucket condition differs.
+        $leadCounts = $ownedLeads()
+            ->toBase()
+            ->selectRaw(
+                'SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as new,
+                 SUM(CASE WHEN first_contacted_at >= ? THEN 1 ELSE 0 END) as contacted,
+                 SUM(CASE WHEN first_contacted_at IS NULL THEN 1 ELSE 0 END) as uncontacted',
+                [$since, $since]
+            )
+            ->first();
+
+        // Upcoming counts what's booked ahead; attended/missed reads the
+        // outcome an agent already logged behind (see MeetingAttendanceOutcome
+        // and QueueRowActions' "Log attendance" action) — never inferred from
+        // whether a meeting is merely in the past, since a meeting with no
+        // outcome logged yet is unknown, not missed.
+        $meetingCounts = $this->followUpQuery($userId)
+            ->toBase()
+            ->selectRaw(
+                'SUM(CASE WHEN next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as upcoming,
+                 SUM(CASE WHEN attendance_outcome = ? AND next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as attended,
+                 SUM(CASE WHEN attendance_outcome = ? AND next_follow_up_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as missed',
+                [
+                    now(), $until,
+                    MeetingAttendanceOutcome::Attended->value, $since, now(),
+                    MeetingAttendanceOutcome::NoShow->value, $since, now(),
+                ]
+            )
+            ->first();
+
+        return [
+            'leads' => [
+                'new' => (int) ($leadCounts->new ?? 0),
+                'contacted' => (int) ($leadCounts->contacted ?? 0),
+                // Not windowed: an uncontacted lead from last month is still
+                // uncontacted today, and that is the number worth acting on.
+                'uncontacted' => (int) ($leadCounts->uncontacted ?? 0),
+            ],
+            'meetings' => [
+                'upcoming' => (int) ($meetingCounts->upcoming ?? 0),
+                'attended' => (int) ($meetingCounts->attended ?? 0),
+                'missed' => (int) ($meetingCounts->missed ?? 0),
+            ],
+        ];
+    }
+
+    /**
+     * The agenda rail: meetings still ahead of the clock, inside the window.
+     *
+     * Strictly future. An agenda answers "what is coming", so a meeting that
+     * started an hour ago belongs in the queue as a task or in the timeline as
+     * history, not at the top of the list of what is next.
+     */
+    public function upcomingMeetings(int $userId, int $limit = 12): array
+    {
+        $followUps = $this->followUpQuery($userId)
+            ->whereBetween('next_follow_up_date', [
+                now(),
+                now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
+            ])
+            ->orderBy('next_follow_up_date')
+            ->limit($limit)
+            ->get();
+
+        return $this->mapFollowUps($followUps);
+    }
+
+    /**
+     * Commission this person has earned, for agents only.
+     *
+     * Returns null when the account has no lead_agent record — that is not an
+     * error, it is most employees, and the caller drops the tile rather than
+     * rendering a zero that reads as "you earned nothing". Also null when the
+     * company has no default currency configured — there is then no currency
+     * to label a figure with.
+     *
+     * `earned` is paid commission stamped inside the month; `pending` is what
+     * is booked but not yet paid. Unlike deal value, commission amounts are
+     * always reported in the company's own currency, never split or summed
+     * across currencies — mlm_commissions carries no currency of its own, and
+     * every commission an agent is paid is paid in the company's currency
+     * regardless of what currency the underlying deal was quoted in.
+     *
+     * System-type legs (the house's retained cut, MlmCommissionType::System)
+     * are excluded — they were never this agent's to begin with, matching
+     * every other commission query in the app (MlmAgentController,
+     * MlmAdminController, MlmCommissionService).
+     */
+    public function commissionSummary(int $userId): ?array
+    {
+        $agentId = LeadAgent::where('user_id', $userId)->value('id');
+
+        if (is_null($agentId)) {
+            return null;
+        }
+
+        $currency = $this->defaultCurrencyCode();
+
+        if ($currency === null) {
+            return null;
+        }
+
+        $currentStart = now()->startOfMonth();
+        $currentEnd = now()->endOfMonth();
+        $previousStart = now()->subMonthNoOverflow()->startOfMonth();
+        $previousEnd = now()->subMonthNoOverflow()->endOfMonth();
+
+        // One query computing all three figures at once, instead of running
+        // the same filter three times with a different status/date clause.
+        $totals = MlmCommission::query()
+            ->where('agent_id', $agentId)
+            ->where('type', '!=', MlmCommissionType::System->value)
+            ->toBase()
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as earned',
+                [MlmCommissionStatus::Paid->value, $currentStart, $currentEnd]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as previous',
+                [MlmCommissionStatus::Paid->value, $previousStart, $previousEnd]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending',
+                [MlmCommissionStatus::Pending->value]
+            )
+            ->first();
+
+        // A single-entry array per bucket (empty when zero) so the frontend's
+        // CurrencyTotal[] shape — built for deal value's real currency
+        // splits — doesn't need a second shape just for this one caller.
+        $bucket = fn (string $field) => (float) ($totals->{$field} ?? 0) != 0.0
+            ? [['currency' => $currency, 'total' => (float) $totals->{$field}]]
+            : [];
+
+        return [
+            'earned' => $bucket('earned'),
+            'previous' => $bucket('previous'),
+            'pending' => $bucket('pending'),
+        ];
+    }
+
+    /**
+     * The user's own recent activity, from the shared CRM Event Engine —
+     * every event `user_id` recorded, newest first.
+     *
+     * Rows carry CrmEvent::toTimelineArray()'s shape plus the name of the
+     * record the event happened on. The event itself stores only model_type
+     * and model_id, and "note added" without saying on what is not activity
+     * anyone can read.
+     */
+    public function recentActivity(int $userId, int $companyId, CrmEventService $events, int $limit = 10): array
+    {
+        $paginated = $events->query([
+            'company_id' => $companyId,
+            'user_id' => $userId,
+            'per_page' => $limit,
+        ]);
+
+        $rows = collect($paginated->items())
+            ->map(fn (CrmEvent $event) => $event->toTimelineArray())
+            ->all();
+
+        $names = $this->activityRecordNames($rows);
+
+        return array_map(
+            fn (array $row) => $row + [
+                'record' => $names["{$row['model_type']}:{$row['model_id']}"] ?? null,
+            ],
+            $rows
+        );
+    }
+
+    /**
+     * "App\Models\Deal:12" => {type, id, name}, for the activity feed.
+     *
+     * Two lookups rather than a polymorphic eager-load, matching
+     * relatedRecords() — model_type/model_id is a plain pair on crm_events with
+     * no morph relation defined, and only Lead and Deal have a name worth
+     * showing on a personal feed.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, array{type: string, id: int, name: string}>
+     */
+    private function activityRecordNames(array $rows): array
+    {
+        $idsByType = [];
+
+        foreach ($rows as $row) {
+            if (in_array($row['model_type'], [Lead::class, Deal::class], true) && $row['model_id']) {
+                $idsByType[$row['model_type']][] = (int) $row['model_id'];
+            }
+        }
+
+        $out = [];
+
+        foreach ([Lead::class => 'client_name', Deal::class => 'name'] as $model => $column) {
+            $ids = array_unique($idsByType[$model] ?? []);
+
+            if (empty($ids)) {
+                continue;
+            }
+
+            foreach ($model::whereIn('id', $ids)->pluck($column, 'id') as $id => $name) {
+                $out["{$model}:{$id}"] = [
+                    'type' => $model === Lead::class ? 'lead' : 'deal',
+                    'id' => (int) $id,
+                    'name' => $name,
+                ];
+            }
+        }
+
+        return $out;
     }
 
     // ── Manager view ─────────────────────────────────────────────

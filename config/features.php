@@ -42,7 +42,9 @@ return [
         'crm.notification-bypass',
         'crm.user-timezone',
         'crm.mobile-responsive-layout',
+        'crm.personal-dashboard',
         'packages.online-payment',
+        'crm.deal-files-grouping',
     ],
 
     /*

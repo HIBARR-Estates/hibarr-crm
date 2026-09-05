@@ -175,4 +175,48 @@ class CrmEvent extends BaseModel
     {
         return $query->whereHas('eventType', fn ($q) => $q->where('slug', $slug));
     }
+
+    /**
+     * The JSON-serializable shape shared by every timeline/activity surface
+     * (CrmEventController's API responses, the personal dashboard's recent
+     * activity panel, …). Callers that also need `causation`/`effects` add
+     * those themselves — this only covers the fields every consumer wants.
+     *
+     * Expects `eventType.category` and `user` to already be eager-loaded;
+     * this does not load them itself, to keep list endpoints from N+1ing.
+     */
+    public function toTimelineArray(): array
+    {
+        return [
+            'uuid' => $this->uuid,
+            'event_type' => $this->eventType ? [
+                'slug' => $this->eventType->slug,
+                'name' => $this->eventType->name,
+                // Drives the "agent-logged vs system-recorded" distinction the
+                // timeline uses to decide what may be edited/deleted.
+                'is_system' => (bool) $this->eventType->is_system,
+                'category' => $this->eventType->category ? [
+                    'slug' => $this->eventType->category->slug,
+                    'name' => $this->eventType->category->name,
+                ] : null,
+            ] : null,
+            'generation_type' => $this->generation_type?->value ?? $this->generation_type,
+            'status' => $this->status?->value ?? $this->status,
+            'direction' => $this->direction?->value ?? $this->direction,
+            'user_id' => $this->user_id,
+            'user' => $this->relationLoaded('user') && $this->user ? [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+            ] : null,
+            'model_type' => $this->model_type,
+            'model_id' => $this->model_id,
+            'correlation_id' => $this->correlation_id,
+            'causation_id' => $this->causation_id,
+            'source' => $this->source?->value ?? $this->source,
+            'ip_address' => $this->ip_address,
+            'metadata' => $this->metadata,
+            'occurred_at' => $this->occurred_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
+        ];
+    }
 }

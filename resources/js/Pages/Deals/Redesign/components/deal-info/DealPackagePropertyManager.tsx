@@ -5,6 +5,10 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Deal } from "@/Types/api/deals";
 import { isDealValueLocked } from "@/lib/dealOutcome";
+import {
+    propertyDisplayLocation,
+    propertyDisplayName,
+} from "../../adapters/propertyDisplay";
 import DealBadge from "../primitives/DealBadge";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
@@ -232,7 +236,9 @@ export default function DealPackagePropertyManager({
                         emptyHint(
                             showPackageAdd
                                 ? t("pages.deals.info.pkgprop.pkg_empty_add")
-                                : t("pages.deals.info.pkgprop.pkg_empty_locked"),
+                                : t(
+                                      "pages.deals.info.pkgprop.pkg_empty_locked",
+                                  ),
                         )}
                     {packages.map((pkg) => (
                         <div
@@ -258,7 +264,10 @@ export default function DealPackagePropertyManager({
                                 {iconTile("briefcase")}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div
-                                        style={{ fontSize: 13, fontWeight: 600 }}
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                        }}
                                     >
                                         {td(pkg.name, { source: "en" })}
                                     </div>
@@ -357,19 +366,18 @@ export default function DealPackagePropertyManager({
                         )}
                     {products.map((product) => {
                         const prop = product.property;
-                        const title = prop?.title || product.name;
+                        const title = propertyDisplayName(prop, product.name);
+                        const location = propertyDisplayLocation(prop);
+                        const photo = prop?.photos?.[0] || null;
+                        const projectName =
+                            prop?.developer_project?.name?.trim() || null;
                         const statusKey = prop?.status
                             ? prop.status.toLowerCase().replace(/ /g, "_")
                             : "";
                         const specs = [
-                            prop?.price != null
-                                ? formatMoney(prop.price, symbol)
-                                : null,
                             prop?.bedrooms ? `${prop.bedrooms} bd` : null,
                             prop?.bathrooms ? `${prop.bathrooms} ba` : null,
-                            [prop?.area, prop?.city]
-                                .filter(Boolean)
-                                .join(", ") || null,
+                            prop?.land_size || null,
                         ]
                             .filter(Boolean)
                             .join(" · ");
@@ -385,8 +393,36 @@ export default function DealPackagePropertyManager({
                                     padding: "10px 12px",
                                 }}
                             >
-                                {iconTile("building")}
-                                <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+                                {/* The property photo when there is one - same
+                                    56px thumb the attach picker uses - with the
+                                    old icon tile as the fallback. */}
+                                {photo ? (
+                                    <img
+                                        src={photo}
+                                        alt=""
+                                        loading="lazy"
+                                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                                        style={{
+                                            border: `1px solid ${T.BORDER}`,
+                                            background: T.SURFACE_2,
+                                        }}
+                                    />
+                                ) : (
+                                    <div
+                                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg"
+                                        style={{
+                                            background: T.SURFACE_2,
+                                            border: `1px solid ${T.BORDER}`,
+                                        }}
+                                    >
+                                        <DealIcon
+                                            name="building"
+                                            size={18}
+                                            color={T.TEXT_HINT}
+                                        />
+                                    </div>
+                                )}
+                                <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                                     <div
                                         style={{
                                             display: "flex",
@@ -415,16 +451,66 @@ export default function DealPackagePropertyManager({
                                             </DealBadge>
                                         )}
                                     </div>
-                                    {specs && (
+
+                                    {/* Where it is - project and location say
+                                        far more about a unit than its code. */}
+                                    {(location || projectName) && (
                                         <div
+                                            className="mt-0.5 flex items-center gap-1.5"
                                             style={{
                                                 fontSize: 12,
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >
-                                            {specs}
+                                            <DealIcon
+                                                name="map-pin"
+                                                size={12}
+                                                color={T.TEXT_HINT}
+                                            />
+                                            <span className="truncate">
+                                                {[projectName, location]
+                                                    .filter(Boolean)
+                                                    .join(" · ")}
+                                            </span>
                                         </div>
                                     )}
+
+                                    <div
+                                        className="mt-0.5 flex flex-wrap items-center gap-x-2"
+                                        style={{ fontSize: 12 }}
+                                    >
+                                        {prop?.price != null && (
+                                            <span
+                                                style={{
+                                                    fontWeight: 600,
+                                                    color: T.BLUE,
+                                                }}
+                                            >
+                                                {formatMoney(
+                                                    prop.price,
+                                                    symbol,
+                                                )}
+                                            </span>
+                                        )}
+                                        {specs && (
+                                            <span
+                                                style={{ color: T.TEXT_MUTED }}
+                                            >
+                                                {specs}
+                                            </span>
+                                        )}
+                                        {/* The machine code stays available,
+                                            just demoted out of the name slot. */}
+                                        {prop?.title && (
+                                            <span
+                                                className="truncate"
+                                                style={{ color: T.TEXT_HINT }}
+                                                title={prop.title}
+                                            >
+                                                {prop.title}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 {prop && (
                                     <a
@@ -445,7 +531,9 @@ export default function DealPackagePropertyManager({
                                         size="sm"
                                         style={{ color: T.RED, flexShrink: 0 }}
                                         aria-label={`${t("pages.deals.info.pkgprop.remove")} ${title}`}
-                                        onClick={() => removeProperty(product.id)}
+                                        onClick={() =>
+                                            removeProperty(product.id)
+                                        }
                                     >
                                         {t("pages.deals.info.pkgprop.remove")}
                                     </DealButton>

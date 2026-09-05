@@ -17,8 +17,8 @@ interface Props {
     /** Pre-selected field (opened from a field row's "Edit visibility rule" link). Null = pick from the Visibility tab's "Add rule". */
     initialFieldId: number | null;
     onClose: () => void;
-    /** Called after a successful save so the caller can patch its local field list's show_rule_set. */
-    onSaved: (fieldId: number, ruleSet: ShowRuleSet) => void;
+    /** Called after a successful save with that field's full fresh snapshot, so the caller can replace its local copy wholesale. */
+    onSaved: (field: SettingsField) => void;
 }
 
 export default function VisibilityRuleModal({ open, availableFields, initialFieldId, onClose, onSaved }: Props) {
@@ -82,16 +82,22 @@ export default function VisibilityRuleModal({ open, availableFields, initialFiel
                 { rule_set: payload },
                 { headers: { Accept: "application/json" } },
             );
-            if (!res.data?.rule_set) {
+            if (!res.data?.field) {
                 throw new Error(res.data?.message || t("messages.somethingWentWrong"));
             }
-            onSaved(fieldId, res.data.rule_set as ShowRuleSet);
+            onSaved(res.data.field as SettingsField);
             onClose();
         } catch (error: any) {
-            // Single place this error is surfaced to the user — see the
-            // matching note in CustomFieldRuleBuilder's catch, which
-            // deliberately doesn't show a second, generic toast on top.
-            message.error(error?.response?.data?.message || error?.message || t("messages.somethingWentWrong"));
+            const errors = error?.response?.data?.errors;
+            const firstError = errors
+                ? Object.values(errors).flat().find((msg) => typeof msg === "string")
+                : undefined;
+            message.error(
+                (typeof firstError === "string" && firstError) ||
+                    error?.response?.data?.message ||
+                    error?.message ||
+                    t("messages.somethingWentWrong"),
+            );
             throw error;
         } finally {
             setSaving(false);

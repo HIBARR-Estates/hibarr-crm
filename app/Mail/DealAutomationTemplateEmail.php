@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\Notifications\MailDeliveryContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -22,15 +23,26 @@ class DealAutomationTemplateEmail extends Mailable
     public array $plunkVariables;
 
     /**
-     * @param  array<string, mixed>  $plunkVariables
+     * Origin of this email (automation/deal/lead ids + a correlation id),
+     * carried to UnsRoutingTransport so the delivery it performs can be
+     * attributed back to the automation run that asked for it.
+     *
+     * @var array<string, mixed>
      */
-    public function __construct(string $emailSubject, string $bodyHtml, ?string $preheader = null, ?string $plunkTemplateId = null, array $plunkVariables = [])
+    public array $deliveryContext;
+
+    /**
+     * @param  array<string, mixed>  $plunkVariables
+     * @param  array<string, mixed>  $deliveryContext
+     */
+    public function __construct(string $emailSubject, string $bodyHtml, ?string $preheader = null, ?string $plunkTemplateId = null, array $plunkVariables = [], array $deliveryContext = [])
     {
         $this->emailSubject = $emailSubject;
         $this->bodyHtml = $bodyHtml;
         $this->preheader = $preheader;
         $this->plunkTemplateId = $plunkTemplateId;
         $this->plunkVariables = $plunkVariables;
+        $this->deliveryContext = $deliveryContext;
     }
 
     public function build()
@@ -45,6 +57,14 @@ class DealAutomationTemplateEmail extends Mailable
                 'preheader' => $this->preheader,
                 'subject' => $this->emailSubject,
             ]);
+
+        if ($this->deliveryContext !== []) {
+            $context = $this->deliveryContext;
+
+            $mail->withSymfonyMessage(function (Email $message) use ($context): void {
+                MailDeliveryContext::attach($message, $context);
+            });
+        }
 
         // When a Plunk template is configured, route through the UNS/Plunk transport
         // (app/Services/Notifications/UnsRoutingTransport.php) via these headers — the

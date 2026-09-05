@@ -1742,6 +1742,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
+                        recordId={currentDeal.id}
                         title={td(category.name, { source: "en" })}
                         column={2}
                         visibleFieldKeys={resolvedDealFieldKeys}

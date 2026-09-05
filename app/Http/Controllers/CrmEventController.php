@@ -498,37 +498,7 @@ class CrmEventController extends Controller
      */
     protected function transformEvent(CrmEvent $event, bool $withRelations = false): array
     {
-        $data = [
-            'uuid' => $event->uuid,
-            'event_type' => $event->eventType ? [
-                'slug' => $event->eventType->slug,
-                'name' => $event->eventType->name,
-                // Drives the "agent-logged vs system-recorded" distinction the
-                // timeline uses to decide what may be edited/deleted.
-                'is_system' => (bool) $event->eventType->is_system,
-                'category' => $event->eventType->category ? [
-                    'slug' => $event->eventType->category->slug,
-                    'name' => $event->eventType->category->name,
-                ] : null,
-            ] : null,
-            'generation_type' => $event->generation_type?->value ?? $event->generation_type,
-            'status' => $event->status?->value ?? $event->status,
-            'direction' => $event->direction?->value ?? $event->direction,
-            'user_id' => $event->user_id,
-            'user' => $event->relationLoaded('user') && $event->user ? [
-                'id' => $event->user->id,
-                'name' => $event->user->name,
-            ] : null,
-            'model_type' => $event->model_type,
-            'model_id' => $event->model_id,
-            'correlation_id' => $event->correlation_id,
-            'causation_id' => $event->causation_id,
-            'source' => $event->source?->value ?? $event->source,
-            'ip_address' => $event->ip_address,
-            'metadata' => $event->metadata,
-            'occurred_at' => $event->occurred_at?->toIso8601String(),
-            'created_at' => $event->created_at?->toIso8601String(),
-        ];
+        $data = $event->toTimelineArray();
 
         if ($withRelations) {
             $data['causation'] = $event->relationLoaded('causation') && $event->causation

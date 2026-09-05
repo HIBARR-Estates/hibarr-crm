@@ -16,6 +16,10 @@ import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
 import {
+    ItineraryEmptyState,
+    ItineraryFilterEmptyState,
+} from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import {
     DEAL_REDESIGN_RADIUS as R,
     DEAL_REDESIGN_TOKENS as T,
     DEAL_REDESIGN_TYPE as TY,
@@ -226,7 +230,8 @@ export default function WorkspaceItineraryTab({
     const { deleteLeg, deletingId } = useDealItinerary(deal.id);
 
     const items = useMemo(
-        () => (deal.lead_flight_itineraries ?? []).map(toWorkspaceItineraryItem),
+        () =>
+            (deal.lead_flight_itineraries ?? []).map(toWorkspaceItineraryItem),
         [deal.lead_flight_itineraries],
     );
 
@@ -291,38 +296,45 @@ export default function WorkspaceItineraryTab({
         ] as const
     ).filter((section) => section.items.length > 0);
 
+    // With no flights at all there is nothing to filter — the toolbar stays
+    // hidden so the empty tab matches every other empty tab in the workspace.
+    const hasItems = items.length > 0;
+
     return (
         <div>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
-                <div
-                    className="flex flex-wrap gap-1"
-                    role="group"
-                    aria-label={t(
-                        "pages.deals.workspace.itinerary.filter_aria_label",
-                    )}
-                >
-                    {filterOptions.map((option) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className="dr-filter"
-                            aria-pressed={filter === option.id}
-                            onClick={() => setFilter(option.id)}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-                {canAdd && (
-                    <DealButton
-                        variant="primary"
-                        size="sm"
-                        onClick={openCreate}
+            {hasItems && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                    <div
+                        className="flex flex-wrap gap-1"
+                        role="group"
+                        aria-label={t(
+                            "pages.deals.workspace.itinerary.filter_aria_label",
+                        )}
                     >
-                        + {ft("add_flight")}
-                    </DealButton>
-                )}
-            </div>
+                        {filterOptions.map((option) => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                className="dr-filter"
+                                aria-pressed={filter === option.id}
+                                onClick={() => setFilter(option.id)}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                    {canAdd && (
+                        <DealButton
+                            variant="primary"
+                            size="sm"
+                            icon={<DealIcon name="plus" size={14} />}
+                            onClick={openCreate}
+                        >
+                            {ft("add_flight")}
+                        </DealButton>
+                    )}
+                </div>
+            )}
 
             {filtered.length > 0 && (
                 <div
@@ -336,24 +348,13 @@ export default function WorkspaceItineraryTab({
                 </div>
             )}
 
-            {filtered.length === 0 ? (
-                <div
-                    role="status"
-                    className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-                    style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
-                >
-                    <div
-                        className="mb-[3px] font-semibold"
-                        style={{ fontSize: TY.BODY, color: T.TEXT }}
-                    >
-                        {ft("empty")}
-                    </div>
-                    <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
-                        {t(
-                            t("pages.flight_itinerary.empty_hint"),
-                        )}
-                    </div>
-                </div>
+            {!hasItems ? (
+                <ItineraryEmptyState onAdd={canAdd ? openCreate : undefined} />
+            ) : filtered.length === 0 ? (
+                <ItineraryFilterEmptyState
+                    entity="deal"
+                    onShowAll={() => setFilter("all")}
+                />
             ) : (
                 sections.map((section) => {
                     const isPastSection = section.label === "Past";

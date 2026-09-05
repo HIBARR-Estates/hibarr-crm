@@ -586,6 +586,7 @@ return [
             'select_all' => 'Select all',
             'deselect_all' => 'Deselect all',
             'delete' => 'Delete',
+            'save' => 'Save',
             'save_changes' => 'Save changes',
             'edit' => 'Edit',
             'add' => 'Add',
@@ -1072,6 +1073,8 @@ return [
             'documents' => [
                 'section_title' => 'Document slots',
                 'section_hint' => 'Required documents for this deal — click to upload or replace.',
+                'personal_section_title' => 'Personal files',
+                'personal_section_hint' => 'These files belong to the lead. Click one to upload or replace it.',
                 'uploaded' => 'Uploaded',
                 'missing' => 'Missing',
                 'upload' => 'Upload',
@@ -1095,6 +1098,9 @@ return [
                 'uploaded_label' => 'Uploaded',
                 'download' => 'Download',
                 'delete_confirm_message' => 'Are you sure you want to delete this file?',
+                'rename' => 'Rename',
+                'rename_placeholder' => 'File label',
+                'replace' => 'Replace',
                 'messages' => [
                     'uploaded' => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
@@ -1102,6 +1108,10 @@ return [
                     'save_failed' => 'Failed to save uploaded files',
                     'deleted' => 'File deleted',
                     'delete_failed' => 'Could not delete file',
+                    'renamed' => 'File renamed',
+                    'rename_failed' => 'Could not rename file',
+                    'replaced' => 'File replaced',
+                    'replace_failed' => 'Could not replace file',
                 ],
             ],
             'offers' => [

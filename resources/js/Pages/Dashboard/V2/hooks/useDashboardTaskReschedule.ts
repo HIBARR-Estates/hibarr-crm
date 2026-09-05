@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { message } from "antd";
-import { router } from "@inertiajs/react";
 import axios from "axios";
 import { errorFormatter } from "@/lib/api/utils/common";
 
@@ -9,8 +8,15 @@ import { errorFormatter } from "@/lib/api/utils/common";
  *
  * Posts tasks.reschedule, which touches only due_date — see
  * TaskController@reschedule for why this is not tasks.update.
+ *
+ * `onError` is optional — a caller that already patched the task's due date
+ * optimistically (see the personal dashboard's queue) needs it to roll that
+ * back; a caller happy to wait for the request can leave it out.
  */
-export default function useDashboardTaskReschedule(onChanged: () => void) {
+export default function useDashboardTaskReschedule(
+    onChanged: () => void,
+    onError?: (taskId: number) => void,
+) {
     const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
 
     const markPending = (taskId: number, pending: boolean) => {
@@ -34,6 +40,7 @@ export default function useDashboardTaskReschedule(onChanged: () => void) {
         } catch (error) {
             const formatted = errorFormatter(error);
             message.error(formatted.message || "Could not move the due date");
+            onError?.(taskId);
         } finally {
             markPending(taskId, false);
         }
