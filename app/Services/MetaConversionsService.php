@@ -61,6 +61,16 @@ class MetaConversionsService
      * Never throws: a transport failure comes back as ['success' => false] with
      * the exception message in 'error'.
      *
+     * @param  string|null  $testEventCode  Meta's standard "Test Events" tool
+     *                                      code (Events Manager > Test Events,
+     *                                      looks like "TEST12345") — when set,
+     *                                      sent as a top-level `test_event_code`
+     *                                      alongside `data` so the event shows
+     *                                      up live in that tool instead of
+     *                                      going toward real ad reporting.
+     *                                      Only meant for manual verification
+     *                                      (the test-send flow); automation-
+     *                                      fired events never pass one.
      * @return array{
      *     success: bool,
      *     event_name: string,
@@ -76,7 +86,7 @@ class MetaConversionsService
      *     response_body: string|null
      * }
      */
-    public function send(string $eventName, float $value, Deal|Lead $subject): array
+    public function send(string $eventName, float $value, Deal|Lead $subject, ?string $testEventCode = null): array
     {
         $result = [
             'success' => false,
@@ -113,6 +123,10 @@ class MetaConversionsService
             // Prepare the event payload
             $payload = $this->buildPayload($eventName, $value, $subject);
             $result['event_id'] = $payload['data'][0]['event_id'] ?? null;
+
+            if ($testEventCode !== null && $testEventCode !== '') {
+                $payload['test_event_code'] = $testEventCode;
+            }
 
             // Construct API endpoint — the access token is sent as a query
             // param via Guzzle's own 'query' option (not string-built into
