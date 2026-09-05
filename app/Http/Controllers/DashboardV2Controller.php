@@ -117,11 +117,12 @@ class DashboardV2Controller extends AccountBaseController
 
         return Inertia::render('Dashboard/V2/PersonalDashboard', [
             'now' => now()->toIso8601String(),
-            // Only the team view is offered alongside My work. Company and
-            // Partner answer questions this page isn't asking, and a four-way
-            // switcher on a personal landing page buries the one view a
-            // manager actually crosses to.
-            'availableViews' => array_values(array_intersect($availableViews, ['manager'])),
+            // Only the two team-shaped views are offered alongside My work:
+            // Team (direct reports) and Downline (the whole sub-agent tree).
+            // Company and Partner answer questions this page isn't asking, and
+            // a five-way switcher on a personal landing page buries the views a
+            // manager actually crosses to. Order follows VIEWS.
+            'availableViews' => array_values(array_intersect($availableViews, ['manager', 'team'])),
             // Ships so the page's copy and the queries can't drift apart.
             'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
             'userName' => $user->name,

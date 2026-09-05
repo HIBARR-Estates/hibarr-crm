@@ -40,8 +40,23 @@ import type {
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-/** Only Team is offered next to My work — see the controller's own note. */
-type RoleView = "manager";
+/**
+ * Role views offered next to My work. Not all five — Company and Partner
+ * answer questions this page isn't asking, and a wide switcher on a personal
+ * landing page buries the ones a manager actually crosses to. The controller
+ * narrows availableViews to these two before it ships them.
+ */
+type RoleView = "manager" | "team";
+
+/**
+ * What each one is called here. "Team" is the flat direct-reports view;
+ * "Downline" walks the whole sub-agent tree — two different questions, so
+ * they get two different words.
+ */
+const ROLE_VIEW_LABELS: Record<RoleView, string> = {
+    manager: "Team",
+    team: "Downline",
+};
 
 export interface PersonalDashboardProps {
     now: string;
@@ -50,7 +65,7 @@ export interface PersonalDashboardProps {
     userId: number;
     /** DashboardMetricsService::PERSONAL_WINDOW_DAYS — how far ahead we look. */
     windowDays: number;
-    /** ["manager"] for a manager, empty for everyone else. */
+    /** Whichever of manager/team this account holds; empty for everyone else. */
     availableViews?: RoleView[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
@@ -323,29 +338,25 @@ export default function PersonalDashboard({
                                 flexWrap: "wrap",
                             }}
                         >
-                            {availableViews && availableViews.length > 0 && (
-                                <>
-                                    <SegmentedControl
-                                        label="Dashboard"
-                                        active="personal"
-                                        segments={[
-                                            {
-                                                value: "personal",
-                                                label: "My work",
-                                            },
-                                            {
-                                                value: "manager",
-                                                label: "Team",
-                                                // Deactivated for now.
-                                                disabled: true,
-                                            },
-                                        ]}
-                                        onSelect={(view) =>
-                                            view !== "personal" &&
-                                            go({ view })
-                                        }
-                                    />
-                                </>
+                            {/* Built from availableViews rather than a fixed
+                                list: the segments have to be the views this
+                                account actually holds, or the switcher offers
+                                a tab the server will refuse. */}
+                            {!!availableViews?.length && (
+                                <SegmentedControl
+                                    label="Dashboard"
+                                    active="personal"
+                                    segments={[
+                                        { value: "personal", label: "My work" },
+                                        ...availableViews.map((view) => ({
+                                            value: view,
+                                            label: ROLE_VIEW_LABELS[view],
+                                        })),
+                                    ]}
+                                    onSelect={(view) =>
+                                        view !== "personal" && go({ view })
+                                    }
+                                />
                             )}
                         </div>
                     </header>
