@@ -19,12 +19,21 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class DealContactApiController extends Controller
 {
+    /**
+     * How long an identical deal request is treated as a duplicate, in seconds.
+     *
+     * A caller that repeats the same payload inside this window gets a silent
+     * 200 with the contact id instead of a second round of deal processing.
+     */
+    private const DUPLICATE_REQUEST_WINDOW = 60;
+
     /**
      * Create a new controller instance.
      */
@@ -153,6 +162,8 @@ class DealContactApiController extends Controller
      */
     public function createDeal(CreateDealRequest $request)
     {
+        $duplicateKey = null;
+
         try {
             $companyId = $request->header('X-COMPANY-ID');
 
@@ -166,6 +177,36 @@ class DealContactApiController extends Controller
             }
 
             $companyId = (int) $companyId;
+
+            // Idempotency window. A caller repeating the same payload within
+            // DUPLICATE_REQUEST_WINDOW seconds is a duplicate: answer with the contact id
+            // and do no work, rather than re-running deal processing. This runs before any
+            // lead writes so a duplicate cannot mutate the lead or emit CRM events either.
+            //
+            // The fingerprint covers only the fields that decide what gets written
+            // (contact, deal name, owner, meeting, packages), so a genuinely different
+            // follow-up push - the one carrying the meeting, typically - is never blocked.
+            $duplicateKey = $this->duplicateRequestKey($request, $companyId);
+
+            if ($duplicateKey !== null && ! $this->reserveRequest($duplicateKey)) {
+                $duplicateContactId = $this->duplicateRequestContactId($duplicateKey, $request, $companyId);
+
+                Log::info('DealContactApiController: Duplicate deal request ignored', [
+                    'company_id' => $companyId,
+                    'contact_id' => $duplicateContactId,
+                    'email' => $request->input('email'),
+                    'window_seconds' => self::DUPLICATE_REQUEST_WINDOW,
+                ]);
+
+                // Fail silently: the caller gets a success shape and the contact id.
+                return response()->json([
+                    'status' => 'accepted',
+                    'duplicate' => true,
+                    'message' => 'Duplicate request ignored; an identical request was received in the last '.self::DUPLICATE_REQUEST_WINDOW.' seconds.',
+                    'contact_id' => $duplicateContactId,
+                    'company_id' => $companyId,
+                ], 200);
+            }
 
             // Resolve contact ID (this is fast and doesn't need to be queued)
             $contactId = $request->input('lead_id') ?? null;
@@ -181,6 +222,10 @@ class DealContactApiController extends Controller
                     $this->applyLeadCustomFields($existingLead, $request);
                 }
             }
+
+            // Park the resolved contact id on the reservation so a duplicate arriving
+            // later in the window can be answered with it.
+            $this->rememberRequestContactId($duplicateKey, (int) $contactId);
 
             // Save UTM information if provided (also fast)
             $this->saveUtmInfo($contactId, $request);
@@ -205,6 +250,10 @@ class DealContactApiController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            // This attempt did no usable work, so drop the reservation: the caller's
+            // retry must be processed rather than silently swallowed as a duplicate.
+            $this->releaseRequest($duplicateKey);
+
             Log::error('Failed to process deal creation request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -215,7 +264,159 @@ class DealContactApiController extends Controller
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
             return Reply::error('Failed to process deal creation request');
+        } catch (\Throwable $e) {
+            // A TypeError or other Error would otherwise leave the reservation in place
+            // for the full window, silently swallowing the caller's retry. Release it and
+            // let the error surface as before.
+            $this->releaseRequest($duplicateKey);
+
+            throw $e;
         }
+    }
+
+    /**
+     * Build the idempotency cache key for a deal request.
+     *
+     * The whole payload is fingerprinted, not just the deal-shaping fields. A push
+     * writes far more than the deal: resolveContact() persists phone, gender, address,
+     * date of birth, source and the lead's optional and custom fields, and saveUtmInfo()
+     * stores the UTM block. Fingerprinting a subset would make a follow-up that corrects
+     * any of those look identical to the first push and be silently dropped.
+     *
+     * Only a byte-identical repeat is a duplicate; anything the caller actually changed
+     * is a new request and goes through.
+     *
+     * @return string|null Null when the payload cannot be encoded to key against.
+     */
+    private function duplicateRequestKey(Request $request, int $companyId): ?string
+    {
+        $payload = $request->all();
+
+        // Never part of what gets persisted (mirrors config/api.php 'excludes').
+        unset($payload['_token']);
+
+        // Callers vary the casing of the contact's email; that is the same request.
+        if (isset($payload['email']) && is_string($payload['email'])) {
+            $payload['email'] = mb_strtolower(trim($payload['email']));
+        }
+
+        $this->ksortRecursive($payload);
+
+        $encoded = json_encode($payload);
+
+        if ($encoded === false) {
+            return null;
+        }
+
+        return 'deal_request:'.$companyId.':'.hash('sha256', $encoded);
+    }
+
+    /**
+     * Sort an array by key, recursively, so key order in the payload cannot change
+     * the fingerprint.
+     */
+    private function ksortRecursive(array &$data): void
+    {
+        ksort($data);
+
+        foreach ($data as &$value) {
+            if (is_array($value)) {
+                $this->ksortRecursive($value);
+            }
+        }
+    }
+
+    /**
+     * Atomically claim the idempotency window for this request.
+     *
+     * @return bool True when this request owns the window and should be processed.
+     */
+    private function reserveRequest(string $key): bool
+    {
+        try {
+            return Cache::add($key, true, self::DUPLICATE_REQUEST_WINDOW);
+        } catch (\Exception $e) {
+            // Fail open: a cache outage must not stop deals from being created.
+            Log::warning('DealContactApiController: Duplicate check unavailable, processing request', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return true;
+        }
+    }
+
+    /**
+     * Store the resolved contact id against the reservation, keeping the window open
+     * for the remainder of its duration.
+     */
+    private function rememberRequestContactId(?string $key, int $contactId): void
+    {
+        if ($key === null) {
+            return;
+        }
+
+        try {
+            Cache::put($key, $contactId, self::DUPLICATE_REQUEST_WINDOW);
+        } catch (\Exception $e) {
+            Log::warning('DealContactApiController: Failed to record duplicate-check contact id', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Release the idempotency window so a retry is not treated as a duplicate.
+     */
+    private function releaseRequest(?string $key): void
+    {
+        if ($key === null) {
+            return;
+        }
+
+        try {
+            Cache::forget($key);
+        } catch (\Exception $e) {
+            Log::warning('DealContactApiController: Failed to release duplicate-check key', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Resolve the contact id to hand back for a request rejected as a duplicate.
+     *
+     * Falls back to a read-only lookup when the original request is still in flight
+     * and has not recorded its contact id yet.
+     */
+    private function duplicateRequestContactId(string $key, Request $request, int $companyId): ?int
+    {
+        try {
+            $cached = Cache::get($key);
+        } catch (\Exception $e) {
+            $cached = null;
+        }
+
+        if (is_int($cached) && $cached > 0) {
+            return $cached;
+        }
+
+        $leadId = $request->input('lead_id');
+
+        if (is_numeric($leadId) && (int) $leadId > 0) {
+            return (int) $leadId;
+        }
+
+        $email = $request->input('email');
+
+        if (empty($email)) {
+            return null;
+        }
+
+        $existingId = Lead::where('company_id', $companyId)
+            ->where('client_email', $email)
+            ->value('id');
+
+        return $existingId !== null ? (int) $existingId : null;
     }
 
     /**
