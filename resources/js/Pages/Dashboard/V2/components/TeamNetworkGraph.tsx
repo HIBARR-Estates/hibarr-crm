@@ -7,7 +7,11 @@ import {
 } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { amount } from "../format";
-import type { TeamTree as TeamTreeData, TeamTreeNode } from "../types";
+import type {
+    TeamSummary,
+    TeamTree as TeamTreeData,
+    TeamTreeNode,
+} from "../types";
 
 /** Children shown before a branch collapses into a "+N more" pill. */
 const INITIAL_VISIBLE = 6;
@@ -33,6 +37,16 @@ interface RawShowLess {
 }
 
 type RawDatum = RawPerson | RawShowMore | RawShowLess;
+
+/**
+ * What clicking the graph hands back to the page.
+ *
+ * "You" carries no node of its own — the viewer isn't in the tree, by design
+ * — so there's nothing here for it beyond the discriminant. The page already
+ * holds the viewer's totals (teamSummary / teamForecast, the same numbers the
+ * tile row shows) and reads those directly when this kind comes back.
+ */
+export type GraphSelection = { kind: "you" } | { kind: "person"; node: TeamTreeNode };
 
 /**
  * Our own node shape, with react-d3-tree's `name` kept only because the
@@ -68,11 +82,21 @@ export default function TeamNetworkGraph({
     data,
     onSelect,
     height = 560,
+    networkSummary,
 }: {
     data: TeamTreeData;
-    /** Fired with the clicked person, or null when the "You" root is clicked. */
-    onSelect?: (node: TeamTreeNode | null) => void;
+    /** Fired with whatever was clicked — a person, or the viewer's own "You" card. */
+    onSelect?: (selection: GraphSelection) => void;
     height?: number;
+    /**
+     * The same totals the tile row shows, so the "You" card can carry real
+     * numbers instead of sitting empty. This is teamSummary, which resolves on
+     * its own defer group — it can still be undefined after the graph itself
+     * has mounted, so the card shows a placeholder until it lands. The fuller
+     * breakdown (including forecast) is read straight from the page's own
+     * props once "You" is clicked, not threaded through here.
+     */
+    networkSummary?: TeamSummary | null;
 }) {
     const { td } = useTd();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -209,13 +233,42 @@ export default function TeamNetworkGraph({
             const branchDiffers =
                 own && network && (own.paid !== network.paid || own.active_deals !== network.active_deals);
 
+            // "You" has no own/branch split — every figure on this card
+            // already is the whole network, the same totals the tile row
+            // shows. Each half can still be mid-flight on its own defer
+            // group, so a dash stands in until it lands.
+            const yourPaid =
+                networkSummary === undefined
+                    ? null
+                    : amount(networkSummary?.paid ?? 0, networkSummary?.currency ?? null);
+            const yourActiveDeals =
+                networkSummary === undefined ? null : (networkSummary?.active_deals ?? 0);
+
+            const handleClick = () => {
+                if (isYou) {
+                    onSelect?.({ kind: "you" });
+                } else if (node) {
+                    onSelect?.({ kind: "person", node });
+                }
+            };
+
+            // The "You" card carries an extra hint line the others don't, so it
+            // gets a little more room rather than crowding or clipping it.
+            const cardHeight = isYou ? 148 : 124;
+
             return (
                 <g>
-                    <foreignObject width={210} height={124} x={-105} y={-62} style={{ overflow: "visible" }}>
+                    <foreignObject
+                        width={210}
+                        height={cardHeight}
+                        x={-105}
+                        y={-(cardHeight / 2)}
+                        style={{ overflow: "visible" }}
+                    >
                         <div
                             className="dv2-tree-card"
                             data-you={isYou || undefined}
-                            onClick={() => onSelect?.(node ?? null)}
+                            onClick={handleClick}
                         >
                             <div className="dv2-tree-card-head">
                                 <Avatar
@@ -240,43 +293,74 @@ export default function TeamNetworkGraph({
                                 </div>
                             </div>
 
-                            {own && (
-                                <div className="dv2-tree-card-stats">
-                                    <div>
-                                        <div className="dv2-tree-card-stat-value">
-                                            {amount(own.paid, data.currency)}
+                            {isYou ? (
+                                <>
+                                    <div className="dv2-tree-card-stats">
+                                        <div>
+                                            <div className="dv2-tree-card-stat-value">
+                                                {yourPaid ?? "—"}
+                                            </div>
+                                            <div className="dv2-tree-card-stat-label">
+                                                {td("Network paid")}
+                                            </div>
                                         </div>
-                                        <div className="dv2-tree-card-stat-label">
-                                            {td("Paid")}
+                                        <div>
+                                            <div className="dv2-tree-card-stat-value">
+                                                {yourActiveDeals ?? "—"}
+                                            </div>
+                                            <div className="dv2-tree-card-stat-label">
+                                                {td("Active deals")}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <div className="dv2-tree-card-stat-value">
-                                            {own.active_deals}
-                                        </div>
-                                        <div className="dv2-tree-card-stat-label">
-                                            {td("Active deals")}
-                                        </div>
+                                    <div
+                                        className="dv2-tree-card-hint"
+                                        title={td(
+                                            "The same totals as the tile row above, for the whole network below you.",
+                                        )}
+                                    >
+                                        {td("Click for the full breakdown")}
                                     </div>
-                                    {branchDiffers && (
-                                        <div
-                                            className="dv2-tree-card-branch"
-                                            title={td(
-                                                "This person's own figures are above. This line adds everyone below them in the network.",
-                                            )}
-                                        >
-                                            {td("Branch")}: {network.active_deals}{" "}
-                                            {td("active deals")}
+                                </>
+                            ) : (
+                                own && (
+                                    <div className="dv2-tree-card-stats">
+                                        <div>
+                                            <div className="dv2-tree-card-stat-value">
+                                                {amount(own.paid, data.currency)}
+                                            </div>
+                                            <div className="dv2-tree-card-stat-label">
+                                                {td("Paid")}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                        <div>
+                                            <div className="dv2-tree-card-stat-value">
+                                                {own.active_deals}
+                                            </div>
+                                            <div className="dv2-tree-card-stat-label">
+                                                {td("Active deals")}
+                                            </div>
+                                        </div>
+                                        {branchDiffers && (
+                                            <div
+                                                className="dv2-tree-card-branch"
+                                                title={td(
+                                                    "This person's own figures are above. This line adds everyone below them in the network.",
+                                                )}
+                                            >
+                                                {td("Branch")}: {network.active_deals}{" "}
+                                                {td("active deals")}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
                             )}
                         </div>
                     </foreignObject>
                 </g>
             );
         },
-        [onSelect, toggle, td],
+        [onSelect, toggle, td, networkSummary],
     );
 
     if (!data.nodes.length) {

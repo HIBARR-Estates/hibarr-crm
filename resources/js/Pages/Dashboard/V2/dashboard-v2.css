@@ -336,6 +336,15 @@
     white-space: nowrap;
 }
 
+/* The "You" card's call-to-action line, under its stats rather than beside
+   them — it reads as a sentence, not a third stat column. */
+.dashboard-v2 .dv2-tree-card-hint {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #1a6bb5;
+    font-weight: 500;
+}
+
 /* "+N more" / "Show less" pills inside the graph. */
 .dashboard-v2 .dv2-tree-pill {
     width: 100%;

@@ -8,7 +8,9 @@ import DashboardPanel, {
 } from "../components/DashboardPanel";
 import StatTile from "../components/StatTile";
 import MultiStatTile, { SegmentSkeleton } from "../components/MultiStatTile";
-import TeamNetworkGraph from "../components/TeamNetworkGraph";
+import TeamNetworkGraph, {
+    type GraphSelection,
+} from "../components/TeamNetworkGraph";
 import CommissionTrendChart from "../components/CommissionTrendChart";
 import NetworkGrowthChart from "../components/NetworkGrowthChart";
 import RecentCommissionsList from "../components/RecentCommissionsList";
@@ -20,7 +22,6 @@ import type {
     TeamRecentCommission,
     TeamSummary,
     TeamTree as TeamTreeData,
-    TeamTreeNode,
 } from "../types";
 
 export interface TeamViewProps {
@@ -60,7 +61,7 @@ export default function TeamView({
     period = 30,
 }: TeamViewProps) {
     const { td } = useTd();
-    const [selected, setSelected] = useState<TeamTreeNode | null>(null);
+    const [selected, setSelected] = useState<GraphSelection | null>(null);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -158,9 +159,11 @@ export default function TeamView({
                         note="Every person below you, connected to who recruited them — drag to pan, scroll to zoom, click anyone to see their own numbers"
                         footer={
                             <NodeDetail
-                                node={selected}
+                                selection={selected}
                                 currency={teamTree?.currency ?? null}
                                 period={period}
+                                networkSummary={teamSummary}
+                                networkForecast={teamForecast}
                             />
                         }
                     >
@@ -176,6 +179,7 @@ export default function TeamView({
                                 <TeamNetworkGraph
                                     data={teamTree}
                                     onSelect={setSelected}
+                                    networkSummary={teamSummary}
                                 />
                             ) : (
                                 <span />
@@ -266,30 +270,123 @@ const tileGrid = {
 } as const;
 
 /**
- * The graph's footer: nobody's numbers until somebody is clicked, then that
- * person's own figure against their whole branch's — the same "own vs
- * network" reading the card itself only has room to hint at.
+ * The graph's footer: nobody's numbers until somebody is clicked.
+ *
+ * A person shows their own figure against their whole branch's — the same
+ * "own vs network" reading the card itself only has room to hint at. "You"
+ * has no own figure to show — every number here already covers the whole
+ * network — so it reads the same teamSummary / teamForecast the tile row
+ * does rather than anything carried on the graph's data.
  */
 function NodeDetail({
-    node,
+    selection,
     currency,
     period,
+    networkSummary,
+    networkForecast,
 }: {
-    node: TeamTreeNode | null;
+    selection: GraphSelection | null;
     currency: string | null;
     period: number;
+    networkSummary?: TeamSummary | null;
+    networkForecast?: TeamForecast | null;
 }) {
     const { td } = useTd();
 
-    if (!node) {
+    if (!selection) {
         return (
             <span style={{ color: T.TEXT_MUTED }}>
                 {td(
-                    "Click anyone in the network above to see their own numbers next to their whole branch's.",
+                    "Click anyone in the network above — including yourself at the top — to see their numbers.",
                 )}
             </span>
         );
     }
+
+    if (selection.kind === "you") {
+        return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+                <div style={{ fontWeight: 700, color: T.NAVY }}>
+                    {td("Your whole network")}
+                </div>
+                {networkSummary ? (
+                    <>
+                        <div
+                            style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                columnGap: 18,
+                                rowGap: 4,
+                            }}
+                        >
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Active deals")}:{" "}
+                                </span>
+                                <strong>{networkSummary.active_deals}</strong>
+                            </span>
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Won")}:{" "}
+                                </span>
+                                <strong>{networkSummary.deals_won}</strong>
+                            </span>
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Leads in play")}:{" "}
+                                </span>
+                                <strong>{networkSummary.leads_active}</strong>
+                            </span>
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Paid")}:{" "}
+                                </span>
+                                <strong>
+                                    {amount(networkSummary.paid, currency)}
+                                </strong>
+                            </span>
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Pending")}:{" "}
+                                </span>
+                                <strong>
+                                    {amount(networkSummary.pending, currency)}
+                                </strong>
+                            </span>
+                            <span>
+                                <span style={{ color: T.TEXT_HINT }}>
+                                    {td("Forecast")}:{" "}
+                                </span>
+                                <strong>
+                                    {networkForecast ? (
+                                        amount(
+                                            networkForecast.amount,
+                                            currency,
+                                        )
+                                    ) : (
+                                        <SegmentSkeleton />
+                                    )}
+                                </strong>
+                            </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                            {td(
+                                "The same totals as the tile row above — everyone below you, none of your own activity.",
+                            )}{" "}
+                            {td("Won and paid cover the last")} {period}{" "}
+                            {td("days")}.
+                        </div>
+                    </>
+                ) : (
+                    <span style={{ color: T.TEXT_MUTED }}>
+                        {td("Loading your network's totals…")}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    const { node } = selection;
 
     const rows: Array<[string, number | string, number | string]> = [
         [td("Active deals"), node.own.active_deals, node.network.active_deals],
