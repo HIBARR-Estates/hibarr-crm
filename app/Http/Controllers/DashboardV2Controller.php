@@ -89,6 +89,9 @@ class DashboardV2Controller extends AccountBaseController
             'personalDashboardEnabled' => $personalDashboardEnabled,
             'period' => $days,
             'now' => now()->toIso8601String(),
+            // Every view wears the same greeting header as the personal
+            // dashboard, so the name travels with the role views too.
+            'userName' => $user->name,
             ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $days),
         ]);
     }

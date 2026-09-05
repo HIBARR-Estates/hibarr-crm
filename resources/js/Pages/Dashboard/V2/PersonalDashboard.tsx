@@ -10,6 +10,8 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import type { Task } from "@/Types/api/tasks";
+import DashboardHeader from "./components/DashboardHeader";
+import { VIEW_LABELS, type ViewKey } from "./viewConfig";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
@@ -46,17 +48,7 @@ import "./dashboard-v2.css";
  * landing page buries the ones a manager actually crosses to. The controller
  * narrows availableViews to these two before it ships them.
  */
-type RoleView = "manager" | "team";
-
-/**
- * What each one is called here. "Team" is the flat direct-reports view;
- * "Downline" walks the whole sub-agent tree — two different questions, so
- * they get two different words.
- */
-const ROLE_VIEW_LABELS: Record<RoleView, string> = {
-    manager: "Team",
-    team: "Downline",
-};
+type RoleView = Extract<ViewKey, "manager" | "team">;
 
 export interface PersonalDashboardProps {
     now: string;
@@ -312,54 +304,40 @@ export default function PersonalDashboard({
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 18,
-                            flexWrap: "wrap",
-                            marginBottom: 16,
-                        }}
-                    >
-                        <StatusLine
-                            name={userName}
-                            now={now}
-                            queue={visibleQueue}
-                            agenda={agenda}
-                            pipelines={pipelines}
-                        />
-
-                        <div
-                            style={{
-                                marginLeft: "auto",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {/* Built from availableViews rather than a fixed
-                                list: the segments have to be the views this
-                                account actually holds, or the switcher offers
-                                a tab the server will refuse. */}
-                            {!!availableViews?.length && (
+                    <DashboardHeader
+                        userName={userName}
+                        now={now}
+                        subtext={
+                            <StatusLine
+                                now={now}
+                                queue={visibleQueue}
+                                agenda={agenda}
+                                pipelines={pipelines}
+                            />
+                        }
+                        actions={
+                            /* Built from availableViews rather than a fixed
+                               list: the segments have to be the views this
+                               account actually holds, or the switcher offers a
+                               tab the server will refuse. */
+                            !!availableViews?.length && (
                                 <SegmentedControl
                                     label="Dashboard"
                                     active="personal"
                                     segments={[
-                                        { value: "personal", label: "My work" },
+                                        { value: "personal", label: VIEW_LABELS.personal },
                                         ...availableViews.map((view) => ({
                                             value: view,
-                                            label: ROLE_VIEW_LABELS[view],
+                                            label: VIEW_LABELS[view],
                                         })),
                                     ]}
                                     onSelect={(view) =>
                                         view !== "personal" && go({ view })
                                     }
                                 />
-                            )}
-                        </div>
-                    </header>
+                            )
+                        }
+                    />
 
                     <div style={{ marginBottom: 20 }}>
                         <StatStrip

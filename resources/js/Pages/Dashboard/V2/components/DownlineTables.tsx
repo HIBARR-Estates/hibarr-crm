@@ -4,7 +4,7 @@ import {
     initialsFromName,
 } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { money } from "../personal/format";
+import { amount } from "../format";
 import type {
     DownlineAgentRow,
     DownlineAgents,
@@ -26,19 +26,6 @@ const AGENT_GRID = "minmax(220px, 1.6fr) .7fr .7fr .7fr 1fr 1fr 1fr";
 
 /** Indent per generation on the agent table, in pixels. */
 const INDENT = 14;
-
-/**
- * A commission amount as it should read on screen.
- *
- * Falls back to a bare number when the company has no default currency —
- * stamping a symbol we had to guess on a financial figure is worse than
- * showing none.
- */
-function amount(value: number, currency: string | null): string {
-    return currency
-        ? money(value, currency)
-        : Math.round(value).toLocaleString("en-US");
-}
 
 /**
  * Zero is greyed rather than hidden: on this table it means "measured, and it

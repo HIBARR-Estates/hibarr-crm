@@ -10,7 +10,7 @@ import {
     DownlineAgentTable,
     DownlineLevelTable,
 } from "../components/DownlineTables";
-import { money } from "../personal/format";
+import { amount } from "../format";
 import type {
     DownlineAgents,
     DownlineLevels,
@@ -45,9 +45,6 @@ export default function TeamView({
     period = 30,
     currentUserId,
 }: TeamViewProps) {
-    const amount = (value: number, currency: string | null) =>
-        currency ? money(value, currency) : Math.round(value).toLocaleString("en-US");
-
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Deferred

@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
-import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import DashboardHeader, {
+    HeaderSubtext,
+} from "./components/DashboardHeader";
+import SegmentedControl from "./personal/SegmentedControl";
+import {
+    PERIODS,
+    VIEW_LABELS,
+    VIEW_SUBTEXT,
+    WINDOWED,
+    type ViewKey,
+} from "./viewConfig";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import AgentView, { AgentViewProps } from "./views/AgentView";
 import ManagerView, { ManagerViewProps } from "./views/ManagerView";
@@ -13,29 +22,6 @@ import LeadershipView, { LeadershipViewProps } from "./views/LeadershipView";
 import PartnerView, { PartnerViewProps } from "./views/PartnerView";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
-
-type ViewKey = "agent" | "manager" | "team" | "leadership" | "partner";
-
-const VIEW_LABELS: Record<ViewKey, string> = {
-    agent: "My work",
-    manager: "Team",
-    // Not "Team": that is the manager view, one flat level of direct reports.
-    // This one walks the whole tree, which is what the business calls a
-    // downline.
-    team: "Downline",
-    leadership: "Company",
-    partner: "Partner",
-};
-
-/** Windows offered by the period picker. Must match the controller's whitelist. */
-const PERIODS = [
-    { days: 30, label: "Last 30 days" },
-    { days: 90, label: "Last 90 days" },
-    { days: 365, label: "Last 12 months" },
-];
-
-/** Views whose panels are windowed, and so get the period picker. */
-const WINDOWED: ViewKey[] = ["manager", "team"];
 
 /**
  * The deferred panel props all arrive as top-level page props, so the shell
@@ -46,6 +32,8 @@ type DashboardV2Props = {
     activeView: ViewKey;
     period: number;
     now: string;
+    /** Greeted in the shared header, same as on the personal dashboard. */
+    userName: string;
     personalDashboardEnabled?: boolean;
 } & AgentViewProps &
     ManagerViewProps &
@@ -63,7 +51,8 @@ type DashboardV2Props = {
  * compute panels nobody is looking at.
  */
 export default function DashboardV2(props: DashboardV2Props) {
-    const { availableViews, activeView, period, now, personalDashboardEnabled } = props;
+    const { availableViews, activeView, period, now, userName, personalDashboardEnabled } =
+        props;
     const { td } = useTd();
     const { auth } = usePage<PageProps>().props;
     const [addLeadOpen, setAddLeadOpen] = useState(false);
@@ -74,6 +63,19 @@ export default function DashboardV2(props: DashboardV2Props) {
             { preserveScroll: true },
         );
 
+    // Every destination this account can reach, in VIEWS order, with the
+    // personal dashboard first when it is on. Same control the personal
+    // dashboard renders, so the switcher doesn't change shape when you use it.
+    const switcher = [
+        ...(personalDashboardEnabled
+            ? [{ value: "personal" as const, label: "My work" }]
+            : []),
+        ...availableViews.map((view) => ({
+            value: view,
+            label: VIEW_LABELS[view],
+        })),
+    ];
+
     return (
         <DashboardLayout>
             <Head title={td("Dashboard")} />
@@ -83,102 +85,55 @@ export default function DashboardV2(props: DashboardV2Props) {
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            flexWrap: "wrap",
-                            marginBottom: 18,
-                        }}
-                    >
-                        {personalDashboardEnabled || availableViews.length > 1 ? (
-                            <nav className="dv2-tabs" aria-label={td("Dashboard")}>
-                                {personalDashboardEnabled && (
-                                    <button
-                                        type="button"
-                                        className="dv2-tab"
-                                        onClick={() => go({ view: "personal" })}
-                                    >
-                                        {td("My work")}
-                                    </button>
-                                )}
-                                {availableViews.map((view) => (
-                                    <button
-                                        key={view}
-                                        type="button"
-                                        className="dv2-tab"
-                                        aria-current={
-                                            view === activeView
-                                                ? "page"
-                                                : undefined
+                    <DashboardHeader
+                        userName={userName}
+                        now={now}
+                        subtext={
+                            <HeaderSubtext>
+                                {WINDOWED.includes(activeView)
+                                    ? `${VIEW_SUBTEXT[activeView]} Last ${period} days.`
+                                    : VIEW_SUBTEXT[activeView]}
+                            </HeaderSubtext>
+                        }
+                        actions={
+                            <>
+                                {/* One segment is not a switcher. With the
+                                    personal dashboard on there are always at
+                                    least two, so this only bites for an
+                                    account holding exactly one role view. */}
+                                {switcher.length > 1 && (
+                                    <SegmentedControl
+                                        label="Dashboard"
+                                        active={activeView}
+                                        segments={switcher}
+                                        onSelect={(view) =>
+                                            view !== activeView && go({ view })
                                         }
-                                        onClick={() => go({ view })}
+                                    />
+                                )}
+
+                                {WINDOWED.includes(activeView) && (
+                                    <select
+                                        className="dr-input"
+                                        aria-label={td("Period")}
+                                        value={period}
+                                        style={{ minHeight: 38, width: "auto" }}
+                                        onChange={(event) =>
+                                            go({ days: event.target.value })
+                                        }
                                     >
-                                        {td(VIEW_LABELS[view])}
-                                    </button>
-                                ))}
-                            </nav>
-                        ) : (
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    fontSize: 19,
-                                    fontWeight: 700,
-                                    color: T.NAVY,
-                                }}
-                            >
-                                {td(VIEW_LABELS[activeView])}
-                            </h1>
-                        )}
+                                        {PERIODS.map((option) => (
+                                            <option
+                                                key={option.days}
+                                                value={option.days}
+                                            >
+                                                {td(option.label)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
 
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {activeView === "partner" && (
-                                <span className="dr-pill dr-pill-blue">
-                                    {td("Your referrals only · no deal values")}
-                                </span>
-                            )}
-
-                            {WINDOWED.includes(activeView) && (
-                                <select
-                                    className="dr-input"
-                                    aria-label={td("Period")}
-                                    value={period}
-                                    style={{ minHeight: 38, width: "auto" }}
-                                    onChange={(event) =>
-                                        go({ days: event.target.value })
-                                    }
-                                >
-                                    {PERIODS.map((option) => (
-                                        <option
-                                            key={option.days}
-                                            value={option.days}
-                                        >
-                                            {td(option.label)}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-
-                            {activeView === "agent" && (
-                                <>
-                                    <span
-                                        style={{
-                                            fontSize: 12,
-                                            color: T.TEXT_HINT,
-                                            marginRight: 4,
-                                        }}
-                                    >
-                                        {dayjs(now).format("ddd D MMM · HH:mm")}
-                                    </span>
+                                {activeView === "agent" && (
                                     <button
                                         type="button"
                                         className="dr-btn dr-btn-primary"
@@ -186,10 +141,10 @@ export default function DashboardV2(props: DashboardV2Props) {
                                     >
                                         {td("Add lead")}
                                     </button>
-                                </>
-                            )}
-                        </div>
-                    </header>
+                                )}
+                            </>
+                        }
+                    />
 
                     {activeView === "agent" && <AgentView {...props} />}
                     {activeView === "manager" && (
