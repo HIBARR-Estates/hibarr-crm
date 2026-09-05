@@ -118,7 +118,7 @@ trait CustomFieldsTrait
                     \Log::warning('Failed to load custom field visibility rules in CustomFieldsTrait', [
                         'error' => $e->getMessage(),
                         'model' => $modelName,
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
                     ]);
 
                     // If tables don't exist yet, load without relationships
@@ -136,7 +136,7 @@ trait CustomFieldsTrait
 
     private static function customFieldGroupMemoKey(string $model, $companyId, bool $fields): string
     {
-        return 'custom-field-group.' . $model . '.' . ($companyId ?? 'none') . '.' . ($fields ? 'with-fields' : 'bare');
+        return 'custom-field-group.'.$model.'.'.($companyId ?? 'none').'.'.($fields ? 'with-fields' : 'bare');
     }
 
     /** Drop the memoised custom field values (call after writing them). */
@@ -178,27 +178,135 @@ trait CustomFieldsTrait
             return $this->customFieldValuesMemo;
         }
 
-        $modelId = $this->id;
         $modelName = $this->getModelName();
+        $batch = self::loadCustomFieldsDataBatch([$modelName => [$this->id]]);
 
-        // Get all custom fields for this model's group, LEFT join data so we have every field key (null when no data)
-        $data = DB::table('custom_fields')
+        return $this->customFieldValuesMemo = $batch[$modelName][$this->id] ?? collect();
+    }
+
+    /**
+     * Batch-read custom field values for many (model class, record id) pairs
+     * in one query — e.g. a deal and its lead, or one lead's whole list of
+     * deals — instead of one query per record. Same three tables as the
+     * single-record read above (custom_fields, custom_field_groups,
+     * custom_fields_data): the group filter widens from `=` to `whereIn`,
+     * and the data join widens to one OR'd branch per requested model class,
+     * each pairing that class's own record ids via `whereIn`. The caller
+     * resolves which lead belongs to which deal (or vice versa) from data it
+     * already has — this never joins the deals or leads tables itself.
+     *
+     * A record with no data at all still gets every field of its model's
+     * group back with a null value, matching getCustomFieldsData(): the
+     * per-model field roster is collected from every returned row (matched
+     * or not), then each requested id's map is filled from that roster,
+     * defaulting to null wherever no data row exists for that specific id.
+     *
+     * @param  array<class-string, array<int>>  $idsByModel  e.g. [Deal::class => [12], Lead::class => [7]]
+     * @return array<class-string, array<int, \Illuminate\Support\Collection>>
+     */
+    public static function loadCustomFieldsDataBatch(array $idsByModel): array
+    {
+        $idsByModel = collect($idsByModel)
+            ->map(fn ($ids) => array_values(array_unique(array_filter((array) $ids))))
+            ->filter(fn ($ids) => ! empty($ids))
+            ->all();
+
+        if (empty($idsByModel)) {
+            return [];
+        }
+
+        $rows = DB::table('custom_fields')
             ->join('custom_field_groups', 'custom_fields.custom_field_group_id', '=', 'custom_field_groups.id')
-            ->leftJoin('custom_fields_data', function ($query) use ($modelId, $modelName) {
-                $query->on('custom_fields_data.custom_field_id', '=', 'custom_fields.id')
-                    ->where('custom_fields_data.model', '=', $modelName)
-                    ->where('custom_fields_data.model_id', '=', $modelId);
+            ->leftJoin('custom_fields_data', function ($join) use ($idsByModel) {
+                $join->on('custom_fields_data.custom_field_id', '=', 'custom_fields.id')
+                    ->where(function ($query) use ($idsByModel) {
+                        foreach ($idsByModel as $modelName => $ids) {
+                            $query->orWhere(function ($branch) use ($modelName, $ids) {
+                                $branch->where('custom_fields_data.model', $modelName)
+                                    ->whereIn('custom_fields_data.model_id', $ids);
+                            });
+                        }
+                    });
             })
-            ->where('custom_field_groups.model', $modelName)
-            ->select('custom_fields.id', DB::raw('CONCAT("field_", custom_fields.id) as field_id'), 'custom_fields_data.value')
+            ->whereIn('custom_field_groups.model', array_keys($idsByModel))
+            ->select(
+                'custom_field_groups.model as group_model',
+                DB::raw('CONCAT("field_", custom_fields.id) as field_id'),
+                'custom_fields_data.model_id',
+                'custom_fields_data.value'
+            )
             ->get();
 
-        $data = collect($data);
+        $fieldsByModel = [];
+        $dataByModelRecord = [];
 
-        // Convert to ['field_{id}' => $value]; value is null when no custom_fields_data row exists
-        $result = $data->pluck('value', 'field_id');
+        foreach ($rows as $row) {
+            $fieldsByModel[$row->group_model][$row->field_id] = true;
 
-        return $this->customFieldValuesMemo = $result;
+            if ($row->model_id !== null) {
+                $dataByModelRecord[$row->group_model][$row->model_id][$row->field_id] = $row->value;
+            }
+        }
+
+        $result = [];
+
+        foreach ($idsByModel as $modelName => $ids) {
+            $fieldKeys = array_keys($fieldsByModel[$modelName] ?? []);
+
+            foreach ($ids as $id) {
+                $values = [];
+                foreach ($fieldKeys as $fieldKey) {
+                    $values[$fieldKey] = $dataByModelRecord[$modelName][$id][$fieldKey] ?? null;
+                }
+                $result[$modelName][$id] = collect($values);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Seed this instance's per-request custom field values cache. The public
+     * counterpart to the private $customFieldValuesMemo: a trait's private
+     * property is scoped per declaring class, so code holding a Deal cannot
+     * poke a Lead's private memo directly — only the Lead's own method can,
+     * which is what this is for.
+     *
+     * @param  \Illuminate\Support\Collection  $data
+     */
+    public function primeCustomFieldsDataMemo($data): void
+    {
+        $this->customFieldValuesMemo = $data;
+    }
+
+    /**
+     * Batch-load and prime the custom field value cache for a mixed list of
+     * model instances (deals, leads, or a mix) in one query. Call this once
+     * before the instances' own getCustomFieldsData() calls run, and those
+     * calls become cache hits instead of one query each.
+     *
+     * @param  array<\Illuminate\Database\Eloquent\Model>  $instances
+     */
+    public static function primeCustomFieldsDataBatch(array $instances): void
+    {
+        $instances = array_values(array_filter($instances));
+
+        if (empty($instances)) {
+            return;
+        }
+
+        $idsByModel = [];
+
+        foreach ($instances as $instance) {
+            $idsByModel[get_class($instance)][] = $instance->id;
+        }
+
+        $batch = self::loadCustomFieldsDataBatch($idsByModel);
+
+        foreach ($instances as $instance) {
+            $modelName = get_class($instance);
+            $instance->primeCustomFieldsDataMemo($batch[$modelName][$instance->id] ?? collect());
+        }
     }
 
     public function updateCustomFieldData($fields, $company_id = null)
@@ -206,22 +314,51 @@ trait CustomFieldsTrait
         $isDeal = $this instanceof Deal;
         $isLead = $this instanceof Lead;
         $tracksCustomFieldChanges = $isDeal || $isLead;
-        $beforeSnapshot = $tracksCustomFieldChanges ? $this->getCustomFieldsData()->toArray() : [];
+
+        // Always fetched now — Part A made this exactly one query regardless
+        // of field count, so there's no cost to computing it unconditionally.
+        // Used both for change-tracking below (Deal/Lead only, as before) and
+        // to decide insert-vs-update per field without a SELECT each (all
+        // models using this trait — see $hasExistingRow below).
+        $beforeSnapshot = $this->getCustomFieldsData()->toArray();
         $requestedFieldKeys = $this->collectCustomFieldKeysFromPayload($fields);
 
+        // Hoist the per-field CustomField::findOrFail() out of the loop —
+        // one whereIn instead of one query per field. Uses the loop's own
+        // lenient key parsing (extractCustomFieldIdFromKey()), not
+        // collectCustomFieldKeysFromPayload()'s stricter `field_\d+` pattern
+        // — those two disagree on odder key shapes (e.g. a prefixed key
+        // ending in a numeric segment), and this list must cover every id
+        // the loop below will actually try to process, or a legitimately
+        // valid field id would wrongly 404.
+        $fieldIds = [];
+        foreach (array_keys($fields) as $key) {
+            $id = $this->extractCustomFieldIdFromKey($key);
+            if ($id !== null) {
+                $fieldIds[] = $id;
+            }
+        }
+        $customFieldsById = CustomField::whereIn('id', array_unique($fieldIds))->get()->keyBy('id');
+
+        // Same for every iteration when $company_id is passed — was being
+        // re-fetched by Company::findOrFail() on every field.
+        $company = $company_id ? Company::findOrFail($company_id) : company();
+
         foreach ($fields as $key => $value) {
-            if (str_starts_with((string) $key, 'country_phonecode_') || str_starts_with((string) $key, 'country_identifier_')) {
+            $id = $this->extractCustomFieldIdFromKey($key);
+
+            if ($id === null) {
                 continue;
             }
 
-            $idarray = explode('_', $key);
-            $id = end($idarray);
+            $customField = $customFieldsById->get($id);
 
-            if (! is_numeric($id)) {
-                continue;
+            if (! $customField) {
+                // Preserve findOrFail()'s exact exception (id not found at all).
+                throw (new \Illuminate\Database\Eloquent\ModelNotFoundException)
+                    ->setModel(CustomField::class, [$id]);
             }
 
-            $customField = CustomField::findOrFail($id);
             $fieldType = $customField->type;
 
             // Currency amounts represent money and should never go negative.
@@ -242,13 +379,22 @@ trait CustomFieldsTrait
                 $value['max'] = max($min, $max);
             }
 
-            $existingEntry = DB::table('custom_fields_data')
-                ->where('model', $this->getModelName())
-                ->where('model_id', $this->id)
-                ->where('custom_field_id', $id)
-                ->first();
-
-            $company = $company_id ? Company::findOrFail($company_id) : company();
+            // The pre-write snapshot already carries this field's current
+            // value (or null if no row exists) for every field in this
+            // model's own group — reuse it instead of a SELECT per field.
+            // A field id outside this model's group (unvalidated pre-existing
+            // edge case — CustomField::findOrFail() never checked group
+            // membership either) won't be in the snapshot; fall back to a
+            // direct lookup only for that rare case.
+            $fieldKey = 'field_'.$id;
+            $existingValue = array_key_exists($fieldKey, $beforeSnapshot)
+                ? $beforeSnapshot[$fieldKey]
+                : DB::table('custom_fields_data')
+                    ->where('model', $this->getModelName())
+                    ->where('model_id', $this->id)
+                    ->where('custom_field_id', $id)
+                    ->value('value');
+            $hasExistingRow = $existingValue !== null;
 
             // Handle date fields - support both ISO format (Y-m-d) and company date format
             if ($fieldType == 'date' && ! empty($value)) {
@@ -268,22 +414,18 @@ trait CustomFieldsTrait
 
             // Handle file uploads - supports single file, array of files, or external URLs
             if ($fieldType == 'file') {
-                // Get existing files from database
-                $existingEntry = DB::table('custom_fields_data')
-                    ->where('model', $this->getModelName())
-                    ->where('model_id', $this->id)
-                    ->where('custom_field_id', $id)
-                    ->first();
-
+                // Existing files come from the snapshot fetched above — no
+                // extra query (this used to re-fetch the same row a second
+                // time, redundant with the generic lookup right before it).
                 $existingFiles = [];
-                if ($existingEntry && ! empty($existingEntry->value)) {
+                if (! empty($existingValue)) {
                     // Try to parse as JSON array first
-                    $decoded = json_decode($existingEntry->value, true);
+                    $decoded = json_decode($existingValue, true);
                     if (is_array($decoded)) {
                         $existingFiles = $decoded;
                     } else {
                         // Single file or comma-separated
-                        $existingFiles = array_filter(array_map('trim', explode(',', $existingEntry->value)));
+                        $existingFiles = array_filter(array_map('trim', explode(',', $existingValue)));
                     }
                 }
 
@@ -415,7 +557,7 @@ trait CustomFieldsTrait
 
             $stringValue = is_array($value) ? implode(', ', $value) : (string) ($value ?? '');
 
-            if ($existingEntry) {
+            if ($hasExistingRow) {
                 // Note: file deletion is handled above in the file type block.
                 // No need to delete here — the value is already resolved.
 
@@ -445,7 +587,8 @@ trait CustomFieldsTrait
             $customFieldChanges = $this->buildDealCustomFieldChangeEntries(
                 $beforeSnapshot,
                 $afterSnapshot,
-                $requestedFieldKeys
+                $requestedFieldKeys,
+                $customFieldsById
             );
 
             if (! empty($customFieldChanges)) {
@@ -456,24 +599,32 @@ trait CustomFieldsTrait
                     'field_keys' => array_column($customFieldChanges, 'custom_field_id'),
                 ]);
 
-                // CRM timeline event: Deal-only today (DealActivityEventService::
-                // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
-                // out of scope for wiring up the automation trigger below.
-                if ($isDeal) {
-                    app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
-                }
-
-                // Deal automation trigger 'custom_field_updated' — this is what
-                // actually makes an automation configured with that trigger fire.
-                // process() itself already skips locked deals; no need to
-                // duplicate that check here.
-                if (! isRunningInConsoleOrSeeding()) {
+                // Deferred to afterCommit: a caller (e.g. DealGatheringController::
+                // updateCustomFieldsBulk) may wrap a deal-branch and a lead-branch
+                // call to this method in one shared transaction — dispatching the
+                // activity event / automation here, mid-transaction, would let
+                // automation act on (and notify/webhook about) data that the
+                // other branch's later failure then rolls back.
+                DB::afterCommit(function () use ($isDeal, $customFieldChanges) {
+                    // CRM timeline event: Deal-only today (DealActivityEventService::
+                    // recordCustomFieldsUpdated() is Deal-typed) — not touched here,
+                    // out of scope for wiring up the automation trigger below.
                     if ($isDeal) {
-                        app(DealAutomationService::class)->process($this, 'custom_field_updated');
-                    } else {
-                        app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                        app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $customFieldChanges);
                     }
-                }
+
+                    // Deal automation trigger 'custom_field_updated' — this is what
+                    // actually makes an automation configured with that trigger fire.
+                    // process() itself already skips locked deals; no need to
+                    // duplicate that check here.
+                    if (! isRunningInConsoleOrSeeding()) {
+                        if ($isDeal) {
+                            app(DealAutomationService::class)->process($this, 'custom_field_updated');
+                        } else {
+                            app(DealAutomationService::class)->processLead($this, 'custom_field_updated');
+                        }
+                    }
+                });
             } else {
                 Log::debug('[CustomFieldsTrait] No custom field changes detected after save.', [
                     'model' => $isDeal ? 'deal' : 'lead',
@@ -516,14 +667,45 @@ trait CustomFieldsTrait
     }
 
     /**
+     * The lenient key parsing updateCustomFieldData()'s write loop uses: the
+     * numeric segment after the last underscore, skipping the phone
+     * country-code companion keys. Deliberately more permissive than
+     * resolveCustomFieldKey() above (which only accepts `field_\d+` or a
+     * bare digit string, for the change-tracking key list) — kept as one
+     * function so the loop and its pre-fetch of CustomField rows can never
+     * disagree about which keys are field ids.
+     */
+    private function extractCustomFieldIdFromKey($key): ?int
+    {
+        $key = (string) $key;
+
+        if (str_starts_with($key, 'country_phonecode_') || str_starts_with($key, 'country_identifier_')) {
+            return null;
+        }
+
+        $idarray = explode('_', $key);
+        $id = end($idarray);
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
+    /**
      * @param  array<string, mixed>  $before
      * @param  array<string, mixed>  $after
      * @param  array<int, string>  $fieldKeys
      * @return array<int, array{custom_field_id: int, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}>
      */
-    protected function buildDealCustomFieldChangeEntries(array $before, array $after, array $fieldKeys): array
+    /**
+     * @param  \Illuminate\Support\Collection<int, CustomField>|null  $customFieldsById  Pass the map already built for this write (updateCustomFieldData()'s hoisted whereIn) so each changed field's label/type doesn't need its own re-fetch here. Falls back to fetching it if not given.
+     */
+    protected function buildDealCustomFieldChangeEntries(array $before, array $after, array $fieldKeys, ?\Illuminate\Support\Collection $customFieldsById = null): array
     {
         $changes = [];
+
+        if ($customFieldsById === null) {
+            $fieldIds = array_map(fn ($key) => (int) substr($key, 6), $fieldKeys);
+            $customFieldsById = CustomField::whereIn('id', $fieldIds)->get()->keyBy('id');
+        }
 
         foreach ($fieldKeys as $fieldKey) {
             $oldVal = $before[$fieldKey] ?? null;
@@ -537,7 +719,7 @@ trait CustomFieldsTrait
             }
 
             $fieldId = (int) substr($fieldKey, 6);
-            $customField = CustomField::find($fieldId);
+            $customField = $customFieldsById->get($fieldId);
 
             $changes[] = [
                 'custom_field_id' => $fieldId,

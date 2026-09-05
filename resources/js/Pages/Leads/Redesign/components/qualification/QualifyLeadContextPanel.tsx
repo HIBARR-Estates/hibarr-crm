@@ -6,6 +6,7 @@ import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
 import { useFormData } from "@/Hooks/useFormData";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import AnalysisCustomFieldRow from "@/Pages/Deals/Redesign/components/analysis/AnalysisCustomFieldRow";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { initialsFromName } from "@/Pages/Deals/Redesign/adapters/initials";
@@ -210,8 +211,16 @@ export default function QualifyLeadContextPanel({
         [fields],
     );
     const visibilityMap = useMemo(
-        () => evaluateAllFieldsVisibility(regularCustomFields, customFieldsData),
-        [regularCustomFields, customFieldsData],
+        () =>
+            evaluateAllFieldsVisibility(
+                regularCustomFields,
+                buildFieldValueMap({
+                    customFieldsData,
+                    // A record-source rule ("show only for these leads") reads this.
+                    context: { recordId: record?.id },
+                }),
+            ),
+        [regularCustomFields, customFieldsData, record?.id],
     );
     const customFieldGroups = useMemo(() => {
         const visible = regularCustomFields.filter(

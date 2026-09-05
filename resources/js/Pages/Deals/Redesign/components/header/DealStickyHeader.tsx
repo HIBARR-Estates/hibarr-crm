@@ -333,9 +333,10 @@ export default function DealStickyHeader({
                         <DealAgentCard
                             dealId={deal.id}
                             agent={team.agent}
-                            canEdit={dealPermissions.canEdit}
-                            isWatcherOnly={dealPermissions.isWatcherOnly}
-                            onManageTeam={() => team.setTeamModalOpen(true)}
+                            canEdit={
+                                dealPermissions.canEdit &&
+                                !isDealValueLocked(deal)
+                            }
                         />
                     </div>
                 </div>
@@ -350,6 +351,9 @@ export default function DealStickyHeader({
                 watchers={team.watchers}
                 employees={employees ?? []}
                 canEdit={dealPermissions.canEdit}
+                canEditAgent={
+                    dealPermissions.canEdit && !isDealValueLocked(deal)
+                }
             />
 
             <DeleteDeal

@@ -178,91 +178,94 @@ export default function DealDocumentSlotRow({
 
     return (
         <div
-            className="flex min-w-0 items-center gap-2.5 border-b border-[#eef0f3] last:border-b-0"
+            className="flex flex-col border-b border-[#eef0f3] last:border-b-0"
             style={{ padding: "12px 2px" }}
         >
-            {fileInput}
+            <div className="flex min-w-0 items-center gap-2.5">
+                {fileInput}
 
-            {/* Uploaded + viewable → open file. Empty → click tile to upload. */}
-            {openHref ? (
-                <a
-                    href={openHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={t("pages.deals.workspace.documents.open")}
-                    className="flex min-w-0 flex-1 items-center gap-2.5 no-underline"
-                >
-                    <DealIcon name="file-text" size={17} color={T.GREEN} />
-                    <span className="min-w-0 flex-1">
-                        <span
-                            className="flex items-center gap-1.5 truncate"
-                            style={{ fontSize: 14, color: T.BLUE }}
-                        >
-                            <span className="truncate">{td(doc.label, { source: "en" })}</span>
-                            <DealIcon name="external-link" size={13} />
+                {/* Uploaded + viewable → open file. Empty → click tile to upload. */}
+                {openHref ? (
+                    <a
+                        href={openHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={t("pages.deals.workspace.documents.open")}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 no-underline"
+                    >
+                        <DealIcon name="file-text" size={17} color={T.GREEN} />
+                        <span className="min-w-0 flex-1">
+                            <span
+                                className="flex items-center gap-1.5 truncate"
+                                style={{ fontSize: 14, color: T.BLUE }}
+                            >
+                                <span className="truncate">{td(doc.label, { source: "en" })}</span>
+                                <DealIcon name="external-link" size={13} />
+                            </span>
+                            <span
+                                className="block truncate"
+                                style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                            >
+                                {clickHint}
+                            </span>
                         </span>
-                        <span
-                            className="block truncate"
-                            style={{ fontSize: 11, color: T.TEXT_MUTED }}
-                        >
-                            {clickHint}
+                    </a>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={!canUpload}
+                        onClick={() => inputRef.current?.click()}
+                        title={`${doc.label} — ${statusLabel}`}
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-none bg-transparent p-0 text-left"
+                        style={{ cursor: canUpload ? "pointer" : "default" }}
+                    >
+                        <DealIcon name="file-text" size={17} color={T.TEXT_MUTED} />
+                        <span className="min-w-0 flex-1">
+                            <span
+                                className="block truncate"
+                                style={{ fontSize: 14, color: T.TEXT }}
+                            >
+                                {td(doc.label, { source: "en" })}
+                            </span>
+                            <span
+                                className="block truncate"
+                                style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                            >
+                                {clickHint}
+                            </span>
                         </span>
-                    </span>
-                </a>
-            ) : (
-                <button
-                    type="button"
-                    disabled={!canUpload}
-                    onClick={() => inputRef.current?.click()}
-                    title={`${doc.label} — ${statusLabel}`}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-none bg-transparent p-0 text-left"
-                    style={{ cursor: canUpload ? "pointer" : "default" }}
-                >
-                    <DealIcon name="file-text" size={17} color={T.TEXT_MUTED} />
-                    <span className="min-w-0 flex-1">
-                        <span
-                            className="block truncate"
-                            style={{ fontSize: 14, color: T.TEXT }}
-                        >
-                            {td(doc.label, { source: "en" })}
-                        </span>
-                        <span
-                            className="block truncate"
-                            style={{ fontSize: 11, color: T.TEXT_MUTED }}
-                        >
-                            {clickHint}
-                        </span>
-                    </span>
-                </button>
-            )}
+                    </button>
+                )}
 
-            <span
-                className={`dr-pill ${uploading ? "dr-pill-blue" : doc.uploaded ? "dr-pill-green" : "dr-pill-gray"}`}
-                style={{ flexShrink: 0 }}
-            >
-                {pillLabel}
-            </span>
+                <span
+                    className={`dr-pill ${uploading ? "dr-pill-blue" : doc.uploaded ? "dr-pill-green" : "dr-pill-gray"}`}
+                    style={{ flexShrink: 0 }}
+                >
+                    {pillLabel}
+                </span>
 
-            {canUpload && (
-                <button
-                    type="button"
-                    onClick={() => inputRef.current?.click()}
-                    className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold"
-                    style={{ fontSize: 13, color: T.BLUE }}
-                >
-                    {statusLabel}
-                </button>
-            )}
-            {doc.uploaded && canDelete && (
-                <button
-                    type="button"
-                    onClick={() => setConfirmingDelete(true)}
-                    className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold"
-                    style={{ fontSize: 13, color: T.RED }}
-                >
-                    {t("pages.deals.common.delete")}
-                </button>
-            )}
+                {canUpload && (
+                    <button
+                        type="button"
+                        onClick={() => inputRef.current?.click()}
+                        className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold"
+                        style={{ fontSize: 13, color: T.BLUE }}
+                    >
+                        {statusLabel}
+                    </button>
+                )}
+                {doc.uploaded && canDelete && (
+                    <button
+                        type="button"
+                        onClick={() => setConfirmingDelete(true)}
+                        className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold"
+                        style={{ fontSize: 13, color: T.RED }}
+                    >
+                        {t("pages.deals.common.delete")}
+                    </button>
+                )}
+            </div>
+
             {confirmDialog}
         </div>
     );

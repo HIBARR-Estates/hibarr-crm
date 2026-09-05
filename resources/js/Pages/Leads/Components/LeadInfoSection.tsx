@@ -1617,6 +1617,7 @@ const ageRangeOptions = useMemo(
                             currentLeadState.custom_fields_data || {}
                         }
                         categoryId={category.id}
+                        recordId={currentLeadState.id}
                         title={category.name}
                         column={2}
                         onUpdate={(field, value) =>

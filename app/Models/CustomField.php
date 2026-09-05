@@ -55,6 +55,8 @@ class CustomField extends BaseModel
 
     protected $casts = [
         'display_config' => 'array',
+        'show_in_lead' => 'boolean',
+        'show_in_deal' => 'boolean',
     ];
 
     public function customFieldCategory(): BelongsTo
@@ -255,6 +257,51 @@ class CustomField extends BaseModel
         }
 
         return $customFieldNames;
+    }
+
+    /**
+     * Plain-array shape consumed by the React custom-fields settings page —
+     * decodes `values`, normalizes the string/enum flags to real booleans,
+     * and flattens the module/category names so the client never has to
+     * join them itself. Shared by the settings index page and the
+     * store/update responses so both stay in sync.
+     */
+    public function toAdminArray(): array
+    {
+        $values = $this->values;
+        if (in_array($this->type, ['select', 'radio', 'checkbox', 'multiselect'], true)) {
+            $decoded = is_string($values) ? json_decode($values, true) : $values;
+            $values = is_array($decoded) ? $decoded : [];
+        } elseif ($this->type === 'repeatable') {
+            $decoded = is_string($values) ? json_decode($values, true) : $values;
+            $values = is_array($decoded) ? $decoded : [];
+        } else {
+            $values = [];
+        }
+
+        $group = $this->relationLoaded('fieldGroup') ? $this->fieldGroup : $this->fieldGroup()->first(['id', 'name']);
+        $category = $this->relationLoaded('customFieldCategory') ? $this->customFieldCategory : null;
+
+        return [
+            'id' => $this->id,
+            'custom_field_group_id' => $this->custom_field_group_id,
+            'module' => $group?->name,
+            'label' => $this->label,
+            'name' => $this->name,
+            'type' => $this->type,
+            'values' => $values,
+            'required' => $this->required,
+            'export' => (bool) $this->export,
+            'visible' => $this->visible === 'true',
+            'custom_field_category_id' => $this->custom_field_category_id,
+            'category_name' => $category?->name,
+            'display_order' => (int) $this->display_order,
+            'linked_field_id' => $this->linked_field_id,
+            'display_config' => $this->display_config,
+            'show_in_lead' => (bool) ($this->show_in_lead ?? false),
+            'show_in_deal' => (bool) ($this->show_in_deal ?? true),
+            'show_rule_set' => $this->relationLoaded('showRuleSet') ? $this->showRuleSet : null,
+        ];
     }
 
     public static function generateUniqueSlug($label, $moduleId)

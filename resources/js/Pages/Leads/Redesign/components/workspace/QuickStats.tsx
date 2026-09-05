@@ -31,7 +31,6 @@ interface QuickStatsProps {
     onCreateDeal?: () => void;
     onOpenMeeting?: (meeting: DealFollowup) => void;
     onOpenTask?: (task: Task) => void;
-    onOpenDeal?: (deal: Deal) => void;
     onViewAllDeals?: () => void;
 }
 
@@ -87,10 +86,7 @@ function resolveTaskStatus(
     return { label, color };
 }
 
-function formatDealValue(
-    deal: Deal,
-    companyCurrency: CurrencyDisplay,
-): string {
+function formatDealValue(deal: Deal, companyCurrency: CurrencyDisplay): string {
     const value = deal.value ?? deal.calculated_value ?? deal.manual_value;
     if (value == null) return "—";
     return formatMoneyAmount(
@@ -114,26 +110,53 @@ function StatAction({
     onClick,
     variant = "primary",
     icon,
+    href,
 }: {
     label: string;
     onClick?: () => void;
     variant?: "primary" | "secondary";
     icon?: "plus" | "chevron-right" | "external-link";
+    /** Renders a real link opening in a new tab instead of a button. */
+    href?: string;
 }) {
-    return (
-        <button
-            type="button"
-            className={`v2-quick-stat-cta v2-quick-stat-cta-${variant}`}
-            onClick={(event) => {
-                event.stopPropagation();
-                onClick?.();
-            }}
-        >
+    const content = (
+        <>
             {icon === "plus" ? <Icon name="plus" size={11} /> : null}
             <span>{label}</span>
             {icon === "chevron-right" || icon === "external-link" ? (
                 <Icon name={icon} size={11} />
             ) : null}
+        </>
+    );
+    const className = `v2-quick-stat-cta v2-quick-stat-cta-${variant}`;
+
+    // A real anchor, so the browser's own affordances work: new tab on
+    // ctrl/cmd- or middle-click, "Open link in new tab" in the context menu,
+    // and a copyable URL.
+    if (href) {
+        return (
+            <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={className}
+                onClick={(event) => event.stopPropagation()}
+            >
+                {content}
+            </a>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            className={className}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClick?.();
+            }}
+        >
+            {content}
         </button>
     );
 }
@@ -168,13 +191,7 @@ function StatBodySkeleton({
     );
 }
 
-function StagePill({
-    name,
-    color,
-}: {
-    name: string;
-    color?: string | null;
-}) {
+function StagePill({ name, color }: { name: string; color?: string | null }) {
     const accent = color?.trim() || "#1a6bb5";
     return (
         <span
@@ -191,13 +208,7 @@ function StagePill({
 }
 
 /** Read-only status chip — same visual language as TaskStatusDropdownPill. */
-function TaskStatusPill({
-    label,
-    color,
-}: {
-    label: string;
-    color: string;
-}) {
+function TaskStatusPill({ label, color }: { label: string; color: string }) {
     const accent = color?.trim() || "#999999";
     const hex = accent.startsWith("#") ? accent : `#${accent}`;
     return (
@@ -234,7 +245,6 @@ export default function QuickStats({
     onCreateDeal,
     onOpenMeeting,
     onOpenTask,
-    onOpenDeal,
     onViewAllDeals,
 }: QuickStatsProps) {
     const { td } = useTd();
@@ -288,7 +298,9 @@ export default function QuickStats({
                     </>
                 ) : (
                     <>
-                        <span className="v2-quick-stat-muted">{td("None", { source: "en" })}</span>
+                        <span className="v2-quick-stat-muted">
+                            {td("None", { source: "en" })}
+                        </span>
                         <div className="v2-quick-stat-actions">
                             <StatAction
                                 label={td("Schedule meeting", { source: "en" })}
@@ -317,7 +329,9 @@ export default function QuickStats({
                             <span className="v2-quick-stat-chips">
                                 {taskStatus ? (
                                     <TaskStatusPill
-                                        label={td(taskStatus.label, { source: "en" })}
+                                        label={td(taskStatus.label, {
+                                            source: "en",
+                                        })}
                                         color={taskStatus.color}
                                     />
                                 ) : null}
@@ -348,7 +362,9 @@ export default function QuickStats({
                     </>
                 ) : (
                     <>
-                        <span className="v2-quick-stat-muted">{td("None", { source: "en" })}</span>
+                        <span className="v2-quick-stat-muted">
+                            {td("None", { source: "en" })}
+                        </span>
                         <div className="v2-quick-stat-actions">
                             <StatAction
                                 label={td("Create task", { source: "en" })}
@@ -394,7 +410,7 @@ export default function QuickStats({
                                 label={td("Open deal", { source: "en" })}
                                 icon="external-link"
                                 variant="primary"
-                                onClick={() => onOpenDeal?.(primaryDeal)}
+                                href={route("deals.show", primaryDeal.id)}
                             />
                             {dealsCount > 1 ? (
                                 <StatAction

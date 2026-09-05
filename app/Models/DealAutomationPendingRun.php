@@ -19,8 +19,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $subject_id
  * @property string|null $trigger
  * @property int|null $resume_action_id The action to resume at when this run
- *   was queued mid-sequence by a "wait" step, rather than the automation's
- *   own pre-actions wait — null means start from the first action.
+ *                                      was queued mid-sequence by a "wait" step, rather than the automation's
+ *                                      own pre-actions wait — null means start from the first action.
+ * @property string|null $run_id The execution this row resumes, so steps that
+ *                               ran before the wait and steps that run after it share one run in the log.
+ *                               Null for a pre-actions wait, which starts a fresh run when it executes.
  * @property \Illuminate\Support\Carbon $run_at
  */
 class DealAutomationPendingRun extends BaseModel
@@ -36,6 +39,7 @@ class DealAutomationPendingRun extends BaseModel
         'subject_id',
         'trigger',
         'resume_action_id',
+        'run_id',
         'run_at',
     ];
 

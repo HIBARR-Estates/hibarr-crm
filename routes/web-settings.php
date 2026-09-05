@@ -12,6 +12,7 @@ use App\Http\Controllers\CrmEventSettingController;
 use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\CustomFieldCategoryController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomFieldSettingsController;
 use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\CustomModuleController;
 use App\Http\Controllers\DatabaseBackupSettingController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\MessageSettingController;
 use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
 use App\Http\Controllers\NotificationSettingController;
+use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PackageSettingsController;
@@ -45,7 +47,6 @@ use App\Http\Controllers\ProfileSettingController;
 use App\Http\Controllers\ProjectSettingController;
 use App\Http\Controllers\PusherSettingsController;
 use App\Http\Controllers\PushNotificationController;
-use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
@@ -225,9 +226,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     // LeaveType Resource
     Route::resource('leaveType', LeaveTypeController::class);
 
-    // Custom Fields Settings (fields-by-group before resource so it is not matched as {id})
+    // Custom Fields Settings (React/Inertia page; fields-by-group before the
+    // resource so it is not matched as {id})
+    Route::get('custom-fields-settings', [CustomFieldSettingsController::class, 'index'])->name('custom-fields-settings.index');
     Route::get('custom-fields/fields-by-group', [CustomFieldController::class, 'fieldsByGroup'])->name('custom-fields.fields-by-group');
+    Route::get('custom-fields/pipeline-options', [CustomFieldController::class, 'pipelineOptions'])->name('custom-fields.pipeline-options');
     Route::resource('custom-fields', CustomFieldController::class);
+    Route::get('custom-fields/{id}/record-options', [CustomFieldController::class, 'recordOptions'])->name('custom-fields.record-options');
     Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');
     Route::post('custom-fields/{id}/rule-set', [CustomFieldController::class, 'saveRuleSet'])->name('custom-fields.save-rule-set');
     Route::post('custom-fields/evaluate-visibility', [CustomFieldController::class, 'evaluateVisibility'])->name('custom-fields.evaluate-visibility');

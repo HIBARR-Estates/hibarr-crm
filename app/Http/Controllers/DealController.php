@@ -532,10 +532,16 @@ class DealController extends AccountBaseController
             'products' => function ($query) {
                 $query->select('products.id', 'products.name')
                     ->with(['property' => function ($pq) {
-                        $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
+                        // `project_location_id` is selected so the appended
+                        // `effective_location` accessor can resolve; the two
+                        // location relations are eager-loaded so it does not
+                        // lazy-load one query per attached property.
+                        $pq->select('id', 'product_id', 'developer_project_id', 'project_location_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
                         $pq->with(['developerProject' => function ($dpq) {
-                            $dpq->select('id', 'name', 'availability_link');
+                            $dpq->select('id', 'name', 'availability_link', 'project_location_id')
+                                ->with(['location:id,name,city,area']);
                         }]);
+                        $pq->with(['projectLocation:id,name,city,area']);
                     }]);
             },
             'packages:id,name,value',
@@ -564,13 +570,21 @@ class DealController extends AccountBaseController
         // Inertia response that reads none of it: 18 queries for 15 properties
         // referenced zero times.
 
+        // One query for the deal's and its lead's custom field values instead
+        // of two (CustomFieldsTrait::loadCustomFieldsDataBatch()) — primes
+        // both instances' caches before the reads below run.
+        Deal::primeCustomFieldsDataBatch([$deal, $deal->contact]);
+
         // Load custom fields data
         $deal = $deal->withCustomFields();
 
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
 
-        // Lead custom fields — computed eagerly so the analysis modal has them on first open
+        // Lead custom fields — computed eagerly so the analysis modal has them on first open.
+        // A lead-owned FILE field's value is stored directly on the lead (shared
+        // across every deal on that lead), so the lead's own getCustomFieldsData()
+        // already has it — no per-deal lookup needed.
         if ($deal->contact) {
             $deal->contact->withCustomFields();
             $leadCustomFieldsData = $deal->contact->getCustomFieldsData()->toArray();
@@ -1442,6 +1456,37 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * Replaces a deal's linked products and reports what actually changed.
+     *
+     * The read, the sync and the diff all happen inside one transaction, under
+     * an exclusive lock on the deal row, so a concurrent writer can neither
+     * interleave between the read and the sync nor leave the caller describing
+     * a change that did not survive. The returned sets are the *committed*
+     * before/after difference, which is what the activity events and property
+     * link/unlink notifications are driven from — diffs computed earlier in the
+     * request (the commission guard's) are a pre-flight check and can be stale
+     * by the time the write lands.
+     *
+     * @param  array  $requestedProductIds  The full product list the deal should end up with.
+     * @return array{0: array, 1: array} [$linkedProductIds, $unlinkedProductIds]
+     */
+    private function syncDealProducts(Deal $deal, array $requestedProductIds): array
+    {
+        return DB::transaction(function () use ($deal, $requestedProductIds) {
+            // Serializes against any other writer taking this same row lock.
+            Deal::whereKey($deal->id)->lockForUpdate()->first();
+
+            $committedOldIds = $deal->products()->pluck('products.id')->toArray();
+            $deal->products()->sync($requestedProductIds);
+
+            return [
+                array_values(array_diff($requestedProductIds, $committedOldIds)),
+                array_values(array_diff($committedOldIds, $requestedProductIds)),
+            ];
+        });
+    }
+
+    /**
      * @param  int  $id
      * @return array|void
      *
@@ -1543,19 +1588,42 @@ class DealController extends AccountBaseController
         $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
-        $newProductIds = array_diff($request->product_id ?? $oldProductIds, $oldProductIds);
-        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? $oldProductIds);
+        // Normalize product_id once, here, and reuse it for both diffs and for
+        // the sync() further down. A single-select posts a scalar ("7" rather
+        // than ["7"]), so wrap it — the same shape normalizePackageIds() gives
+        // packages, and what the create path at the top of this controller
+        // already does. Collapsing a scalar to [] instead would both reach
+        // array_diff() as a scalar (a TypeError) and, once guarded, silently
+        // read as "unlink every product" for a request that asked to link one.
+        // Present-but-empty (null / "") still legitimately means "clear all";
+        // absent still means "unchanged", so the commission guard and the
+        // write below can't disagree.
+        $rawProductIds = $request->product_id;
+        $requestedProductIds = match (true) {
+            is_array($rawProductIds) => $rawProductIds,
+            $rawProductIds === null, $rawProductIds === '' => [],
+            default => [$rawProductIds],
+        };
+        $comparableProductIds = $request->has('product_id') ? $requestedProductIds : $oldProductIds;
+        $newProductIds = array_diff($comparableProductIds, $oldProductIds);
+        $removedProductIds = array_diff($oldProductIds, $comparableProductIds);
 
         if ($deal->isCommissionLocked() && (
-            $deal->isDirty(['manual_value', 'value', 'value_source'])
+            $deal->isDirty(['manual_value', 'value', 'value_source', 'agent_id'])
             || ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
             || ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds)))
         )) {
+            $lockMessage = $deal->isDirty('agent_id') && ! $deal->isDirty(['manual_value', 'value', 'value_source'])
+                && ! ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
+                && ! ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds)))
+                ? __('messages.dealAgentLockedByCommission')
+                : __('messages.dealValueLockedByCommission');
+
             if ($request->header('X-Inertia')) {
-                return redirect()->back()->with('error', __('messages.dealValueLockedByCommission'));
+                return redirect()->back()->with('error', $lockMessage);
             }
 
-            return Reply::error(__('messages.dealValueLockedByCommission'));
+            return Reply::error($lockMessage);
         }
 
         $deal->save();
@@ -1624,27 +1692,39 @@ class DealController extends AccountBaseController
         }
 
         // Commission-lock guard for product changes already ran above, before
-        // any of this method's writes. Recomputed here against the same
-        // pre-existing semantics as before this change (an absent product_id
-        // diffs against [], not against $oldProductIds) — notification logic
-        // only, sync is still gated on $request->has('product_id') below.
-        $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
-        $removedProductIds = array_diff($oldProductIds, $request->product_id ?? []);
+        // any of this method's writes.
 
         // Same as packages above: only sync products when the field is present.
+        // $requestedProductIds was normalized up front (see the commission
+        // guard) so the guard and this write agree on the same value. A request
+        // that omits product_id sends no sync at all, rather than reading as
+        // "every existing product was removed" and firing notifyPropertyUnlinked
+        // for all of them.
+        //
+        // The read-diff-sync cycle runs under an exclusive lock on the deal row,
+        // inside one transaction. The up-front diffs above are a pre-flight
+        // check computed before any write; by the time we get here another
+        // request may have changed the deal's products, so they are not safe to
+        // report as what actually happened. Re-reading inside the lock gives the
+        // committed before/after sets — the events and notifications below are
+        // driven by those, so two concurrent updates can't each announce having
+        // linked a product when only one of them survived the race.
+        $linkedProductIds = [];
+        $unlinkedProductIds = [];
+
         if ($request->has('product_id')) {
-            $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
+            [$linkedProductIds, $unlinkedProductIds] = $this->syncDealProducts($deal, $requestedProductIds);
         }
 
-        if (! empty($newProductIds) || ! empty($removedProductIds)) {
+        if (! empty($linkedProductIds) || ! empty($unlinkedProductIds)) {
             $dealActivityEventService = app(\App\Services\DealActivityEventService::class);
             $notificationService = app(\App\Services\DealNotificationService::class);
             $changedProducts = Product::with('property')
-                ->whereIn('id', array_merge($newProductIds, $removedProductIds))
+                ->whereIn('id', array_merge($linkedProductIds, $unlinkedProductIds))
                 ->get()
                 ->keyBy('id');
 
-            foreach ($newProductIds as $productId) {
+            foreach ($linkedProductIds as $productId) {
                 $productModel = $changedProducts->get($productId);
                 if (! $productModel) {
                     continue;
@@ -1661,7 +1741,7 @@ class DealController extends AccountBaseController
                 }
             }
 
-            foreach ($removedProductIds as $productId) {
+            foreach ($unlinkedProductIds as $productId) {
                 $productModel = $changedProducts->get($productId);
                 if ($productModel?->property) {
                     $notificationService->notifyPropertyUnlinked(
@@ -1673,8 +1753,11 @@ class DealController extends AccountBaseController
             }
         }
 
-        // Auto-apply offers based on product properties
-        app(DealOfferService::class)->applyOffersToDeal($deal);
+        // Auto-apply offers based on product properties. Skip when commission
+        // is already calculated — apply rebuilds applications from scratch.
+        if (! $deal->isCommissionLocked()) {
+            app(DealOfferService::class)->applyOffersToDeal($deal);
+        }
 
         // Recompute the canonical value now that products/packages may have changed —
         // unlike patch(), update() previously only ever set $deal->value from an explicit
@@ -1873,13 +1956,24 @@ class DealController extends AccountBaseController
         $validatedData = $request->validated();
 
         // A commission was already calculated against this deal's value — a
-        // narrower block than isLocked() above: everything else about the
-        // deal (stage, agent, notes) stays editable, only what feeds the
-        // value is refused.
+        // narrower block than isLocked() above: stage and notes stay editable,
+        // but value-feeding fields and the agent (payout already ran against
+        // them) are refused.
         if ($deal->isCommissionLocked() && Deal::touchesValueFields($validatedData)) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealValueLockedByCommission'),
+            ], 403);
+        }
+
+        if (
+            $deal->isCommissionLocked()
+            && Deal::touchesAgentField($validatedData)
+            && $deal->agentWouldChange($validatedData['agent_id'] ?? null)
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealAgentLockedByCommission'),
             ], 403);
         }
 
@@ -2028,7 +2122,9 @@ class DealController extends AccountBaseController
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
                 $deal->products()->sync($validatedData['products']);
                 $productsUpdated = true;
-                app(DealOfferService::class)->applyOffersToDeal($deal);
+                if (! $deal->isCommissionLocked()) {
+                    app(DealOfferService::class)->applyOffersToDeal($deal);
+                }
             }
 
             // Any value-affecting key means calculated_value (and therefore
@@ -2193,6 +2289,10 @@ class DealController extends AccountBaseController
 
         if ($deal->isLocked()) {
             return Reply::error(__('messages.dealLocked'));
+        }
+
+        if ($deal->isCommissionLocked()) {
+            return Reply::error(__('messages.dealAgentLockedByCommission'));
         }
 
         $this->editPermission = user()->permission('edit_deals');
@@ -2499,7 +2599,7 @@ class DealController extends AccountBaseController
         }
 
         foreach ($deals as $deal) {
-            if ((bool) $deal->is_locked) {
+            if ((bool) $deal->is_locked || $deal->isCommissionLocked()) {
                 continue;
             }
 

@@ -24,7 +24,7 @@
             <label class="f-12 text-dark-grey mb-1">CRM Field</label>
             <select name="variable_mappings[{{ $index }}][field]" class="form-control height-35 f-14">
                 <option value="">-- Select CRM Field --</option>
-                @include('company-settings.deal-automation._field-options', ['selectedField' => $mapping['field'] ?? ''])
+                @include('company-settings.deal-automation._field-options', ['selectedField' => $mapping['field'] ?? '', 'outbound' => true])
             </select>
         </div>
         <div class="col-md-6 variable-mapping-cta-container" style="{{ ($mapping['type'] ?? '') != 'cta_url' ? 'display:none;' : '' }}">
