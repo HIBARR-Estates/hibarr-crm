@@ -15,7 +15,10 @@ import {
     BellOutlined,
     NotificationOutlined,
     ThunderboltOutlined,
+    TagsOutlined,
+    DollarOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
 import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
@@ -30,15 +33,18 @@ interface EntitySettingCard {
     onOpen?: () => void;
 }
 
-export default function SettingsIndex({
-    pageTitle,
-}: {
-    pageTitle: string;
-}) {
+export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { permissions } = usePermission();
     const canManageNotifications = isPermissionAll(
         permissions.manage_notification_setting,
+    );
+    const canManageCustomFields = isPermissionAll(
+        permissions.manage_custom_field_setting,
+    );
+    const canManageCompanySettings = isPermissionAll(
+        permissions.manage_company_setting,
     );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
     const pageProps = usePage().props as {
@@ -82,15 +88,25 @@ export default function SettingsIndex({
             connected: true,
             onOpen: () => router.visit(route("analysis-script-builder.show")),
         },
-        {
-            key: "meetings",
-            icon: <CalendarIcon />,
-            iconBg: "bg-amber-50",
-            iconColor: "text-amber-500",
-            title: t("app.menu.meetings"),
-            description: t("app.settingsHub.meetingsDesc"),
-            connected: false,
-        },
+        ...(canManageCompanySettings
+            ? [
+                  {
+                      key: "meetings",
+                      icon: <CalendarIcon />,
+                      iconBg: "bg-amber-50",
+                      iconColor: "text-amber-500",
+                      title: t("app.menu.meetings"),
+                      description: t("app.settingsHub.meetingsDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(
+                              route(
+                                  "meeting-attendance-confirmation-settings.index",
+                              ),
+                          ),
+                  },
+              ]
+            : []),
         {
             key: "tasks",
             icon: <CheckSquareIcon />,
@@ -101,6 +117,24 @@ export default function SettingsIndex({
             connected: true,
             onOpen: () => setTaskCategoriesOpen(true),
         },
+        ...(canManageCustomFields
+            ? [
+                  {
+                      key: "custom-fields",
+                      icon: <TagsOutlined />,
+                      iconBg: "bg-teal-50",
+                      iconColor: "text-teal-600",
+                      title: t("app.menu.customFields"),
+                      description: td(
+                          "Define extra fields per record type, group them into categories, and control when they appear.",
+                          { source: "en" },
+                      ),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("custom-fields-settings.index")),
+                  },
+              ]
+            : []),
         {
             key: "notes",
             icon: <FileTextOutlined />,
@@ -136,6 +170,21 @@ export default function SettingsIndex({
                   },
               ]
             : []),
+        ...(canManageCompanySettings
+            ? [
+                  {
+                      key: "packages",
+                      icon: <DollarOutlined />,
+                      iconBg: "bg-emerald-50",
+                      iconColor: "text-emerald-500",
+                      title: t("app.menu.packages"),
+                      description: t("app.settingsHub.packagesDesc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("package-settings.index")),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -145,10 +194,10 @@ export default function SettingsIndex({
         >
             <div className="max-w-screen-2xl mx-auto w-full">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cards.map((card) => (
-                    <div
-                        key={card.key}
-                        className={`
+                    {cards.map((card) => (
+                        <div
+                            key={card.key}
+                            className={`
                             rounded-xl border bg-white p-5 flex flex-col gap-3 transition-shadow
                             ${
                                 card.connected
@@ -156,68 +205,72 @@ export default function SettingsIndex({
                                     : "border-gray-100"
                             }
                         `}
-                        onClick={card.onOpen}
-                        role={card.onOpen ? "button" : undefined}
-                        tabIndex={card.onOpen ? 0 : undefined}
-                        onKeyDown={
-                            card.onOpen
-                                ? (e) => {
-                                      // Ignore keydowns bubbling up from a nested
-                                      // control (e.g. the Manage button) — only
-                                      // react when the card itself has focus, or
-                                      // Enter/Space on Manage double-fires onOpen.
-                                      if (e.target !== e.currentTarget) return;
-                                      if (e.key === "Enter" || e.key === " ") {
-                                          e.preventDefault();
-                                          card.onOpen?.();
+                            onClick={card.onOpen}
+                            role={card.onOpen ? "button" : undefined}
+                            tabIndex={card.onOpen ? 0 : undefined}
+                            onKeyDown={
+                                card.onOpen
+                                    ? (e) => {
+                                          // Ignore keydowns bubbling up from a nested
+                                          // control (e.g. the Manage button) — only
+                                          // react when the card itself has focus, or
+                                          // Enter/Space on Manage double-fires onOpen.
+                                          if (e.target !== e.currentTarget)
+                                              return;
+                                          if (
+                                              e.key === "Enter" ||
+                                              e.key === " "
+                                          ) {
+                                              e.preventDefault();
+                                              card.onOpen?.();
+                                          }
                                       }
-                                  }
-                                : undefined
-                        }
-                    >
-                        <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${card.iconBg} ${card.iconColor}`}
+                                    : undefined
+                            }
                         >
-                            {card.icon}
-                        </div>
-                        <div>
-                            <div className="text-sm font-semibold text-gray-800">
-                                {card.title}
+                            <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${card.iconBg} ${card.iconColor}`}
+                            >
+                                {card.icon}
                             </div>
-                            <div className="text-xs text-gray-400 mt-1 leading-relaxed">
-                                {card.description}
+                            <div>
+                                <div className="text-sm font-semibold text-gray-800">
+                                    {card.title}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1 leading-relaxed">
+                                    {card.description}
+                                </div>
                             </div>
-                        </div>
 
-                        <div
-                            className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {card.connected ? (
-                                <button
-                                    type="button"
-                                    className="text-xs font-medium text-[#1890ff] hover:underline"
-                                    onClick={card.onOpen}
-                                >
-                                    {t("app.settingsHub.manage")}
-                                </button>
-                            ) : (
-                                <>
-                                    <span className="text-xs text-gray-300">
-                                        {t("app.settingsHub.comingSoon")}
-                                    </span>
-                                    <Tooltip
-                                        title={t(
-                                            "app.settingsHub.comingSoon",
-                                        )}
+                            <div
+                                className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {card.connected ? (
+                                    <button
+                                        type="button"
+                                        className="text-xs font-medium text-[#1890ff] hover:underline"
+                                        onClick={card.onOpen}
                                     >
-                                        <Switch size="small" disabled />
-                                    </Tooltip>
-                                </>
-                            )}
+                                        {t("app.settingsHub.manage")}
+                                    </button>
+                                ) : (
+                                    <>
+                                        <span className="text-xs text-gray-300">
+                                            {t("app.settingsHub.comingSoon")}
+                                        </span>
+                                        <Tooltip
+                                            title={t(
+                                                "app.settingsHub.comingSoon",
+                                            )}
+                                        >
+                                            <Switch size="small" disabled />
+                                        </Tooltip>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
                 </div>
             </div>
 
@@ -228,7 +281,10 @@ export default function SettingsIndex({
                 width={560}
                 destroyOnClose
                 maskClosable={false}
-                styles={{ content: { boxShadow: "none" }, wrapper: { boxShadow: "none" } }}
+                styles={{
+                    content: { boxShadow: "none" },
+                    wrapper: { boxShadow: "none" },
+                }}
             >
                 <TaskCategoryManager />
             </Drawer>

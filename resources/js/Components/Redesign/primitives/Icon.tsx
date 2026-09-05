@@ -140,6 +140,22 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     check: <polyline points="20 6 9 17 4 12" />,
+    search: (
+        <>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </>
+    ),
+    "grip-vertical": (
+        <>
+            <circle cx="9" cy="5" r="1" />
+            <circle cx="9" cy="12" r="1" />
+            <circle cx="9" cy="19" r="1" />
+            <circle cx="15" cy="5" r="1" />
+            <circle cx="15" cy="12" r="1" />
+            <circle cx="15" cy="19" r="1" />
+        </>
+    ),
     ban: (
         <>
             <circle cx="12" cy="12" r="10" />
@@ -217,6 +233,13 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
         </>
     ),
+    download: (
+        <>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+        </>
+    ),
     layers: (
         <>
             <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -252,9 +275,7 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <rect x="3" y="14" width="7" height="7" />
         </>
     ),
-    zap: (
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    ),
+    zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
     bell: (
         <>
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -264,9 +285,7 @@ const ICON_PATHS: Record<string, ReactNode> = {
     message: (
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     ),
-    filter: (
-        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-    ),
+    filter: <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />,
     lock: (
         <>
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

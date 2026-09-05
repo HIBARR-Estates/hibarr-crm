@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Tooltip } from "antd";
 import { Deal } from "@/Types/api/deals";
 import useTranslation from "@/Hooks/useTranslation";
+import { isDealValueLocked } from "@/lib/dealOutcome";
+import {
+    useCompanyCurrency,
+    type CurrencyDisplay,
+} from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import DealIcon from "./DealIcon";
+import DealButton from "./DealButton";
+import DealValueEditorModal from "./DealValueEditorModal";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
-import useDealValueUpdate from "../../hooks/useDealValueUpdate";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface DealValueBlockProps {
@@ -12,27 +19,17 @@ interface DealValueBlockProps {
     canEdit: boolean;
 }
 
-function formatMoney(amount: number | null | undefined, symbol: string) {
-    if (amount == null) return "—";
-    return `${symbol}${Number(amount).toLocaleString()}`;
-}
-
 /** Ported from v2.2's ValueBlock (deal-v2-2.jsx:1195-1261). */
 export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
-    const [manualDraft, setManualDraft] = useState<string>(
-        deal.value_breakdown?.manual_value != null
-            ? String(deal.value_breakdown.manual_value)
-            : "",
-    );
+    const [editorOpen, setEditorOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const floatStyle = useFloatingMenuPosition(open, triggerRef, {
         align: "right",
         maxHeight: 420,
     });
-    const { update, isUpdating } = useDealValueUpdate(deal, canEdit);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -53,26 +50,135 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
         };
     }, [open]);
 
-    const symbol = deal.currency?.currency_symbol ?? "";
     const breakdown = deal.value_breakdown;
+    const companyFallback = useCompanyCurrency();
+
+    // deals.currency_id is null on most rows, so the deal's own currency
+    // relation is routinely absent — the symbol has to fall back to the
+    // company's or every figure renders as a bare number.
+    const companyCurrency: CurrencyDisplay = {
+        code: breakdown?.currency.company_code || companyFallback.code,
+        symbol:
+            breakdown?.currency.company_symbol ||
+            companyFallback.symbol ||
+            companyFallback.code,
+    };
+    const dealCurrency: CurrencyDisplay = {
+        code: breakdown?.currency.deal_code || companyCurrency.code,
+        symbol: breakdown?.currency.deal_symbol || companyCurrency.symbol,
+    };
+
+    /**
+     * Always two decimals. Money columns that mix "£470,000" with "£5,428.88"
+     * stop lining up on the decimal point, which is exactly where the eye
+     * checks whether a column adds up.
+     */
+    const money = (amount: number | null | undefined, currency = dealCurrency) => {
+        if (amount == null) return "—";
+        const prefix = currency.symbol || currency.code || "";
+        return `${prefix}${Number(amount).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
+    };
+
     const valueSource = breakdown?.value_source ?? "manual";
     const finalValue = breakdown?.final_value ?? deal.value ?? null;
+    const valueLocked = isDealValueLocked(deal);
+    const isConverted = !!breakdown?.currency.is_converted;
+    const rate = breakdown?.currency.exchange_rate ?? 1;
 
-    const line = (label: string, val: string, strong?: boolean) => (
+    // The headline figure is always company currency — that is the number the
+    // business is actually measured in, and the only one comparable across deals.
+    const headlineValue = isConverted
+        ? (breakdown?.final_value_company ?? finalValue)
+        : finalValue;
+
+    const line = (
+        label: ReactNode,
+        val: string,
+        strong?: boolean,
+        /**
+         * The viewer's own row among several. A tinted pill that owns its
+         * padding, rather than a background bleeding to the panel edges — the
+         * latter reads as a stray selection highlight.
+         */
+        mine?: boolean,
+        key?: string,
+    ) => (
         <div
+            key={key}
             style={{
                 display: "flex",
                 justifyContent: "space-between",
                 gap: 12,
-                padding: "5px 0",
-                fontSize: 12,
+                padding: mine ? "6px 8px" : "5px 0",
+                margin: mine ? "1px -8px" : undefined,
+                borderRadius: mine ? 6 : undefined,
+                background: mine ? T.NAVY_SOFT : undefined,
+                fontSize: 13,
             }}
         >
-            <span style={{ color: T.TEXT_MUTED }}>{label}</span>
-            <span style={{ fontWeight: strong ? 700 : 500, color: T.TEXT }}>
+            <span style={{ color: mine ? T.TEXT : T.TEXT_MUTED, minWidth: 0 }}>
+                {label}
+            </span>
+            <span
+                style={{
+                    fontWeight: strong || mine ? 700 : 500,
+                    color: T.TEXT,
+                    whiteSpace: "nowrap",
+                    fontVariantNumeric: "tabular-nums",
+                }}
+            >
                 {val}
             </span>
         </div>
+    );
+
+    /**
+     * Names the kind of arithmetic that follows. The panel stacks three
+     * unrelated calculations — what the deal is worth, that figure in another
+     * currency, and how commission divides it — which spacing alone did not
+     * distinguish.
+     */
+    const section = (label: string, children: ReactNode) => (
+        <div style={{ marginTop: 12 }}>
+            <div
+                style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: T.TEXT_HINT,
+                    letterSpacing: 0.2,
+                    marginBottom: 2,
+                }}
+            >
+                {label}
+            </div>
+            {children}
+        </div>
+    );
+
+    /** Readable role for a leg, in place of the raw engine leg type. */
+    const roleLabel = (leg: { type: string; is_you: boolean }) => {
+        if (leg.is_you) return t("pages.deals.info.value_insight.role_you");
+        if (leg.type === "upline") return t("pages.deals.info.value_insight.role_upline");
+        return t("pages.deals.info.value_insight.role_agent");
+    };
+
+    /** Name in full weight, role and rate trailing it quietly. */
+    const legLabel = (leg: {
+        agent_name: string;
+        type: string;
+        percentage: number | null;
+        is_you: boolean;
+    }) => (
+        <span>
+            <span style={{ color: T.TEXT, fontWeight: 600 }}>{leg.agent_name}</span>
+            <span style={{ color: T.TEXT_HINT }}>
+                {` · ${roleLabel(leg)}`}
+                {leg.percentage != null ? ` · ${leg.percentage}%` : ""}
+            </span>
+        </span>
     );
 
     return (
@@ -102,10 +208,19 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                     <span
                         className="dr-editable-value"
-                        style={{ fontSize: 14, fontWeight: 600 }}
+                        style={{ fontSize: 15, fontWeight: 600 }}
                     >
-                        {formatMoney(finalValue, symbol)}
+                        {money(headlineValue, companyCurrency)}
                     </span>
+                    {valueLocked && (
+                        <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                            <span
+                                style={{ color: T.TEXT_MUTED, display: "flex" }}
+                            >
+                                <DealIcon name="lock" size={12} />
+                            </span>
+                        </Tooltip>
+                    )}
                     {breakdown && (
                         <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
                             <DealIcon
@@ -140,7 +255,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         aria-label={t("pages.deals.info.value_insight.title")}
                         style={{
                             ...floatStyle,
-                            minWidth: 280,
+                            minWidth: 340,
                             padding: 14,
                             textAlign: "left",
                         }}
@@ -148,115 +263,210 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         <div className="dr-label" style={{ marginBottom: 8 }}>
                             {t("pages.deals.info.value_insight.title")}
                         </div>
-                        {!!breakdown.products_total &&
-                            line(
-                                t("pages.deals.info.value_insight.properties"),
-                                formatMoney(breakdown.products_total, symbol),
-                            )}
-                        {!!breakdown.packages_total &&
-                            line(
-                                t("pages.deals.info.value_insight.packages"),
-                                formatMoney(breakdown.packages_total, symbol),
-                            )}
-                        {!!breakdown.gross_total &&
-                            line(
-                                t("pages.deals.info.value_insight.gross"),
-                                formatMoney(breakdown.gross_total, symbol),
-                            )}
-                        {!!breakdown.discount_total &&
-                            line(
-                                t("pages.deals.info.value_insight.discount"),
-                                `−${formatMoney(breakdown.discount_total, symbol)}`,
-                            )}
-                        <div
-                            style={{
-                                borderTop: `1px solid ${T.BORDER_SOFT}`,
-                                marginTop: 4,
-                                paddingTop: 4,
-                            }}
-                        >
-                            {line(
-                                t("pages.deals.info.value_insight.calculated"),
-                                formatMoney(breakdown.calculated_value, symbol),
-                                true,
-                            )}
-                        </div>
 
-                        {canEdit && (
+                        {/* ── What the deal is worth, in its own currency ── */}
+                        {section(
+                            `${t("pages.deals.info.value_insight.section_value")}${
+                                dealCurrency.code ? ` (${dealCurrency.code})` : ""
+                            }`,
                             <>
-                                <div className="dr-label" style={{ margin: "12px 0 8px" }}>
-                                    {t("pages.deals.info.value_insight.source")}
-                                </div>
-                                <div
-                                    style={{ display: "flex", gap: 6, marginBottom: 10 }}
-                                    role="group"
-                                    aria-label={t(
-                                        "pages.deals.info.value_insight.value_source_aria",
+                                {/* A manual deal is priced from one typed figure, so
+                                    the component rows describe numbers it never used. */}
+                                {valueSource === "manual"
+                                    ? line(
+                                          t("pages.deals.info.value_insight.editor.manual_value"),
+                                          money(breakdown.base_value),
+                                      )
+                                    : (
+                                          <>
+                                              {!!breakdown.products_total &&
+                                                  line(
+                                                      t("pages.deals.info.value_insight.properties"),
+                                                      money(breakdown.products_total),
+                                                  )}
+                                              {!!breakdown.packages_total &&
+                                                  line(
+                                                      t("pages.deals.info.value_insight.packages"),
+                                                      money(breakdown.packages_total),
+                                                  )}
+                                              {/* Gross only adds information once
+                                                  something is subtracted from it. */}
+                                              {(!!breakdown.discount_total ||
+                                                  !!breakdown.deduction_total) &&
+                                                  line(
+                                                      t("pages.deals.info.value_insight.gross"),
+                                                      money(breakdown.gross_total),
+                                                  )}
+                                          </>
+                                      )}
+                                {!!breakdown.discount_total &&
+                                    line(
+                                        t("pages.deals.info.value_insight.discount"),
+                                        `−${money(breakdown.discount_total)}`,
                                     )}
-                                >
-                                    <button
-                                        type="button"
-                                        className="dr-filter"
-                                        aria-pressed={valueSource === "manual"}
-                                        disabled={isUpdating}
-                                        style={{ opacity: isUpdating ? 0.6 : 1 }}
-                                        onClick={() => update({ value_source: "manual" })}
-                                    >
-                                        {t("pages.deals.info.value_insight.source_manual")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="dr-filter"
-                                        aria-pressed={valueSource === "calculated"}
-                                        disabled={isUpdating}
-                                        style={{ opacity: isUpdating ? 0.6 : 1 }}
-                                        onClick={() => update({ value_source: "calculated" })}
-                                    >
-                                        {t("pages.deals.info.value_insight.source_calculated")}
-                                    </button>
-                                    {isUpdating && (
-                                        <span
-                                            aria-hidden="true"
-                                            className="flex h-4 w-4 items-center justify-center"
-                                        >
-                                            <span
-                                                className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
-                                                style={{ width: 12, height: 12, color: T.TEXT_MUTED }}
-                                            />
-                                        </span>
+                                {!!breakdown.deduction_total &&
+                                    line(
+                                        breakdown.deduction_note ||
+                                            t("pages.deals.info.value_insight.deduction"),
+                                        `−${money(breakdown.deduction_total)}`,
                                     )}
-                                </div>
-                                {valueSource === "manual" && (
-                                    <input
-                                        className="dr-input"
-                                        inputMode="numeric"
-                                        aria-label={t(
-                                            "pages.deals.info.value_insight.manual_value_aria",
-                                        )}
-                                        value={manualDraft}
-                                        placeholder={`${symbol}0`}
-                                        disabled={isUpdating}
-                                        onChange={(e) =>
-                                            setManualDraft(
-                                                e.target.value.replace(/[^\d]/g, ""),
-                                            )
-                                        }
-                                        onBlur={() => {
-                                            if (manualDraft === "") return;
-                                            update({ manual_value: Number(manualDraft) });
-                                        }}
-                                        style={{
-                                            fontSize: 12,
-                                            padding: "7px 10px",
-                                            opacity: isUpdating ? 0.6 : 1,
-                                        }}
-                                    />
+                                {line(
+                                    t("pages.deals.info.value_insight.final"),
+                                    money(finalValue),
+                                    true,
                                 )}
-                            </>
+                                {/* Only when the stored value has drifted from what
+                                    the current inputs add up to. */}
+                                {breakdown.computed_value !== breakdown.final_value &&
+                                    line(
+                                        t("pages.deals.info.value_insight.calculated"),
+                                        money(breakdown.computed_value),
+                                    )}
+                            </>,
+                        )}
+
+                        {/* ── The same figure in company currency ── */}
+                        {isConverted &&
+                            section(
+                                t("pages.deals.info.value_insight.section_conversion"),
+                                <>
+                                    {line(
+                                        t("pages.deals.info.value_insight.exchange_rate"),
+                                        `1 ${dealCurrency.code} = ${rate} ${companyCurrency.code}`,
+                                    )}
+                                    {line(
+                                        t("pages.deals.info.value_insight.in_company_currency"),
+                                        money(breakdown.final_value_company, companyCurrency),
+                                        true,
+                                    )}
+                                </>,
+                            )}
+
+                        {/* ── How that figure divides ── */}
+                        {breakdown.commission &&
+                            section(
+                                t("pages.deals.info.value_insight.section_commission"),
+                                <>
+                                    {/* Privileged view: the legs are the makeup of
+                                        the total below them, so they sit above a
+                                        dashed rule rather than reading as three
+                                        more top-level rows. The system leg is not
+                                        among them — it is the revenue line. */}
+                                    {breakdown.commission.legs?.map((leg, index) =>
+                                        line(
+                                            legLabel(leg),
+                                            money(leg.amount, companyCurrency),
+                                            false,
+                                            leg.is_you,
+                                            `leg-${index}`,
+                                        ),
+                                    )}
+                                    {breakdown.commission.paid != null && (
+                                        <div
+                                            style={{
+                                                borderTop: `1px dashed ${T.BORDER}`,
+                                                marginTop: 6,
+                                                paddingTop: 2,
+                                            }}
+                                        >
+                                            {line(
+                                                t(
+                                                    breakdown.commission.is_projected
+                                                        ? "pages.deals.info.value_insight.commission_projected"
+                                                        : "pages.deals.info.value_insight.commission_paid",
+                                                ) +
+                                                    (breakdown.commission.percentage != null
+                                                        ? ` · ${breakdown.commission.percentage}%`
+                                                        : ""),
+                                                `−${money(breakdown.commission.paid, companyCurrency)}`,
+                                                true,
+                                            )}
+                                        </div>
+                                    )}
+                                    {/* Unprivileged earner: their own figure only,
+                                        with no total for it to look like part of. */}
+                                    {breakdown.commission.own != null &&
+                                        line(
+                                            t(
+                                                breakdown.commission.is_projected
+                                                    ? "pages.deals.info.value_insight.your_commission_projected"
+                                                    : "pages.deals.info.value_insight.your_commission",
+                                            ) +
+                                                (breakdown.commission.own_percentage != null
+                                                    ? ` · ${breakdown.commission.own_percentage}%`
+                                                    : ""),
+                                            money(breakdown.commission.own, companyCurrency),
+                                            true,
+                                        )}
+                                    {/* The company's margin is a narrower grant than
+                                        the payout above, so the row is absent rather
+                                        than blank. */}
+                                    {breakdown.commission.revenue_to_company != null && (
+                                        <div
+                                            style={{
+                                                borderTop: `1px solid ${T.BORDER_SOFT}`,
+                                                marginTop: 6,
+                                                paddingTop: 4,
+                                            }}
+                                        >
+                                            {line(
+                                                t("pages.deals.info.value_insight.revenue_to_company"),
+                                                money(
+                                                    breakdown.commission.revenue_to_company,
+                                                    companyCurrency,
+                                                ),
+                                                true,
+                                            )}
+                                        </div>
+                                    )}
+                                    {breakdown.commission.is_projected && (
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: T.TEXT_HINT,
+                                                marginTop: 4,
+                                            }}
+                                        >
+                                            {t(
+                                                "pages.deals.info.value_insight.commission_projected_hint",
+                                            )}
+                                        </div>
+                                    )}
+                                </>,
+                            )}
+
+                        {canEdit && !valueLocked && (
+                            <div
+                                style={{
+                                    borderTop: `1px solid ${T.BORDER_SOFT}`,
+                                    marginTop: 12,
+                                    paddingTop: 10,
+                                }}
+                            >
+                                <DealButton
+                                    variant="navy"
+                                    size="sm"
+                                    style={{ width: "100%" }}
+                                    onClick={() => {
+                                        setOpen(false);
+                                        setEditorOpen(true);
+                                    }}
+                                >
+                                    {t("pages.deals.info.value_insight.editor.open")}
+                                </DealButton>
+                            </div>
                         )}
                     </div>,
                     document.body,
                 )}
+
+            <DealValueEditorModal
+                open={editorOpen}
+                onClose={() => setEditorOpen(false)}
+                deal={deal}
+                dealCurrency={dealCurrency}
+                companyCurrency={companyCurrency}
+            />
         </div>
     );
 }

@@ -228,6 +228,43 @@ class AgentLevelInternalApiTest extends HiddenCommissionLevelTestCase
         $this->assertNull($agent->custom_override_rate);
     }
 
+    public function test_patch_promotion_clears_custom_rates_with_actor(): void
+    {
+        $this->setFeatureFlag('sales.per-agent-commission-override', true);
+
+        $companyId = $this->seedCompany();
+        $this->seedApiToken($companyId);
+
+        $bronzeId = $this->seedLevel($companyId, 'Bronze', 1, 2);
+        $silverId = $this->seedLevel($companyId, 'Silver', 2, 5);
+
+        $userId = $this->seedUser($companyId);
+        $actorId = $this->seedUser($companyId, 'OL Admin');
+        $agentId = $this->seedAgent($companyId, $userId, null, [
+            'custom_direct_rate' => 3,
+            'custom_override_rate' => 4,
+        ]);
+        $this->seedLevelHistory($companyId, $agentId, $bronzeId);
+
+        $response = $this->patchJson("/api/v1/internal/agents/{$agentId}/level", [
+            'levelId' => $silverId,
+            'changed_by_user_id' => $actorId,
+        ], [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ]);
+
+        $response->assertOk();
+
+        $this->assertSame(
+            $actorId,
+            (int) DB::table('agent_commission_rate_audit_logs')
+                ->where('agent_id', $agentId)
+                ->orderByDesc('id')
+                ->value('changed_by_user_id')
+        );
+    }
+
     public function test_patch_does_not_trigger_auto_evaluation(): void
     {
         $companyId = $this->seedCompany();
@@ -259,6 +296,70 @@ class AgentLevelInternalApiTest extends HiddenCommissionLevelTestCase
                 ->where('agent_id', $agentId)
                 ->orderByDesc('id')
                 ->value('system_assigned')
+        );
+    }
+
+    public function test_patch_stamps_changed_by_user_id_as_assigned_by(): void
+    {
+        $companyId = $this->seedCompany();
+        $this->seedApiToken($companyId);
+
+        $bronzeId = $this->seedLevel($companyId, 'Bronze', 1, 2);
+        $silverId = $this->seedLevel($companyId, 'Silver', 2, 5);
+
+        $userId = $this->seedUser($companyId);
+        $actorId = $this->seedUser($companyId, 'OL Admin');
+        $agentId = $this->seedAgent($companyId, $userId);
+        $this->seedLevelHistory($companyId, $agentId, $bronzeId);
+
+        $response = $this->patchJson("/api/v1/internal/agents/{$agentId}/level", [
+            'levelId' => $silverId,
+            'changed_by_user_id' => $actorId,
+        ], [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.levelId', $silverId);
+
+        $this->assertSame(
+            $actorId,
+            (int) DB::table('agent_level_history')
+                ->where('agent_id', $agentId)
+                ->orderByDesc('id')
+                ->value('assigned_by')
+        );
+    }
+
+    public function test_patch_rejects_changed_by_user_id_from_another_company(): void
+    {
+        $companyId = $this->seedCompany();
+        $otherCompanyId = $this->seedCompany();
+        $this->seedApiToken($companyId);
+
+        $bronzeId = $this->seedLevel($companyId, 'Bronze', 1, 2);
+        $silverId = $this->seedLevel($companyId, 'Silver', 2, 5);
+
+        $userId = $this->seedUser($companyId);
+        $foreignUserId = $this->seedUser($otherCompanyId, 'Foreign Admin');
+        $agentId = $this->seedAgent($companyId, $userId);
+        $this->seedLevelHistory($companyId, $agentId, $bronzeId);
+
+        $response = $this->patchJson("/api/v1/internal/agents/{$agentId}/level", [
+            'levelId' => $silverId,
+            'changed_by_user_id' => $foreignUserId,
+        ], [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['error' => ['details' => ['changed_by_user_id']]]);
+
+        $this->assertSame(
+            $bronzeId,
+            (int) DB::table('agent_level_history')->where('agent_id', $agentId)->orderByDesc('id')->value('level_id')
         );
     }
 }

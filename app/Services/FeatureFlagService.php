@@ -51,7 +51,7 @@ class FeatureFlagService
 
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
-            return $this->resolved = $this->normalizeFlags($cached);
+            return $this->resolved = $this->applyLocalOverrides($this->normalizeFlags($cached));
         }
 
         $fetched = $this->fetchFromApi($sessionId);
@@ -60,7 +60,7 @@ class FeatureFlagService
             $this->rememberFlags($cacheKey, $fetched, $cacheTtl);
             $this->rememberFlags($this->lastGoodCacheKey($sessionId), $fetched, now()->addDay());
 
-            return $this->resolved = $fetched;
+            return $this->resolved = $this->applyLocalOverrides($fetched);
         }
 
         Log::warning('FeatureFlagService: Failed to fetch feature flags, using fallback', [
@@ -69,10 +69,10 @@ class FeatureFlagService
 
         $stale = $this->staleCacheOrNull($sessionId);
         if ($stale !== null) {
-            return $this->resolved = $stale;
+            return $this->resolved = $this->applyLocalOverrides($stale);
         }
 
-        return $this->resolved = $this->allFalseKnownFlags();
+        return $this->resolved = $this->applyLocalOverrides($this->allFalseKnownFlags());
     }
 
     public function isEnabled(string $flag): bool
@@ -205,14 +205,66 @@ class FeatureFlagService
     }
 
     /**
-     * @param array<string, bool> $flags
+     * Environments where the remote flags API is expected to sometimes be
+     * unreachable (no network access, dev sandboxing, ...) and a local
+     * default is safe to fall back on instead of silently going dark.
+     * Deliberately excludes 'testing' — tests must stay fully deterministic
+     * and control flag state explicitly via SetsFeatureFlags::setFeatureFlag(),
+     * never an ambient default. Production is never in this list either.
+     */
+    private const LOCAL_FALLBACK_ENVIRONMENTS = ['local', 'development', 'codecanyon'];
+
+    /**
+     * The fallback used when the remote flags API is unreachable and there's
+     * no cached (or stale/last-good) result to fall back to instead. Every
+     * known flag defaults to off — except, in a local-ish environment,
+     * whatever's listed in config('features.local_defaults'), so local dev
+     * doesn't silently lose a feature just because the flags service isn't
+     * reachable from this machine. Never applies in production.
+     *
      * @return array<string, bool>
      */
     private function allFalseKnownFlags(): array
     {
         $knownFlags = config('features.known_flags', []);
+        $defaults = array_fill_keys($knownFlags, false);
 
-        return array_fill_keys($knownFlags, false);
+        if (app()->environment(self::LOCAL_FALLBACK_ENVIRONMENTS)) {
+            foreach (config('features.local_defaults', []) as $flag => $enabled) {
+                if (array_key_exists($flag, $defaults)) {
+                    $defaults[$flag] = (bool) $enabled;
+                }
+            }
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * Force-enable/disable specific flags in local-ish environments,
+     * regardless of what the remote service says — for a flag you're
+     * actively building that isn't registered there yet. Distinct from
+     * allFalseKnownFlags()'s local_defaults, which only ever applies when
+     * the remote is unreachable; this applies on top of a real, successful
+     * remote response too. Never applies outside LOCAL_FALLBACK_ENVIRONMENTS
+     * (production/staging always defer entirely to the remote service), and
+     * only touches flags explicitly listed in config('features.local_overrides')
+     * — every other flag's remote-sourced value is untouched.
+     *
+     * @param array<string, bool> $flags
+     * @return array<string, bool>
+     */
+    private function applyLocalOverrides(array $flags): array
+    {
+        if (! app()->environment(self::LOCAL_FALLBACK_ENVIRONMENTS)) {
+            return $flags;
+        }
+
+        foreach (config('features.local_overrides', []) as $flag => $enabled) {
+            $flags[$flag] = (bool) $enabled;
+        }
+
+        return $flags;
     }
 
     private function resolveSessionId(): string

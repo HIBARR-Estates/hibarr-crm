@@ -67,6 +67,24 @@ const ConstructionProjectPricingSection: React.FC<
                 </Form.Item>
             </Col>
 
+            {/* Commission ceiling — overrides the developer's rate */}
+            <Col xs={24} md={8}>
+                <Form.Item
+                    name="commission_percentage"
+                    label="Commission Percentage"
+                    tooltip="Maximum total commission on deals for this project, shared across the agent, their uplines and the company. Leave empty to inherit the developer's rate."
+                >
+                    <InputNumber<number>
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        placeholder="Inherit from developer"
+                        style={{ width: "100%" }}
+                        addonAfter="%"
+                    />
+                </Form.Item>
+            </Col>
+
             {/* Availability Link */}
             <Col xs={24} md={8}>
                 <Form.Item

@@ -582,6 +582,7 @@ const Index = ({
             categoryLabel,
             priceMin: priceMin || null,
             priceMax: priceMax || null,
+            currencySymbol: (pageProps as any).default_currency_symbol ?? "",
             planMonths: paymentPlanDuration || null,
         });
     }, [
@@ -598,6 +599,7 @@ const Index = ({
         priceMin,
         priceMax,
         paymentPlanDuration,
+        pageProps,
     ]);
 
     const handleAdd = () => {

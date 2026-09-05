@@ -1,8 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { App } from "antd";
-import DashboardLayout from "@/Components/DashboardLayout";
+import { router, usePage } from "@inertiajs/react";
+import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import SearchableSelect, {
     type SearchableSelectGroup,
 } from "@/Components/Redesign/primitives/SearchableSelect";
@@ -25,6 +29,11 @@ import NotificationBypassList, {
     type BypassType,
 } from "./components/NotificationBypassList";
 import "@/Components/Redesign/redesign.css";
+import {
+    buildPreferencesTourSteps,
+    PREFERENCES_TOUR_ID,
+    PREFERENCES_TOUR_LABELS,
+} from "./config/preferencesTourSteps";
 
 /** Hardcoded so a missing Ziggy name cannot unmount the page. */
 const TIMEZONE_SAVE_URL = "/account/settings/preferences/timezone";
@@ -88,14 +97,17 @@ function buildTimezoneGroups(): SearchableSelectGroup[] {
 function Section({
     title,
     description,
+    tourTarget,
     children,
 }: {
     title: string;
     description?: string;
+    tourTarget?: string;
     children: React.ReactNode;
 }) {
     return (
         <section
+            {...(tourTarget ? { "data-tour": tourTarget } : {})}
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,
@@ -165,6 +177,14 @@ export default function Preferences({
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
+    const { props: pageProps } = usePage<PageProps>();
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
+    const preferencesTourSteps = useMemo(
+        () => buildPreferencesTourSteps(),
+        [],
+    );
     const timezoneGroups = useMemo(() => buildTimezoneGroups(), []);
     const browserTimezone = useMemo(() => getBrowserTimezone(), []);
     const [selectedTimezone, setSelectedTimezone] = useState(
@@ -203,6 +223,24 @@ export default function Preferences({
                 enabled: isUserDateTimeEnabled(),
                 timezone: savedTimezone,
             });
+            router.replace({
+                preserveScroll: true,
+                preserveState: true,
+                props: (current) => ({
+                    ...current,
+                    viewerTimezone: savedTimezone,
+                    auth: current.auth
+                        ? {
+                              ...current.auth,
+                              user: {
+                                  ...current.auth.user,
+                                  timezone: savedTimezone,
+                                  timezone_locked: savedLocked,
+                              },
+                          }
+                        : current.auth,
+                }),
+            });
         } catch (error) {
             setSelectedTimezone(previousTimezone);
             setLocked(previousLocked);
@@ -226,10 +264,34 @@ export default function Preferences({
                 breadcrumbs={breadcrumbs}
                 config={{ showTitle: true }}
             >
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={PREFERENCES_TOUR_ID}
+                        steps={preferencesTourSteps}
+                        labels={PREFERENCES_TOUR_LABELS}
+                    />
+                )}
                 <div
-                    className={`mx-auto grid grid-cols-1 gap-4 ${bypassEnabled ? "max-w-6xl lg:grid-cols-2" : "max-w-3xl"}`}
+                    className={`mx-auto flex flex-col gap-3 ${bypassEnabled ? "max-w-6xl" : "max-w-3xl"}`}
                     style={{ fontFamily: REDESIGN_FONT_STACK }}
                 >
+                    {showProductTour && (
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-ghost"
+                                onClick={() => tourRef.current?.restart()}
+                            >
+                                {t(
+                                    "pages.settings.preferences_tour.replay_menu_item",
+                                )}
+                            </button>
+                        </div>
+                    )}
+                    <div
+                        className={`grid grid-cols-1 gap-4 ${bypassEnabled ? "lg:grid-cols-2" : ""}`}
+                    >
                     <div className="flex flex-col gap-4">
                         <Section
                             title={td("Timezone", { source: "en" })}
@@ -238,6 +300,7 @@ export default function Preferences({
                                 { source: "en" },
                             )}
                         >
+                            <div data-tour="preferences-timezone">
                             <SearchableSelect<string>
                                 value={selectedTimezone}
                                 options={timezoneGroups}
@@ -262,8 +325,10 @@ export default function Preferences({
                                     ? td("Saving timezone…", { source: "en" })
                                     : `${td("CRM times use", { source: "en" })} ${zoneLabel}.`}
                             </p>
+                            </div>
 
                             <div
+                                data-tour="preferences-browser-sync"
                                 style={{
                                     display: "flex",
                                     alignItems: "flex-start",
@@ -333,6 +398,7 @@ export default function Preferences({
 
                         <Section
                             title={td("In-app alerts", { source: "en" })}
+                            tourTarget="preferences-in-app-alerts"
                             description={td(
                                 "Position, duration, and mute for toast alerts in this browser session. These settings are already saved to your account.",
                                 { source: "en" },
@@ -345,6 +411,7 @@ export default function Preferences({
                     {bypassEnabled ? (
                         <Section
                             title={td("Notifications", { source: "en" })}
+                            tourTarget="preferences-notifications"
                             description={td(
                                 "Turn a type off to stop email, in-app, and push. Security and account emails cannot be turned off.",
                                 { source: "en" },
@@ -356,6 +423,7 @@ export default function Preferences({
                             />
                         </Section>
                     ) : null}
+                    </div>
                 </div>
             </PageLayout>
         </DashboardLayout>

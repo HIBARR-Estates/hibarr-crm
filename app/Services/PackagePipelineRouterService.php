@@ -31,7 +31,7 @@ class PackagePipelineRouterService
     {
         $deal->loadMissing('company', 'packages');
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return 'deal_locked';
         }
 
@@ -151,7 +151,7 @@ class PackagePipelineRouterService
     {
         $deal->loadMissing('company');
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return false;
         }
 
@@ -237,7 +237,7 @@ class PackagePipelineRouterService
 
         $deal->loadMissing(['company', 'packages']);
 
-        if ($deal->is_locked) {
+        if ($deal->is_locked || $deal->isCommissionLocked()) {
             return false;
         }
 
@@ -360,6 +360,29 @@ class PackagePipelineRouterService
     /**
      * @param array<int, array{field_key?: string, match_value?: string|null}> $rows
      */
+    /**
+     * Point a package at a pipeline (and optionally a default stage), or clear
+     * the mapping when no pipeline is given.
+     *
+     * Shared by the Blade package form and the React packages settings page so
+     * the two cannot drift.
+     */
+    public function syncPackagePipeline(Package $package, ?int $pipelineId, ?int $defaultStageId = null): void
+    {
+        PackagePipeline::where('package_id', $package->id)->delete();
+
+        if (!$pipelineId) {
+            return;
+        }
+
+        PackagePipeline::create([
+            'company_id' => $package->company_id ?? company()?->id,
+            'package_id' => $package->id,
+            'pipeline_id' => $pipelineId,
+            'default_stage_id' => $defaultStageId ?: null,
+        ]);
+    }
+
     public function syncPackageRoutingTriggers(Package $package, array $rows): void
     {
         $companyId = $package->company_id ?? company()?->id;

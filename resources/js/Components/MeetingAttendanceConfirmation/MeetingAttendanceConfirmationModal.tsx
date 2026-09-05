@@ -151,6 +151,14 @@ export default function MeetingAttendanceConfirmationModal({
         });
     };
 
+    // A save in flight must not be interrupted by a stray backdrop click,
+    // Escape, or the close/cancel buttons — the outcome would otherwise be
+    // lost mid-submit with no way back to it.
+    const handleDismiss = () => {
+        if (confirmMutation.isPending) return;
+        onDismiss();
+    };
+
     const rowStyle = (active: boolean): CSSProperties => ({
         display: "flex",
         alignItems: "center",
@@ -171,8 +179,12 @@ export default function MeetingAttendanceConfirmationModal({
     return (
         <TaskModalShell
             open
-            onClose={onDismiss}
-            closeOnBackdrop
+            onClose={handleDismiss}
+            // Never dismiss on a stray outside click — only the explicit
+            // Cancel/X (or a completed Confirm) should close this. Escape
+            // still works as an explicit close, except mid-save.
+            closeOnBackdrop={false}
+            onEscape={() => confirmMutation.isPending}
             ariaLabel={title}
             zIndex={1000}
             panelStyle={{
@@ -232,13 +244,17 @@ export default function MeetingAttendanceConfirmationModal({
                 <button
                     type="button"
                     aria-label={td("Close", { source: "en" })}
-                    onClick={onDismiss}
+                    onClick={handleDismiss}
+                    disabled={confirmMutation.isPending}
                     style={{
                         background: "none",
                         border: "none",
                         padding: 4,
                         margin: "-2px -6px 0 0",
-                        cursor: "pointer",
+                        cursor: confirmMutation.isPending
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity: confirmMutation.isPending ? 0.45 : 1,
                         color: "#5b6472",
                         display: "flex",
                         borderRadius: 6,
@@ -589,7 +605,8 @@ export default function MeetingAttendanceConfirmationModal({
             >
                 <button
                     type="button"
-                    onClick={onDismiss}
+                    onClick={handleDismiss}
+                    disabled={confirmMutation.isPending}
                     style={{
                         display: "inline-flex",
                         alignItems: "center",
@@ -601,7 +618,10 @@ export default function MeetingAttendanceConfirmationModal({
                         padding: "9px 16px",
                         minHeight: 32,
                         borderRadius: 8,
-                        cursor: "pointer",
+                        cursor: confirmMutation.isPending
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity: confirmMutation.isPending ? 0.45 : 1,
                         background: TONE.red.bg,
                         color: TONE.red.c,
                         border: `1px solid ${TONE.red.bd}`,

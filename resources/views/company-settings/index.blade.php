@@ -83,6 +83,24 @@
                             </small>
                         </div>
                     </div>
+                    <div class="col-lg-3">
+                        <x-forms.number :fieldLabel="__('modules.accountSettings.meetingAttendanceConfirmationDelayMinutes')"
+                                      fieldName="meeting_attendance_confirmation_delay_minutes"
+                                      fieldId="meeting_attendance_confirmation_delay_minutes"
+                                      :fieldValue="company()->meeting_attendance_confirmation_delay_minutes"
+                                      :minValue="1" :maxValue="1440"
+                                      :fieldPlaceholder="config('meetings.attendance_confirmation_delay_minutes')"
+                                      :fieldHelp="__('modules.accountSettings.meetingAttendanceConfirmationDelayMinutesHelp')"/>
+                    </div>
+                    <div class="col-lg-3">
+                        <x-forms.number :fieldLabel="__('modules.accountSettings.meetingAttendanceConfirmationSnoozeMinutes')"
+                                      fieldName="meeting_attendance_confirmation_snooze_minutes"
+                                      fieldId="meeting_attendance_confirmation_snooze_minutes"
+                                      :fieldValue="company()->meeting_attendance_confirmation_snooze_minutes"
+                                      :minValue="1" :maxValue="1440"
+                                      :fieldPlaceholder="config('meetings.attendance_confirmation_snooze_minutes')"
+                                      :fieldHelp="__('modules.accountSettings.meetingAttendanceConfirmationSnoozeMinutesHelp')"/>
+                    </div>
                 </div>
 
             </div>

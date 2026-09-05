@@ -37,6 +37,18 @@ class FileStorageService
         $this->retryBaseDelayMs = config('file_storage.retry_base_delay_ms', 1000);
     }
 
+    /**
+     * Guard against sending the X-Api-Key to a non-HTTPS base URL.
+     *
+     * @throws \RuntimeException
+     */
+    protected function assertHttpsBaseUrl(): void
+    {
+        if (!str_starts_with(strtolower($this->baseUrl), 'https://')) {
+            throw new \RuntimeException('File storage base URL must use HTTPS.');
+        }
+    }
+
     // ========================================================================
     // Upload Operations
     // ========================================================================
@@ -52,24 +64,35 @@ class FileStorageService
      */
     public function upload(UploadedFile $file, ?string $targetFolder = null): array
     {
+        $this->assertHttpsBaseUrl();
+
         $folder = $targetFolder ?? $this->defaultTargetFolder;
 
         return $this->withRetry(function () use ($file, $folder) {
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'X-Api-Key' => $this->apiKey,
-                ])
-                ->withQueryParameters([
-                    'targetFolder' => $folder,
-                ])
-                ->attach(
-                    'file',
-                    file_get_contents($file->getRealPath()),
-                    $file->getClientOriginalName()
-                )
-                ->post("{$this->baseUrl}/upload", [
-                    'targetFolder' => $folder,
-                ]);
+            $handle = fopen($file->getRealPath(), 'r');
+            if ($handle === false) {
+                throw new \RuntimeException('Could not open uploaded file for reading');
+            }
+
+            try {
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders([
+                        'X-Api-Key' => $this->apiKey,
+                    ])
+                    ->withQueryParameters([
+                        'targetFolder' => $folder,
+                    ])
+                    ->attach(
+                        'file',
+                        $handle,
+                        $file->getClientOriginalName()
+                    )
+                    ->post("{$this->baseUrl}/upload", [
+                        'targetFolder' => $folder,
+                    ]);
+            } finally {
+                fclose($handle);
+            }
 
             if (!$response->successful()) {
                 throw new \RuntimeException(
@@ -101,24 +124,35 @@ class FileStorageService
      */
     public function uploadFromPath(string $filePath, string $originalName, ?string $targetFolder = null): array
     {
+        $this->assertHttpsBaseUrl();
+
         $folder = $targetFolder ?? $this->defaultTargetFolder;
 
         return $this->withRetry(function () use ($filePath, $originalName, $folder) {
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'X-Api-Key' => $this->apiKey,
-                ])
-                ->withQueryParameters([
-                    'targetFolder' => $folder,
-                ])
-                ->attach(
-                    'file',
-                    file_get_contents($filePath),
-                    $originalName
-                )
-                ->post("{$this->baseUrl}/upload", [
-                    'targetFolder' => $folder,
-                ]);
+            $handle = fopen($filePath, 'r');
+            if ($handle === false) {
+                throw new \RuntimeException('Could not open file for reading: '.$filePath);
+            }
+
+            try {
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders([
+                        'X-Api-Key' => $this->apiKey,
+                    ])
+                    ->withQueryParameters([
+                        'targetFolder' => $folder,
+                    ])
+                    ->attach(
+                        'file',
+                        $handle,
+                        $originalName
+                    )
+                    ->post("{$this->baseUrl}/upload", [
+                        'targetFolder' => $folder,
+                    ]);
+            } finally {
+                fclose($handle);
+            }
 
             if (!$response->successful()) {
                 throw new \RuntimeException(
@@ -188,6 +222,8 @@ class FileStorageService
      */
     public function delete(string $objectPath): array
     {
+        $this->assertHttpsBaseUrl();
+
         try {
             $response = Http::timeout($this->timeout)
                 ->withHeaders([

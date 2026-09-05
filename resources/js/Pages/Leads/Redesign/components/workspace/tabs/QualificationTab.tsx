@@ -37,7 +37,9 @@ interface QualificationTabProps {
     history: LeadQualification[];
     onStartQualify?: () => void;
     onResumeQualify?: (qualification: LeadQualification) => void;
-    onDeleteQualify?: (qualification: LeadQualification) => Promise<boolean> | boolean;
+    onDeleteQualify?: (
+        qualification: LeadQualification,
+    ) => Promise<boolean> | boolean;
     canStart?: boolean;
     /** True while a new call is being created — disables the start action and shows a spinner. */
     starting?: boolean;
@@ -179,7 +181,9 @@ export default function QualificationTab({
             { id: string; name: string; calls: LeadQualification[] }
         >();
         for (const call of calls) {
-            const id = String(call.template_id || call.template_name || "unknown");
+            const id = String(
+                call.template_id || call.template_name || "unknown",
+            );
             const existing = map.get(id);
             if (existing) {
                 existing.calls.push(call);
@@ -201,29 +205,30 @@ export default function QualificationTab({
     const hasInProgress = calls.some((call) => call.status === "inProgress");
 
     if (!calls.length) {
+        // The call to action lives inside the empty state here too, so this tab
+        // reads like every other empty tab instead of stacking its own button.
         return (
-            <div className="flex flex-col items-center gap-3">
-                <div className="w-full">
-                    <EmptyState
-                        title={td("No qualification calls yet", { source: "en" })}
-                        description={td(
-                            "Start a call to capture the lead's answers here.",
-                            { source: "en" },
-                        )}
-                    />
-                </div>
-                {canStart && onStartQualify ? (
-                    <Button
-                        variant="primary"
-                        icon={<Icon name="phone" size={14} />}
-                        loading={starting}
-                        disabled={starting}
-                        onClick={onStartQualify}
-                    >
-                        {td("New qualification call", { source: "en" })}
-                    </Button>
-                ) : null}
-            </div>
+            <EmptyState
+                icon="phone"
+                title={td("No qualification calls yet", { source: "en" })}
+                description={td(
+                    "Start a call to capture the lead's answers here.",
+                    { source: "en" },
+                )}
+                action={
+                    canStart && onStartQualify
+                        ? {
+                              label: td("New qualification call", {
+                                  source: "en",
+                              }),
+                              onClick: onStartQualify,
+                              icon: <Icon name="phone" size={15} />,
+                              loading: starting,
+                              disabled: starting,
+                          }
+                        : undefined
+                }
+            />
         );
     }
 
@@ -292,9 +297,12 @@ export default function QualificationTab({
                             className="mt-2 mb-0 text-[12px]"
                             style={{ color: T.TEXT_HINT }}
                         >
-                            {td("Finish the open call before starting another.", {
-                                source: "en",
-                            })}
+                            {td(
+                                "Finish the open call before starting another.",
+                                {
+                                    source: "en",
+                                },
+                            )}
                         </p>
                     ) : null}
                 </div>
@@ -343,10 +351,14 @@ export default function QualificationTab({
                     abandonedCount={abandonedCount}
                     resuming={resumingId === selected.id}
                     onResume={
-                        onResumeQualify ? () => onResumeQualify(selected) : undefined
+                        onResumeQualify
+                            ? () => onResumeQualify(selected)
+                            : undefined
                     }
                     onDelete={
-                        onDeleteQualify ? () => onDeleteQualify(selected) : undefined
+                        onDeleteQualify
+                            ? () => onDeleteQualify(selected)
+                            : undefined
                     }
                 />
             ) : null}
@@ -416,7 +428,8 @@ function CallRow({
                     style={{ color: T.TEXT_HINT }}
                 >
                     {call.agent?.name ?? td("Unassigned", { source: "en" })} ·{" "}
-                    {call.answers?.length ?? 0} {td("answers", { source: "en" })}
+                    {call.answers?.length ?? 0}{" "}
+                    {td("answers", { source: "en" })}
                 </span>
             </span>
         </button>
@@ -438,7 +451,10 @@ function CallDetail({
 }) {
     const { td } = useTd();
     const { formatDateTime } = useUserDateTime();
-    const templateService = useMemo(() => getQualificationTemplateService(), []);
+    const templateService = useMemo(
+        () => getQualificationTemplateService(),
+        [],
+    );
     const treeCache = useRef<Map<string, TemplateTree>>(new Map());
     const [tree, setTree] = useState<TemplateTree | null>(
         () => treeCache.current.get(call.template_id) ?? null,
@@ -569,7 +585,9 @@ function CallDetail({
                 when={when}
                 resuming={resuming}
                 onResume={onResume}
-                onDelete={onDelete ? () => setConfirmDeleteOpen(true) : undefined}
+                onDelete={
+                    onDelete ? () => setConfirmDeleteOpen(true) : undefined
+                }
             />
 
             <div
@@ -786,7 +804,10 @@ function StatusBar({
     return (
         <div
             className="flex items-center gap-4 px-5 py-4 rounded-xl"
-            style={{ background: style.bg, border: `1px solid ${style.border}` }}
+            style={{
+                background: style.bg,
+                border: `1px solid ${style.border}`,
+            }}
         >
             <Icon name={iconName} size={20} color={style.icon} />
             <div className="flex-1 min-w-0">

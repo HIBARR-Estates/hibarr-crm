@@ -2,10 +2,12 @@
 
 namespace Tests;
 
+use App\Services\MlmNotificationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 
 abstract class PerAgentCommissionOverrideTestCase extends TestCase
 {
@@ -21,6 +23,11 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
 
         $this->resetSchema();
         $this->createMinimalSchema();
+
+        $this->app->instance(
+            MlmNotificationService::class,
+            Mockery::mock(MlmNotificationService::class)->shouldIgnoreMissing()
+        );
     }
 
     protected function tearDown(): void
@@ -32,6 +39,16 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function resetSchema(): void
     {
         Schema::dropIfExists('agent_commission_rate_audit_logs');
+        Schema::dropIfExists('email_notification_settings');
+        Schema::dropIfExists('agent_package_commission_rates');
+        Schema::dropIfExists('deal_package');
+        Schema::dropIfExists('packages');
+        Schema::dropIfExists('properties');
+        Schema::dropIfExists('lead_products');
+        Schema::dropIfExists('products');
+        Schema::dropIfExists('developer_projects');
+        Schema::dropIfExists('developers');
+        Schema::dropIfExists('currencies');
         Schema::dropIfExists('mlm_commissions');
         Schema::dropIfExists('agent_level_history');
         Schema::dropIfExists('agent_hierarchy');
@@ -57,6 +74,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
 
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
             $table->string('email')->nullable();
             $table->string('status')->default('active');
@@ -137,8 +155,16 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedBigInteger('agent_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
+            $table->unsignedBigInteger('currency_id')->nullable();
+            // Rate to convert deals.value (in the deal's own currency) into
+            // the company's currency — null/1 for a same-currency deal.
+            $table->double('exchange_rate')->nullable();
             $table->decimal('max_commission_percentage', 5, 2)->nullable();
             $table->string('outcome_status')->nullable();
+            $table->boolean('is_locked')->default(false);
+            $table->timestamp('locked_at')->nullable();
+            $table->boolean('commission_locked')->default(false);
+            $table->timestamp('commission_locked_at')->nullable();
             $table->timestamps();
         });
 
@@ -149,8 +175,10 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedBigInteger('agent_id');
             $table->unsignedBigInteger('source_agent_id');
             $table->unsignedBigInteger('level_id')->nullable();
+            $table->unsignedBigInteger('package_id')->nullable();
             $table->unsignedBigInteger('cycle_level_snapshot_id')->nullable();
-            $table->decimal('percentage', 5, 2);
+            // Nullable: a fixed-fee package leg has no percentage.
+            $table->decimal('percentage', 5, 2)->nullable();
             $table->decimal('amount', 15, 2);
             $table->string('type', 20);
             $table->string('status', 20)->default('pending');
@@ -195,6 +223,112 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->timestamps();
         });
 
+        // distribute() notifies the agent on every non-system leg, and the
+        // notification's constructor reads this table.
+        Schema::create('email_notification_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('slug')->nullable();
+            $table->string('setting_name');
+            $table->string('send_email')->default('no');
+            $table->string('send_slack')->default('no');
+            $table->string('send_push')->default('no');
+            $table->timestamps();
+        });
+
+        // A deal's commission ceiling can be negotiated per developer and
+        // overridden per project, resolved through the properties attached to
+        // the deal — so this chain is part of the minimal commission schema too.
+        Schema::create('developers', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
+            $table->decimal('commission_percentage', 5, 2)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('developer_projects', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedBigInteger('developer_id')->nullable();
+            $table->string('name')->nullable();
+            $table->decimal('commission_percentage', 5, 2)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
+            $table->decimal('price', 15, 2)->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_products', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('deal_id');
+            $table->unsignedBigInteger('product_id');
+            $table->timestamps();
+        });
+
+        Schema::create('properties', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedBigInteger('product_id')->nullable();
+            $table->unsignedBigInteger('developer_project_id')->nullable();
+            $table->string('title')->nullable();
+            $table->timestamps();
+        });
+
+        // MlmCommissionService::preview() reads a deal's packages on every
+        // deal, so these are part of the minimal commission schema.
+        Schema::create('packages', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name');
+            $table->decimal('value', 15, 2)->default(0);
+            $table->string('currency', 3)->default('EUR');
+            $table->string('commission_type', 12)->nullable();
+            $table->decimal('commission_value', 15, 2)->nullable();
+            $table->text('description')->nullable();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+
+        Schema::create('deal_package', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('deal_id');
+            $table->unsignedBigInteger('package_id');
+            $table->timestamps();
+        });
+
+        Schema::create('agent_package_commission_rates', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id');
+            $table->unsignedBigInteger('agent_id');
+            $table->unsignedBigInteger('package_id');
+            $table->string('commission_type', 12);
+            // Nullable: a "none" override has nothing to store.
+            $table->decimal('commission_value', 15, 2)->nullable();
+            $table->timestamps();
+            $table->unique(['agent_id', 'package_id']);
+        });
+
+        // MlmCommissionService::packageCurrencyRate() looks this up directly
+        // (bypassing CompanyScope, since a queued job has no session company)
+        // to convert a package's own currency into the company's.
+        Schema::create('currencies', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('currency_name');
+            $table->string('currency_symbol')->nullable();
+            $table->string('currency_code', 3);
+            $table->decimal('exchange_rate', 15, 6)->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('api_tokens', function (Blueprint $table) {
             $table->id();
             $table->string('token');
@@ -216,6 +350,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function seedUser(int $companyId, string $name = 'Test User'): int
     {
         return DB::table('users')->insertGetId([
+            'company_id' => $companyId,
             'name' => $name,
             'email' => strtolower(str_replace(' ', '.', $name)) . '@test.com',
             'status' => 'active',
@@ -291,13 +426,104 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
         ]);
     }
 
-    protected function seedDeal(int $companyId, int $agentId, float $value): int
-    {
+    protected function seedDeal(
+        int $companyId,
+        int $agentId,
+        float $value,
+        ?int $currencyId = null,
+        ?float $exchangeRate = null
+    ): int {
         return DB::table('deals')->insertGetId([
             'company_id' => $companyId,
             'agent_id' => $agentId,
             'value' => $value,
+            'currency_id' => $currencyId,
+            'exchange_rate' => $exchangeRate,
             'outcome_status' => 'won',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Attach a property to a deal through the product it hangs off, which is
+     * the path the commission ceiling is resolved along:
+     * deal → products → property → developer_project → developer.
+     *
+     * @return int the new property's id
+     */
+    protected function seedDealProperty(
+        int $companyId,
+        int $dealId,
+        ?int $developerProjectId = null,
+        float $price = 0
+    ): int {
+        $productId = DB::table('products')->insertGetId([
+            'company_id' => $companyId,
+            'name' => 'Unit',
+            'price' => $price,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('lead_products')->insert([
+            'deal_id' => $dealId,
+            'product_id' => $productId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return DB::table('properties')->insertGetId([
+            'company_id' => $companyId,
+            'product_id' => $productId,
+            'developer_project_id' => $developerProjectId,
+            'title' => 'Unit',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    protected function seedDeveloper(int $companyId, ?float $commissionPercentage = null): int
+    {
+        return DB::table('developers')->insertGetId([
+            'company_id' => $companyId,
+            'name' => 'Developer',
+            'commission_percentage' => $commissionPercentage,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    protected function seedDeveloperProject(
+        int $companyId,
+        ?int $developerId = null,
+        ?float $commissionPercentage = null
+    ): int {
+        return DB::table('developer_projects')->insertGetId([
+            'company_id' => $companyId,
+            'developer_id' => $developerId,
+            'name' => 'Project',
+            'commission_percentage' => $commissionPercentage,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @return int the new currency's id
+     */
+    protected function seedCurrency(
+        int $companyId,
+        string $code,
+        float $exchangeRate,
+        string $symbol = ''
+    ): int {
+        return DB::table('currencies')->insertGetId([
+            'company_id' => $companyId,
+            'currency_name' => $code,
+            'currency_symbol' => $symbol,
+            'currency_code' => $code,
+            'exchange_rate' => $exchangeRate,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -306,7 +532,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
     protected function seedApiToken(int $companyId, string $token = 'test-token'): void
     {
         DB::table('api_tokens')->insert([
-            'token' => $token,
+            'token' => \App\Models\ApiToken::hashToken($token),
             'company_id' => $companyId,
             'revoked' => false,
             'created_at' => now(),

@@ -1,28 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Tooltip } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
-import { useApiMutate, useApiQuery } from "@/lib/api/client";
-import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
-import type { DealOfferApplication } from "@/Types/api/offers";
-import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
+import { isDealEffectivelyLocked, isDealValueLocked } from "@/lib/dealOutcome";
 import {
     toWorkspaceOfferApplicationItem,
     type WorkspaceOfferApplicationItem,
 } from "../../adapters/offerApplicationAdapter";
+import useDealOffers from "../../hooks/useDealOffers";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import EmptyState from "../primitives/DealEmptyState";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface WorkspaceOffersTabProps {
     deal: Deal;
-    onCountChange?: (count: number) => void;
-}
-
-interface DealOffersResponse {
-    status: string;
-    applications: DealOfferApplication[];
-    total_discount: number;
 }
 
 function formatMoney(amount: number, symbol: string) {
@@ -36,7 +29,13 @@ function OffersSkeleton({
     columnLabels,
     loadingAria,
 }: {
-    columnLabels: { offer: string; property: string; type: string; original: string; discount: string };
+    columnLabels: {
+        offer: string;
+        property: string;
+        type: string;
+        original: string;
+        discount: string;
+    };
     loadingAria: string;
 }) {
     return (
@@ -88,45 +87,57 @@ function OffersSkeleton({
     );
 }
 
-/** v2.2's Offers tab shows applied DealOfferApplication discounts, ported from
- * deal-v2-2.jsx:2739 — a distinct entity from the legacy Proposal workflow
- * this tab used to render. Data/mutation follow the existing legacy
- * implementation (resources/js/Features/Deals/DealOffersTab.tsx). */
-export default function WorkspaceOffersTab({
-    deal,
-    onCountChange,
-}: WorkspaceOffersTabProps) {
+/** v2.2's Offers tab shows applied DealOfferApplication discounts. The tab
+ * itself is hidden unless at least one property on the deal has an offer
+ * applied — this component only renders in that case. */
+export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
     const { t } = useTranslation();
     const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
     const symbol = deal.currency?.currency_symbol || "£";
 
-    const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
-        path: route("deals.offers.index", deal.id),
-        // Keep results fresh for 30s so flipping between tabs doesn't refire
-        // the request every time the tab remounts.
-        options: { staleTime: 30_000 },
-    });
+    const {
+        applications,
+        totalDiscount,
+        isLoading,
+        isError,
+        refetch,
+        removeAllOffers,
+        isRemovingAllOffers: isRemoving,
+    } = useDealOffers(deal.id);
 
-    const { mutate: removeAllOffers, isPending: isRemoving } = useApiMutate<
-        undefined,
-        unknown,
-        ApiResponse<unknown>
-    >(route("deals.offers.remove", deal.id), "DELETE", () => {
-        refetch();
-        setConfirmRemoveAll(false);
-    });
+    const handleRemoveAll = () => {
+        removeAllOffers(undefined, {
+            onSuccess: () => setConfirmRemoveAll(false),
+        });
+    };
 
     const items = useMemo(
-        () => (data?.applications ?? []).map(toWorkspaceOfferApplicationItem),
-        [data?.applications],
+        () => applications.map(toWorkspaceOfferApplicationItem),
+        [applications],
     );
-    const totalDiscount = data?.total_discount ?? 0;
-
-    useEffect(() => {
-        onCountChange?.(items.length);
-    }, [items.length, onCountChange]);
 
     const isInitialLoading = isLoading && items.length === 0;
+
+    // A failed request must read as "couldn't load", not silently render
+    // nothing the way a genuinely empty (no offers applied) result does.
+    if (isError && items.length === 0) {
+        return (
+            <EmptyState
+                role="alert"
+                icon="info"
+                title={t("pages.deals.workspace.offers.load_failed")}
+                action={{
+                    label: t("pages.deals.workspace.offers.retry"),
+                    onClick: () => refetch(),
+                    icon: <DealIcon name="refresh" size={15} />,
+                }}
+            />
+        );
+    }
+
+    if (!isInitialLoading && items.length === 0) {
+        return null;
+    }
 
     return (
         <div>
@@ -140,15 +151,32 @@ export default function WorkspaceOffersTab({
                     </div>
                 </div>
                 {items.length > 0 && (
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-sm"
-                        style={{ color: T.RED, background: T.WHITE, border: `1px solid ${T.BORDER}` }}
-                        disabled={isDealEffectivelyLocked(deal)}
-                        onClick={() => setConfirmRemoveAll(true)}
+                    <Tooltip
+                        title={
+                            isDealValueLocked(deal) &&
+                            !isDealEffectivelyLocked(deal)
+                                ? t("pages.deals.value_locked_tooltip")
+                                : undefined
+                        }
                     >
-                        {t("pages.deals.workspace.offers.remove_all")}
-                    </button>
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-sm"
+                            style={{
+                                color: T.RED,
+                                background: T.WHITE,
+                                border: `1px solid ${T.BORDER}`,
+                            }}
+                            disabled={
+                                isDealEffectivelyLocked(deal) ||
+                                isDealValueLocked(deal) ||
+                                isRemoving
+                            }
+                            onClick={() => setConfirmRemoveAll(true)}
+                        >
+                            {t("pages.deals.workspace.offers.remove_all")}
+                        </button>
+                    </Tooltip>
                 )}
             </div>
 
@@ -157,89 +185,106 @@ export default function WorkspaceOffersTab({
                     loadingAria={t("pages.deals.workspace.offers.loading_aria")}
                     columnLabels={{
                         offer: t("pages.deals.workspace.offers.col_offer"),
-                        property: t("pages.deals.workspace.offers.col_property"),
+                        property: t(
+                            "pages.deals.workspace.offers.col_property",
+                        ),
                         type: t("pages.deals.workspace.offers.col_type"),
-                        original: t("pages.deals.workspace.offers.col_original"),
-                        discount: t("pages.deals.workspace.offers.col_discount"),
+                        original: t(
+                            "pages.deals.workspace.offers.col_original",
+                        ),
+                        discount: t(
+                            "pages.deals.workspace.offers.col_discount",
+                        ),
                     }}
                 />
-            ) : items.length === 0 ? (
-                <div
-                    role="status"
-                    className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-                    style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
-                >
-                    <div
-                        aria-hidden="true"
-                        className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
-                        style={{ background: T.GREEN_LIGHT }}
-                    >
-                        <DealIcon name="award" size={17} color={T.GREEN} />
-                    </div>
-                    <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
-                        {t("pages.deals.workspace.offers.empty")}
-                    </div>
-                    <div className="text-xs leading-relaxed text-[#5b6472]">
-                        {t("pages.deals.workspace.offers.empty_hint")}
-                    </div>
-                </div>
             ) : (
                 <>
                     <div className="mb-2.5 overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
                         <table className="dr-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">{t("pages.deals.workspace.offers.col_offer")}</th>
-                                    <th scope="col">{t("pages.deals.workspace.offers.col_property")}</th>
-                                    <th scope="col">{t("pages.deals.workspace.offers.col_type")}</th>
-                                    <th scope="col" style={{ textAlign: "right" }}>
-                                        {t("pages.deals.workspace.offers.col_original")}
+                                    <th scope="col">
+                                        {t(
+                                            "pages.deals.workspace.offers.col_offer",
+                                        )}
                                     </th>
-                                    <th scope="col" style={{ textAlign: "right" }}>
-                                        {t("pages.deals.workspace.offers.col_discount")}
+                                    <th scope="col">
+                                        {t(
+                                            "pages.deals.workspace.offers.col_property",
+                                        )}
+                                    </th>
+                                    <th scope="col">
+                                        {t(
+                                            "pages.deals.workspace.offers.col_type",
+                                        )}
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        style={{ textAlign: "right" }}
+                                    >
+                                        {t(
+                                            "pages.deals.workspace.offers.col_original",
+                                        )}
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        style={{ textAlign: "right" }}
+                                    >
+                                        {t(
+                                            "pages.deals.workspace.offers.col_discount",
+                                        )}
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {items.map((item: WorkspaceOfferApplicationItem) => (
-                                    <tr key={item.id}>
-                                        <td>
-                                            <span className="inline-flex items-center gap-1.5 font-semibold text-[#1a1f2e]">
-                                                <DealIcon
-                                                    name="award"
-                                                    size={13}
-                                                    color={T.GREEN}
-                                                />
-                                                {item.offerName}
-                                            </span>
-                                        </td>
-                                        <td style={{ color: T.TEXT_MUTED }}>
-                                            {item.propertyLabel}
-                                        </td>
-                                        <td>
-                                            <span className="dr-pill dr-pill-green">
-                                                {item.offerValueLabel}
-                                            </span>
-                                        </td>
-                                        <td
-                                            style={{
-                                                textAlign: "right",
-                                                color: T.TEXT_MUTED,
-                                            }}
-                                        >
-                                            {formatMoney(item.originalAmount, symbol)}
-                                        </td>
-                                        <td
-                                            style={{
-                                                textAlign: "right",
-                                                fontWeight: 700,
-                                                color: T.GREEN,
-                                            }}
-                                        >
-                                            −{formatMoney(item.discountAmount, symbol)}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {items.map(
+                                    (item: WorkspaceOfferApplicationItem) => (
+                                        <tr key={item.id}>
+                                            <td>
+                                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#1a1f2e]">
+                                                    <DealIcon
+                                                        name="award"
+                                                        size={13}
+                                                        color={T.GREEN}
+                                                    />
+                                                    {item.offerName}
+                                                </span>
+                                            </td>
+                                            <td style={{ color: T.TEXT_MUTED }}>
+                                                {item.propertyLabel}
+                                            </td>
+                                            <td>
+                                                <span className="dr-pill dr-pill-green">
+                                                    {item.offerValueLabel}
+                                                </span>
+                                            </td>
+                                            <td
+                                                style={{
+                                                    textAlign: "right",
+                                                    color: T.TEXT_MUTED,
+                                                }}
+                                            >
+                                                {formatMoney(
+                                                    item.originalAmount,
+                                                    symbol,
+                                                )}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    textAlign: "right",
+                                                    fontWeight: 700,
+                                                    color: T.GREEN,
+                                                }}
+                                            >
+                                                −
+                                                {formatMoney(
+                                                    item.discountAmount,
+                                                    symbol,
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ),
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -259,11 +304,15 @@ export default function WorkspaceOffersTab({
 
             <DealConfirmDialog
                 open={confirmRemoveAll}
-                title={t("pages.deals.workspace.offers.remove_all_confirm_title")}
-                message={t("pages.deals.workspace.offers.remove_all_confirm_message")}
+                title={t(
+                    "pages.deals.workspace.offers.remove_all_confirm_title",
+                )}
+                message={t(
+                    "pages.deals.workspace.offers.remove_all_confirm_message",
+                )}
                 confirmLabel={t("pages.deals.workspace.offers.remove_all")}
                 danger
-                onConfirm={() => removeAllOffers(undefined)}
+                onConfirm={handleRemoveAll}
                 onCancel={() => setConfirmRemoveAll(false)}
             />
         </div>

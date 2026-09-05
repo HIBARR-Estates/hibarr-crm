@@ -107,6 +107,37 @@ class DealGrpcService implements DealServiceInterface
                 throw new GRPCException("Deal not found with ID: {$id}", StatusCode::NOT_FOUND);
             }
 
+            // A commission was already calculated against this deal's value —
+            // refuse the whole update rather than silently drop the
+            // value-affecting fields, so an integration client finds out
+            // immediately instead of assuming they were applied.
+            // Empty or identical package/product lists are not a change:
+            // clients often resend the current IDs on every update.
+            $incomingPackageIds = iterator_to_array($in->getPackageIds());
+            $incomingProductIds = iterator_to_array($in->getProductIds());
+
+            if ($deal->isCommissionLocked()) {
+                $packagesChange = $incomingPackageIds !== []
+                    && $this->idsDiffer($incomingPackageIds, $deal->packages()->pluck('packages.id')->all());
+                $productsChange = $incomingProductIds !== []
+                    && $this->idsDiffer($incomingProductIds, $deal->products()->pluck('products.id')->all());
+                $agentChange = $in->hasAgentId() && $deal->agentWouldChange($in->getAgentId());
+
+                if ($in->hasCurrencyId() || $in->hasTotalValue() || $packagesChange || $productsChange) {
+                    throw new GRPCException(
+                        __('messages.dealValueLockedByCommission'),
+                        StatusCode::FAILED_PRECONDITION
+                    );
+                }
+
+                if ($agentChange) {
+                    throw new GRPCException(
+                        __('messages.dealAgentLockedByCommission'),
+                        StatusCode::FAILED_PRECONDITION
+                    );
+                }
+            }
+
             $data = [];
             if ($in->hasName()) $data['name'] = $in->getName();
             if ($in->hasContactId()) $data['lead_id'] = $in->getContactId();
@@ -126,8 +157,8 @@ class DealGrpcService implements DealServiceInterface
 
                 $watcherIds = iterator_to_array($in->getWatcherIds());
                 $participantIds = iterator_to_array($in->getParticipantIds());
-                $packageIds = iterator_to_array($in->getPackageIds());
-                $productIds = iterator_to_array($in->getProductIds());
+                $packageIds = $incomingPackageIds;
+                $productIds = $incomingProductIds;
 
                 if (!empty($watcherIds)) $deal->dealWatchers()->sync($watcherIds);
                 if (!empty($participantIds)) $deal->dealParticipants()->sync($participantIds);
@@ -341,6 +372,22 @@ class DealGrpcService implements DealServiceInterface
         }
 
         return $msg;
+    }
+
+    /**
+     * @param  array<int|string>  $left
+     * @param  array<int|string>  $right
+     */
+    private function idsDiffer(array $left, array $right): bool
+    {
+        $normalize = static function (array $ids): array {
+            $normalized = array_map('intval', array_values($ids));
+            sort($normalized);
+
+            return $normalized;
+        };
+
+        return $normalize($left) !== $normalize($right);
     }
 
     private function getCompanyId(ContextInterface $ctx): int

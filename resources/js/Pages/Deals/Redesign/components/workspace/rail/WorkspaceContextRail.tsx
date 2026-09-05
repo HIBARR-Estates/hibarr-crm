@@ -29,11 +29,14 @@ interface WorkspaceContextRailProps {
     }>;
     /** Pipeline-linked categories — scopes which custom file fields show. */
     categoryIds?: number[];
+    /** Field visibility (deal-context-aware) — see useDealDocuments. */
+    visibilityMap?: Record<number, boolean>;
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
     showOnlinePayment?: boolean;
-    canManagePayments?: boolean;
+    canCreatePaymentRequest?: boolean;
+    canConfirmPaymentTransfer?: boolean;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
@@ -53,23 +56,32 @@ export default function WorkspaceContextRail({
     files,
     fields = [],
     categoryIds,
+    visibilityMap,
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
     showOnlinePayment = false,
-    canManagePayments = false,
+    canCreatePaymentRequest = false,
+    canConfirmPaymentTransfer = false,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState<Set<string>>(
         () => new Set(["Lead", "Deal details"]),
     );
     const [emailCopied, setEmailCopied] = useState(false);
-    const documents = useDealDocuments(deal, files ?? [], fields, categoryIds);
-    // Dossier only shows the three HIBARR-linked document slots — custom
-    // file-type fields and loose attachments stay in the Files tab.
-    const hibarrDocuments = useMemo(
-        () => documents.documents.filter((doc) => doc.source === "hibarr"),
-        [documents],
+    const { slots } = useDealDocuments(
+        deal,
+        files ?? [],
+        fields,
+        categoryIds,
+        visibilityMap,
+    );
+    // Dossier only shows this deal's own file-type custom fields — lead-owned
+    // fields cross-populated here (source: "lead") stay in the Files tab's
+    // "Personal files" section, not the dossier.
+    const documentSlots = useMemo(
+        () => slots.filter((doc) => doc.source !== "lead"),
+        [slots],
     );
     const { td } = useTd();
     const {
@@ -225,7 +237,8 @@ export default function WorkspaceContextRail({
                           body: (
                               <DealPaymentPanel
                                   deal={deal}
-                                  canManagePayments={canManagePayments}
+                                  canCreatePaymentRequest={canCreatePaymentRequest}
+                                  canConfirmPaymentTransfer={canConfirmPaymentTransfer}
                               />
                           ),
                       },
@@ -233,15 +246,15 @@ export default function WorkspaceContextRail({
                 : []),
             {
                 title: "Documents",
-                summary: `${hibarrDocuments.filter((doc) => doc.uploaded).length}/${hibarrDocuments.length}`,
+                summary: `${documentSlots.filter((doc) => doc.uploaded).length}/${documentSlots.length}`,
                 body: (
                     <div>
-                        {hibarrDocuments.length === 0 ? (
+                        {documentSlots.length === 0 ? (
                             <p className="py-2 text-xs italic text-[#9ca3af]">
                                 {t("pages.deals.dossier.no_document_slots")}
                             </p>
                         ) : (
-                            hibarrDocuments.map((doc) => (
+                            documentSlots.map((doc) => (
                                 <DealDocumentSlotRow
                                     key={doc.id}
                                     doc={doc}
@@ -261,7 +274,7 @@ export default function WorkspaceContextRail({
         [
             canEdit,
             deal,
-            hibarrDocuments,
+            documentSlots,
             email,
             emailCopied,
             // Drives the per-slot "Uploading…" state.
@@ -273,7 +286,8 @@ export default function WorkspaceContextRail({
             phone,
             restrictPackageOrProperty,
             showOnlinePayment,
-            canManagePayments,
+            canCreatePaymentRequest,
+            canConfirmPaymentTransfer,
             td,
         ],
     );

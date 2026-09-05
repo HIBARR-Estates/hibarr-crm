@@ -15,6 +15,7 @@ import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/me
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -82,6 +83,7 @@ import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
+import ExposesTab from "./components/workspace/tabs/ExposesTab";
 import QualificationTab from "./components/workspace/tabs/QualificationTab";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -121,6 +123,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
+    // An expose is always created on a deal, so the deal view keeps its tab
+    // unconditionally. The lead tab is only a rollup of what those deals hold:
+    // with nothing attached anywhere it would open on a permanently empty
+    // list, so it stays hidden until the lead actually has one
+    // (`hasLeadExposes`, resolved in LeadContactController@show).
+    const showExposes =
+        featureFlags?.[DEAL_EXPOSES_FLAG] === true &&
+        (page.props.auth?.permissions?.view_lead_proposals ?? "none") !==
+            "none" &&
+        (props.hasLeadExposes ?? page.props.hasLeadExposes) === true;
 
     const {
         lead,
@@ -150,7 +162,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         if (!showQualification && nav.tab === "qualification") {
             nav.setTab("overview");
         }
-    }, [nav.setTab, nav.tab, showQualification]);
+        if (!showExposes && nav.tab === "exposes") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification, showExposes]);
 
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
@@ -206,6 +221,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
     const [createDealOpen, setCreateDealOpen] = useState(false);
+    // undefined until the tab is opened, so the pill stays hidden rather than
+    // reading 0 for a lead whose exposes have never been loaded.
+    const [exposesCount, setExposesCount] = useState<number | undefined>(
+        undefined,
+    );
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
@@ -275,6 +295,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 : tasks.filter((t) => toLeadTaskPreview(t).isOpen).length,
             meetings: leadFollowUpsLoading ? undefined : leadFollowUps.length,
             deals: deals.length,
+            exposes: showExposes ? exposesCount : undefined,
             itinerary: itineraryCount(itineraryLegs),
             files: filesLoading
                 ? undefined
@@ -296,6 +317,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         qualification.current,
         qualification.history.length,
         showQualification,
+        showExposes,
+        exposesCount,
         tasks,
         tasksLoading,
     ]);
@@ -547,6 +570,17 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 );
             case "marketing":
                 return <MarketingTab />;
+            case "exposes":
+                return showExposes ? (
+                    <ExposesTab
+                        leadId={lead.id}
+                        currencySymbol={
+                            resolveCurrencyDisplay(lead.currency, companyCurrency)
+                                .symbol
+                        }
+                        onCountChange={setExposesCount}
+                    />
+                ) : null;
             case "qualification":
                 return showQualification ? (
                     <QualificationTab
@@ -630,6 +664,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         canDelete={props.deleteLeadPermission !== "none"}
                         canFindDuplicates={duplicates.canMerge}
                         canEditOwner={props.editLeadPermission !== "none"}
+                        canEdit={canEditLead(
+                            props.editLeadPermission,
+                            lead,
+                            page.props.auth?.user?.id,
+                        )}
                         canUploadPhoto={canEditLead(
                             props.editLeadPermission,
                             lead,
@@ -715,9 +754,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 onCreateDeal={() => setCreateDealOpen(true)}
                                 onOpenMeeting={setDetailMeeting}
                                 onOpenTask={setDetailTask}
-                                onOpenDeal={(deal) =>
-                                    router.visit(route("deals.show", deal.id))
-                                }
                                 onViewAllDeals={() => nav.setTab("deals")}
                             />
 
@@ -726,6 +762,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 onTabChange={nav.setTab}
                                 tabCounts={tabCounts}
                                 showQualification={showQualification}
+                                showExposes={showExposes}
                             >
                                 {renderTabBody()}
                             </WorkspaceCard>

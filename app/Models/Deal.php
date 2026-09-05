@@ -158,9 +158,13 @@ class Deal extends BaseModel
         'outcome_status' => \App\Enums\OutcomeStatus::class,
         'is_locked' => 'boolean',
         'locked_at' => 'datetime',
+        'commission_locked' => 'boolean',
+        'commission_locked_at' => 'datetime',
         'max_commission_percentage' => 'decimal:2',
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
+        'discount_value' => 'decimal:2',
+        'deduction_amount' => 'decimal:2',
         'won_at' => 'datetime',
         'stage_entered_at' => 'datetime',
         'exchange_rate' => 'double',
@@ -401,5 +405,92 @@ class Deal extends BaseModel
     public function isLocked(): bool
     {
         return (bool) $this->is_locked;
+    }
+
+    /**
+     * Commission having been calculated is a narrower, separate fact from the
+     * deal being fully locked: a deal can be commission_locked (its value can
+     * no longer change, because a commission was already computed against it)
+     * while stage and notes stay editable. The agent is also frozen: payout
+     * already ran against that agent. Set by ProcessDealWonJob once
+     * distribution completes; cleared by DealOutcomeService::apply() when a
+     * won deal is reverted.
+     */
+    public function isCommissionLocked(): bool
+    {
+        return (bool) $this->commission_locked;
+    }
+
+    /**
+     * Request keys that feed the deal's value (directly or via recalculation)
+     * — the single list every entry point checks before allowing a write,
+     * so "what counts as a value-affecting field" is defined once. Package
+     * and product attachment are included: DealValueResolver derives
+     * calculated_value from both.
+     *
+     * @var array<int, string>
+     */
+    public const VALUE_AFFECTING_KEYS = [
+        'value',
+        'manual_value',
+        'calculated_value',
+        'value_source',
+        'currency_id',
+        // Currency and adjustments change what the deal is worth in company
+        // currency just as directly as the raw amount does, so a
+        // commission-locked deal has to refuse them too.
+        'exchange_rate',
+        'discount_type',
+        'discount_value',
+        'deduction_amount',
+        'package_id',
+        'product_id',
+        'products',
+    ];
+
+    /**
+     * True when $data (a request's input, however it's keyed) touches any
+     * field that feeds this deal's value.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function touchesValueFields(array $data): bool
+    {
+        foreach (self::VALUE_AFFECTING_KEYS as $key) {
+            if (array_key_exists($key, $data)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * True when $data includes agent_id. Distinct from VALUE_AFFECTING_KEYS:
+     * changing the agent does not change the deal's value, but it is still
+     * refused once commission has been calculated against the current agent.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function touchesAgentField(array $data): bool
+    {
+        return array_key_exists('agent_id', $data);
+    }
+
+    /**
+     * True when $newAgentId is a different agent (or a clear) from the one
+     * currently stored. Presence of the same id is not a change.
+     */
+    public function agentWouldChange(mixed $newAgentId): bool
+    {
+        $current = $this->agent_id === null ? null : (int) $this->agent_id;
+
+        if ($newAgentId === null || $newAgentId === '') {
+            $incoming = null;
+        } else {
+            $incoming = (int) $newAgentId;
+        }
+
+        return $current !== $incoming;
     }
 }

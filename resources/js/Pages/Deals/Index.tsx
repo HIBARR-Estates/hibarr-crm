@@ -5,6 +5,9 @@ import "@/Components/Redesign/redesign.css";
 import "./deals-table.css";
 import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
@@ -48,16 +51,22 @@ import AddFollowup from "./Components/Tabs/followups/AddFollowup";
 import EntityListHeader, {
     type EntityListHeaderViewOption,
 } from "@/Components/Redesign/primitives/EntityListHeader";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
+import {
+    buildDealListTourSteps,
+    DEALS_LIST_TOUR_ID,
+    DEALS_LIST_TOUR_LABELS,
+} from "./config/dealListTourSteps";
 
 const DEAL_VIEW_OPTIONS: EntityListHeaderViewOption[] = [
     { value: "table", label: "Table", icon: <TableOutlined style={{ fontSize: 13 }} /> },
@@ -132,6 +141,7 @@ const Index = ({
     addLeadPermission = "all",
 }: IndexProps) => {
     const { t } = useTranslation();
+    useUserDateTime();
 
     // Get current user and permissions for deal permission checks
     const { props: pageProps } = usePage<any>();
@@ -144,6 +154,9 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
 
     const queryClient = useQueryClient();
 
@@ -152,6 +165,10 @@ const Index = ({
         storageKey: "deals",
         defaultView: "table",
     });
+    const dealListTourSteps = useMemo(
+        () => buildDealListTourSteps(setView),
+        [setView],
+    );
 
     const [boardColumnsLoading, setBoardColumnsLoading] = useState(
         () =>
@@ -399,6 +416,9 @@ const Index = ({
     // Handle agent change from table or card
     const handleAgentChange = useCallback(
         (deal: Deal, agentId: number | null) => {
+            if (deal.commission_locked) {
+                return;
+            }
             changeAgent(
                 { deal_id: deal.id, agent_id: agentId },
                 {
@@ -577,31 +597,35 @@ const Index = ({
                 title={pageTitle}
                 breadcrumbs={[{ name: t("app.deal") }]}
                 searchComp={
-                    <UniversalSearchBox
-                        placeholder={t("app.deals.search_placeholder")}
-                        className="w-full"
-                    />
+                    <div data-tour="deals-list-search">
+                        <UniversalSearchBox
+                            placeholder={t("app.deals.search_placeholder")}
+                            className="w-full"
+                        />
+                    </div>
                 }
                 mainContentClassName="p-0"
             >
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={DEALS_LIST_TOUR_ID}
+                        steps={dealListTourSteps}
+                        labels={DEALS_LIST_TOUR_LABELS}
+                    />
+                )}
                 <EntityListHeader
                     title={t("app.deal")}
+                    titleTourTarget="deals-list-header"
                     subtitle={headline}
                     viewOptions={DEAL_VIEW_OPTIONS}
                     viewValue={view}
+                    viewToggleTourTarget="deals-list-view-toggle"
                     onViewChange={(next) =>
                         handleViewChange(next as "kanban" | "table")
                     }
                     actions={
                         <>
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-ghost"
-                                onClick={handleImportDeals}
-                            >
-                                <ImportOutlined style={{ fontSize: 13 }} />
-                                {t("app.import")}
-                            </button>
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
@@ -614,14 +638,27 @@ const Index = ({
                                 />
                                 {td("Refresh", { source: "en" })}
                             </button>
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-primary"
-                                onClick={handleCreateDeal}
+                            <div
+                                className="flex items-center gap-2.5"
+                                data-tour="deals-list-actions"
                             >
-                                <PlusOutlined style={{ fontSize: 13 }} />
-                                {t("app.deals.actions.add")}
-                            </button>
+                                <button
+                                    type="button"
+                                    className="dr-btn dr-btn-ghost"
+                                    onClick={handleImportDeals}
+                                >
+                                    <ImportOutlined style={{ fontSize: 13 }} />
+                                    {t("app.import")}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="dr-btn dr-btn-primary"
+                                    onClick={handleCreateDeal}
+                                >
+                                    <PlusOutlined style={{ fontSize: 13 }} />
+                                    {t("app.deals.actions.add")}
+                                </button>
+                            </div>
                         </>
                     }
                     toolbarLeft={
@@ -633,15 +670,28 @@ const Index = ({
                             variant="chip"
                         />
                     }
+                    toolbarLeftTourTarget="deals-list-pipeline"
                     filtersCount={activeFilterCount}
                     onOpenFilters={openDrawer}
                     filtersLabel={t("app.filter")}
+                    filtersTourTarget="deals-list-filters"
                     filterSentence={
                         <ActiveFilterSentence
                             count={deals.total}
                             entityLabel="deals"
                             onOpenFilters={openDrawer}
                         />
+                    }
+                    filterSentenceTourTarget="deals-list-filter-sentence"
+                    onReplayGuide={
+                        showProductTour
+                            ? () => tourRef.current?.restart()
+                            : undefined
+                    }
+                    replayGuideLabel={
+                        showProductTour
+                            ? t("pages.deals.list_tour.replay_menu_item")
+                            : undefined
                     }
                     // maxWidth={1440}
                 />
@@ -678,6 +728,7 @@ const Index = ({
 
                     {/* Table View */}
                     {isTableView && (
+                        <div data-tour="deals-list-table">
                         <DataTable<Deal>
                             columns={columns}
                             dataSource={deals.data}
@@ -729,6 +780,7 @@ const Index = ({
                             scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
                             size="small"
                         />
+                        </div>
                     )}
 
                     {/* Kanban View */}

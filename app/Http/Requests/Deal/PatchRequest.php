@@ -51,7 +51,17 @@ class PatchRequest extends CoreRequest
             'value' => 'sometimes|numeric|min:0',
             'manual_value' => 'sometimes|numeric|min:0',
             'value_source' => ['sometimes', 'string', Rule::in(['manual', 'calculated'])],
-            'currency_id' => 'sometimes|integer|exists:currencies,id',
+            // Nullable: a deal with no currency of its own is in the company's,
+            // and the value modal sends that as an explicit null. Without
+            // `nullable` the integer rule rejected it and 422'd the whole
+            // request, silently discarding every other field in the payload.
+            'currency_id' => 'sometimes|nullable|integer|exists:currencies,id',
+            // Deal value adjustments, edited together in the value modal.
+            'exchange_rate' => 'sometimes|nullable|numeric|gt:0',
+            'discount_type' => ['sometimes', 'nullable', 'string', Rule::in(['percent', 'fixed'])],
+            'discount_value' => 'sometimes|nullable|numeric|min:0',
+            'deduction_amount' => 'sometimes|nullable|numeric|min:0',
+            'deduction_note' => 'sometimes|nullable|string|max:255',
             'pipeline_stage_id' => 'sometimes|integer|exists:pipeline_stages,id',
             'lead_pipeline_id' => 'sometimes|integer|exists:lead_pipelines,id',
             'close_date' => 'sometimes|date',

@@ -81,6 +81,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
 }) => {
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
+    const currencySymbol = (props as any).default_currency_symbol ?? "";
     const commissionOverrideEnabled =
         props.featureFlags?.["sales.per-agent-commission-override"] === true;
     const { data, isLoading } = useAdminAgentDashboard(agent.id);
@@ -119,7 +120,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
         {
             title: "Total Earnings",
             value: stats.total_earnings ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
             precision: 2,
             icon: <DollarSign size={20} />,
             iconBg: "bg-green-100 text-green-600",
@@ -127,7 +128,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
         {
             title: "Pending Earnings",
             value: stats.pending_earnings ?? 0,
-            prefix: "$",
+            prefix: currencySymbol,
             precision: 2,
             icon: <Clock size={20} />,
             iconBg: "bg-orange-100 text-orange-600",
@@ -183,7 +184,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -535,7 +536,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         formatter={(
                                                             value: any,
                                                         ) => [
-                                                            `$${Number(value).toLocaleString()}`,
+                                                            `${currencySymbol}${Number(value).toLocaleString()}`,
                                                             "Earnings",
                                                         ]}
                                                     />

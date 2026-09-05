@@ -22,6 +22,7 @@ class ProcessDealWonJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 60;
 
     protected Deal $deal;
@@ -36,13 +37,13 @@ class ProcessDealWonJob implements ShouldQueue
      * Execute the full MLM pipeline within a single database transaction.
      *
      * Steps:
-     * 1. Idempotency guard (skip if already locked)
+     * 1. Idempotency guard (skip if commission was already distributed)
      * 2. Validate deal is won and has an agent
      * 3. Update agent metrics (all-time + cycle: NSA/VSA + ancestor NSD/VSD)
      * 4. Evaluate level qualifications (agent + all ancestors, using cycle metrics)
      * 5. Check for enrollment completions (criteria met while in overflow → complete → re-enroll)
      * 6. Distribute commissions (differential model)
-     * 7. Lock the deal
+     * 7. Mark the deal commission-locked (value can no longer change)
      */
     public function handle(
         MetricsService $metricsService,
@@ -50,27 +51,38 @@ class ProcessDealWonJob implements ShouldQueue
         MlmCommissionService $commissionService,
         CycleService $cycleService
     ): void {
-        $deal = $this->deal->fresh();
+        $deal = $this->deal->fresh(['packages']);
 
-        if (!$deal) {
-            Log::warning("ProcessDealWonJob: Deal not found, skipping");
+        if (! $deal) {
+            Log::warning('ProcessDealWonJob: Deal not found, skipping');
+
             return;
         }
 
-        // Idempotency guard: skip if already processed
-        if ($deal->is_locked) {
-            Log::info("ProcessDealWonJob: Deal {$deal->id} already locked, skipping");
+        // Idempotency guard: skip only if commission was already distributed
+        // for this deal. is_locked is NOT a safe proxy for that — winning a
+        // deal does not lock it (see Deal::isLocked()'s doc comment); a
+        // separate lock_deal automation action, or a manual lock, can set
+        // is_locked=true for reasons that have nothing to do with whether
+        // commission has run. commission_locked is the one field this job
+        // owns, set only here and cleared only by DealOutcomeService::apply()
+        // on a genuine revert — safe to trust as the single source of truth.
+        if ($deal->commission_locked) {
+            Log::info("ProcessDealWonJob: Deal {$deal->id} already commission-locked, skipping");
+
             return;
         }
 
         $agent = LeadAgent::find($deal->agent_id);
 
-        if (!$agent) {
+        if (! $agent) {
             Log::warning("ProcessDealWonJob: No agent found for deal {$deal->id}, skipping");
+
             return;
         }
         if ($deal->outcome_status !== \App\Enums\OutcomeStatus::Won) {
             Log::warning("ProcessDealWonJob: Deal {$deal->id} is not marked as won, skipping. Only won deals should trigger this job.");
+
             return;
         }
 
@@ -97,9 +109,12 @@ class ProcessDealWonJob implements ShouldQueue
             // Step 4: Distribute commissions
             $commissionService->distribute($deal);
 
-            // Step 5: Lock the deal
-            $deal->is_locked = true;
-            $deal->locked_at = now();
+            // Step 5: Commission-lock the deal — its value can no longer
+            // change, but everything else (stage, agent, notes) stays
+            // editable. Deliberately NOT is_locked: that's a separate,
+            // broader freeze this job does not own (see Deal::isLocked()).
+            $deal->commission_locked = true;
+            $deal->commission_locked_at = now();
             $deal->saveQuietly(); // Bypass observer to prevent re-triggering
 
             Log::info("ProcessDealWonJob: Completed MLM pipeline for deal {$deal->id}");
@@ -122,7 +137,7 @@ class ProcessDealWonJob implements ShouldQueue
     ): void {
         $enrollment = $cycleService->getActiveEnrollment($agent);
 
-        if (!$enrollment || $enrollment->status !== EnrollmentStatus::Extended) {
+        if (! $enrollment || $enrollment->status !== EnrollmentStatus::Extended) {
             return; // Only check enrollments in overflow
         }
 

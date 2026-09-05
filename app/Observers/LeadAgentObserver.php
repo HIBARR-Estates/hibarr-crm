@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Services\CycleService;
+use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\MlmNotificationService;
 
@@ -81,6 +82,54 @@ class LeadAgentObserver
                     );
                 }
             });
+        }
+    }
+
+    /**
+     * Keep the agent_hierarchy closure table in step with parent_agent_id.
+     *
+     * parent_agent_id is the foreign key; agent_hierarchy is what the
+     * commission engine actually reads to find an agent's uplines. Only
+     * MlmAdminApiController::assignDownline() went through
+     * HierarchyService::setParent() and maintained both — the employee sync
+     * API (and anything else assigning an upline) wrote the FK directly, so
+     * those agents had a parent the engine could not see and their uplines
+     * silently earned nothing on every deal.
+     *
+     * Placed on the model rather than fixed at that one caller so every
+     * writer is covered, including future ones. HierarchyService itself uses
+     * saveQuietly(), so this never re-enters.
+     */
+    public function saved(LeadAgent $leadAgent): void
+    {
+        // On create the attribute was set, not "changed", so the two cases
+        // have to be asked about differently.
+        $parentTouched = $leadAgent->wasRecentlyCreated
+            ? $leadAgent->parent_agent_id !== null
+            : $leadAgent->wasChanged('parent_agent_id');
+
+        if (! $parentTouched) {
+            return;
+        }
+
+        // An agent parented to itself has no meaningful closure and would
+        // corrupt every ancestor query that reads one.
+        if ((int) $leadAgent->parent_agent_id === (int) $leadAgent->id) {
+            return;
+        }
+
+        $hierarchy = app(HierarchyService::class);
+
+        if ($leadAgent->parent_agent_id === null) {
+            $hierarchy->removeParent($leadAgent);
+
+            return;
+        }
+
+        $parent = LeadAgent::find($leadAgent->parent_agent_id);
+
+        if ($parent) {
+            $hierarchy->setParent($leadAgent, $parent);
         }
     }
 }

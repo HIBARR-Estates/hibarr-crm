@@ -1,12 +1,18 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
-import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
-import { DEAL_TOUR_ID, DEAL_TOUR_LABELS, buildDealTourSteps } from "./config/dealTourSteps";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
+import {
+    DEAL_TOUR_ID,
+    DEAL_TOUR_LABELS,
+    buildDealTourSteps,
+} from "./config/dealTourSteps";
 import DealStickyHeader from "./components/header/DealStickyHeader";
 import DealPipelineStepper from "./components/header/DealPipelineStepper";
 import DealTabBar from "./components/tabs/DealTabBar";
@@ -18,6 +24,7 @@ import WorkspaceTasksTab from "./components/workspace/WorkspaceTasksTab";
 import WorkspaceMeetingsTab from "./components/workspace/WorkspaceMeetingsTab";
 import WorkspaceFilesTab from "./components/workspace/WorkspaceFilesTab";
 import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
+import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
 import {
@@ -40,6 +47,8 @@ import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import usePipelineHasPackages from "./hooks/usePipelineHasPackages";
 import {
     filterCategoriesByScope,
@@ -51,7 +60,11 @@ import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
+import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import {
+    DealWorkspaceProvider,
+    useDealWorkspace,
+} from "./context/DealWorkspaceContext";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
 const EMPTY_FIELDS: any[] = [];
@@ -59,11 +72,18 @@ const EMPTY_FIELDS: any[] = [];
 export default function DealViewRedesign(props: DealShowProps) {
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
-    const showOnlinePayment = featureFlags?.["packages.online-payment"] === true;
+    const showOnlinePayment =
+        featureFlags?.["packages.online-payment"] === true;
 
     return (
-        <DealWorkspaceProvider deal={props.deal} paymentEnabled={showOnlinePayment}>
-            <DealViewRedesignInner {...props} showOnlinePayment={showOnlinePayment} />
+        <DealWorkspaceProvider
+            deal={props.deal}
+            paymentEnabled={showOnlinePayment}
+        >
+            <DealViewRedesignInner
+                {...props}
+                showOnlinePayment={showOnlinePayment}
+            />
         </DealWorkspaceProvider>
     );
 }
@@ -76,14 +96,19 @@ function DealViewRedesignInner(
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const analysis = useDealAnalysis();
-    // undefined = not yet known (tab not visited); the tab bar hides the
-    // count pill until a real number is reported, instead of showing 0.
-    const [offersCount, setOffersCount] = useState<number | undefined>(
-        undefined,
-    );
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
     >(undefined);
+    // Keyed by deal.id: this component isn't remounted across an Inertia
+    // navigation to a different deal, so a stale count from the previous
+    // deal must not flash before WorkspaceExposesTab reports the new one.
+    const [exposesCount, setExposesCount] = useState<
+        { dealId: number; count: number } | undefined
+    >(undefined);
+    const handleExposesCountChange = useCallback(
+        (count: number) => setExposesCount({ dealId: props.deal.id, count }),
+        [props.deal.id],
+    );
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -91,6 +116,7 @@ function DealViewRedesignInner(
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
+    const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -110,7 +136,6 @@ function DealViewRedesignInner(
     // Adapters are plain functions with no hook access, so publish the active
     // locale once here; every date/time in the redesign reads it.
     setDealDateLocale(locale);
-    const { td } = useTd();
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
@@ -174,10 +199,14 @@ function DealViewRedesignInner(
                 fields,
                 {
                     ...(deal.custom_fields_data ?? {}),
-                    ...((pageProps.leadCustomFieldsData as Record<string, any>) ?? {}),
+                    ...((pageProps.leadCustomFieldsData as Record<
+                        string,
+                        any
+                    >) ?? {}),
                 },
                 deal,
-                (pageProps.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS,
+                (pageProps.leadCustomFields as any[] | null | undefined) ??
+                    EMPTY_FIELDS,
             ),
         [
             props.analysisScript,
@@ -212,6 +241,15 @@ function DealViewRedesignInner(
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
     const pipelineHasPackages = usePipelineHasPackages();
+    const offersEligible =
+        permissions.view_lead_proposals !== "none" && !pipelineHasPackages;
+    // Visibility comes straight off the deal payload already shipped on
+    // first paint — no need for a separate eager fetch on every eligible
+    // deal just to answer "does this deal have any offers". WorkspaceOffersTab
+    // fetches the full offer rows itself, only once the tab is actually
+    // opened, and owns its own retry UI for that fetch.
+    const offerApplicationsCount = deal.offer_applications?.length ?? 0;
+    const showOffersTab = offersEligible && offerApplicationsCount > 0;
     const tourRef = useRef<ProductTourHandle>(null);
     const dealTourSteps = useMemo(
         () => buildDealTourSteps(nav.setTab),
@@ -223,7 +261,8 @@ function DealViewRedesignInner(
     // may change stages — otherwise the summary card renders it as advice, not
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
-    const canManagePayments = permissions.edit_payments === "all";
+    const canCreatePaymentRequest = dealPermissions.canEdit;
+    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -250,18 +289,24 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
-        // Offers and recommendations are both property-led, so a package
-        // pipeline drops them (see usePipelineHasPackages).
-        if (permissions.view_lead_proposals !== "none" && !pipelineHasPackages) {
+        // Offers only appear when a property on this deal has an applied offer.
+        if (showOffersTab) {
             tabs.push("offers");
         }
-        if (!pipelineHasPackages) tabs.push("recommendations");
+        // Exposes are documents shown to the buyer, so unlike offers they are
+        // not tied to the package/property split — only to the flag.
+        if (showExposes && permissions.view_lead_proposals !== "none") {
+            tabs.push("exposes");
+        }
+        if (!pipelineHasPackages) {
+            tabs.push("recommendations");
+        }
         // itinerary / dealinfo / timeline have no matching permission in this
         // system, so they follow deal visibility itself.
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages]);
+    }, [permissions, pipelineHasPackages, showExposes, showOffersTab]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -270,6 +315,60 @@ function DealViewRedesignInner(
             nav.setTab(activeTab);
         }
     }, [activeTab, nav]);
+
+    // Lead-owned FILE fields, whose value lives on the lead (shared across
+    // every deal on that lead) — one slot on this deal's Files tab, gated by
+    // the same visibility rules as any other custom file field.
+    const leadFileFields = useMemo(
+        () =>
+            ((pageProps.leadCustomFields as any[] | null | undefined) ?? EMPTY_FIELDS).filter(
+                (f: any) => f.type === "file",
+            ),
+        [pageProps.leadCustomFields],
+    );
+    const leadFileFieldsData =
+        (pageProps.leadCustomFieldsData as Record<string, any> | null | undefined) ?? {};
+
+    // Deal-context visibility for this deal's own + lead-owned file fields.
+    // Pipeline/stage context is the deal's for both, but `record` criteria are
+    // scoped to the record that *owns* the field: a lead field's "restrict to
+    // specific record(s)" rule lists lead ids, so evaluating it against the
+    // deal id would never match. Hence two passes over one shared value map.
+    const dealFileVisibilityMap = useMemo(() => {
+        const fileRelevantFields = [...fields, ...leadFileFields];
+        const customFieldsData = {
+            ...(deal.custom_fields_data ?? {}),
+            ...leadFileFieldsData,
+        };
+        const baseContext = {
+            pipeline: deal.lead_pipeline_id,
+            pipelineStage: deal.pipeline_stage_id,
+        };
+        const evaluateFor = (targetFields: any[], recordId: any) =>
+            evaluateAllFieldsVisibility(
+                targetFields,
+                buildFieldValueMap({
+                    customFieldsData,
+                    fields: fileRelevantFields,
+                    normalizeMultiSelect: true,
+                    context: { ...baseContext, recordId },
+                }),
+            );
+
+        return {
+            ...evaluateFor(fields, deal.id),
+            ...evaluateFor(leadFileFields, deal.lead_id),
+        };
+    }, [
+        fields,
+        leadFileFields,
+        deal.id,
+        deal.lead_id,
+        deal.custom_fields_data,
+        leadFileFieldsData,
+        deal.lead_pipeline_id,
+        deal.pipeline_stage_id,
+    ]);
 
     // Badge must count the same thing the Files tab body renders — document
     // slots (HIBARR/custom file fields) plus loose attachments, deduped — not
@@ -280,19 +379,24 @@ function DealViewRedesignInner(
         files,
         fields,
         pipelineCategoryIds,
+        dealFileVisibilityMap,
+        leadFileFields,
+        leadFileFieldsData,
     );
 
     const counts = useMemo(
         () => ({
             notes: notesLoading ? undefined : notes.length,
             tasks: tasksLoading ? undefined : overview.openTasksCount,
-            meetings: dealFollowUpsLoading
-                ? undefined
-                : overview.upcomingMeetingsCount,
+            meetings: dealFollowUpsLoading ? undefined : dealFollowUps.length,
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
-            offers: offersCount,
+            offers: showOffersTab ? offerApplicationsCount : undefined,
+            exposes:
+                exposesCount?.dealId === deal.id
+                    ? exposesCount.count
+                    : undefined,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
@@ -303,10 +407,13 @@ function DealViewRedesignInner(
             filesLoading,
             notes.length,
             fileDocuments,
+            deal.id,
             deal.lead_flight_itineraries?.length,
             overview.openTasksCount,
-            overview.upcomingMeetingsCount,
-            offersCount,
+            dealFollowUps.length,
+            showOffersTab,
+            offerApplicationsCount,
+            exposesCount,
             recommendationsCount,
         ],
     );
@@ -320,7 +427,7 @@ function DealViewRedesignInner(
                     name: t("pages.deals.header.breadcrumb_deals"),
                     url: route("deals.index"),
                 },
-                { name: td(pageTitle) },
+                { name: pageTitle },
             ]}
         >
             {/* Gate on isOpen as well as the flag: the modal's hooks build the whole
@@ -377,12 +484,17 @@ function DealViewRedesignInner(
                         onAddNote={() => setAddNoteOpen(true)}
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
-                        onOpenAnalysis={showAnalysis ? analysis.open : undefined}
+                        onOpenAnalysis={
+                            showAnalysis ? analysis.open : undefined
+                        }
                         onReplayGuide={() => tourRef.current?.restart()}
                     />
 
                     <div className="">
-                        <div className="mb-[14px] flex items-stretch gap-4" data-tour="deal-pipeline-stepper">
+                        <div
+                            className="mb-[14px] flex items-stretch gap-4"
+                            data-tour="deal-pipeline-stepper"
+                        >
                             <div className="min-w-0 flex-1">
                                 <DealPipelineStepper
                                     deal={deal}
@@ -424,7 +536,8 @@ function DealViewRedesignInner(
                                             attempts += 1;
                                             let el: Element | null = null;
                                             for (const sel of selectors) {
-                                                el = document.querySelector(sel);
+                                                el =
+                                                    document.querySelector(sel);
                                                 if (el) break;
                                             }
                                             if (el instanceof HTMLElement) {
@@ -475,10 +588,18 @@ function DealViewRedesignInner(
                                             // Executable actions perform the real
                                             // thing (open the modal / advance the
                                             // stage), not just switch tabs.
-                                            onCreateTask={() => setAddTaskOpen(true)}
-                                            onScheduleCall={() => setAddMeetingOpen(true)}
-                                            onRequestDocuments={() => nav.setTab("files")}
-                                            onReviewStaleDeal={() => nav.setTab("timeline")}
+                                            onCreateTask={() =>
+                                                setAddTaskOpen(true)
+                                            }
+                                            onScheduleCall={() =>
+                                                setAddMeetingOpen(true)
+                                            }
+                                            onRequestDocuments={() =>
+                                                nav.setTab("files")
+                                            }
+                                            onReviewStaleDeal={() =>
+                                                nav.setTab("timeline")
+                                            }
                                             onAdvanceStage={advanceToNextStage}
                                         />
                                     </div>
@@ -495,8 +616,10 @@ function DealViewRedesignInner(
                                     </div>
                                     <div className="p-4">
                                         {activeTab === "overview" &&
-                                            ((notesLoading && notes.length === 0) ||
-                                            (tasksLoading && tasks.length === 0) ||
+                                            ((notesLoading &&
+                                                notes.length === 0) ||
+                                            (tasksLoading &&
+                                                tasks.length === 0) ||
                                             (dealFollowUpsLoading &&
                                                 dealFollowUps.length === 0) ? (
                                                 <OverviewDeferredSkeleton />
@@ -506,38 +629,62 @@ function DealViewRedesignInner(
                                                         deal={deal}
                                                         notes={notes}
                                                         tasks={tasks}
-                                                        dealFollowUps={dealFollowUps}
-                                                        taskBoardColumns={taskBoardColumns}
-                                                        permissions={permissions}
-                                                        meetingTypes={meetingTypes}
-                                                        onNavigateToSubTab={nav.setTab}
-                                                        onAddTask={() => setAddTaskOpen(true)}
-                                                        onAddMeeting={() =>
-                                                            setAddMeetingOpen(true)
+                                                        dealFollowUps={
+                                                            dealFollowUps
                                                         }
-                                                        onAddNote={() => setAddNoteOpen(true)}
+                                                        taskBoardColumns={
+                                                            taskBoardColumns
+                                                        }
+                                                        permissions={
+                                                            permissions
+                                                        }
+                                                        meetingTypes={
+                                                            meetingTypes
+                                                        }
+                                                        onNavigateToSubTab={
+                                                            nav.setTab
+                                                        }
+                                                        onAddTask={() =>
+                                                            setAddTaskOpen(true)
+                                                        }
+                                                        onAddMeeting={() =>
+                                                            setAddMeetingOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                        onAddNote={() =>
+                                                            setAddNoteOpen(true)
+                                                        }
                                                     />
                                                 </div>
                                             ))}
                                         {activeTab === "notes" &&
-                                            (notesLoading && notes.length === 0 ? (
+                                            (notesLoading &&
+                                            notes.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceNotesTab
                                                     notes={notes}
                                                     permissions={permissions}
-                                                    onAddNote={() => setAddNoteOpen(true)}
+                                                    onAddNote={() =>
+                                                        setAddNoteOpen(true)
+                                                    }
                                                 />
                                             ))}
                                         {activeTab === "tasks" &&
-                                            (tasksLoading && tasks.length === 0 ? (
+                                            (tasksLoading &&
+                                            tasks.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceTasksTab
                                                     tasks={tasks}
-                                                    taskBoardColumns={taskBoardColumns}
+                                                    taskBoardColumns={
+                                                        taskBoardColumns
+                                                    }
                                                     permissions={permissions}
-                                                    onAddTask={() => setAddTaskOpen(true)}
+                                                    onAddTask={() =>
+                                                        setAddTaskOpen(true)
+                                                    }
                                                 />
                                             ))}
                                         {activeTab === "meetings" &&
@@ -556,7 +703,8 @@ function DealViewRedesignInner(
                                                 />
                                             ))}
                                         {activeTab === "files" &&
-                                            (filesLoading && files.length === 0 ? (
+                                            (filesLoading &&
+                                            files.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceFilesTab
@@ -565,12 +713,26 @@ function DealViewRedesignInner(
                                                     permissions={permissions}
                                                     fields={fields}
                                                     categoryIds={pipelineCategoryIds}
+                                                    visibilityMap={dealFileVisibilityMap}
+                                                    leadFileFields={leadFileFields}
+                                                    leadFileFieldsData={leadFileFieldsData}
                                                 />
                                             ))}
-                                        {activeTab === "offers" && (
-                                            <WorkspaceOffersTab
+                                        {activeTab === "offers" &&
+                                            showOffersTab && (
+                                                <WorkspaceOffersTab
+                                                    deal={deal}
+                                                />
+                                            )}
+                                        {activeTab === "exposes" && (
+                                            <WorkspaceExposesTab
                                                 deal={deal}
-                                                onCountChange={setOffersCount}
+                                                canEdit={
+                                                    dealPermissions.canEdit
+                                                }
+                                                onCountChange={
+                                                    handleExposesCountChange
+                                                }
                                             />
                                         )}
                                         {activeTab === "recommendations" && (
@@ -580,30 +742,42 @@ function DealViewRedesignInner(
                                                 restrictPackageOrProperty={
                                                     props.restrictPackageOrProperty
                                                 }
-                                                onCountChange={setRecommendationsCount}
+                                                onCountChange={
+                                                    setRecommendationsCount
+                                                }
                                             />
                                         )}
                                         {activeTab === "itinerary" && (
                                             <WorkspaceItineraryTab
                                                 deal={deal}
                                                 canAdd={dealPermissions.canEdit}
-                                                canDelete={dealPermissions.canEdit}
+                                                canDelete={
+                                                    dealPermissions.canEdit
+                                                }
                                             />
                                         )}
                                         {activeTab === "dealinfo" && (
                                             <DealInfoTab
                                                 deal={deal}
-                                                customFieldCategories={dealInfoCategories}
-                                                visibleFieldKeys={dealInfoFieldKeys}
+                                                customFieldCategories={
+                                                    dealInfoCategories
+                                                }
+                                                visibleFieldKeys={
+                                                    dealInfoFieldKeys
+                                                }
                                                 fields={fields}
                                                 activeSection={nav.infoSection}
-                                                onSectionChange={nav.setInfoSection}
+                                                onSectionChange={
+                                                    nav.setInfoSection
+                                                }
                                                 restrictPackageOrProperty={
                                                     props.restrictPackageOrProperty
                                                 }
                                                 consents={props.consents}
                                                 gdprSetting={props.gdprSetting}
-                                                showCompletionDot={showCompletionDot}
+                                                showCompletionDot={
+                                                    showCompletionDot
+                                                }
                                             />
                                         )}
                                         {activeTab === "timeline" && (
@@ -617,19 +791,30 @@ function DealViewRedesignInner(
                                 </section>
                             </div>
 
-                            <div className="dr-dossier" data-tour="deal-dossier">
+                            <div
+                                className="dr-dossier"
+                                data-tour="deal-dossier"
+                            >
                                 <WorkspaceContextRail
                                     deal={deal}
                                     files={files}
                                     fields={fields}
                                     categoryIds={pipelineCategoryIds}
+                                    visibilityMap={dealFileVisibilityMap}
                                     restrictPackageOrProperty={
                                         props.restrictPackageOrProperty
                                     }
                                     onNavigateToSubTab={nav.setTab}
-                                    onSwitchToDealInfo={() => nav.goToDealInfo("general")}
+                                    onSwitchToDealInfo={() =>
+                                        nav.goToDealInfo("general")
+                                    }
                                     showOnlinePayment={props.showOnlinePayment}
-                                    canManagePayments={canManagePayments}
+                                    canCreatePaymentRequest={
+                                        canCreatePaymentRequest
+                                    }
+                                    canConfirmPaymentTransfer={
+                                        canConfirmPaymentTransfer
+                                    }
                                 />
                             </div>
                         </div>

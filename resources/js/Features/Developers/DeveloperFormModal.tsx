@@ -11,6 +11,7 @@ import {
     Row,
     Col,
     Switch,
+    InputNumber,
 } from "antd";
 import {
     UploadOutlined,
@@ -135,6 +136,13 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     description: developer.description,
                     whatsapp_group_link: developer.whatsapp_group_link,
                     google_drive_link: developer.google_drive_link,
+                    // Arrives as a decimal string from the API; InputNumber
+                    // silently ignores a string, which left the field blank on
+                    // every reopen and made a saved rate look unsaved.
+                    commission_percentage:
+                        developer.commission_percentage != null
+                            ? Number(developer.commission_percentage)
+                            : null,
                     is_hidden: !!developer.is_hidden,
                 });
                 setLogoUrl(developer.logo_url || null);
@@ -282,6 +290,21 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                         </Form.Item>
                     </Col>
                 </Row>
+
+                <Form.Item
+                    name="commission_percentage"
+                    label="Commission Percentage"
+                    extra="Maximum total commission on deals for this developer's projects, shared across the agent, their uplines and the company. Leave empty to use the company default. A project can override it."
+                >
+                    <InputNumber
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        className="w-full"
+                        addonAfter="%"
+                        placeholder="Company default"
+                    />
+                </Form.Item>
 
                 {canToggleHidden && (
                     <Form.Item

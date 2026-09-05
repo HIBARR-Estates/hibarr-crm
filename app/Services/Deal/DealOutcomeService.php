@@ -14,11 +14,16 @@ use Illuminate\Support\Facades\DB;
  * Applies a manual outcome change to a deal.
  *
  * This is not a plain field write. Marking a deal won fires DealWonEvent, which
- * queues ProcessDealWonJob to distribute MLM commissions and lock the deal — so
- * the reverse has to undo all of it, and nothing in the codebase did that before:
- * MlmCommissionService::revert() and MetricsService::decrementOnDealReverted()
- * both existed but only single-commission reversal from the MLM admin API ever
- * called them.
+ * queues ProcessDealWonJob to distribute MLM commissions and commission-lock the
+ * deal (value can no longer change) — so the reverse has to undo all of it, and
+ * nothing in the codebase did that before: MlmCommissionService::revert() and
+ * MetricsService::decrementOnDealReverted() both existed but only
+ * single-commission reversal from the MLM admin API ever called them.
+ *
+ * Deliberately does not touch is_locked in either direction: that flag is a
+ * separate, broader freeze this service does not own (a lock_deal automation
+ * action, or a manual lock, can set it for reasons that have nothing to do
+ * with commission) — see Deal::isLocked()/isCommissionLocked().
  *
  * Everything runs in one transaction so a deal can never end up un-won with its
  * commissions still standing.
@@ -71,16 +76,19 @@ class DealOutcomeService
                 $reverted = $this->commissions->revert($deal, $reason);
                 $this->metrics->decrementOnDealReverted($deal);
 
-                // Unlock, or every later edit stays blocked by the locked-deal guard.
-                $deal->is_locked = false;
-                $deal->locked_at = null;
+                // Commission-unlock, or the value stays blocked by the
+                // commission-locked guard despite there being no active
+                // commission left to protect. is_locked is untouched — see
+                // this class's doc comment.
+                $deal->commission_locked = false;
+                $deal->commission_locked_at = null;
             }
 
             $deal->outcome_status = $outcome;
             $deal->won_at = $outcome === OutcomeStatus::Won ? now() : null;
 
             // Fires DealWonEvent on the way in when $outcome is Won, which queues
-            // commission distribution and re-locks the deal.
+            // commission distribution and commission-locks the deal.
             $deal->save();
 
             return [

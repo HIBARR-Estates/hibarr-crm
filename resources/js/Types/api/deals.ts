@@ -65,6 +65,8 @@ export interface Deal {
     downpayment_confirmed?: number;
 
     // Counts for kanban card display
+    /** withCount('products') — linked properties, without loading the rows. */
+    products_count?: number;
     tasks_count?: number;
     meetings_count?: number;
     activities_count?: number;
@@ -91,6 +93,11 @@ export interface Deal {
     // Lock state
     is_locked?: boolean;
     locked_at?: string | null;
+    // Set once commission has been distributed for a won deal — narrower
+    // than is_locked: only the value (and packages/properties/offers that
+    // feed it) is protected, not the whole deal.
+    commission_locked?: boolean;
+    commission_locked_at?: string | null;
 
     // Outcome (read-only in the redesign; set by automation / stage movement)
     outcome_status?: "won" | "lost" | null;
@@ -107,11 +114,79 @@ export interface Deal {
         products_total: number;
         packages_total: number;
         gross_total: number;
+        /** What the active source's adjustments come off: gross, or the manual value. */
+        base_value: number;
+        /** Raw offer-derived discount, whichever source is active. Only subtracted on a calculated deal. */
+        offer_discount_total: number;
+        /** The ad-hoc discount negotiated on the deal itself, applied to base_value. */
+        manual_discount_total: number;
+        /** offer_discount_total + manual_discount_total. */
         discount_total: number;
+        deduction_total: number;
+        deduction_note: string | null;
+        discount_type: "percent" | "fixed" | null;
+        discount_value: number | null;
         calculated_value: number;
         manual_value: number | null;
         value_source: "manual" | "calculated";
+        /** base_value minus the active adjustments — what deals.value becomes on the next resolve. */
+        computed_value: number;
+        /** deals.value as stored. Every figure above is in the deal's own currency. */
         final_value: number;
+        /** final_value expressed in company currency — what commission is computed against. */
+        final_value_company: number;
+        currency: {
+            deal_code: string | null;
+            deal_symbol: string | null;
+            company_code: string | null;
+            company_symbol: string | null;
+            exchange_rate: number;
+            is_converted: boolean;
+        };
+        // null when the viewer isn't the deal's agent, an admin, or granted
+        // partner-network management — see PermissionGates::canViewDealCommission().
+        commission: {
+            /**
+             * Every leg that paid a person, theirs flagged. Excludes the system
+             * leg, so these sum to `paid`. Null unless the viewer holds
+             * manage_partner_network or the admin role.
+             */
+            legs: Array<{
+                agent_name: string;
+                type: "agent" | "upline";
+                percentage: number | null;
+                amount: number;
+                is_you: boolean;
+            }> | null;
+            /**
+             * Total paid across every leg. Null unless the viewer holds
+             * manage_partner_network or the admin role.
+             */
+            paid: number | null;
+            /**
+             * The rate behind `paid`, when one number describes it — level-based
+             * legs share the deal value as their base and so add up. Null for a
+             * fixed fee, or for package legs taken off differing bases.
+             */
+            percentage: number | null;
+            /**
+             * What this viewer personally earned on the deal — set for the agent
+             * and any upline who took a differential, no permission required.
+             * Null when the viewer earned nothing.
+             */
+            own: number | null;
+            own_percentage: number | null;
+            /**
+             * The company's own margin. Null unless the viewer holds
+             * manage_partner_network or the admin role.
+             */
+            revenue_to_company: number | null;
+            deal_type: "package" | "property";
+            // true when the deal hasn't been won yet (or commission wasn't
+            // distributed for any other reason) — figures are a live
+            // projection from current settings, not a persisted ledger.
+            is_projected: boolean;
+        } | null;
     };
 }
 
@@ -304,6 +379,13 @@ export interface PropertySummary {
     land_size: string | null;
     status: string | null;
     photos: string[] | null;
+    /** Appended on the model — project location first, own columns last. */
+    effective_location?: { city: string | null; area: string | null } | null;
+    unit_style?: string[] | null;
+    view_types?: string[] | null;
+    furniture_status?: string | null;
+    primary_category?: string | null;
+    construction_status?: string | null;
     developer_project?: {
         id: number;
         name: string;

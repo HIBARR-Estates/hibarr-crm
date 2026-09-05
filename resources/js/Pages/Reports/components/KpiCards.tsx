@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, Statistic } from "antd";
+import { usePage } from "@inertiajs/react";
 import {
     UserOutlined,
     FundOutlined,
@@ -64,6 +65,8 @@ const cards = [
 ];
 
 const KpiCards: React.FC<KpiCardsProps> = ({ summary, onCardClick }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {cards.map((card) => (
@@ -86,9 +89,8 @@ const KpiCards: React.FC<KpiCardsProps> = ({ summary, onCardClick }) => {
                         <div className="mt-2 text-xs text-gray-500">
                             Total Value:{" "}
                             <span className="font-semibold text-green-600">
+                                {currencySymbol}
                                 {new Intl.NumberFormat("en-US", {
-                                    style: "currency",
-                                    currency: "USD",
                                     maximumFractionDigits: 0,
                                 }).format(summary[card.extra])}
                             </span>

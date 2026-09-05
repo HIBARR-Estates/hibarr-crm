@@ -43,7 +43,9 @@ export function getFileIconName(filename: string): string {
 export function toWorkspaceFilePreview(file: DealFile): WorkspaceFilePreview {
     return {
         id: file.id,
-        name: file.filename,
+        // A user-set label (AttachmentFileCard's rename action) always wins
+        // over the raw uploaded filename.
+        name: file.description?.trim() || file.filename,
         sizeLabel: formatFileSize(file.size),
         uploadedLabel: file.created_at
             ? dayjs(file.created_at).fromNow()

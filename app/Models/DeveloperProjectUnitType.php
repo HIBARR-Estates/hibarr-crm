@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use App\Traits\HasOffers;
+use App\Traits\HasTagPriorityAssetOrdering;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -21,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class DeveloperProjectUnitType extends BaseModel
 {
-    use HasFactory, HasCompany, HasOffers, SoftDeletes;
+    use HasFactory, HasCompany, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
 
     protected $table = 'developer_project_unit_types';
 
@@ -260,6 +262,22 @@ class DeveloperProjectUnitType extends BaseModel
     public function assets(): HasMany
     {
         return $this->hasMany(DeveloperProjectUnitTypeAsset::class, 'unit_type_id');
+    }
+
+    /**
+     * Listing/card thumbnail: prefer cover-tagged images, then hero, then
+     * lowest order. Mirrors DeveloperProject::thumbnail().
+     */
+    public function thumbnail(): HasOne
+    {
+        $table = (new DeveloperProjectUnitTypeAsset)->getTable();
+
+        $relation = $this->hasOne(DeveloperProjectUnitTypeAsset::class, 'unit_type_id')
+            ->where("{$table}.asset_type", DeveloperProjectUnitTypeAsset::TYPE_IMAGE);
+
+        return $relation
+            ->orderByRaw($this->tagPriorityOrderSql($table))
+            ->orderBy("{$table}.order");
     }
 
     // ================================================================

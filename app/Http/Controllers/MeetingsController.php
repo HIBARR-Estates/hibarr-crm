@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\MeetingType;
 use App\Models\User;
 use App\Services\MeetingVisibilityService;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,11 +62,11 @@ class MeetingsController extends AccountBaseController
         $counts = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->selectRaw(
                 'SUM(next_follow_up_date >= ?) as upcoming,'
-                . ' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
-                . " SUM(status = 'scheduled'"
-                . ' AND next_follow_up_date <= ?'
-                . ' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
-                . " SUM(status = 'completed') as completed",
+                .' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
+                ." SUM(status = 'scheduled'"
+                .' AND next_follow_up_date <= ?'
+                .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
+                ." SUM(status = 'completed') as completed",
                 [$now, $weekStart, $weekEnd, $now, DealFollowUp::DEFAULT_DURATION_MINUTES, $now]
             )
             ->first();
@@ -80,6 +81,28 @@ class MeetingsController extends AccountBaseController
         // ── Paginated sections ─────────────────────────────────────────
         $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
         $pastPerPage = (int) $request->get('past_per_page', 6);
+
+        // Optional attendance/date-window filters — used by links into this
+        // page that already know what they're looking for (e.g. the personal
+        // dashboard's "N missed" badge), so the list they land on actually
+        // matches what was counted rather than just "all your past meetings".
+        // Attendance is only meaningful for past meetings, so these apply to
+        // that query alone.
+        $attendanceFilter = $request->get('attendance');
+
+        // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
+        // throws, and a malformed link shouldn't 500 the page.
+        $isValidDate = function ($value): bool {
+            if (! is_string($value)) {
+                return false;
+            }
+
+            $parsed = \DateTime::createFromFormat('Y-m-d', $value);
+
+            return $parsed !== false && $parsed->format('Y-m-d') === $value;
+        };
+        $dateFrom = $isValidDate($request->get('date_from')) ? $request->get('date_from') : null;
+        $dateTo = $isValidDate($request->get('date_to')) ? $request->get('date_to') : null;
 
         // A meeting is "live" when it has started but not yet ended:
         //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
@@ -117,6 +140,9 @@ class MeetingsController extends AccountBaseController
                         [$defaultDuration, $now]
                     );
             })
+            ->when($attendanceFilter, fn ($q) => $q->where('attendance_outcome', $attendanceFilter))
+            ->when($dateFrom, fn ($q) => $q->where('next_follow_up_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('next_follow_up_date', '<=', Carbon::parse($dateTo)->endOfDay()))
             ->orderBy('next_follow_up_date', 'desc')
             ->paginate($pastPerPage, ['*'], 'past_page');
 
@@ -265,13 +291,12 @@ class MeetingsController extends AccountBaseController
             'timezone' => 'nullable|string|max:100',
         ]);
 
-        $browserTimezone = $request->input('timezone', 'UTC');
-
-        $newDateTime = Carbon::createFromFormat(
-            'd-m-Y H:i:s',
+        $newDateTime = UserTimezone::interpretWallClock(
+            user(),
+            company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            $browserTimezone
-        )->setTimezone('UTC');
+            'd-m-Y H:i:s'
+        );
 
         $followUp->next_follow_up_date = $newDateTime;
         $followUp->status = 'scheduled';

@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import { usePage } from "@inertiajs/react";
 import {
     formatMeetingDateForApi,
@@ -75,7 +72,6 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
                                 input.startTime,
                             ),
                             duration: input.duration,
-                            timezone: getBrowserTimezone(),
                         }),
                     },
                 );

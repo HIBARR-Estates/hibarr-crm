@@ -9,6 +9,7 @@ import {
     Statistic,
     Button,
 } from "antd";
+import { usePage } from "@inertiajs/react";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -39,6 +40,8 @@ interface Props extends PageProps {
 
 const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
     const { t } = useTranslation();
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
 
@@ -96,7 +99,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-medium">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -110,7 +113,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             align: "right" as const,
             render: (val: number) => (
                 <span className="font-semibold text-green-600">
-                    $
+                    {currencySymbol}
                     {val?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                     })}
@@ -165,7 +168,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                                     <Statistic
                                         title="Total Deal Value"
                                         value={totalDealValue}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                     />
                                 </Card>
@@ -181,7 +184,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                                     <Statistic
                                         title="Your Commission"
                                         value={totalCommission}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                         valueStyle={{ color: "#16a34a" }}
                                     />

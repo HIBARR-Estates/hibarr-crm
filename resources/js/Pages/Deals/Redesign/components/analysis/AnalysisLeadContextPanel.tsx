@@ -9,6 +9,8 @@ import {
 import AnalysisQuickNote from "./AnalysisQuickNote";
 import AnalysisCustomFieldRow from "./AnalysisCustomFieldRow";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -286,8 +288,26 @@ export default function AnalysisLeadContextPanel({
     }, [onLeadCustomFieldChange]);
 
     const visibilityMap = useMemo(
-        () => evaluateAllFieldsVisibility(regularCustomFields, leadCustomFieldsData),
-        [regularCustomFields, leadCustomFieldsData],
+        () => {
+            const dealContext = buildDealVisibilityContext(deal);
+            return evaluateAllFieldsVisibility(
+                regularCustomFields,
+                buildFieldValueMap({
+                    customFieldsData: leadCustomFieldsData,
+                    context: {
+                        ...dealContext.valueMap,
+                        // These are lead-owned fields, so a `record` criterion
+                        // ("restrict to specific record(s)") lists lead ids —
+                        // the deal id buildDealVisibilityContext supplies would
+                        // never match one. Pipeline/stage/package context stays
+                        // the deal's.
+                        recordId: deal?.lead_id,
+                    },
+                }),
+                dealContext.evaluation,
+            );
+        },
+        [regularCustomFields, leadCustomFieldsData, deal],
     );
 
     // Group visible custom fields by category

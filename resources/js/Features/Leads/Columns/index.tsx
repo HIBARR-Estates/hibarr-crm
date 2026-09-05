@@ -10,6 +10,7 @@ import {
     formatCompanyDate,
     formatCompanyTime,
 } from "@/lib/companyDateTime";
+import { formatUserDate, formatUserTime } from "@/lib/userDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay } from "@/lib/utils";
@@ -63,12 +64,13 @@ function bodyCell(overrides?: CSSProperties): { style: CSSProperties } {
     };
 }
 
-type Urgency = "overdue" | "today" | "soon" | "later";
+type Urgency = "overdue" | "today" | "urgent" | "soon" | "later";
 
 /**
  * Urgency is derived from the date, never stored — the same boundaries
  * LeadService::applyNextActionFilter() buckets by, so the filter and the
- * label always agree.
+ * label always agree. "urgent" (< 2 days) is a display-only slice of the
+ * server's week bucket — it colours the pill, it does not filter.
  */
 export function nextActionUrgency(dueAt: string): Urgency {
     const due = dayjs(dueAt);
@@ -76,6 +78,7 @@ export function nextActionUrgency(dueAt: string): Urgency {
 
     if (due.isBefore(now)) return "overdue";
     if (due.isSame(now, "day")) return "today";
+    if (due.isBefore(now.add(2, "day"))) return "urgent";
     if (due.isBefore(now.add(7, "day"))) return "soon";
     return "later";
 }
@@ -88,6 +91,7 @@ const NEXT_ACTION_TYPE = {
 const NEXT_ACTION_DUE: Record<Urgency, { bg: string; fg: string; bd: string }> = {
     overdue: { bg: T.RED_SOFT, fg: T.RED, bd: T.RED_MID },
     today: { bg: T.AMBER_BANNER, fg: T.AMBER, bd: T.AMBER_MID },
+    urgent: { bg: T.AMBER_SOFT, fg: T.AMBER_TEXT, bd: T.AMBER_MID },
     soon: { bg: T.BLUE_LIGHT, fg: T.BLUE_DARK, bd: T.BLUE_MID },
     later: { bg: T.SURFACE_2, fg: T.TEXT_MUTED, bd: T.BORDER },
 };
@@ -537,10 +541,10 @@ export const LEAD_TABLE_COLUMNS = (
                 return (
                     <div>
                         <div style={{ fontSize: 14, color: T.TEXT }}>
-                            {formatCompanyDate(record.created_at)}
+                            {formatUserDate(record.created_at)}
                         </div>
                         <div style={{ fontSize: 12, color: T.TEXT_MUTED, marginTop: 2 }}>
-                            {formatCompanyTime(record.created_at)}
+                            {formatUserTime(record.created_at)}
                         </div>
                     </div>
                 );

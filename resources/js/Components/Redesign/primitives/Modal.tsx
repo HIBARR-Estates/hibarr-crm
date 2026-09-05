@@ -104,7 +104,6 @@ export function Modal({
         <div
             className="modal-overlay redesign-modal-overlay"
             style={zIndex !== undefined ? { zIndex } : undefined}
-            onClick={dirty ? undefined : onClose}
             role="presentation"
         >
             <div
@@ -150,7 +149,7 @@ export function Modal({
 }
 
 interface ModalFieldProps {
-    label: string;
+    label: ReactNode;
     children: ReactNode;
 }
 

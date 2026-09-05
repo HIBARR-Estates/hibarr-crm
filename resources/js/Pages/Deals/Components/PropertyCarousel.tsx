@@ -1,5 +1,6 @@
 import { Tag } from "antd";
 import { useState } from "react";
+import { usePage } from "@inertiajs/react";
 import {
     HomeOutlined,
     EnvironmentOutlined,
@@ -19,6 +20,8 @@ const PROPERTY_STATUS_COLORS: Record<string, string> = {
 const PER_PAGE = 3;
 
 function PropertyCard({ product }: { product: any }) {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const prop = product?.property ?? null;
     const photo = prop?.photos?.[0] ?? null;
     const statusColor = prop?.status
@@ -96,9 +99,8 @@ function PropertyCard({ product }: { product: any }) {
                     <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600">
                         <DollarOutlined className="shrink-0" />
                         <span>
+                            {currencySymbol}
                             {new Intl.NumberFormat("en-US", {
-                                style: "currency",
-                                currency: "USD",
                                 maximumFractionDigits: 0,
                             }).format(Number(prop.price))}
                         </span>

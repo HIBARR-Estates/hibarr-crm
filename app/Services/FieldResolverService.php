@@ -53,6 +53,34 @@ class FieldResolverService
     ];
 
     /**
+     * Whitelist of lead_marketing columns exposed to automation
+     * conditions/merge tags, addressed as `lead_marketing_{column}`. Keys must
+     * match AutomationFieldCatalog::LEAD_MARKETING_FIELDS.
+     */
+    protected const LEAD_MARKETING_FIELDS = [
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_content',
+        'utm_term',
+        'utm_audience',
+        'traffic_source_id',
+        'facebook_click_id',
+        'facebook_lead_id',
+        'facebook_browser_id',
+        'user_agent',
+        'ip_address',
+        'has_registered_for_the_webinar',
+        'has_attended_the_webinar',
+        'last_webinar_date',
+        'registered_for_zoom_meeting',
+        'has_joined_the_facebook_group',
+        'has_joined_the_whatsapp_group',
+        'has_downloaded_the_ebook',
+        'contact_score',
+    ];
+
+    /**
      * Resolve a value for a given field from a Deal or Lead instance — a Lead
      * subject means the automation runs directly on the lead (no pipeline),
      * so lead_field_ / lead_custom_field_ prefixed keys resolve against it
@@ -83,17 +111,23 @@ class FieldResolverService
             return $this->resolveFollowupField($deal, $field);
         }
 
-        // 4. Lead (contact) custom fields (format: lead_custom_field_{id})
+        // 4. Lead marketing fields (format: lead_marketing_{column}) — checked
+        // before the lead_ prefixes below, which would otherwise swallow it.
+        if (Str::startsWith($field, 'lead_marketing_')) {
+            return $this->resolveLeadMarketingFor($deal->contact, Str::after($field, 'lead_marketing_'));
+        }
+
+        // 5. Lead (contact) custom fields (format: lead_custom_field_{id})
         if (Str::startsWith($field, 'lead_custom_field_')) {
             return $this->resolveLeadCustomField($deal, $field);
         }
 
-        // 5. Lead (contact) native fields (format: lead_field_{name})
+        // 6. Lead (contact) native fields (format: lead_field_{name})
         if (Str::startsWith($field, 'lead_field_')) {
             return $this->resolveLeadField($deal, $field);
         }
 
-        // 6. Native Deal fields (Fallback)
+        // 7. Native Deal fields (Fallback)
         // We try to access it directly. If it's a valid attribute or accessor, it will return value.
         // If it doesn't exist, it might return null or throw error depending on strictness.
         // Eloquent returns null for non-existent attributes usually.
@@ -116,6 +150,10 @@ class FieldResolverService
             return $this->resolveLeadCustomFieldFor($lead, Str::after($field, 'custom_field_'));
         }
 
+        if (Str::startsWith($field, 'lead_marketing_')) {
+            return $this->resolveLeadMarketingFor($lead, Str::after($field, 'lead_marketing_'));
+        }
+
         $column = Str::startsWith($field, 'lead_field_') ? Str::after($field, 'lead_field_') : $field;
 
         if (in_array($column, self::LEAD_FIELDS)) {
@@ -124,6 +162,28 @@ class FieldResolverService
         }
 
         return $lead->{$field} ?? null;
+    }
+
+    /**
+     * A column off the lead's `lead_marketing` row (UTM/campaign attribution,
+     * engagement flags, contact score). Returns null when the lead has no
+     * marketing row yet — same "unset" semantics an empty column would give,
+     * so an `exists` condition reads false rather than erroring.
+     *
+     * Raw original, matching the LEAD_FIELDS path: LeadMarketing casts its
+     * flags to bool and last_webinar_date to a Carbon date, neither of which
+     * ConditionEvaluatorService compares usefully — it wants the stored 0/1
+     * and the raw date string.
+     */
+    protected function resolveLeadMarketingFor(?Lead $lead, string $column)
+    {
+        if (! $lead || ! in_array($column, self::LEAD_MARKETING_FIELDS, true)) {
+            return null;
+        }
+
+        $marketing = $lead->marketing;
+
+        return $marketing ? $marketing->getRawOriginal($column) : null;
     }
 
     protected function resolveLeadCustomFieldFor(Lead $lead, string $customFieldId)

@@ -1,4 +1,5 @@
 import React from "react";
+import { usePage } from "@inertiajs/react";
 import { CheckCircleOutlined } from "@ant-design/icons";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { IModalProps } from "@/Types/common";
@@ -17,6 +18,8 @@ const MarkCommissionPaid: React.FC<Props> = ({
     open,
     handleSuccessCallback,
 }) => {
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as any;
     const { mutate: markPaid, status } = useMarkCommissionPaid(
         commission?.id ?? 0,
         () => {
@@ -43,7 +46,7 @@ const MarkCommissionPaid: React.FC<Props> = ({
             title="Mark Commission as Paid"
             description={
                 commission
-                    ? `Are you sure you want to mark this $${Number(commission.amount).toLocaleString()} commission as paid?`
+                    ? `Are you sure you want to mark this ${currencySymbol}${Number(commission.amount).toLocaleString()} commission as paid?`
                     : "Are you sure you want to mark this commission as paid?"
             }
             icon={<CheckCircleOutlined className="text-green-500 text-3xl" />}

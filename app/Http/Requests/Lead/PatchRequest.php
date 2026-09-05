@@ -24,6 +24,10 @@ class PatchRequest extends CoreRequest
             $this->merge(['salutation' => null]);
         }
 
+        if ($this->has('client_name') && is_string($this->input('client_name'))) {
+            $this->merge(['client_name' => trim($this->input('client_name'))]);
+        }
+
         if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
             $this->merge([
                 'preferred_contact_times' => $this->input('preferred_contact_time'),
@@ -52,7 +56,7 @@ class PatchRequest extends CoreRequest
             // client_name is NOT NULL at the DB level, so this intentionally
             // stays non-nullable — clearing it should surface a friendly
             // validation error rather than a DB constraint failure.
-            'client_name' => 'sometimes|string|max:255',
+            'client_name' => 'sometimes|required|string|min:1|max:191',
             'client_email' => 'nullable|email:rfc,strict|max:255',
             'mobile' => 'nullable|string|max:100',
             'cell' => 'sometimes|nullable|string|max:100',

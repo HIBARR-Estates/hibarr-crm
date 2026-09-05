@@ -1,6 +1,16 @@
-import { useMemo, useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+    useMemo,
+    useCallback,
+    useEffect,
+    useState,
+    useRef,
+    type ReactNode,
+} from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, {
+    ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import BulkLeadActionSelector from "@/Features/Leads/BulkActions/BulkLeadActionSelector";
 import { LEAD_TABLE_COLUMNS } from "@/Features/Leads/Columns";
 // dr-btn / dr-pill / modal-panel — the toolbar buttons and Schedule-next-step
@@ -30,10 +40,11 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
-import {  MenuProps } from "antd";
+import { MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -64,6 +75,11 @@ import {
 import EntityListHeader, {
     FiltersButton,
 } from "@/Components/Redesign/primitives/EntityListHeader";
+import {
+    buildLeadListTourSteps,
+    LEADS_LIST_TOUR_ID,
+    LEADS_LIST_TOUR_LABELS,
+} from "./config/leadListTourSteps";
 
 /** Rows-per-page preference, remembered per browser across visits. */
 const LEADS_PER_PAGE_STORAGE_KEY = "hibarr_leads_per_page";
@@ -99,6 +115,7 @@ const Index = ({
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { timezone: viewerTimezone } = useUserDateTime();
 
     // Header stats line — each piece is deferred server-side, so the line
     // only appears once every count has actually arrived; no partial or
@@ -121,9 +138,13 @@ const Index = ({
         td,
     ]);
     const { props: pageProps } = usePage<PageProps>();
-    // Redesigned two-pane filter workbench + saved views (mockups 1a/2a/2b/3c).
     const useFilterV2 =
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
+    const showProductTour =
+        pageProps.featureFlags?.["crm.list-product-tours"] === true;
+
+    const tourRef = useRef<ProductTourHandle>(null);
+    const leadListTourSteps = useMemo(() => buildLeadListTourSteps(), []);
 
     const {
         handleAction,
@@ -393,7 +414,7 @@ const Index = ({
                 onScheduleNextStep: setScheduleNextStepLead,
                 onOpenNextAction: setOpenNextAction,
             }),
-        [getActionItems, t, td],
+        [getActionItems, t, td, viewerTimezone],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────
@@ -416,18 +437,29 @@ const Index = ({
                 title={t("app.menu.lead")}
                 breadcrumbs={[{ name: t("app.menu.lead") }]}
                 searchComp={
-                    <UniversalSearchBox
-                        placeholder={t("app.leads.search_placeholder")}
-                        className="w-full"
-                    />
+                    <div data-tour="leads-list-search">
+                        <UniversalSearchBox
+                            placeholder={t("app.leads.search_placeholder")}
+                            className="w-full"
+                        />
+                    </div>
                 }
                 filterSection={
                     useFilterV2 ? undefined : <ContextualActiveFilters />
                 }
                 mainContentClassName="p-0"
             >
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={LEADS_LIST_TOUR_ID}
+                        steps={leadListTourSteps}
+                        labels={LEADS_LIST_TOUR_LABELS}
+                    />
+                )}
                 <EntityListHeader
                     title={t("app.menu.lead")}
+                    titleTourTarget="leads-list-header"
                     subtitle={
                         <Deferred
                             data={[
@@ -470,6 +502,7 @@ const Index = ({
                                     <button
                                         type="button"
                                         onClick={handleDueThisWeekClick}
+                                        data-tour="leads-list-due-this-week"
                                         className="inline-flex items-center rounded-md font-semibold cursor-pointer"
                                         style={{
                                             gap: 7,
@@ -483,8 +516,8 @@ const Index = ({
                                         <ClockCircleOutlined
                                             style={{ fontSize: 14 }}
                                         />
-                                        {td("Due this week", { source: "en" })} ·{" "}
-                                        {nextActionDueThisWeekCount}
+                                        {td("Due this week", { source: "en" })}{" "}
+                                        · {nextActionDueThisWeekCount}
                                     </button>
                                 )}
                         </Deferred>
@@ -512,6 +545,7 @@ const Index = ({
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
+                                data-tour="leads-list-import"
                                 onClick={handleImportLeads}
                             >
                                 <ImportOutlined style={{ fontSize: 13 }} />
@@ -537,10 +571,12 @@ const Index = ({
                                 count={activeFilterCount}
                                 onClick={openDrawer}
                                 label={t("app.filter")}
+                                tourTarget="leads-list-filters"
                             />
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-primary"
+                                data-tour="leads-list-add"
                                 onClick={handleCreateLead}
                             >
                                 <PlusOutlined style={{ fontSize: 13 }} />
@@ -555,6 +591,19 @@ const Index = ({
                                 onOpenFilters={openDrawer}
                             />
                         ) : undefined
+                    }
+                    filterSentenceTourTarget={
+                        useFilterV2 ? "leads-list-filter-sentence" : undefined
+                    }
+                    onReplayGuide={
+                        showProductTour
+                            ? () => tourRef.current?.restart()
+                            : undefined
+                    }
+                    replayGuideLabel={
+                        showProductTour
+                            ? t("pages.leads.list_tour.replay_menu_item")
+                            : undefined
                     }
                     // maxWidth={1560}
                 />
@@ -588,54 +637,59 @@ const Index = ({
                     )}
 
                     {/* Properties Table */}
-                    <DataTable<Lead>
-                        columns={columns}
-                        dataSource={leads.data}
-                        rowKey="id"
-                        rowSelection={rowSelection}
-                        stripe={false}
-                        containerClassName="leads-table"
-                        paginationData={{
-                            current_page: leads.current_page,
-                            last_page: leads.last_page,
-                            per_page: leads.per_page,
-                            total: leads.total,
-                            from: leads.from,
-                            to: leads.to,
-                        }}
-                        onPageChange={(page) => {
-                            // X2: pagination only needs the leads list
-                            router.get(
-                                route("lead-contact.index"),
-                                mergeQueryParams({
-                                    page,
-                                    per_page: leads.per_page,
-                                }),
-                                {
-                                    only: ["leads"],
-                                    preserveState: true,
-                                    preserveScroll: true,
-                                },
-                            );
-                        }}
-                        onPageSizeChange={(pageSize) => {
-                            persistPageSize(pageSize);
-                            router.get(
-                                route("lead-contact.index"),
-                                mergeQueryParams({
-                                    page: 1,
-                                    per_page: pageSize,
-                                }),
-                                {
-                                    only: ["leads"],
-                                    preserveState: true,
-                                    preserveScroll: true,
-                                },
-                            );
-                        }}
-                        scroll={{ x: "max-content", y: "calc(100vh - 220px)" }}
-                        size="small"
-                    />
+                    <div data-tour="leads-list-table">
+                        <DataTable<Lead>
+                            columns={columns}
+                            dataSource={leads.data}
+                            rowKey="id"
+                            rowSelection={rowSelection}
+                            stripe={false}
+                            containerClassName="leads-table"
+                            paginationData={{
+                                current_page: leads.current_page,
+                                last_page: leads.last_page,
+                                per_page: leads.per_page,
+                                total: leads.total,
+                                from: leads.from,
+                                to: leads.to,
+                            }}
+                            onPageChange={(page) => {
+                                // X2: pagination only needs the leads list
+                                router.get(
+                                    route("lead-contact.index"),
+                                    mergeQueryParams({
+                                        page,
+                                        per_page: leads.per_page,
+                                    }),
+                                    {
+                                        only: ["leads"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            onPageSizeChange={(pageSize) => {
+                                persistPageSize(pageSize);
+                                router.get(
+                                    route("lead-contact.index"),
+                                    mergeQueryParams({
+                                        page: 1,
+                                        per_page: pageSize,
+                                    }),
+                                    {
+                                        only: ["leads"],
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            scroll={{
+                                x: "max-content",
+                                y: "calc(100vh - 220px)",
+                            }}
+                            size="small"
+                        />
+                    </div>
                 </div>
             </PageLayout>
 
@@ -694,10 +748,7 @@ const Index = ({
                 data="preferredContactTimes"
                 fallback={
                     useFilterV2 ? (
-                        <LeadFilterModal
-                            config={filterConfig}
-                            optionsLoading
-                        />
+                        <LeadFilterModal config={filterConfig} optionsLoading />
                     ) : (
                         <UniversalFilterDrawer
                             config={filterConfig}
@@ -724,8 +775,6 @@ const Index = ({
     );
 };
 
-Index.layout = (page: ReactNode) => (
-    <DashboardLayout>{page}</DashboardLayout>
-);
+Index.layout = (page: ReactNode) => <DashboardLayout>{page}</DashboardLayout>;
 
 export default Index;

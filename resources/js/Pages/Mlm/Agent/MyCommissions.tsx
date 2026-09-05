@@ -10,6 +10,8 @@ import {
     Statistic,
     Button,
 } from "antd";
+import { usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -47,8 +49,25 @@ const MyCommissions: React.FC<Props> = ({
     summary,
 }) => {
     const { t } = useTranslation();
+    // Commissions are denominated in the app's currency (deal, falling back to
+    // company) — never a hardcoded symbol, never the package's price currency.
+    const { default_currency_symbol: currencySymbol = "" } = usePage()
+        .props as { default_currency_symbol?: string };
     const [page, setPage] = useState(1);
-    const [filters, setFilters] = useState<Record<string, any>>({});
+    // Seeded once from the URL so a link from elsewhere (e.g. the personal
+    // dashboard's Commission tile) lands here pre-filtered — status=pending,
+    // date_from/date_to — rather than on the unfiltered list.
+    const [filters, setFilters] = useState<Record<string, any>>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const seeded: Record<string, any> = {};
+
+        for (const key of ["status", "type", "date_from", "date_to"]) {
+            const value = params.get(key);
+            if (value) seeded[key] = value;
+        }
+
+        return seeded;
+    });
 
     const { data: enrollmentData } = useMyEnrollment();
     const activeCycle = (enrollmentData as any)?.data?.active_cycle ?? null;
@@ -75,7 +94,8 @@ const MyCommissions: React.FC<Props> = ({
                     </div>
                     {r.deal?.total_value != null && (
                         <div className="text-xs text-gray-500">
-                            Deal value: ${r.deal.total_value.toLocaleString()}
+                            Deal value: {currencySymbol}
+                            {r.deal.total_value.toLocaleString()}
                         </div>
                     )}
                 </div>
@@ -121,12 +141,24 @@ const MyCommissions: React.FC<Props> = ({
             render: (_: any, r: MlmCommission) => (
                 <div className="text-right">
                     <div className="font-semibold text-green-600">
-                        $
+                        {currencySymbol}
                         {r.amount?.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                         })}
                     </div>
-                    <div className="text-xs text-gray-500">{r.percentage}%</div>
+                    {r.percentage !== null && r.percentage !== undefined ? (
+                        <div className="text-xs text-gray-500">
+                            {r.percentage}%
+                        </div>
+                    ) : (
+                        // Fixed-fee package leg: show the money, not a fake 0%.
+                        <div className="text-xs text-gray-500">
+                            {currencySymbol}
+                            {r.amount?.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                            })}
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -166,7 +198,7 @@ const MyCommissions: React.FC<Props> = ({
                                     <Statistic
                                         title="Total"
                                         value={summary.total}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                         valueStyle={{ color: "#16a34a" }}
                                     />
@@ -183,7 +215,7 @@ const MyCommissions: React.FC<Props> = ({
                                     <Statistic
                                         title="Pending"
                                         value={summary.pending}
-                                        prefix="$"
+                                        prefix={currencySymbol}
                                         precision={2}
                                         valueStyle={{ color: "#ea580c" }}
                                     />
@@ -220,6 +252,7 @@ const MyCommissions: React.FC<Props> = ({
                                     placeholder="Status"
                                     allowClear
                                     className="w-36"
+                                    value={filters.status}
                                     options={Object.entries(
                                         COMMISSION_STATUS_LABELS,
                                     ).map(([v, l]) => ({ value: v, label: l }))}
@@ -234,6 +267,7 @@ const MyCommissions: React.FC<Props> = ({
                                     placeholder="Type"
                                     allowClear
                                     className="w-36"
+                                    value={filters.type}
                                     options={Object.entries(
                                         COMMISSION_TYPE_LABELS,
                                     ).map(([v, l]) => ({ value: v, label: l }))}
@@ -245,29 +279,47 @@ const MyCommissions: React.FC<Props> = ({
                                     }
                                 />
                                 <RangePicker
+                                    allowEmpty={[true, true]}
+                                    value={
+                                        filters.date_from || filters.date_to
+                                            ? [
+                                                  filters.date_from
+                                                      ? dayjs(filters.date_from)
+                                                      : null,
+                                                  filters.date_to
+                                                      ? dayjs(filters.date_to)
+                                                      : null,
+                                              ]
+                                            : null
+                                    }
                                     onChange={(dates) => {
-                                        if (dates && dates[0] && dates[1]) {
-                                            setFilters((f) => ({
-                                                ...f,
-                                                date_from:
-                                                    dates[0]!.format(
-                                                        "YYYY-MM-DD",
-                                                    ),
-                                                date_to:
-                                                    dates[1]!.format(
-                                                        "YYYY-MM-DD",
-                                                    ),
-                                            }));
-                                        } else {
-                                            setFilters((f) => {
-                                                const {
-                                                    date_from,
-                                                    date_to,
-                                                    ...rest
-                                                } = f;
-                                                return rest;
-                                            });
-                                        }
+                                        setFilters((f) => {
+                                            const {
+                                                date_from,
+                                                date_to,
+                                                ...rest
+                                            } = f;
+
+                                            return {
+                                                ...rest,
+                                                ...(dates?.[0]
+                                                    ? {
+                                                          date_from:
+                                                              dates[0].format(
+                                                                  "YYYY-MM-DD",
+                                                              ),
+                                                      }
+                                                    : {}),
+                                                ...(dates?.[1]
+                                                    ? {
+                                                          date_to:
+                                                              dates[1].format(
+                                                                  "YYYY-MM-DD",
+                                                              ),
+                                                      }
+                                                    : {}),
+                                            };
+                                        });
                                     }}
                                 />
                                 {activeCycle && (

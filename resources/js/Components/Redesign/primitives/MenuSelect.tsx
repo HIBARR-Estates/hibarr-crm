@@ -7,6 +7,11 @@ import { REDESIGN_TOKENS as T } from "../tokens";
 export interface MenuOption {
     value: string | number;
     label: string;
+    /**
+     * Optional leading swatch colour, for menus whose options carry a status
+     * colour (e.g. the Exposes tab's status picker).
+     */
+    dot?: string;
 }
 
 interface MenuSelectProps {
@@ -239,6 +244,18 @@ export default function MenuSelect({
                                             onChange(o.value);
                                         }}
                                     >
+                                        {o.dot && (
+                                            <span
+                                                aria-hidden="true"
+                                                style={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    flex: "none",
+                                                    borderRadius: 999,
+                                                    background: o.dot,
+                                                }}
+                                            />
+                                        )}
                                         <span
                                             style={{
                                                 flex: 1,
