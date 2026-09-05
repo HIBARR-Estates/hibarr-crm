@@ -264,35 +264,45 @@ class DealContactApiController extends Controller
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
             return Reply::error('Failed to process deal creation request');
+        } catch (\Throwable $e) {
+            // A TypeError or other Error would otherwise leave the reservation in place
+            // for the full window, silently swallowing the caller's retry. Release it and
+            // let the error surface as before.
+            $this->releaseRequest($duplicateKey);
+
+            throw $e;
         }
     }
 
     /**
      * Build the idempotency cache key for a deal request.
      *
-     * Only the fields that determine what the request writes are fingerprinted, so
-     * two calls that differ in any of them (e.g. one adds a meeting) are treated as
-     * distinct requests and both go through.
+     * The whole payload is fingerprinted, not just the deal-shaping fields. A push
+     * writes far more than the deal: resolveContact() persists phone, gender, address,
+     * date of birth, source and the lead's optional and custom fields, and saveUtmInfo()
+     * stores the UTM block. Fingerprinting a subset would make a follow-up that corrects
+     * any of those look identical to the first push and be silently dropped.
      *
-     * @return string|null Null when the cache is unavailable to key against.
+     * Only a byte-identical repeat is a duplicate; anything the caller actually changed
+     * is a new request and goes through.
+     *
+     * @return string|null Null when the payload cannot be encoded to key against.
      */
     private function duplicateRequestKey(Request $request, int $companyId): ?string
     {
-        $email = $request->input('email');
+        $payload = $request->all();
 
-        $identity = [
-            'lead_id' => $request->input('lead_id'),
-            'email' => is_string($email) ? mb_strtolower(trim($email)) : $email,
-            'deal_name' => $request->input('deal_name') ?? $request->input('name'),
-            'deal_owner_id' => $request->input('deal_owner_id'),
-            'meeting' => $request->input('meeting'),
-            'package_id' => $request->input('package_id'),
-            'package_name' => $request->input('package_name'),
-        ];
+        // Never part of what gets persisted (mirrors config/api.php 'excludes').
+        unset($payload['_token']);
 
-        $this->ksortRecursive($identity);
+        // Callers vary the casing of the contact's email; that is the same request.
+        if (isset($payload['email']) && is_string($payload['email'])) {
+            $payload['email'] = mb_strtolower(trim($payload['email']));
+        }
 
-        $encoded = json_encode($identity);
+        $this->ksortRecursive($payload);
+
+        $encoded = json_encode($payload);
 
         if ($encoded === false) {
             return null;

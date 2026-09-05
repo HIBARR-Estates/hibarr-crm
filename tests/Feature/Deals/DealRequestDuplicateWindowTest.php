@@ -125,6 +125,14 @@ class DealRequestDuplicateWindowTest extends TestCase
             'deal owner' => [['deal_owner_id' => '7']],
             'packages' => [['package_id' => [3]]],
             'package name' => [['package_name' => 'Gold']],
+            // These are persisted by resolveContact()/saveUtmInfo(), so a push
+            // correcting one of them must not be swallowed as a duplicate.
+            'phone' => [['phone' => '+491234567']],
+            'gender' => [['gender' => 'female']],
+            'address' => [['address' => 'Musterstr. 1']],
+            'date of birth' => [['date_of_birth' => '1990-01-01']],
+            'lead custom fields' => [['lead_custom_fields' => ['12' => 'Nigerian']]],
+            'utm source' => [['utm_source' => 'facebook']],
         ];
     }
 
@@ -145,12 +153,20 @@ class DealRequestDuplicateWindowTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function test_fingerprint_ignores_fields_outside_the_identity_set(): void
+    public function test_a_correction_to_a_lead_field_is_processed_not_swallowed(): void
     {
-        $this->assertSame(
-            $this->keyFor($this->payload()),
-            $this->keyFor($this->payload(['utm_source' => 'facebook', 'phone' => '+491234'])),
-            'noise fields must not defeat duplicate detection'
+        // The integration pushes, then pushes again seconds later having fixed the
+        // phone number. resolveContact() persists that, so the second push is real
+        // work and must not be absorbed by the window.
+        $first = $this->payload();
+        $corrected = $this->payload(['phone' => '+4915112345678']);
+
+        $this->assertNotSame($this->keyFor($first), $this->keyFor($corrected));
+
+        $this->assertTrue($this->reserve($this->keyFor($first)));
+        $this->assertTrue(
+            $this->reserve($this->keyFor($corrected)),
+            'a push that changes any persisted field must still be processed'
         );
     }
 
