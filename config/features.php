@@ -44,5 +44,6 @@ return [
         'crm.personal-dashboard',
         'packages.online-payment',
         'crm.deal-files-grouping',
+        'crm.meetings-page-redesign',
     ],
 ];

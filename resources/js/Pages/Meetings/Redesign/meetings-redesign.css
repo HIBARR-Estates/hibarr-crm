@@ -1,0 +1,41 @@
+/* Meetings index — card hover/link affordances the design calls for. */
+
+.dr-meeting-card {
+    transition: border-color 120ms ease;
+}
+
+.dr-meeting-card:hover {
+    border-color: #c7d0de;
+}
+
+.dr-meeting-record {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.dr-meeting-record:hover {
+    text-decoration: underline;
+}
+
+.dr-meeting-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 120ms ease;
+}
+
+.dr-meeting-link:hover {
+    opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dr-meeting-card,
+    .dr-meeting-link {
+        transition: none;
+    }
+}

@@ -10,6 +10,12 @@ import {
 
 export interface ScheduleMeetingModalLabels {
     title: string;
+    /**
+     * Second header line. Worth setting where the dialog isn't already opened
+     * from the record it books against (the Meetings index), pointless where
+     * it is (Deal/Lead), so it stays optional.
+     */
+    subtitle?: string;
     cancel: string;
     submit: string;
 }
@@ -69,6 +75,7 @@ export default function ScheduleMeetingModal({
         <Modal
             open={open}
             title={labels.title}
+            subtitle={labels.subtitle}
             onClose={handleClose}
             footer={
                 <>

@@ -43,6 +43,12 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
+import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
+import type {
+    MeetingsTab,
+} from "./Redesign/adapters/meetingViewModel";
+import type { MeetingsTabCounts } from "./Redesign/components/MeetingsFilterBar";
+import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
 dayjs.extend(utc);
 
@@ -55,15 +61,39 @@ interface OverviewStats {
     completed: number;
 }
 
-interface MeetingsPageProps extends PageProps {
+interface MeetingsSharedProps extends PageProps {
     pageTitle: string;
     overviewStats: OverviewStats;
-    upcomingMeetings: PaginatedFollowupResponse;
-    pastMeetings: PaginatedFollowupResponse;
     userDeals: { id: number; name: string }[];
     userLeads: { id: number; name: string }[];
     meetingTypes: { id: number; name: string }[];
     permissions: Record<string, string>;
+}
+
+/** Props the legacy two-section page renders (flag off). */
+interface MeetingsPageProps extends MeetingsSharedProps {
+    upcomingMeetings: PaginatedFollowupResponse;
+    pastMeetings: PaginatedFollowupResponse;
+}
+
+/**
+ * Props the redesigned page renders (flag on): one tab-driven list plus the
+ * calendar month, which the controller ships as a deferred prop and so is
+ * absent until the calendar view asks for it.
+ */
+export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
+    meetings: PaginatedFollowupResponse;
+    tabCounts: MeetingsTabCounts;
+    activeTab: MeetingsTab;
+    calendarMeetings?: CalendarPayload;
+    /** Month this render registered the deferred calendar for, else null. */
+    calendarRequestedMonth: string | null;
+    /** Deep-link narrowing (e.g. the dashboard's "N missed" badge). */
+    meetingFilters: {
+        attendance: string | null;
+        date_from: string | null;
+        date_to: string | null;
+    };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -590,7 +620,7 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
 
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
-function MeetingsIndex() {
+function LegacyMeetingsIndex() {
     const { props } = usePage<MeetingsPageProps>();
     const {
         overviewStats,
@@ -769,8 +799,16 @@ function MeetingsIndex() {
     );
 }
 
-MeetingsIndex.layout = (page: React.ReactNode) => (
+const Index = () => {
+    const page = usePage();
+    const useRedesign =
+        page.props.featureFlags?.["crm.meetings-page-redesign"] === true;
+
+    return useRedesign ? <MeetingsWorkspaceRedesign /> : <LegacyMeetingsIndex />;
+};
+
+Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
 
-export default MeetingsIndex;
+export default Index;
