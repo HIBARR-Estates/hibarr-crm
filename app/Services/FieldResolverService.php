@@ -11,7 +11,7 @@ class FieldResolverService
 {
     /**
      * Whitelist of native Lead columns exposed to automation conditions/merge tags,
-     * read via getRawOriginal() so enum/array casts on Lead don't leak into the
+     * read via rawAttribute() so enum/array casts on Lead don't leak into the
      * evaluator (which only understands scalars, dates, and arrays from 'contains').
      */
     protected const LEAD_FIELDS = [
@@ -196,11 +196,28 @@ class FieldResolverService
         $column = Str::startsWith($field, 'lead_field_') ? Str::after($field, 'lead_field_') : $field;
 
         if (in_array($column, self::LEAD_FIELDS)) {
-            // Raw original avoids Lead's enum/array casts, which the evaluator can't compare.
-            return $lead->getRawOriginal($column);
+            return $this->rawAttribute($lead, $column);
         }
 
         return $lead->{$field} ?? null;
+    }
+
+    /**
+     * The current, uncast value of a model attribute — bypasses casts the
+     * same way getRawOriginal() does, but reads the model's *current*
+     * attributes rather than its pre-change snapshot.
+     *
+     * getRawOriginal() is the wrong tool for this: Eloquent only calls
+     * syncOriginal() after the 'saved' event fires, which is *after*
+     * 'updated' — so calling getRawOriginal() from an 'updated' observer
+     * (exactly where automation conditions are evaluated) returns the
+     * value the attribute had *before* this save, not the one that was
+     * just persisted. getAttributes() reflects whatever is currently set
+     * on the instance, in memory or freshly loaded, with no such lag.
+     */
+    protected function rawAttribute(\Illuminate\Database\Eloquent\Model $model, string $column)
+    {
+        return $model->getAttributes()[$column] ?? null;
     }
 
     /**
@@ -222,7 +239,7 @@ class FieldResolverService
 
         $marketing = $lead->marketing;
 
-        return $marketing ? $marketing->getRawOriginal($column) : null;
+        return $marketing ? $this->rawAttribute($marketing, $column) : null;
     }
 
     protected function resolveLeadCustomFieldFor(Lead $lead, string $customFieldId)
@@ -301,8 +318,7 @@ class FieldResolverService
             return null;
         }
 
-        // Raw original avoids Lead's enum/array casts, which the evaluator can't compare.
-        return $lead->getRawOriginal($column);
+        return $this->rawAttribute($lead, $column);
     }
 
     protected function resolveLeadCustomField(Deal $deal, string $field)
