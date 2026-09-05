@@ -119,9 +119,6 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
             setLoading(true);
             setError(null);
 
-            const browserTimezone =
-                Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-
             const csrfToken =
                 document
                     .querySelector('meta[name="csrf-token"]')
@@ -142,7 +139,6 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                             values.next_follow_up_date.format("DD-MM-YYYY"),
                         start_time: values.start_time.format("HH:mm:ss"),
                         duration: values.duration || null,
-                        timezone: browserTimezone,
                     }),
                 },
             );

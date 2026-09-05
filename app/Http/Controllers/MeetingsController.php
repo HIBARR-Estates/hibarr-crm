@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\MeetingType;
 use App\Models\User;
 use App\Services\MeetingVisibilityService;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,11 +62,11 @@ class MeetingsController extends AccountBaseController
         $counts = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->selectRaw(
                 'SUM(next_follow_up_date >= ?) as upcoming,'
-                . ' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
-                . " SUM(status = 'scheduled'"
-                . ' AND next_follow_up_date <= ?'
-                . ' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
-                . " SUM(status = 'completed') as completed",
+                .' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
+                ." SUM(status = 'scheduled'"
+                .' AND next_follow_up_date <= ?'
+                .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?) as live,'
+                ." SUM(status = 'completed') as completed",
                 [$now, $weekStart, $weekEnd, $now, DealFollowUp::DEFAULT_DURATION_MINUTES, $now]
             )
             ->first();
@@ -290,13 +291,12 @@ class MeetingsController extends AccountBaseController
             'timezone' => 'nullable|string|max:100',
         ]);
 
-        $browserTimezone = $request->input('timezone', 'UTC');
-
-        $newDateTime = Carbon::createFromFormat(
-            'd-m-Y H:i:s',
+        $newDateTime = UserTimezone::interpretWallClock(
+            user(),
+            company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            $browserTimezone
-        )->setTimezone('UTC');
+            'd-m-Y H:i:s'
+        );
 
         $followUp->next_follow_up_date = $newDateTime;
         $followUp->status = 'scheduled';
