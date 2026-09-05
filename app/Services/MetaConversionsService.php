@@ -114,8 +114,10 @@ class MetaConversionsService
             $payload = $this->buildPayload($eventName, $value, $subject);
             $result['event_id'] = $payload['data'][0]['event_id'] ?? null;
 
-            // Construct API endpoint
-            $endpoint = "https://graph.facebook.com/{$this->apiVersion}/{$this->pixelId}/events?access_token={$this->accessToken}";
+            // Construct API endpoint — the access token is sent as a query
+            // param via Guzzle's own 'query' option (not string-built into
+            // the URL) so it never ends up in the $endpoint we log below.
+            $endpoint = "https://graph.facebook.com/{$this->apiVersion}/{$this->pixelId}/events";
 
             Log::info('Sending Meta Conversion Event', $logContext + [
                 'event_name' => $eventName,
@@ -124,9 +126,12 @@ class MetaConversionsService
             ]);
 
             $client = new Client([
-                'timeout' => 30,
-                'connect_timeout' => 15,
-                'verify' => false,
+                // Sending is synchronous on the request thread (an automation
+                // action or the deal-stage trigger, both inline) — bounded
+                // low so a slow/unreachable Meta endpoint can't hold up the
+                // request for anywhere near Guzzle's defaults.
+                'timeout' => 8,
+                'connect_timeout' => 3,
                 // Meta explains *why* it rejected an event in the body of a 4xx
                 // response. Guzzle's default would throw that body away as a
                 // RequestException, which is the whole reason failures used to
@@ -135,6 +140,7 @@ class MetaConversionsService
             ]);
 
             $response = $client->post($endpoint, [
+                'query' => ['access_token' => $this->accessToken],
                 'json' => $payload,
                 'headers' => [
                     'Content-Type' => 'application/json',

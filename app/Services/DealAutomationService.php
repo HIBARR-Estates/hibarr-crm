@@ -1191,12 +1191,13 @@ class DealAutomationService
     /**
      * Perform a meta_conversion action: send a Meta (Facebook) Conversions
      * API event for the deal/lead. Event name supports merge tags (e.g. a
-     * lead field), value is optional and defaults to 0. Sending runs
-     * synchronously via SendMetaConversionEventJob (no queue — see that
-     * class) so this action's own run-log step reflects Meta's real answer
-     * instead of only "queued"; MetaConversionsService still fails soft
-     * (returns false, never throws) so a misconfigured/rejected Meta account
-     * can't break the rest of the automation's actions.
+     * lead field), value is optional and defaults to 0. Sending happens
+     * inline (synchronously, no queue) but deferred via DB::afterCommit() so
+     * it never fires while an enclosing transaction could still roll back;
+     * the outcome is logged from Meta's *actual* response rather than
+     * recorded as success the moment it's dispatched — MetaConversionsService
+     * still fails soft (returns false, never throws) so a misconfigured/
+     * rejected Meta account can't break the rest of the automation's actions.
      */
     protected function performMetaConversion(Deal|Lead $subject, $action, ?DealAutomation $automation = null): void
     {
@@ -1213,41 +1214,31 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        $origin = [
-            'source' => 'automation',
-            'automation_id' => $automation?->id,
-            'automation_name' => $automation?->name,
-            // So the 'meta' outcome row SendMetaConversionEventJob writes
-            // joins this same run rather than appearing as a run of its own.
-            'run_id' => $this->currentRunId,
-        ];
+        DB::afterCommit(function () use ($subject, $eventName, $value, $automation, $label) {
+            $result = app(MetaConversionsService::class)->send($eventName, $value, $subject);
+            $success = (bool) ($result['success'] ?? false);
 
-        // SendMetaConversionEventJob is not queued (see that class) — it runs
-        // synchronously the moment DB::afterCommit fires, which is either
-        // right here (no open transaction) or right after the enclosing
-        // transaction commits, so the subject's own field changes are already
-        // persisted before Meta receives them.
-        DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
-            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value, $origin);
+            $description = $success
+                ? "Meta Conversion event \"{$eventName}\" accepted by Meta".(isset($result['status_code']) ? " (HTTP {$result['status_code']})" : '')
+                : "Meta Conversion event \"{$eventName}\" failed: ".($result['error'] ?? 'unknown error');
+
+            Log::info("Action executed for {$label}. {$description}");
+            $this->logAction($subject, $automation, $description, $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'meta', [
+                'stage' => 'delivery',
+                'event_name' => $eventName,
+                'value' => $value,
+                'meta' => $result,
+            ]);
+
+            $this->recordAutomationOutcomeEvent($subject, $automation, $success, [
+                'action' => $success ? 'automation_meta_conversion_sent' : 'automation_meta_conversion_failed',
+                'comment' => $success
+                    ? "Meta Conversion event sent by automation: {$eventName}"
+                    : "Meta Conversion event failed: {$eventName} (".($result['error'] ?? 'unknown error').')',
+                'meta_event_name' => $eventName,
+                'meta_event_value' => $value,
+            ]);
         });
-
-        // The job itself writes the definitive 'meta' log row with Meta's
-        // actual response (or failure reason) once it runs. This second,
-        // step-level log just records that the automation dispatched it.
-        $description = "Meta Conversion event sent: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
-        Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta', [
-            'stage' => 'dispatched',
-            'event_name' => $eventName,
-            'value' => $value,
-        ]);
-
-        $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-            'action' => 'automation_meta_conversion_sent',
-            'comment' => "Meta Conversion event sent by automation: {$eventName}",
-            'meta_event_name' => $eventName,
-            'meta_event_value' => $value,
-        ]);
     }
 
     /**

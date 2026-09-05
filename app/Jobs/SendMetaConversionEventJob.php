@@ -14,14 +14,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Job to send a Meta Conversion API event.
+ * Job to send a Meta Conversion API event for the deal-stage trigger path
+ * (DealObserver::triggerMetaConversionEvent() — a deal moving to a stage
+ * with a Meta conversion trigger configured, no automation involved). A
+ * deal/lead automation's own "Meta Conversion" action calls
+ * MetaConversionsService directly instead (see
+ * DealAutomationService::performMetaConversion()), since it needs the real
+ * result in hand to log the automation's outcome accurately.
  *
- * Dispatched either when a deal moves to a stage with a Meta conversion
- * trigger configured, or when a deal/lead automation runs a "Meta
- * Conversion" action. Deliberately NOT a queued job (no ShouldQueue) — it
- * runs synchronously on ::dispatch() so the automation's outcome is known
- * immediately, instead of depending on a queue worker actually being run
- * (which this deployment cannot guarantee).
+ * Deliberately NOT a queued job (no ShouldQueue) — it runs synchronously on
+ * ::dispatch() so the outcome is known immediately, instead of depending on
+ * a queue worker actually being run (which this deployment cannot
+ * guarantee). Callers defer the dispatch via DB::afterCommit() so it never
+ * fires while the triggering save could still roll back.
  *
  * Whatever Meta answers is written to deal_automation_logs (channel "meta")
  * so the Run History screen can show the actual rejection reason — status

@@ -364,6 +364,7 @@ export default function MetaEventsList({ onOpenAutomation }: MetaEventsListProps
                         value={testValue}
                         onChange={(e) => setTestValue(e.target.value)}
                         className="dr-input w-full"
+                        aria-label={t("app.automation.eventValue")}
                     />
                 </ModalField>
 

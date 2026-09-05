@@ -665,7 +665,7 @@ return [
         'selectTrigger' => 'Select a trigger',
         'selectTriggerHint' => 'Pick what starts this automation.',
         'triggerHint' => 'The event this automation listens for.',
-        'noTriggerWarning' => 'No trigger selected — this automation will run on every create and update event for its subject type, every time its conditions match. Pick a specific trigger unless that\'s really what you want.',
+        'noTriggerWarning' => 'No trigger selected — this automation will run on every applicable event for its subject type, every time its conditions match. Pick a specific trigger unless that\'s really what you want.',
         'selectField' => 'Select a field',
         'selectRecurrence' => 'Select recurrence',
         'selectStage' => 'Select target stage',
