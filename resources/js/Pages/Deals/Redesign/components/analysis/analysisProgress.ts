@@ -1,5 +1,7 @@
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { isCustomFieldRequired } from "@/lib/customFieldCompletion";
+import { buildFieldValueMap } from "@/lib/customFieldValueMap";
+import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
 import type {
     AnalysisSection,
@@ -143,9 +145,17 @@ export function computeAnalysisProgress(
     const sections = adaptScriptItems(scriptItems);
 
     const allCustomFields = leadFields.length ? [...fields, ...leadFields] : fields;
+    // Full deal context (pipeline, stage, packages, record) plus the stage
+    // list, so every source a rule can read resolves the same way it does in
+    // the deal view — see buildDealVisibilityContext.
+    const dealContext = buildDealVisibilityContext(deal);
     // One pass for every custom field the script might reference individually —
     // conditional fields must not count toward the denominator while hidden.
-    const customFieldVisibility = evaluateAllFieldsVisibility(allCustomFields, values);
+    const customFieldVisibility = evaluateAllFieldsVisibility(
+        allCustomFields,
+        buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+        dealContext.evaluation,
+    );
     const customFieldById = new Map<number, any>(
         allCustomFields.map((f: any) => [Number(f.id), f]),
     );
@@ -168,7 +178,11 @@ export function computeAnalysisProgress(
             const sectionFields = fields.filter(
                 (f: any) => f.custom_field_category_id === section.categoryId && f.type !== "file",
             );
-            const visMap = evaluateAllFieldsVisibility(sectionFields, values);
+            const visMap = evaluateAllFieldsVisibility(
+                sectionFields,
+                buildFieldValueMap({ customFieldsData: values, context: dealContext.valueMap }),
+                dealContext.evaluation,
+            );
             for (const f of sectionFields) {
                 if (visMap[f.id] === false) continue;
 

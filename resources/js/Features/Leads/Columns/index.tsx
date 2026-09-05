@@ -10,6 +10,7 @@ import {
     formatCompanyDate,
     formatCompanyTime,
 } from "@/lib/companyDateTime";
+import { formatUserDate, formatUserTime } from "@/lib/userDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay } from "@/lib/utils";
@@ -540,10 +541,10 @@ export const LEAD_TABLE_COLUMNS = (
                 return (
                     <div>
                         <div style={{ fontSize: 14, color: T.TEXT }}>
-                            {formatCompanyDate(record.created_at)}
+                            {formatUserDate(record.created_at)}
                         </div>
                         <div style={{ fontSize: 12, color: T.TEXT_MUTED, marginTop: 2 }}>
-                            {formatCompanyTime(record.created_at)}
+                            {formatUserTime(record.created_at)}
                         </div>
                     </div>
                 );

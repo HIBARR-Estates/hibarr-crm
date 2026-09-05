@@ -36,6 +36,7 @@ export { default as EditableTitle } from "./primitives/EditableTitle";
 export { default as EmptyState } from "./primitives/EmptyState";
 export { default as FileDropzone } from "./primitives/FileDropzone";
 export { default as AttachmentFileCard } from "./primitives/AttachmentFileCard";
+export { default as CollapsibleGroup } from "./primitives/CollapsibleGroup";
 export { default as CompletionDot } from "./primitives/CompletionDot";
 export { default as BulkActionBar } from "./primitives/BulkActionBar";
 export { default as PriorityBadge } from "./primitives/PriorityBadge";

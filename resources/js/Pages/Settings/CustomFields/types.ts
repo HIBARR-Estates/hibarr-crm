@@ -70,6 +70,9 @@ export interface SettingsField {
     display_order: number;
     linked_field_id: number | null;
     display_config: Record<string, unknown> | null;
+    /** FILE fields on the Lead module only — whether this field's slot may appear on the lead page / a matching deal page. Default true. */
+    show_in_lead: boolean;
+    show_in_deal: boolean;
     show_rule_set: ShowRuleSet | null;
 }
 
@@ -92,12 +95,15 @@ export interface FieldDraft {
     export: boolean;
     display_order: number;
     values: string[];
+    show_in_lead: boolean;
+    show_in_deal: boolean;
 }
 
 export interface CategoryDraft {
     name: string;
     custom_field_group_id: number | "";
-    order: number;
+    /** "" (not 0) for a new category — lets CustomFieldCategoryController::store() compute the append position. */
+    order: number | "";
 }
 
 export function fieldHasRule(field: SettingsField): boolean {

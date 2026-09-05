@@ -818,7 +818,8 @@
     opacity: 0.55;
     transition: opacity 0.12s, color 0.12s;
 }
-.lead-redesign .v2-dossier-value--copy:hover .v2-dossier-value__action {
+.lead-redesign .v2-dossier-value--copy:hover .v2-dossier-value__action,
+.lead-redesign .v2-dossier-value--copy:focus-visible .v2-dossier-value__action {
     opacity: 1;
     color: var(--lr-blue);
 }
@@ -1188,6 +1189,8 @@
 }
 .lead-redesign .v2-quick-stat-cta {
     display: inline-flex;
+    /* Also used on anchors ("Open deal") — they underline on hover only. */
+    text-decoration: none;
     align-items: center;
     gap: 3px;
     padding: 0;
@@ -1434,6 +1437,10 @@
     border-radius: 10px;
     padding: 12px 14px;
     background: var(--lr-surface);
+    /* The deal card is an anchor so right-click offers "open in new tab"; it
+       still has to look like a card, not a link. */
+    color: inherit;
+    text-decoration: none;
 }
 
 .lead-redesign .v2-activity-dot {

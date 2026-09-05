@@ -38,8 +38,20 @@ export default function useAnalysisFieldSave(dealId: number) {
 
     const pending = useRef<Map<string, PendingWrite>>(new Map());
     const customFieldPending = useRef<Map<string, CustomFieldEntry>>(new Map());
+    // Bumped every time a key receives a new value. A batch captures the
+    // revision of each key it sends, so a failure can tell "this key's value
+    // is still the one that failed" from "the user has typed since" — only
+    // the former is worth offering a retry for, and retrying the latter would
+    // resurrect a superseded value over the newer one.
+    const customFieldRevisions = useRef<Map<string, number>>(new Map());
     const customFieldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inFlight = useRef<Set<Promise<unknown>>>(new Set());
+    // Tail of the write chain per custom-field key. A batch touching a key
+    // that already has a request on the wire queues behind it, so a slow
+    // older request can't land after a newer one and resurrect a stale value.
+    // Keys are chained independently — a batch only waits on the keys it
+    // actually carries.
+    const customFieldChains = useRef<Map<string, Promise<unknown>>>(new Map());
     const [failedKeys, setFailedKeys] = useState<FailedKey[]>([]);
 
     // Saving state is published to subscribers rather than held in state here:
@@ -86,6 +98,19 @@ export default function useAnalysisFieldSave(dealId: number) {
         [],
     );
 
+    // Drops a key's stale failure when a newer value is queued for it. The old
+    // banner refers to a value the user has already replaced, and if the newer
+    // write also fails the send path re-adds the key with the current revision.
+    // Returns `prev` untouched when there is nothing to clear so the common
+    // keystroke path doesn't re-render the modal.
+    const clearFailure = useCallback((key: string) => {
+        setFailedKeys((prev) =>
+            prev.some((f) => f.key === key)
+                ? prev.filter((f) => f.key !== key)
+                : prev,
+        );
+    }, []);
+
     const toCustomFieldEntry = useCallback(
         (key: string, value: unknown): CustomFieldEntry => {
             if (key.startsWith("deal_field_")) {
@@ -120,16 +145,41 @@ export default function useAnalysisFieldSave(dealId: number) {
             if (Object.keys(lead).length) body.lead = lead;
 
             const keys = [...entries.keys()];
+            // Snapshot of what each key's value was when this batch went out.
+            const sentRevisions = new Map(
+                keys.map((key) => [key, customFieldRevisions.current.get(key) ?? 0]),
+            );
 
-            return track(
+            const doSend = () =>
                 saveCustomFieldsBulk(body, { lean: true }).catch(() => {
+                    // A key the user has changed since this batch left is no
+                    // longer failing *this* value — the newer write owns it.
+                    const stillCurrent = keys.filter(
+                        (key) =>
+                            (customFieldRevisions.current.get(key) ?? 0) ===
+                            sentRevisions.get(key),
+                    );
+
+                    if (stillCurrent.length === 0) return;
+
                     setFailedKeys((prev) => {
                         const filtered = prev.filter(
-                            (f) => !keys.includes(f.key),
+                            (f) => !stillCurrent.includes(f.key),
                         );
-                        const retried = keys.map((key) => ({
+                        const retried = stillCurrent.map((key) => ({
                             key,
                             retry: () => {
+                                // Superseded between the failure and the click.
+                                if (
+                                    (customFieldRevisions.current.get(key) ?? 0) !==
+                                    sentRevisions.get(key)
+                                ) {
+                                    setFailedKeys((p) =>
+                                        p.filter((f) => f.key !== key),
+                                    );
+                                    return;
+                                }
+
                                 const entry = entries.get(key);
                                 if (!entry) return;
                                 setFailedKeys((p) =>
@@ -140,8 +190,30 @@ export default function useAnalysisFieldSave(dealId: number) {
                         }));
                         return [...filtered, ...retried];
                     });
-                }),
-            );
+                });
+
+            const predecessors = keys
+                .map((key) => customFieldChains.current.get(key))
+                .filter((p): p is Promise<unknown> => p !== undefined);
+
+            const request = (
+                predecessors.length
+                    ? Promise.allSettled(predecessors)
+                    : Promise.resolve()
+            ).then(doSend);
+
+            keys.forEach((key) => customFieldChains.current.set(key, request));
+            request.catch(() => {}).then(() => {
+                // Only clear a key still pointing at *this* request — a newer
+                // batch may already have claimed the tail.
+                keys.forEach((key) => {
+                    if (customFieldChains.current.get(key) === request) {
+                        customFieldChains.current.delete(key);
+                    }
+                });
+            });
+
+            return track(request);
         },
         [saveCustomFieldsBulk, track],
     );
@@ -270,6 +342,7 @@ export default function useAnalysisFieldSave(dealId: number) {
 
     const saveLegacy = useCallback(
         (key: string, value: unknown) => {
+            clearFailure(key);
             const existing = pending.current.get(key);
             if (existing) clearTimeout(existing.timer);
 
@@ -285,12 +358,17 @@ export default function useAnalysisFieldSave(dealId: number) {
             pending.current.set(key, { timer, payload });
             notify();
         },
-        [resolveUpdateType, buildData, sendLegacy, notify],
+        [resolveUpdateType, buildData, sendLegacy, notify, clearFailure],
     );
 
     const save = useCallback(
         (key: string, value: unknown) => {
             if (bulkWriteEnabled && isCustomFieldKey(key)) {
+                clearFailure(key);
+                customFieldRevisions.current.set(
+                    key,
+                    (customFieldRevisions.current.get(key) ?? 0) + 1,
+                );
                 customFieldPending.current.set(
                     key,
                     toCustomFieldEntry(key, value),
@@ -310,6 +388,7 @@ export default function useAnalysisFieldSave(dealId: number) {
             flushCustomFields,
             notify,
             saveLegacy,
+            clearFailure,
         ],
     );
 

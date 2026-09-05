@@ -606,7 +606,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 transition-all duration-300 ease-out
                 ${isMobileDrawer ? "z-50" : "z-40"}
                 ${isRtl ? "right-0 border-l border-slate-700/50" : "left-0 border-r border-slate-700/50"}
-                ${effectiveCollapsed ? "w-[72px]" : "w-[260px]"}
+                ${isMobileDrawer ? "w-full max-w-[320px]" : effectiveCollapsed ? "w-[72px]" : "w-[260px]"}
                 ${mobileTranslateClass}
             `}
         >

@@ -55,6 +55,8 @@ class CustomField extends BaseModel
 
     protected $casts = [
         'display_config' => 'array',
+        'show_in_lead' => 'boolean',
+        'show_in_deal' => 'boolean',
     ];
 
     public function customFieldCategory(): BelongsTo
@@ -296,6 +298,8 @@ class CustomField extends BaseModel
             'display_order' => (int) $this->display_order,
             'linked_field_id' => $this->linked_field_id,
             'display_config' => $this->display_config,
+            'show_in_lead' => (bool) ($this->show_in_lead ?? false),
+            'show_in_deal' => (bool) ($this->show_in_deal ?? true),
             'show_rule_set' => $this->relationLoaded('showRuleSet') ? $this->showRuleSet : null,
         ];
     }

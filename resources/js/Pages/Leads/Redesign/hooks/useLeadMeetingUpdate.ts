@@ -7,10 +7,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -35,7 +32,6 @@ interface FollowUpUpdatePayload {
     duration?: number | null;
     reminders: LeadMeetingCreateInput["reminders"];
     remark?: string;
-    timezone?: string;
     participants?: number[];
     status?: string;
 }
@@ -118,7 +114,6 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
-                timezone: getBrowserTimezone(),
                 status: statusOverride,
             };
 

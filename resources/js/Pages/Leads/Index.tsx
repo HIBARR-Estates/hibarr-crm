@@ -45,6 +45,7 @@ import { DataTable, withMobileResponsiveColumns } from "@/Components/DataTable";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -115,6 +116,7 @@ const Index = ({
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { timezone: viewerTimezone } = useUserDateTime();
 
     // Header stats line — each piece is deferred server-side, so the line
     // only appears once every count has actually arrived; no partial or
@@ -419,7 +421,7 @@ const Index = ({
                 ["category", "source", "temperature", "created_at"],
                 isMobileResponsive,
             ),
-        [getActionItems, t, td, isMobileResponsive],
+        [getActionItems, t, td, viewerTimezone, isMobileResponsive],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────

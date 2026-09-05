@@ -1,4 +1,10 @@
-import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+    useMemo,
+    useState,
+    type Dispatch,
+    type ReactNode,
+    type SetStateAction,
+} from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
@@ -11,6 +17,7 @@ import Avatar from "../primitives/Avatar";
 import BulkActionBar from "../primitives/BulkActionBar";
 import Button from "../primitives/Button";
 import ConfirmDialog from "../primitives/ConfirmDialog";
+import { NotesEmptyState } from "./WorkspaceEmptyStates";
 import Icon from "../primitives/Icon";
 import IntegrationOriginBadge from "../primitives/IntegrationOriginBadge";
 import SelectCheckbox from "../primitives/SelectCheckbox";
@@ -59,7 +66,8 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-    const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
+    const selectedNote =
+        notes.find((note) => note.id === selectedNoteId) ?? null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string },
@@ -119,14 +127,22 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
 
     return (
         <div>
-            {(canAdd || (noteItems.length > 0 && canBulkDelete)) && (
+            {/* The header actions belong to a populated list: when the tab is
+                empty the empty state carries the only call to action, so every
+                tab reads the same way with nothing in it. */}
+            {noteItems.length > 0 && (canAdd || canBulkDelete) && (
                 <div className="mb-2 flex justify-end gap-1.5">
                     {canAdd && (
-                        <Button variant="primary" size="sm" onClick={onAddNote}>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon={<Icon name="plus" size={14} />}
+                            onClick={onAddNote}
+                        >
                             {t("pages.deals.workspace.notes.add_note")}
                         </Button>
                     )}
-                    {noteItems.length > 0 && canBulkDelete && (
+                    {canBulkDelete && (
                         <Button
                             variant="ghost"
                             size="sm"
@@ -171,9 +187,7 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
             )}
 
             {noteItems.length === 0 ? (
-                <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {t("pages.deals.workspace.notes.empty")}
-                </p>
+                <NotesEmptyState onAdd={canAdd ? onAddNote : undefined} />
             ) : (
                 noteItems.map((note) => {
                     const rawNote = notes.find((item) => item.id === note.id);
@@ -207,7 +221,9 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                 <div className="mb-[7px] flex items-center justify-between gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => openOrSelectNote(note.id)}
+                                        onClick={() =>
+                                            openOrSelectNote(note.id)
+                                        }
                                         aria-label={
                                             selectMode
                                                 ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
@@ -315,7 +331,11 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                     tabIndex={0}
                                     onClick={() => openOrSelectNote(note.id)}
                                     onKeyDown={(event) => {
-                                        if (event.key !== "Enter" && event.key !== " ") return;
+                                        if (
+                                            event.key !== "Enter" &&
+                                            event.key !== " "
+                                        )
+                                            return;
                                         event.preventDefault();
                                         openOrSelectNote(note.id);
                                     }}
@@ -340,7 +360,9 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                                                 className="workspace-note-html text-[15px]"
                                             />
                                         ) : (
-                                            <span style={{ color: T.TEXT_MUTED }}>
+                                            <span
+                                                style={{ color: T.TEXT_MUTED }}
+                                            >
                                                 {note.body}
                                             </span>
                                         )}
@@ -391,7 +413,9 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                         ? t("pages.deals.workspace.notes.item_singular")
                         : t("pages.deals.workspace.notes.item_plural")
                 }?`}
-                message={t("pages.deals.workspace.notes.delete_confirm_message")}
+                message={t(
+                    "pages.deals.workspace.notes.delete_confirm_message",
+                )}
                 confirmLabel={t("pages.deals.workspace.notes.delete_notes")}
                 danger
                 confirmLoading={isBulkDeleting}
