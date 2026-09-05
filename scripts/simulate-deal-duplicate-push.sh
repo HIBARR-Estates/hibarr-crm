@@ -30,8 +30,14 @@
 #   COMPANY_ID=1                 company header (default 1)
 #   EMAIL=someone@example.com    reuse an existing lead instead of creating a fresh one
 #   DEAL_OWNER_ID=3              deal_owner_id sent in the payload (default 3)
+#   API_PATH=api/v1/deal/create  endpoint path (default shown; the routes are registered
+#                                through Froiden ApiRoute, so they carry the prefix and
+#                                version from config/api.php - "api" + "v1")
 #   WAIT_FOR_WINDOW=1            after step 4, sleep 61s and re-send it to prove the
 #                                60s window reopens rather than blocking forever
+#
+# From PowerShell, set the variables first ($env:BASE_URL="..."), or run the whole
+# thing through bash -c "BASE_URL=... API_TOKEN=... ./scripts/simulate-deal-duplicate-push.sh".
 #
 # Nothing is cleaned up: the script creates a real lead and deal. Run it against
 # staging, or delete the lead afterwards.
@@ -51,7 +57,9 @@ if [[ -z "$BASE_URL" || -z "$API_TOKEN" ]]; then
 fi
 
 BASE_URL="${BASE_URL%/}"
-ENDPOINT="$BASE_URL/api/deal/create"
+API_PATH="${API_PATH:-api/v1/deal/create}"
+API_PATH="${API_PATH#/}"
+ENDPOINT="$BASE_URL/$API_PATH"
 
 STAMP="$(date +%s)"
 EMAIL="${EMAIL:-hib1419+${STAMP}@mailinator.com}"
@@ -61,6 +69,7 @@ DEAL_NAME_B="Ayomide+Oluniyi HIbarr ${STAMP}"
 MEETING_DATE="$(date -u -d '+2 days' '+%Y-%m-%d 11:00:00' 2>/dev/null || date -u -v+2d '+%Y-%m-%d 11:00:00')"
 
 failures=0
+LAST_STATUS=""
 
 # post <label> <payload> <expectation: accepted|duplicate>
 post() {
@@ -80,6 +89,7 @@ post() {
 
     status="$(printf '%s' "$body" | tail -n1)"
     body="$(printf '%s' "$body" | sed '$d')"
+    LAST_STATUS="$status"
 
     echo "    HTTP $status"
     echo "    $body"
@@ -131,6 +141,26 @@ echo "Lead     : $EMAIL"
 echo "Names    : '$DEAL_NAME_A' then '$DEAL_NAME_B'"
 
 post "1/4 create the deal"                      "$(create_payload)"               accepted
+
+# A wrong endpoint or a bad token makes every later step meaningless, and worse,
+# looks like the deal logic failing. Stop here instead.
+case "$LAST_STATUS" in
+    404)
+        cat >&2 <<HINT
+
+The endpoint does not exist. These routes are registered through Froiden ApiRoute,
+so they carry the prefix and version from config/api.php - '$API_PATH' is the default.
+Check the real path with:  php artisan route:list --path=deal/create
+Then re-run with:          API_PATH=<path> $0
+HINT
+        exit 1
+        ;;
+    401 | 403)
+        echo >&2 $'\nAuthentication failed - check API_TOKEN and COMPANY_ID (header X-COMPANY-ID).'
+        exit 1
+        ;;
+esac
+
 post "2/4 identical repeat (expect duplicate)"  "$(create_payload)"               duplicate
 post "3/4 rename + meeting (the HIB-1419 bug)"  "$(rename_with_meeting_payload)"  accepted
 post "4/4 identical repeat (expect duplicate)"  "$(rename_with_meeting_payload)"  duplicate
