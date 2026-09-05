@@ -11,6 +11,7 @@ use App\Models\LeadLifecycleStatus;
 use App\Models\MlmCommission;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
+use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,8 @@ use Illuminate\Support\Facades\DB;
  * idle team completely.
  *
  * Nothing here recalculates commission. Paid and pending come from
- * mlm_commissions rows as MlmCommissionService wrote them. The legacy flat
+ * mlm_commissions rows as MlmCommissionService wrote them; forecast comes from
+ * that same service's preview() over the team's open deals. The legacy flat
  * `commissions` table (employee_id-keyed, no company scope) is deliberately
  * not read — it has no writer and no reader anywhere in the app, and a
  * dual-read would make two disagreeing numbers possible.
@@ -51,9 +53,21 @@ class TeamDownlineService
      */
     private const CLOSED_LEAD_KEYS = ['converted', 'lost', 'not_fit'];
 
+    /**
+     * Open deals the forecast will price, most recently touched first.
+     *
+     * preview() resolves levels, cycle snapshots and the full ancestor chain
+     * per deal — a handful of queries each — so a large network would turn one
+     * panel into thousands of round trips. Past this many the panel says so
+     * (`forecast_truncated`) rather than quietly reporting a partial number as
+     * the whole picture.
+     */
+    private const FORECAST_MAX_DEALS = 150;
+
     public function __construct(
         private HierarchyService $hierarchy,
         private LevelService $levels,
+        private MlmCommissionService $commissions,
     ) {}
 
     /**
@@ -202,7 +216,16 @@ class TeamDownlineService
         $agentIds = array_keys($depths);
 
         if (empty($agentIds)) {
-            return ['nodes' => [], 'currency' => $this->currencyCode(), 'range' => $range->toArray()];
+            return [
+                'nodes' => [],
+                'currency' => $this->currencyCode(),
+                'range' => $range->toArray(),
+                'your_name' => $root->user?->name,
+                'your_image' => $root->user?->image_url,
+                'your_level' => $this->levels->getCurrentLevel($root)?->name,
+                'forecast_truncated' => false,
+                'forecast_deals' => 0,
+            ];
         }
 
         $agents = LeadAgent::with(['user:id,name,image', 'currentLevelHistory.level'])
@@ -213,6 +236,7 @@ class TeamDownlineService
         $commissions = $this->commissionTotals($agentIds, $range);
         $deals = $this->dealTotals($agentIds, $range);
         $leads = $this->leadTotals($agentIds);
+        $forecast = $this->forecast($agentIds);
 
         // Children keyed by parent. An agent whose parent is outside the team —
         // possible when the walk stopped at MAX_SUBTREE_DEPTH — is attached to
@@ -227,7 +251,7 @@ class TeamDownlineService
         }
 
         $build = function (int $id) use (
-            &$build, $agents, $depths, $childrenOf, $commissions, $deals, $leads
+            &$build, $agents, $depths, $childrenOf, $commissions, $deals, $leads, $forecast
         ): array {
             $agent = $agents->get($id);
 
@@ -238,6 +262,7 @@ class TeamDownlineService
                 'leads_untouched' => $leads[$id]['untouched'] ?? 0,
                 'paid' => round($commissions[$id]['paid'] ?? 0.0, 2),
                 'pending' => round($commissions[$id]['pending'] ?? 0.0, 2),
+                'forecast' => round($forecast['byAgent'][$id] ?? 0.0, 2),
             ];
 
             $children = array_map($build, $childrenOf[$id] ?? []);
@@ -276,10 +301,126 @@ class TeamDownlineService
             'nodes' => array_map($build, $childrenOf[(int) $root->id] ?? []),
             'currency' => $this->currencyCode(),
             'range' => $range->toArray(),
-            // The viewer's own level still belongs on the page: it sets the
-            // differential they earn on everything below.
+            // The graph draws the viewer as its own root node, above everyone
+            // whose numbers actually count — so it needs their identity even
+            // though none of their own activity is tallied into any figure.
+            'your_name' => $root->user?->name,
+            'your_image' => $root->user?->image_url,
+            // Still belongs on the page: it sets the differential the viewer
+            // earns on everything below.
             'your_level' => $this->levels->getCurrentLevel($root)?->name,
+            'forecast_truncated' => $forecast['truncated'],
+            'forecast_deals' => $forecast['deal_count'],
         ];
+    }
+
+    /**
+     * The team's priced-but-unrealised commission, as one number for the tile
+     * row — the per-agent breakdown lives on tree()'s nodes instead.
+     *
+     * Split from tree() into its own entry point (both memoise through the
+     * same forecast() call when resolved in the same request) so the tile can
+     * be deferred independently of the full graph payload while still sharing
+     * the one expensive computation when the two land together.
+     */
+    public function teamForecast(LeadAgent $root): array
+    {
+        $agentIds = array_keys($this->teamDepths($root));
+        $forecast = $this->forecast($agentIds);
+
+        return [
+            'amount' => round(array_sum($forecast['byAgent']), 2),
+            'deal_count' => $forecast['deal_count'],
+            'truncated' => $forecast['truncated'],
+            'currency' => $this->currencyCode(),
+        ];
+    }
+
+    /**
+     * Commission the team was paid, month by month.
+     *
+     * Paid only — a trend line reads movement over time, and pending has no
+     * date to plot: it is a standing balance, not an event. A month with no
+     * payment is emitted as a zero rather than skipped, so a quiet month reads
+     * as a flat line instead of a gap the eye closes over.
+     */
+    public function commissionTrend(LeadAgent $root, DashboardDateRange $range): array
+    {
+        $agentIds = array_keys($this->teamDepths($root));
+
+        if (empty($agentIds)) {
+            return ['points' => [], 'currency' => $this->currencyCode()];
+        }
+
+        $byMonth = MlmCommission::query()
+            ->whereIn('agent_id', $agentIds)
+            ->whereIn('type', self::EARNABLE_TYPES)
+            ->where('status', MlmCommissionStatus::Paid->value)
+            ->whereBetween('paid_at', [$range->from, $range->to])
+            ->groupBy('period')
+            ->toBase()
+            ->get([
+                DB::raw("DATE_FORMAT(paid_at, '%Y-%m') as period"),
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->keyBy('period');
+
+        $points = [];
+        $cursor = $range->from->copy()->startOfMonth();
+        $last = $range->to->copy()->startOfMonth();
+
+        while ($cursor->lessThanOrEqualTo($last)) {
+            $key = $cursor->format('Y-m');
+
+            $points[] = [
+                'period' => $key,
+                'label' => $cursor->format('M Y'),
+                'amount' => round((float) ($byMonth->get($key)->total ?? 0), 2),
+            ];
+
+            $cursor->addMonth();
+        }
+
+        return ['points' => $points, 'currency' => $this->currencyCode()];
+    }
+
+    /**
+     * The team's latest commission activity, newest first.
+     *
+     * Not windowed by the picker: "recent" means recent, the same way the
+     * agent-facing commission screen reads its own latest legs regardless of
+     * whatever date filter is set elsewhere on the page. Reverted legs are
+     * included deliberately — a clawback is exactly the kind of activity a
+     * lead needs surfaced, not hidden because it nets to zero.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function recentCommissions(LeadAgent $root, int $limit = 8): array
+    {
+        $agentIds = array_keys($this->teamDepths($root));
+
+        if (empty($agentIds)) {
+            return [];
+        }
+
+        return MlmCommission::query()
+            ->whereIn('agent_id', $agentIds)
+            ->whereIn('type', self::EARNABLE_TYPES)
+            ->with(['agent.user:id,name,image', 'deal:id,name'])
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (MlmCommission $commission) => [
+                'id' => $commission->id,
+                'agent_name' => $commission->agent?->user?->name ?? 'Unknown agent',
+                'agent_image' => $commission->agent?->user?->image_url,
+                'deal_name' => $commission->deal?->name,
+                'type' => $commission->type->value,
+                'amount' => (float) $commission->amount,
+                'status' => $commission->status->value,
+                'at' => ($commission->paid_at ?? $commission->created_at)?->toIso8601String(),
+            ])
+            ->all();
     }
 
     // ── Internals ────────────────────────────────────────────────
@@ -484,6 +625,72 @@ class TeamDownlineService
 
             return $totals;
         });
+    }
+
+    /**
+     * What the team's open deals would pay each member, per
+     * MlmCommissionService::preview().
+     *
+     * Legs are attributed to the agent that would *receive* them and then
+     * filtered to the team, which is the whole point of a network forecast: an
+     * upline differential a team member earns on one of *their* sub-agent's
+     * deals is theirs, and lands on their row, not the seller's. A leg pointing
+     * above the team — at the viewer, or past them — falls out here as well,
+     * which is what keeps the viewer's own exclusion holding for forecast too.
+     *
+     * Not windowed by the date range: a forecast prices deals as they stand
+     * right now, not as they stood on some date in the past.
+     *
+     * @param  array<int, int>  $agentIds
+     * @return array{byAgent: array<int, float>, deal_count: int, truncated: bool}
+     */
+    private function forecast(array $agentIds): array
+    {
+        if (empty($agentIds)) {
+            return ['byAgent' => [], 'deal_count' => 0, 'truncated' => false];
+        }
+
+        return $this->once('forecast:'.$this->key($agentIds), fn () => $this->resolveForecast($agentIds));
+    }
+
+    /**
+     * @param  array<int, int>  $agentIds
+     * @return array{byAgent: array<int, float>, deal_count: int, truncated: bool}
+     */
+    private function resolveForecast(array $agentIds): array
+    {
+        $openDeals = Deal::query()
+            ->whereIn('agent_id', $agentIds)
+            ->whereNull('outcome_status')
+            ->count();
+
+        $deals = Deal::query()
+            ->whereIn('agent_id', $agentIds)
+            ->whereNull('outcome_status')
+            ->orderByDesc('updated_at')
+            ->limit(self::FORECAST_MAX_DEALS)
+            ->get();
+
+        $inTeam = array_flip($agentIds);
+        $byAgent = [];
+
+        foreach ($deals as $deal) {
+            foreach ($this->commissions->preview($deal) as $leg) {
+                $agentId = (int) ($leg['agent_id'] ?? 0);
+
+                if (! isset($inTeam[$agentId]) || ! in_array($leg['type'] ?? null, self::EARNABLE_TYPES, true)) {
+                    continue;
+                }
+
+                $byAgent[$agentId] = ($byAgent[$agentId] ?? 0.0) + (float) $leg['amount'];
+            }
+        }
+
+        return [
+            'byAgent' => $byAgent,
+            'deal_count' => min($openDeals, self::FORECAST_MAX_DEALS),
+            'truncated' => $openDeals > self::FORECAST_MAX_DEALS,
+        ];
     }
 
     /** Memo key for a set of agents, optionally over a window. */

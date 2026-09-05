@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Deferred } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -6,41 +7,58 @@ import DashboardPanel, {
     PanelSkeleton,
 } from "../components/DashboardPanel";
 import StatTile from "../components/StatTile";
-import TrendLine from "../components/TrendLine";
-import TeamTree from "../components/TeamTree";
+import TeamNetworkGraph from "../components/TeamNetworkGraph";
+import CommissionTrendChart from "../components/CommissionTrendChart";
+import NetworkGrowthChart from "../components/NetworkGrowthChart";
+import RecentCommissionsList from "../components/RecentCommissionsList";
 import { amount } from "../format";
-import type { TeamGrowth, TeamSummary, TeamTree as TeamTreeData } from "../types";
+import type {
+    TeamCommissionTrend,
+    TeamForecast,
+    TeamGrowth,
+    TeamRecentCommission,
+    TeamSummary,
+    TeamTree as TeamTreeData,
+    TeamTreeNode,
+} from "../types";
 
 export interface TeamViewProps {
     /** null for an account holding the permission but no lead_agent record. */
     teamSummary?: TeamSummary | null;
-    teamGrowth?: TeamGrowth | null;
+    teamForecast?: TeamForecast | null;
     teamTree?: TeamTreeData | null;
+    teamCommissionTrend?: TeamCommissionTrend | null;
+    teamGrowth?: TeamGrowth | null;
+    teamRecentCommissions?: TeamRecentCommission[] | null;
     /** Days the window covers, for copy. The picker owns the window itself. */
     period?: number;
-    currentUserId?: number;
 }
 
 /**
- * Your network, and nothing of your own.
+ * Your network, and nothing of your own — a single place to read what
+ * everyone below you is doing.
  *
  * Every figure covers the agents below you at any depth and excludes you. A
  * team lead reading this is asking how their people are doing, and folding
  * their own book into the totals is the fastest way to make that unreadable —
  * a strong personal closer can hide an idle network completely.
  *
- * Commission comes from mlm_commissions as MlmCommissionService wrote it. The
- * page does no commission arithmetic of its own, so it can never disagree with
- * an agent's own commission screen.
+ * Commission comes from mlm_commissions as MlmCommissionService wrote it, or
+ * that same service's preview() for the forecast. The page does no commission
+ * arithmetic of its own, so it can never disagree with an agent's own
+ * commission screen.
  */
 export default function TeamView({
     teamSummary,
-    teamGrowth,
+    teamForecast,
     teamTree,
+    teamCommissionTrend,
+    teamGrowth,
+    teamRecentCommissions,
     period = 30,
-    currentUserId,
 }: TeamViewProps) {
     const { td } = useTd();
+    const [selected, setSelected] = useState<TeamTreeNode | null>(null);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -48,7 +66,7 @@ export default function TeamView({
                 data="teamSummary"
                 fallback={
                     <div style={tileGrid}>
-                        {Array.from({ length: 5 }).map((_, index) => (
+                        {Array.from({ length: 7 }).map((_, index) => (
                             <CardSkeleton key={index} height={116} />
                         ))}
                     </div>
@@ -70,9 +88,15 @@ export default function TeamView({
                         <StatTile
                             label="Active deals"
                             value={teamSummary.active_deals}
-                            // Not windowed, and said so: a deal opened last year
-                            // and still running is active today.
-                            note={`Open right now · ${teamSummary.deals_won} won in the last ${period} days`}
+                            // Not windowed, and said so: a deal opened last
+                            // year and still running is active today.
+                            note="Open right now, across the network"
+                        />
+                        <StatTile
+                            label="Deals won"
+                            tone="green"
+                            value={teamSummary.deals_won}
+                            note={`Closed in the last ${period} days`}
                         />
                         <StatTile
                             label="Leads in play"
@@ -92,6 +116,27 @@ export default function TeamView({
                             )}
                             note={`Paid in the last ${period} days · ${amount(teamSummary.pending, teamSummary.currency)} pending`}
                         />
+                        <Deferred
+                            data="teamForecast"
+                            fallback={<CardSkeleton height={116} />}
+                        >
+                            {teamForecast ? (
+                                <StatTile
+                                    label="Commission forecast"
+                                    value={amount(
+                                        teamForecast.amount,
+                                        teamForecast.currency,
+                                    )}
+                                    note={
+                                        teamForecast.deal_count
+                                            ? `Priced from ${teamForecast.deal_count} open deal${teamForecast.deal_count === 1 ? "" : "s"}${teamForecast.truncated ? " (network has more)" : ""}`
+                                            : "No open deals to price yet"
+                                    }
+                                />
+                            ) : (
+                                <span />
+                            )}
+                        </Deferred>
                     </div>
                 ) : (
                     <NoAgentRecord />
@@ -104,35 +149,29 @@ export default function TeamView({
             {teamSummary !== null && (
                 <>
                     <DashboardPanel
-                        title="Network growth"
-                        note="Agents who joined each month, and the size that produced everything above"
+                        flush
+                        title="Your network"
+                        note="Every person below you, by who recruited whom — drag to pan, scroll to zoom, click anyone for their numbers"
                         footer={
-                            teamGrowth ? (
-                                <GrowthReading data={teamGrowth} />
-                            ) : undefined
+                            <NodeDetail
+                                node={selected}
+                                currency={teamTree?.currency ?? null}
+                                period={period}
+                            />
                         }
                     >
                         <Deferred
-                            data="teamGrowth"
-                            fallback={<PanelSkeleton rows={6} />}
+                            data="teamTree"
+                            fallback={
+                                <div style={{ padding: 18 }}>
+                                    <PanelSkeleton rows={8} />
+                                </div>
+                            }
                         >
-                            {teamGrowth ? (
-                                <TrendLine
-                                    data={teamGrowth.points}
-                                    xKey="label"
-                                    height={240}
-                                    series={[
-                                        {
-                                            dataKey: "total",
-                                            label: "Network size",
-                                            color: T.BLUE,
-                                        },
-                                        {
-                                            dataKey: "joined",
-                                            label: "Joined",
-                                            color: T.GREEN,
-                                        },
-                                    ]}
+                            {teamTree ? (
+                                <TeamNetworkGraph
+                                    data={teamTree}
+                                    onSelect={setSelected}
                                 />
                             ) : (
                                 <span />
@@ -141,29 +180,54 @@ export default function TeamView({
                     </DashboardPanel>
 
                     <DashboardPanel
-                        flush
-                        title="Your network"
-                        note={`Everyone below you, by who recruited whom · won and paid cover the last ${period} days`}
-                        extra={
-                            teamTree?.your_level ? (
-                                <span className="dr-pill dr-pill-blue">
-                                    {td("Your level")}: {teamTree.your_level}
-                                </span>
-                            ) : undefined
-                        }
+                        title="Commission trend"
+                        note={`What the network was paid, month by month · last ${period} days`}
                     >
                         <Deferred
-                            data="teamTree"
+                            data="teamCommissionTrend"
+                            fallback={<PanelSkeleton rows={6} />}
+                        >
+                            {teamCommissionTrend ? (
+                                <CommissionTrendChart data={teamCommissionTrend} />
+                            ) : (
+                                <span />
+                            )}
+                        </Deferred>
+                    </DashboardPanel>
+
+                    <DashboardPanel
+                        title="Network growth"
+                        note="Agents who joined each month, against the running size that produced everything above"
+                    >
+                        <Deferred
+                            data="teamGrowth"
+                            fallback={<PanelSkeleton rows={6} />}
+                        >
+                            {teamGrowth ? (
+                                <NetworkGrowthChart data={teamGrowth} />
+                            ) : (
+                                <span />
+                            )}
+                        </Deferred>
+                    </DashboardPanel>
+
+                    <DashboardPanel
+                        flush
+                        title="Recent commissions"
+                        note="Latest commission activity across the network"
+                    >
+                        <Deferred
+                            data="teamRecentCommissions"
                             fallback={
                                 <div style={{ padding: 18 }}>
-                                    <PanelSkeleton rows={6} />
+                                    <PanelSkeleton rows={5} />
                                 </div>
                             }
                         >
-                            {teamTree ? (
-                                <TeamTree
-                                    data={teamTree}
-                                    currentUserId={currentUserId}
+                            {teamRecentCommissions ? (
+                                <RecentCommissionsList
+                                    rows={teamRecentCommissions}
+                                    currency={teamSummary?.currency ?? null}
                                 />
                             ) : (
                                 <span />
@@ -183,46 +247,86 @@ const tileGrid = {
 } as const;
 
 /**
- * The growth curve in words. Derived, not written — the reading has to stay
- * true when the numbers move.
+ * The graph's footer: nobody's numbers until somebody is clicked, then that
+ * person's own figure against their whole branch's — the same "own vs
+ * network" reading the card itself only has room to hint at.
  */
-function GrowthReading({ data }: { data: TeamGrowth }) {
+function NodeDetail({
+    node,
+    currency,
+    period,
+}: {
+    node: TeamTreeNode | null;
+    currency: string | null;
+    period: number;
+}) {
     const { td } = useTd();
 
-    if (!data.points.length) {
+    if (!node) {
         return (
             <span style={{ color: T.TEXT_MUTED }}>
-                {td("No months in this window to plot.")}
+                {td("Click anyone in the network to see their own numbers against their branch's.")}
             </span>
         );
     }
 
-    if (!data.joined) {
-        return (
-            <span style={{ color: T.TEXT_MUTED }}>
-                {data.before
-                    ? td("Nobody joined the network in this window.")
-                    : td("No network yet — nobody has been recruited under you.")}
-            </span>
-        );
-    }
-
-    const best = data.points.reduce((a, b) => (a.joined >= b.joined ? a : b));
+    const rows: Array<[string, number | string, number | string]> = [
+        [td("Active deals"), node.own.active_deals, node.network.active_deals],
+        [td("Won"), node.own.deals_won, node.network.deals_won],
+        [td("Leads in play"), node.own.leads_active, node.network.leads_active],
+        [
+            td("Paid"),
+            amount(node.own.paid, currency),
+            amount(node.network.paid, currency),
+        ],
+        [
+            td("Pending"),
+            amount(node.own.pending, currency),
+            amount(node.network.pending, currency),
+        ],
+        [
+            td("Forecast"),
+            amount(node.own.forecast, currency),
+            amount(node.network.forecast, currency),
+        ],
+    ];
 
     return (
-        <span style={{ color: T.TEXT }}>
-            <strong>
-                +{data.joined} {td("joined")}
-            </strong>{" "}
-            {td("in this window, taking the network to")}{" "}
-            {data.points[data.points.length - 1].total}.{" "}
-            {best.joined > 0 && (
-                <>
-                    {td("Best month was")} {best.label} {td("with")}{" "}
-                    {best.joined}.
-                </>
-            )}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+            <div style={{ fontWeight: 700, color: T.NAVY }}>
+                {node.name}
+                {node.level && (
+                    <span style={{ fontWeight: 400, color: T.TEXT_MUTED }}>
+                        {" · "}
+                        {node.level}
+                    </span>
+                )}
+            </div>
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    columnGap: 18,
+                    rowGap: 4,
+                }}
+            >
+                {rows.map(([label, own, branch]) => (
+                    <span key={label}>
+                        <span style={{ color: T.TEXT_HINT }}>{label}: </span>
+                        <strong>{own}</strong>
+                        {String(own) !== String(branch) && (
+                            <span style={{ color: T.TEXT_HINT }}>
+                                {" "}
+                                ({td("branch")} {branch})
+                            </span>
+                        )}
+                    </span>
+                ))}
+            </div>
+            <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                {td("Won and paid cover the last")} {period} {td("days")}. {td("Active deals, leads, pending and forecast are as of now.")}
+            </div>
+        </div>
     );
 }
 

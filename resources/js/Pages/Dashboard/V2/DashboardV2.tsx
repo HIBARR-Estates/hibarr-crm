@@ -151,11 +151,7 @@ export default function DashboardV2(props: DashboardV2Props) {
                         />
                     )}
                     {activeView === "team" && (
-                        <TeamView
-                            {...props}
-                            period={range.days}
-                            currentUserId={auth?.user?.id}
-                        />
+                        <TeamView {...props} period={range.days} />
                     )}
                     {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}

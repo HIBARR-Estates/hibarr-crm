@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Services\Dashboard\TeamDownlineService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
+use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
@@ -379,6 +380,185 @@ class TeamDownlineTest extends TestCase
         $this->assertContains(0, array_column($points, 'joined'));
     }
 
+    // ── Forecast ────────────────────────────────────────────────────────────
+
+    public function test_forecast_credits_the_agent_the_leg_would_pay(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->deal(id: 1, agentId: 4, open: true);
+
+        // A sub-agent's open deal pays them their own leg and an ancestor an
+        // upline differential. Both are inside the team, on different nodes.
+        $service = $this->service(legs: [
+            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
+            ['agent_id' => 2, 'amount' => 200, 'type' => 'upline'],
+        ]);
+
+        $tree = $service->tree($root, $this->range());
+
+        $this->assertSame(800.0, $this->nodeFor($tree, 4)['own']['forecast']);
+        $this->assertSame(200.0, $this->nodeFor($tree, 2)['own']['forecast']);
+
+        $forecast = $service->teamForecast($root);
+        $this->assertSame(1000.0, $forecast['amount']);
+    }
+
+    public function test_forecast_drops_legs_for_the_viewer_and_for_agents_outside_the_team(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->agent(id: 20, userId: 120);
+        $this->deal(id: 1, agentId: 4, open: true);
+
+        // An upline leg can legitimately point at the viewer (root) or at an
+        // ancestor above them. Neither is this team's to see, and neither may
+        // inflate the total — that is what keeps the viewer's own exclusion
+        // holding for forecast too.
+        $service = $this->service(legs: [
+            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
+            ['agent_id' => 1, 'amount' => 150, 'type' => 'upline'],
+            ['agent_id' => 20, 'amount' => 300, 'type' => 'upline'],
+            ['agent_id' => 4, 'amount' => 100, 'type' => 'system'],
+        ]);
+
+        $this->assertSame(
+            800.0,
+            $service->teamForecast($root)['amount'],
+            'A leg belonging to the viewer, an outsider, or the house was rolled in'
+        );
+    }
+
+    public function test_a_closed_deal_is_not_forecast(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->deal(id: 1, agentId: 4, open: false);
+
+        $service = $this->service(legs: [
+            ['agent_id' => 4, 'amount' => 800, 'type' => 'agent'],
+        ]);
+
+        $forecast = $service->teamForecast($root);
+
+        $this->assertSame(0, $forecast['deal_count']);
+        $this->assertSame(0.0, $forecast['amount']);
+    }
+
+    public function test_a_branchs_forecast_rolls_up_with_its_other_figures(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->deal(id: 1, agentId: 5, open: true);
+
+        $service = $this->service(legs: [
+            ['agent_id' => 5, 'amount' => 50, 'type' => 'agent'],
+            ['agent_id' => 4, 'amount' => 10, 'type' => 'upline'],
+        ]);
+
+        $bo = $this->nodeFor($service->tree($root, $this->range()), 2);
+
+        // Bo (2) has no forecast of their own, but Di (4) and Eli (5) sit in
+        // their branch, so the branch total has to carry both.
+        $this->assertSame(0.0, $bo['own']['forecast']);
+        $this->assertSame(60.0, $bo['network']['forecast']);
+    }
+
+    // ── Commission trend ─────────────────────────────────────────────────────
+
+    public function test_commission_trend_buckets_paid_amounts_by_month(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now()->subMonth());
+        $this->commission(agentId: 3, amount: 50, status: 'paid', paidAt: now()->subMonth());
+        $this->commission(agentId: 4, amount: 30, status: 'paid', paidAt: now());
+        // Pending has no date to plot and must not leak into a monthly total.
+        $this->commission(agentId: 2, amount: 999, status: 'pending');
+
+        $points = collect($this->service()->commissionTrend($root, $this->range(90))['points']);
+
+        $this->assertSame(150.0, $points->firstWhere('period', now()->subMonth()->format('Y-m'))['amount']);
+        $this->assertSame(30.0, $points->firstWhere('period', now()->format('Y-m'))['amount']);
+    }
+
+    public function test_commission_trend_emits_a_zero_for_a_quiet_month(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now());
+
+        $points = $this->service()->commissionTrend($root, $this->range(90))['points'];
+
+        $this->assertGreaterThanOrEqual(3, count($points));
+        $this->assertContains(0.0, array_column($points, 'amount'));
+    }
+
+    public function test_commission_trend_excludes_the_viewer_and_the_house(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->commission(agentId: 1, amount: 9000, status: 'paid', paidAt: now());
+        $this->commission(agentId: 2, amount: 100, status: 'paid', paidAt: now(), type: 'system');
+        $this->commission(agentId: 2, amount: 40, status: 'paid', paidAt: now());
+
+        $points = collect($this->service()->commissionTrend($root, $this->range(90))['points']);
+
+        $this->assertSame(40.0, $points->firstWhere('period', now()->format('Y-m'))['amount']);
+    }
+
+    // ── Recent commissions ───────────────────────────────────────────────────
+
+    public function test_recent_commissions_are_newest_first_and_respect_the_limit(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $this->commission(agentId: 2, amount: 10, status: 'paid', paidAt: now()->subDays(3), createdAt: now()->subDays(3));
+        $this->commission(agentId: 3, amount: 20, status: 'paid', paidAt: now()->subDay(), createdAt: now()->subDay());
+        $this->commission(agentId: 4, amount: 30, status: 'pending', createdAt: now());
+
+        $rows = $this->service()->recentCommissions($root, limit: 2);
+
+        $this->assertCount(2, $rows);
+        $this->assertSame(30.0, $rows[0]['amount']);
+        $this->assertSame(20.0, $rows[1]['amount']);
+    }
+
+    public function test_recent_commissions_include_reverted_legs_but_never_the_houses_cut(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        $this->commission(agentId: 2, amount: 40, status: 'reverted', createdAt: now());
+        $this->commission(agentId: 2, amount: 900, status: 'paid', createdAt: now(), type: 'system');
+
+        $rows = $this->service()->recentCommissions($root);
+
+        $this->assertCount(1, $rows, 'A system leg reached the activity feed');
+        $this->assertSame('reverted', $rows[0]['status']);
+    }
+
+    public function test_recent_commissions_are_scoped_to_the_team(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->agent(id: 20, userId: 120);
+
+        $this->commission(agentId: 1, amount: 9000, status: 'paid', createdAt: now());
+        $this->commission(agentId: 20, amount: 5000, status: 'paid', createdAt: now());
+        $this->commission(agentId: 2, amount: 40, status: 'paid', createdAt: now());
+
+        $rows = $this->service()->recentCommissions($root);
+
+        $this->assertCount(1, $rows, 'The viewer\'s own commission, or an outsider\'s, leaked into the feed');
+        $this->assertSame(40.0, $rows[0]['amount']);
+    }
+
+    public function test_recent_commission_rows_carry_agent_and_deal_names(): void
+    {
+        [$root] = $this->threeGenerations();
+        $this->deal(id: 1, agentId: 2, open: true);
+        DB::table('deals')->where('id', 1)->update(['name' => 'Dubai Marina A-1204']);
+        $this->commission(agentId: 2, amount: 40, status: 'paid', createdAt: now(), dealId: 1);
+
+        $row = $this->service()->recentCommissions($root)[0];
+
+        $this->assertSame('Bo Direct', $row['agent_name']);
+        $this->assertSame('Dubai Marina A-1204', $row['deal_name']);
+    }
+
     // ── Fixtures ────────────────────────────────────────────────────────────
 
     /**
@@ -400,12 +580,18 @@ class TeamDownlineTest extends TestCase
         return [$root];
     }
 
-    private function service(): TeamDownlineService
+    /**
+     * @param  array<int, array<string, mixed>>  $legs  What preview() returns for every open deal.
+     */
+    private function service(array $legs = []): TeamDownlineService
     {
         $levels = Mockery::mock(LevelService::class);
         $levels->shouldReceive('getCurrentLevel')->andReturn(null);
 
-        return new TeamDownlineService(app(HierarchyService::class), $levels);
+        $commissions = Mockery::mock(MlmCommissionService::class);
+        $commissions->shouldReceive('preview')->andReturn($legs);
+
+        return new TeamDownlineService(app(HierarchyService::class), $levels, $commissions);
     }
 
     private function range(int $days = 30): DashboardDateRange
@@ -469,15 +655,20 @@ class TeamDownlineTest extends TestCase
         float $amount,
         string $status,
         $paidAt = null,
-        string $type = 'agent'
+        string $type = 'agent',
+        $createdAt = null,
+        ?int $dealId = null
     ): void {
         DB::table('mlm_commissions')->insert([
             'company_id' => $this->companyId,
             'agent_id' => $agentId,
+            'deal_id' => $dealId,
             'amount' => $amount,
             'status' => $status,
             'type' => $type,
             'paid_at' => $paidAt,
+            'created_at' => $createdAt ?? now(),
+            'updated_at' => now(),
         ]);
     }
 

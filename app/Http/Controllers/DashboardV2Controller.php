@@ -264,12 +264,18 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
-     * The team view's panels: the headline row, the growth curve, the tree.
+     * The team view's panels: the headline row, the graph, the charts, recent
+     * activity.
      *
-     * Three groups so the tiles paint while the heavier panels resolve. The
-     * tree is on its own because it is the expensive one — it fans the same
-     * rollups out per agent — and the growth chart is two cheap aggregates
-     * that should not wait behind it.
+     * Five groups so each piece paints as soon as its own cost is paid, rather
+     * than the slowest panel holding up the rest:
+     *  - 'summary': the tile row minus forecast — cheap aggregates only.
+     *  - 'network': the graph and the forecast tile together. Both run
+     *    MlmCommissionService::preview() over every open deal in the team, and
+     *    TeamDownlineService memoises that within one request — split across
+     *    groups (separate requests, separate instances) it would be paid twice.
+     *  - 'trend' / 'growth' / 'recent': independent aggregates, each its own
+     *    query, none needing what the others compute.
      *
      * @return array<string, mixed>
      */
@@ -287,13 +293,25 @@ class DashboardV2Controller extends AccountBaseController
                 fn () => ($agent = $root()) ? $team->summary($agent, $range) : null,
                 'summary'
             ),
+            'teamForecast' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->teamForecast($agent) : null,
+                'network'
+            ),
+            'teamTree' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->tree($agent, $range) : null,
+                'network'
+            ),
+            'teamCommissionTrend' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->commissionTrend($agent, $range) : null,
+                'trend'
+            ),
             'teamGrowth' => Inertia::defer(
                 fn () => ($agent = $root()) ? $team->growth($agent, $range) : null,
                 'growth'
             ),
-            'teamTree' => Inertia::defer(
-                fn () => ($agent = $root()) ? $team->tree($agent, $range) : null,
-                'tree'
+            'teamRecentCommissions' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->recentCommissions($agent) : null,
+                'recent'
             ),
         ];
     }

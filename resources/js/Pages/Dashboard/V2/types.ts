@@ -176,7 +176,7 @@ export interface PartnerFlagRow {
  * default currency configured — the panels then render bare numbers rather
  * than stamping the wrong symbol on them.
  */
-export interface TeamMetrics {
+export interface TeamActivityMetrics {
     /** Open deals. Not windowed — a running deal is running today. */
     active_deals: number;
     /** Won inside the selected window. */
@@ -191,7 +191,24 @@ export interface TeamMetrics {
     pending: number;
 }
 
-export interface TeamSummary extends TeamMetrics {
+/**
+ * The per-node shape on the tree — TeamActivityMetrics plus a forecast.
+ *
+ * Not part of TeamSummary: the summary tile row and the forecast tile are
+ * separate deferred props (teamSummary resolves fast; the forecast shares its
+ * cost with the graph and lands later), so the two shapes have to stay
+ * distinct rather than one extending the other.
+ */
+export interface TeamMetrics extends TeamActivityMetrics {
+    /**
+     * Priced from open deals as they stand now, via the same commission
+     * engine that writes a real leg once a deal closes. Not windowed — a
+     * forecast has no date, only a current state.
+     */
+    forecast: number;
+}
+
+export interface TeamSummary extends TeamActivityMetrics {
     /** People below the viewer, at any depth. Excludes the viewer. */
     agents: number;
     direct_reports: number;
@@ -250,6 +267,54 @@ export interface TeamTree {
     nodes: TeamTreeNode[];
     currency: string | null;
     range: DashboardRange;
+    /** The graph draws the viewer as its own root, above the team it anchors. */
+    your_name: string | null;
+    your_image: string | null;
     /** The viewer's own level — it sets the differential they earn below. */
     your_level: string | null;
+    /** True when more open deals exist than the forecast priced. */
+    forecast_truncated: boolean;
+    /** How many open deals the forecast actually covers. */
+    forecast_deals: number;
+}
+
+/**
+ * The forecast tile: split from TeamTree so it can resolve — and skeleton —
+ * on its own, even though both are computed from the same commission-engine
+ * pass when the server lands them together.
+ */
+export interface TeamForecast {
+    amount: number;
+    deal_count: number;
+    truncated: boolean;
+    currency: string | null;
+}
+
+/**
+ * A type alias for the same reason as TeamGrowthPoint: assignable to
+ * TrendLine's `Record<string, string | number>[]` prop shape.
+ */
+export type TeamCommissionTrendPoint = {
+    period: string;
+    label: string;
+    amount: number;
+};
+
+export interface TeamCommissionTrend {
+    points: TeamCommissionTrendPoint[];
+    currency: string | null;
+}
+
+/** One row of mlm_commissions, as the team's recent-activity feed shows it. */
+export interface TeamRecentCommission {
+    id: number;
+    agent_name: string;
+    agent_image: string | null;
+    /** Null when the commission predates deal-name backfill, or the deal was removed. */
+    deal_name: string | null;
+    type: "agent" | "upline";
+    amount: number;
+    status: "paid" | "pending" | "reverted";
+    /** paid_at when paid, else created_at — an ISO timestamp. */
+    at: string;
 }
