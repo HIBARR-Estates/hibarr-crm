@@ -60,8 +60,10 @@ class DealAutomationService
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
-        // Skip automation for locked deals (full freeze or commission already paid)
-        if ($deal->is_locked || $deal->isCommissionLocked()) {
+        // Skip automation only for fully locked deals — a commission-locked
+        // deal (commission already paid/distributed) still allows automations
+        // to run; only the general edit lock freezes them.
+        if ($deal->is_locked) {
             Log::info("Skipping automations for locked Deal ID: {$deal->id}");
 
             return;
@@ -125,7 +127,7 @@ class DealAutomationService
             return;
         }
 
-        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
+        if ($subject instanceof Deal && $subject->is_locked) {
             Log::info("Skipping date-based automation for locked Deal ID: {$subject->id}");
 
             return;
@@ -264,7 +266,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && ($subject->is_locked || $subject->isCommissionLocked())) {
+        if ($subject instanceof Deal && $subject->is_locked) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
 
             return true;
@@ -362,7 +364,8 @@ class DealAutomationService
 
             $passed = $this->conditionEvaluator->evaluate(
                 $fieldValue,
-                $condition
+                $condition,
+                $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
             );
 
             if (! $passed) {
@@ -371,6 +374,27 @@ class DealAutomationService
         }
 
         return true;
+    }
+
+    /**
+     * Whether $field changed on $subject during the save that led to this
+     * evaluation. Only answerable for a native column on $subject itself
+     * (see FieldResolverService::nativeColumn()) and only within the same
+     * in-memory instance that was just saved — a freshly reloaded subject
+     * (a waited/date-based run resuming later) has no unsaved changes to
+     * report, so this correctly comes back false there rather than guessing.
+     * A brand-new record (wasRecentlyCreated) also reads false: nothing
+     * "changed" on creation, it was simply set.
+     */
+    protected function fieldChanged(Deal|Lead $subject, string $field): bool
+    {
+        if ($subject->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($subject, $field);
+
+        return $column !== null && (bool) $subject->wasChanged($column);
     }
 
     /**
@@ -1165,12 +1189,15 @@ class DealAutomationService
     }
 
     /**
-     * Perform a meta_conversion action: queue a Meta (Facebook) Conversions
+     * Perform a meta_conversion action: send a Meta (Facebook) Conversions
      * API event for the deal/lead. Event name supports merge tags (e.g. a
-     * lead field), value is optional and defaults to 0. Actually sending is
-     * backgrounded via SendMetaConversionEventJob — MetaConversionsService
-     * fails soft (returns false, never throws) so a misconfigured/rejected
-     * Meta account can't break the rest of the automation's actions.
+     * lead field), value is optional and defaults to 0. Sending happens
+     * inline (synchronously, no queue) but deferred via DB::afterCommit() so
+     * it never fires while an enclosing transaction could still roll back;
+     * the outcome is logged from Meta's *actual* response rather than
+     * recorded as success the moment it's dispatched — MetaConversionsService
+     * still fails soft (returns false, never throws) so a misconfigured/
+     * rejected Meta account can't break the rest of the automation's actions.
      */
     protected function performMetaConversion(Deal|Lead $subject, $action, ?DealAutomation $automation = null): void
     {
@@ -1187,43 +1214,31 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        // The job's own ->afterCommit() only defers via the queue connection's
-        // enqueueUsing() — QUEUE_CONNECTION=sync bypasses that entirely and
-        // fires immediately (see SyncQueue::push()), so it would still run
-        // inside an open DB::transaction(). DB::afterCommit() defers at the
-        // connection/transaction-manager level instead, which works under
-        // every queue driver including sync, and fires immediately here if no
-        // transaction is open.
-        $origin = [
-            'source' => 'automation',
-            'automation_id' => $automation?->id,
-            'automation_name' => $automation?->name,
-            // So the outcome row the job writes later joins this same run
-            // rather than appearing as a run of its own.
-            'run_id' => $this->currentRunId,
-        ];
+        DB::afterCommit(function () use ($subject, $eventName, $value, $automation, $label) {
+            $result = app(MetaConversionsService::class)->send($eventName, $value, $subject);
+            $success = (bool) ($result['success'] ?? false);
 
-        DB::afterCommit(function () use ($subject, $eventName, $value, $origin) {
-            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value, $origin);
+            $description = $success
+                ? "Meta Conversion event \"{$eventName}\" accepted by Meta".(isset($result['status_code']) ? " (HTTP {$result['status_code']})" : '')
+                : "Meta Conversion event \"{$eventName}\" failed: ".($result['error'] ?? 'unknown error');
+
+            Log::info("Action executed for {$label}. {$description}");
+            $this->logAction($subject, $automation, $description, $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'meta', [
+                'stage' => 'delivery',
+                'event_name' => $eventName,
+                'value' => $value,
+                'meta' => $result,
+            ]);
+
+            $this->recordAutomationOutcomeEvent($subject, $automation, $success, [
+                'action' => $success ? 'automation_meta_conversion_sent' : 'automation_meta_conversion_failed',
+                'comment' => $success
+                    ? "Meta Conversion event sent by automation: {$eventName}"
+                    : "Meta Conversion event failed: {$eventName} (".($result['error'] ?? 'unknown error').')',
+                'meta_event_name' => $eventName,
+                'meta_event_value' => $value,
+            ]);
         });
-
-        $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
-        Log::info("Action executed for {$label}. {$description}");
-        // The queue-time row only records that the action fired. The job writes
-        // a second 'meta' row once Meta has actually answered — that's the one
-        // carrying the failure reason.
-        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta', [
-            'stage' => 'queued',
-            'event_name' => $eventName,
-            'value' => $value,
-        ]);
-
-        $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-            'action' => 'automation_meta_conversion_queued',
-            'comment' => "Meta Conversion event queued by automation: {$eventName}",
-            'meta_event_name' => $eventName,
-            'meta_event_value' => $value,
-        ]);
     }
 
     /**

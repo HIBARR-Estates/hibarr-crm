@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Helper\Reply;
+use App\Models\Lead;
 use App\Models\MetaEvent;
+use App\Services\MetaConversionsService;
 use App\Support\AutomationV2Feature;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -85,6 +87,45 @@ class MetaEventController extends AccountBaseController
         MetaEvent::where('company_id', company()->id)->findOrFail($id)->delete();
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    /**
+     * Send a real Meta Conversions API event for a specific lead right now,
+     * bypassing automations entirely — lets an admin verify the pixel/access
+     * token and payload shape against a real record before trusting an
+     * automation to send the same thing. Always synchronous: the caller needs
+     * Meta's actual response (status code, error, fbtrace_id), not "queued".
+     */
+    public function sendTest(Request $request)
+    {
+        $validated = $request->validate([
+            'lead_id' => 'required|integer',
+            'event_name' => 'required|string|max:255',
+            'value' => 'nullable|numeric|min:0',
+            // Meta's Events Manager > Test Events code (e.g. "TEST12345") —
+            // optional alternative to the manual query-param approach; when
+            // given, Meta routes the event to the live Test Events view
+            // instead of counting it toward real ad reporting.
+            'test_event_code' => 'nullable|string|max:255',
+        ]);
+
+        $lead = Lead::where('company_id', company()->id)->find($validated['lead_id']);
+
+        if (! $lead) {
+            return Reply::error('Lead not found.');
+        }
+
+        $result = app(MetaConversionsService::class)->send(
+            trim($validated['event_name']),
+            (float) ($validated['value'] ?? 0),
+            $lead,
+            $validated['test_event_code'] ?? null
+        );
+
+        return Reply::dataOnly([
+            'status' => 'success',
+            'data' => $result,
+        ]);
     }
 
     /**

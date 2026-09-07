@@ -90,4 +90,42 @@ class FieldResolverServiceTest extends TestCase
 
         $this->assertNull($value);
     }
+
+    public function test_native_column_resolves_plain_deal_attributes_only()
+    {
+        $deal = Deal::factory()->create();
+
+        $this->assertSame('value', $this->service->nativeColumn($deal, 'value'));
+        $this->assertNull($this->service->nativeColumn($deal, 'interested_in')); // hibarr field
+        $this->assertNull($this->service->nativeColumn($deal, 'custom_field_123'));
+        $this->assertNull($this->service->nativeColumn($deal, 'last_followup_remark'));
+        $this->assertNull($this->service->nativeColumn($deal, 'lead_field_client_name'));
+        $this->assertNull($this->service->nativeColumn($deal, 'lead_marketing_utm_source'));
+    }
+
+    public function test_native_column_resolves_whitelisted_lead_attributes_only()
+    {
+        $lead = \App\Models\Lead::factory()->create();
+
+        $this->assertSame('client_name', $this->service->nativeColumn($lead, 'client_name'));
+        $this->assertSame('client_name', $this->service->nativeColumn($lead, 'lead_field_client_name'));
+        $this->assertNull($this->service->nativeColumn($lead, 'custom_field_123'));
+        $this->assertNull($this->service->nativeColumn($lead, 'not_a_whitelisted_column'));
+    }
+
+    public function test_it_resolves_the_current_value_not_the_pre_save_original()
+    {
+        // Mirrors exactly what an 'updated' observer sees: Eloquent only
+        // calls syncOriginal() after the 'saved' event, which fires *after*
+        // 'updated' — so at the point an automation's conditions are
+        // evaluated, the model is dirty (attribute assigned, original not
+        // yet synced). getRawOriginal() would still return the pre-change
+        // value here; resolve() must return the new one.
+        $lead = \App\Models\Lead::factory()->create(['client_name' => 'Old Name']);
+
+        $lead->client_name = 'New Name';
+
+        $this->assertEquals('Old Name', $lead->getRawOriginal('client_name'));
+        $this->assertEquals('New Name', $this->service->resolve($lead, 'client_name'));
+    }
 }
