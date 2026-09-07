@@ -53,7 +53,7 @@ const ConstructionProjectPricingSection: React.FC<
                         placeholder="e.g. 85000"
                         style={{ width: "100%" }}
                         formatter={(value) =>
-                            value != null && value !== ""
+                            value != null
                                 ? `£ ${value}`.replace(
                                       /\B(?=(\d{3})+(?!\d))/g,
                                       ",",
