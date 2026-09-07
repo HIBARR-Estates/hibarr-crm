@@ -9,7 +9,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Automation, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
-import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, TRIGGER_SUBJECT } from "./shared";
+import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, triggerExplanation, TRIGGER_SUBJECT } from "./shared";
 import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType } from "./config/builderFields";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
@@ -287,6 +287,12 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                 </span>
                                 <span>{t("app.automation.noTriggerWarning")}</span>
                             </div>
+                        )}
+
+                        {trigger && (
+                            <p className="mt-2 mb-0" style={{ fontSize: 12, color: T.TEXT_MUTED, lineHeight: 1.5 }}>
+                                {td(triggerExplanation(trigger))}
+                            </p>
                         )}
 
                         {trigger === "date_based" && catalog && (

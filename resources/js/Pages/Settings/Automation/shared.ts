@@ -66,6 +66,10 @@ const TRIGGER_LABEL: Record<TriggerKey, string> = {
     lead_updated: "Lead Updated",
     lead_followup_created: "Lead Follow-up Created",
     date_based: "Specific Date / Birthday",
+    lead_created_api: "Lead Created (via API)",
+    lead_updated_api: "Lead Updated (via API)",
+    deal_created_api: "Deal Created (via API)",
+    deal_updated_api: "Deal Updated (via API)",
 };
 
 /** English source string — wrap with td() at the render site. */
@@ -84,6 +88,10 @@ export const TRIGGER_SUBJECT: Record<TriggerKey, "deal" | "lead" | "any"> = {
     lead_updated: "lead",
     lead_followup_created: "lead",
     date_based: "any",
+    lead_created_api: "lead",
+    lead_updated_api: "lead",
+    deal_created_api: "deal",
+    deal_updated_api: "deal",
 };
 
 const TRIGGER_ICON: Record<TriggerKey, string> = {
@@ -95,7 +103,38 @@ const TRIGGER_ICON: Record<TriggerKey, string> = {
     lead_updated: "edit",
     lead_followup_created: "calendar",
     date_based: "clock",
+    lead_created_api: "zap",
+    lead_updated_api: "edit",
+    deal_created_api: "zap",
+    deal_updated_api: "edit",
 };
+
+/** Plain-language explanation of exactly what fires each trigger, rendered
+ * under the trigger selector in the automation builder. The "via API" ones
+ * exist because the API-token-authenticated write endpoints
+ * (DealContactApiController, DealCreationService) persist with
+ * saveQuietly() — the normal (non-API) triggers below never see those
+ * writes at all, regardless of anything an automation's conditions check. */
+const TRIGGER_EXPLANATION: Record<TriggerKey, string> = {
+    deal_created: "Fires when a deal is created from inside the CRM — the New Deal form, deal gathering flow, or a lead being converted to a deal. Does not fire for deals created via the external API.",
+    deal_updated: "Fires when a deal is edited from inside the CRM — the deal detail page, table quick-edit, stage moves, or another automation's own action. Does not fire for deals updated via the external API.",
+    followup_created: "Fires when a follow-up is added to a deal.",
+    custom_field_updated: "Fires when a custom field value changes on the deal or lead.",
+    lead_created: "Fires when a lead is created from inside the CRM — the New Lead form, an import, or the public lead-capture form. Does not fire for leads created via the external API (unless the API call was made with notify enabled).",
+    lead_updated: "Fires when a lead is edited from inside the CRM — the lead detail page or the table's inline quick-edit pickers (status, temperature, owner, etc). Does not fire for leads updated via the external API (unless the API call was made with notify enabled).",
+    lead_followup_created: "Fires when a follow-up is added to a lead.",
+    date_based: "Fires once a day for every lead/deal whose configured date field matches today (e.g. a birthday or an anniversary), regardless of how or when that record was created or last updated.",
+    lead_created_api: "Fires whenever an external system creates a new lead through the CRM's API (contact/create or deal/create) — this is the only reliable trigger for API-originated leads, since those API writes normally bypass the regular \"Lead Created\" trigger above.",
+    lead_updated_api: "Fires whenever an external system updates an existing lead's details through the CRM's API (contact/create or deal/create) — this is the only reliable trigger for API-originated lead edits, since those API writes normally bypass the regular \"Lead Updated\" trigger above.",
+    deal_created_api: "Fires whenever an external system creates a new deal through the CRM's API (deal/create) — this is the only reliable trigger for API-originated deals, since those API writes normally bypass the regular \"Deal Created\" trigger above.",
+    deal_updated_api: "Fires whenever an external system updates an existing deal through the CRM's API (deal/create with an existing lead_id) — this is the only reliable trigger for API-originated deal edits, since those API writes normally bypass the regular \"Deal Updated\" trigger above.",
+};
+
+/** English source string — wrap with td() at the render site. Null (no
+ * trigger picked yet) returns "" so callers can skip rendering the hint. */
+export function triggerExplanation(trigger: TriggerKey | null): string {
+    return trigger ? (TRIGGER_EXPLANATION[trigger] ?? "") : "";
+}
 
 export function triggerIcon(trigger: TriggerKey | null): string {
     return trigger ? (TRIGGER_ICON[trigger] ?? "zap") : "zap";
