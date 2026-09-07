@@ -7,6 +7,51 @@ import type { DeveloperProject } from "@/Types/developerProject";
 
 const { TextArea } = Input;
 
+/** Fold TR/Cyprus diacritics so "Gazimagusa" still matches "Gazimağusa". */
+const foldSearchText = (value: string): string =>
+    value
+        .replace(/ı/g, "i")
+        .replace(/İ/g, "i")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+const filterLocationOption = (
+    input: string,
+    option?: { label?: React.ReactNode; value?: string | number },
+) => {
+    const query = foldSearchText(input.trim());
+    if (!query) {
+        return true;
+    }
+    const label = foldSearchText(String(option?.label ?? ""));
+    const value = foldSearchText(String(option?.value ?? ""));
+    return label.includes(query) || value.includes(query);
+};
+
+const resolveCityLookup = (
+    stored: string | undefined | null,
+    cities: CityLookupValue[],
+): CityLookupValue | undefined => {
+    if (!stored) {
+        return undefined;
+    }
+    const exactName = cities.find((city) => city.name === stored);
+    if (exactName) {
+        return exactName;
+    }
+    const exactLabel = cities.find((city) => city.label === stored);
+    if (exactLabel) {
+        return exactLabel;
+    }
+    const folded = foldSearchText(stored);
+    return cities.find(
+        (city) =>
+            foldSearchText(city.name) === folded ||
+            foldSearchText(city.label) === folded,
+    );
+};
+
 interface ConstructionProjectLocationSectionProps {
     form: FormInstance;
     enumValues?: PropertyEnumValues;
@@ -36,14 +81,23 @@ const ConstructionProjectLocationSection: React.FC<
         }));
     }, [enumValues?.cities]);
 
+    const resolvedCity = useMemo(
+        () => resolveCityLookup(selectedCity, enumValues?.cities ?? []),
+        [selectedCity, enumValues?.cities],
+    );
+
     const areaOptions = useMemo(() => {
         if (!selectedCity || !enumValues?.areas_by_city) return [];
-        const areas = enumValues.areas_by_city[selectedCity] || [];
+        const cityKey = resolvedCity?.name ?? selectedCity;
+        const areas =
+            enumValues.areas_by_city[cityKey] ??
+            enumValues.areas_by_city[selectedCity] ??
+            [];
         return areas.map((a) => ({
             value: a.name,
             label: a.label,
         }));
-    }, [selectedCity, enumValues?.areas_by_city]);
+    }, [selectedCity, resolvedCity, enumValues?.areas_by_city]);
 
     // On real user city changes: clear area/address/coords and fill empty distance defaults.
     // Do not re-apply the saved project area (that caused "reset to wrong address").
@@ -71,9 +125,7 @@ const ConstructionProjectLocationSection: React.FC<
 
         if (!selectedCity || !enumValues?.cities) return;
 
-        const cityObj = enumValues.cities.find(
-            (c: CityLookupValue) => c.name === selectedCity,
-        );
+        const cityObj = resolveCityLookup(selectedCity, enumValues.cities);
         const defaults = cityObj?.default_distances;
         if (!defaults) return;
 
@@ -97,7 +149,7 @@ const ConstructionProjectLocationSection: React.FC<
                         placeholder="Select city"
                         allowClear
                         showSearch
-                        optionFilterProp="label"
+                        filterOption={filterLocationOption}
                     />
                 </Form.Item>
             </Col>
@@ -113,7 +165,7 @@ const ConstructionProjectLocationSection: React.FC<
                         }
                         allowClear
                         showSearch
-                        optionFilterProp="label"
+                        filterOption={filterLocationOption}
                         disabled={!selectedCity}
                     />
                 </Form.Item>
