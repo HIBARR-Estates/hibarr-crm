@@ -463,7 +463,12 @@ class MeetingsController extends AccountBaseController
      */
     private function resolveCalendarMonth(mixed $value): Carbon
     {
-        if (is_string($value) && preg_match('/^\d{4}-\d{2}$/', $value)) {
+        // The month group is bounded to 01-12 here rather than left to
+        // Carbon/DateTime::createFromFormat, which silently rolls an
+        // out-of-range month over (2026-13 becomes January 2027) instead of
+        // failing — a malformed link would otherwise land on a real but
+        // wrong month rather than falling back to the current one below.
+        if (is_string($value) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $value)) {
             $parsed = Carbon::createFromFormat('Y-m-d', $value.'-01', 'UTC');
 
             if ($parsed !== false) {

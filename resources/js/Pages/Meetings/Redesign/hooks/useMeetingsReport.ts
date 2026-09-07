@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface MeetingReportInput {
     discussed: string;
@@ -21,6 +22,7 @@ export interface MeetingReportInput {
  * either without knowing which.
  */
 export default function useMeetingsReport() {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -31,6 +33,9 @@ export default function useMeetingsReport() {
             onSuccess?: () => void,
         ) => {
             if (!input.discussed.trim()) {
+                // Left untranslated here — the dialog already wraps every
+                // entry in `errors` through `td()` at render, so translating
+                // twice would feed already-translated text back through it.
                 setErrors(["Please describe what was discussed."]);
                 return;
             }
@@ -59,7 +64,7 @@ export default function useMeetingsReport() {
                 const json = await response.json();
 
                 if (json?.success) {
-                    message.success("Follow-up report saved");
+                    message.success(td("Follow-up report saved"));
                     onSuccess?.();
                     return;
                 }

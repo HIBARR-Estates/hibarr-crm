@@ -32,7 +32,7 @@ export default function RowActionMenu({
     actions.forEach((action, index) => {
         // A divider ahead of the first danger item, same as the delete
         // entries in the other tables' row menus.
-        if (action.danger && !actions[index - 1]?.danger) {
+        if (action.danger && index > 0 && !actions[index - 1]?.danger) {
             items.push({ type: "divider", key: `${action.key}-divider` });
         }
         items.push({

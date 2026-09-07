@@ -53,6 +53,19 @@ interface ScheduleMeetingModalProps {
         next: string;
         stepOf: (n: number, of: number) => string;
     };
+    /**
+     * Holds off seeding `form` from `initialForm` until this is true.
+     *
+     * Some callers (the Meetings index) build `initialForm` from a record
+     * fetched *after* the record is picked — remounting this modal the
+     * moment a record is chosen (so it re-seeds for the new record) would
+     * otherwise seed from whatever `initialForm` looked like before that
+     * fetch resolved, and never get another chance to since seeding only
+     * happens once per mount. Left at the default, a caller that already has
+     * everything it needs up front (Deal/Lead pages) seeds immediately, same
+     * as before.
+     */
+    readyToSeed?: boolean;
 }
 
 export default function ScheduleMeetingModal({
@@ -69,6 +82,7 @@ export default function ScheduleMeetingModal({
     initialStart,
     stepped = false,
     stepLabels,
+    readyToSeed = true,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
@@ -85,7 +99,7 @@ export default function ScheduleMeetingModal({
             setStep(0);
             return;
         }
-        if (!seededForOpenRef.current) {
+        if (!seededForOpenRef.current && readyToSeed) {
             setForm({
                 ...initialForm,
                 ...defaultMeetingStart(),
@@ -93,7 +107,7 @@ export default function ScheduleMeetingModal({
             });
             seededForOpenRef.current = true;
         }
-    }, [open, initialForm, initialStart]);
+    }, [open, initialForm, initialStart, readyToSeed]);
 
     const handleClose = () => {
         if (saving) return;

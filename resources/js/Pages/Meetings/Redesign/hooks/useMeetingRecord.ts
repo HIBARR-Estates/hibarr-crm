@@ -13,19 +13,27 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 export default function useMeetingRecord() {
     const [meeting, setMeeting] = useState<DealFollowup | null>(null);
     const [loadingId, setLoadingId] = useState<number | null>(null);
+    // Set when a by-id fetch comes back unusable (network failure, a non-2xx
+    // response, or a body that isn't the success shape) — otherwise a failed
+    // calendar-chip click just closes the loading skeleton with nothing to
+    // show for it and no sign anything went wrong.
+    const [error, setError] = useState<string | null>(null);
 
     const close = useCallback(() => {
         setMeeting(null);
         setLoadingId(null);
+        setError(null);
     }, []);
 
     const seed = useCallback((record: DealFollowup) => {
         setLoadingId(null);
+        setError(null);
         setMeeting(record);
     }, []);
 
     const open = useCallback((meetingId: number) => {
         setMeeting(null);
+        setError(null);
         setLoadingId(meetingId);
     }, []);
 
@@ -41,14 +49,25 @@ export default function useMeetingRecord() {
                 "X-Requested-With": "XMLHttpRequest",
             },
         })
-            .then((response) => response.json())
+            .then(async (response) => {
+                if (!response.ok) {
+                    throw new Error(`Request failed (${response.status})`);
+                }
+                return response.json();
+            })
             .then((json) => {
                 if (cancelled) return;
-                if (json?.success) setMeeting(json.data as DealFollowup);
+                if (json?.success) {
+                    setMeeting(json.data as DealFollowup);
+                } else {
+                    setError("Could not load this meeting.");
+                }
                 setLoadingId(null);
             })
             .catch(() => {
-                if (!cancelled) setLoadingId(null);
+                if (cancelled) return;
+                setError("Could not load this meeting.");
+                setLoadingId(null);
             });
 
         return () => {
@@ -56,5 +75,12 @@ export default function useMeetingRecord() {
         };
     }, [loadingId]);
 
-    return { meeting, loading: loadingId !== null, open, seed, close };
+    return {
+        meeting,
+        loading: loadingId !== null,
+        error,
+        open,
+        seed,
+        close,
+    };
 }

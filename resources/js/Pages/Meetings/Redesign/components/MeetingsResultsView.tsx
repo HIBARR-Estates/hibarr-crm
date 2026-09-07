@@ -166,6 +166,23 @@ const MeetingsResultsView = forwardRef<
                             : undefined
                     }
                 />
+                {/* This page came back empty but earlier ones aren't — e.g.
+                    deleting the last row on the last page — so the pager has
+                    to stay put; otherwise there'd be no way back to them. */}
+                {meetings.total > 0 && (
+                    <Pagination
+                        page={meetings.current_page}
+                        pageSize={meetings.per_page}
+                        totalItems={meetings.total}
+                        onPageChange={onPageChange}
+                        onPageSizeChange={onPageSizeChange}
+                        itemLabel="meeting"
+                        itemLabelPlural="meetings"
+                        allowAutoPageSize
+                        autoPageSize={autoPageSize}
+                        onAutoPageSize={onAutoPageSize}
+                    />
+                )}
             </div>
         );
     }

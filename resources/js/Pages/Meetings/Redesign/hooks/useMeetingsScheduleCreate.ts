@@ -72,8 +72,9 @@ export default function useMeetingsScheduleCreate() {
 
             const validationErrors = validateMeetingForm(form, {
                 // A deal without an agent, or a lead without an owner, has
-                // nobody accountable for the meeting — the backend rejects it.
-                hasOwnerOrDeal: target.type === "deal" || target.hasOwner,
+                // nobody accountable for the meeting — the backend rejects it
+                // either way, so this can't special-case deals as always okay.
+                hasOwnerOrDeal: target.hasOwner,
                 userEmail: props.auth?.user?.email,
             });
 

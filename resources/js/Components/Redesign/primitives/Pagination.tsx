@@ -45,7 +45,7 @@ export default function Pagination({
     const { td } = useTd();
     const selectId = useId();
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-    const safePage = Math.min(page, totalPages);
+    const safePage = Math.min(Math.max(page, 1), totalPages);
     const from = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
     const to = Math.min(safePage * pageSize, totalItems);
     const hasPrev = safePage > 1;

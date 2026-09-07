@@ -131,6 +131,10 @@ export default function MeetingsScheduleDialog({
             errors={dialogErrors}
             meetingTypes={meetingTypes}
             initialForm={initialForm}
+            // A record is being fetched — seeding now would lock in a form
+            // built from `source` before it arrived, and this modal only
+            // seeds once per mount.
+            readyToSeed={!selectedKey || !loading}
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             labels={{

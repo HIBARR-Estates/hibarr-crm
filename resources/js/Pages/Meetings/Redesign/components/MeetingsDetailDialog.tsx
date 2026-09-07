@@ -20,6 +20,8 @@ interface MeetingsDetailDialogProps {
     meeting: DealFollowup | null;
     /** True while the record is being fetched by id (calendar chips). */
     loading?: boolean;
+    /** Set when that fetch failed — shown in place of the skeleton. */
+    error?: string | null;
     action: MeetingDetailAction;
     permissions: Record<string, string>;
     userId?: number;
@@ -51,6 +53,7 @@ interface MeetingsDetailDialogProps {
 export default function MeetingsDetailDialog({
     meeting,
     loading = false,
+    error,
     action,
     permissions,
     userId,
@@ -64,8 +67,17 @@ export default function MeetingsDetailDialog({
 
     // Opening a calendar chip fetches the meeting by id. Rendering nothing
     // until it lands makes the click feel broken — the dialog is what
-    // acknowledges it, so it opens first and fills in after.
+    // acknowledges it, so it opens first and fills in after. A failed fetch
+    // gets the same treatment: silently closing back to nothing would read as
+    // the click not having worked at all.
     if (!meeting) {
+        if (error) {
+            return (
+                <Modal open title={td("Meeting")} onClose={onClose}>
+                    <p style={{ color: T.RED, fontSize: 14 }}>{td(error)}</p>
+                </Modal>
+            );
+        }
         return loading ? (
             <MeetingDetailSkeleton
                 label={td("Loading meeting…")}

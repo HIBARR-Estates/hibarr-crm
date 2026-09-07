@@ -78,8 +78,10 @@ class MeetingFilterFacetsService
      */
     private function countRecordTypes(int $userId): array
     {
-        $deals = (clone $this->scoped($userId))->whereNotNull('deal_id')->count();
-        $leads = (clone $this->scoped($userId))
+        // Each scoped() call already returns its own fresh builder — nothing
+        // shared to protect with a clone.
+        $deals = $this->scoped($userId)->whereNotNull('deal_id')->count();
+        $leads = $this->scoped($userId)
             ->whereNull('deal_id')
             ->whereNotNull('lead_id')
             ->count();

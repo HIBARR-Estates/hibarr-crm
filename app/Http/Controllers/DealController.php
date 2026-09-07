@@ -2865,7 +2865,7 @@ class DealController extends AccountBaseController
             ->values()
             ->toArray();
 
-        $host = $followUp->host_id ? User::find($followUp->host_id, ['id', 'name', 'image']) : null;
+        $host = $followUp->host;
         $followUp->host = $host
             ? ['id' => $host->id, 'name' => $host->name, 'image' => $host->image ? $host->image_url : null]
             : null;

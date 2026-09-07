@@ -100,6 +100,18 @@ class MeetingAttendanceConfirmationController extends Controller
             ], 422);
         }
 
+        // This endpoint changes an outcome that's already logged — the first
+        // one still has to go through confirm(), which is gated to the
+        // meeting's specific assignee. Without this check, anyone holding the
+        // much broader "edit this meeting" permission could originate an
+        // outcome for a meeting they were never assigned to confirm.
+        if (! $followUp->attendance_outcome_logged_at) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'This meeting has no confirmed outcome to change yet.',
+            ], 422);
+        }
+
         $outcome = MeetingAttendanceOutcome::from($validated['outcome']);
 
         $followUp = $this->service->update($followUp, user(), $outcome, $validated['note'] ?? null);

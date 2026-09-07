@@ -66,14 +66,17 @@ export default function MeetingsReportDialog({
     const [attendance, setAttendance] = useState<Attendance>("unknown");
     const { submitReport, isSaving, errors, clearErrors } = useMeetingsReport();
 
-    // Each opening starts clean — a report left half-typed for one meeting
-    // must never be filed against the next.
+    // Keyed on the meeting's id, not `open` alone — a report left half-typed
+    // for one meeting must never be filed against the next, including if the
+    // dialog is retargeted at a different meeting without ever closing
+    // (e.g. "Report" clicked for a second meeting while it's still open for
+    // the first).
     useEffect(() => {
-        if (open) return;
         setForm(EMPTY);
         setAttendance("unknown");
         clearErrors();
-    }, [open, clearErrors]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on id, not the meeting object
+    }, [meeting?.id, clearErrors]);
 
     // Seed the attendance answer from whatever was already recorded, so
     // filing a report doesn't quietly reset a confirmed one to "not sure".

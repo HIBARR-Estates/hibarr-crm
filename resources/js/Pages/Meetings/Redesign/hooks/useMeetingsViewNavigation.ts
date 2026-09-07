@@ -60,7 +60,10 @@ function initialView(): MeetingsViewMode {
 
 function initialMonth(): string {
     const month = queryParam("cal_month");
-    return month && /^\d{4}-\d{2}$/.test(month)
+    // Bounded to 01-12, not just two digits — a deep link with `cal_month`
+    // hand-edited to `2026-13` (or `-00`) would otherwise pass this check and
+    // then fail to parse as a real month wherever it's actually used.
+    return month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
         ? month
         : dayjs().format("YYYY-MM");
 }

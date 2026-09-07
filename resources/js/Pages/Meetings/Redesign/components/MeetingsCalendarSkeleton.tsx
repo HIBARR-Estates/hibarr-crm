@@ -21,11 +21,25 @@ export default function MeetingsCalendarSkeleton() {
                 <div className="h-6 w-40 animate-pulse rounded bg-[#eef1f5]" />
                 <div className="h-6 w-56 animate-pulse rounded bg-[#eef1f5]" />
             </div>
+            {/* Same weekday row the real grid renders above its cells — left
+                out, the skeleton would be one row shorter than the calendar
+                it's standing in for, and swapping the two would visibly jump. */}
+            <div className="grid grid-cols-7">
+                {Array.from({ length: 7 }).map((_, index) => (
+                    <div
+                        key={index}
+                        className="px-3 py-3"
+                        style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}
+                    >
+                        <div className="h-[13px] w-8 animate-pulse rounded bg-[#eef1f5]" />
+                    </div>
+                ))}
+            </div>
             <div className="grid grid-cols-7">
                 {Array.from({ length: 35 }).map((_, index) => (
                     <div
                         key={index}
-                        className="min-h-[118px] p-2"
+                        className="min-h-[152px] p-2"
                         style={{
                             borderRight: `1px solid ${T.BORDER_SOFT}`,
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,

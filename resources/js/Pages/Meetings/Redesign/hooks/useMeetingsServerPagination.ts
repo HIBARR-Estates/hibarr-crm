@@ -12,8 +12,24 @@ interface UseMeetingsServerPaginationOptions {
     onPersistPageSize?: (size: number) => void;
 }
 
-function cacheKeyFor(page: number, perPage: number, url: string): string {
-    return `${url}|${page}|${perPage}`;
+/**
+ * The URL minus `page`/`per_page` — the part that actually distinguishes one
+ * query from another (filters, tab, view). Paging alone changes `url` too
+ * (it's a query param), so keying the cache on the raw URL would invalidate
+ * every prefetched page the moment the reader moved to it.
+ */
+function scopeOf(url: string): string {
+    const [path, query] = url.split("?");
+    if (!query) return path;
+    const params = new URLSearchParams(query);
+    params.delete("page");
+    params.delete("per_page");
+    const rest = params.toString();
+    return rest ? `${path}?${rest}` : path;
+}
+
+function cacheKeyFor(page: number, perPage: number, scope: string): string {
+    return `${scope}|${page}|${perPage}`;
 }
 
 /**
@@ -32,6 +48,7 @@ export default function useMeetingsServerPagination({
     onPersistPageSize,
 }: UseMeetingsServerPaginationOptions) {
     const { url, component, version } = usePage();
+    const scope = scopeOf(url);
     const cacheRef = useRef(new Map<string, PaginatedFollowupResponse>());
     const prefetchingRef = useRef(new Set<string>());
 
@@ -44,21 +61,23 @@ export default function useMeetingsServerPagination({
     // Seed the cache whenever Inertia delivers a real page.
     useEffect(() => {
         cacheRef.current.set(
-            cacheKeyFor(meetings.current_page, meetings.per_page, url),
+            cacheKeyFor(meetings.current_page, meetings.per_page, scope),
             meetings,
         );
         setOptimistic(null);
-    }, [meetings, url]);
+    }, [meetings, scope]);
 
-    // Drop stale entries when the query string changes (filters, tab, view).
+    // Drop stale entries when the query string changes (filters, tab, view) —
+    // but not on paging alone, or every prefetched page would be discarded
+    // the instant the reader landed on it.
     useEffect(() => {
         cacheRef.current.clear();
         prefetchingRef.current.clear();
-    }, [url]);
+    }, [scope]);
 
     const prefetchPage = useCallback(
         async (targetPage: number, perPage: number) => {
-            const key = cacheKeyFor(targetPage, perPage, url);
+            const key = cacheKeyFor(targetPage, perPage, scope);
             if (cacheRef.current.has(key) || prefetchingRef.current.has(key)) {
                 return;
             }
@@ -76,7 +95,7 @@ export default function useMeetingsServerPagination({
                 prefetchingRef.current.delete(key);
             }
         },
-        [url, component, version],
+        [scope, component, version],
     );
 
     // Always stay one page ahead of what is on screen — but only once the
@@ -115,14 +134,14 @@ export default function useMeetingsServerPagination({
     const goToPage = useCallback(
         (page: number, perPage = display.per_page) => {
             const cached = cacheRef.current.get(
-                cacheKeyFor(page, perPage, url),
+                cacheKeyFor(page, perPage, scope),
             );
             if (cached) setOptimistic(cached);
             else setIsPaging(true);
 
             visit({ page, per_page: perPage });
         },
-        [display.per_page, url, visit],
+        [display.per_page, scope, visit],
     );
 
     const changePageSize = useCallback(
@@ -130,6 +149,10 @@ export default function useMeetingsServerPagination({
             onPersistPageSize?.(size);
             cacheRef.current.clear();
             prefetchingRef.current.clear();
+            // Drop any optimistic page too — otherwise `display` keeps
+            // showing the previous page/per_page pairing (and prefetch keeps
+            // targeting it) until the visit for the new size lands.
+            setOptimistic(null);
             // A silent change is the page correcting its own length to the
             // window. Dimming for that reads as the page reloading itself
             // every time it is opened, which is what it looked like.

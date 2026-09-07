@@ -67,9 +67,14 @@ export default function useAutoGridPageSize({
     const [pageSize, setPageSize] = useState<number | null>(null);
 
     // Read through a ref so a new array literal from the caller doesn't
-    // re-subscribe the resize listener on every render.
+    // re-subscribe the resize listener on every render. Synced in an effect
+    // rather than assigned directly in the render body — a render that gets
+    // discarded (React 18 concurrent features) could otherwise still have
+    // mutated the ref before being thrown away.
     const layoutsRef = useRef(layouts);
-    layoutsRef.current = layouts;
+    useEffect(() => {
+        layoutsRef.current = layouts;
+    }, [layouts]);
 
     const measure = useCallback(() => {
         const anchor = anchorRef.current;
@@ -119,11 +124,23 @@ export default function useAutoGridPageSize({
         };
 
         window.addEventListener("resize", onResize);
+
+        // The window firing "resize" only covers the viewport changing size.
+        // The anchor's top can also move without that — a filter row wrapping
+        // to a second line, a banner appearing above it — so watch the anchor
+        // itself too, same debounce.
+        let observer: ResizeObserver | undefined;
+        if (typeof ResizeObserver !== "undefined" && anchorRef.current) {
+            observer = new ResizeObserver(onResize);
+            observer.observe(anchorRef.current);
+        }
+
         return () => {
             window.clearTimeout(timer);
             window.removeEventListener("resize", onResize);
+            observer?.disconnect();
         };
-    }, [enabled, measure]);
+    }, [enabled, measure, anchorRef]);
 
     return pageSize;
 }

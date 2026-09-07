@@ -97,9 +97,16 @@ export default function Segmented<V extends string | number>({
                                     fontSize: 14,
                                     fontWeight: 600,
                                     fontVariantNumeric: "tabular-nums",
-                                    color: active
-                                        ? "rgba(255,255,255,0.75)"
-                                        : T.TEXT_HINT,
+                                    // "raised" fills the active segment with
+                                    // white, not the solid variant's blue —
+                                    // the translucent-white count text below
+                                    // was built for that blue fill and reads
+                                    // as barely-visible white-on-white here.
+                                    color: !active
+                                        ? T.TEXT_HINT
+                                        : variant === "raised"
+                                          ? T.TEXT_MUTED
+                                          : "rgba(255,255,255,0.75)",
                                 }}
                             >
                                 {option.count}

@@ -570,6 +570,7 @@ export default function MeetingsWorkspaceRedesign() {
             <MeetingsDetailDialog
                 meeting={detail.meeting}
                 loading={detail.loading}
+                error={detail.error}
                 action={detailAction}
                 permissions={permissions}
                 userId={userId}

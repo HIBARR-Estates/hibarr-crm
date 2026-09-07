@@ -108,7 +108,16 @@ export default function MeetingConfirmationPanel({
     const hasConcluded = dayjs().isAfter(
         dayjs(meeting.next_follow_up_date).add(minutes, "minute"),
     );
-    const canAct = canConfirm && (hasConcluded || isCancelled);
+    const dateAllows = hasConcluded || isCancelled;
+    const canAct = canConfirm && dateAllows;
+    // Changing an outcome that's already logged is authorized on ordinary
+    // edit permission server-side (MeetingAttendanceConfirmationController's
+    // update()), not the host-only rule `confirm()` uses — `canConfirm` here
+    // only reflects that stricter, first-time-confirmation rule, so gating
+    // "Change" on it too would hide the button from someone who edits this
+    // meeting's other fields but isn't its host. The date rule still applies:
+    // the backend rejects a future meeting the same way.
+    const canChangeLogged = allowEditLogged && dateAllows;
 
     const handleConfirmed = (outcome: MeetingAttendanceOutcome) => {
         setModalMode(null);
@@ -167,7 +176,7 @@ export default function MeetingConfirmationPanel({
                             {td("Any note was saved to the record's notes")}
                         </div>
                     </div>
-                    {allowEditLogged && canAct && (
+                    {canChangeLogged && (
                         <Button
                             variant="ghost"
                             size="sm"

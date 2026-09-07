@@ -241,7 +241,12 @@ export default function MeetingsCalendarView({
             result.push({ date: null, key: `trail-${result.length}` });
         }
         return result;
-    }, [monthStart]);
+        // `monthStart` is a fresh Dayjs instance every render (derived from
+        // `data.month`, not memoized itself) — keying on it would recompute
+        // this on every render regardless of whether the month actually
+        // changed. `data.month` is the stable value that actually matters.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.month]);
 
     const todayKey = dayjs().tz(timezone).format("YYYY-MM-DD");
 
@@ -488,29 +493,6 @@ export default function MeetingsCalendarView({
                                           )
                                     : undefined
                             }
-                            role={bookable ? "button" : undefined}
-                            tabIndex={bookable ? 0 : undefined}
-                            aria-label={
-                                bookable
-                                    ? td("Schedule a meeting on this day")
-                                    : undefined
-                            }
-                            onKeyDown={
-                                bookable
-                                    ? (event) => {
-                                          if (
-                                              event.key !== "Enter" &&
-                                              event.key !== " "
-                                          ) {
-                                              return;
-                                          }
-                                          event.preventDefault();
-                                          onCreateAt!(
-                                              date!.format("YYYY-MM-DD"),
-                                          );
-                                      }
-                                    : undefined
-                            }
                             style={{
                                 background: date ? T.WHITE : T.SURFACE_2,
                                 borderRight: `1px solid ${T.BORDER_SOFT}`,
@@ -520,18 +502,56 @@ export default function MeetingsCalendarView({
                         >
                             {date && (
                                 <>
-                                    <span
-                                        className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full font-semibold"
-                                        style={{
-                                            fontSize: 13,
-                                            color: isToday ? T.WHITE : T.TEXT,
-                                            background: isToday
-                                                ? T.BLUE
-                                                : "transparent",
-                                        }}
-                                    >
-                                        {date.date()}
-                                    </span>
+                                    <div className="flex items-center justify-between">
+                                        <span
+                                            className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full font-semibold"
+                                            style={{
+                                                fontSize: 13,
+                                                color: isToday
+                                                    ? T.WHITE
+                                                    : T.TEXT,
+                                                background: isToday
+                                                    ? T.BLUE
+                                                    : "transparent",
+                                            }}
+                                        >
+                                            {date.date()}
+                                        </span>
+                                        {bookable && (
+                                            // A real button rather than
+                                            // keyboard/aria semantics on the
+                                            // cell div itself — that div also
+                                            // contains the chips and "+N more"
+                                            // below, and a container acting as
+                                            // one button around several other
+                                            // interactive controls is exactly
+                                            // the nested-widget pattern
+                                            // screen readers handle worst.
+                                            <button
+                                                type="button"
+                                                aria-label={td(
+                                                    "Schedule a meeting on this day",
+                                                )}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onCreateAt!(
+                                                        date.format(
+                                                            "YYYY-MM-DD",
+                                                        ),
+                                                    );
+                                                }}
+                                                className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+                                                style={{
+                                                    color: T.TEXT_HINT,
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                <Icon name="plus" size={13} />
+                                            </button>
+                                        )}
+                                    </div>
 
                                     {shownMeetings.map((event) => {
                                         const tone = chipTone(event);
@@ -560,6 +580,25 @@ export default function MeetingsCalendarView({
                                                     })
                                                 }
                                                 onMouseLeave={() =>
+                                                    setPreview(null)
+                                                }
+                                                // Tabbing to a chip is the
+                                                // keyboard equivalent of
+                                                // hovering it — without this
+                                                // the preview card (the only
+                                                // place a chip's full detail
+                                                // is readable without opening
+                                                // it) is mouse-only.
+                                                onFocus={(focusEvent) => {
+                                                    const rect =
+                                                        focusEvent.currentTarget.getBoundingClientRect();
+                                                    setPreview({
+                                                        event,
+                                                        x: rect.right,
+                                                        y: rect.top,
+                                                    });
+                                                }}
+                                                onBlur={() =>
                                                     setPreview(null)
                                                 }
                                                 style={{
