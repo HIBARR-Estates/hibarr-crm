@@ -53,16 +53,23 @@ const ConstructionProjectPricingSection: React.FC<
                         placeholder="e.g. 85000"
                         style={{ width: "100%" }}
                         formatter={(value) =>
-                            value
+                            value != null && value !== ""
                                 ? `£ ${value}`.replace(
                                       /\B(?=(\d{3})+(?!\d))/g,
                                       ",",
                                   )
                                 : ""
                         }
-                        parser={(value) =>
-                            value ? Number(value.replace(/[£,\s]/g, "")) : 0
-                        }
+                        parser={(value) => {
+                            const raw = value?.replace(/[£,\s]/g, "") ?? "";
+                            if (raw === "") {
+                                return undefined as unknown as number;
+                            }
+                            const parsed = Number(raw);
+                            return Number.isFinite(parsed)
+                                ? parsed
+                                : (undefined as unknown as number);
+                        }}
                     />
                 </Form.Item>
             </Col>

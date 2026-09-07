@@ -37,7 +37,7 @@ class ContentValidatorTest extends TestCase
             ]
         );
 
-        $warnings = (new ContentValidator())->validate($config);
+        $warnings = (new ContentValidator)->validate($config);
 
         $messages = array_column($warnings, 'message');
         $labels = array_column($warnings, 'label');
@@ -81,7 +81,7 @@ class ContentValidatorTest extends TestCase
             ]
         );
 
-        $warnings = (new ContentValidator())->validate($config);
+        $warnings = (new ContentValidator)->validate($config);
         $labels = array_column($warnings, 'label');
 
         $this->assertContains('Property title', $labels);
@@ -89,5 +89,83 @@ class ContentValidatorTest extends TestCase
         $this->assertContains('Hero image', $labels);
         $this->assertNotContains('living_area_sqm', $labels);
         $this->assertNotContains('assets.hero', $labels);
+    }
+
+    public function test_zero_bedrooms_is_accepted_as_a_studio_value(): void
+    {
+        $config = new ExposeConfiguration(
+            entityType: 'property',
+            entityId: 1,
+            layout: 'expose-template',
+            sections: [],
+            data: [
+                'title' => 'Studio Apartment',
+                'price' => '90000',
+                'city' => 'Kyrenia',
+                'description' => 'A studio unit.',
+                'bedrooms' => 0,
+                'bathrooms' => 1,
+                'living_area_sqm' => 42,
+                'property_type' => 'Apartment',
+                'assets' => [],
+            ]
+        );
+
+        $warnings = (new ContentValidator)->validate($config);
+        $labels = array_column($warnings, 'label');
+
+        $this->assertNotContains('Bedrooms', $labels);
+    }
+
+    public function test_string_zero_bedrooms_is_accepted_as_a_studio_value(): void
+    {
+        $config = new ExposeConfiguration(
+            entityType: 'property',
+            entityId: 1,
+            layout: 'expose-template',
+            sections: [],
+            data: [
+                'title' => 'Studio Apartment',
+                'price' => '90000',
+                'city' => 'Kyrenia',
+                'description' => 'A studio unit.',
+                'bedrooms' => '0',
+                'bathrooms' => 1,
+                'living_area_sqm' => 42,
+                'property_type' => 'Apartment',
+                'assets' => [],
+            ]
+        );
+
+        $warnings = (new ContentValidator)->validate($config);
+        $labels = array_column($warnings, 'label');
+
+        $this->assertNotContains('Bedrooms', $labels);
+    }
+
+    public function test_missing_bedrooms_is_still_recommended(): void
+    {
+        $config = new ExposeConfiguration(
+            entityType: 'property',
+            entityId: 1,
+            layout: 'expose-template',
+            sections: [],
+            data: [
+                'title' => 'Apartment',
+                'price' => '90000',
+                'city' => 'Kyrenia',
+                'description' => 'A unit.',
+                'bedrooms' => null,
+                'bathrooms' => 1,
+                'living_area_sqm' => 42,
+                'property_type' => 'Apartment',
+                'assets' => [],
+            ]
+        );
+
+        $warnings = (new ContentValidator)->validate($config);
+        $labels = array_column($warnings, 'label');
+
+        $this->assertContains('Bedrooms', $labels);
     }
 }

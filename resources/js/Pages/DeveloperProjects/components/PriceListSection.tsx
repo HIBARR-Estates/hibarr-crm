@@ -94,7 +94,8 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                         dataIndex: "bedrooms",
                                         key: "bedrooms",
                                         align: "center",
-                                        render: (v: number | null) => v ?? "-",
+                                        render: (v: number | null) =>
+                                            v === 0 ? "Studio" : (v ?? "-"),
                                     },
                                     {
                                         title: "Baths",
