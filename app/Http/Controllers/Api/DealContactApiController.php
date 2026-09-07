@@ -177,6 +177,7 @@ class DealContactApiController extends Controller
                 if ($existingLead) {
                     if ($this->applyLeadOptionalFields($existingLead, $request)) {
                         $existingLead->saveQuietly();
+                        $this->fireLeadApiTrigger($existingLead);
                     }
                     $this->applyLeadCustomFields($existingLead, $request);
                 }
@@ -392,6 +393,7 @@ class DealContactApiController extends Controller
                 }
                 if ($updated) {
                     $existingContact->saveQuietly();
+                    $this->fireLeadApiTrigger($existingContact);
                 }
                 $this->applyLeadCustomFields($existingContact, $request);
 
@@ -431,6 +433,7 @@ class DealContactApiController extends Controller
                 }
                 if ($updated) {
                     $existingContact->saveQuietly();
+                    $this->fireLeadApiTrigger($existingContact);
                 }
                 $this->applyLeadCustomFields($existingContact, $request);
 
@@ -456,6 +459,7 @@ class DealContactApiController extends Controller
         $this->applyLeadOptionalFields($contact, $request);
         $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
+        $this->fireLeadApiTrigger($contact);
         $this->applyLeadCustomFields($contact, $request);
 
         return $contact->id;
@@ -463,11 +467,17 @@ class DealContactApiController extends Controller
 
     /**
      * Save a lead contact, optionally firing model observers for notifications.
+     *
+     * Either way, fires the explicit "via API" automation trigger — quiet
+     * saves never fire LeadObserver, so lead_created_api/lead_updated_api
+     * are the only reliable way an automation can react to this write; see
+     * fireLeadApiTrigger().
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
         if (! $notify) {
             $contact->saveQuietly();
+            $this->fireLeadApiTrigger($contact);
 
             return;
         }
@@ -478,10 +488,28 @@ class DealContactApiController extends Controller
         }
 
         $contact->save();
+        $this->fireLeadApiTrigger($contact);
 
         if ($contact->wasRecentlyCreated && $contact->lead_owner) {
             $this->notifyLeadOwnerOnCreate($contact);
         }
+    }
+
+    /**
+     * Fire lead_created_api/lead_updated_api for a lead this controller just
+     * wrote via the external API — independent of whether the write above
+     * was quiet (saveQuietly() never fires LeadObserver, so the normal
+     * lead_created/lead_updated triggers never see API writes at all) or a
+     * real save() (which already fired those normal triggers separately;
+     * this fires alongside them, not instead).
+     */
+    private function fireLeadApiTrigger(Lead $contact): void
+    {
+        $trigger = $contact->wasRecentlyCreated
+            ? \App\Models\DealAutomation::TRIGGER_LEAD_CREATED_API
+            : \App\Models\DealAutomation::TRIGGER_LEAD_UPDATED_API;
+
+        app(\App\Services\DealAutomationService::class)->processLead($contact, $trigger);
     }
 
     /**

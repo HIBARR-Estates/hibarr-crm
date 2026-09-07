@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadPipeline;
@@ -396,7 +397,16 @@ class DealCreationService
                 
                 // Save quietly to bypass observers
                 $deal->saveQuietly();
-                
+
+                // saveQuietly() never fires DealObserver, so deal_created/deal_updated
+                // never see API-originated deals at all — deal_created_api/
+                // deal_updated_api are the only way an automation can react to this
+                // write. Fired alongside, not instead of, the normal triggers.
+                app(DealAutomationService::class)->process(
+                    $deal,
+                    $isNewDeal ? DealAutomation::TRIGGER_DEAL_CREATED_API : DealAutomation::TRIGGER_DEAL_UPDATED_API
+                );
+
                 // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
                 if (!empty($packageIds)) {
                     $deal->packages()->syncWithoutDetaching($packageIds);
