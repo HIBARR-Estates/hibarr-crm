@@ -676,13 +676,23 @@ class DealObserver
 
     private function createClient($deal)
     {
+        // API and queue contexts have no authenticated user, and company()/user()
+        // return false there - reading ->id off that raises "Attempt to read
+        // property on false". Creating a client account needs both, so skip
+        // rather than fatal on every API-driven deal save.
+        $company = company();
+        $currentUser = user();
 
-        $stage = PipelineStage::where('company_id', company()->id)->where('slug', 'win')->first();
+        if (! $company || ! $currentUser) {
+            return;
+        }
+
+        $stage = PipelineStage::where('company_id', $company->id)->where('slug', 'win')->first();
 
         if ($deal->create_client == 1 && $deal->pipeline_stage_id == $stage?->id) {
 
             $lead = Lead::where('id', $deal->lead_id)->first();
-            if ($lead->client_id) {
+            if (! $lead || $lead->client_id) {
                 return;
             }
 
@@ -694,8 +704,8 @@ class DealObserver
                 'email' => $lead->client_email,
                 'company_name' => $lead->company_name,
                 'website' => $lead->website,
-                'added_by' => user()->id,
-                'company_id' => company()->id,
+                'added_by' => $currentUser->id,
+                'company_id' => $company->id,
                 'address' => $lead->address,
             ];
 

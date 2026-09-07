@@ -220,7 +220,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     ? Number(editingItem.starting_price)
                     : null,
                 currency: editingItem.currency ?? defaultCurrencyCode,
-                bedrooms: editingItem.bedrooms,
+                bedrooms:
+                    editingItem.bedrooms != null
+                        ? Number(editingItem.bedrooms)
+                        : null,
                 bathrooms: editingItem.bathrooms,
                 floor: editingItem.floor,
                 floors_in_building: editingItem.floors_in_building,
@@ -495,6 +498,11 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                                 value: o.value,
                                 label: o.label,
                             }))}
+                            onChange={(value: string[]) => {
+                                if (value?.includes("studio")) {
+                                    form.setFieldValue("bedrooms", 0);
+                                }
+                            }}
                         />
                     </Form.Item>
                 )}
