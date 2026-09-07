@@ -44,27 +44,28 @@ export default function MeetingsListHeader({
                 label={td("Select all meetings on this page")}
             />
 
-            <span className="shrink-0" style={{ width: C.when.width }}>
-                {td("When")}
+            <span className="shrink-0" style={{ width: C.time.width }}>
+                {td("Time")}
             </span>
 
-            {/* Matches the row's platform glyph, which has no heading. */}
-            <span className="shrink-0" style={{ width: 15 }} aria-hidden />
+            {/* Matches the row's platform chip, which needs no heading of its
+                own — the platform is named in the type column and on hover. */}
+            <span className="shrink-0" style={{ width: 28 }} aria-hidden />
 
-            <span className="min-w-0 flex-1">{td("Meeting")}</span>
+            <span className="min-w-0 flex-1">{td("Meeting with")}</span>
 
             <span
-                className={`shrink-0 ${C.related.className}`}
-                style={{ width: C.related.width }}
+                className={`shrink-0 ${C.type.className}`}
+                style={{ width: C.type.width }}
             >
-                {td("Related to")}
+                {td("Type")}
             </span>
 
             <span
-                className={`shrink-0 ${C.platform.className}`}
-                style={{ width: C.platform.width }}
+                className={`shrink-0 ${C.status.className}`}
+                style={{ width: C.status.width }}
             >
-                {td("Where")}
+                {td("Status")}
             </span>
 
             <span
@@ -73,12 +74,6 @@ export default function MeetingsListHeader({
             >
                 {td("People")}
             </span>
-
-            <span
-                className={`shrink-0 ${C.link.className}`}
-                style={{ width: C.link.width }}
-                aria-hidden
-            />
 
             <span
                 className="shrink-0"

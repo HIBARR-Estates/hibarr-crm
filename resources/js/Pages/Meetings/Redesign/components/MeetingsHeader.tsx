@@ -26,6 +26,9 @@ interface MeetingsHeaderProps {
     canSchedule: boolean;
     /** The active-filter sentence band, when any filter is set. */
     filterSentence?: ReactNode;
+    /** Whether the "next up" cards are showing, and how to flip that. */
+    stripVisible: boolean;
+    onToggleStrip: () => void;
     /** Badge on the Filters button. */
     filtersCount: number;
     onOpenFilters: () => void;
@@ -33,7 +36,6 @@ interface MeetingsHeaderProps {
 }
 
 const VIEW_OPTIONS: EntityListHeaderViewOption[] = [
-    { value: "cards", label: "Cards", icon: <Icon name="grid" size={13} /> },
     { value: "list", label: "List", icon: <Icon name="list" size={13} /> },
     {
         value: "calendar",
@@ -66,6 +68,8 @@ export default function MeetingsHeader({
     onSchedule,
     canSchedule,
     filterSentence,
+    stripVisible,
+    onToggleStrip,
     filtersCount,
     onOpenFilters,
     filtersLabel,
@@ -113,16 +117,36 @@ export default function MeetingsHeader({
             filtersLabel={filtersLabel}
             toolbarLeft={
                 showTabs ? (
-                    <Segmented<MeetingsTab>
-                        value={tab}
-                        onChange={onTabChange}
-                        ariaLabel={td("Filter meetings")}
-                        options={TAB_LABELS.map((option) => ({
-                            value: option.value,
-                            label: td(option.label),
-                            count: counts[option.value],
-                        }))}
-                    />
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <Segmented<MeetingsTab>
+                            value={tab}
+                            onChange={onTabChange}
+                            ariaLabel={td("Filter meetings")}
+                            options={TAB_LABELS.map((option) => ({
+                                value: option.value,
+                                label: td(option.label),
+                                count: counts[option.value],
+                            }))}
+                        />
+
+                        {/* The cards above the list are a convenience, not part
+                        of the results — so they get a plain toggle rather
+                        than a place in the view switcher. */}
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-ghost"
+                            onClick={onToggleStrip}
+                            aria-pressed={stripVisible}
+                        >
+                            <Icon
+                                name={stripVisible ? "eye-off" : "eye"}
+                                size={13}
+                            />
+                            {stripVisible
+                                ? td("Hide next up")
+                                : td("Show next up")}
+                        </button>
+                    </div>
                 ) : undefined
             }
             filterSentence={filterSentence}

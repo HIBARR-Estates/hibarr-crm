@@ -12,8 +12,7 @@ class MeetingAttendanceConfirmationController extends Controller
 {
     public function __construct(
         private readonly MeetingAttendanceConfirmationService $service,
-    ) {
-    }
+    ) {}
 
     /**
      * Every meeting awaiting an attendance-outcome confirmation from the
@@ -33,7 +32,7 @@ class MeetingAttendanceConfirmationController extends Controller
 
     public function confirm(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        if (!$this->authorizedFor($followUp)) {
+        if (! $this->authorizedFor($followUp)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'You do not have permission to confirm this meeting.',
@@ -41,7 +40,7 @@ class MeetingAttendanceConfirmationController extends Controller
         }
 
         $validated = $request->validate([
-            'outcome' => ['required', 'string', 'in:' . implode(',', array_column(MeetingAttendanceOutcome::cases(), 'value'))],
+            'outcome' => ['required', 'string', 'in:'.implode(',', array_column(MeetingAttendanceOutcome::cases(), 'value'))],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -59,9 +58,58 @@ class MeetingAttendanceConfirmationController extends Controller
         ]);
     }
 
+    /**
+     * Changes an already-logged outcome from the meeting's edit form.
+     *
+     * Authorized on ordinary edit permission (same rule MeetingsController's
+     * own report()/reschedule() use) rather than `authorizedFor()` — that
+     * check is about who the confirmation *prompt* goes to, which has
+     * nothing to do with who may edit this meeting's other fields. The
+     * company check still applies on top of it: DealFollowUp carries no
+     * CompanyScope (see belongsToCompany()'s docblock), so an 'all' edit
+     * permission — scoped to the caller's own company — must not be read as
+     * license to touch a followUp id belonging to a different one.
+     */
+    public function update(Request $request, DealFollowUp $followUp): JsonResponse
+    {
+        $companyId = user()->company_id ? (int) user()->company_id : null;
+        $editPermission = user()->permission('edit_lead_follow_up');
+        $authorized = $companyId !== null
+            && $followUp->belongsToCompany($companyId)
+            && (
+                $editPermission === 'all'
+                || ($editPermission === 'added' && $followUp->added_by == user()->id)
+            );
+
+        if (! $authorized) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'You do not have permission to edit this meeting.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'outcome' => ['required', 'string', 'in:'.implode(',', array_column(MeetingAttendanceOutcome::cases(), 'value'))],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $outcome = MeetingAttendanceOutcome::from($validated['outcome']);
+
+        $followUp = $this->service->update($followUp, user(), $outcome, $validated['note'] ?? null);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Meeting outcome updated.',
+            'data' => [
+                'id' => $followUp->id,
+                'attendance_outcome' => $followUp->attendance_outcome,
+            ],
+        ]);
+    }
+
     public function snooze(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        if (!$this->authorizedFor($followUp)) {
+        if (! $this->authorizedFor($followUp)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'You do not have permission to snooze this meeting.',

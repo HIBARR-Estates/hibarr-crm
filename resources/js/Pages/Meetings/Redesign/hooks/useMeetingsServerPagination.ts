@@ -79,12 +79,21 @@ export default function useMeetingsServerPagination({
         [url, component, version],
     );
 
-    // Always stay one page ahead of what is on screen.
+    // Always stay one page ahead of what is on screen — but only once the
+    // page has stopped moving, so the load sequence doesn't fetch a page that
+    // a pending size correction is about to invalidate anyway.
     useEffect(() => {
+        if (isPaging) return;
         const nextPage = display.current_page + 1;
         if (nextPage > display.last_page) return;
-        void prefetchPage(nextPage, display.per_page);
+
+        const timer = window.setTimeout(
+            () => void prefetchPage(nextPage, display.per_page),
+            400,
+        );
+        return () => window.clearTimeout(timer);
     }, [
+        isPaging,
         display.current_page,
         display.last_page,
         display.per_page,
@@ -117,11 +126,14 @@ export default function useMeetingsServerPagination({
     );
 
     const changePageSize = useCallback(
-        (size: number) => {
+        (size: number, options?: { silent?: boolean }) => {
             onPersistPageSize?.(size);
             cacheRef.current.clear();
             prefetchingRef.current.clear();
-            setIsPaging(true);
+            // A silent change is the page correcting its own length to the
+            // window. Dimming for that reads as the page reloading itself
+            // every time it is opened, which is what it looked like.
+            if (!options?.silent) setIsPaging(true);
             visit({ page: null, per_page: size });
         },
         [onPersistPageSize, visit],

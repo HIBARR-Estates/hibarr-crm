@@ -2,7 +2,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezonePlugin from "dayjs/plugin/timezone";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import { isVideoPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
+import {
+    isVideoPlatform,
+    producesMeetingSummary,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -23,33 +26,17 @@ export type MeetingsTab = "all" | "upcoming" | "past";
 export type MeetingsTabCounts = Record<MeetingsTab, number>;
 
 /**
- * How the meetings are laid out. `cards` and `list` are the same paginated
- * set rendered two ways (the deal/lead lists offer the same choice); only
- * `calendar` reads from a different, month-scoped query.
+ * How the meetings are laid out.
+ *
+ * The list is the page. There is no separate card view: cards turned out to
+ * be the wrong shape for browsing a whole page of meetings — they say the
+ * same things as a row while fitting a third as many on screen — but the
+ * right shape for the two or three that are about to happen, which is where
+ * they now live, above the list.
  */
-export type MeetingsViewMode = "cards" | "list" | "calendar";
-
-/** The two views driven by the paginated `meetings` prop. */
-export function isListLikeView(view: MeetingsViewMode): boolean {
-    return view === "cards" || view === "list";
-}
+export type MeetingsViewMode = "list" | "calendar";
 
 const DEFAULT_DURATION = 30;
-
-/** Locations that are neither video nor phone — no link, no summary. */
-const ON_SITE_LOCATIONS = ["office", "physical"];
-
-export function isOnSiteLocation(location: string): boolean {
-    return ON_SITE_LOCATIONS.includes(location) || !isKnownLocation(location);
-}
-
-function isKnownLocation(location: string): boolean {
-    return (
-        isVideoPlatform(location) ||
-        location === "phone" ||
-        ON_SITE_LOCATIONS.includes(location)
-    );
-}
 
 /**
  * Zoned start/end for a meeting. `next_follow_up_date` is a UTC instant; every
@@ -88,6 +75,31 @@ export function meetingBucket(
     return start.isBefore(now) ? "past" : "upcoming";
 }
 
+/**
+ * The heading a day separator shows: "Today", "Tomorrow", "Yesterday", or the
+ * date itself. Relative wording is what makes a list of dates scannable —
+ * "Today" is read instantly, "Tue 01 Dec" has to be worked out.
+ */
+export function meetingDayLabel(dateUtc: string, timezone: string): string {
+    const day = dayjs.utc(dateUtc).tz(timezone).startOf("day");
+    const today = dayjs().tz(timezone).startOf("day");
+    const diff = day.diff(today, "day");
+
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Tomorrow";
+    if (diff === -1) return "Yesterday";
+
+    // The year only earns its space once the date isn't in this one.
+    return day.year() === today.year()
+        ? day.format("ddd DD MMM")
+        : day.format("ddd DD MMM YYYY");
+}
+
+/** Day bucket key in the viewer's timezone, for grouping rows. */
+export function meetingDayKey(dateUtc: string, timezone: string): string {
+    return dayjs.utc(dateUtc).tz(timezone).format("YYYY-MM-DD");
+}
+
 /** "AUG / 14 / Thu" for the date tile, in the viewer's timezone. */
 export function meetingDateParts(dateUtc: string, timezone: string) {
     const zoned = dayjs.utc(dateUtc).tz(timezone);
@@ -103,6 +115,44 @@ export function platformIconName(location: string): string {
     if (isVideoPlatform(location)) return "video";
     if (location === "phone") return "phone";
     return "map-pin";
+}
+
+/**
+ * Background for the small platform chip next to a meeting's title — each
+ * provider's own brand color, so the chip reads at a glance the way the
+ * provider's own product does. Falls back to a neutral gray for phone/on-site.
+ */
+export function platformChipColor(location: string): string {
+    const colors: Record<string, string> = {
+        zoom: "#2D8CFF",
+        teams: "#5059C9",
+        zoho: "#C8202A",
+        zoho_meet: "#C8202A",
+        meet: "#00897B",
+        google_meet: "#00897B",
+        skype: "#00AFF0",
+    };
+    return colors[location] ?? "#9CA3AF";
+}
+
+/**
+ * "Starts in 2h" / "Starts in 45m" for a not-yet-started meeting's status
+ * chip — the countdown a scheduled row is read for, once a bare "Scheduled"
+ * label alone doesn't say how urgent it is.
+ */
+export function startsInLabel(
+    dateUtc: string,
+    timezone: string,
+    now: dayjs.Dayjs = dayjs(),
+): string {
+    const start = dayjs.utc(dateUtc).tz(timezone);
+    const minutes = start.diff(now, "minute");
+    if (minutes <= 0) return "";
+    if (minutes < 60) return `Starts in ${minutes}m`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `Starts in ${hours}h`;
+    const days = Math.round(hours / 24);
+    return `Starts in ${days}d`;
 }
 
 /**
@@ -130,15 +180,15 @@ export function platformLabelKey(location: string): string | null {
 export type MeetingSummaryState = "ready" | "generating" | "none";
 
 /**
- * Summaries are only produced for video meetings that carry a link — an
- * on-site or phone meeting has nothing to transcribe, so it shows neither
- * the "View summary" link nor the "Generating…" pill.
+ * Only the platforms `producesMeetingSummary` names can produce one.
+ * Everything else shows neither the "View summary" link nor the "Generating…"
+ * pill, because neither would ever resolve.
  */
 export function meetingSummaryState(
     meeting: DealFollowup,
     bucket: MeetingBucket,
 ): MeetingSummaryState {
-    if (isOnSiteLocation(meeting.location) || !meeting.meeting_link) {
+    if (!producesMeetingSummary(meeting.location, meeting.meeting_link)) {
         return "none";
     }
     if (meeting.meeting_summary) return "ready";
@@ -164,6 +214,8 @@ export function canJoinMeeting(
 export interface MeetingRecordLink {
     name: string;
     href: string | null;
+    /** Which kind of record, so callers can label the link correctly. */
+    type: "deal" | "lead";
 }
 
 /** The deal or lead a meeting hangs off, and where clicking it goes. */
@@ -174,6 +226,7 @@ export function meetingRecordLink(
         return {
             name: meeting.deal.name,
             href: `/account/deals/${meeting.deal.id}`,
+            type: "deal",
         };
     }
     if (meeting.lead) {
@@ -183,6 +236,7 @@ export function meetingRecordLink(
                 meeting.lead.client_name ||
                 "",
             href: route("lead-contact.show", meeting.lead.id),
+            type: "lead",
         };
     }
     return null;

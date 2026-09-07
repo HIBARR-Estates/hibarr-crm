@@ -1,4 +1,3 @@
-import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
@@ -24,8 +23,13 @@ interface MeetingCardProps {
     onDelete: () => void;
     /** Opens the post-meeting report form. */
     onReport: () => void;
-    selected: boolean;
-    onToggleSelect: () => void;
+    /**
+     * Bulk-select affordance. Off for the "next up" strip, where a card is a
+     * shortcut to one meeting rather than a row in a set you act on together.
+     */
+    selectable?: boolean;
+    selected?: boolean;
+    onToggleSelect?: () => void;
 }
 
 export default function MeetingCard({
@@ -37,7 +41,8 @@ export default function MeetingCard({
     onEdit,
     onDelete,
     onReport,
-    selected,
+    selectable = true,
+    selected = false,
     onToggleSelect,
 }: MeetingCardProps) {
     const { t } = useTranslation();
@@ -79,11 +84,13 @@ export default function MeetingCard({
             }}
         >
             <div className="flex items-start gap-3">
-                <SelectCheckbox
-                    checked={selected}
-                    onChange={onToggleSelect}
-                    label={td("Select meeting")}
-                />
+                {selectable && (
+                    <SelectCheckbox
+                        checked={selected}
+                        onChange={() => onToggleSelect?.()}
+                        label={td("Select meeting")}
+                    />
+                )}
                 <DateBlock
                     monthLabel={month}
                     dayLabel={day}
@@ -132,17 +139,16 @@ export default function MeetingCard({
                     </div>
 
                     {record ? (
-                        <button
-                            type="button"
-                            className="dr-meeting-record mt-1 block max-w-full truncate text-left font-semibold"
+                        <a
+                            href={record.href ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="dr-meeting-record mt-1 block max-w-full truncate text-left font-semibold no-underline"
                             style={{ fontSize: 13, color: T.BLUE }}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                if (record.href) router.visit(record.href);
-                            }}
+                            onClick={(event) => event.stopPropagation()}
                         >
                             {td(record.name)}
-                        </button>
+                        </a>
                     ) : (
                         <div
                             className="mt-1"
@@ -198,9 +204,38 @@ export default function MeetingCard({
                 </div>
 
                 <div
-                    className="shrink-0"
+                    className="flex shrink-0 items-center gap-2"
                     onClick={(event) => event.stopPropagation()}
                 >
+                    {/* Open the record, and join the call. Both leave the
+                        meetings list where it is — you come back to it after
+                        the meeting, so it should still be there. */}
+                    {record?.href && (
+                        <a
+                            href={record.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="dr-btn dr-btn-ghost no-underline"
+                            style={{ fontSize: 12, padding: "5px 10px" }}
+                        >
+                            <Icon name="external-link" size={13} />
+                            {record.type === "lead"
+                                ? td("Open lead")
+                                : td("Open deal")}
+                        </a>
+                    )}
+                    {showJoin && (
+                        <a
+                            href={meeting.meeting_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="dr-btn dr-btn-primary no-underline"
+                            style={{ fontSize: 12, padding: "5px 10px" }}
+                        >
+                            <Icon name="video" size={13} />
+                            {t("pages.meetings.card.actions.join_meeting")}
+                        </a>
+                    )}
                     {summaryState === "ready" && (
                         <button
                             type="button"
@@ -226,18 +261,6 @@ export default function MeetingCard({
                         >
                             {t("pages.meetings.card.generating_summary")}
                         </span>
-                    )}
-                    {summaryState !== "ready" && showJoin && (
-                        <a
-                            href={meeting.meeting_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="dr-meeting-link inline-flex items-center gap-1.5 font-semibold"
-                            style={{ fontSize: 12, color: T.BLUE }}
-                        >
-                            <Icon name="video" size={13} />
-                            {t("pages.meetings.card.actions.join_meeting")}
-                        </a>
                     )}
                 </div>
             </div>

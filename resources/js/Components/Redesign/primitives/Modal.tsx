@@ -32,6 +32,13 @@ interface ModalProps {
     /** Overrides the default 520px max-width, e.g. for modals with a rich text editor. */
     maxWidth?: number;
     /**
+     * Clicking the backdrop closes the dialog. Off by default — a stray
+     * click outside a form (schedule/edit) shouldn't discard what was being
+     * entered. A read-only "show" dialog has nothing to lose, so those
+     * callers opt in.
+     */
+    closeOnBackdrop?: boolean;
+    /**
      * Lifts this dialog above another that is already open. The CSS default
      * (1100) sits well below an antd Modal, which this app renders at 1400
      * (zIndexPopupBase is raised to 1300 in providers/antd/utils.ts, plus
@@ -53,6 +60,7 @@ export function Modal({
     closeAriaLabel,
     maxWidth,
     zIndex,
+    closeOnBackdrop = false,
 }: ModalProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -105,6 +113,9 @@ export function Modal({
             className="modal-overlay redesign-modal-overlay"
             style={zIndex !== undefined ? { zIndex } : undefined}
             role="presentation"
+            onClick={() => {
+                if (closeOnBackdrop && !dirty) onClose();
+            }}
         >
             <div
                 ref={panelRef}

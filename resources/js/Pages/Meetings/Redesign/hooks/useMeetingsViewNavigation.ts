@@ -13,6 +13,7 @@ const ALL_OVERLAY_TYPES: UserCalendarEventType[] = [
     "event",
     "ticket",
     "leave",
+    "zoho",
 ];
 
 function initialOverlayTypes(): UserCalendarEventType[] {
@@ -34,7 +35,7 @@ function queryParam(name: string): string | null {
     return new URLSearchParams(window.location.search).get(name);
 }
 
-const VIEW_MODES: MeetingsViewMode[] = ["cards", "list", "calendar"];
+const VIEW_MODES: MeetingsViewMode[] = ["list", "calendar"];
 
 function isViewMode(value: unknown): value is MeetingsViewMode {
     return VIEW_MODES.includes(value as MeetingsViewMode);
@@ -48,12 +49,12 @@ function isViewMode(value: unknown): value is MeetingsViewMode {
 function initialView(): MeetingsViewMode {
     const fromQuery = queryParam("view");
     if (isViewMode(fromQuery)) return fromQuery;
-    if (typeof window === "undefined") return "cards";
+    if (typeof window === "undefined") return "list";
     try {
         const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-        return isViewMode(stored) ? stored : "cards";
+        return isViewMode(stored) ? stored : "list";
     } catch {
-        return "cards";
+        return "list";
     }
 }
 
@@ -86,9 +87,6 @@ export default function useMeetingsViewNavigation() {
     }, []);
 
     const [calendarMonth, setCalendarMonth] = useState<string>(initialMonth);
-    const [calendarPersonId, setCalendarPersonId] = useState<number | null>(
-        null,
-    );
     const [overlayTypes, setOverlayTypes] =
         useState<UserCalendarEventType[]>(initialOverlayTypes);
 
@@ -104,10 +102,8 @@ export default function useMeetingsViewNavigation() {
         if (currentView === "calendar") {
             url.searchParams.set("view", "calendar");
             url.searchParams.set("cal_month", month);
-        } else if (currentView === "list") {
-            url.searchParams.set("view", "list");
-            url.searchParams.delete("cal_month");
         } else {
+            // List is the default, so it needs no parameter of its own.
             url.searchParams.delete("view");
             url.searchParams.delete("cal_month");
         }
@@ -142,8 +138,6 @@ export default function useMeetingsViewNavigation() {
         setView,
         calendarMonth,
         setCalendarMonth,
-        calendarPersonId,
-        setCalendarPersonId,
         overlayTypes,
         toggleOverlayType,
     };

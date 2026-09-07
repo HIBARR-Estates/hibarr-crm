@@ -6,7 +6,7 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
  *
  * Chips carry only what it takes to draw them, and the meeting behind one is
  * often not on the list page that's loaded, so the detail dialog is fed from
- * `meetings.show` rather than from the list. `seed` covers the case where the
+ * `meetings.detail` rather than from the list. `seed` covers the case where the
  * row *is* already on the page (cards/list view): the dialog opens on the
  * record it already has and never waits for a request.
  */
@@ -35,7 +35,7 @@ export default function useMeetingRecord() {
         // A slower earlier request must not replace a newer selection.
         let cancelled = false;
 
-        fetch(route("meetings.show", { followUp: loadingId }), {
+        fetch(route("meetings.detail", { followUp: loadingId }), {
             headers: {
                 Accept: "application/json",
                 "X-Requested-With": "XMLHttpRequest",

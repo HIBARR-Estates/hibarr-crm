@@ -1,4 +1,3 @@
-import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
@@ -118,17 +117,16 @@ export default function MeetingLiveCard({
                             >
                                 ·
                             </span>
-                            <button
-                                type="button"
-                                className="dr-meeting-record min-w-0 truncate text-left font-semibold"
+                            <a
+                                href={record.href ?? undefined}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="dr-meeting-record min-w-0 truncate text-left font-semibold no-underline"
                                 style={{ fontSize: 14, color: T.BLUE }}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    if (record.href) router.visit(record.href);
-                                }}
+                                onClick={(event) => event.stopPropagation()}
                             >
                                 {td(record.name)}
-                            </button>
+                            </a>
                         </>
                     )}
                 </div>
@@ -172,6 +170,30 @@ export default function MeetingLiveCard({
                 className="flex shrink-0 items-center gap-2"
                 onClick={(event) => event.stopPropagation()}
             >
+                {/* The two things you do with a meeting that is happening
+                    right now — both in new tabs, so the list you were working
+                    in is still here when the call ends. */}
+                {record?.href && (
+                    <a
+                        href={record.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 font-semibold no-underline"
+                        style={{
+                            background: T.WHITE,
+                            color: T.NAVY,
+                            border: `1px solid ${T.RED_MID}`,
+                            borderRadius: 8,
+                            padding: "9px 14px",
+                            fontSize: 14,
+                        }}
+                    >
+                        <Icon name="external-link" size={15} />
+                        {record.type === "lead"
+                            ? td("Open lead")
+                            : td("Open deal")}
+                    </a>
+                )}
                 {showJoin && (
                     <a
                         href={meeting.meeting_link}

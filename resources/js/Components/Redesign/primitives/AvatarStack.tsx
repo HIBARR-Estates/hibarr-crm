@@ -8,6 +8,8 @@ export interface AvatarStackPerson {
     image?: string | null;
     /** Palette for this face — see Avatar. Defaults to the blue "default". */
     type?: "agent" | "participant" | "watcher" | "default";
+    /** Rings the face in blue — who's running the meeting, not just on it. */
+    isHost?: boolean;
 }
 
 interface AvatarStackProps {
@@ -40,7 +42,9 @@ export default function AvatarStack({
                     className="inline-flex rounded-full"
                     style={{
                         marginLeft: index ? -8 : 0,
-                        boxShadow: `0 0 0 2px ${T.WHITE}`,
+                        boxShadow: person.isHost
+                            ? `0 0 0 2px ${T.WHITE}, 0 0 0 4px ${T.BLUE}`
+                            : `0 0 0 2px ${T.WHITE}`,
                     }}
                 >
                     <Avatar
@@ -48,7 +52,11 @@ export default function AvatarStack({
                         type={person.type ?? "default"}
                         src={person.image}
                         size={size}
-                        title={person.name ?? undefined}
+                        title={
+                            person.isHost && person.name
+                                ? `${person.name} (host)`
+                                : (person.name ?? undefined)
+                        }
                     />
                 </span>
             ))}

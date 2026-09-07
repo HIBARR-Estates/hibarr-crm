@@ -157,6 +157,7 @@ export default function MeetingsReportDialog({
                     value={attendance}
                     onChange={setAttendance}
                     ariaLabel={td("Client attendance")}
+                    fullWidth
                     options={[
                         { value: "yes", label: td("Yes") },
                         { value: "no", label: td("No show") },

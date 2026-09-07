@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { companyTimeDayjsFormat } from "@/lib/companyDateTime";
 
-/** Types `MyCalendarController` can return. */
+/**
+ * Types the overlay can carry: everything `MyCalendarController` returns,
+ * plus `zoho` for the viewer's connected Zoho Calendar, which arrives from a
+ * different endpoint in the same shape.
+ */
 export type UserCalendarEventType =
-    | "task"
-    | "event"
-    | "ticket"
-    | "leave"
-    | "follow_up";
+    "task" | "event" | "ticket" | "leave" | "follow_up" | "zoho";
 
 /** FullCalendar-shaped row as `/account/my-calendar` returns it. */
 export interface UserCalendarEvent {
@@ -106,7 +106,11 @@ export function userEventDayKey(event: UserCalendarEvent): string | null {
 
 /** Whether the row carries a meaningful clock time, or is date-level only. */
 export function userEventHasTime(event: UserCalendarEvent): boolean {
-    return event.event_type === "event" || event.event_type === "ticket";
+    return (
+        event.event_type === "event" ||
+        event.event_type === "ticket" ||
+        event.event_type === "zoho"
+    );
 }
 
 /**

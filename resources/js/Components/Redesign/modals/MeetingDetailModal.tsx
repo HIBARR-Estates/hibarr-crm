@@ -1,9 +1,11 @@
 import { type ReactNode, useState } from "react";
+import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
-    getMeetingStatusTone,
+    getMeetingStatusDisplay,
+    locationAddsDetail,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
@@ -11,6 +13,7 @@ import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import {
     REDESIGN_RADIUS as R,
     REDESIGN_TOKENS as T,
@@ -77,6 +80,11 @@ interface MeetingDetailModalProps {
      * meetings wants — one dialog, two views, no modal on top of a modal.
      */
     summaryPanel?: ReactNode;
+    /**
+     * Rendered at the start of the footer, before the destructive actions —
+     * for controls that are about the dialog itself rather than the meeting.
+     */
+    footerLeading?: ReactNode;
 }
 
 const PLATFORM_PILL: Record<string, string> = {
@@ -87,6 +95,40 @@ const PLATFORM_PILL: Record<string, string> = {
 
 function reminderLabel(reminder: { time: number; type: string }): string {
     return `${reminder.time} ${reminder.type}${reminder.time > 1 ? "s" : ""} before`;
+}
+
+interface RecordLink {
+    name: string;
+    href: string | null;
+    type: "deal" | "lead";
+}
+
+/**
+ * The deal or lead this meeting hangs off, when the caller's `meeting` object
+ * carries one — the Meetings index embeds it (its list mixes meetings across
+ * every deal/lead), so this only ever renders there. A Deal/Lead page's own
+ * meeting objects don't carry it back — the record is already the page you're
+ * on — so this quietly renders nothing for those callers.
+ */
+function meetingRecordLink(meeting: DealFollowup): RecordLink | null {
+    if (meeting.deal) {
+        return {
+            name: meeting.deal.name,
+            href: `/account/deals/${meeting.deal.id}`,
+            type: "deal",
+        };
+    }
+    if (meeting.lead) {
+        return {
+            name:
+                meeting.lead.client_name_salutation ||
+                meeting.lead.client_name ||
+                "",
+            href: route("lead-contact.show", meeting.lead.id),
+            type: "lead",
+        };
+    }
+    return null;
 }
 
 /** Meeting detail shell — view + cancel confirm; nested modals injected by wrappers. */
@@ -103,6 +145,7 @@ export default function MeetingDetailModal({
     renderNestedModals,
     summaryPanel,
     onEditRequested,
+    footerLeading,
 }: MeetingDetailModalProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -113,12 +156,19 @@ export default function MeetingDetailModal({
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [summaryOpen, setSummaryOpen] = useState(false);
     const [panel, setPanel] = useState<"info" | "summary">("info");
+    const [showAllAttendees, setShowAllAttendees] = useState(false);
 
     if (!meeting) return null;
 
     const item = toWorkspaceMeetingListItem(meeting);
     const dateLine = formatDate(item.startsAt, "-");
+    const record = meetingRecordLink(meeting);
     const attendees = meeting.participant_users ?? [];
+    const ATTENDEES_COLLAPSED_LIMIT = 4;
+    const visibleAttendees = showAllAttendees
+        ? attendees
+        : attendees.slice(0, ATTENDEES_COLLAPSED_LIMIT);
+    const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
     const reminders = meeting.reminders ?? [];
     const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable;
@@ -142,9 +192,11 @@ export default function MeetingDetailModal({
             <Modal
                 open={!!meeting}
                 onClose={onClose}
+                closeOnBackdrop
                 title={td(item.title)}
                 footer={
                     <>
+                        {footerLeading}
                         {canDelete && (
                             <Button
                                 variant="ghost"
@@ -196,48 +248,18 @@ export default function MeetingDetailModal({
                 }
             >
                 {summaryPanel && (
-                    <div
-                        role="tablist"
-                        aria-label={td("Meeting views")}
-                        className="mb-4 flex gap-0.5 p-0.5"
-                        style={{
-                            background: T.SURFACE_2,
-                            border: `1px solid ${T.BORDER}`,
-                            borderRadius: 8,
-                        }}
-                    >
-                        {(
-                            [
-                                ["info", td("Meeting info")],
-                                ["summary", td("Summary")],
-                            ] as const
-                        ).map(([value, label]) => (
-                            <button
-                                key={value}
-                                type="button"
-                                role="tab"
-                                aria-selected={panel === value}
-                                onClick={() => setPanel(value)}
-                                className="flex-1"
-                                style={{
-                                    padding: "6px 12px",
-                                    borderRadius: 6,
-                                    border: "none",
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    fontFamily: "inherit",
-                                    background:
-                                        panel === value
-                                            ? T.WHITE
-                                            : "transparent",
-                                    color:
-                                        panel === value ? T.NAVY : T.TEXT_MUTED,
-                                }}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                    <div className="mb-4">
+                        <Segmented<"info" | "summary">
+                            value={panel}
+                            onChange={setPanel}
+                            fullWidth
+                            variant="raised"
+                            ariaLabel={td("Meeting views")}
+                            options={[
+                                { value: "info", label: td("Meeting info") },
+                                { value: "summary", label: td("Summary") },
+                            ]}
+                        />
                     </div>
                 )}
 
@@ -245,17 +267,91 @@ export default function MeetingDetailModal({
 
                 {(!summaryPanel || panel === "info") && (
                     <>
+                        {record && (
+                            <button
+                                type="button"
+                                className="mb-3 flex w-full items-center gap-2 text-left"
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    padding: 0,
+                                    cursor: record.href ? "pointer" : "default",
+                                    fontFamily: "inherit",
+                                }}
+                                onClick={() => {
+                                    if (record.href) router.visit(record.href);
+                                }}
+                            >
+                                <Icon
+                                    name={
+                                        record.type === "deal"
+                                            ? "briefcase"
+                                            : "user"
+                                    }
+                                    size={14}
+                                    color={T.TEXT_MUTED}
+                                />
+                                <span
+                                    className="truncate font-semibold"
+                                    style={{
+                                        fontSize: 14,
+                                        color: record.href ? T.NAVY : T.TEXT,
+                                        textDecoration: record.href
+                                            ? "underline"
+                                            : "none",
+                                    }}
+                                >
+                                    {td(record.name)}
+                                </span>
+                                <span
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: T.TEXT_HINT,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.04em",
+                                    }}
+                                >
+                                    {record.type === "deal"
+                                        ? td("Deal")
+                                        : td("Lead")}
+                                </span>
+                            </button>
+                        )}
+
                         <div className="mb-4 flex flex-wrap items-center gap-2">
                             <span
                                 className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
                             >
                                 {td(item.platformLabel, { source: "en" })}
                             </span>
-                            <span
-                                className={`dr-pill ${getMeetingStatusTone(item.statusLabel)}`}
-                            >
-                                {td(item.statusLabel, { source: "en" })}
-                            </span>
+                            {(() => {
+                                const status = getMeetingStatusDisplay(item);
+                                return (
+                                    <span
+                                        className={`dr-pill ${status.tone}`}
+                                        style={{
+                                            overflow: "visible",
+                                            height: "auto",
+                                            lineHeight: "normal",
+                                        }}
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className="rounded-full"
+                                            style={{
+                                                width: 6,
+                                                height: 6,
+                                                minWidth: 6,
+                                                minHeight: 6,
+                                                flexShrink: 0,
+                                                background: status.dotColor,
+                                            }}
+                                        />
+                                        {td(status.label, { source: "en" })}
+                                    </span>
+                                );
+                            })()}
                             {showSummaryBadge &&
                                 (summaryReady ? (
                                     <button
@@ -452,16 +548,20 @@ export default function MeetingDetailModal({
                                     )}
                                 </div>
                             ) : (
-                                <div
-                                    className="flex items-center gap-2"
-                                    style={{
-                                        fontSize: 14,
-                                        color: T.TEXT_MUTED,
-                                    }}
-                                >
-                                    <Icon name="map-pin" size={14} />
-                                    {td(item.locationDisplay)}
-                                </div>
+                                // Only when it isn't just the platform pill
+                                // restated — see locationAddsDetail.
+                                locationAddsDetail(item) && (
+                                    <div
+                                        className="flex items-center gap-2"
+                                        style={{
+                                            fontSize: 14,
+                                            color: T.TEXT_MUTED,
+                                        }}
+                                    >
+                                        <Icon name="map-pin" size={14} />
+                                        {td(item.locationDisplay)}
+                                    </div>
+                                )
                             )}
                         </div>
 
@@ -493,32 +593,63 @@ export default function MeetingDetailModal({
                                     {t("pages.deals.common.none")}
                                 </div>
                             ) : (
-                                <div className="flex flex-wrap gap-2">
-                                    {attendees.map((user) => (
-                                        <span
-                                            key={user.id}
-                                            className="inline-flex items-center gap-1.5 rounded-full border py-[3px] pl-1 pr-2.5"
+                                <>
+                                    <div className="flex flex-wrap gap-2">
+                                        {visibleAttendees.map((user) => (
+                                            <span
+                                                key={user.id}
+                                                className="inline-flex items-center gap-1.5 rounded-full border py-[3px] pl-1 pr-2.5"
+                                                style={{
+                                                    background: T.SURFACE_2,
+                                                    borderColor: T.BORDER,
+                                                }}
+                                            >
+                                                <Avatar
+                                                    type="participant"
+                                                    size={22}
+                                                    initials={(
+                                                        user.name || "?"
+                                                    )
+                                                        .split(" ")
+                                                        .map(
+                                                            (part) => part[0],
+                                                        )
+                                                        .slice(0, 2)
+                                                        .join("")
+                                                        .toUpperCase()}
+                                                />
+                                                <span className="text-[13px]">
+                                                    {user.name}
+                                                </span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    {attendees.length >
+                                        ATTENDEES_COLLAPSED_LIMIT && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowAllAttendees(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="mt-2 font-semibold"
                                             style={{
-                                                background: T.SURFACE_2,
-                                                borderColor: T.BORDER,
+                                                background: "none",
+                                                border: "none",
+                                                padding: 0,
+                                                cursor: "pointer",
+                                                fontFamily: "inherit",
+                                                fontSize: 12.5,
+                                                color: T.BLUE,
                                             }}
                                         >
-                                            <Avatar
-                                                type="participant"
-                                                size={22}
-                                                initials={(user.name || "?")
-                                                    .split(" ")
-                                                    .map((part) => part[0])
-                                                    .slice(0, 2)
-                                                    .join("")
-                                                    .toUpperCase()}
-                                            />
-                                            <span className="text-[13px]">
-                                                {user.name}
-                                            </span>
-                                        </span>
-                                    ))}
-                                </div>
+                                            {showAllAttendees
+                                                ? td("Show fewer")
+                                                : `${td("Show")} ${hiddenAttendeeCount} ${td("more")}`}
+                                        </button>
+                                    )}
+                                </>
                             )}
                         </ModalField>
 

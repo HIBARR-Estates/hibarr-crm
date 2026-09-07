@@ -1052,7 +1052,7 @@ class DealController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
         abort_403(! $access['canAccess']);
 
-        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
+        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
@@ -2834,7 +2834,7 @@ class DealController extends AccountBaseController
      */
     private function loadFollowUpWithParticipants($followUpId): DealFollowUp
     {
-        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
+        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
 
         $participantIds = collect($followUp->participants ?? []);
         $participantUsersMap = $participantIds->isEmpty()

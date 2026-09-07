@@ -1,11 +1,8 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
-import Icon from "@/Components/Redesign/primitives/Icon";
-import {
-    REDESIGN_RADIUS as R,
-    REDESIGN_TOKENS as T,
-} from "@/Components/Redesign/tokens";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { MeetingSummaryState } from "../adapters/meetingViewModel";
 
@@ -13,38 +10,6 @@ interface MeetingSummaryPanelProps {
     meeting: DealFollowup;
     /** Why there is no summary, when there isn't one. */
     state: MeetingSummaryState;
-}
-
-function Notice({
-    icon,
-    title,
-    body,
-}: {
-    icon: string;
-    title: string;
-    body: string;
-}) {
-    return (
-        <div
-            className="flex flex-col items-center gap-2 px-6 py-10 text-center"
-            style={{
-                background: T.SURFACE_2,
-                border: `1px solid ${T.BORDER}`,
-                borderRadius: R.LG,
-            }}
-        >
-            <Icon name={icon} size={22} color={T.TEXT_HINT} />
-            <div
-                className="font-semibold"
-                style={{ fontSize: 14, color: T.TEXT }}
-            >
-                {title}
-            </div>
-            <div style={{ fontSize: 13, color: T.TEXT_MUTED, maxWidth: 340 }}>
-                {body}
-            </div>
-        </div>
-    );
 }
 
 /**
@@ -69,21 +34,21 @@ export default function MeetingSummaryPanel({
     if (entries.length === 0) {
         if (state === "generating") {
             return (
-                <Notice
+                <EmptyState
                     icon="clock"
                     title={t("pages.meetings.card.generating_summary")}
-                    body={td(
-                        "The recording is still being processed. This page will show the summary once it is ready.",
+                    description={td(
+                        "The recording is still being processed. The summary appears here once it is ready.",
                     )}
                 />
             );
         }
         return (
-            <Notice
+            <EmptyState
                 icon="file-text"
                 title={td("No summary for this meeting")}
-                body={td(
-                    "Summaries are generated from video meetings once they have taken place.",
+                description={td(
+                    "Summaries are built from the recording of a Zoho or Zoom meeting. Meetings held on another platform, by phone or in person cannot produce one.",
                 )}
             />
         );

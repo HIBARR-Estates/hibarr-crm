@@ -140,6 +140,15 @@ export default function MeetingsScheduleDialog({
                 submit: t("app.meetings.actions.schedule"),
             }}
             initialStart={initialStart}
+            stepped
+            stepLabels={{
+                back: td("Back"),
+                next: td("Next: meeting details"),
+                stepOf: (n, of) =>
+                    n === 1
+                        ? `${td("Step")} ${n}/${of} · ${td("What")}`
+                        : `${td("Step")} ${n}/${of} · ${td("When and how it runs")}`,
+            }}
             extraFields={
                 <>
                     <ModalField label={td("Schedule for")}>
@@ -154,6 +163,7 @@ export default function MeetingsScheduleDialog({
                                 clearErrors();
                             }}
                             ariaLabel={td("Record type")}
+                            fullWidth
                             options={[
                                 {
                                     value: "deal",
@@ -169,7 +179,13 @@ export default function MeetingsScheduleDialog({
                         />
                     </ModalField>
 
-                    <ModalField label={td("Related record")}>
+                    <ModalField
+                        label={
+                            recordType === "deal"
+                                ? td("Related deal")
+                                : td("Related lead")
+                        }
+                    >
                         <SearchableSelect<ScheduleRecordKey>
                             className="w-full"
                             value={selectedKey ?? undefined}

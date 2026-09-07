@@ -92,7 +92,10 @@ export default function useMeetingsScheduleCreate() {
                 next_follow_up_date: formatMeetingDateForApi(form.date),
                 start_time: formatMeetingTimeForApi(form.startTime),
                 meeting_type_id: form.meetingTypeId ?? undefined,
-                location: locationForPayload(form.platform, form.locationDetail),
+                location: locationForPayload(
+                    form.platform,
+                    form.locationDetail,
+                ),
                 meeting_link: meetingLinkForPayload(
                     form.platform,
                     form.meetingLink,

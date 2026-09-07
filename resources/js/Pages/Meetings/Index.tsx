@@ -90,6 +90,10 @@ export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
     calendarRequestedMonth: string | null;
     /** Host-filter options; deferred, so undefined until they arrive. */
     filterPeople?: Array<{ id: number; name: string }>;
+    /** The next few meetings for the cards above the list; deferred. */
+    upcomingSoon?: DealFollowup[];
+    /** False only for someone who has never had a meeting at all. */
+    hasAnyMeetings: boolean;
     /**
      * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
      * the page itself rather than through props, so these are declared for

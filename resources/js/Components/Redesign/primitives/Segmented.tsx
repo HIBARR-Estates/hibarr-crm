@@ -19,6 +19,12 @@ interface SegmentedProps<V extends string | number> {
     /** "solid" fills the active segment (quick filters, group by, page size);
      *  "raised" lifts it on white, as the list/board toggle does. */
     variant?: "solid" | "raised";
+    /**
+     * Stretches the track and its segments across the full width of the
+     * parent — for a switcher that reads as a tab strip (the schedule
+     * dialog's Deal/Lead tabs). Left off, the track hugs its buttons.
+     */
+    fullWidth?: boolean;
 }
 
 /**
@@ -33,12 +39,17 @@ export default function Segmented<V extends string | number>({
     onChange,
     ariaLabel,
     variant = "solid",
+    fullWidth = false,
 }: SegmentedProps<V>) {
     return (
         <div
             role="group"
             aria-label={ariaLabel}
-            className="flex gap-0.5 p-0.5"
+            // inline-flex so the track never runs wider than its segments in a
+            // block context (a modal field), which left a full-width grey bar
+            // behind a huddle of buttons. `fullWidth` opts back into
+            // stretching, and then the segments stretch with it.
+            className={`${fullWidth ? "flex w-full" : "inline-flex"} gap-0.5 p-0.5`}
             style={{
                 background: T.BG,
                 border: `1px solid ${T.BORDER}`,
@@ -56,7 +67,11 @@ export default function Segmented<V extends string | number>({
                         title={option.title}
                         aria-pressed={active}
                         onClick={() => onChange(option.value)}
-                        className="dr-press inline-flex items-center gap-1.5 whitespace-nowrap"
+                        className={`dr-press inline-flex items-center gap-1.5${
+                            fullWidth
+                                ? " min-w-0 flex-1 justify-center text-center"
+                                : " whitespace-nowrap"
+                        }`}
                         style={{
                             padding: "6px 12px",
                             borderRadius: R.SM,
@@ -67,6 +82,11 @@ export default function Segmented<V extends string | number>({
                             cursor: "pointer",
                             background: active ? activeBg : "transparent",
                             color: active ? activeFg : T.TEXT_MUTED,
+                            // fullWidth tracks can hold 3+ segments in a
+                            // narrower space than any one label needs on its
+                            // own — wrapping beats letting the modal's own
+                            // `overflow-x: hidden` silently clip the text.
+                            whiteSpace: fullWidth ? "normal" : "nowrap",
                         }}
                     >
                         {option.icon}

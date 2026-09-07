@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import EditMeetingModal from "@/Components/Redesign/modals/EditMeetingModal";
+import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import {
     buildMeetingFormFromFollowup,
     requiresManualMeetingLink,
@@ -9,8 +10,10 @@ import {
     requiresPhysicalLocationDetail,
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import type { PersonOption } from "@/Components/Redesign/primitives/PeoplePicker";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useMeetingsMeetingUpdate from "../hooks/useMeetingsMeetingUpdate";
+import MeetingConfirmationPanel from "./MeetingConfirmationPanel";
 
 interface MeetingsEditDialogProps {
     open: boolean;
@@ -41,6 +44,12 @@ export default function MeetingsEditDialog({
     const [localErrors, setLocalErrors] = useState<string[]>([]);
     const { updateMeeting, isUpdating, errors, clearErrors } =
         useMeetingsMeetingUpdate();
+    const showConfirmation = useMeetingAttendanceConfirmationFlag();
+    // Patched locally the moment a confirmation saves, mirroring the detail
+    // dialog — the tab reflects it immediately rather than waiting for
+    // `onSaved`'s list reload to bring a fresh `meeting` prop back around.
+    const [confirmationPatch, setConfirmationPatch] =
+        useState<Partial<DealFollowup> | null>(null);
 
     const initialForm = useMemo(() => {
         if (!open || !meeting) return null;
@@ -49,9 +58,42 @@ export default function MeetingsEditDialog({
         return buildMeetingFormFromFollowup(meeting, null, currentUserId);
     }, [open, meeting, currentUserId]);
 
+    const effectiveMeeting =
+        meeting && confirmationPatch
+            ? { ...meeting, ...confirmationPatch }
+            : meeting;
+    const hostId = meeting?.host_id ?? meeting?.added_by?.id;
+    const canConfirmAttendance = Boolean(currentUserId && hostId === currentUserId);
+
+    // Names for everyone already on this meeting — the host/participant
+    // pickers only search a separate "employees" directory, which won't
+    // necessarily list someone already assigned here (a different role, or
+    // just not yet loaded), so without this an existing pick renders as
+    // "User #<id>" until the picker happens to also surface them.
+    const participantDirectory = useMemo<PersonOption[]>(() => {
+        if (!meeting) return [];
+        const people: PersonOption[] = (meeting.participant_users ?? []).map(
+            (person) => ({ id: person.id, name: person.name }),
+        );
+        if (meeting.host && !people.some((p) => p.id === meeting.host!.id)) {
+            people.push({ id: meeting.host.id, name: meeting.host.name });
+        }
+        if (
+            meeting.added_by &&
+            !people.some((p) => p.id === meeting.added_by!.id)
+        ) {
+            people.push({
+                id: meeting.added_by.id,
+                name: meeting.added_by.name,
+            });
+        }
+        return people;
+    }, [meeting]);
+
     const handleClose = () => {
         if (isUpdating) return;
         setLocalErrors([]);
+        setConfirmationPatch(null);
         clearErrors();
         onClose();
     };
@@ -130,11 +172,27 @@ export default function MeetingsEditDialog({
             meetingTypes={meetingTypes}
             initialForm={initialForm}
             onSubmit={handleSubmit}
+            participantDirectory={participantDirectory}
             labels={{
                 title: t("pages.deals.workspace.meetings.edit_meeting"),
                 cancel: t("pages.deals.common.cancel"),
                 submit: t("pages.deals.common.save_changes"),
             }}
+            confirmationPanel={
+                showConfirmation && effectiveMeeting ? (
+                    <MeetingConfirmationPanel
+                        meeting={effectiveMeeting}
+                        canConfirm={canConfirmAttendance}
+                        allowEditLogged
+                        onSaved={(patch) =>
+                            setConfirmationPatch((prev) => ({
+                                ...prev,
+                                ...patch,
+                            }))
+                        }
+                    />
+                ) : undefined
+            }
         />
     );
 }

@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
 import {
     defaultMeetingStart,
@@ -38,6 +39,20 @@ interface ScheduleMeetingModalProps {
      * already know the slot, such as clicking an empty day on the calendar.
      */
     initialStart?: { date: string; startTime: string };
+    /**
+     * Splits the form across two steps: what the meeting is, then how it
+     * runs. For the Meetings index, where the dialog also has to ask which
+     * record it is for and the whole thing was a wall of fields. Deal and
+     * lead pages keep the single page — they already know the record, so
+     * there is much less to ask.
+     */
+    stepped?: boolean;
+    /** Labels for the step chrome; required when `stepped`. */
+    stepLabels?: {
+        back: string;
+        next: string;
+        stepOf: (n: number, of: number) => string;
+    };
 }
 
 export default function ScheduleMeetingModal({
@@ -52,9 +67,12 @@ export default function ScheduleMeetingModal({
     extraFields,
     mustIncludeOwner = null,
     initialStart,
+    stepped = false,
+    stepLabels,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
+    const [step, setStep] = useState(0);
     const seededForOpenRef = useRef(false);
 
     // Seed once per open session — not when parent re-renders with a fresh
@@ -64,6 +82,7 @@ export default function ScheduleMeetingModal({
     useEffect(() => {
         if (!open) {
             seededForOpenRef.current = false;
+            setStep(0);
             return;
         }
         if (!seededForOpenRef.current) {
@@ -81,6 +100,12 @@ export default function ScheduleMeetingModal({
         onClose();
     };
 
+    // Step one only asks what the meeting is about — when it happens moved to
+    // step two, so there's nothing else to require before moving on.
+    const essentialsComplete = Boolean(form.meetingTypeId);
+    // Step two is where date/time now live, and the create call needs both.
+    const detailsComplete = Boolean(form.date && form.startTime);
+
     return (
         <Modal
             open={open}
@@ -91,19 +116,40 @@ export default function ScheduleMeetingModal({
                 <>
                     <Button
                         variant="ghost"
-                        onClick={handleClose}
+                        onClick={
+                            stepped && step > 0
+                                ? () => setStep(step - 1)
+                                : handleClose
+                        }
                         disabled={saving}
                     >
-                        {labels.cancel}
+                        {stepped && step > 0
+                            ? (stepLabels?.back ?? td("Back"))
+                            : labels.cancel}
                     </Button>
-                    <Button
-                        variant="primary"
-                        onClick={() => onSubmit(form)}
-                        loading={saving}
-                        disabled={saving}
-                    >
-                        {labels.submit}
-                    </Button>
+                    {stepped && step === 0 ? (
+                        <Button
+                            variant="primary"
+                            onClick={() => setStep(1)}
+                            disabled={saving || !essentialsComplete}
+                        >
+                            {stepLabels?.next ?? td("Next")}
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="primary"
+                            onClick={() => onSubmit(form)}
+                            loading={saving}
+                            // Date/time live on this step now — nothing to
+                            // submit without them when the form is stepped.
+                            // Single-page callers keep their old behavior.
+                            disabled={
+                                saving || (stepped && !detailsComplete)
+                            }
+                        >
+                            {labels.submit}
+                        </Button>
+                    )}
                 </>
             }
         >
@@ -117,7 +163,23 @@ export default function ScheduleMeetingModal({
                 </div>
             )}
 
-            {extraFields}
+            {stepped && (
+                <p
+                    className="mb-3 font-semibold uppercase"
+                    style={{
+                        fontSize: 11,
+                        letterSpacing: "0.06em",
+                        color: T.TEXT_HINT,
+                    }}
+                >
+                    {stepLabels?.stepOf?.(step + 1, 2) ??
+                        `${td("Step")} ${step + 1} / 2`}
+                </p>
+            )}
+
+            {/* The record picker belongs to the first step: everything after
+                it is about a meeting for that record. */}
+            {(!stepped || step === 0) && extraFields}
 
             <MeetingFormFields
                 form={form}
@@ -127,6 +189,13 @@ export default function ScheduleMeetingModal({
                 meetingTypes={meetingTypes}
                 disabled={saving}
                 mustIncludeOwner={mustIncludeOwner}
+                section={
+                    stepped
+                        ? step === 0
+                            ? "essentials"
+                            : "details"
+                        : undefined
+                }
             />
         </Modal>
     );

@@ -9,12 +9,14 @@ use App\Models\MeetingSavedView;
 use App\Models\MeetingSummary;
 use App\Models\MeetingType;
 use App\Models\User;
+use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingVisibilityService;
 use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class MeetingsController extends AccountBaseController
@@ -34,6 +36,13 @@ class MeetingsController extends AccountBaseController
 
     /** Hard ceiling on chips the calendar month query will return. */
     private const CALENDAR_EVENT_LIMIT = 500;
+
+    /**
+     * How many "next up" cards the strip above the list can hold. Three is
+     * what fits one row at the widest layout; narrower screens show fewer by
+     * dropping columns, not by asking for less.
+     */
+    private const UPCOMING_SOON_LIMIT = 3;
 
     public function __construct()
     {
@@ -74,6 +83,10 @@ class MeetingsController extends AccountBaseController
             'deal.currency:id,currency_symbol',
             'lead:id,client_name,salutation,company_name',
             'addedBy:id,name,image',
+            // Never previously loaded — every "Meeting host" chip fell back
+            // to "User #<id>" because `host_id` came through as a bare id
+            // with no relation attached to resolve it from.
+            'host:id,name,image',
             'meetingType',
             'meetingSummary',
         ];
@@ -202,6 +215,21 @@ class MeetingsController extends AccountBaseController
                 }));
         };
 
+        // Ids the "next up" cards will claim, so the list below can leave
+        // them out — a meeting belongs on the page once.
+        //
+        // The tab tallies deliberately do NOT exclude them: a badge reading
+        // "Upcoming 4" answers how many upcoming meetings you have, not how
+        // many rows the table happens to be drawing. Moving one into a card
+        // must not make it look like the meeting went away.
+        //
+        // The strip can be hidden, and that is a browser-side preference the
+        // list query depends on, so it rides along in a cookie the same way
+        // the page size does. Hidden means no exclusions at all.
+        $nextUpIds = $redesign && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
+            ? $this->upcomingSoonIds($userId, $scopeUpcoming)
+            : [];
+
         // ── Overview stats ─────────────────────────────────────────────
         $weekStart = Carbon::now('UTC')->startOfWeek();
         $weekEnd = Carbon::now('UTC')->endOfWeek();
@@ -211,7 +239,9 @@ class MeetingsController extends AccountBaseController
         // into memory to filter in PHP — unbounded, and growing with history.
         // The end-time expression matches the one the Upcoming/Past queries below use.
         // The last three sums are the redesign's tab tallies; they restate the
-        // scopes above in SQL so a tab's count matches the list it opens.
+        // scopes above in SQL so a tab counts exactly the meetings that tab is
+        // about — including any the "next up" cards have lifted out of the
+        // table, which are still yours and still upcoming.
         $liveSql = "status = 'scheduled'"
             .' AND next_follow_up_date <= ?'
             .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?';
@@ -270,12 +300,19 @@ class MeetingsController extends AccountBaseController
                 ? $requestedTab
                 : ($attendanceFilter ? 'past' : 'upcoming');
 
-            $perPage = max(3, min(60, (int) $request->get('per_page', 9)));
+            // The page sizes itself to the browser window, and leaves the
+            // size it settled on in a cookie. Reading it here means a cold
+            // load already arrives at the right length instead of always
+            // spending a second request to correct a guessed default.
+            $hinted = (int) $request->cookie('hibarr_meetings_per_page_hint', 0);
+            $default = $hinted > 0 ? $hinted : 9;
+
+            $perPage = max(3, min(60, (int) $request->get('per_page', $default)));
 
             $listQuery = MeetingVisibilityService::scopeVisibleToUser(
                 DealFollowUp::with($eagerLoads),
                 $userId
-            );
+            )->when($nextUpIds, fn ($q) => $q->whereNotIn('id', $nextUpIds));
 
             // Upcoming/Live read forwards (soonest first); Past and All read
             // backwards (most recent first).
@@ -318,32 +355,8 @@ class MeetingsController extends AccountBaseController
         // Append effective_duration and resolve participant users for each record
         $paginators = array_filter([$meetings, $upcomingMeetings, $pastMeetings]);
 
-        $allUserIds = collect();
         foreach ($paginators as $paginator) {
-            $paginator->getCollection()->each(function ($followUp) use (&$allUserIds) {
-                if (! empty($followUp->participants)) {
-                    $allUserIds = $allUserIds->merge($followUp->participants);
-                }
-            });
-        }
-
-        // Batch-load all participant users in one query
-        $participantUsers = User::whereIn('id', $allUserIds->unique()->values())
-            ->get(['id', 'name', 'image', 'email'])
-            ->keyBy('id');
-
-        foreach ($paginators as $paginator) {
-            $paginator->getCollection()->transform(function ($followUp) use ($participantUsers) {
-                $followUp->effective_duration = $followUp->getEffectiveDuration();
-                // Resolve participant IDs to user data for MultiUserIndicator
-                $followUp->participant_users = collect($followUp->participants ?? [])
-                    ->map(fn ($id) => $participantUsers->get($id))
-                    ->filter()
-                    ->values()
-                    ->toArray();
-
-                return $followUp;
-            });
+            DealFollowUp::attachParticipantUsers($paginator->getCollection());
         }
 
         // ── User's deals & leads for "Schedule Meeting" ────────────────
@@ -382,6 +395,16 @@ class MeetingsController extends AccountBaseController
             $props['tabCounts'] = $tabCounts;
             $props['activeTab'] = $activeTab;
 
+            // Separates "you have never booked a meeting" from "you have no
+            // meetings *left*", which read very differently on an empty list.
+            // Only costs a query when the list came back empty; a non-empty
+            // page has already answered the question.
+            $props['hasAnyMeetings'] = $meetings->total() > 0
+                || MeetingVisibilityService::scopeVisibleToUser(
+                    DealFollowUp::query(),
+                    $userId
+                )->exists();
+
             // Filter-modal chrome. All three are deferred: the modal is closed
             // on first paint, the facet counts are several GROUP BY queries,
             // and none of it is needed to render the list.
@@ -390,6 +413,15 @@ class MeetingsController extends AccountBaseController
                 fn () => app(MeetingFilterFacetsService::class)->facets($userId)
             );
             $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser($userId));
+
+            // The "next up" cards above the list. Deliberately NOT filtered
+            // and not tab-scoped: the strip answers "what is next for me",
+            // which is a constant. Scoping it to the list's filters would
+            // empty it the moment someone looked at Past meetings, which is
+            // exactly when knowing what is next is most useful.
+            $props['upcomingSoon'] = Inertia::defer(
+                fn () => $this->upcomingSoon($nextUpIds, $eagerLoads)
+            );
 
             // The month grid is a different query over a different window, and
             // only the calendar view can show it — register it as a deferred
@@ -433,10 +465,9 @@ class MeetingsController extends AccountBaseController
     }
 
     /**
-     * Month of meetings for the calendar view, plus the people who appear in
-     * them (the "Calendar for" chips). The window is padded by a day on each
-     * side because cells are placed by the *viewer's* local date, which can
-     * pull a boundary meeting into the neighbouring month.
+     * Month of meetings for the calendar view. The window is padded by a day
+     * on each side because cells are placed by the *viewer's* local date,
+     * which can pull a boundary meeting into the neighbouring month.
      */
     private function calendarPayload(
         Carbon $month,
@@ -472,8 +503,16 @@ class MeetingsController extends AccountBaseController
             ->limit(self::CALENDAR_EVENT_LIMIT)
             ->get();
 
-        $peopleIds = collect();
-        $events = $records->map(function (DealFollowUp $followUp) use ($now, $defaultDuration, &$peopleIds) {
+        // Names for the hover card. One lookup for every person on the month's
+        // meetings, rather than a relation load per row.
+        $nameIds = $records->flatMap(fn (DealFollowUp $followUp) => array_filter(array_merge(
+            $followUp->participants ?? [],
+            [$followUp->host_id, $followUp->added_by]
+        )))->unique()->values();
+
+        $names = User::whereIn('id', $nameIds)->pluck('name', 'id');
+
+        $events = $records->map(function (DealFollowUp $followUp) use ($now, $defaultDuration, $names) {
             $duration = $followUp->getEffectiveDuration() ?: $defaultDuration;
             $start = $followUp->next_follow_up_date;
             $end = $start ? $start->copy()->addMinutes($duration) : null;
@@ -481,11 +520,6 @@ class MeetingsController extends AccountBaseController
             $live = $followUp->status === 'scheduled'
                 && $start && $start->lessThanOrEqualTo($now)
                 && $end && $end->greaterThanOrEqualTo($now);
-
-            $peopleIds = $peopleIds->merge($followUp->participants ?? []);
-            if ($followUp->added_by) {
-                $peopleIds->push($followUp->added_by);
-            }
 
             return [
                 'id' => $followUp->id,
@@ -498,28 +532,29 @@ class MeetingsController extends AccountBaseController
                 'record_name' => $followUp->deal?->name
                     ?? $followUp->lead?->client_name_salutation
                     ?? $followUp->lead?->client_name,
-                'added_by_id' => $followUp->added_by,
                 'participants' => array_values($followUp->participants ?? []),
+                // Everything below is for the hover card, which is the only
+                // place a chip's detail can be read without opening it.
+                'record_type' => $followUp->deal_id ? 'deal' : ($followUp->lead_id ? 'lead' : null),
+                'host_name' => $names[$followUp->host_id ?? $followUp->added_by] ?? null,
+                'participant_names' => collect($followUp->participants ?? [])
+                    ->map(fn ($id) => $names[$id] ?? null)
+                    ->filter()
+                    ->values()
+                    ->all(),
+                'has_link' => filled($followUp->meeting_link),
+                'agenda' => $followUp->remark
+                    ? Str::limit(strip_tags($followUp->remark), 160)
+                    : null,
+                'attendance' => $followUp->client_attended === null
+                    ? null
+                    : ($followUp->client_attended ? 'attended' : 'no_show'),
             ];
         })->values();
-
-        $people = User::whereIn('id', $peopleIds->filter()->unique()->values())
-            ->orderBy('name')
-            ->get(['id', 'name', 'image', 'email'])
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                // image_url falls back to a gravatar placeholder, which would
-                // hide the initials the chips are meant to show — so only send
-                // a photo when the user actually has one.
-                'image' => $user->image ? $user->image_url : null,
-            ])
-            ->values();
 
         return [
             'month' => $month->format('Y-m'),
             'events' => $events,
-            'people' => $people,
         ];
     }
 
@@ -606,6 +641,70 @@ class MeetingsController extends AccountBaseController
     }
 
     /**
+     * The signed-in user's own Zoho Calendar events for a month, shaped like
+     * the rows `/account/my-calendar` returns.
+     *
+     * Matching that shape is the point: the meetings calendar already renders
+     * an overlay of the viewer's other commitments, so Zoho events join it as
+     * one more type rather than as a second parallel rendering path.
+     *
+     * A failure here answers with an empty list, not an error. The month grid
+     * is useful without the overlay, and an unreachable third-party calendar
+     * must not blank a page whose subject is the CRM's own meetings.
+     */
+    public function zohoEvents(Request $request, CalendarSyncService $syncService)
+    {
+        if (! FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $month = $this->resolveCalendarMonth($request->get('month'));
+
+        // Padded a day either side for the same reason the meeting query is:
+        // cells are placed by the viewer's local date, which can pull a
+        // boundary event into the neighbouring month.
+        $rows = $syncService->listUserEvents(
+            (int) user()->id,
+            $month->copy()->startOfMonth()->subDay(),
+            $month->copy()->endOfMonth()->addDay(),
+        );
+
+        if ($rows === null) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $events = collect($rows)
+            ->map(function (array $row) {
+                // The contract carries times in two places: a flat
+                // `start`/`end` pair and a `dateandtime` object. Prefer the
+                // latter when present, since it is the one that names a zone.
+                $start = $row['dateandtime']['start'] ?? $row['start'] ?? null;
+                $end = $row['dateandtime']['end'] ?? $row['end'] ?? null;
+
+                if (! $start) {
+                    return null;
+                }
+
+                return [
+                    'id' => $row['uid'] ?? null,
+                    'title' => $row['title'] ?? null,
+                    'start' => $start,
+                    'end' => $end,
+                    'event_type' => 'zoho',
+                    'extendedProps' => [
+                        'bg_color' => '#e04c3e',
+                        'name' => $row['organizer'] ?? null,
+                    ],
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return response()->json(['success' => true, 'data' => $events]);
+    }
+
+    /**
      * The viewer's saved meeting filter views, plus anything shared with the
      * team. Shape matches the lead/task presenters, because one frontend
      * component renders all three.
@@ -630,6 +729,58 @@ class MeetingsController extends AccountBaseController
                 'updated_at' => $view->updated_at?->toIso8601String(),
             ])
             ->all();
+    }
+
+    /**
+     * Ids of the viewer's next few meetings, soonest first — what the cards
+     * above the list will show, and therefore what the list leaves out.
+     *
+     * Deliberately unfiltered and not tab-scoped: the strip answers "what is
+     * next for me", which is a constant. Scoping it to the list's filters
+     * would empty it the moment someone looked at Past meetings, which is
+     * exactly when knowing what is next is most useful.
+     *
+     * @return array<int, int>
+     */
+    private function upcomingSoonIds(int $userId, callable $scopeUpcoming): array
+    {
+        return MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::query(),
+            $userId
+        )
+            ->where($scopeUpcoming)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('next_follow_up_date', 'asc')
+            ->limit(self::UPCOMING_SOON_LIMIT)
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * The cards themselves, for ids `upcomingSoonIds()` already settled on.
+     *
+     * Loading by id rather than re-running the window query is what keeps the
+     * strip and the list in agreement: the list excluded exactly these rows,
+     * so re-deriving them here could only introduce a disagreement.
+     *
+     * @param  array<int, int>  $ids
+     * @param  array<int, string>  $eagerLoads
+     * @return array<int, \App\Models\DealFollowUp>
+     */
+    private function upcomingSoon(array $ids, array $eagerLoads): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $records = DealFollowUp::with($eagerLoads)
+            ->whereIn('id', $ids)
+            ->orderBy('next_follow_up_date', 'asc')
+            ->get();
+
+        DealFollowUp::attachParticipantUsers($records);
+
+        return $records->values()->all();
     }
 
     /**
@@ -684,15 +835,12 @@ class MeetingsController extends AccountBaseController
             'deal.currency:id,currency_symbol',
             'lead:id,client_name,salutation,company_name',
             'addedBy:id,name,image',
+            'host:id,name,image',
             'meetingType',
             'meetingSummary',
         ]);
 
-        $followUp->effective_duration = $followUp->getEffectiveDuration();
-        $followUp->participant_users = User::whereIn('id', $followUp->participants ?? [])
-            ->get(['id', 'name', 'image', 'email'])
-            ->values()
-            ->toArray();
+        DealFollowUp::attachParticipantUsers(collect([$followUp]));
 
         return response()->json([
             'success' => true,

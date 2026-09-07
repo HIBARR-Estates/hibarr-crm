@@ -19,13 +19,13 @@ import type { MeetingBucket } from "../adapters/meetingViewModel";
  * at a breakpoint has to drop out of the header at the same one.
  */
 export const MEETING_COLUMNS = {
-    when: { width: 132, className: "" },
-    related: { width: 220, className: "hidden lg:block" },
-    platform: { width: 120, className: "hidden xl:block" },
-    people: { width: 92, className: "hidden sm:block" },
-    link: { width: 128, className: "hidden md:block" },
-    /** The row menu's own button, so the header can reserve the same space. */
-    actions: { width: 32, className: "" },
+    /** Clock time only; the date is carried by the day separator above. */
+    time: { width: 96, className: "" },
+    type: { width: 150, className: "hidden lg:block" },
+    status: { width: 120, className: "hidden sm:block" },
+    people: { width: 168, className: "hidden md:block" },
+    /** Join button + the row menu's own button. */
+    actions: { width: 92, className: "" },
 } as const;
 
 interface MeetingRowProps {
@@ -42,7 +42,16 @@ interface MeetingRowProps {
     onToggleSelect: () => void;
 }
 
-/** The list layout of a meeting — same content as `MeetingCard`, one line tall. */
+/**
+ * One meeting as a table row.
+ *
+ * Ordered by what actually tells rows apart: the record the meeting is with
+ * leads (with its pipeline stage and contact, since a bare deal name repeats
+ * across a page of meetings), the meeting type with its summary once one
+ * exists, the outcome — scheduled, live, cancelled, held, no-show — and the
+ * people on it. The platform gets a colored chip rather than a bare glyph so
+ * a page of rows can be scanned by provider color alone.
+ */
 export default function MeetingRow({
     meeting,
     bucket,
@@ -60,17 +69,19 @@ export default function MeetingRow({
     const {
         live,
         past,
-        month,
-        day,
-        weekday,
         timeRange,
         title,
         platformLabel,
         platformIcon,
+        platformChipColor: chipColor,
         record,
+        stage,
         summaryState,
         showJoin,
         participants,
+        participantNames,
+        stateChip,
+        stateSubtext,
         actions,
     } = useMeetingPresentation({
         meeting,
@@ -83,12 +94,24 @@ export default function MeetingRow({
         onReport,
     });
 
+    const [startLabel] = timeRange.split(" – ");
+    const minutes = meeting.duration ?? meeting.effective_duration ?? 30;
+    const durationLabel =
+        minutes >= 60
+            ? `${Math.round((minutes / 60) * 10) / 10}${td("h")}`
+            : `${minutes}${td("m")}`;
+
+    const stageAccent = stage?.color?.trim() || T.BLUE;
+
     return (
         <div
-            className="dr-meeting-row flex cursor-pointer items-center gap-4 px-4"
+            className="dr-meeting-row flex cursor-pointer items-center gap-4 px-4 py-2"
             onClick={onView}
             style={{
-                minHeight: 64,
+                // Tall enough for two two-line columns (record + subtitle,
+                // status pill + countdown) at once — a fixed 64px clipped
+                // whichever of the two ran long.
+                minHeight: 76,
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 background: selected ? T.BLUE_LIGHT : undefined,
                 // A live meeting is flagged by a rail rather than a full
@@ -102,176 +125,225 @@ export default function MeetingRow({
                 label={td("Select meeting")}
             />
 
-            {/* Date + time — fixed width so every row's title starts in line. */}
+            {/* Start time and how long it runs. The day is above, not here. */}
             <div
                 className="shrink-0"
-                style={{
-                    width: MEETING_COLUMNS.when.width,
-                    color: past ? T.TEXT_HINT : T.TEXT_MUTED,
-                }}
+                style={{ width: MEETING_COLUMNS.time.width }}
             >
                 <div
                     className="font-semibold"
                     style={{
                         fontSize: 13,
                         color: past ? T.TEXT_MUTED : T.TEXT,
+                        fontVariantNumeric: "tabular-nums",
                     }}
                 >
-                    {weekday} {day} {month}
+                    {startLabel}
                 </div>
-                <div style={{ fontSize: 12 }}>{timeRange}</div>
+                <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                    {durationLabel}
+                </div>
             </div>
 
+            {/* Platform chip — the provider's own color, so a page of rows
+                can be scanned by color alone rather than reading each glyph. */}
             <span
                 aria-hidden="true"
-                className="flex shrink-0"
-                style={{ color: T.TEXT_MUTED }}
+                title={platformLabel}
+                className="flex shrink-0 items-center justify-center"
+                style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: R.MD,
+                    background: chipColor,
+                    color: T.WHITE,
+                }}
             >
-                <Icon name={platformIcon} size={15} />
+                <Icon name={platformIcon} size={14} />
             </span>
 
-            {/* Title + record. The record is the second line on narrow
-                screens, where there is no room for its own column. */}
+            {/* The type + who it's with is what makes a row identifiable, so
+                it leads; the record itself is one click away just below. */}
             <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-center gap-1.5">
                     <span
-                        className="truncate font-semibold"
+                        className="min-w-0 truncate font-semibold"
                         style={{ fontSize: 14, color: T.TEXT }}
                     >
                         {title}
+                        {record && (
+                            <>
+                                {" "}
+                                {td("with")} {td(record.name)}
+                            </>
+                        )}
                     </span>
-                    {live && (
+                    {stage && (
                         <span
-                            className="inline-flex shrink-0 animate-pulse items-center gap-1.5 font-semibold"
+                            className="shrink-0 font-semibold"
                             style={{
-                                fontSize: 11,
-                                color: T.RED,
-                                background: T.RED_SOFT,
-                                border: `1px solid ${T.RED_MID}`,
+                                fontSize: 10.5,
+                                color: stageAccent,
+                                background: `${stageAccent}18`,
+                                border: `1px solid ${stageAccent}44`,
                                 borderRadius: R.FULL,
-                                padding: "1px 8px",
+                                padding: "1.5px 8px",
                             }}
                         >
+                            {td(stage.name, { source: "en" })}
+                        </span>
+                    )}
+                </div>
+                <div
+                    className="truncate"
+                    style={{ fontSize: 12, color: T.TEXT_MUTED }}
+                >
+                    {record ? (
+                        <button
+                            type="button"
+                            className="dr-meeting-record truncate"
+                            style={{ fontSize: 12, color: T.NAVY }}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                if (record.href) router.visit(record.href);
+                            }}
+                        >
+                            {td(record.name)}
+                        </button>
+                    ) : (
+                        <span className="lg:hidden">{platformLabel}</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Meeting type, and — once one exists — a link straight to the
+                summary, so it doesn't need its own column. */}
+            <div
+                className={`min-w-0 shrink-0 ${MEETING_COLUMNS.type.className}`}
+                style={{ width: MEETING_COLUMNS.type.width }}
+            >
+                <div
+                    className="truncate"
+                    style={{ fontSize: 13, color: T.TEXT_MUTED }}
+                >
+                    {title}
+                </div>
+                {summaryState === "ready" && (
+                    <button
+                        type="button"
+                        className="dr-meeting-link inline-flex items-center gap-1 font-semibold"
+                        style={{ fontSize: 11.5, color: T.GREEN }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onView();
+                        }}
+                    >
+                        <Icon name="file-text" size={11} />
+                        {td("Summary")}
+                    </button>
+                )}
+                {summaryState === "generating" && (
+                    <span
+                        className="inline-flex items-center gap-1 animate-pulse"
+                        style={{ fontSize: 11.5, color: T.TEXT_HINT }}
+                    >
+                        {td("Generating…")}
+                    </span>
+                )}
+            </div>
+
+            {/* Scheduled / live / cancelled / held / no-show. */}
+            <div
+                className={`shrink-0 ${MEETING_COLUMNS.status.className}`}
+                style={{ width: MEETING_COLUMNS.status.width }}
+            >
+                {stateChip && (
+                    <span
+                        className={`inline-flex items-center gap-1.5 font-semibold${
+                            stateChip.pulse ? " animate-pulse" : ""
+                        }`}
+                        style={{
+                            fontSize: 11.5,
+                            color: stateChip.color,
+                            background: stateChip.bg,
+                            border: `1px solid ${stateChip.border}`,
+                            borderRadius: R.FULL,
+                            padding: "3px 10px",
+                        }}
+                    >
+                        {stateChip.pulse && (
                             <span
                                 className="rounded-full"
                                 style={{
                                     width: 5,
                                     height: 5,
-                                    background: T.RED,
+                                    background: stateChip.color,
                                 }}
                             />
-                            {t("pages.meetings.card.live")}
-                        </span>
-                    )}
-                </div>
-                <div
-                    className="truncate lg:hidden"
-                    style={{ fontSize: 12, color: T.TEXT_MUTED }}
-                >
-                    {record ? td(record.name) : platformLabel}
-                </div>
-            </div>
-
-            <div
-                className={`min-w-0 shrink-0 ${MEETING_COLUMNS.related.className}`}
-                style={{ width: MEETING_COLUMNS.related.width }}
-            >
-                {record ? (
-                    <button
-                        type="button"
-                        className="dr-meeting-record block max-w-full truncate text-left font-semibold"
-                        style={{ fontSize: 13, color: T.BLUE }}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            if (record.href) router.visit(record.href);
+                        )}
+                        {stateChip.label}
+                    </span>
+                )}
+                {stateSubtext && (
+                    <div
+                        className="truncate"
+                        style={{
+                            fontSize: 11,
+                            color: T.TEXT_HINT,
+                            marginTop: 3,
+                            marginLeft: 2,
                         }}
                     >
-                        {td(record.name)}
-                    </button>
-                ) : (
-                    <span style={{ fontSize: 13, color: T.TEXT_HINT }}>
-                        {t("pages.meetings.card.no_deal")}
-                    </span>
+                        {td(stateSubtext)}
+                    </div>
                 )}
             </div>
 
+            {/* Names, not anonymous circles — a list has room for words. */}
             <div
-                className={`shrink-0 truncate ${MEETING_COLUMNS.platform.className}`}
-                style={{
-                    width: MEETING_COLUMNS.platform.width,
-                    fontSize: 12,
-                    color: T.TEXT_MUTED,
-                }}
-            >
-                {platformLabel}
-            </div>
-
-            <div
-                className={`shrink-0 ${MEETING_COLUMNS.people.className}`}
+                className={`min-w-0 shrink-0 items-center gap-2 ${MEETING_COLUMNS.people.className} md:flex`}
                 style={{ width: MEETING_COLUMNS.people.width }}
             >
                 {participants.length > 0 ? (
-                    <AvatarStack people={participants} />
+                    <>
+                        <AvatarStack people={participants} />
+                        <span
+                            className="min-w-0 flex-1 truncate"
+                            style={{ fontSize: 12, color: T.TEXT_MUTED }}
+                        >
+                            {participantNames}
+                        </span>
+                    </>
                 ) : (
-                    <span
-                        className="inline-flex items-center gap-1"
-                        style={{ fontSize: 12, color: T.TEXT_HINT }}
-                    >
-                        <Icon name="user" size={13} />
-                        {"—"}
+                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
+                        {t("pages.meetings.card.no_participants")}
                     </span>
                 )}
             </div>
 
             <div
-                className={`shrink-0 text-right ${MEETING_COLUMNS.link.className}`}
-                style={{ width: MEETING_COLUMNS.link.width }}
+                className="flex shrink-0 items-center justify-end gap-1.5"
+                style={{ width: MEETING_COLUMNS.actions.width }}
                 onClick={(event) => event.stopPropagation()}
             >
-                {summaryState === "ready" && (
-                    <button
-                        type="button"
-                        className="dr-meeting-link inline-flex items-center gap-1.5 font-semibold"
-                        style={{ fontSize: 12, color: T.GREEN }}
-                        onClick={onView}
-                    >
-                        <Icon name="file-text" size={13} />
-                        {t("pages.meetings.card.view_summary")}
-                    </button>
-                )}
-                {summaryState === "generating" && (
-                    <span
-                        className="truncate font-semibold"
-                        style={{
-                            fontSize: 11,
-                            color: T.AMBER,
-                            background: T.AMBER_BANNER,
-                            border: `1px solid ${T.AMBER_MID}`,
-                            borderRadius: R.FULL,
-                            padding: "2px 9px",
-                        }}
-                    >
-                        {t("pages.meetings.card.generating_summary")}
-                    </span>
-                )}
-                {summaryState !== "ready" && showJoin && (
+                {showJoin && summaryState !== "ready" && (
                     <a
                         href={meeting.meeting_link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="dr-meeting-link inline-flex items-center gap-1.5 font-semibold"
-                        style={{ fontSize: 12, color: T.BLUE }}
+                        className="font-semibold"
+                        style={{
+                            fontSize: 11.5,
+                            color: T.WHITE,
+                            background: live ? T.RED : T.BLUE,
+                            borderRadius: R.MD,
+                            padding: "5px 10px",
+                            whiteSpace: "nowrap",
+                        }}
                     >
-                        <Icon name="video" size={13} />
-                        {t("pages.meetings.card.actions.join_meeting")}
+                        {td("Join")}
                     </a>
                 )}
-            </div>
-
-            <div
-                className="shrink-0"
-                onClick={(event) => event.stopPropagation()}
-            >
                 <RowActionMenu
                     actions={actions}
                     ariaLabel={td("Meeting actions")}

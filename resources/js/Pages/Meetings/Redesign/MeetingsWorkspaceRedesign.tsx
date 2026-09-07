@@ -16,7 +16,12 @@ import MeetingsBulkBar from "./components/MeetingsBulkBar";
 import MeetingsEditDialog from "./components/MeetingsEditDialog";
 import MeetingsReportDialog from "./components/MeetingsReportDialog";
 import MeetingsResultsView from "./components/MeetingsResultsView";
-import MeetingsCalendarView from "./components/MeetingsCalendarView";
+import MeetingsUpcomingStrip from "./components/MeetingsUpcomingStrip";
+import MeetingsCalendarView, {
+    chipTone,
+    type CalendarDayBuckets,
+} from "./components/MeetingsCalendarView";
+import MeetingsDayDialog from "./components/MeetingsDayDialog";
 import MeetingsCalendarSkeleton from "./components/MeetingsCalendarSkeleton";
 import MeetingsScheduleDialog from "./components/MeetingsScheduleDialog";
 import MeetingsDetailDialog, {
@@ -24,10 +29,13 @@ import MeetingsDetailDialog, {
 } from "./components/MeetingsDetailDialog";
 import useMeetingsViewNavigation from "./hooks/useMeetingsViewNavigation";
 import useUserCalendarEvents from "./hooks/useUserCalendarEvents";
-import useAutoGridPageSize from "./hooks/useAutoGridPageSize";
+import useZohoCalendarEvents from "./hooks/useZohoCalendarEvents";
+import useAutoGridPageSize, {
+    type AutoGridLayout,
+} from "./hooks/useAutoGridPageSize";
 import useMeetingsServerPagination from "./hooks/useMeetingsServerPagination";
 import useMeetingRecord from "./hooks/useMeetingRecord";
-import { isListLikeView, type MeetingsTab } from "./adapters/meetingViewModel";
+import { type MeetingsTab } from "./adapters/meetingViewModel";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { MeetingsRedesignPageProps } from "../Index";
 
@@ -44,6 +52,50 @@ const LIST_PROPS = ["meetings", "tabCounts", "activeTab"];
  */
 const PER_PAGE_STORAGE_KEY = "hibarr_meetings_per_page";
 
+/**
+ * Cookie the server reads on a cold page load to size the first page to the
+ * window. A cookie rather than localStorage precisely because the server has
+ * to see it before any JS has run.
+ */
+const PAGE_SIZE_HINT_COOKIE = "hibarr_meetings_per_page_hint";
+
+function rememberPageSizeHint(size: number): void {
+    try {
+        document.cookie = `${PAGE_SIZE_HINT_COOKIE}=${size}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+        // A hint is a nicety; a browser refusing cookies just means the page
+        // sizes itself on the second request, as it did before.
+    }
+}
+
+/**
+ * "Next up" cards are optional — on by default, remembered per browser.
+ *
+ * A cookie rather than localStorage because the *server* needs it: whatever
+ * the strip shows is left out of the list so a meeting is never on the page
+ * twice, which makes this preference part of the query.
+ */
+const NEXT_UP_COOKIE = "hibarr_meetings_next_up";
+
+function readStripVisible(): boolean {
+    try {
+        return !document.cookie
+            .split("; ")
+            .some((entry) => entry === `${NEXT_UP_COOKIE}=0`);
+    } catch {
+        // Blocked storage — showing them is the friendlier default.
+        return true;
+    }
+}
+
+function writeStripVisible(visible: boolean): void {
+    try {
+        document.cookie = `${NEXT_UP_COOKIE}=${visible ? "1" : "0"}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+        // As above — the toggle still works for this render either way.
+    }
+}
+
 function readStoredPageSize(): number | null {
     try {
         const stored = Number(localStorage.getItem(PER_PAGE_STORAGE_KEY));
@@ -54,8 +106,16 @@ function readStoredPageSize(): number | null {
 }
 
 /** Heights the auto page size measures with, per layout. */
-const CARD_METRICS = { itemHeight: 186, gap: 16, columns: [0, 640, 1024] };
-const ROW_METRICS = { itemHeight: 64, gap: 0, columns: [0] };
+/** The layout the page is drawn in, measured so the pager stays on screen. */
+const LIST_LAYOUTS: AutoGridLayout[] = [
+    // Rows: always one column, no gap between them. Measured a little taller
+    // than a row actually is, to pay for the day separators between them —
+    // over-estimating costs a row of whitespace, under-estimating costs a
+    // pager below the fold. The table row carries two two-line columns (the
+    // record + its subtitle, the status pill + its countdown), so this has to
+    // clear that, not the old single-line row's height.
+    { itemHeight: 84, gap: 0, columnBreakpoints: [0] },
+];
 
 export default function MeetingsWorkspaceRedesign() {
     const { props } = usePage<MeetingsRedesignPageProps>();
@@ -66,12 +126,21 @@ export default function MeetingsWorkspaceRedesign() {
         filterPeople,
         calendarMeetings,
         calendarRequestedMonth,
+        upcomingSoon,
+        hasAnyMeetings,
         userDeals,
         userLeads,
         meetingTypes,
         permissions,
     } = props;
     const userId = props.auth.user?.id;
+    // The Zoho Calendar overlay is announced but not built. It is shown only
+    // to HIBARR staff, as a disabled "coming soon" chip — so the team can see
+    // it landing without it reaching customers as a control that does
+    // nothing. Drop the domain test once the integration actually works.
+    const zohoAvailable = (props.auth.user?.email ?? "")
+        .toLowerCase()
+        .endsWith("@hibarr.de");
 
     const { t } = useTranslation();
     const {
@@ -79,8 +148,6 @@ export default function MeetingsWorkspaceRedesign() {
         setView,
         calendarMonth,
         setCalendarMonth,
-        calendarPersonId,
-        setCalendarPersonId,
         overlayTypes,
         toggleOverlayType,
     } = useMeetingsViewNavigation();
@@ -88,9 +155,22 @@ export default function MeetingsWorkspaceRedesign() {
     // The viewer's own tasks/events/tickets/leave for the shown month, from
     // the endpoint the legacy My Calendar page already uses. Fetched only
     // while the calendar is open, so the list views never ask for it.
-    const { events: overlayEvents } = useUserCalendarEvents(
+    const { events: crmOverlayEvents } = useUserCalendarEvents(
         calendarMonth,
         view === "calendar",
+    );
+
+    // The viewer's connected Zoho Calendar, in the same row shape, fetched
+    // only while the calendar is open and only while that toggle is on — a
+    // third-party round trip nobody asked to see is a round trip not worth
+    // making.
+    // Disabled outright while the toggle is a placeholder: an announcement
+    // should not be quietly calling a third-party API behind the chip.
+    const { events: zohoEvents } = useZohoCalendarEvents(calendarMonth, false);
+
+    const overlayEvents = useMemo(
+        () => [...crmOverlayEvents, ...zohoEvents],
+        [crmOverlayEvents, zohoEvents],
     );
 
     const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -105,6 +185,26 @@ export default function MeetingsWorkspaceRedesign() {
     const [editing, setEditing] = useState<DealFollowup | null>(null);
     /** Meeting whose follow-up report is being written, if any. */
     const [reporting, setReporting] = useState<DealFollowup | null>(null);
+    const [stripVisible, setStripVisible] = useState<boolean>(readStripVisible);
+    /** Day whose "+N more" was opened, and the grid's grouped days. */
+    const [openDay, setOpenDay] = useState<{
+        key: string;
+        label: string;
+    } | null>(null);
+    const [dayBuckets, setDayBuckets] = useState<CalendarDayBuckets>({
+        meetings: new Map(),
+        overlay: new Map(),
+    });
+
+    // Hiding the strip has to give its meetings back to the list, and showing
+    // it has to take them away again — both are server-side, so the toggle
+    // re-reads the list rather than only flipping a local flag.
+    const toggleStrip = () => {
+        const next = !stripVisible;
+        writeStripVisible(next);
+        setStripVisible(next);
+        router.reload({ only: [...LIST_PROPS, "upcomingSoon"] });
+    };
 
     /** A row's menu picks the modal; a calendar chip always opens the detail. */
     const openDetail = useCallback(
@@ -175,28 +275,52 @@ export default function MeetingsWorkspaceRedesign() {
         });
 
     // ── Page size ──────────────────────────────────────────────────────
-    // A page of meetings is as long as the window can show. Anything else
-    // either cuts the last card in half on a laptop or leaves a band of
-    // white on a tall monitor, and both make the pager feel arbitrary.
+    // A page of meetings is as long as the window can show — no half-visible
+    // last card on a laptop, no band of white on a tall monitor, and the
+    // pager always in view rather than somewhere below the fold.
     const [pinnedPageSize, setPinnedPageSize] = useState<number | null>(
         readStoredPageSize,
     );
     const resultsRef = useRef<HTMLDivElement>(null);
-    const metrics = view === "list" ? ROW_METRICS : CARD_METRICS;
-
+    /** Last size actually asked of the server, so it is never asked twice. */
+    const requestedPageSizeRef = useRef<number | null>(null);
     const autoPageSize = useAutoGridPageSize({
-        enabled: pinnedPageSize === null && isListLikeView(view),
+        // Held back until the "next up" cards have landed and taken their
+        // vertical space. Measuring before that reads a taller list than
+        // there will be, and then corrects itself a second time once the
+        // cards push it down — two requests and a visible reflow for a
+        // number that could have been right the first time.
+        enabled:
+            pinnedPageSize === null &&
+            view === "list" &&
+            (!stripVisible || upcomingSoon !== undefined),
         anchorRef: resultsRef,
-        itemHeight: metrics.itemHeight,
-        gap: metrics.gap,
-        columnBreakpoints: metrics.columns,
+        layouts: LIST_LAYOUTS,
         minRows: 2,
     });
 
     useEffect(() => {
         if (autoPageSize === null) return;
+
+        // Tell the server what fits, so the *next* first paint arrives at the
+        // right size instead of always costing a second request. Read back in
+        // MeetingsController::index() when the URL names no per_page.
+        rememberPageSizeHint(autoPageSize);
+
+        // Applied in both directions. A page longer than the window is the
+        // one outcome worth spending a request to correct: it pushes the
+        // pager off screen, so changing page means scrolling to find it
+        // first. Resizes are debounced, so dragging a window costs one
+        // request when it settles, not one per frame.
         if (autoPageSize === meetings.per_page) return;
-        changePageSize(autoPageSize);
+
+        // Asked for once per settled size. Without this, a response that the
+        // server clamps to something else would be re-requested on every
+        // render, which is a request loop rather than a correction.
+        if (requestedPageSizeRef.current === autoPageSize) return;
+        requestedPageSizeRef.current = autoPageSize;
+
+        changePageSize(autoPageSize, { silent: true });
     }, [autoPageSize, meetings.per_page, changePageSize]);
 
     const pinPageSize = (size: number) => {
@@ -245,7 +369,14 @@ export default function MeetingsWorkspaceRedesign() {
         requestedMonthRef.current = calendarMonth;
         router.reload({
             only: ["calendarMeetings"],
-            data: { view: "calendar", cal_month: calendarMonth },
+            // Merged, not replaced: `data` on its own would send the month
+            // without the active filters, and the server would answer with an
+            // unfiltered month — the calendar quietly showing more than the
+            // list beside it.
+            data: mergeQueryParams({
+                view: "calendar",
+                cal_month: calendarMonth,
+            }),
             onStart: () => setCalendarLoading(true),
             onFinish: () => setCalendarLoading(false),
         });
@@ -260,16 +391,21 @@ export default function MeetingsWorkspaceRedesign() {
         [view],
     );
 
-    const reloadList = useCallback(() => {
-        requestedMonthRef.current = null;
-        router.reload({
-            only: refreshProps,
-            data:
+    /** Current query string plus the calendar's month, so filters survive. */
+    const reloadParams = useCallback(
+        () =>
+            mergeQueryParams(
                 view === "calendar"
                     ? { view: "calendar", cal_month: calendarMonth }
                     : {},
-        });
-    }, [refreshProps, view, calendarMonth]);
+            ),
+        [view, calendarMonth],
+    );
+
+    const reloadList = useCallback(() => {
+        requestedMonthRef.current = null;
+        router.reload({ only: refreshProps, data: reloadParams() });
+    }, [refreshProps, reloadParams]);
 
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: () =>
@@ -277,10 +413,7 @@ export default function MeetingsWorkspaceRedesign() {
                 requestedMonthRef.current = null;
                 router.reload({
                     only: refreshProps,
-                    data:
-                        view === "calendar"
-                            ? { view: "calendar", cal_month: calendarMonth }
-                            : {},
+                    data: reloadParams(),
                     onFinish: () => resolve(),
                 });
             }),
@@ -300,7 +433,7 @@ export default function MeetingsWorkspaceRedesign() {
             <MeetingsHeader
                 view={view}
                 onViewChange={setView}
-                showTabs={isListLikeView(view)}
+                showTabs={view === "list"}
                 tab={activeTab}
                 onTabChange={(tab: MeetingsTab) =>
                     visitList({ tab, page: null })
@@ -310,6 +443,8 @@ export default function MeetingsWorkspaceRedesign() {
                 refreshing={isRefreshing}
                 onSchedule={() => openSchedule()}
                 canSchedule={canSchedule}
+                stripVisible={stripVisible}
+                onToggleStrip={toggleStrip}
                 filtersCount={activeFilterCount}
                 onOpenFilters={openDrawer}
                 filtersLabel={t("app.filter")}
@@ -331,7 +466,21 @@ export default function MeetingsWorkspaceRedesign() {
                 className="mx-auto w-full max-w-screen-2xl px-6 py-6"
                 style={{ fontFamily: REDESIGN_FONT_STACK }}
             >
-                {isListLikeView(view) && (
+                {view === "list" && stripVisible && (
+                    <MeetingsUpcomingStrip
+                        meetings={upcomingSoon}
+                        permissions={permissions}
+                        userId={userId}
+                        onView={(m) => openDetail(m, "view")}
+                        onEdit={(m) => setEditing(m)}
+                        onDelete={(m) => openDetail(m, "delete")}
+                        onReport={(m) => setReporting(m)}
+                        onSchedule={() => openSchedule()}
+                        canSchedule={canSchedule}
+                    />
+                )}
+
+                {view === "list" && (
                     <MeetingsBulkBar
                         selectedIds={selectedIds}
                         clearSelection={clearSelection}
@@ -341,10 +490,9 @@ export default function MeetingsWorkspaceRedesign() {
                     />
                 )}
 
-                {isListLikeView(view) ? (
+                {view === "list" ? (
                     <MeetingsResultsView
                         ref={resultsRef}
-                        layout={view === "list" ? "list" : "cards"}
                         meetings={meetings}
                         tab={activeTab}
                         permissions={permissions}
@@ -361,21 +509,27 @@ export default function MeetingsWorkspaceRedesign() {
                         onToggleSelect={toggleSelect}
                         onToggleAll={toggleGroupSelection}
                         isPaging={isPaging}
+                        onSchedule={() => openSchedule()}
+                        canSchedule={canSchedule}
+                        hasAnyMeetings={hasAnyMeetings}
+                        allInCards={
+                            meetings.total === 0 && tabCounts[activeTab] > 0
+                        }
                     />
                 ) : calendarMeetings && calendarReady && !calendarLoading ? (
                     <MeetingsCalendarView
                         data={calendarMeetings}
-                        personId={calendarPersonId}
-                        onPersonChange={setCalendarPersonId}
                         onMonthChange={setCalendarMonth}
                         overlayEvents={overlayEvents}
                         visibleOverlayTypes={overlayTypes}
                         onToggleOverlayType={toggleOverlayType}
-                        currentUserId={userId}
+                        zohoAvailable={zohoAvailable}
                         onSelectMeeting={(meetingId) => {
                             setDetailAction("view");
                             detail.open(meetingId);
                         }}
+                        onOpenDay={setOpenDay}
+                        onBuckets={setDayBuckets}
                         onCreateAt={
                             canSchedule
                                 ? (dayKey) =>
@@ -403,6 +557,7 @@ export default function MeetingsWorkspaceRedesign() {
 
             <MeetingsDetailDialog
                 meeting={detail.meeting}
+                loading={detail.loading}
                 action={detailAction}
                 permissions={permissions}
                 userId={userId}
@@ -420,6 +575,35 @@ export default function MeetingsWorkspaceRedesign() {
                 meetingTypes={meetingTypes}
                 onClose={() => setEditing(null)}
                 onSaved={reloadList}
+            />
+
+            <MeetingsDayDialog
+                day={openDay}
+                meetings={
+                    openDay ? (dayBuckets.meetings.get(openDay.key) ?? []) : []
+                }
+                overlay={
+                    openDay ? (dayBuckets.overlay.get(openDay.key) ?? []) : []
+                }
+                toneOf={chipTone}
+                onClose={() => setOpenDay(null)}
+                onSelectMeeting={(meetingId) => {
+                    setOpenDay(null);
+                    setDetailAction("view");
+                    detail.open(meetingId);
+                }}
+                onCreate={
+                    canSchedule && openDay
+                        ? () => {
+                              const day = openDay;
+                              setOpenDay(null);
+                              openSchedule({
+                                  date: day.key,
+                                  startTime: "09:00",
+                              });
+                          }
+                        : undefined
+                }
             />
 
             <MeetingsReportDialog
