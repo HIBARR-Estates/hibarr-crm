@@ -63,12 +63,44 @@ class ConditionEvaluatorServiceTest extends TestCase
 
     public function test_it_handles_date_comparisons()
     {
-        // Note: The current implementation treats dates as strings if passed as strings.
-        // Ideally we should compare timestamps if we know they are dates.
-        // But for now, let's test string comparison which works for ISO dates.
-        
         $condition = new DealAutomationCondition(['operator' => '>', 'value' => '2023-01-01']);
         $this->assertTrue($this->service->evaluate('2023-02-01', $condition));
         $this->assertFalse($this->service->evaluate('2022-12-31', $condition));
+    }
+
+    public function test_it_compares_dates_across_different_formats()
+    {
+        // A Carbon field value (as a resolver would return for a
+        // date-cast column) against a condition value typed in a different
+        // format — both normalize to a timestamp, so the comparison is
+        // correct regardless of either side's original shape.
+        $condition = new DealAutomationCondition(['operator' => '>', 'value' => '01/02/2023']); // 1 Feb 2023
+        $this->assertTrue($this->service->evaluate(Carbon::parse('2023-03-15'), $condition));
+        $this->assertFalse($this->service->evaluate(Carbon::parse('2023-01-15'), $condition));
+
+        $equals = new DealAutomationCondition(['operator' => '=', 'value' => '2023-02-01']);
+        $this->assertTrue($this->service->evaluate('01/02/2023', $equals));
+    }
+
+    public function test_it_does_not_misread_non_date_strings_as_dates()
+    {
+        // Contains a run of 4 digits but isn't a date shape — must still
+        // compare as plain strings, not get coerced into a timestamp.
+        $condition = new DealAutomationCondition(['operator' => 'contains', 'value' => '2024']);
+        $this->assertTrue($this->service->evaluate('reference-2024-a', $condition));
+
+        $equals = new DealAutomationCondition(['operator' => '=', 'value' => 'reference-2024-a']);
+        $this->assertTrue($this->service->evaluate('reference-2024-a', $equals));
+    }
+
+    public function test_it_evaluates_changed_operator_from_caller_supplied_flag()
+    {
+        $condition = new DealAutomationCondition(['operator' => 'changed', 'value' => null]);
+
+        $this->assertTrue($this->service->evaluate('anything', $condition, true));
+        $this->assertFalse($this->service->evaluate('anything', $condition, false));
+        // No fieldChanged context supplied (e.g. a non-native/custom field,
+        // or a freshly reloaded subject) — treated as false, not a guess.
+        $this->assertFalse($this->service->evaluate('anything', $condition));
     }
 }
