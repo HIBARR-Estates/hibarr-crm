@@ -542,6 +542,39 @@ class DealAutomationController extends AccountBaseController
     }
 
     /**
+     * Trigger keys valid for $subjectType — matches the frontend's
+     * TRIGGER_SUBJECT map (resources/js/Pages/Settings/Automation/shared.ts)
+     * exactly. Without this, a request could save e.g. subject_type=lead
+     * with trigger=deal_created_api; the API write paths only ever emit
+     * the trigger matching the subject they actually wrote, so a mismatched
+     * automation would silently never fire.
+     *
+     * @return array<int, string>
+     */
+    protected function allowedTriggersFor(string $subjectType): array
+    {
+        $anyTriggers = ['custom_field_updated', DealAutomation::TRIGGER_DATE_BASED];
+
+        $dealTriggers = [
+            'deal_created', 'deal_updated', 'followup_created',
+            DealAutomation::TRIGGER_DEAL_CREATED_API,
+            DealAutomation::TRIGGER_DEAL_UPDATED_API,
+        ];
+
+        $leadTriggers = [
+            'lead_created', 'lead_updated',
+            DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
+            DealAutomation::TRIGGER_LEAD_CREATED_API,
+            DealAutomation::TRIGGER_LEAD_UPDATED_API,
+        ];
+
+        return array_merge(
+            $anyTriggers,
+            $subjectType === DealAutomation::SUBJECT_LEAD ? $leadTriggers : $dealTriggers
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function validationRules(string $subjectType): array
@@ -554,16 +587,7 @@ class DealAutomationController extends AccountBaseController
             'name' => 'required|string|max:255',
             'subject_type' => ['required', Rule::in([DealAutomation::SUBJECT_DEAL, DealAutomation::SUBJECT_LEAD])],
             'pipeline_id' => 'nullable|exists:lead_pipelines,id',
-            'trigger' => ['nullable', Rule::in([
-                'deal_created', 'deal_updated', 'followup_created', 'custom_field_updated',
-                'lead_created', 'lead_updated',
-                DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
-                DealAutomation::TRIGGER_DATE_BASED,
-                DealAutomation::TRIGGER_LEAD_CREATED_API,
-                DealAutomation::TRIGGER_LEAD_UPDATED_API,
-                DealAutomation::TRIGGER_DEAL_CREATED_API,
-                DealAutomation::TRIGGER_DEAL_UPDATED_API,
-            ])],
+            'trigger' => ['nullable', Rule::in($this->allowedTriggersFor($subjectType))],
             'trigger_date_field' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', 'string'],
             'trigger_date_recurrence' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', Rule::in(array_keys(AutomationFieldCatalog::DATE_RECURRENCES))],
             'wait_duration_value' => 'nullable|integer|min:1|max:3650',
@@ -700,6 +724,10 @@ class DealAutomationController extends AccountBaseController
             'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_DATE_BASED,
+            DealAutomation::TRIGGER_LEAD_CREATED_API,
+            DealAutomation::TRIGGER_LEAD_UPDATED_API,
+            DealAutomation::TRIGGER_DEAL_CREATED_API,
+            DealAutomation::TRIGGER_DEAL_UPDATED_API,
         ], true));
 
         abort_403($request->filled('wait_duration_value'));
