@@ -193,6 +193,26 @@ class DealObserver
             }
         }
 
+        // Commission lock is narrower than is_locked: only the agent and
+        // value-feeding columns are reverted. Name/stage/notes and the
+        // outcome revert path (outcome_status, won_at, commission_locked)
+        // stay writable.
+        if ($deal->getOriginal('commission_locked') && ! $deal->isDirty('commission_locked')) {
+            $protected = array_merge(['agent_id'], Deal::VALUE_AFFECTING_KEYS);
+            $blocked = [];
+
+            foreach ($protected as $field) {
+                if ($deal->isDirty($field)) {
+                    $deal->{$field} = $deal->getOriginal($field);
+                    $blocked[] = $field;
+                }
+            }
+
+            if ($blocked !== []) {
+                \Log::warning("DealObserver: Attempted to modify commission-locked deal {$deal->id}. Blocked fields: ".implode(', ', $blocked));
+            }
+        }
+
         if ($deal->isDirty('pipeline_stage_id')) {
             self::createDealHistory($deal->id, 'stage-updated', agentId: $deal->agent_id, stageFromId: $deal->getOriginal('pipeline_stage_id'), stageToId: $deal->pipeline_stage_id);
         }
@@ -656,13 +676,23 @@ class DealObserver
 
     private function createClient($deal)
     {
+        // API and queue contexts have no authenticated user, and company()/user()
+        // return false there - reading ->id off that raises "Attempt to read
+        // property on false". Creating a client account needs both, so skip
+        // rather than fatal on every API-driven deal save.
+        $company = company();
+        $currentUser = user();
 
-        $stage = PipelineStage::where('company_id', company()->id)->where('slug', 'win')->first();
+        if (! $company || ! $currentUser) {
+            return;
+        }
+
+        $stage = PipelineStage::where('company_id', $company->id)->where('slug', 'win')->first();
 
         if ($deal->create_client == 1 && $deal->pipeline_stage_id == $stage?->id) {
 
             $lead = Lead::where('id', $deal->lead_id)->first();
-            if ($lead->client_id) {
+            if (! $lead || $lead->client_id) {
                 return;
             }
 
@@ -674,8 +704,8 @@ class DealObserver
                 'email' => $lead->client_email,
                 'company_name' => $lead->company_name,
                 'website' => $lead->website,
-                'added_by' => user()->id,
-                'company_id' => company()->id,
+                'added_by' => $currentUser->id,
+                'company_id' => $company->id,
                 'address' => $lead->address,
             ];
 
@@ -707,11 +737,18 @@ class DealObserver
                 ->first();
 
             if ($trigger) {
-                // Dispatch job to send Meta conversion event with the trigger's value
-                SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
-                    'source' => 'stage_trigger',
-                    'trigger_id' => $trigger->id,
-                ]);
+                // Deferred to after commit — the job now runs synchronously
+                // (see SendMetaConversionEventJob), so dispatching it inside
+                // this save's own transaction would send the event before
+                // the deal's new stage is actually persisted; a rollback
+                // would then leave an external Meta event for state that
+                // was never committed.
+                \Illuminate\Support\Facades\DB::afterCommit(function () use ($deal, $trigger) {
+                    SendMetaConversionEventJob::dispatch($deal, $trigger->event_name, $trigger->value, [
+                        'source' => 'stage_trigger',
+                        'trigger_id' => $trigger->id,
+                    ]);
+                });
 
                 \Log::info('Meta Conversion Event Job dispatched', [
                     'deal_id' => $deal->id,

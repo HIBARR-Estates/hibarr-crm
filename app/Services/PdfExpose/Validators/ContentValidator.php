@@ -73,7 +73,7 @@ class ContentValidator
         $rules = $this->rules[$config->entityType] ?? [];
 
         foreach ($rules['required'] ?? [] as $field => $rule) {
-            if (!$config->has($field) || empty($config->get($field))) {
+            if ($this->isBlank($config->get($field))) {
                 $warnings[] = $this->makeWarning('error', $field, $rule['label'], $rule['message']);
             }
         }
@@ -85,13 +85,13 @@ class ContentValidator
                 if (empty($value) || count($value) < 3) {
                     $warnings[] = $this->makeWarning('warning', $field, $rule['label'], $rule['message']);
                 }
-            } elseif (!$config->has($field) || empty($value)) {
+            } elseif ($this->isBlank($value)) {
                 $warnings[] = $this->makeWarning('warning', $field, $rule['label'], $rule['message']);
             }
         }
 
         foreach ($rules['optimal'] ?? [] as $field => $rule) {
-            if (!$config->has($field) || empty($config->get($field))) {
+            if ($this->isBlank($config->get($field))) {
                 $warnings[] = $this->makeWarning('info', $field, $rule['label'], $rule['message']);
             }
         }
@@ -107,6 +107,23 @@ class ContentValidator
         }
 
         return $warnings;
+    }
+
+    /**
+     * Missing for expose checks: null, '', or [].
+     * 0 / "0" are populated (studio bedrooms, a zero price, etc.).
+     */
+    private function isBlank(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        if (is_string($value) && trim($value) === '') {
+            return true;
+        }
+
+        return is_array($value) && $value === [];
     }
 
     private function makeWarning(string $severity, string $field, string $label, string $message): array
@@ -186,12 +203,12 @@ class ContentValidator
         }
 
         $outro = $config->get('expose_global_config.outro', []);
-        $hasOutroText = !empty(trim((string) ($outro['title'] ?? '')))
-            || !empty(trim((string) ($outro['description'] ?? '')));
-        $hasFooterImage = !empty($outro['primary_image_url'] ?? null)
-            || !empty($outro['secondary_image_url'] ?? null);
+        $hasOutroText = ! empty(trim((string) ($outro['title'] ?? '')))
+            || ! empty(trim((string) ($outro['description'] ?? '')));
+        $hasFooterImage = ! empty($outro['primary_image_url'] ?? null)
+            || ! empty($outro['secondary_image_url'] ?? null);
 
-        if (!$hasFooterImage) {
+        if (! $hasFooterImage) {
             $warnings[] = $this->makeWarning(
                 'warning',
                 'footer_image',
@@ -200,7 +217,7 @@ class ContentValidator
             );
         }
 
-        if (($outro['enabled'] ?? false) && !$hasOutroText) {
+        if (($outro['enabled'] ?? false) && ! $hasOutroText) {
             $warnings[] = $this->makeWarning(
                 'warning',
                 'outro_details',

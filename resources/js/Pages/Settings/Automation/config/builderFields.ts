@@ -1,8 +1,10 @@
 import { AutomationCatalog, ConditionOperator, CustomFieldOption, SubjectType } from "../types";
 
-/** Mirrors condition-row.blade.php's operator <select> exactly. "changed" is
- * accepted for parity with the Blade UI but is a pre-existing no-op in
- * ConditionEvaluatorService (always evaluates false) — not fixed here. */
+/** Mirrors condition-row.blade.php's operator <select> exactly. "changed"
+ * evaluates true when the field changed on the same save that fired this
+ * automation (DealAutomationService::fieldChanged()/LeadAutomationService's
+ * equivalent) — only supported for a native column on the subject itself,
+ * so a custom field with "changed" never matches. */
 export const CONDITION_OPERATORS: { value: ConditionOperator; label: string }[] = [
     { value: "=", label: "Equals" },
     { value: ">", label: "Greater Than" },

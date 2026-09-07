@@ -9,7 +9,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Automation, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
-import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, TRIGGER_SUBJECT } from "./shared";
+import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, triggerExplanation, TRIGGER_SUBJECT } from "./shared";
 import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType } from "./config/builderFields";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
@@ -276,6 +276,24 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             placeholder={t("app.automation.selectTrigger")}
                             className="w-full"
                         />
+
+                        {!trigger && (
+                            <div
+                                className="rounded-lg flex items-start gap-2 mt-2.5"
+                                style={{ background: T.AMBER_SOFT, border: `1px solid ${T.AMBER_MID}`, padding: "10px 12px", fontSize: 12, color: T.AMBER }}
+                            >
+                                <span style={{ marginTop: 1 }}>
+                                    <Icon name="info" size={13} />
+                                </span>
+                                <span>{t("app.automation.noTriggerWarning")}</span>
+                            </div>
+                        )}
+
+                        {trigger && (
+                            <p className="mt-2 mb-0" style={{ fontSize: 12, color: T.TEXT_MUTED, lineHeight: 1.5 }}>
+                                {td(triggerExplanation(trigger))}
+                            </p>
+                        )}
 
                         {trigger === "date_based" && catalog && (
                             <div className="grid grid-cols-2 gap-3 mt-3">

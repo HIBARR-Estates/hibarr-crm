@@ -1,5 +1,12 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import { formatDateTime, formatMonthShort, formatTime } from "./dateFormat";
+import dayjs from "dayjs";
+import {
+    formatUserDateTime,
+    formatUserMonthShort,
+    formatUserTime,
+    getUserDateTimeTimezone,
+    isUserDateTimeEnabled,
+} from "@/lib/userDateTime";
 
 export interface WorkspaceMeetingPreview {
     id: number;
@@ -44,6 +51,19 @@ function resolveLocation(meeting: DealFollowup): {
     return { location: "No location set", locationType: "in_person" };
 }
 
+function viewerCalendarDay(startsAt: Date | null): string {
+    if (!startsAt) return "--";
+    if (isUserDateTimeEnabled()) {
+        try {
+            const zoned = dayjs(startsAt).tz(getUserDateTimeTimezone());
+            return zoned.isValid() ? String(zoned.date()) : "--";
+        } catch {
+            return String(startsAt.getDate());
+        }
+    }
+    return String(startsAt.getDate());
+}
+
 export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeetingPreview {
     const startsAt = parseDate(meeting.next_follow_up_date);
     const normalizedStatus = meeting.status?.trim() || "scheduled";
@@ -58,10 +78,10 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
         title: meetingType || "Meeting",
         status: normalizedStatus,
         startsAt,
-        startsAtLabel: formatDateTime(startsAt, "No date"),
-        timeLabel: formatTime(startsAt, "No time"),
-        monthLabel: formatMonthShort(startsAt),
-        dayLabel: startsAt ? String(startsAt.getDate()) : "--",
+        startsAtLabel: formatUserDateTime(startsAt, { fallback: "No date" }),
+        timeLabel: formatUserTime(startsAt, "No time"),
+        monthLabel: formatUserMonthShort(startsAt),
+        dayLabel: viewerCalendarDay(startsAt),
         isUpcoming,
         isPast: startsAt ? startsAt.getTime() < Date.now() : false,
         location,

@@ -22,6 +22,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import useTranslation from "@/Hooks/useTranslation";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
+import TimezoneIndicator from "./TimezoneIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -190,7 +191,10 @@ export default function PageLayout({
                             </div>
                         )}
                         <div className="ml-auto flex items-center gap-2 sm:gap-4">
-                            <LanguageSwitcher />
+                            <div className="flex items-center gap-2">
+                                <LanguageSwitcher />
+                                <TimezoneIndicator />
+                            </div>
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

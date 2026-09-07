@@ -25,6 +25,8 @@ import {
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
 import useLeadMeetingCreate from "../../../hooks/useLeadMeetingCreate";
 import LeadMeetingDetailModal from "../LeadMeetingDetailModal";
 
@@ -53,6 +55,8 @@ export default function MeetingsTab({
 }: MeetingsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    useUserDateTime();
+    const dateTimeVersion = getUserDateTimeContextVersion();
     const { props } = usePage();
     const { lead, leadFollowUps, setLeadFollowUps, addLeadFollowUp, deals } =
         useLeadWorkspace();
@@ -92,11 +96,8 @@ export default function MeetingsTab({
     const isBulkUpdating = isLoading({ status: bulkStatus });
 
     const meetings = useMemo(
-        () =>
-            leadFollowUps.map((followup) =>
-                toWorkspaceMeetingListItem(followup),
-            ),
-        [leadFollowUps],
+        () => leadFollowUps.map((followup) => toWorkspaceMeetingListItem(followup)),
+        [leadFollowUps, dateTimeVersion],
     );
 
     const upcoming = useMemo(

@@ -9,10 +9,7 @@ import {
     LockOutlined,
 } from "@ant-design/icons";
 import { Deal } from "@/Types/api/deals";
-import {
-    formatCompanyDate,
-    formatCompanyTime,
-} from "@/lib/companyDateTime";
+import { formatUserDate, formatUserTime } from "@/lib/userDateTime";
 import PageDataSorter from "@/Components/PageDataSorter";
 import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
@@ -58,10 +55,10 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col text-sm">
                         <span className="text-gray-950 font-medium">
-                            {formatCompanyDate(record.created_at)}
+                            {formatUserDate(record.created_at)}
                         </span>
                         <span className="text-gray-600">
-                            {formatCompanyTime(record.created_at)}
+                            {formatUserTime(record.created_at)}
                         </span>
                     </div>
                 );
@@ -362,10 +359,10 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col text-sm">
                         <span className="text-gray-950 font-medium">
-                            {formatCompanyDate(record.updated_at)}
+                            {formatUserDate(record.updated_at)}
                         </span>
                         <span className="text-gray-600">
-                            {formatCompanyTime(record.updated_at)}
+                            {formatUserTime(record.updated_at)}
                         </span>
                     </div>
                 );

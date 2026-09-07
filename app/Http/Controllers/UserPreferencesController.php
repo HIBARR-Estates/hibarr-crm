@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Http\Requests\User\UpdatePreferencesTimezoneRequest;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserNotificationBypass;
+use App\Models\User;
 use App\Support\FeatureFlags;
 use App\Support\NotificationBypass;
 use App\Support\NotificationBypassCatalog;
@@ -50,14 +51,15 @@ class UserPreferencesController extends AccountBaseController
         $timezone = $request->validated('timezone');
         $locked = $request->boolean('locked');
 
-        $user->timezone = $timezone;
-        $user->timezone_locked = $locked;
-        $user->save();
+        User::query()->whereKey($user->id)->update([
+            'timezone' => $timezone,
+            'timezone_locked' => $locked,
+        ]);
         session()->forget('user');
 
         return Reply::successWithData(__('messages.updateSuccess'), [
-            'timezone' => $user->timezone,
-            'timezoneLocked' => (bool) $user->timezone_locked,
+            'timezone' => $timezone,
+            'timezoneLocked' => $locked,
         ]);
     }
 

@@ -84,4 +84,19 @@ class DealValueAdjustmentsTest extends TestCase
         $this->assertSame(0.0, $result['deduction']);
         $this->assertSame(1234.56, $result['net']);
     }
+
+    public function test_resolve_and_persist_is_a_noop_when_commission_locked(): void
+    {
+        $deal = $this->deal([
+            'value' => 1000,
+            'manual_value' => 1000,
+            'commission_locked' => true,
+        ]);
+
+        $returned = $this->resolver()->resolveAndPersist($deal, 9999);
+
+        $this->assertSame($deal, $returned);
+        $this->assertSame(1000.0, (float) $deal->value);
+        $this->assertSame(1000.0, (float) $deal->manual_value);
+    }
 }

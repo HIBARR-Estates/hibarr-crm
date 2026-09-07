@@ -250,27 +250,31 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Get the authenticated user with their LeadAgent ID appended.
+     * Auth user payload for Inertia, with computed display-only fields.
+     *
+     * Clone before setAttribute so those keys never dirty the live
+     * auth/session User (they are not users columns).
      */
     private function getUserWithLeadAgentId()
     {
         $user = auth()->user()->load(['roles', 'employeeDetail.designation']);
+        $shared = clone $user;
 
         // Append the first lead_agent id for this user (used by invitation feature)
         $leadAgent = \App\Models\LeadAgent::where('user_id', $user->id)->first();
-        $user->setAttribute('lead_agent_id', $leadAgent?->id);
+        $shared->setAttribute('lead_agent_id', $leadAgent?->id);
 
         // Used by integrations feature UIs to decide whether to show an integration badge.
-        $user->setAttribute('has_zoho_profile', ! empty($user->employeeDetail?->zoho_id));
+        $shared->setAttribute('has_zoho_profile', ! empty($user->employeeDetail?->zoho_id));
 
         // Drives ProductTour auto-launch (useProductTour). Per-tourId so list
         // tours do not share seen-state with deal/lead detail tours.
-        $user->setAttribute(
+        $shared->setAttribute(
             'seen_product_tours',
             UserProductTour::seenTourIdsForUser((int) $user->id)
         );
 
-        return $user;
+        return $shared;
     }
 
     /**

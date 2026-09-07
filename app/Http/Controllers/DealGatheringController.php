@@ -338,6 +338,17 @@ class DealGatheringController extends AccountBaseController
                 ], 403);
             }
 
+            if (
+                $deal->isCommissionLocked()
+                && Deal::touchesAgentField($data)
+                && $deal->agentWouldChange($data['agent_id'] ?? null)
+            ) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.dealAgentLockedByCommission'),
+                ], 403);
+            }
+
             $updatedDeal = $this->service->updateDealInline(
                 $deal,
                 DealUpdateType::from($request->type),

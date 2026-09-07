@@ -7,10 +7,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     canUseZohoMeeting,
@@ -55,7 +52,6 @@ interface FollowUpStorePayload {
     duration?: number | null;
     reminders: Reminder[];
     remark?: string;
-    timezone?: string;
     participants?: number[];
     host_id?: number | null;
 }
@@ -215,7 +211,6 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 host_id: input.hostId,
-                timezone: getBrowserTimezone(),
             };
 
             if (input.dealId) {

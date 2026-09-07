@@ -65,6 +65,10 @@ class DealPropertyService
      */
     public function attachExistingProperty(Deal $deal, int $propertyId): array
     {
+        if ($deal->isCommissionLocked()) {
+            return ['status' => 'fail', 'message' => __('messages.dealValueLockedByCommission')];
+        }
+
         $property = Property::where('id', $propertyId)
             ->where('company_id', $deal->company_id)
             ->firstOrFail();
@@ -100,6 +104,10 @@ class DealPropertyService
      */
     public function detachProperty(Deal $deal, int $productId): array
     {
+        if ($deal->isCommissionLocked()) {
+            return ['status' => 'fail', 'message' => __('messages.dealValueLockedByCommission')];
+        }
+
         $product = Product::with('property')->find($productId);
 
         DealOfferApplication::where('deal_id', $deal->id)
@@ -143,6 +151,10 @@ class DealPropertyService
      */
     public function createFromUnitType(Deal $deal, int $unitTypeId, array $overrides, array $offerIds = []): array
     {
+        if ($deal->isCommissionLocked()) {
+            return ['status' => 'fail', 'message' => __('messages.dealValueLockedByCommission')];
+        }
+
         $unitType = DeveloperProjectUnitType::where('id', $unitTypeId)
             ->where('company_id', $deal->company_id)
             ->firstOrFail();

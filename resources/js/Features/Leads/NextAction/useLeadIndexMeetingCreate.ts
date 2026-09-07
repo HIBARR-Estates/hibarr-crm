@@ -4,10 +4,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -31,7 +28,6 @@ interface FollowUpStorePayload {
     duration?: number | null;
     reminders: MeetingFormState["reminders"];
     remark?: string;
-    timezone?: string;
     participants?: number[];
     host_id?: number | null;
 }
@@ -102,7 +98,6 @@ export default function useLeadIndexMeetingCreate(
                 remark: form.remark.trim(),
                 participants: form.participants,
                 host_id: form.hostId,
-                timezone: getBrowserTimezone(),
             };
 
             setErrors([]);

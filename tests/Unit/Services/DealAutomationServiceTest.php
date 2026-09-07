@@ -9,11 +9,15 @@ use App\Models\PipelineStage;
 use App\Services\ConditionEvaluatorService;
 use App\Services\DealAutomationService;
 use App\Services\FieldResolverService;
+use App\Services\Notifications\MailDeliveryRecorder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
 
 class DealAutomationServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected $fieldResolver;
 
     protected $conditionEvaluator;
@@ -164,5 +168,36 @@ class DealAutomationServiceTest extends TestCase
         $service->process($deal, 'trigger');
 
         $this->assertEquals(1, $deal->pipeline_stage_id);
+    }
+
+    public function test_field_changed_reflects_real_wasChanged_on_a_native_column()
+    {
+        $service = new DealAutomationService(
+            new FieldResolverService(),
+            new ConditionEvaluatorService(),
+            Mockery::mock(MailDeliveryRecorder::class)
+        );
+
+        $reflection = new \ReflectionMethod($service, 'fieldChanged');
+        $reflection->setAccessible(true);
+
+        $deal = Deal::factory()->create(['value' => 1000]);
+        $deal->value = 1000; // unchanged
+        $deal->save();
+        $this->assertFalse($reflection->invoke($service, $deal, 'value'));
+
+        $deal->value = 2000; // changed
+        $deal->save();
+        $this->assertTrue($reflection->invoke($service, $deal, 'value'));
+
+        // A brand-new record: nothing "changed", it was simply set.
+        $created = Deal::factory()->create(['value' => 500]);
+        $this->assertFalse($reflection->invoke($service, $created, 'value'));
+
+        // A field that isn't a native column on Deal itself (a custom
+        // field) can't be answered from the subject's own dirty-tracking.
+        $deal->value = 3000;
+        $deal->save();
+        $this->assertFalse($reflection->invoke($service, $deal, 'custom_field_123'));
     }
 }

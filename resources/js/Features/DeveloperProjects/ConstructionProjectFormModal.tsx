@@ -83,6 +83,15 @@ const removeUndefined = (payload: Record<string, any>) =>
         Object.entries(payload).filter(([, value]) => value !== undefined),
     );
 
+/** decimal:2 serialises as a string; InputNumber needs a finite number. */
+const toFormNumber = (value: unknown): number | null => {
+    if (value == null || value === "") {
+        return null;
+    }
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+};
+
 // ============================================
 // Component
 // ============================================
@@ -243,12 +252,13 @@ const ConstructionProjectFormModal: React.FC<
                 description: project.description,
                 google_drive_link: project.google_drive_link,
                 availability_link: project.availability_link,
-                starting_price: project.starting_price,
-                // decimal:2 serialises as a string; InputNumber needs a number.
-                commission_percentage:
-                    project.commission_percentage != null
-                        ? Number(project.commission_percentage)
-                        : null,
+                starting_price: toFormNumber(project.starting_price),
+                commission_percentage: toFormNumber(
+                    project.commission_percentage,
+                ),
+                project_total_area_sqm: toFormNumber(
+                    project.project_total_area_sqm,
+                ),
                 primary_categories: project.primary_categories,
                 title_deed_type: project.title_deed_type,
                 unit_types: project.unit_types,
@@ -256,7 +266,6 @@ const ConstructionProjectFormModal: React.FC<
                 total_units: project.total_units,
                 total_units_sold: project.total_units_sold,
                 number_of_blocks: project.number_of_blocks,
-                project_total_area_sqm: project.project_total_area_sqm,
                 construction_status: project.construction_status,
                 completion_date: project.completion_date
                     ? dayjs(project.completion_date)
@@ -287,7 +296,10 @@ const ConstructionProjectFormModal: React.FC<
     const doSubmit = useCallback(
         (isSaveForUpload = false) => {
             form.validateFields()
-                .then((values) => {
+                .then(() => {
+                    // Collapsed FormSections unmount their fields; read the
+                    // preserved store so starting_price and similar values still save.
+                    const values = form.getFieldsValue(true);
                     const { _selected_developer_id, ...cleanData } = values;
 
                     const submitData = removeUndefined({
@@ -295,6 +307,13 @@ const ConstructionProjectFormModal: React.FC<
                         completion_date: cleanData.completion_date
                             ? cleanData.completion_date.format("YYYY-MM-DD")
                             : cleanData.completion_date,
+                        starting_price: toFormNumber(cleanData.starting_price),
+                        commission_percentage: toFormNumber(
+                            cleanData.commission_percentage,
+                        ),
+                        project_total_area_sqm: toFormNumber(
+                            cleanData.project_total_area_sqm,
+                        ),
                     });
 
                     if (!canToggleHidden) {
@@ -442,6 +461,7 @@ const ConstructionProjectFormModal: React.FC<
                             title="Pricing & Payment"
                             icon={<DollarOutlined />}
                             description="Starting price, payment plan, and availability"
+                            keepMounted
                         >
                             <ConstructionProjectPricingSection form={form} />
                         </FormSection>

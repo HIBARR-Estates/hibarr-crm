@@ -19,12 +19,21 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class DealContactApiController extends Controller
 {
+    /**
+     * How long an identical deal request is treated as a duplicate, in seconds.
+     *
+     * A caller that repeats the same payload inside this window gets a silent
+     * 200 with the contact id instead of a second round of deal processing.
+     */
+    private const DUPLICATE_REQUEST_WINDOW = 60;
+
     /**
      * Create a new controller instance.
      */
@@ -153,6 +162,8 @@ class DealContactApiController extends Controller
      */
     public function createDeal(CreateDealRequest $request)
     {
+        $duplicateKey = null;
+
         try {
             $companyId = $request->header('X-COMPANY-ID');
 
@@ -167,6 +178,36 @@ class DealContactApiController extends Controller
 
             $companyId = (int) $companyId;
 
+            // Idempotency window. A caller repeating the same payload within
+            // DUPLICATE_REQUEST_WINDOW seconds is a duplicate: answer with the contact id
+            // and do no work, rather than re-running deal processing. This runs before any
+            // lead writes so a duplicate cannot mutate the lead or emit CRM events either.
+            //
+            // The fingerprint covers only the fields that decide what gets written
+            // (contact, deal name, owner, meeting, packages), so a genuinely different
+            // follow-up push - the one carrying the meeting, typically - is never blocked.
+            $duplicateKey = $this->duplicateRequestKey($request, $companyId);
+
+            if ($duplicateKey !== null && ! $this->reserveRequest($duplicateKey)) {
+                $duplicateContactId = $this->duplicateRequestContactId($duplicateKey, $request, $companyId);
+
+                Log::info('DealContactApiController: Duplicate deal request ignored', [
+                    'company_id' => $companyId,
+                    'contact_id' => $duplicateContactId,
+                    'email' => $request->input('email'),
+                    'window_seconds' => self::DUPLICATE_REQUEST_WINDOW,
+                ]);
+
+                // Fail silently: the caller gets a success shape and the contact id.
+                return response()->json([
+                    'status' => 'accepted',
+                    'duplicate' => true,
+                    'message' => 'Duplicate request ignored; an identical request was received in the last '.self::DUPLICATE_REQUEST_WINDOW.' seconds.',
+                    'contact_id' => $duplicateContactId,
+                    'company_id' => $companyId,
+                ], 200);
+            }
+
             // Resolve contact ID (this is fast and doesn't need to be queued)
             $contactId = $request->input('lead_id') ?? null;
             if (! $contactId) {
@@ -175,12 +216,23 @@ class DealContactApiController extends Controller
                 // lead_id bypasses resolveContact — still apply optional lead fields / CFs
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
-                    if ($this->applyLeadOptionalFields($existingLead, $request)) {
+                    $fieldsChanged = $this->applyLeadOptionalFields($existingLead, $request);
+                    if ($fieldsChanged) {
                         $existingLead->saveQuietly();
                     }
-                    $this->applyLeadCustomFields($existingLead, $request);
+                    $customFieldsChanged = $this->applyLeadCustomFields($existingLead, $request);
+                    // Fired after every write completes — including custom
+                    // fields — so a condition evaluated from this trigger
+                    // sees the lead's final state, not a partial one.
+                    if ($fieldsChanged || $customFieldsChanged) {
+                        $this->fireLeadApiTrigger($existingLead);
+                    }
                 }
             }
+
+            // Park the resolved contact id on the reservation so a duplicate arriving
+            // later in the window can be answered with it.
+            $this->rememberRequestContactId($duplicateKey, (int) $contactId);
 
             // Save UTM information if provided (also fast)
             $this->saveUtmInfo($contactId, $request);
@@ -205,6 +257,10 @@ class DealContactApiController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            // This attempt did no usable work, so drop the reservation: the caller's
+            // retry must be processed rather than silently swallowed as a duplicate.
+            $this->releaseRequest($duplicateKey);
+
             Log::error('Failed to process deal creation request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -215,7 +271,159 @@ class DealContactApiController extends Controller
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
             return Reply::error('Failed to process deal creation request');
+        } catch (\Throwable $e) {
+            // A TypeError or other Error would otherwise leave the reservation in place
+            // for the full window, silently swallowing the caller's retry. Release it and
+            // let the error surface as before.
+            $this->releaseRequest($duplicateKey);
+
+            throw $e;
         }
+    }
+
+    /**
+     * Build the idempotency cache key for a deal request.
+     *
+     * The whole payload is fingerprinted, not just the deal-shaping fields. A push
+     * writes far more than the deal: resolveContact() persists phone, gender, address,
+     * date of birth, source and the lead's optional and custom fields, and saveUtmInfo()
+     * stores the UTM block. Fingerprinting a subset would make a follow-up that corrects
+     * any of those look identical to the first push and be silently dropped.
+     *
+     * Only a byte-identical repeat is a duplicate; anything the caller actually changed
+     * is a new request and goes through.
+     *
+     * @return string|null Null when the payload cannot be encoded to key against.
+     */
+    private function duplicateRequestKey(Request $request, int $companyId): ?string
+    {
+        $payload = $request->all();
+
+        // Never part of what gets persisted (mirrors config/api.php 'excludes').
+        unset($payload['_token']);
+
+        // Callers vary the casing of the contact's email; that is the same request.
+        if (isset($payload['email']) && is_string($payload['email'])) {
+            $payload['email'] = mb_strtolower(trim($payload['email']));
+        }
+
+        $this->ksortRecursive($payload);
+
+        $encoded = json_encode($payload);
+
+        if ($encoded === false) {
+            return null;
+        }
+
+        return 'deal_request:'.$companyId.':'.hash('sha256', $encoded);
+    }
+
+    /**
+     * Sort an array by key, recursively, so key order in the payload cannot change
+     * the fingerprint.
+     */
+    private function ksortRecursive(array &$data): void
+    {
+        ksort($data);
+
+        foreach ($data as &$value) {
+            if (is_array($value)) {
+                $this->ksortRecursive($value);
+            }
+        }
+    }
+
+    /**
+     * Atomically claim the idempotency window for this request.
+     *
+     * @return bool True when this request owns the window and should be processed.
+     */
+    private function reserveRequest(string $key): bool
+    {
+        try {
+            return Cache::add($key, true, self::DUPLICATE_REQUEST_WINDOW);
+        } catch (\Exception $e) {
+            // Fail open: a cache outage must not stop deals from being created.
+            Log::warning('DealContactApiController: Duplicate check unavailable, processing request', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return true;
+        }
+    }
+
+    /**
+     * Store the resolved contact id against the reservation, keeping the window open
+     * for the remainder of its duration.
+     */
+    private function rememberRequestContactId(?string $key, int $contactId): void
+    {
+        if ($key === null) {
+            return;
+        }
+
+        try {
+            Cache::put($key, $contactId, self::DUPLICATE_REQUEST_WINDOW);
+        } catch (\Exception $e) {
+            Log::warning('DealContactApiController: Failed to record duplicate-check contact id', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Release the idempotency window so a retry is not treated as a duplicate.
+     */
+    private function releaseRequest(?string $key): void
+    {
+        if ($key === null) {
+            return;
+        }
+
+        try {
+            Cache::forget($key);
+        } catch (\Exception $e) {
+            Log::warning('DealContactApiController: Failed to release duplicate-check key', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Resolve the contact id to hand back for a request rejected as a duplicate.
+     *
+     * Falls back to a read-only lookup when the original request is still in flight
+     * and has not recorded its contact id yet.
+     */
+    private function duplicateRequestContactId(string $key, Request $request, int $companyId): ?int
+    {
+        try {
+            $cached = Cache::get($key);
+        } catch (\Exception $e) {
+            $cached = null;
+        }
+
+        if (is_int($cached) && $cached > 0) {
+            return $cached;
+        }
+
+        $leadId = $request->input('lead_id');
+
+        if (is_numeric($leadId) && (int) $leadId > 0) {
+            return (int) $leadId;
+        }
+
+        $email = $request->input('email');
+
+        if (empty($email)) {
+            return null;
+        }
+
+        $existingId = Lead::where('company_id', $companyId)
+            ->where('client_email', $email)
+            ->value('id');
+
+        return $existingId !== null ? (int) $existingId : null;
     }
 
     /**
@@ -283,6 +491,10 @@ class DealContactApiController extends Controller
                     $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
+                    // Fired after categories/custom fields are persisted, not
+                    // right after the initial save, so a condition on either
+                    // sees this lead's actual final state.
+                    $this->fireLeadApiTrigger($contact);
                 } else {
                     // Update existing contact
                     $updated = false;
@@ -324,8 +536,14 @@ class DealContactApiController extends Controller
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
-                    $this->applyLeadCustomFields($existingContact, $request);
+                    $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
+                    // A custom-field-only change (no core field touched) still
+                    // counts as an update — otherwise lead_updated_api would
+                    // never fire for it at all.
+                    if ($updated || $customFieldsChanged) {
+                        $this->fireLeadApiTrigger($existingContact);
+                    }
                 }
 
                 // Save UTM information if provided
@@ -393,7 +611,10 @@ class DealContactApiController extends Controller
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
-                $this->applyLeadCustomFields($existingContact, $request);
+                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
+                if ($updated || $customFieldsChanged) {
+                    $this->fireLeadApiTrigger($existingContact);
+                }
 
                 return $existingContact->id;
             }
@@ -432,7 +653,10 @@ class DealContactApiController extends Controller
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
-                $this->applyLeadCustomFields($existingContact, $request);
+                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
+                if ($updated || $customFieldsChanged) {
+                    $this->fireLeadApiTrigger($existingContact);
+                }
 
                 return $existingContact->id;
             }
@@ -457,12 +681,21 @@ class DealContactApiController extends Controller
         $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
+        // Fired after custom fields are persisted, not right after the
+        // initial save, so a condition that checks one sees this lead's
+        // actual final state.
+        $this->fireLeadApiTrigger($contact);
 
         return $contact->id;
     }
 
     /**
      * Save a lead contact, optionally firing model observers for notifications.
+     * Does not fire the "via API" automation trigger itself — callers fire it
+     * (via fireLeadApiTrigger()) only after every write for this request
+     * (categories, custom fields) has completed, so a condition evaluated
+     * from that trigger sees the lead's final state rather than a partial
+     * one caught mid-write.
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
@@ -482,6 +715,23 @@ class DealContactApiController extends Controller
         if ($contact->wasRecentlyCreated && $contact->lead_owner) {
             $this->notifyLeadOwnerOnCreate($contact);
         }
+    }
+
+    /**
+     * Fire lead_created_api/lead_updated_api for a lead this controller just
+     * wrote via the external API — independent of whether the write above
+     * was quiet (saveQuietly() never fires LeadObserver, so the normal
+     * lead_created/lead_updated triggers never see API writes at all) or a
+     * real save() (which already fired those normal triggers separately;
+     * this fires alongside them, not instead).
+     */
+    private function fireLeadApiTrigger(Lead $contact): void
+    {
+        $trigger = $contact->wasRecentlyCreated
+            ? \App\Models\DealAutomation::TRIGGER_LEAD_CREATED_API
+            : \App\Models\DealAutomation::TRIGGER_LEAD_UPDATED_API;
+
+        app(\App\Services\DealAutomationService::class)->processLead($contact, $trigger);
     }
 
     /**
@@ -624,11 +874,16 @@ class DealContactApiController extends Controller
      * Upsert lead custom fields from lead_custom_fields (and custom_fields alias on contact create).
      * Format: {"131": "value", "132": ["a","b"]} — keys are custom field IDs.
      * Only Lead-group fields for the contact's company are accepted.
+     *
+     * @return bool True when a custom field value was actually written —
+     *              lets callers decide whether a custom-field-only change
+     *              (no core field touched) still counts as an update for
+     *              firing lead_updated_api.
      */
-    private function applyLeadCustomFields(Lead $lead, Request $request): void
+    private function applyLeadCustomFields(Lead $lead, Request $request): bool
     {
         if (! $lead->id) {
-            return;
+            return false;
         }
 
         $payload = [];
@@ -646,7 +901,7 @@ class DealContactApiController extends Controller
         }
 
         if ($payload === []) {
-            return;
+            return false;
         }
 
         $leadGroup = CustomFieldGroup::where('company_id', $lead->company_id)
@@ -654,7 +909,7 @@ class DealContactApiController extends Controller
             ->first();
 
         if (! $leadGroup) {
-            return;
+            return false;
         }
 
         $allowedIds = CustomField::where('custom_field_group_id', $leadGroup->id)
@@ -672,7 +927,7 @@ class DealContactApiController extends Controller
         }
 
         if ($customFieldsData === []) {
-            return;
+            return false;
         }
 
         $coreFieldsService = app(LeadCoreFieldsService::class);
@@ -683,16 +938,20 @@ class DealContactApiController extends Controller
         $customFieldsData = $filtered['custom_fields_data'] ?? [];
 
         if ($customFieldsData === []) {
-            return;
+            return false;
         }
 
         try {
             $lead->updateCustomFieldData($customFieldsData, $lead->company_id);
+
+            return true;
         } catch (\Exception $e) {
             Log::error('DealContactApi: Error updating lead custom fields', [
                 'lead_id' => $lead->id,
                 'error' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 

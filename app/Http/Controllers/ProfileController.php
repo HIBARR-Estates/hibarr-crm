@@ -160,8 +160,9 @@ class ProfileController extends AccountBaseController
             return Reply::success(__('messages.updateSuccess'));
         }
 
-        $user->timezone = $timezone;
-        $user->save();
+        User::query()->whereKey($user->id)->update([
+            'timezone' => $timezone,
+        ]);
         session()->forget('user');
 
         return Reply::success(__('messages.updateSuccess'));

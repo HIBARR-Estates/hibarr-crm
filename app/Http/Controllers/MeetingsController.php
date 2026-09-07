@@ -13,6 +13,7 @@ use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingVisibilityService;
 use App\Support\FeatureFlags;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -939,13 +940,12 @@ class MeetingsController extends AccountBaseController
             'timezone' => 'nullable|string|max:100',
         ]);
 
-        $browserTimezone = $request->input('timezone', 'UTC');
-
-        $newDateTime = Carbon::createFromFormat(
-            'd-m-Y H:i:s',
+        $newDateTime = UserTimezone::interpretWallClock(
+            user(),
+            company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            $browserTimezone
-        )->setTimezone('UTC');
+            'd-m-Y H:i:s'
+        );
 
         $followUp->next_follow_up_date = $newDateTime;
         $followUp->status = 'scheduled';
