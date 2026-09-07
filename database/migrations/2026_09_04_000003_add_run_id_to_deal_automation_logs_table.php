@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * One automation execution writes one log row per action it performs, so a
@@ -33,7 +34,14 @@ return new class extends Migration
         // every query downstream can just group by run_id.
         DB::table('deal_automation_logs')
             ->whereNull('run_id')
-            ->update(['run_id' => DB::raw("CONCAT('legacy-', id)")]);
+            ->orderBy('id')
+            ->chunkById(500, function ($rows) {
+                foreach ($rows as $row) {
+                    DB::table('deal_automation_logs')
+                        ->where('id', $row->id)
+                        ->update(['run_id' => (string) Str::uuid()]);
+                }
+            });
 
         if (! Schema::hasColumn('deal_automation_pending_runs', 'run_id')) {
             Schema::table('deal_automation_pending_runs', function (Blueprint $table) {

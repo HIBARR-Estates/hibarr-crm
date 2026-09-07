@@ -216,10 +216,17 @@ class DealContactApiController extends Controller
                 // lead_id bypasses resolveContact — still apply optional lead fields / CFs
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
-                    if ($this->applyLeadOptionalFields($existingLead, $request)) {
+                    $fieldsChanged = $this->applyLeadOptionalFields($existingLead, $request);
+                    if ($fieldsChanged) {
                         $existingLead->saveQuietly();
                     }
-                    $this->applyLeadCustomFields($existingLead, $request);
+                    $customFieldsChanged = $this->applyLeadCustomFields($existingLead, $request);
+                    // Fired after every write completes — including custom
+                    // fields — so a condition evaluated from this trigger
+                    // sees the lead's final state, not a partial one.
+                    if ($fieldsChanged || $customFieldsChanged) {
+                        $this->fireLeadApiTrigger($existingLead);
+                    }
                 }
             }
 
@@ -484,6 +491,10 @@ class DealContactApiController extends Controller
                     $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
+                    // Fired after categories/custom fields are persisted, not
+                    // right after the initial save, so a condition on either
+                    // sees this lead's actual final state.
+                    $this->fireLeadApiTrigger($contact);
                 } else {
                     // Update existing contact
                     $updated = false;
@@ -525,8 +536,14 @@ class DealContactApiController extends Controller
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
-                    $this->applyLeadCustomFields($existingContact, $request);
+                    $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
+                    // A custom-field-only change (no core field touched) still
+                    // counts as an update — otherwise lead_updated_api would
+                    // never fire for it at all.
+                    if ($updated || $customFieldsChanged) {
+                        $this->fireLeadApiTrigger($existingContact);
+                    }
                 }
 
                 // Save UTM information if provided
@@ -594,7 +611,10 @@ class DealContactApiController extends Controller
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
-                $this->applyLeadCustomFields($existingContact, $request);
+                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
+                if ($updated || $customFieldsChanged) {
+                    $this->fireLeadApiTrigger($existingContact);
+                }
 
                 return $existingContact->id;
             }
@@ -633,7 +653,10 @@ class DealContactApiController extends Controller
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
-                $this->applyLeadCustomFields($existingContact, $request);
+                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
+                if ($updated || $customFieldsChanged) {
+                    $this->fireLeadApiTrigger($existingContact);
+                }
 
                 return $existingContact->id;
             }
@@ -658,12 +681,21 @@ class DealContactApiController extends Controller
         $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
+        // Fired after custom fields are persisted, not right after the
+        // initial save, so a condition that checks one sees this lead's
+        // actual final state.
+        $this->fireLeadApiTrigger($contact);
 
         return $contact->id;
     }
 
     /**
      * Save a lead contact, optionally firing model observers for notifications.
+     * Does not fire the "via API" automation trigger itself — callers fire it
+     * (via fireLeadApiTrigger()) only after every write for this request
+     * (categories, custom fields) has completed, so a condition evaluated
+     * from that trigger sees the lead's final state rather than a partial
+     * one caught mid-write.
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
@@ -683,6 +715,23 @@ class DealContactApiController extends Controller
         if ($contact->wasRecentlyCreated && $contact->lead_owner) {
             $this->notifyLeadOwnerOnCreate($contact);
         }
+    }
+
+    /**
+     * Fire lead_created_api/lead_updated_api for a lead this controller just
+     * wrote via the external API — independent of whether the write above
+     * was quiet (saveQuietly() never fires LeadObserver, so the normal
+     * lead_created/lead_updated triggers never see API writes at all) or a
+     * real save() (which already fired those normal triggers separately;
+     * this fires alongside them, not instead).
+     */
+    private function fireLeadApiTrigger(Lead $contact): void
+    {
+        $trigger = $contact->wasRecentlyCreated
+            ? \App\Models\DealAutomation::TRIGGER_LEAD_CREATED_API
+            : \App\Models\DealAutomation::TRIGGER_LEAD_UPDATED_API;
+
+        app(\App\Services\DealAutomationService::class)->processLead($contact, $trigger);
     }
 
     /**
@@ -825,11 +874,16 @@ class DealContactApiController extends Controller
      * Upsert lead custom fields from lead_custom_fields (and custom_fields alias on contact create).
      * Format: {"131": "value", "132": ["a","b"]} — keys are custom field IDs.
      * Only Lead-group fields for the contact's company are accepted.
+     *
+     * @return bool True when a custom field value was actually written —
+     *              lets callers decide whether a custom-field-only change
+     *              (no core field touched) still counts as an update for
+     *              firing lead_updated_api.
      */
-    private function applyLeadCustomFields(Lead $lead, Request $request): void
+    private function applyLeadCustomFields(Lead $lead, Request $request): bool
     {
         if (! $lead->id) {
-            return;
+            return false;
         }
 
         $payload = [];
@@ -847,7 +901,7 @@ class DealContactApiController extends Controller
         }
 
         if ($payload === []) {
-            return;
+            return false;
         }
 
         $leadGroup = CustomFieldGroup::where('company_id', $lead->company_id)
@@ -855,7 +909,7 @@ class DealContactApiController extends Controller
             ->first();
 
         if (! $leadGroup) {
-            return;
+            return false;
         }
 
         $allowedIds = CustomField::where('custom_field_group_id', $leadGroup->id)
@@ -873,7 +927,7 @@ class DealContactApiController extends Controller
         }
 
         if ($customFieldsData === []) {
-            return;
+            return false;
         }
 
         $coreFieldsService = app(LeadCoreFieldsService::class);
@@ -884,16 +938,20 @@ class DealContactApiController extends Controller
         $customFieldsData = $filtered['custom_fields_data'] ?? [];
 
         if ($customFieldsData === []) {
-            return;
+            return false;
         }
 
         try {
             $lead->updateCustomFieldData($customFieldsData, $lead->company_id);
+
+            return true;
         } catch (\Exception $e) {
             Log::error('DealContactApi: Error updating lead custom fields', [
                 'lead_id' => $lead->id,
                 'error' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 

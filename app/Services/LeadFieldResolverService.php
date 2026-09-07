@@ -25,6 +25,22 @@ class LeadFieldResolverService
     }
 
     /**
+     * The underlying Lead attribute name when $field resolves directly to
+     * one of its own columns — the only case a 'changed' condition can be
+     * evaluated (Eloquent's wasChanged() only tracks the model it's called
+     * on). Null for a custom field or a followup field, neither of which is
+     * an attribute of $lead itself.
+     */
+    public function nativeColumn(Lead $lead, string $field): ?string
+    {
+        if (Str::startsWith($field, 'custom_field_') || Str::startsWith($field, 'followup_') || Str::startsWith($field, 'last_followup_')) {
+            return null;
+        }
+
+        return $field;
+    }
+
+    /**
      * Full native + custom field context for the given Lead only (email merge vars).
      *
      * @return array<string, mixed>

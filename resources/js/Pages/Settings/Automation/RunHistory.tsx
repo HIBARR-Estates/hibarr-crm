@@ -45,7 +45,7 @@ function RowSkeleton() {
  */
 function StepRow({ step, index, t }: { step: RunLogEntry; index: number; t: (k: string) => string }) {
     const [open, setOpen] = useState(false);
-    const expandable = step.details !== null;
+    const expandable = step.has_details === true || step.details != null;
 
     return (
         <div className="rounded-lg" style={{ border: `1px solid ${T.BORDER_SOFT}`, background: "#fff" }}>
