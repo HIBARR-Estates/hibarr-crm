@@ -366,7 +366,17 @@ export default function MeetingsWorkspaceRedesign() {
         if (calendarRequestedMonth === calendarMonth) return;
         if (requestedMonthRef.current === calendarMonth) return;
 
-        requestedMonthRef.current = calendarMonth;
+        const requestedMonth = calendarMonth;
+        requestedMonthRef.current = requestedMonth;
+        // A failed or interrupted request must give up its claim on this
+        // month — otherwise the guard above (`requestedMonthRef.current ===
+        // calendarMonth`) would block every retry forever, since nothing else
+        // ever clears it for a request that didn't actually deliver.
+        const releaseClaim = () => {
+            if (requestedMonthRef.current === requestedMonth) {
+                requestedMonthRef.current = null;
+            }
+        };
         router.reload({
             only: ["calendarMeetings"],
             // Merged, not replaced: `data` on its own would send the month
@@ -379,6 +389,8 @@ export default function MeetingsWorkspaceRedesign() {
             }),
             onStart: () => setCalendarLoading(true),
             onFinish: () => setCalendarLoading(false),
+            onError: releaseClaim,
+            onCancel: releaseClaim,
         });
     }, [view, calendarMonth, calendarReady, calendarRequestedMonth]);
 

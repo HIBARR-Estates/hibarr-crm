@@ -470,27 +470,52 @@ export default function MeetingsCalendarView({
                         shownMeetings.length -
                         shownOverlay.length;
 
+                    const bookable = Boolean(date && onCreateAt);
                     return (
                         <div
                             key={key}
                             className={`flex min-h-[152px] flex-col gap-1.5 p-2.5${
-                                date && onCreateAt ? " dr-cal-cell" : ""
+                                bookable ? " dr-cal-cell" : ""
                             }`}
                             // The whole cell is the target: clicking anywhere
                             // that isn't a chip books that day. Chips stop the
                             // event, so there's no ambiguity about which won.
                             onClick={
-                                date && onCreateAt
+                                bookable
                                     ? () =>
-                                          onCreateAt(date.format("YYYY-MM-DD"))
+                                          onCreateAt!(
+                                              date!.format("YYYY-MM-DD"),
+                                          )
+                                    : undefined
+                            }
+                            role={bookable ? "button" : undefined}
+                            tabIndex={bookable ? 0 : undefined}
+                            aria-label={
+                                bookable
+                                    ? td("Schedule a meeting on this day")
+                                    : undefined
+                            }
+                            onKeyDown={
+                                bookable
+                                    ? (event) => {
+                                          if (
+                                              event.key !== "Enter" &&
+                                              event.key !== " "
+                                          ) {
+                                              return;
+                                          }
+                                          event.preventDefault();
+                                          onCreateAt!(
+                                              date!.format("YYYY-MM-DD"),
+                                          );
+                                      }
                                     : undefined
                             }
                             style={{
                                 background: date ? T.WHITE : T.SURFACE_2,
                                 borderRight: `1px solid ${T.BORDER_SOFT}`,
                                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
-                                cursor:
-                                    date && onCreateAt ? "pointer" : undefined,
+                                cursor: bookable ? "pointer" : undefined,
                             }}
                         >
                             {date && (

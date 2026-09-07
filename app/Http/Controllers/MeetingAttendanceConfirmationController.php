@@ -93,6 +93,13 @@ class MeetingAttendanceConfirmationController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'A meeting outcome can only be recorded once the meeting has started.',
+            ], 422);
+        }
+
         $outcome = MeetingAttendanceOutcome::from($validated['outcome']);
 
         $followUp = $this->service->update($followUp, user(), $outcome, $validated['note'] ?? null);

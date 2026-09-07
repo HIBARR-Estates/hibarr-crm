@@ -101,7 +101,10 @@ export default function MeetingConfirmationPanel({
     // except a cancelled one, which is known the moment it's cancelled and
     // doesn't need to wait for its original slot to pass.
     const isCancelled = meeting.status === "cancelled";
-    const minutes = meeting.duration ?? meeting.effective_duration ?? 30;
+    // Same precedence as toPendingShape() below — otherwise this gate and the
+    // duration shown in the popup it opens could disagree on how long the
+    // meeting actually runs.
+    const minutes = meeting.effective_duration ?? meeting.duration ?? 30;
     const hasConcluded = dayjs().isAfter(
         dayjs(meeting.next_follow_up_date).add(minutes, "minute"),
     );

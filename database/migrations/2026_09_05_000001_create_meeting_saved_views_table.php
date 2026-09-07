@@ -15,10 +15,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('meeting_saved_views')) {
-            return;
-        }
-
         Schema::create('meeting_saved_views', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('company_id')->nullable();

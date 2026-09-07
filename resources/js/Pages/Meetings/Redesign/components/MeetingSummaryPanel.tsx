@@ -27,9 +27,31 @@ export default function MeetingSummaryPanel({
     const { t } = useTranslation();
     const { formatDateTime } = useUserDateTime();
 
-    const entries = Object.entries(
-        meeting.meeting_summary?.summary_object ?? {},
-    );
+    const entries = (
+        Object.entries(meeting.meeting_summary?.summary_object ?? {}) as [
+            string,
+            unknown,
+        ][]
+    )
+        .map(([key, value]): [string, string] | null => {
+            if (typeof value === "string" || typeof value === "number") {
+                return [key, String(value)];
+            }
+            if (Array.isArray(value)) {
+                const text = value
+                    .filter(
+                        (item) =>
+                            typeof item === "string" ||
+                            typeof item === "number",
+                    )
+                    .join(", ");
+                return text ? [key, text] : null;
+            }
+            // An object (or anything else unexpected) has no sane plain-text
+            // form — showing it would just print "[object Object]".
+            return null;
+        })
+        .filter((entry): entry is [string, string] => entry !== null);
 
     if (entries.length === 0) {
         if (state === "generating") {
@@ -72,7 +94,7 @@ export default function MeetingSummaryPanel({
                         className="m-0 leading-relaxed"
                         style={{ fontSize: 13, color: T.TEXT }}
                     >
-                        {td(String(value))}
+                        {td(value)}
                     </p>
                 </div>
             ))}

@@ -251,5 +251,9 @@ export function hasMeetingPermission(
     userId?: number,
 ): boolean {
     if (scope === "all") return true;
-    return scope === "added" && meeting.added_by?.id === userId;
+    // Without a signed-in userId, `undefined === undefined` would otherwise
+    // match a meeting with no added_by and wrongly grant "added" scope.
+    return (
+        scope === "added" && userId != null && meeting.added_by?.id === userId
+    );
 }

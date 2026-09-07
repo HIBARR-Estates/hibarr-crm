@@ -158,6 +158,9 @@ export default function MeetingsEditDialog({
         setLocalErrors([]);
         updateMeeting(meeting, form, () => {
             setLocalErrors([]);
+            // Otherwise a stale patch from this meeting could briefly leak
+            // into whichever meeting this same dialog instance opens next.
+            setConfirmationPatch(null);
             onSaved();
             onClose();
         });

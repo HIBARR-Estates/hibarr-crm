@@ -178,8 +178,13 @@ class MeetingsController extends AccountBaseController
                 ->when($dateTo, fn ($q) => $q->where('next_follow_up_date', '<=', Carbon::parse($dateTo)->endOfDay()));
         };
 
-        $applyFilters = function ($query) use (
-            $applyDateWindow,
+        // Split out from the date window so the calendar can apply every
+        // other filter without the date range too — calendarPayload() has
+        // its own window (the month itself) and must not additionally be
+        // narrowed by whatever "Meeting date" range the filter modal has set,
+        // or a month view could quietly come back missing meetings the list
+        // beside it still shows.
+        $applyNonDateFilters = function ($query) use (
             $search,
             $meetingTypeIds,
             $statuses,
@@ -188,8 +193,6 @@ class MeetingsController extends AccountBaseController
             $attendanceValues,
             $recordType
         ) {
-            $applyDateWindow($query);
-
             return $query
                 ->when($meetingTypeIds, fn ($q) => $q->whereIn('meeting_type_id', $meetingTypeIds))
                 ->when($statuses, fn ($q) => $q->whereIn('status', $statuses))
@@ -213,6 +216,12 @@ class MeetingsController extends AccountBaseController
                             ->orWhere('company_name', 'like', $like))
                         ->orWhereHas('meetingType', fn ($type) => $type->where('name', 'like', $like));
                 }));
+        };
+
+        $applyFilters = function ($query) use ($applyDateWindow, $applyNonDateFilters) {
+            $applyDateWindow($query);
+
+            return $applyNonDateFilters($query);
         };
 
         // Ids the "next up" cards will claim, so the list below can leave
@@ -437,7 +446,7 @@ class MeetingsController extends AccountBaseController
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
                 $props['calendarRequestedMonth'] = $calendarMonth->format('Y-m');
                 $props['calendarMeetings'] = Inertia::defer(
-                    fn () => $this->calendarPayload($calendarMonth, $userId, $now, $defaultDuration, $applyFilters)
+                    fn () => $this->calendarPayload($calendarMonth, $userId, $now, $defaultDuration, $applyNonDateFilters)
                 );
             }
         } else {
@@ -474,7 +483,7 @@ class MeetingsController extends AccountBaseController
         int $userId,
         Carbon $now,
         int $defaultDuration,
-        ?callable $applyFilters = null
+        ?callable $applyNonDateFilters = null
     ): array {
         $windowStart = $month->copy()->startOfMonth()->subDay();
         $windowEnd = $month->copy()->endOfMonth()->addDay();
@@ -490,9 +499,10 @@ class MeetingsController extends AccountBaseController
 
         // The month grid shows the same filtered set as the list — switching
         // to the calendar with a filter on must not quietly widen it. The
-        // date window is the one exception: the month itself is the window.
-        if ($applyFilters) {
-            $applyFilters($query);
+        // date window is the one exception: the month itself is the window,
+        // so the caller passes the non-date filters only.
+        if ($applyNonDateFilters) {
+            $applyNonDateFilters($query);
         }
 
         $records = $query

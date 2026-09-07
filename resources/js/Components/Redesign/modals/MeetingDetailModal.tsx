@@ -646,7 +646,10 @@ export default function MeetingDetailModal({
                                         >
                                             {showAllAttendees
                                                 ? td("Show fewer")
-                                                : `${td("Show")} ${hiddenAttendeeCount} ${td("more")}`}
+                                                : td(
+                                                      `Show ${hiddenAttendeeCount} more`,
+                                                      { source: "en" },
+                                                  )}
                                         </button>
                                     )}
                                 </>

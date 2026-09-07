@@ -77,6 +77,11 @@ export default function MeetingsReportDialog({
 
     // Seed the attendance answer from whatever was already recorded, so
     // filing a report doesn't quietly reset a confirmed one to "not sure".
+    // Depends on the id, not the `meeting` object itself — a parent re-render
+    // that hands back a new object for the same meeting (a local state patch
+    // elsewhere) must not re-seed and discard an answer already picked while
+    // this dialog is still open; switching to a genuinely different meeting
+    // still re-seeds, since its id differs.
     useEffect(() => {
         if (!open || !meeting) return;
         setAttendance(
@@ -86,7 +91,8 @@ export default function MeetingsReportDialog({
                   ? "no"
                   : "unknown",
         );
-    }, [open, meeting]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on id, not the meeting object
+    }, [open, meeting?.id]);
 
     const handleClose = () => {
         if (isSaving) return;

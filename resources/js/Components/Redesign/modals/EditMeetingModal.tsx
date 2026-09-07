@@ -65,6 +65,7 @@ export default function EditMeetingModal({
         if (!open) {
             seededForOpenRef.current = false;
             setForm(null);
+            setPanel("details");
             return;
         }
         if (initialForm && !seededForOpenRef.current) {

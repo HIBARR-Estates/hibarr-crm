@@ -67,7 +67,10 @@ export default function MeetingsDetailDialog({
     // acknowledges it, so it opens first and fills in after.
     if (!meeting) {
         return loading ? (
-            <MeetingDetailSkeleton label={td("Loading meeting…")} />
+            <MeetingDetailSkeleton
+                label={td("Loading meeting…")}
+                onClose={onClose}
+            />
         ) : null;
     }
 
@@ -140,9 +143,15 @@ export default function MeetingsDetailDialog({
  * The dialog's shape while the record is still in flight — the same frame the
  * loaded dialog uses, so nothing jumps when the content arrives.
  */
-function MeetingDetailSkeleton({ label }: { label: string }) {
+function MeetingDetailSkeleton({
+    label,
+    onClose,
+}: {
+    label: string;
+    onClose: () => void;
+}) {
     return (
-        <Modal open title={label} onClose={() => undefined}>
+        <Modal open title={label} onClose={onClose}>
             <div className="space-y-3" aria-hidden>
                 {[64, 40, 40, 96].map((height, index) => (
                     <div

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -105,6 +105,19 @@ export default function MeetingFormFields({
     const [showMore, setShowMore] = useState(form.reminders.length > 0);
     const [reminderTime, setReminderTime] = useState(1);
     const [reminderUnit, setReminderUnit] = useState<Reminder["type"]>("day");
+
+    // Local calendar date, not `toISOString()`'s UTC one — that shifts the
+    // date by a day for anyone west of UTC in the evening (or east of it
+    // early in the morning), making "today" briefly unselectable or
+    // yesterday briefly bookable depending on which side of midnight UTC
+    // the viewer's clock happens to be on.
+    const todayLocalDate = useMemo(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }, []);
 
     const mode = modeFromPlatform(form.platform);
     const isVideoMeeting = isVideoPlatform(form.platform);
@@ -308,7 +321,7 @@ export default function MeetingFormFields({
                         <input
                             type="date"
                             value={form.date}
-                            min={new Date().toISOString().split("T")[0]}
+                            min={todayLocalDate}
                             disabled={disabled}
                             onChange={(event) =>
                                 updateForm({ date: event.target.value })

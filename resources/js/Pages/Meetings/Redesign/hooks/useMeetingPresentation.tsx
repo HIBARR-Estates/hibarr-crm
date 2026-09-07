@@ -219,7 +219,7 @@ export default function useMeetingPresentation({
             color: T.RED,
             pulse: true,
         };
-    } else if (meeting.status === "cancelled") {
+    } else if (meeting.status === "cancelled" || meeting.status === "canceled") {
         stateChip = {
             label: td("Cancelled"),
             bg: T.SURFACE_2,
