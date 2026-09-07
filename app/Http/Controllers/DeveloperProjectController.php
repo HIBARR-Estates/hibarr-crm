@@ -423,7 +423,7 @@ class DeveloperProjectController extends AccountBaseController
                 continue;
             }
 
-            $bedrooms = $types->pluck('bedrooms')->filter();
+            $bedrooms = $types->pluck('bedrooms')->filter(fn ($v) => $v !== null && $v !== '');
             $bathrooms = $types->pluck('bathrooms')->filter();
             $areas = $types->pluck('total_area_sqm')->filter()->map(fn ($a) => (float) $a);
             $prices = $types->pluck('starting_price')->filter()->map(fn ($p) => (float) $p);

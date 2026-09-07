@@ -414,7 +414,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     Bedrooms
                                 </div>
                                 <div className="font-semibold text-gray-800">
-                                    {ut.bedrooms}
+                                    {ut.bedrooms === 0 ? "Studio" : ut.bedrooms}
                                 </div>
                             </div>
                         )}
@@ -725,7 +725,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         label="Bedrooms"
                                         value={
                                             ut.bedrooms != null
-                                                ? String(ut.bedrooms)
+                                                ? ut.bedrooms === 0
+                                                    ? "Studio"
+                                                    : String(ut.bedrooms)
                                                 : "-"
                                         }
                                     />

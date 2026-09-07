@@ -949,8 +949,8 @@ p {
                         <div class="card-subtitle">{{ $unitType['reference_code'] }}</div>
                         @endif
                         <div class="card-specs">
-                            @if(!empty($unitType['bedrooms']))
-                            <span class="spec"><strong>{{ $unitType['bedrooms'] }}</strong> Bed</span>
+                            @if($unitType['bedrooms'] !== null && $unitType['bedrooms'] !== '')
+                            <span class="spec"><strong>{{ (int) $unitType['bedrooms'] === 0 ? 'Studio' : $unitType['bedrooms'] . ' Bed' }}</strong></span>
                             @endif
                             @if(!empty($unitType['bathrooms']))
                             <span class="spec"><strong>{{ $unitType['bathrooms'] }}</strong> Bath</span>
