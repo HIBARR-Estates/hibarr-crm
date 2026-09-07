@@ -926,7 +926,15 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
         if (onRefresh) {
             onRefresh();
         } else {
-            router.reload({ only: ["unitTypes", "project"] });
+            router.reload({
+                only: [
+                    "unitTypes",
+                    "project",
+                    "statistics",
+                    "unitTypesSummary",
+                    "unitTypePriceList",
+                ],
+            });
         }
     };
 

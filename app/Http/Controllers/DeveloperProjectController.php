@@ -2,27 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\Reply;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
-use App\Models\Property;
+use App\Models\Lead;
 use App\Models\ProjectFacility;
 use App\Models\ProjectLocation;
-use App\Models\Lead;
-use App\Helper\Reply;
-use App\Services\PdfExpose\ExposeGeneratorService;
+use App\Models\Property;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
-use App\Support\FeatureFlags;
-use App\Support\DeveloperProjectVisibility;
+use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Support\DeveloperProjectListingQuery;
+use App\Support\DeveloperProjectVisibility;
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
  * DeveloperProjectController
- * 
+ *
  * Handles CRUD operations for developer projects and property assignments.
  * Projects are the main entity that groups properties together and links
  * to expose configurations for PDF generation.
@@ -33,7 +33,7 @@ class DeveloperProjectController extends AccountBaseController
         private ExposeGeneratorService $exposeService
     ) {
         parent::__construct();
-        
+
         // TODO: Add permission checks when permissions are defined
         // $this->middleware(function ($request, $next) {
         //     abort_403(!in_array('view_developer_projects', $this->user->permission->permissions));
@@ -81,7 +81,7 @@ class DeveloperProjectController extends AccountBaseController
         $area = $this->normalizeLocationText(is_string($incomingArea) ? $incomingArea : null);
 
         // No canonical key available; keep existing behavior for explicit location selection.
-        if (!$city && !$area) {
+        if (! $city && ! $area) {
             return null;
         }
 
@@ -169,7 +169,7 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Display a listing of developer projects.
-     * 
+     *
      * Supports search filtering and returns paginated results with
      * related location and property count data.
      */
@@ -328,18 +328,14 @@ class DeveloperProjectController extends AccountBaseController
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
-        // Find lowest starting price across unit types
+        // Project-level starting price, else cheapest unit type.
         $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
-        if ($project->starting_price !== null) {
-            // Project-level override has no currency of its own; a project has one currency, so use the unit types'.
-            $startingPrice = (float) $project->starting_price;
-            $startingPriceCurrency = $project->unitTypes->first()?->currency ?? 'GBP';
-        } else {
-            $startingPrice = $lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null;
-            $startingPriceCurrency = $lowestPriceUnit?->currency ?? 'GBP';
-        }
+        $startingPrice = $project->resolvedStartingPrice();
+        $startingPriceCurrency = $project->starting_price !== null && $project->starting_price !== ''
+            ? ($project->unitTypes->first()?->currency ?? 'GBP')
+            : ($lowestPriceUnit?->currency ?? 'GBP');
         $startingPriceFormatted = $startingPrice !== null
-            ? (DeveloperProjectUnitType::CURRENCIES[$startingPriceCurrency]['symbol'] ?? '£') . number_format($startingPrice, 0)
+            ? (DeveloperProjectUnitType::CURRENCIES[$startingPriceCurrency]['symbol'] ?? '£').number_format($startingPrice, 0)
             : null;
 
         // Build unit types summary (grouped by property_type)
@@ -361,11 +357,11 @@ class DeveloperProjectController extends AccountBaseController
         $developerProjects = collect();
         if ($project->developer_id) {
             $relatedQuery = DeveloperProject::with([
-                    'thumbnail',
-                     'assets',
-                    'location',
-                    'developer',
-                ])
+                'thumbnail',
+                'assets',
+                'location',
+                'developer',
+            ])
                 ->withCount('properties')
                 ->withCount(['properties as sold_properties_count' => function ($q) {
                     $q->where('status', Property::STATUS_SOLD);
@@ -423,12 +419,14 @@ class DeveloperProjectController extends AccountBaseController
         $summary = [];
 
         foreach ($grouped as $type => $types) {
-            if (empty($type)) continue;
+            if (empty($type)) {
+                continue;
+            }
 
             $bedrooms = $types->pluck('bedrooms')->filter();
             $bathrooms = $types->pluck('bathrooms')->filter();
-            $areas = $types->pluck('total_area_sqm')->filter()->map(fn($a) => (float) $a);
-            $prices = $types->pluck('starting_price')->filter()->map(fn($p) => (float) $p);
+            $areas = $types->pluck('total_area_sqm')->filter()->map(fn ($a) => (float) $a);
+            $prices = $types->pluck('starting_price')->filter()->map(fn ($p) => (float) $p);
 
             $summary[] = [
                 'type' => $type,
@@ -464,10 +462,10 @@ class DeveloperProjectController extends AccountBaseController
 
         // Merge unique facilities from properties' exterior and interior features
         foreach ($project->properties as $property) {
-            if (!empty($property->exterior_features)) {
+            if (! empty($property->exterior_features)) {
                 $slugs = $slugs->merge($property->exterior_features);
             }
-            if (!empty($property->interior_features)) {
+            if (! empty($property->interior_features)) {
                 $slugs = $slugs->merge($property->interior_features);
             }
         }
@@ -483,8 +481,10 @@ class DeveloperProjectController extends AccountBaseController
         return $uniqueSlugs->map(function ($slug) use ($facilityMap) {
             if ($facilityMap->has($slug)) {
                 $f = $facilityMap->get($slug);
+
                 return ['name' => $f->name, 'label' => $f->label, 'icon' => $f->icon];
             }
+
             // Fallback for slugs not in the DB
             return ['name' => $slug, 'label' => ucfirst(str_replace('_', ' ', $slug)), 'icon' => null];
         })->values()->all();
@@ -507,7 +507,7 @@ class DeveloperProjectController extends AccountBaseController
                 ->byTag($tag)
                 ->ordered()
                 ->get()
-                ->map(fn($asset) => [
+                ->map(fn ($asset) => [
                     'id' => $asset->id,
                     'url' => $asset->url,
                     'name' => $asset->name,
@@ -518,13 +518,13 @@ class DeveloperProjectController extends AccountBaseController
             // Get images from unit type assets
             foreach ($project->unitTypes as $unitType) {
                 $unitTypeImages = $unitType->assets
-                    ->filter(fn($a) => $a->asset_type === 'image' && in_array($tag, $a->tags ?? []))
-                    ->map(fn($asset) => [
-                        'id'             => $asset->id,
-                        'url'            => $asset->url,
-                        'name'           => $asset->name,
-                        'source'         => 'unit_type',
-                        'unit_type_id'   => $unitType->id,
+                    ->filter(fn ($a) => $a->asset_type === 'image' && in_array($tag, $a->tags ?? []))
+                    ->map(fn ($asset) => [
+                        'id' => $asset->id,
+                        'url' => $asset->url,
+                        'name' => $asset->name,
+                        'source' => 'unit_type',
+                        'unit_type_id' => $unitType->id,
                         'unit_type_name' => $unitType->display_label ?? $unitType->reference_code,
                     ]);
                 $images = $images->merge($unitTypeImages);
@@ -537,7 +537,7 @@ class DeveloperProjectController extends AccountBaseController
                     ->byTag($tag)
                     ->ordered()
                     ->get()
-                    ->map(fn($asset) => [
+                    ->map(fn ($asset) => [
                         'id' => $asset->id,
                         'url' => $asset->url,
                         'name' => $asset->name,
@@ -580,12 +580,12 @@ class DeveloperProjectController extends AccountBaseController
             $tags = collect($asset->tags ?? []);
 
             $facilityTags = $tags
-                ->filter(fn($tag) => is_string($tag) && Str::startsWith($tag, 'facilities:'))
+                ->filter(fn ($tag) => is_string($tag) && Str::startsWith($tag, 'facilities:'))
                 ->values();
 
             foreach ($facilityTags as $facilityTag) {
                 $slug = Str::after($facilityTag, 'facilities:');
-                if ($slug === '' || !array_key_exists($slug, $map)) {
+                if ($slug === '' || ! array_key_exists($slug, $map)) {
                     continue;
                 }
 
@@ -610,16 +610,18 @@ class DeveloperProjectController extends AccountBaseController
         $priceList = [];
 
         foreach ($grouped as $type => $props) {
-            if (empty($type)) continue;
+            if (empty($type)) {
+                continue;
+            }
 
             $prices = $props->pluck('price')->filter();
-            
+
             $priceList[] = [
                 'type' => $type,
                 'count' => $props->count(),
                 'min_price' => $prices->min(),
                 'max_price' => $prices->max(),
-                'properties' => $props->map(fn($p) => [
+                'properties' => $props->map(fn ($p) => [
                     'id' => $p->id,
                     'title' => $p->title,
                     'price' => $p->price,
@@ -642,7 +644,9 @@ class DeveloperProjectController extends AccountBaseController
         $priceList = [];
 
         foreach ($grouped as $type => $units) {
-            if (empty($type)) continue;
+            if (empty($type)) {
+                continue;
+            }
 
             $prices = $units->pluck('starting_price')->filter();
 
@@ -653,7 +657,7 @@ class DeveloperProjectController extends AccountBaseController
                 'max_price' => $prices->max() ? (float) $prices->max() : null,
                 'currency' => $units->first()->currency ?? 'GBP',
                 'currency_symbol' => $units->first()->currency_symbol ?? '£',
-                'unit_types' => $units->map(fn($ut) => [
+                'unit_types' => $units->map(fn ($ut) => [
                     'id' => $ut->id,
                     'reference_code' => $ut->reference_code,
                     'starting_price' => $ut->starting_price ? (float) $ut->starting_price : null,
@@ -675,7 +679,7 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Store a new developer project.
-     * 
+     *
      * Creates the project with basic info and optional location assignment.
      * Expose config is created separately when needed.
      */
@@ -694,18 +698,18 @@ class DeveloperProjectController extends AccountBaseController
             'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
-            'title_deed_type' => 'nullable|string|in:' . implode(',', DeveloperProject::TITLE_DEED_TYPES),
+            'title_deed_type' => 'nullable|string|in:'.implode(',', DeveloperProject::TITLE_DEED_TYPES),
             'unit_types' => 'nullable|array',
-            'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
+            'unit_types.*' => 'string|in:'.implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
             'total_units' => 'nullable|integer|min:0',
             'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
-            'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
+            'construction_status' => 'nullable|string|in:'.implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
             'completion_date' => 'nullable|date',
             'number_of_phases' => 'nullable|integer|min:0',
-            'furniture_package' => 'nullable|string|in:' . implode(',', DeveloperProject::FURNITURE_PACKAGES),
+            'furniture_package' => 'nullable|string|in:'.implode(',', DeveloperProject::FURNITURE_PACKAGES),
             'rental_guarantee' => 'nullable|boolean',
             'payment_plan' => 'nullable|array',
             'payment_plan.enabled' => 'nullable|boolean',
@@ -755,7 +759,7 @@ class DeveloperProjectController extends AccountBaseController
             $developer = \App\Models\Developer::find($request->developer_id);
             if ($developer) {
                 $projectList = $developer->project_list ?? [];
-                if (!in_array($request->name, $projectList)) {
+                if (! in_array($request->name, $projectList)) {
                     $projectList[] = $request->name;
                     $developer->update(['project_list' => $projectList]);
                 }
@@ -834,18 +838,18 @@ class DeveloperProjectController extends AccountBaseController
             'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
-            'title_deed_type' => 'nullable|string|in:' . implode(',', DeveloperProject::TITLE_DEED_TYPES),
+            'title_deed_type' => 'nullable|string|in:'.implode(',', DeveloperProject::TITLE_DEED_TYPES),
             'unit_types' => 'nullable|array',
-            'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
+            'unit_types.*' => 'string|in:'.implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
             'total_units' => 'nullable|integer|min:0',
             'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
-            'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
+            'construction_status' => 'nullable|string|in:'.implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
             'completion_date' => 'nullable|date',
             'number_of_phases' => 'nullable|integer|min:0',
-            'furniture_package' => 'nullable|string|in:' . implode(',', DeveloperProject::FURNITURE_PACKAGES),
+            'furniture_package' => 'nullable|string|in:'.implode(',', DeveloperProject::FURNITURE_PACKAGES),
             'rental_guarantee' => 'nullable|boolean',
             'payment_plan' => 'nullable|array',
             'payment_plan.enabled' => 'nullable|boolean',
@@ -922,7 +926,7 @@ class DeveloperProjectController extends AccountBaseController
 
         // Protect existing facilities from being cleared when the field is
         // omitted by a collapsed form section on the frontend.
-        if (!$request->has('facilities')) {
+        if (! $request->has('facilities')) {
             unset($updatePayload['facilities']);
         }
 
@@ -944,7 +948,7 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Delete a developer project.
-     * 
+     *
      * Soft deletes the project. Properties assigned to this project
      * will have their developer_project_id set to null (handled by FK constraint).
      */
@@ -965,12 +969,12 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Assign properties to a project.
-     * 
+     *
      * Properties can only belong to one project at a time, so this will
      * reassign them from any previous project.
-     * 
-     * @param Request $request Contains property_ids array
-     * @param int $id Project ID
+     *
+     * @param  Request  $request  Contains property_ids array
+     * @param  int  $id  Project ID
      */
     public function assignProperties(Request $request, $id)
     {
@@ -997,12 +1001,12 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Remove properties from a project.
-     * 
+     *
      * Sets developer_project_id to null for the specified properties,
      * but only if they currently belong to this project.
-     * 
-     * @param Request $request Contains property_ids array
-     * @param int $id Project ID
+     *
+     * @param  Request  $request  Contains property_ids array
+     * @param  int  $id  Project ID
      */
     public function removeProperties(Request $request, $id)
     {
@@ -1025,7 +1029,7 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Get properties available for assignment.
-     * 
+     *
      * Returns properties that are either unassigned or assigned to this project.
      * Used for the property selection UI.
      */
@@ -1037,21 +1041,21 @@ class DeveloperProjectController extends AccountBaseController
         $query = Property::where('company_id', user()->company_id)
             ->where(function ($q) use ($project) {
                 $q->whereNull('developer_project_id')
-                  ->orWhere('developer_project_id', $project->id);
+                    ->orWhere('developer_project_id', $project->id);
             });
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('city', 'like', "%{$search}%")
-                  ->orWhere('area', 'like', "%{$search}%");
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('area', 'like', "%{$search}%");
             });
         }
 
         $properties = $query->select([
-            'id', 'title', 'city', 'area', 'property_type', 
-            'sale_type', 'price', 'status', 'developer_project_id'
+            'id', 'title', 'city', 'area', 'property_type',
+            'sale_type', 'price', 'status', 'developer_project_id',
         ])->paginate(20);
 
         return Reply::successWithData('Available properties fetched', [
@@ -1081,12 +1085,11 @@ class DeveloperProjectController extends AccountBaseController
 
     /**
      * Generate expose PDF for a developer project.
-     * 
+     *
      * @deprecated Use generateProjectExpose() or generateUnitTypeExpose() instead.
      *             This method is kept for backward compatibility but will be removed.
      *
-     * @param Request $request
-     * @param int $id Project ID
+     * @param  int  $id  Project ID
      * @return \Illuminate\Http\Response
      */
     public function generateExpose(Request $request, $id)
@@ -1180,18 +1183,18 @@ class DeveloperProjectController extends AccountBaseController
         $project = DeveloperProject::where('company_id', user()->company_id)->findOrFail($id);
 
         $payload = [
-            'client_name'  => $request->input('client_name'),
+            'client_name' => $request->input('client_name'),
             'client_email' => $request->input('client_email'),
         ];
 
         $exposeJob = \App\Models\ExposeJob::create([
-            'company_id'  => user()->company_id,
-            'user_id'     => user()->id,
+            'company_id' => user()->company_id,
+            'user_id' => user()->id,
             'entity_type' => \App\Models\ExposeJob::ENTITY_DEVELOPER_PROJECT,
-            'entity_id'   => $project->id,
-            'status'      => \App\Models\ExposeJob::STATUS_QUEUED,
-            'filename'    => \Illuminate\Support\Str::slug($project->name) . '-brochure.pdf',
-            'payload'     => $payload,
+            'entity_id' => $project->id,
+            'status' => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename' => \Illuminate\Support\Str::slug($project->name).'-brochure.pdf',
+            'payload' => $payload,
         ]);
 
         \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue(\App\Jobs\GenerateExposeJob::QUEUE);
@@ -1238,21 +1241,21 @@ class DeveloperProjectController extends AccountBaseController
             ->findOrFail($unitTypeId);
 
         $payload = [
-            'client_name'  => $request->input('client_name'),
+            'client_name' => $request->input('client_name'),
             'client_email' => $request->input('client_email'),
         ];
 
         $label = $unitType->display_label ?? $unitType->property_type ?? 'unit';
 
         $exposeJob = \App\Models\ExposeJob::create([
-            'company_id'    => user()->company_id,
-            'user_id'       => user()->id,
-            'entity_type'   => \App\Models\ExposeJob::ENTITY_UNIT_TYPE,
-            'entity_id'     => $project->id,
+            'company_id' => user()->company_id,
+            'user_id' => user()->id,
+            'entity_type' => \App\Models\ExposeJob::ENTITY_UNIT_TYPE,
+            'entity_id' => $project->id,
             'sub_entity_id' => $unitType->id,
-            'status'        => \App\Models\ExposeJob::STATUS_QUEUED,
-            'filename'      => \Illuminate\Support\Str::slug($project->name . '-' . $label) . '-expose.pdf',
-            'payload'       => $payload,
+            'status' => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename' => \Illuminate\Support\Str::slug($project->name.'-'.$label).'-expose.pdf',
+            'payload' => $payload,
         ]);
 
         \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue(\App\Jobs\GenerateExposeJob::QUEUE);
