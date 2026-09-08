@@ -45,5 +45,6 @@ return [
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
+        'crm.deal-value-commission',
     ],
 ];
