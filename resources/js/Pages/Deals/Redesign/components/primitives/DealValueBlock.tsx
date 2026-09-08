@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Tooltip } from "antd";
 import { Deal } from "@/Types/api/deals";
 import useTranslation from "@/Hooks/useTranslation";
+import useDealValueCommissionFlag from "@/Hooks/useDealValueCommissionFlag";
 import { isDealValueLocked } from "@/lib/dealOutcome";
 import {
     useCompanyCurrency,
@@ -22,6 +23,7 @@ interface DealValueBlockProps {
 /** Ported from v2.2's ValueBlock (deal-v2-2.jsx:1195-1261). */
 export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     const { t } = useTranslation();
+    const showCommission = useDealValueCommissionFlag();
     const [open, setOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -343,7 +345,8 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                             )}
 
                         {/* ── How that figure divides ── */}
-                        {breakdown.commission &&
+                        {showCommission &&
+                            breakdown.commission &&
                             section(
                                 t("pages.deals.info.value_insight.section_commission"),
                                 <>
