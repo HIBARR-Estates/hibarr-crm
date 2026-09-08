@@ -81,6 +81,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
+use App\Http\Controllers\MeetingSavedViewController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\MeetingTypeController;
 use App\Http\Controllers\MessageController;
@@ -759,13 +760,24 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
+    Route::post('meeting-saved-views', [MeetingSavedViewController::class, 'store'])->name('meeting-saved-views.store');
+    Route::patch('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'update'])->name('meeting-saved-views.update');
+    Route::delete('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'destroy'])->name('meeting-saved-views.destroy');
+    Route::get('meetings/zoho-events', [\App\Http\Controllers\MeetingsController::class, 'zohoEvents'])->name('meetings.zoho_events');
+    // JSON for one meeting, used by the calendar when a chip is opened.
+    // Deliberately not the bare meetings/{id}: that path should stay free for
+    // a real meeting page, and an endpoint that answers JSON from it would
+    // quietly become the default meaning of the URL.
+    Route::get('meetings/{followUp}/detail', [\App\Http\Controllers\MeetingsController::class, 'show'])->name('meetings.detail')->whereNumber('followUp');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
+    Route::post('meetings/{followUp}/report', [\App\Http\Controllers\MeetingsController::class, 'report'])->name('meetings.report');
     Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)
     Route::prefix('api/meetings')->name('meetings.api.')->group(function () {
         Route::get('/attendance-confirmation/pending', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'pending'])->name('attendance_confirmation.pending');
         Route::post('/{followUp}/attendance-confirmation', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'confirm'])->name('attendance_confirmation.confirm');
+        Route::patch('/{followUp}/attendance-confirmation', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'update'])->name('attendance_confirmation.update');
         Route::post('/{followUp}/attendance-confirmation/snooze', [\App\Http\Controllers\MeetingAttendanceConfirmationController::class, 'snooze'])->name('attendance_confirmation.snooze');
     });
 

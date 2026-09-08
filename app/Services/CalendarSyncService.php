@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\DealFollowUp;
-use App\Support\MeetingAttendeeResolver;
 use App\Scopes\CompanyScope;
+use App\Support\MeetingAttendeeResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -27,7 +27,7 @@ class CalendarSyncService
         ]);
 
         $response = $this->olRequest('POST', "/crm/events/{$platform}", $payload);
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
@@ -42,7 +42,7 @@ class CalendarSyncService
             []
         );
 
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
@@ -60,11 +60,11 @@ class CalendarSyncService
             []
         );
 
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('CalendarSyncService: OL status returned non-2xx', [
                 'jobId' => $jobId,
                 'status' => $response->status(),
@@ -91,7 +91,7 @@ class CalendarSyncService
             ['creatorUserId' => $creatorUserId]
         );
 
-        if (!$response) {
+        if (! $response) {
             return false;
         }
 
@@ -111,7 +111,49 @@ class CalendarSyncService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * A user's own Zoho Calendar events for a window.
+     *
+     * `GET {ol}/zoho/calendar` per the OL contract. The listing endpoint does
+     * not document a user parameter the way the single-event ones do, so
+     * `creatorUserId` is sent alongside the documented window/paging params:
+     * if OL scopes by it, the caller gets their own calendar; if it ignores
+     * it, nothing breaks. Worth confirming with OL before this is relied on
+     * for anything but display.
+     *
+     * Returns the raw `data.result` rows, or null when the call fails — the
+     * caller treats that as "no overlay", never as an error worth surfacing.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function listUserEvents(
+        int $creatorUserId,
+        Carbon $start,
+        Carbon $end,
+        int $limit = 100
+    ): ?array {
+        $response = $this->olRequest('GET', '/zoho/calendar', [
+            'start' => $start->toIso8601String(),
+            'end' => $end->toIso8601String(),
+            'limit' => max(1, min(100, $limit)),
+            'creatorUserId' => $creatorUserId,
+        ]);
+
+        if (! $response || ! $response->successful()) {
+            Log::warning('CalendarSyncService: Zoho calendar listing unavailable', [
+                'creatorUserId' => $creatorUserId,
+                'status' => $response?->status(),
+            ]);
+
+            return null;
+        }
+
+        $result = $response->json('data.result');
+
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
      */
     private function olRequest(string $method, string $path, array $payload): ?Response
     {
@@ -128,7 +170,7 @@ class CalendarSyncService
             return null;
         }
 
-        $url = rtrim($baseUrl, '/') . $path;
+        $url = rtrim($baseUrl, '/').$path;
         $method = strtoupper($method);
 
         try {
@@ -159,23 +201,25 @@ class CalendarSyncService
 
     private function extractJobIdFromCreateLikeResponse(Response $response, string|int $context): ?string
     {
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('CalendarSyncService: OL returned non-2xx', [
                 'context' => $context,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
+
             return null;
         }
 
         $data = $response->json('data');
         $jobId = $data['jobId'] ?? null;
 
-        if (!is_string($jobId) || trim($jobId) === '') {
+        if (! is_string($jobId) || trim($jobId) === '') {
             Log::warning('CalendarSyncService: OL response missing jobId', [
                 'context' => $context,
                 'data' => $data,
             ]);
+
             return null;
         }
 

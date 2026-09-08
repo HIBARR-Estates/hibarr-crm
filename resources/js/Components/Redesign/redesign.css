@@ -448,3 +448,25 @@
 .workspace-note-card-clamp .workspace-note-html.html-content li {
     margin-bottom: 0;
 }
+
+/* Tactile press feedback on chips/segmented controls. */
+.dr-press {
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        transform 90ms ease;
+}
+
+.dr-press:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dr-press {
+        transition: none;
+    }
+
+    .dr-press:active:not(:disabled) {
+        transform: none;
+    }
+}

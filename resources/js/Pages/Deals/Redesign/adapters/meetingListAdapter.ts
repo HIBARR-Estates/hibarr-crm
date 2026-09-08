@@ -1,4 +1,5 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { producesMeetingSummary } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     toWorkspaceMeetingPreview,
     type WorkspaceMeetingPreview,
@@ -17,6 +18,38 @@ export function getMeetingStatusTone(status: string): string {
     if (status === "canceled" || status === "cancelled") return "dr-pill-red";
     if (status === "scheduled") return "dr-pill-blue";
     return "dr-pill-gray";
+}
+
+export interface MeetingStatusDisplay {
+    /** Plain-English word — no reader should have to guess what a bare "scheduled" on a meeting that already happened means. */
+    label: string;
+    tone: string;
+    dotColor: string;
+}
+
+/**
+ * A clearer read on `status` than the raw DB value on its own.
+ *
+ * `status` only ever holds scheduled/completed/cancelled — a follow-up that
+ * has already happened and nobody has reported on yet is *still* "scheduled"
+ * in the database, which reads as "this hasn't happened" to anyone looking
+ * at the word alone. Folding in whether the slot has actually passed turns
+ * that into "Awaiting outcome", the same distinction the meetings list's row
+ * chip already makes.
+ */
+export function getMeetingStatusDisplay(
+    item: Pick<WorkspaceMeetingPreview, "isPast"> & { statusLabel: string },
+): MeetingStatusDisplay {
+    if (item.statusLabel === "completed") {
+        return { label: "Completed", tone: "dr-pill-green", dotColor: "#177a5b" };
+    }
+    if (item.statusLabel === "canceled" || item.statusLabel === "cancelled") {
+        return { label: "Cancelled", tone: "dr-pill-red", dotColor: "#b91c1c" };
+    }
+    if (item.isPast) {
+        return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: "#9ca3af" };
+    }
+    return { label: "Upcoming", tone: "dr-pill-blue", dotColor: "#14538c" };
 }
 
 export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
@@ -95,8 +128,10 @@ function getPlatformMeta(location?: string | null): {
 }
 
 function getSummaryStatus(meeting: DealFollowup): MeetingSummaryStatus {
-    const nonVideoLocations = ["office", "phone", "physical"];
-    if (nonVideoLocations.includes(meeting.location) || !meeting.meeting_link) {
+    // See producesMeetingSummary for which platforms qualify. This used to
+    // accept any video platform with a link, which left Teams meetings
+    // advertising a summary that was never coming.
+    if (!producesMeetingSummary(meeting.location, meeting.meeting_link)) {
         return "none";
     }
 
@@ -136,6 +171,30 @@ function getLocationDisplay(
         default:
             return meeting.location || "No location set";
     }
+}
+
+/**
+ * Whether the location line says anything the platform pill doesn't.
+ *
+ * The pill answers "what kind of meeting" and the line answers "where
+ * exactly", but for every known location without a link the two collapse onto
+ * the same words — a Phone meeting showed a "Phone" pill above a "Phone
+ * meeting" line, and an office one said "HIBARR HQ" twice. The line is worth
+ * rendering only when it carries something extra: a typed place name, or a
+ * qualifier like "(link pending)".
+ */
+export function locationAddsDetail(item: {
+    platformLabel: string;
+    locationDisplay: string;
+}): boolean {
+    const normalise = (value: string) =>
+        value
+            .trim()
+            .toLowerCase()
+            // "Phone meeting" and "Phone" are the same answer.
+            .replace(/\s+meeting$/, "");
+
+    return normalise(item.locationDisplay) !== normalise(item.platformLabel);
 }
 
 export function toWorkspaceMeetingListItem(

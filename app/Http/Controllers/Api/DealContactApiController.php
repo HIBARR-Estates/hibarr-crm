@@ -10,12 +10,14 @@ use App\Jobs\ProcessDealRequestJob;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\DealHistory;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
+use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -208,11 +210,20 @@ class DealContactApiController extends Controller
                 ], 200);
             }
 
-            // Resolve contact ID (this is fast and doesn't need to be queued)
+            // Resolve contact ID (this is fast and doesn't need to be queued).
+            // Do not fire lead_created_api/lead_updated_api here — marketing and
+            // the deal job (which may set lead_owner from deal_owner_id) still
+            // have to run, and the trigger must see that final state.
+            $leadWasCreated = false;
+            $shouldFireLeadTrigger = false;
             $contactId = $request->input('lead_id') ?? null;
             if (! $contactId) {
-                $contactId = $this->resolveContact($request, $companyId);
+                $resolved = $this->resolveContact($request, $companyId);
+                $contactId = $resolved['id'];
+                $leadWasCreated = $resolved['was_created'];
+                $shouldFireLeadTrigger = $resolved['should_fire'];
             } else {
+                $contactId = (int) $contactId;
                 // lead_id bypasses resolveContact — still apply optional lead fields / CFs
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
@@ -221,12 +232,7 @@ class DealContactApiController extends Controller
                         $existingLead->saveQuietly();
                     }
                     $customFieldsChanged = $this->applyLeadCustomFields($existingLead, $request);
-                    // Fired after every write completes — including custom
-                    // fields — so a condition evaluated from this trigger
-                    // sees the lead's final state, not a partial one.
-                    if ($fieldsChanged || $customFieldsChanged) {
-                        $this->fireLeadApiTrigger($existingLead);
-                    }
+                    $shouldFireLeadTrigger = $fieldsChanged || $customFieldsChanged;
                 }
             }
 
@@ -235,12 +241,20 @@ class DealContactApiController extends Controller
             $this->rememberRequestContactId($duplicateKey, (int) $contactId);
 
             // Save UTM information if provided (also fast)
-            $this->saveUtmInfo($contactId, $request);
+            $this->saveUtmInfo((int) $contactId, $request);
 
             // Process synchronously in the web request so assignment uses current app code.
             // Async queue workers can run stale code until restarted, which skipped
             // lead owner and participant assignment even after service fixes.
-            ProcessDealRequestJob::dispatchSync($contactId, $companyId, $request->all());
+            try {
+                ProcessDealRequestJob::dispatchSync((int) $contactId, $companyId, $request->all());
+            } finally {
+                // After marketing + the deal job, even if the job failed — the
+                // lead row already exists and a retry may look like an update.
+                if ($shouldFireLeadTrigger) {
+                    $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                }
+            }
 
             Log::info('Deal creation request processed synchronously', [
                 'contact_id' => $contactId,
@@ -463,6 +477,7 @@ class DealContactApiController extends Controller
                 }
 
                 $isNewContact = ! $existingContact;
+                $shouldFireLeadTrigger = false;
 
                 if ($isNewContact) {
                     // Create new contact
@@ -491,10 +506,7 @@ class DealContactApiController extends Controller
                     $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
-                    // Fired after categories/custom fields are persisted, not
-                    // right after the initial save, so a condition on either
-                    // sees this lead's actual final state.
-                    $this->fireLeadApiTrigger($contact);
+                    $shouldFireLeadTrigger = true;
                 } else {
                     // Update existing contact
                     $updated = false;
@@ -540,14 +552,17 @@ class DealContactApiController extends Controller
                     $contactId = $existingContact->id;
                     // A custom-field-only change (no core field touched) still
                     // counts as an update — otherwise lead_updated_api would
-                    // never fire for it at all.
-                    if ($updated || $customFieldsChanged) {
-                        $this->fireLeadApiTrigger($existingContact);
-                    }
+                    // never fire for it at all. Marketing-only writes do not.
+                    $shouldFireLeadTrigger = $updated || $customFieldsChanged;
                 }
 
-                // Save UTM information if provided
+                // Save UTM information if provided, then fire so a condition on
+                // lead_marketing_* (or a merge tag) sees this request's final state.
                 $this->saveUtmInfo($contactId, $request);
+
+                if ($shouldFireLeadTrigger) {
+                    $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                }
 
                 $savedContact = Lead::query()->find($contactId);
                 $preferredContactTimes = $savedContact?->resolvedPreferredContactTimes() ?? [];
@@ -572,8 +587,13 @@ class DealContactApiController extends Controller
 
     /**
      * Checks if contact already exists by email, otherwise creates a new contact.
+     *
+     * Does not fire the via-API lead trigger — the caller fires once after
+     * marketing (and on deal/create, the deal job) have been written.
+     *
+     * @return array{id: int, was_created: bool, should_fire: bool}
      */
-    private function resolveContact(Request $request, int $companyId): int
+    private function resolveContact(Request $request, int $companyId): array
     {
         // Check if contact already exists by email (most reliable identifier)
         if ($request->has('email') && ! empty($request->email)) {
@@ -612,11 +632,12 @@ class DealContactApiController extends Controller
                     $existingContact->saveQuietly();
                 }
                 $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
-                if ($updated || $customFieldsChanged) {
-                    $this->fireLeadApiTrigger($existingContact);
-                }
 
-                return $existingContact->id;
+                return [
+                    'id' => (int) $existingContact->id,
+                    'was_created' => false,
+                    'should_fire' => $updated || $customFieldsChanged,
+                ];
             }
         }
 
@@ -654,11 +675,12 @@ class DealContactApiController extends Controller
                     $existingContact->saveQuietly();
                 }
                 $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
-                if ($updated || $customFieldsChanged) {
-                    $this->fireLeadApiTrigger($existingContact);
-                }
 
-                return $existingContact->id;
+                return [
+                    'id' => (int) $existingContact->id,
+                    'was_created' => false,
+                    'should_fire' => $updated || $customFieldsChanged,
+                ];
             }
         }
 
@@ -681,21 +703,21 @@ class DealContactApiController extends Controller
         $this->applyReferralAgentToNewLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
-        // Fired after custom fields are persisted, not right after the
-        // initial save, so a condition that checks one sees this lead's
-        // actual final state.
-        $this->fireLeadApiTrigger($contact);
 
-        return $contact->id;
+        return [
+            'id' => (int) $contact->id,
+            'was_created' => true,
+            'should_fire' => true,
+        ];
     }
 
     /**
      * Save a lead contact, optionally firing model observers for notifications.
      * Does not fire the "via API" automation trigger itself — callers fire it
      * (via fireLeadApiTrigger()) only after every write for this request
-     * (categories, custom fields) has completed, so a condition evaluated
-     * from that trigger sees the lead's final state rather than a partial
-     * one caught mid-write.
+     * (categories, custom fields, marketing, and on deal/create the deal job)
+     * has completed, so a condition evaluated from that trigger sees the
+     * lead's final state rather than a partial one caught mid-write.
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
@@ -724,14 +746,25 @@ class DealContactApiController extends Controller
      * lead_created/lead_updated triggers never see API writes at all) or a
      * real save() (which already fired those normal triggers separately;
      * this fires alongside them, not instead).
+     *
+     * Reloads the lead so related rows written on a different instance
+     * (marketing) or after this object was last saved (lead_owner from the
+     * deal job) are visible to conditions and merge tags. $wasCreated must
+     * be captured before that reload — a fresh find() always has
+     * wasRecentlyCreated = false.
      */
-    private function fireLeadApiTrigger(Lead $contact): void
+    private function fireLeadApiTrigger(int $leadId, bool $wasCreated): void
     {
-        $trigger = $contact->wasRecentlyCreated
-            ? \App\Models\DealAutomation::TRIGGER_LEAD_CREATED_API
-            : \App\Models\DealAutomation::TRIGGER_LEAD_UPDATED_API;
+        $lead = Lead::withoutGlobalScopes()->find($leadId);
+        if (! $lead) {
+            return;
+        }
 
-        app(\App\Services\DealAutomationService::class)->processLead($contact, $trigger);
+        $trigger = $wasCreated
+            ? DealAutomation::TRIGGER_LEAD_CREATED_API
+            : DealAutomation::TRIGGER_LEAD_UPDATED_API;
+
+        app(DealAutomationService::class)->processLead($lead, $trigger);
     }
 
     /**

@@ -55,6 +55,12 @@ export default function PanelHeader({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         minWidth: 0,
+                        // `overflow: hidden` (needed for the ellipsis) plus no
+                        // explicit line-height left too tight a box for this
+                        // weight/size — descenders (the "g" in "Meeting") were
+                        // getting clipped at the bottom.
+                        lineHeight: 1.4,
+                        paddingBottom: 2,
                     }}
                 >
                     {title}
@@ -62,11 +68,17 @@ export default function PanelHeader({
                 {subtitle ? (
                     <div
                         style={{
-                            marginTop: 4,
+                            marginTop: 6,
+                            // No overflow/ellipsis here — a subtitle is often
+                            // a row of pills (status, platform, …), and
+                            // `overflow: hidden` on that clipped their
+                            // rounded bottom edge instead of ever actually
+                            // truncating text. A subtitle that's plain text
+                            // wraps instead of an ellipsis, which is fine.
                             fontSize: 12,
                             color: T.TEXT_MUTED,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            lineHeight: 1.5,
+                            overflow: "visible",
                         }}
                     >
                         {subtitle}

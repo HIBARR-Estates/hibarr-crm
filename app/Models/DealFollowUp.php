@@ -62,7 +62,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $host_id
  *
  * Set by attachParticipantUsers(), not columns — the meeting modals read both.
- *
  * @property int $effective_duration
  * @property array $participant_users
  *
@@ -187,7 +186,7 @@ class DealFollowUp extends BaseModel
      */
     public function getEndTime(): ?\Carbon\CarbonInterface
     {
-        if (!$this->next_follow_up_date) {
+        if (! $this->next_follow_up_date) {
             return null;
         }
 
@@ -266,10 +265,10 @@ class DealFollowUp extends BaseModel
      *
      * One query for the whole collection rather than one per follow-up.
      *
-     * ponytail: four inline copies of this already exist (DealController:1057
-     * and :2431, LeadContactController:364, MeetingsController:153). Collapse
-     * them onto this the next time one of those files is touched for another
-     * reason — a four-controller diff does not belong in a dashboard change.
+     * ponytail: MeetingsController's own inline copies have been collapsed
+     * onto this one. DealController (:1057, :2431) and LeadContactController
+     * (:364) still have theirs — collapse those too the next time either file
+     * is touched for another reason.
      *
      * @param  \Illuminate\Support\Collection<int, self>  $followUps
      */
