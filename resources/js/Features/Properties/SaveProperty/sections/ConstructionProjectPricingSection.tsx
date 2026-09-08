@@ -58,6 +58,7 @@ const ConstructionProjectPricingSection: React.FC<
                                       /\B(?=(\d{3})+(?!\d))/g,
                                       ",",
                                   )
+                                : ""
                         }
                         parser={(value) => {
                             const raw = value?.replace(/[£,\s]/g, "") ?? "";
