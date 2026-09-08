@@ -1524,6 +1524,7 @@ return [
                 'view' => 'View',
                 'edit' => 'Edit',
                 'join_meeting' => 'Join Meeting',
+                'report' => 'Follow-up report',
                 'delete' => 'Delete',
             ],
         ],

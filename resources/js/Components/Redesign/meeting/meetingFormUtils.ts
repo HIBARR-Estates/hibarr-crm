@@ -111,6 +111,31 @@ export function usesAutoMeetingLink(
     return platform === "zoho" || platform === "zoho_meet";
 }
 
+/** Platforms whose recordings the summary pipeline can reach. */
+const SUMMARISABLE_PLATFORMS = ["zoho", "zoho_meet", "zoom"];
+
+/**
+ * Whether this meeting can ever produce an AI summary.
+ *
+ * The summary is built from a call's recording and transcript, which the CRM
+ * can only obtain for the platforms above. Anything else — Teams, a phone
+ * call, a meeting in the office — shows neither a summary link nor a
+ * "generating" pill, because neither would ever resolve.
+ *
+ * The link requirement stands in for "the call actually exists": Zoho's link
+ * is generated server-side after scheduling, so its absence means there is
+ * nothing to record.
+ */
+export function producesMeetingSummary(
+    location: MeetingPlatform | string,
+    meetingLink?: string | null,
+): boolean {
+    return (
+        SUMMARISABLE_PLATFORMS.includes(location) &&
+        Boolean(meetingLink?.trim())
+    );
+}
+
 /** Non-Zoho video: user must paste a link from their provider. */
 export function requiresManualMeetingLink(
     platform: MeetingPlatform | string,
@@ -144,7 +169,9 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 /** Local date+time → UTC `YYYYMMDDTHHMMSSZ` for Google Calendar TEMPLATE links. */
 const toGoogleUtcStamp = (isoDate: string, time: string): string | null => {
     if (!isoDate || !time) return null;
-    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    const local = new Date(
+        `${isoDate}T${time.length === 5 ? `${time}:00` : time}`,
+    );
     if (Number.isNaN(local.getTime())) return null;
     return (
         `${local.getUTCFullYear()}${pad2(local.getUTCMonth() + 1)}${pad2(local.getUTCDate())}` +
@@ -155,7 +182,9 @@ const toGoogleUtcStamp = (isoDate: string, time: string): string | null => {
 /** Local date+time → UTC ISO `YYYY-MM-DDTHH:mm:ssZ` for Outlook deeplinks. */
 const toOutlookUtcIso = (isoDate: string, time: string): string | null => {
     if (!isoDate || !time) return null;
-    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    const local = new Date(
+        `${isoDate}T${time.length === 5 ? `${time}:00` : time}`,
+    );
     if (Number.isNaN(local.getTime())) return null;
     return local.toISOString().replace(/\.\d{3}Z$/, "Z");
 };
@@ -304,9 +333,7 @@ export function defaultPlatformForMode(
     return defaultVideoProvider(emailOrCanUseZoho);
 }
 
-export function videoProviderLabel(
-    platform: MeetingPlatform | string,
-): string {
+export function videoProviderLabel(platform: MeetingPlatform | string): string {
     const match = VIDEO_PROVIDER_OPTIONS.find(
         (option) =>
             option.value === platform ||
@@ -441,7 +468,8 @@ export function getDefaultMeetingParticipants(
 export function getMeetingOwner(
     source: MeetingParticipantSource | null | undefined,
 ): { id: number; name: string } | null {
-    const agentUserId = source?.lead_agent?.user_id ?? source?.lead_agent?.user?.id;
+    const agentUserId =
+        source?.lead_agent?.user_id ?? source?.lead_agent?.user?.id;
     const agentName = source?.lead_agent?.user?.name;
     if (agentUserId && agentName) {
         return { id: agentUserId, name: agentName };
