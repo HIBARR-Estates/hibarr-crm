@@ -22,17 +22,37 @@ interface OutcomeDef {
 interface MeetingAttendanceConfirmationModalProps {
     meeting: PendingMeetingAttendanceConfirmation;
     onDismiss: () => void;
-    onConfirmed: () => void;
+    onConfirmed: (outcome: MeetingAttendanceOutcome) => void;
+    /**
+     * "confirm" (default) is the one-shot prompt action — the backend claims
+     * it with a `whereNull` guard and no-ops if already logged. "update"
+     * changes an already-logged outcome instead, for a meeting's edit form;
+     * the backend authorizes that one on ordinary edit permission rather than
+     * the prompt's assignee-only check.
+     */
+    mode?: "confirm" | "update";
+    /** Pre-selects this outcome — for "update", seeded from what's already logged. */
+    initialOutcome?: MeetingAttendanceOutcome | null;
+    /**
+     * The reminders dock renders this standalone, so 1000 clears antd's own
+     * dialogs comfortably. A caller opening it from inside another modal
+     * (the redesign `Modal` primitive sits at 1100) needs to say so
+     * explicitly or this would render underneath it.
+     */
+    zIndex?: number;
 }
 
 export default function MeetingAttendanceConfirmationModal({
     meeting,
     onDismiss,
     onConfirmed,
+    mode = "confirm",
+    initialOutcome = null,
+    zIndex = 1000,
 }: MeetingAttendanceConfirmationModalProps) {
     const { td } = useTd();
     const [selected, setSelected] = useState<MeetingAttendanceOutcome | null>(
-        null,
+        initialOutcome,
     );
     const [note, setNote] = useState("");
     const [noteFocused, setNoteFocused] = useState(false);
@@ -117,11 +137,14 @@ export default function MeetingAttendanceConfirmationModal({
         { id: number },
         ApiResponse<{ id: number }>
     >(
-        route("meetings.api.attendance_confirmation.confirm", {
-            followUp: meeting.id,
-        }),
-        "POST",
-        () => onConfirmed(),
+        route(
+            mode === "update"
+                ? "meetings.api.attendance_confirmation.update"
+                : "meetings.api.attendance_confirmation.confirm",
+            { followUp: meeting.id },
+        ),
+        mode === "update" ? "PATCH" : "POST",
+        () => selected && onConfirmed(selected),
     );
 
     const selectedOutcome = outcomes.find((o) => o.key === selected) ?? null;
@@ -186,7 +209,7 @@ export default function MeetingAttendanceConfirmationModal({
             closeOnBackdrop={false}
             onEscape={() => confirmMutation.isPending}
             ariaLabel={title}
-            zIndex={1000}
+            zIndex={zIndex}
             panelStyle={{
                 width: "100%",
                 maxWidth: 480,

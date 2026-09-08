@@ -267,6 +267,16 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
+    list: (
+        <>
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+        </>
+    ),
     grid: (
         <>
             <rect x="3" y="3" width="7" height="7" />
@@ -306,6 +316,19 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <path d="M20 14h2" />
             <circle cx="9" cy="13" r="1" />
             <circle cx="15" cy="13" r="1" />
+        </>
+    ),
+    eye: (
+        <>
+            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+            <circle cx="12" cy="12" r="3" />
+        </>
+    ),
+    "eye-off": (
+        <>
+            <path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.61 6.61A18.5 18.5 0 0 0 2 12s3 8 10 8a9.7 9.7 0 0 0 5.39-1.61" />
+            <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+            <line x1="2" y1="2" x2="22" y2="22" />
         </>
     ),
 };

@@ -1370,6 +1370,7 @@ return [
                 'view' => 'Görüntüle',
                 'edit' => 'Düzenle',
                 'join_meeting' => 'Toplantıya katıl',
+                'report' => 'Toplantı raporu',
                 'delete' => 'Sil',
             ],
         ],

@@ -43,6 +43,12 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
+import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
+import type {
+    MeetingsTab,
+    MeetingsTabCounts,
+} from "./Redesign/adapters/meetingViewModel";
+import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
 dayjs.extend(utc);
 
@@ -55,15 +61,46 @@ interface OverviewStats {
     completed: number;
 }
 
-interface MeetingsPageProps extends PageProps {
+interface MeetingsSharedProps extends PageProps {
     pageTitle: string;
     overviewStats: OverviewStats;
-    upcomingMeetings: PaginatedFollowupResponse;
-    pastMeetings: PaginatedFollowupResponse;
     userDeals: { id: number; name: string }[];
     userLeads: { id: number; name: string }[];
     meetingTypes: { id: number; name: string }[];
     permissions: Record<string, string>;
+}
+
+/** Props the legacy two-section page renders (flag off). */
+interface MeetingsPageProps extends MeetingsSharedProps {
+    upcomingMeetings: PaginatedFollowupResponse;
+    pastMeetings: PaginatedFollowupResponse;
+}
+
+/**
+ * Props the redesigned page renders (flag on): one tab-driven list plus the
+ * calendar month, which the controller ships as a deferred prop and so is
+ * absent until the calendar view asks for it.
+ */
+export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
+    meetings: PaginatedFollowupResponse;
+    tabCounts: MeetingsTabCounts;
+    activeTab: MeetingsTab;
+    calendarMeetings?: CalendarPayload;
+    /** Month this render registered the deferred calendar for, else null. */
+    calendarRequestedMonth: string | null;
+    /** Host-filter options; deferred, so undefined until they arrive. */
+    filterPeople?: Array<{ id: number; name: string }>;
+    /** The next few meetings for the cards above the list; deferred. */
+    upcomingSoon?: DealFollowup[];
+    /** False only for someone who has never had a meeting at all. */
+    hasAnyMeetings: boolean;
+    /**
+     * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
+     * the page itself rather than through props, so these are declared for
+     * the page's own loading checks, not to be passed down.
+     */
+    filterFacets?: Record<string, unknown>;
+    savedViews?: Array<Record<string, unknown>>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -407,7 +444,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         }}
                     >
                         {meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name}
+                            meeting.lead.client_name}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -590,7 +627,7 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
 
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
-function MeetingsIndex() {
+function LegacyMeetingsIndex() {
     const { props } = usePage<MeetingsPageProps>();
     const {
         overviewStats,
@@ -769,8 +806,20 @@ function MeetingsIndex() {
     );
 }
 
-MeetingsIndex.layout = (page: React.ReactNode) => (
+const Index = () => {
+    const page = usePage();
+    const useRedesign =
+        page.props.featureFlags?.["crm.meetings-page-redesign"] === true;
+
+    return useRedesign ? (
+        <MeetingsWorkspaceRedesign />
+    ) : (
+        <LegacyMeetingsIndex />
+    );
+};
+
+Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
 
-export default MeetingsIndex;
+export default Index;
