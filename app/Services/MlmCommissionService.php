@@ -20,6 +20,13 @@ use Illuminate\Support\Facades\Log;
 
 class MlmCommissionService
 {
+    /**
+     * Gates commission split + revenue-to-company on the deal value panel.
+     * Off: attachCommissionSummary() never puts those figures on the deal,
+     * so they never reach the browser.
+     */
+    public const DEAL_VALUE_COMMISSION_FLAG = 'crm.deal-value-commission';
+
     protected HierarchyService $hierarchyService;
 
     protected LevelService $levelService;
@@ -472,11 +479,14 @@ class MlmCommissionService
      * `commission` is null outright when neither applies, so the figures never
      * reach the browser rather than being hidden there.
      *
+     * The whole attachment also sits behind crm.deal-value-commission, so a
+     * company that has not turned the panel on never receives the numbers.
+     *
      * @see \App\Support\PermissionGates::canViewFullDealCommission()
      */
     public function attachCommissionSummary(array $breakdown, Deal $deal, ?\App\Models\User $viewer): array
     {
-        if (! $viewer) {
+        if (! FeatureFlags::enabled(self::DEAL_VALUE_COMMISSION_FLAG) || ! $viewer) {
             $breakdown['commission'] = null;
 
             return $breakdown;
