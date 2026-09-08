@@ -143,8 +143,9 @@ export interface Deal {
             exchange_rate: number;
             is_converted: boolean;
         };
-        // null when the viewer isn't the deal's agent, an admin, or granted
-        // partner-network management — see PermissionGates::canViewDealCommission().
+        // null when crm.deal-value-commission is off, or when the viewer isn't
+        // the deal's agent, an admin, or granted partner-network management —
+        // see PermissionGates::canViewFullDealCommission().
         commission: {
             /**
              * Every leg that paid a person, theirs flagged. Excludes the system
