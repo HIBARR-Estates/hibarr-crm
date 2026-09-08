@@ -189,7 +189,7 @@ export function NotesEmptyState({ onAdd }: { onAdd?: () => void }) {
 
     return (
         <EmptyState
-            icon="message"
+            icon="file-text"
             title={t("pages.deals.workspace.notes.empty")}
             description={td(
                 "Notes you add here stay with this record for the whole team.",
