@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useRef, useState, useContext } from "react";
-import axios, { CancelTokenSource } from "axios";
+import axios from "axios";
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
 import type { DealFile } from "@/Types/api/file";
+import {
+    FileUploadError,
+    FileValidationError,
+} from "@/Types/uploads";
+import { createFileUploadService } from "@/Services/FileUploadService";
 import useTranslation from "@/Hooks/useTranslation";
 import { DealWorkspaceContext } from "../context/DealWorkspaceContext";
+import { DEAL_EXPOSE_MAX_UPLOAD_BYTES } from "../adapters/dealExposeAdapter";
 
 export interface UploadDealFilesOptions {
     /** When false, the hook skips the Files-tab success toast (e.g. expose upload). */
@@ -43,6 +49,13 @@ function extractUploadedFiles(response: unknown): DealFile[] {
     return single ? [single] : [];
 }
 
+function isCancelError(error: unknown): boolean {
+    return (
+        axios.isCancel(error) ||
+        (error as { code?: string })?.code === "ERR_CANCELED"
+    );
+}
+
 async function fetchDealFiles(
     dealId: number,
     companyId: string,
@@ -58,8 +71,9 @@ async function fetchDealFiles(
 }
 
 /**
- * Shared deal file upload — multipart to `deal-files.store`, server proxies to
- * FileStorageService. Used by the Files tab and manual expose uploads.
+ * Shared deal file upload — browser streams each file to OL, then a small
+ * JSON POST to `deal-files.store-external` records the DealFile rows.
+ * Used by the Files tab and manual expose uploads.
  *
  * @returns uploaded files on success, `null` when cancelled, `[]` on failure
  */
@@ -70,8 +84,14 @@ export default function useDealFileUpload(dealId: number) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadBytesTotal, setUploadBytesTotal] = useState(0);
-    const cancelRef = useRef<CancelTokenSource | null>(null);
+    const generationRef = useRef(0);
     const resetTimerRef = useRef<number | null>(null);
+    const serviceRef = useRef(
+        createFileUploadService({
+            maxFileSize: DEAL_EXPOSE_MAX_UPLOAD_BYTES,
+            allowedTypes: [],
+        }),
+    );
 
     useEffect(
         () => () => {
@@ -101,16 +121,12 @@ export default function useDealFileUpload(dealId: number) {
                 return [];
             }
 
-            cancelRef.current?.cancel("replaced");
-            // A previous upload's delayed reset (below) could still be
-            // pending — let it fire and it would zero out this new upload's
-            // progress/bytes mid-flight.
+            serviceRef.current.cancelAll();
             if (resetTimerRef.current !== null) {
                 window.clearTimeout(resetTimerRef.current);
                 resetTimerRef.current = null;
             }
-            const cancelSource = axios.CancelToken.source();
-            cancelRef.current = cancelSource;
+            const generation = ++generationRef.current;
 
             const totalBytes = rawFiles.reduce(
                 (sum, file) => sum + file.size,
@@ -126,47 +142,70 @@ export default function useDealFileUpload(dealId: number) {
                     ? String(props.auth.user.company_id)
                     : "";
 
-            const formData = new FormData();
-            formData.append("lead_id", String(dealId));
-            rawFiles.forEach((file) => {
-                formData.append("file[]", file);
-            });
+            const jsonHeaders = {
+                Accept: "application/json",
+                "X-COMPANY-ID": companyId,
+                "X-CSRF-TOKEN": csrfToken(props as { csrf_token?: string }),
+            };
 
             try {
-                const response = await axios.post(
-                    route("deal-files.store"),
-                    formData,
-                    {
-                        cancelToken: cancelSource.token,
-                        // Large files proxy through Laravel to the external storage
-                        // API (uploaded twice, up to 3 attempts x 300s each server-side);
-                        // give that legroom instead of hanging the UI indefinitely if
-                        // the server never responds.
-                        timeout: 1200000,
-                        headers: {
-                            Accept: "application/json",
-                            "X-COMPANY-ID": companyId,
-                            "X-CSRF-TOKEN": csrfToken(
-                                props as { csrf_token?: string },
-                            ),
-                        },
-                        onUploadProgress: (event) => {
-                            if (event.total && event.total > 0) {
-                                const pct = Math.min(
+                const olResults: Array<{
+                    downloadUrl: string;
+                    objectPath: string;
+                    originalName: string;
+                    size: number;
+                }> = [];
+                let completedBytes = 0;
+
+                for (const file of rawFiles) {
+                    const result = await serviceRef.current.uploadSingle(
+                        file,
+                        `deal-files/${dealId}`,
+                        (_fileId, _pct, loaded) => {
+                            if (generationRef.current !== generation) return;
+                            const overall = completedBytes + loaded;
+                            setUploadProgress(
+                                Math.min(
                                     99,
-                                    Math.round(
-                                        (event.loaded / event.total) * 100,
-                                    ),
-                                );
-                                setUploadProgress(pct);
-                            } else if (event.loaded > 0) {
-                                setUploadProgress((prev) =>
-                                    prev < 15 ? 15 : Math.min(prev + 5, 90),
-                                );
-                            }
+                                    Math.round((overall / totalBytes) * 100),
+                                ),
+                            );
                         },
+                    );
+
+                    if (generationRef.current !== generation) {
+                        return null;
+                    }
+
+                    olResults.push({
+                        downloadUrl: encodeURI(result.downloadUrl),
+                        objectPath: result.objectPath,
+                        originalName: result.originalName,
+                        size: file.size,
+                    });
+                    completedBytes += file.size;
+                    setUploadProgress(
+                        Math.min(
+                            99,
+                            Math.round((completedBytes / totalBytes) * 100),
+                        ),
+                    );
+                }
+
+                const response = await axios.post(
+                    route("deal-files.store-external"),
+                    {
+                        deal_id: dealId,
+                        files: olResults,
+                    },
+                    {
+                        headers: jsonHeaders,
                     },
                 );
+
+                if (generationRef.current !== generation) {
+                    return null;
+                }
 
                 const body = response.data;
                 if (body?.status === "success") {
@@ -190,7 +229,12 @@ export default function useDealFileUpload(dealId: number) {
                                 dealId,
                                 companyId,
                             );
-                            if (fresh) workspace.setFiles(fresh);
+                            if (
+                                fresh &&
+                                generationRef.current === generation
+                            ) {
+                                workspace.setFiles(fresh);
+                            }
                         } catch {
                             // Keep optimistic merge if refetch fails.
                         }
@@ -214,10 +258,7 @@ export default function useDealFileUpload(dealId: number) {
                         ),
                 );
             } catch (error) {
-                if (
-                    axios.isCancel(error) ||
-                    (error as { code?: string })?.code === "ERR_CANCELED"
-                ) {
+                if (isCancelError(error) || generationRef.current !== generation) {
                     return null;
                 }
                 const isTimeout =
@@ -225,47 +266,45 @@ export default function useDealFileUpload(dealId: number) {
                 const backendMessage = axios.isAxiosError(error)
                     ? error.response?.data?.message
                     : undefined;
+                const clientMessage =
+                    error instanceof FileValidationError ||
+                    error instanceof FileUploadError
+                        ? error.message
+                        : undefined;
                 message.error(
                     isTimeout
                         ? t(
                               "pages.deals.workspace.files.messages.upload_timeout",
                           )
                         : (backendMessage ??
+                              clientMessage ??
                               t(
                                   "pages.deals.workspace.files.messages.upload_failed",
                               )),
                 );
                 return [];
             } finally {
-                // A newer upload may already be mid-flight (it cancelled this
-                // one via cancelRef.current?.cancel() above) — only clear the
-                // uploading flag if this call is still the active one, or a
-                // cancelled call's delayed finally would flip it back to
-                // false while the replacement is genuinely still uploading.
-                if (cancelRef.current === cancelSource) {
+                if (generationRef.current === generation) {
                     setIsUploading(false);
+                    resetTimerRef.current = window.setTimeout(() => {
+                        resetTimerRef.current = null;
+                        if (generationRef.current === generation) {
+                            setUploadProgress(0);
+                            setUploadBytesTotal(0);
+                        }
+                    }, 400);
                 }
-                resetTimerRef.current = window.setTimeout(() => {
-                    resetTimerRef.current = null;
-                    // A newer upload may have started (and be mid-flight)
-                    // before this fires — only this call's own cancelSource
-                    // still being the active one means it's safe to reset.
-                    if (cancelRef.current === cancelSource) {
-                        setUploadProgress(0);
-                        setUploadBytesTotal(0);
-                    }
-                }, 400);
             }
         },
         [dealId, props, workspace, t],
     );
 
     const cancelUpload = useCallback(() => {
-        cancelRef.current?.cancel("cancelled");
+        serviceRef.current.cancelAll();
+        generationRef.current += 1;
         setIsUploading(false);
         setUploadProgress(0);
         setUploadBytesTotal(0);
-        cancelRef.current = null;
     }, []);
 
     return {

@@ -1093,7 +1093,7 @@ return [
                 'uploading' => 'Uploading',
                 'cancel_upload' => 'Cancel upload',
                 'drop_hint' => 'Drop files here or click to upload',
-                'size_hint' => 'PDF, images, ZIP — max 200 MB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'empty' => 'No files uploaded',
                 'uploaded_label' => 'Uploaded',
                 'download' => 'Download',
@@ -1164,7 +1164,7 @@ return [
                 'field_title' => 'Title',
                 'field_amount' => 'Amount',
                 'field_document' => 'Document',
-                'size_hint' => 'Any file type — max 1 GB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'validation' => [
                     'expose_required' => 'Select an expose to link',
                     'title_required' => 'A title is required',

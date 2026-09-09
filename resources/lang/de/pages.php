@@ -1076,7 +1076,7 @@ return [
                 'other_files' => 'Weitere Dateien',
                 'uploading' => 'Wird hochgeladen',
                 'drop_hint' => 'Dateien hier ablegen oder zum Hochladen klicken',
-                'size_hint' => 'PDF, Bilder, ZIP — max. 200 MB',
+                'size_hint' => 'Beliebiger Dateityp — max. 20 GB',
                 'empty' => 'Keine Dateien hochgeladen',
                 'uploaded_label' => 'Hochgeladen',
                 'download' => 'Herunterladen',
