@@ -45,6 +45,10 @@ class RemoveSvgStylingPlugin {
     }
 }
 
+/** Keep the Blade stale-build entry self-contained (no vendor/react split chunks). */
+const excludeStaleBuildBanner = (chunk) =>
+    !String(chunk.name || "").includes("stale-build-banner");
+
 mix.js("resources/js/bootstrap.js", "public/js")
     .scripts(
         [
@@ -75,6 +79,7 @@ mix.js("resources/js/bootstrap.js", "public/js")
     )
     // Inertia React entry point
     .ts("resources/js/inertia.tsx", "public/js")
+    .ts("resources/js/stale-build-banner.ts", "public/js")
     .react()
     // .reactRefresh()
     .sass("resources/scss/main.scss", "public/css")
@@ -92,7 +97,7 @@ mix.js("resources/js/bootstrap.js", "public/js")
         // (`[name].js`), not chunkFilename — same pattern as Mix `.extract()`.
         optimization: {
             splitChunks: {
-                chunks: "all",
+                chunks: excludeStaleBuildBanner,
                 cacheGroups: {
                     // Finer cache groups first (higher priority) so antd/react
                     // are not swallowed by the generic vendor group.
@@ -118,21 +123,21 @@ mix.js("resources/js/bootstrap.js", "public/js")
                     antd: {
                         test: /[\\/]node_modules[\\/](antd|@ant-design)[\\/]/,
                         name: "js/antd",
-                        chunks: "all",
+                        chunks: excludeStaleBuildBanner,
                         priority: 30,
                         reuseExistingChunk: true,
                     },
                     react: {
                         test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
                         name: "js/react",
-                        chunks: "all",
+                        chunks: excludeStaleBuildBanner,
                         priority: 20,
                         reuseExistingChunk: true,
                     },
                     vendor: {
                         test: /[\\/]node_modules[\\/]/,
                         name: "js/vendor",
-                        chunks: "all",
+                        chunks: excludeStaleBuildBanner,
                         priority: 10,
                         reuseExistingChunk: true,
                     },
