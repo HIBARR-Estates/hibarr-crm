@@ -92,6 +92,14 @@ const toFormNumber = (value: unknown): number | null => {
     return Number.isFinite(n) ? n : null;
 };
 
+/** Nested distance fields need an object parent; null/array/scalar overwrite each other. */
+const toDistancesObject = (value: unknown): Record<string, number | null> => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        return value as Record<string, number | null>;
+    }
+    return {};
+};
+
 // ============================================
 // Component
 // ============================================
@@ -277,7 +285,7 @@ const ConstructionProjectFormModal: React.FC<
                 facilities: Array.isArray(project.facilities)
                     ? project.facilities
                     : [],
-                distances: project.distances,
+                distances: toDistancesObject(project.distances),
                 project_location_id: project.project_location_id,
                 is_hidden: !!project.is_hidden,
                 ...locationFields,
@@ -289,6 +297,7 @@ const ConstructionProjectFormModal: React.FC<
                 form.setFieldValue("developer_id", developer.id);
             }
             form.setFieldValue("facilities", []);
+            form.setFieldValue("distances", {});
         }
     }, [open, project, developer, form]);
 
@@ -314,6 +323,7 @@ const ConstructionProjectFormModal: React.FC<
                         project_total_area_sqm: toFormNumber(
                             cleanData.project_total_area_sqm,
                         ),
+                        distances: toDistancesObject(cleanData.distances),
                     });
 
                     if (!canToggleHidden) {
@@ -472,6 +482,7 @@ const ConstructionProjectFormModal: React.FC<
                             icon={<EnvironmentOutlined />}
                             description="Project location and distances to amenities"
                             defaultOpen={false}
+                            keepMounted
                         >
                             <ConstructionProjectLocationSection
                                 form={form}
