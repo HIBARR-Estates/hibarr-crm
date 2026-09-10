@@ -11,6 +11,7 @@ use App\Models\ProjectLocation;
 use App\Models\Property;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use App\Services\PdfExpose\ExposeGeneratorService;
+use App\Support\DeveloperProjectListingPayload;
 use App\Support\DeveloperProjectListingQuery;
 use App\Support\DeveloperProjectVisibility;
 use App\Support\FeatureFlags;
@@ -181,7 +182,7 @@ class DeveloperProjectController extends AccountBaseController
         // get it rather than silently falling back to location_id filtering.
         $filtersModalEnabled = FeatureFlags::enabled('crm.projects-filters-modal') || $filtersV2Enabled;
 
-        $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'thumbnail', 'assets'])
+        $query = DeveloperProject::with(DeveloperProjectListingPayload::RELATIONS)
             ->withCount('properties')
             ->withCount(['properties as sold_properties_count' => function ($q) {
                 $q->where('status', Property::STATUS_SOLD);
@@ -216,6 +217,7 @@ class DeveloperProjectController extends AccountBaseController
         DeveloperProjectListingQuery::apply($query, $listingFilters, $filtersModalEnabled);
 
         $projects = $query->paginate(15);
+        $projects->through(fn (DeveloperProject $project) => DeveloperProjectListingPayload::from($project));
 
         $developersQuery = \App\Models\Developer::where('company_id', user()->company_id)
             ->select('id', 'name', 'is_hidden')
@@ -356,12 +358,7 @@ class DeveloperProjectController extends AccountBaseController
         // Load other projects by the same developer (excluding current)
         $developerProjects = collect();
         if ($project->developer_id) {
-            $relatedQuery = DeveloperProject::with([
-                'thumbnail',
-                'assets',
-                'location',
-                'developer',
-            ])
+            $relatedQuery = DeveloperProject::with(DeveloperProjectListingPayload::RELATIONS)
                 ->withCount('properties')
                 ->withCount(['properties as sold_properties_count' => function ($q) {
                     $q->where('status', Property::STATUS_SOLD);
@@ -374,7 +371,9 @@ class DeveloperProjectController extends AccountBaseController
 
             $developerProjects = $relatedQuery
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->get()
+                ->map(fn (DeveloperProject $related) => DeveloperProjectListingPayload::from($related))
+                ->values();
         }
 
         $projectPayload = $project->toArray();

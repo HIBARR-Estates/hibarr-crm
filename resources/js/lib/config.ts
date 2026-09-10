@@ -32,14 +32,17 @@ import {
 // a keyed helper) so webpack DefinePlugin / Vite can still inline them.
 const hasProcessEnv = typeof process !== "undefined" && !!process.env;
 
+// Vite define (vite.config.mjs) and Mix DefinePlugin both inline these
+// identifiers as string literals — do not gate on `process` existing, or
+// the Vite-stamped URL/key is skipped in the browser.
 const DEFAULT_FILE_UPLOAD_BASE_URL =
-    (hasProcessEnv && process.env.MIX_FILE_UPLOAD_BASE_URL) ||
+    process.env.MIX_FILE_UPLOAD_BASE_URL ||
     "https://develop-api.hibarr.org/v1";
 const DEFAULT_AGENT_INVITATION_BASE_URL =
     (hasProcessEnv && process.env.MIX_AGENT_INVITATION_BASE_URL) ||
     "https://develop-api.hibarr.org/v1";
 const DEFAULT_FILE_UPLOAD_API_KEY =
-    (hasProcessEnv && process.env.MIX_FILE_UPLOAD_API_KEY) || "";
+    process.env.MIX_FILE_UPLOAD_API_KEY || "";
 const DEFAULT_AGENT_INVITATION_API_KEY =
     (hasProcessEnv && process.env.MIX_AGENT_INVITATION_API_KEY) || "";
 const DEFAULT_OL_BASE_URL =
@@ -192,7 +195,10 @@ export const formatFileSize = (bytes: number): string => {
 /** Floor timeout for small files (2 minutes). */
 const UPLOAD_TIMEOUT_MIN_MS = 120_000;
 
-/** Cap for very large uploads — 1 GB on a slow link (1 hour). */
+/**
+ * Above this estimate, return 0 (axios: no timeout) and let the caller
+ * cancel. A 1-hour cap would abort a multi-GB upload on a slow link.
+ */
 const UPLOAD_TIMEOUT_MAX_MS = 3_600_000;
 
 /** Assumed minimum throughput (~256 KiB/s) when scaling timeout by file size. */
@@ -200,17 +206,19 @@ const UPLOAD_TIMEOUT_BYTES_PER_MS = (256 * 1024) / 1000;
 
 /**
  * Axios upload timeout scaled to file size so large exposes/documents are not
- * aborted while bytes are still transferring.
+ * aborted while bytes are still transferring. Returns 0 (no timeout) when the
+ * estimate exceeds {@link UPLOAD_TIMEOUT_MAX_MS}.
  */
 export const computeUploadTimeoutMs = (fileSizeBytes: number): number => {
     const size = Math.max(0, fileSizeBytes);
     const estimated =
         UPLOAD_TIMEOUT_MIN_MS + size / UPLOAD_TIMEOUT_BYTES_PER_MS;
 
-    return Math.min(
-        Math.max(estimated, UPLOAD_TIMEOUT_MIN_MS),
-        UPLOAD_TIMEOUT_MAX_MS,
-    );
+    if (estimated > UPLOAD_TIMEOUT_MAX_MS) {
+        return 0;
+    }
+
+    return Math.max(estimated, UPLOAD_TIMEOUT_MIN_MS);
 };
 
 /**

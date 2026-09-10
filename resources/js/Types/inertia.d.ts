@@ -34,5 +34,6 @@ declare module "@inertiajs/core" {
             { name: string; native: string; dir: string; flag: string }
         >;
         notificationAlertSettings?: NotificationAlertSettingsState | null;
+        appBuildId?: string | null;
     }
 }

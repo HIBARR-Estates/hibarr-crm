@@ -902,10 +902,11 @@ const Index = ({
                         ) : (
                             <>
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
-                                    {(projects.data ?? []).map((project) => (
+                                    {(projects.data ?? []).map((project, index) => (
                                         <ProjectCard
                                             key={project.id}
                                             project={project}
+                                            index={index}
                                             showHiddenBadge={showHiddenBadge}
                                             onEdit={
                                                 canEdit ? handleEdit : undefined

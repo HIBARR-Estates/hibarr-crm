@@ -9,8 +9,8 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { formatCurrencyWithSymbol } from "@/lib/utils";
 import { formatDate } from "./dateFormat";
 
-/** 1 GB — matches DealExposeController::MAX_UPLOAD_KB and FileUploadService. */
-export const DEAL_EXPOSE_MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+/** 20 GiB — client cap for direct-to-OL deal files and manual exposés. */
+export const DEAL_EXPOSE_MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024;
 
 /**
  * A linkable entity is identified by (entity_type, entity_id, unit_type_id) —
