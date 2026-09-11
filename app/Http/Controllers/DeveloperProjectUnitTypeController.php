@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\Reply;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
-use App\Helper\Reply;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 /**
  * DeveloperProjectUnitTypeController
- * 
+ *
  * Handles CRUD operations for unit types within developer projects.
  * Each project can have multiple unit types with detailed specifications,
  * features, pricing, and legal information.
@@ -56,7 +57,7 @@ class DeveloperProjectUnitTypeController extends Controller
         ]);
 
         // Auto-generate reference code if not provided
-        if (!$request->filled('reference_code')) {
+        if (! $request->filled('reference_code')) {
             $unitType->reference_code = $unitType->generateReferenceCode();
         }
 
@@ -166,21 +167,21 @@ class DeveloperProjectUnitTypeController extends Controller
 
         return [
             'reference_code' => 'nullable|string|max:50',
-            'primary_category' => ($isUpdate ? 'sometimes|' : '') . 'required|string|in:residential,commercial',
-            'property_type' => 'nullable|string|in:' . implode(',', $allPropertyTypes),
+            'primary_category' => ($isUpdate ? 'sometimes|' : '').'required|string|in:residential,commercial',
+            'property_type' => 'nullable|string|in:'.implode(',', $allPropertyTypes),
             'quantity' => 'nullable|integer|min:1',
             'total_sold' => 'nullable|integer|min:0',
             'is_sold_out' => 'sometimes|boolean',
             'unit_style' => 'nullable|array',
-            'unit_style.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::UNIT_STYLES)),
+            'unit_style.*' => 'string|in:'.implode(',', array_keys(DeveloperProjectUnitType::UNIT_STYLES)),
             'view_types' => 'nullable|array',
-            'view_types.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::VIEW_TYPES)),
-            'furniture_status' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProjectUnitType::FURNITURE_STATUSES)),
+            'view_types.*' => 'string|in:'.implode(',', array_keys(DeveloperProjectUnitType::VIEW_TYPES)),
+            'furniture_status' => 'nullable|string|in:'.implode(',', array_keys(DeveloperProjectUnitType::FURNITURE_STATUSES)),
             'starting_price' => 'nullable|numeric|min:0',
-            'currency' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProjectUnitType::CURRENCIES)),
+            'currency' => 'nullable|string|in:'.implode(',', array_keys(DeveloperProjectUnitType::CURRENCIES)),
             'bedrooms' => 'nullable|integer|min:0|max:8',
             'bathrooms' => 'nullable|integer|min:1|max:5',
-            'floor' => 'nullable|string|in:' . implode(',', array_keys(DeveloperProjectUnitType::FLOOR_OPTIONS)),
+            'floor' => 'nullable|string|in:'.implode(',', array_keys(DeveloperProjectUnitType::FLOOR_OPTIONS)),
             'floors_in_building' => 'nullable|integer|min:0|max:20',
             'total_area_sqm' => 'nullable|numeric|min:0',
             'living_area_sqm' => 'nullable|numeric|min:0',
@@ -190,9 +191,9 @@ class DeveloperProjectUnitTypeController extends Controller
             'remind_at' => 'nullable|date',
             'reminders' => 'nullable|array',
             'outside_features' => 'nullable|array',
-            'outside_features.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::OUTSIDE_FEATURES)),
+            'outside_features.*' => ['string', Rule::in(DeveloperProjectUnitType::allowedOutsideFeatureValues())],
             'inside_features' => 'nullable|array',
-            'inside_features.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::INSIDE_FEATURES)),
+            'inside_features.*' => ['string', Rule::in(DeveloperProjectUnitType::allowedInsideFeatureValues())],
             'description' => 'nullable|string',
             'military_base_distance_km' => 'nullable|numeric|min:0',
             'has_restrictions' => 'nullable|boolean',
