@@ -68,6 +68,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
+        // Custom field definitions (optional ?model=Deal|Lead|... ; omit for all modules)
+        ApiRoute::get('custom-fields', ['as' => 'api.custom-fields.index', 'uses' => 'Api\CustomFieldApiController@index']);
+
         // Qualification action catalog (OL authoring)
         ApiRoute::get('qualification-actions', ['as' => 'api.qualification-actions.index', 'uses' => 'Api\QualificationActionCatalogController@index']);
 
