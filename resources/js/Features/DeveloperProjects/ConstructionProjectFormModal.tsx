@@ -100,6 +100,17 @@ const toDistancesObject = (value: unknown): Record<string, number | null> => {
     return {};
 };
 
+/** Nested payment_plan fields need an object parent; null wipes `enabled` on edit. */
+const toPaymentPlan = (
+    value: unknown,
+): { enabled: boolean } & Record<string, unknown> => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        const plan = value as Record<string, unknown>;
+        return { ...plan, enabled: !!plan.enabled };
+    }
+    return { enabled: false };
+};
+
 // ============================================
 // Component
 // ============================================
@@ -281,7 +292,7 @@ const ConstructionProjectFormModal: React.FC<
                 number_of_phases: project.number_of_phases,
                 furniture_package: project.furniture_package,
                 rental_guarantee: project.rental_guarantee,
-                payment_plan: project.payment_plan,
+                payment_plan: toPaymentPlan(project.payment_plan),
                 facilities: Array.isArray(project.facilities)
                     ? project.facilities
                     : [],
@@ -298,8 +309,9 @@ const ConstructionProjectFormModal: React.FC<
             }
             form.setFieldValue("facilities", []);
             form.setFieldValue("distances", {});
+            form.setFieldValue("payment_plan", { enabled: false });
         }
-    }, [open, project, developer, form]);
+    }, [open, project?.id, developer?.id, form]);
 
     // ── Transform & submit ──
     const doSubmit = useCallback(
