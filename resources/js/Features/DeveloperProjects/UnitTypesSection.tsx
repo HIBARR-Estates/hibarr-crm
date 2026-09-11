@@ -5,7 +5,7 @@
  * and an "Add Unit Type" button that opens UnitTypeFormModal.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Button,
     Card,
@@ -38,8 +38,10 @@ import type {
     DeveloperProjectUnitTypeAsset,
 } from "@/Types/developerProject";
 import type { Offer } from "@/Types/api/offers";
+import type { PropertyEnumValues } from "@/Types";
 import UnitTypeFormModal from "./UnitTypeFormModal";
 import OfferAttachSection from "@/Features/Offers/OfferAttachSection";
+import { useApiQuery } from "@/lib/api/client";
 import {
     getCurrencySymbol,
     VIEW_TYPE_OPTIONS,
@@ -48,6 +50,9 @@ import {
     OUTSIDE_FEATURE_OPTIONS,
     INSIDE_FEATURE_OPTIONS,
     FLOOR_OPTIONS,
+    mergeFeatureOptions,
+    labelsForFeatures,
+    type FeatureOption,
 } from "./unitTypeConfig";
 import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
 import { usePermission } from "@/lib/permissionUtils";
@@ -73,6 +78,8 @@ interface UnitTypesSectionProps {
      * When omitted, falls back to router.reload() for Inertia pages.
      */
     onRefresh?: () => void;
+    /** When the host already loaded property lookups, skip a second fetch. */
+    enumValues?: PropertyEnumValues;
 }
 
 // ============================================
@@ -234,6 +241,8 @@ interface UnitTypeCardProps {
     onDuplicate: (ut: DeveloperProjectUnitType) => void;
     onDelete: (ut: DeveloperProjectUnitType) => void;
     onRefresh: () => void;
+    insideFeatureOptions: FeatureOption[];
+    outsideFeatureOptions: FeatureOption[];
 }
 
 const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
@@ -245,14 +254,19 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     onDuplicate,
     onDelete,
     onRefresh,
+    insideFeatureOptions,
+    outsideFeatureOptions,
 }) => {
     const viewLabels = labelsFor(ut.view_types, VIEW_TYPE_OPTIONS);
     const styleLabels = labelsFor(ut.unit_style, UNIT_STYLE_OPTIONS);
-    const outsideLabels = labelsFor(
+    const outsideLabels = labelsForFeatures(
         ut.outside_features,
-        OUTSIDE_FEATURE_OPTIONS,
+        outsideFeatureOptions,
     );
-    const insideLabels = labelsFor(ut.inside_features, INSIDE_FEATURE_OPTIONS);
+    const insideLabels = labelsForFeatures(
+        ut.inside_features,
+        insideFeatureOptions,
+    );
     const floorLabel = labelFor(ut.floor, FLOOR_OPTIONS);
     const furnitureLabel = labelFor(
         ut.furniture_status,
@@ -840,9 +854,31 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     unitTypes,
     initialEditUnitTypeId = null,
     onRefresh,
+    enumValues: enumValuesProp,
 }) => {
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
+    const { data: fetchedEnumValues } = useApiQuery<PropertyEnumValues>({
+        path: route("properties.enum_values"),
+        options: { enabled: !enumValuesProp },
+    });
+    const enumValues = enumValuesProp ?? fetchedEnumValues;
+    const insideFeatureOptions = useMemo(
+        () =>
+            mergeFeatureOptions(
+                INSIDE_FEATURE_OPTIONS,
+                enumValues?.inside_features,
+            ),
+        [enumValues?.inside_features],
+    );
+    const outsideFeatureOptions = useMemo(
+        () =>
+            mergeFeatureOptions(
+                OUTSIDE_FEATURE_OPTIONS,
+                enumValues?.outside_features,
+            ),
+        [enumValues?.outside_features],
+    );
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] =
         useState<DeveloperProjectUnitType | null>(null);
@@ -994,6 +1030,8 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 onDuplicate={handleDuplicate}
                                 onDelete={handleDelete}
                                 onRefresh={handleSuccess}
+                                insideFeatureOptions={insideFeatureOptions}
+                                outsideFeatureOptions={outsideFeatureOptions}
                             />
                         ))}
                     </div>
@@ -1007,6 +1045,8 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                 editingItem={editingItem}
                 isDuplicating={isDuplicating}
                 onSuccess={handleSuccess}
+                insideFeatureOptions={insideFeatureOptions}
+                outsideFeatureOptions={outsideFeatureOptions}
             />
         </div>
     );

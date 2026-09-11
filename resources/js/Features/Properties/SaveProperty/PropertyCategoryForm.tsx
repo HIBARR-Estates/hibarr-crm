@@ -762,6 +762,7 @@ export default function PropertyCategoryForm({
                                             <UnitTypesSection
                                                 projectId={data.id}
                                                 unitTypes={cpUnitTypes}
+                                                enumValues={enumValues}
                                                 onRefresh={() => {
                                                     refetchUnitTypes();
                                                 }}
