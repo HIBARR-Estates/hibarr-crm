@@ -8,6 +8,16 @@ import DataTablePagination from "./DataTablePagination";
 // Ant Design component-level theme applied to every DataTable instance.
 // Defined outside the component so it is a stable object reference (rerender-memo-with-default-value).
 const TABLE_THEME = {
+    token: {
+        // Ant's default "lg" breakpoint is 992px, not the app's 1024px (lg)
+        // convention used everywhere else in the mobile-responsive pass —
+        // withMobileResponsiveColumns() relies on column `responsive: ["lg"]`
+        // to hide columns below 1024px, so align Ant's own threshold to
+        // match. Scoped to DataTable only (not the app-wide ConfigProvider)
+        // so other Ant Grid/Col usage elsewhere keeps the standard 992px.
+        screenLG: 1024,
+        screenLGMin: 1024,
+    },
     components: {
         Table: {
             cellPaddingInline: 16,

@@ -1,3 +1,31 @@
+import type { ColumnsType } from "antd/lib/table";
+import type { Breakpoint } from "antd";
+
+const HIDDEN_BELOW_LG: Breakpoint[] = ["lg"];
+
+/**
+ * Marks the given column keys as hidden below Ant Design's `lg` breakpoint
+ * (1024px) — Ant's built-in `responsive` column option, which only affects
+ * visibility below that breakpoint and never changes desktop rendering.
+ *
+ * When `enabled` is false the columns are returned unchanged, so callers can
+ * gate this behind a feature flag while it's being staged.
+ */
+export function withMobileResponsiveColumns<T>(
+    columns: ColumnsType<T>,
+    hiddenBelowLgKeys: string[],
+    enabled: boolean,
+): ColumnsType<T> {
+    if (!enabled) return columns;
+
+    return columns.map((col) => {
+        if ("key" in col && col.key && hiddenBelowLgKeys.includes(String(col.key))) {
+            return { ...col, responsive: HIDDEN_BELOW_LG };
+        }
+        return col;
+    });
+}
+
 /**
  * Builds a display list of page numbers with "ellipsis" placeholders.
  *

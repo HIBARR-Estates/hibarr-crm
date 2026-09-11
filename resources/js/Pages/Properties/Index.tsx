@@ -48,8 +48,9 @@ import type {
 } from "@/Types/developerProject";
 import ConstructionProjectsTable from "@/Features/DeveloperProjects/ConstructionProjectsTable";
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
-import { DataTable } from "@/Components/DataTable";
+import { DataTable, withMobileResponsiveColumns } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useCurrencies } from "@/Hooks/useFormData";
 
@@ -117,6 +118,7 @@ const Index = ({
     cities,
 }: IndexProps) => {
     const { t } = useTranslation();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { td } = useTd();
     const { currencies } = useCurrencies();
 
@@ -391,12 +393,16 @@ const Index = ({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(
-        getActionItems,
-        currencies,
-        currencyCode,
-        currencySymbol,
-        t,
+    const columns = withMobileResponsiveColumns(
+        PROPERTY_TABLE_COLUMNS(
+            getActionItems,
+            currencies,
+            currencyCode,
+            currencySymbol,
+            t,
+        ),
+        ["property_type", "sale_type", "location", "publish_status", "created_at"],
+        isMobileResponsive,
     );
 
     // Whether we're showing the properties table or construction projects
