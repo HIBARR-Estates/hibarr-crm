@@ -163,7 +163,7 @@ export default function useDealFileUpload(dealId: number) {
                         `deal-files/${dealId}`,
                         (_fileId, _pct, loaded) => {
                             if (generationRef.current !== generation) return;
-                            const overall = completedBytes + loaded;
+                            const overall = completedBytes + (loaded ?? 0);
                             setUploadProgress(
                                 Math.min(
                                     99,
