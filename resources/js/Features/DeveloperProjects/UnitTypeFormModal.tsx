@@ -50,6 +50,7 @@ import {
     FLOORS_IN_BUILDING_OPTIONS,
     OUTSIDE_FEATURE_OPTIONS,
     INSIDE_FEATURE_OPTIONS,
+    type FeatureOption,
 } from "@/Features/DeveloperProjects/unitTypeConfig";
 import UnitTypePhotosSection from "@/Features/DeveloperProjects/UnitTypePhotosSection";
 import { useGenerateDescription } from "@/lib/ai";
@@ -98,6 +99,8 @@ interface UnitTypeFormModalProps {
     /** When true, the modal pre-fills from editingItem but creates a new record (duplicate flow). */
     isDuplicating?: boolean;
     onSuccess?: () => void;
+    insideFeatureOptions?: FeatureOption[];
+    outsideFeatureOptions?: FeatureOption[];
 }
 
 // ============================================
@@ -111,6 +114,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     editingItem,
     isDuplicating = false,
     onSuccess,
+    insideFeatureOptions = [...INSIDE_FEATURE_OPTIONS],
+    outsideFeatureOptions = [...OUTSIDE_FEATURE_OPTIONS],
 }) => {
     const { default_currency_code: defaultCurrencyCode = "GBP" } = usePage()
         .props as any;
@@ -717,7 +722,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 <Form.Item name="outside_features" noStyle>
                     <Checkbox.Group className="w-full">
                         <Row gutter={[8, 4]}>
-                            {OUTSIDE_FEATURE_OPTIONS.map((o) => (
+                            {outsideFeatureOptions.map((o) => (
                                 <Col span={8} key={o.value}>
                                     <Checkbox value={o.value}>
                                         {o.label}
@@ -735,7 +740,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 <Form.Item name="inside_features" noStyle>
                     <Checkbox.Group className="w-full">
                         <Row gutter={[8, 4]}>
-                            {INSIDE_FEATURE_OPTIONS.map((o) => (
+                            {insideFeatureOptions.map((o) => (
                                 <Col span={8} key={o.value}>
                                     <Checkbox value={o.value}>
                                         {o.label}

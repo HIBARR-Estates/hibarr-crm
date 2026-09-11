@@ -42,9 +42,16 @@ import type {
     ProjectUnitTypesResponse,
 } from "@/Types/api/deal-properties";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { PropertyEnumValues } from "@/Types";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { Offer } from "@/Types/api/offers";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import {
+    OUTSIDE_FEATURE_OPTIONS,
+    INSIDE_FEATURE_OPTIONS,
+    mergeFeatureOptions,
+    type FeatureOption,
+} from "@/Features/DeveloperProjects/unitTypeConfig";
 
 const { Text } = Typography;
 
@@ -56,42 +63,6 @@ const VIEW_TYPE_OPTIONS = [
     { value: "pool_view", label: "Pool View" },
     { value: "garden_view", label: "Garden View" },
     { value: "city_view", label: "City View" },
-];
-
-const OUTSIDE_FEATURE_OPTIONS = [
-    { value: "barbeque", label: "Barbeque" },
-    { value: "bounding_wall", label: "Bounding Wall" },
-    { value: "double_glazing", label: "Double Glazing" },
-    { value: "garage", label: "Garage" },
-    { value: "garden", label: "Garden" },
-    { value: "generator", label: "Generator" },
-    { value: "lift", label: "Lift" },
-    { value: "private_pool", label: "Private Pool" },
-    { value: "terrace", label: "Terrace" },
-    { value: "thermal_insulation", label: "Thermal Insulation" },
-    { value: "water_tank", label: "Water Tank" },
-    { value: "jacuzzi", label: "Jacuzzi" },
-];
-
-const INSIDE_FEATURE_OPTIONS = [
-    { value: "air_condition", label: "Air Condition" },
-    { value: "bath_tube", label: "Bath Tube" },
-    { value: "blind", label: "Blind" },
-    { value: "ceramic", label: "Ceramic" },
-    { value: "closet", label: "Closet" },
-    { value: "entryphone", label: "Entryphone" },
-    { value: "fire_alarm", label: "Fire Alarm" },
-    { value: "fireplace", label: "Fireplace" },
-    { value: "laundry", label: "Laundry" },
-    { value: "master_room_bath", label: "Master Room Bath" },
-    { value: "panel_door", label: "Panel Door" },
-    { value: "pantry", label: "Pantry" },
-    { value: "parquet", label: "Parquet" },
-    { value: "solar_electric", label: "Solar Electric" },
-    { value: "steel_door", label: "Steel Door" },
-    { value: "tv_infrastructure", label: "TV Infrastructure" },
-    { value: "wallpaper", label: "Wallpaper" },
-    { value: "water_booster", label: "Water Booster" },
 ];
 
 const FLOOR_OPTIONS = [
@@ -177,6 +148,27 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     });
 
     const attachedProperties = attachedData?.data ?? [];
+
+    const { data: enumValues } = useApiQuery<PropertyEnumValues>({
+        path: route("properties.enum_values"),
+        options: { enabled: open },
+    });
+    const outsideFeatureOptions = useMemo(
+        () =>
+            mergeFeatureOptions(
+                OUTSIDE_FEATURE_OPTIONS,
+                enumValues?.outside_features,
+            ),
+        [enumValues?.outside_features],
+    );
+    const insideFeatureOptions = useMemo(
+        () =>
+            mergeFeatureOptions(
+                INSIDE_FEATURE_OPTIONS,
+                enumValues?.inside_features,
+            ),
+        [enumValues?.inside_features],
+    );
 
     // ── Property search ───────────────────────────────────────────
     const { data: searchData, isLoading: searching } = useApiQuery<
@@ -578,6 +570,12 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                                 formatPrice={
                                                                     formatPrice
                                                                 }
+                                                                insideFeatureOptions={
+                                                                    insideFeatureOptions
+                                                                }
+                                                                outsideFeatureOptions={
+                                                                    outsideFeatureOptions
+                                                                }
                                                             />
                                                         ))}
                                                     </div>
@@ -820,6 +818,8 @@ interface UnitTypeCardProps {
     adding: boolean;
     disabled?: boolean;
     formatPrice: (price: any) => string | null;
+    insideFeatureOptions: FeatureOption[];
+    outsideFeatureOptions: FeatureOption[];
 }
 
 const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
@@ -832,6 +832,8 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     adding,
     disabled = false,
     formatPrice,
+    insideFeatureOptions,
+    outsideFeatureOptions,
 }) => {
     const priceValue = overrides.price ?? unitType.starting_price;
     const floorValue = overrides.floor_number ?? unitType.floor;
@@ -978,7 +980,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             onChange={(val) =>
                                 onOverrideChange("outside_features", val)
                             }
-                            options={OUTSIDE_FEATURE_OPTIONS}
+                            options={outsideFeatureOptions}
                             placeholder="Select outside features"
                         />
                     </div>
@@ -996,7 +998,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             onChange={(val) =>
                                 onOverrideChange("inside_features", val)
                             }
-                            options={INSIDE_FEATURE_OPTIONS}
+                            options={insideFeatureOptions}
                             placeholder="Select inside features"
                         />
                     </div>

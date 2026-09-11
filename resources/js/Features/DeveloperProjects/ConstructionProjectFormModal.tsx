@@ -623,6 +623,7 @@ const ConstructionProjectFormModal: React.FC<
                                 <UnitTypesSection
                                     projectId={effectiveProjectId}
                                     unitTypes={unitTypes}
+                                    enumValues={enumValues}
                                     onRefresh={() => {
                                         refetchUnitTypes();
                                     }}
