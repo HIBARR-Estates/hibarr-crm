@@ -333,6 +333,12 @@ export default function PropertyCategoryForm({
                 );
             }
 
+            const plan = initialValues.payment_plan;
+            initialValues.payment_plan =
+                plan && typeof plan === "object" && !Array.isArray(plan)
+                    ? { ...plan, enabled: !!plan.enabled }
+                    : { enabled: false };
+
             form.setFieldsValue(initialValues);
         }
     }, [data, visible, form]);
@@ -601,6 +607,7 @@ export default function PropertyCategoryForm({
                                         title="Pricing & Payment"
                                         icon={<DollarOutlined />}
                                         description="Starting price, payment plan, and availability"
+                                        keepMounted
                                     >
                                         <ConstructionProjectPricingSection
                                             form={form}
@@ -762,6 +769,7 @@ export default function PropertyCategoryForm({
                                             <UnitTypesSection
                                                 projectId={data.id}
                                                 unitTypes={cpUnitTypes}
+                                                enumValues={enumValues}
                                                 onRefresh={() => {
                                                     refetchUnitTypes();
                                                 }}
