@@ -206,6 +206,91 @@ export const INSIDE_FEATURE_OPTIONS = [
     { value: "water_booster", label: "Water Booster" },
 ] as const;
 
+export type FeatureOption = { value: string; label: string };
+
+export type FeatureLookup = { name: string; label: string };
+
+/**
+ * Normalize a feature slug or label so `air_condition`, `Air Condition`,
+ * and `air-condition` compare as the same item.
+ */
+export function normalizeFeatureKey(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+/**
+ * Union static unit-type feature options with Property Config lookups.
+ * Static rows stay first (existing saved slugs keep working). Matching
+ * config items reuse the static `value` and take the config `label`.
+ * Config-only items are appended.
+ */
+export function mergeFeatureOptions(
+    staticOptions: readonly FeatureOption[],
+    configItems?: FeatureLookup[] | null,
+): FeatureOption[] {
+    const result: FeatureOption[] = staticOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+    }));
+
+    const keysOf = (option: FeatureOption) => [
+        normalizeFeatureKey(option.value),
+        normalizeFeatureKey(option.label),
+    ];
+
+    for (const item of configItems ?? []) {
+        const name = item.name?.trim() || item.label?.trim();
+        const label = item.label?.trim() || item.name?.trim();
+        if (!name || !label) {
+            continue;
+        }
+
+        const itemKeys = [normalizeFeatureKey(name), normalizeFeatureKey(label)];
+        const existing = result.find((option) =>
+            keysOf(option).some((key) => itemKeys.includes(key)),
+        );
+
+        if (existing) {
+            existing.label = label;
+            continue;
+        }
+
+        result.push({ value: name, label });
+    }
+
+    return result;
+}
+
+/** Resolve a stored feature string (slug or label) to a display label. */
+export function labelForFeature(
+    value: string,
+    options: readonly FeatureOption[],
+): string {
+    const key = normalizeFeatureKey(value);
+    const found = options.find(
+        (option) =>
+            normalizeFeatureKey(option.value) === key ||
+            normalizeFeatureKey(option.label) === key,
+    );
+
+    return found?.label ?? value;
+}
+
+export function labelsForFeatures(
+    values: string[] | null | undefined,
+    options: readonly FeatureOption[],
+): string[] {
+    if (!values?.length) {
+        return [];
+    }
+
+    return values.map((value) => labelForFeature(value, options));
+}
+
 // ================================================================
 // Asset Tags (for unit type photos)
 // ================================================================
