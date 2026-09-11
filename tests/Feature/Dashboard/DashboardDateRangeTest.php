@@ -45,6 +45,19 @@ class DashboardDateRangeTest extends TestCase
         $this->assertSame(DashboardDateRange::DEFAULT_DAYS, $range->preset);
     }
 
+    public function test_a_preset_spans_exactly_the_number_of_days_it_claims(): void
+    {
+        $range = $this->fromQuery(['days' => 30]);
+
+        // Today counts as one of the 30 — from is 29 days back, not 30, or
+        // "last 30 days" would actually cover 31 calendar dates.
+        $this->assertSame(
+            29,
+            (int) $range->from->startOfDay()->diffInDays(now()->startOfDay()),
+        );
+        $this->assertSame(30, $range->from->diffInDays($range->to) + 1);
+    }
+
     public function test_a_custom_range_is_taken_as_given(): void
     {
         $range = $this->fromQuery(['from' => '2026-01-10', 'to' => '2026-01-20']);
@@ -98,7 +111,22 @@ class DashboardDateRangeTest extends TestCase
             'empty strings' => [['from' => '', 'to' => ''], 'Empty input was accepted'],
             'array injection' => [['from' => ['2026-01-10'], 'to' => '2026-01-20'], 'A non-string was accepted'],
             'absurdly long' => [['from' => '1990-01-01', 'to' => '2026-01-01'], 'A range past the cap was accepted'],
+            // Every aggregate over a future window reads as zero, which looks
+            // like an empty team rather than an invalid request.
+            'future range' => [['from' => '2090-01-01', 'to' => '2090-03-01'], 'A future range was accepted'],
         ];
+    }
+
+    public function test_todays_end_of_a_range_is_not_rejected_as_future(): void
+    {
+        // now() is always later in the day than today's own midnight, so a
+        // range ending today must not trip the future check.
+        $range = $this->fromQuery([
+            'from' => now()->subDays(3)->toDateString(),
+            'to' => now()->toDateString(),
+        ]);
+
+        $this->assertTrue($range->isCustom(), 'A range ending today was wrongly rejected as future');
     }
 
     public function test_a_custom_range_round_trips_through_the_payload(): void

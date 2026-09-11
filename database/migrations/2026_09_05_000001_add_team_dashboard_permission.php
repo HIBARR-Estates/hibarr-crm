@@ -50,6 +50,7 @@ return new class extends Migration
         foreach (Company::select('id')->get() as $company) {
             $roles = Role::where('company_id', $company->id)
                 ->whereIn('name', self::ROLES)
+                ->with('users')
                 ->get();
 
             foreach ($roles as $role) {
@@ -59,11 +60,29 @@ return new class extends Migration
                 ], [
                     'permission_type_id' => 4, // All
                 ]);
+
+                // PermissionRole is consulted when a role is assigned going
+                // forward; it grants nothing retroactively. user()->permission()
+                // reads user_permissions only (User::permissionMap()) — no join
+                // to roles at all — so every *current* member of the role needs
+                // their own row here, the same belt-and-suspenders shape
+                // PermissionRole::insertModuleRolePermission() already uses
+                // elsewhere in this codebase.
+                foreach ($role->users as $member) {
+                    UserPermission::firstOrCreate([
+                        'user_id' => $member->id,
+                        'permission_id' => $permission->id,
+                    ], [
+                        'permission_type_id' => 4, // All
+                    ]);
+                }
             }
         }
 
-        // Admins are granted directly as well — role membership alone doesn't
-        // populate user_permissions, which is what user()->permission() reads.
+        // Belt-and-suspenders on top of the per-role loop above: allAdmins()
+        // resolves administrators independently of the `admin` role lookup
+        // above, so an admin who isn't tied to that exact per-company Role row
+        // still ends up with the grant.
         foreach (User::allAdmins() as $admin) {
             UserPermission::firstOrCreate([
                 'user_id' => $admin->id,

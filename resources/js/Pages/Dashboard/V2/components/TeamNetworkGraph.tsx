@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Tree from "react-d3-tree";
 import {
     Avatar,
@@ -99,8 +99,36 @@ export default function TeamNetworkGraph({
     networkSummary?: TeamSummary | null;
 }) {
     const { td } = useTd();
-    const containerRef = useRef<HTMLDivElement>(null);
     const [expanded, setExpanded] = useState<Map<string, number>>(new Map());
+
+    // A plain useRef never triggers a re-render when it's attached, so the
+    // very first paint — before anything else changes state — would centre
+    // the tree on the 900 fallback rather than the container's real width.
+    // A callback ref measures the instant the DOM node exists and again on
+    // every resize (a sidebar toggling, the window resizing), each time
+    // through the same setState so the graph re-centres with it.
+    const [containerWidth, setContainerWidth] = useState(900);
+
+    const measureContainer = useCallback((node: HTMLDivElement | null) => {
+        if (!node) {
+            return;
+        }
+
+        setContainerWidth(node.clientWidth);
+
+        const observer = new ResizeObserver(([entry]) => {
+            if (entry) {
+                setContainerWidth(entry.contentRect.width);
+            }
+        });
+
+        observer.observe(node);
+
+        // React 19 calls a ref callback's own return value as its cleanup
+        // when the node unmounts or the ref changes — no separate effect
+        // needed to disconnect the observer.
+        return () => observer.disconnect();
+    }, []);
 
     const toggle = useCallback((parentKey: string, expand: boolean) => {
         setExpanded((prev) => {
@@ -265,7 +293,8 @@ export default function TeamNetworkGraph({
                         y={-(cardHeight / 2)}
                         style={{ overflow: "visible" }}
                     >
-                        <div
+                        <button
+                            type="button"
                             className="dv2-tree-card"
                             data-you={isYou || undefined}
                             onClick={handleClick}
@@ -355,7 +384,7 @@ export default function TeamNetworkGraph({
                                     </div>
                                 )
                             )}
-                        </div>
+                        </button>
                     </foreignObject>
                 </g>
             );
@@ -378,11 +407,9 @@ export default function TeamNetworkGraph({
         );
     }
 
-    const containerWidth = containerRef.current?.clientWidth ?? 900;
-
     return (
         <div
-            ref={containerRef}
+            ref={measureContainer}
             style={{
                 height,
                 background: T.SURFACE_2,

@@ -160,7 +160,7 @@ class TeamDownlineService
             ->groupBy('period')
             ->toBase()
             ->get([
-                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                DB::raw($this->monthExpression('created_at').' as period'),
                 DB::raw('COUNT(*) as total'),
             ])
             ->keyBy('period');
@@ -180,7 +180,7 @@ class TeamDownlineService
 
         while ($cursor->lessThanOrEqualTo($last)) {
             $key = $cursor->format('Y-m');
-            $joined = (int) ($byMonth->get($key)->total ?? 0);
+            $joined = (int) ($byMonth->get($key)?->total ?? 0);
             $running += $joined;
 
             $points[] = [
@@ -360,7 +360,7 @@ class TeamDownlineService
             ->groupBy('period')
             ->toBase()
             ->get([
-                DB::raw("DATE_FORMAT(paid_at, '%Y-%m') as period"),
+                DB::raw($this->monthExpression('paid_at').' as period'),
                 DB::raw('SUM(amount) as total'),
             ])
             ->keyBy('period');
@@ -375,7 +375,7 @@ class TeamDownlineService
             $points[] = [
                 'period' => $key,
                 'label' => $cursor->format('M Y'),
-                'amount' => round((float) ($byMonth->get($key)->total ?? 0), 2),
+                'amount' => round((float) ($byMonth->get($key)?->total ?? 0), 2),
             ];
 
             $cursor->addMonth();
@@ -442,6 +442,25 @@ class TeamDownlineService
     private function once(string $key, callable $resolve)
     {
         return $this->memo[$key] ??= $resolve();
+    }
+
+    /**
+     * A `'YYYY-MM'` grouping expression for $column, on whichever connection
+     * is actually active.
+     *
+     * Production is always MySQL, but the test suite in this directory runs
+     * every service against sqlite in-memory (see the class docblocks on the
+     * tests themselves) — MySQL's DATE_FORMAT has no sqlite equivalent, so a
+     * hardcoded DATE_FORMAT here would raise "no such function" the moment a
+     * test exercised growth() or commissionTrend(), never reaching the
+     * assertions. $column is only ever a literal column name from inside this
+     * class, never request input, so interpolating it directly is safe.
+     */
+    private function monthExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', {$column})"
+            : "DATE_FORMAT({$column}, '%Y-%m')";
     }
 
     /**
@@ -573,13 +592,21 @@ class TeamDownlineService
         }
 
         return $this->once('leads:'.$this->key($agentIds), function () use ($agentIds) {
-            $ownerToAgent = LeadAgent::query()
+            // Every agent id each owner holds, not just one: a user can hold
+            // more than one lead_agent row (they are per lead category), and
+            // plucking id-by-user_id would silently keep only the last of
+            // them — dropping that user's leads from whichever agent id lost
+            // the collision, deterministic on nothing but row order.
+            $agentsByOwner = LeadAgent::query()
                 ->whereIn('id', $agentIds)
                 ->whereNotNull('user_id')
-                ->pluck('id', 'user_id')
+                ->orderBy('id')
+                ->get(['id', 'user_id'])
+                ->groupBy('user_id')
+                ->map(fn ($rows) => $rows->pluck('id')->all())
                 ->all();
 
-            if (empty($ownerToAgent)) {
+            if (empty($agentsByOwner)) {
                 return [];
             }
 
@@ -590,7 +617,7 @@ class TeamDownlineService
                 ->all();
 
             $rows = Lead::query()
-                ->whereIn('lead_owner', array_keys($ownerToAgent))
+                ->whereIn('lead_owner', array_keys($agentsByOwner))
                 ->when(
                     ! empty($closed),
                     fn ($query) => $query->where(
@@ -609,17 +636,22 @@ class TeamDownlineService
             $totals = [];
 
             foreach ($rows as $row) {
-                $agentId = $ownerToAgent[$row->lead_owner] ?? null;
+                $agentIdsForOwner = $agentsByOwner[$row->lead_owner] ?? null;
 
-                if ($agentId === null) {
+                if (! $agentIdsForOwner) {
                     continue;
                 }
 
-                // A user can hold more than one lead_agent row, so this adds
-                // rather than assigns.
-                $totals[(int) $agentId] = [
-                    'active' => ($totals[(int) $agentId]['active'] ?? 0) + (int) $row->active,
-                    'untouched' => ($totals[(int) $agentId]['untouched'] ?? 0) + (int) $row->untouched,
+                // A tie is attributed to the lowest agent id rather than
+                // split or duplicated across all of an owner's rows — the
+                // lead has one owner, and a rollup that added it to two
+                // agents would overstate the team by however many leads that
+                // one person's second row happens to catch.
+                $agentId = (int) $agentIdsForOwner[0];
+
+                $totals[$agentId] = [
+                    'active' => ($totals[$agentId]['active'] ?? 0) + (int) $row->active,
+                    'untouched' => ($totals[$agentId]['untouched'] ?? 0) + (int) $row->untouched,
                 ];
             }
 

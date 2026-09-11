@@ -119,13 +119,26 @@ class HierarchyService
      * not just who is under whom.
      *
      * Reads the agent_hierarchy closure table first, because that is one query
-     * for an arbitrarily deep tree. The table is derived, though, and is empty
-     * for any company whose agents predate it (see rebuildAll()), so an empty
-     * closure result falls back to walking parent_agent_id — the actual source
-     * of truth — breadth-first. The fallback is bounded by $maxDepth and keeps
-     * a seen-set, so a parent chain that loops back on itself terminates
-     * instead of walking forever; parent_agent_id is writable directly with no
-     * FK-level cycle check, so bad data can produce one.
+     * for an arbitrarily deep tree. The table is derived, though, and can be
+     * incomplete for a company rather than simply empty: setParent() keeps it
+     * current for every reparenting it performs, but a company whose agents
+     * predate the table (see rebuildAll()) can still have live parent_agent_id
+     * relationships that were never run through setParent() and so were never
+     * closed over — a nonempty closure result is not on its own proof that
+     * *this* agent's whole subtree is in it. Before trusting the closure this
+     * checks that its own depth-1 rows agree with parent_agent_id, which is
+     * cheap (one indexed query) and catches exactly that case: any mismatch
+     * means the closure is stale or partial here, and the walk below — the
+     * actual source of truth — is used instead, breadth-first, bounded by
+     * $maxDepth, with a seen-set so a parent chain that loops back on itself
+     * terminates instead of walking forever (parent_agent_id is writable
+     * directly with no FK-level cycle check, so bad data can produce one).
+     *
+     * This does not prove deeper levels are complete — a gap two generations
+     * down with an intact depth-1 would still slip through — but a broken
+     * depth-1 is the common failure shape (bulk-imported or hand-edited rows
+     * that never touched setParent()), and closing that gap for good needs a
+     * per-company completion signal this table doesn't carry today.
      *
      * @return array<int, int> agent id => depth
      */
@@ -138,11 +151,33 @@ class HierarchyService
             ->map(fn ($depth) => (int) $depth)
             ->all();
 
-        if (! empty($fromClosure)) {
+        if (! empty($fromClosure) && $this->closureDepthOneAgrees($agent, $fromClosure)) {
             return $fromClosure;
         }
 
         return $this->walkChildren($agent, $maxDepth);
+    }
+
+    /**
+     * Whether the closure's own depth-1 rows match parent_agent_id exactly.
+     *
+     * @param  array<int, int>  $fromClosure  agent id => depth, as read from AgentHierarchy
+     */
+    private function closureDepthOneAgrees(LeadAgent $agent, array $fromClosure): bool
+    {
+        $closureChildren = collect($fromClosure)
+            ->filter(fn (int $depth) => $depth === 1)
+            ->keys()
+            ->sort()
+            ->values();
+
+        $actualChildren = LeadAgent::where('parent_agent_id', $agent->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values();
+
+        return $closureChildren->all() === $actualChildren->all();
     }
 
     /**

@@ -130,13 +130,20 @@ export default function TeamView({
                                 },
                                 {
                                     label: "Forecast",
-                                    value: teamForecast ? (
-                                        amount(
-                                            teamForecast.amount,
-                                            teamForecast.currency,
-                                        )
-                                    ) : (
-                                        <SegmentSkeleton />
+                                    value: (
+                                        <Deferred
+                                            data="teamForecast"
+                                            fallback={<SegmentSkeleton />}
+                                        >
+                                            {teamForecast ? (
+                                                amount(
+                                                    teamForecast.amount,
+                                                    teamForecast.currency,
+                                                )
+                                            ) : (
+                                                <SegmentSkeleton />
+                                            )}
+                                        </Deferred>
                                     ),
                                 },
                             ]}
@@ -358,14 +365,19 @@ function NodeDetail({
                                     {td("Forecast")}:{" "}
                                 </span>
                                 <strong>
-                                    {networkForecast ? (
-                                        amount(
-                                            networkForecast.amount,
-                                            currency,
-                                        )
-                                    ) : (
-                                        <SegmentSkeleton />
-                                    )}
+                                    <Deferred
+                                        data="teamForecast"
+                                        fallback={<SegmentSkeleton />}
+                                    >
+                                        {networkForecast ? (
+                                            amount(
+                                                networkForecast.amount,
+                                                currency,
+                                            )
+                                        ) : (
+                                            <SegmentSkeleton />
+                                        )}
+                                    </Deferred>
                                 </strong>
                             </span>
                         </div>

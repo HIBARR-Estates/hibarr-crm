@@ -265,11 +265,24 @@
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
+    /* Now a <button> (keyboard-operable), so undo the browser's own button
+       chrome — centred/system-font text, extra appearance — to keep it
+       looking like the card it always was. */
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
 }
 
 .dashboard-v2 .dv2-tree-card:hover {
     border-color: #b8d4f0;
     box-shadow: 0 2px 6px rgba(16, 24, 40, 0.1);
+}
+
+.dashboard-v2 .dv2-tree-card:focus-visible {
+    outline: 2px solid #1a6bb5;
+    outline-offset: 2px;
 }
 
 .dashboard-v2 .dv2-tree-card[data-you] {

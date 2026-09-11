@@ -60,10 +60,17 @@ class DashboardDateRange
         );
     }
 
+    /**
+     * `$days - 1`, not `$days`: today is one of the days being counted, so
+     * "last 30 days" is today plus the 29 before it — 30 calendar dates in
+     * total, matching what `days()` reports back to the picker. Off by one
+     * the other way would make the label a day short of what the query
+     * actually covers.
+     */
     public static function preset(int $days): self
     {
         return new self(
-            now()->subDays($days)->startOfDay(),
+            now()->subDays(max(0, $days - 1))->startOfDay(),
             now()->endOfDay(),
             $days,
         );
@@ -95,6 +102,15 @@ class DashboardDateRange
         }
 
         if ($start->diffInDays($end) > self::MAX_DAYS) {
+            return null;
+        }
+
+        // A future window has nothing in it yet — every aggregate would read
+        // as zero, which looks like an empty team rather than an invalid
+        // request. Checked on the end: a range starting today and running a
+        // few days ahead is still asking about days that haven't happened,
+        // same as one that starts in the future.
+        if ($end->isFuture()) {
             return null;
         }
 

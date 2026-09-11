@@ -120,6 +120,32 @@ class TeamDownlineTest extends TestCase
         $this->assertSame([2 => 1, 3 => 1, 4 => 5], $this->service()->teamDepths($root));
     }
 
+    public function test_a_closure_missing_a_direct_child_is_not_trusted(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        // Only agent 2 made it into the closure table — agent 3, a real direct
+        // report by parent_agent_id, never did. That's the shape a company
+        // whose agents predate the table actually produces: some relationships
+        // went through setParent() (and got closed over), others didn't
+        // (bulk import, a hand-edited row), and both are live at once. A
+        // depth-1 set that disagrees with parent_agent_id is the tell, and the
+        // whole result must fall back to the walk rather than serve a downline
+        // that is silently missing a real branch.
+        DB::table('agent_hierarchy')->insert([
+            'company_id' => $this->companyId,
+            'ancestor_id' => 1,
+            'descendant_id' => 2,
+            'depth' => 1,
+        ]);
+
+        $this->assertSame(
+            [2 => 1, 3 => 1, 4 => 2, 5 => 3],
+            $this->service()->teamDepths($root),
+            'A partial closure was trusted instead of falling back to the walk'
+        );
+    }
+
     public function test_a_lead_with_no_sub_agents_has_an_empty_team(): void
     {
         $root = $this->agent(id: 1, userId: 100);
@@ -294,6 +320,30 @@ class TeamDownlineTest extends TestCase
         $this->lead(id: 5, ownerId: 101, contacted: true, status: 'qualifying');
 
         $this->assertSame(2.0, $this->service()->summary($root, $this->range())['leads_active']);
+    }
+
+    public function test_a_user_with_two_agent_rows_does_not_lose_or_double_count_their_leads(): void
+    {
+        [$root] = $this->threeGenerations();
+
+        // Agent 2's user also holds a second lead_agent row (a person can hold
+        // one per lead category) — agent 6, also inside this team.
+        $this->agent(id: 6, userId: 101, parentId: 1, name: 'Bo Second Category');
+
+        $this->lead(id: 1, ownerId: 101, contacted: true);
+        $this->lead(id: 2, ownerId: 101, contacted: true);
+        $this->lead(id: 3, ownerId: 101, contacted: false);
+
+        // Attributed once, to the lower agent id — not lost, and not
+        // double-counted onto both of that user's rows.
+        $tree = $this->service()->tree($root, $this->range());
+        $this->assertSame(2, $this->nodeFor($tree, 2)['own']['leads_active']);
+        $this->assertSame(1, $this->nodeFor($tree, 2)['own']['leads_untouched']);
+        $this->assertSame(0, $this->nodeFor($tree, 6)['own']['leads_active']);
+
+        $summary = $this->service()->summary($root, $this->range());
+        $this->assertSame(2.0, $summary['leads_active']);
+        $this->assertSame(1.0, $summary['leads_untouched']);
     }
 
     // ── The tree ────────────────────────────────────────────────────────────
@@ -631,7 +681,10 @@ class TeamDownlineTest extends TestCase
     ): LeadAgent {
         // Inserted directly: LeadAgentObserver fans out to metrics, levels and
         // cycle bookkeeping on save, none of which these tests are about.
-        DB::table('users')->insert([
+        // insertOrIgnore rather than insert: a fixture can call this twice
+        // with the same $userId on purpose, to give one user two lead_agent
+        // rows (one per lead category, same as production allows).
+        DB::table('users')->insertOrIgnore([
             'id' => $userId,
             'company_id' => $this->companyId,
             'name' => $name,
@@ -647,7 +700,10 @@ class TeamDownlineTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return LeadAgent::find($id);
+        // find() types as ?LeadAgent; findOrFail() types as the model itself
+        // and fails loudly if the insert above didn't land, instead of
+        // quietly handing every caller a nullable it never checks.
+        return LeadAgent::findOrFail($id);
     }
 
     private function commission(
