@@ -153,6 +153,7 @@ export default function EntityListHeader({
 
     return (
         <div
+            className="entity-list-header"
             style={{
                 background: T.WHITE,
                 borderBottom: `1px solid ${T.BORDER}`,
