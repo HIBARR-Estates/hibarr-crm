@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Models\Company;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
 class UserTimezone
