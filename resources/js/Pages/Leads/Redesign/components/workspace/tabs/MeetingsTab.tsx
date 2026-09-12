@@ -472,6 +472,7 @@ export default function MeetingsTab({
                             hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
+                            timezone: form.timezone,
                         },
                         () => handleCreateSuccess(),
                     )

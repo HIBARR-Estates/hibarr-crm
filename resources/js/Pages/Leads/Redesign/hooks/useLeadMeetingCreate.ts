@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { Modal } from "antd";
+import dayjs from "dayjs";
 import type { Lead } from "@/Types/api/leads";
 import type { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import useCalendarSyncCreateWatch from "@/Hooks/useCalendarSyncCreateWatch";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     canUseZohoMeeting,
@@ -36,6 +38,8 @@ export interface LeadMeetingCreateInput {
     hostId: number | null;
     remark: string;
     reminders: Reminder[];
+    /** IANA zone the date/time were entered in — see MeetingFormState. */
+    timezone?: string;
     dealId?: number | null;
     /** When true, skip the soft duplicate-meeting warning. */
     confirmDuplicate?: boolean;
@@ -57,16 +61,30 @@ interface FollowUpStorePayload {
     timezone?: string;
 }
 
+/**
+ * Whether the entered start lands within a minute of an existing meeting.
+ * The entered date/time are read as `timezone`'s wall clock (the zone picked
+ * in the form), falling back to the browser's only when none is given.
+ */
 function timesOverlap(
     aDate: string,
     aStart: string,
     existingDateTime: string | null | undefined,
+    timezone?: string | null,
 ): boolean {
     if (!aDate || !aStart || !existingDateTime) return false;
-    const a = new Date(`${aDate}T${aStart}`);
-    const b = new Date(existingDateTime);
-    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
-    return Math.abs(a.getTime() - b.getTime()) < 60_000;
+    const wallClock = `${aDate}T${aStart.length === 5 ? `${aStart}:00` : aStart}`;
+    let aMs = new Date(wallClock).getTime();
+    if (timezone) {
+        try {
+            aMs = dayjs.tz(wallClock, timezone).valueOf();
+        } catch {
+            // Unknown zone — keep the browser-local reading.
+        }
+    }
+    const bMs = new Date(existingDateTime).getTime();
+    if (Number.isNaN(aMs) || Number.isNaN(bMs)) return false;
+    return Math.abs(aMs - bMs) < 60_000;
 }
 
 function extractFollowUp(response: unknown): DealFollowup | null {
@@ -128,7 +146,7 @@ export function validateMeetingForm(
         validationErrors.push("Please select a start time.");
     } else if (
         input.date &&
-        !isMeetingStartInFuture(input.date, input.startTime)
+        !isMeetingStartInFuture(input.date, input.startTime, input.timezone)
     ) {
         validationErrors.push(
             "Start time must be at least 5 minutes in the future.",
@@ -180,6 +198,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
     const { leadFollowUps, addLeadFollowUp } = useLeadWorkspace();
+    const watchCalendarSync = useCalendarSyncCreateWatch();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -212,7 +231,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 host_id: input.hostId,
-                timezone: getBrowserTimezone(),
+                timezone: input.timezone || undefined,
             };
 
             if (input.dealId) {
@@ -229,6 +248,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         // Patch local list immediately — don't wait on deferred reload.
                         addLeadFollowUp(followUp);
                     }
+                    watchCalendarSync(followUp);
                     // Success toast comes from useApiMutate unless suppressed.
                     options.onSuccess?.();
                 },
@@ -249,7 +269,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 },
             });
         },
-        [addLeadFollowUp, lead.id, mutate, props.auth?.user?.timezone],
+        [addLeadFollowUp, lead.id, mutate, props.auth?.user?.timezone, watchCalendarSync],
     );
 
     const createMeeting = useCallback(
@@ -278,6 +298,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         input.date,
                         input.startTime,
                         existing.next_follow_up_date as string | undefined,
+                        input.timezone,
                     );
                     if (!timeMatch) return false;
                     if (participantSet.size === 0) return true;

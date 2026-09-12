@@ -7,9 +7,8 @@ import PageLayout from "@/Components/PageLayout";
 import ProductTour, {
     ProductTourHandle,
 } from "@/Components/ProductTour/ProductTour";
-import SearchableSelect, {
-    type SearchableSelectGroup,
-} from "@/Components/Redesign/primitives/SearchableSelect";
+import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
+import { buildTimezoneGroups } from "@/lib/timezoneOptions";
 import Switch from "@/Components/Redesign/primitives/Switch";
 import {
     REDESIGN_FONT_STACK,
@@ -53,46 +52,6 @@ type PreferencesProps = {
     bypassTypes: BypassType[];
     bypassedKeys: string[];
 };
-
-function buildTimezoneGroups(): SearchableSelectGroup[] {
-    let zones: string[] = [];
-    try {
-        if (typeof Intl !== "undefined" && "supportedValuesOf" in Intl) {
-            zones = (
-                Intl as unknown as {
-                    supportedValuesOf: (key: string) => string[];
-                }
-            ).supportedValuesOf("timeZone");
-        }
-    } catch {
-        zones = [];
-    }
-    if (zones.length === 0) {
-        zones = [
-            "UTC",
-            "Europe/Berlin",
-            "Europe/London",
-            "America/New_York",
-            "America/Los_Angeles",
-            "Asia/Dubai",
-            "Asia/Tokyo",
-            "Australia/Sydney",
-        ];
-    }
-
-    const grouped = new Map<string, { value: string; label: string }[]>();
-    for (const zone of zones) {
-        const region = zone.split("/")[0] ?? "Other";
-        const list = grouped.get(region) ?? [];
-        list.push({ value: zone, label: zone.replace(/_/g, " ") });
-        grouped.set(region, list);
-    }
-
-    return Array.from(grouped.entries()).map(([label, options]) => ({
-        label,
-        options,
-    }));
-}
 
 function Section({
     title,

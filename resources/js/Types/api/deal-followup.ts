@@ -34,6 +34,8 @@ export interface DealFollowup {
     /** User "in charge of" the meeting. Immutable once the meeting is saved. */
     host_id?: number | null;
     host?: { id: number; name: string; image?: string | null } | null;
+    /** IANA zone the meeting was booked in; next_follow_up_date stays UTC. */
+    timezone?: string | null;
     meeting_type?: {
         id: number;
         name: string;
@@ -57,6 +59,8 @@ export interface DealFollowup {
     zoho_calendar_job_id?: string | null;
     zoho_calendar_sync_status?: "pending" | "synced" | "failed" | null;
     zoho_calendar_event_uid?: string | null;
+    /** OL's reason for the last failed sync; null once synced. */
+    zoho_calendar_sync_error?: string | null;
     /** Tri-state: null = not yet confirmed, true/false = manually confirmed after the meeting. */
     client_attended?: boolean | null;
     /** Set once, via the attendance-confirmation flow — null while still pending. */

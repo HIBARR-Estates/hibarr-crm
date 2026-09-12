@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
@@ -7,6 +8,7 @@ import {
     REDESIGN_RADIUS as R,
     REDESIGN_TOKENS as T,
 } from "@/Components/Redesign/tokens";
+import { isVideoPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useMeetingPresentation from "../hooks/useMeetingPresentation";
 
@@ -42,6 +44,7 @@ export default function MeetingLiveCard({
 }: MeetingLiveCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const linkPendingId = useId();
     const {
         timeRange,
         minutesRemaining,
@@ -170,31 +173,10 @@ export default function MeetingLiveCard({
                 className="flex shrink-0 items-center gap-2"
                 onClick={(event) => event.stopPropagation()}
             >
-                {/* The two things you do with a meeting that is happening
-                    right now — both in new tabs, so the list you were working
-                    in is still here when the call ends. */}
-                {record?.href && (
-                    <a
-                        href={record.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 font-semibold no-underline"
-                        style={{
-                            background: T.WHITE,
-                            color: T.NAVY,
-                            border: `1px solid ${T.RED_MID}`,
-                            borderRadius: 8,
-                            padding: "9px 14px",
-                            fontSize: 14,
-                        }}
-                    >
-                        <Icon name="external-link" size={15} />
-                        {record.type === "lead"
-                            ? td("Open lead")
-                            : td("Open deal")}
-                    </a>
-                )}
-                {showJoin && (
+                {/* While a meeting is running the one action is attending it —
+                    in a new tab, so this list is still here when the call
+                    ends. The record stays reachable from its name above. */}
+                {showJoin ? (
                     <a
                         href={meeting.meeting_link}
                         target="_blank"
@@ -203,7 +185,7 @@ export default function MeetingLiveCard({
                         style={{
                             background: T.RED,
                             color: T.WHITE,
-                            border: `1px solid ${T.RED}`,
+                            border: "none",
                             borderRadius: 8,
                             padding: "9px 16px",
                             fontSize: 14,
@@ -212,6 +194,57 @@ export default function MeetingLiveCard({
                         <Icon name="video" size={15} />
                         {t("pages.meetings.card.actions.join_meeting")}
                     </a>
+                ) : isVideoPlatform(meeting.location) ? (
+                    // Video call whose link isn't usable yet (e.g. Zoho still
+                    // generating it) — still the join action, just not ready.
+                    // aria-disabled (not `disabled`) keeps it focusable so the
+                    // reason reaches keyboard and screen-reader users too.
+                    <button
+                        type="button"
+                        aria-disabled="true"
+                        aria-describedby={linkPendingId}
+                        onClick={(event) => event.preventDefault()}
+                        title={td("The meeting link isn't available yet")}
+                        className="inline-flex cursor-not-allowed items-center gap-2 font-semibold"
+                        style={{
+                            fontFamily: "inherit",
+                            background: T.RED,
+                            color: T.WHITE,
+                            border: "none",
+                            borderRadius: 8,
+                            padding: "9px 16px",
+                            fontSize: 14,
+                            opacity: 0.55,
+                        }}
+                    >
+                        <Icon name="video" size={15} />
+                        {t("pages.meetings.card.actions.join_meeting")}
+                        <span id={linkPendingId} className="sr-only">
+                            {td("The meeting link isn't available yet")}
+                        </span>
+                    </button>
+                ) : (
+                    record?.href && (
+                        <a
+                            href={record.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 font-semibold no-underline"
+                            style={{
+                                background: T.WHITE,
+                                color: T.NAVY,
+                                border: "none",
+                                borderRadius: 8,
+                                padding: "9px 14px",
+                                fontSize: 14,
+                            }}
+                        >
+                            <Icon name="external-link" size={15} />
+                            {record.type === "lead"
+                                ? td("Open lead")
+                                : td("Open deal")}
+                        </a>
+                    )
                 )}
                 <RowActionMenu
                     actions={actions}

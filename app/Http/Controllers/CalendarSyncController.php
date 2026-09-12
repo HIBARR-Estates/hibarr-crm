@@ -12,171 +12,205 @@ class CalendarSyncController extends AccountBaseController
 {
     public function retry(DealFollowUp $followUp, CalendarSyncService $syncService): JsonResponse
     {
-        abort_403((int) $followUp->added_by !== (int) user()->id);
-
-        if (!FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
-            abort_403(true);
-        }
+        $this->authorizeSyncAccess($followUp);
 
         $jobId = $followUp->zoho_calendar_job_id;
 
         // The OL create/retry calls are made here so the UI can immediately
-        // receive the new jobId (or get failed status when retry isn't possible).
+        // receive the new jobId (or OL's actual error when it's rejected).
         $newJobId = $jobId
             ? $syncService->retryEvent((string) $jobId)
             : $syncService->enqueueEvent($followUp, CalendarSyncService::PLATFORM_ZOHO);
 
         if ($newJobId) {
-            $followUp->update([
+            // Quiet — calendar bookkeeping must not fire meeting-update notifications.
+            $followUp->updateQuietly([
                 'zoho_calendar_job_id' => $newJobId,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
                 'zoho_calendar_event_uid' => null,
+                'zoho_calendar_sync_error' => null,
             ]);
-        } else {
-            $followUp->update([
-                'zoho_calendar_job_id' => null,
-                'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
-            ]);
+
+            return response()->json(Reply::successWithData('Calendar sync updated', [
+                'data' => $this->syncData($followUp),
+            ]));
         }
 
-        return response()->json(Reply::successWithData(
-            'Calendar sync updated',
-            [
-                'data' => [
-                    'jobId' => $followUp->zoho_calendar_job_id,
-                    'syncStatus' => $followUp->zoho_calendar_sync_status,
-                    'eventUid' => $followUp->zoho_calendar_event_uid,
-                ],
-            ]
-        ));
+        $error = $syncService->lastError()
+            ?? ['code' => 'sync_failed', 'message' => 'Calendar sync failed.'];
+
+        // Only OL confirming the job doesn't exist (404) retires its id. A
+        // network/config failure or any other ambiguous result keeps it, so
+        // the next status poll or retry can still reach that job.
+        $jobConfirmedMissing = ($error['code'] ?? null) === '404';
+
+        $followUp->updateQuietly([
+            'zoho_calendar_job_id' => $jobId && ! $jobConfirmedMissing ? $jobId : null,
+            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+            'zoho_calendar_sync_error' => $error['message'],
+        ]);
+
+        // A failure status, not 200 — a rejected sync must not read as a
+        // successful request in the browser.
+        return response()->json(
+            Reply::error($error['message'], 'calendar_sync_failed', $this->syncData($followUp, $error)),
+            422
+        );
     }
 
     public function status(DealFollowUp $followUp, CalendarSyncService $syncService): JsonResponse
     {
-        abort_403((int) $followUp->added_by !== (int) user()->id);
-
-        if (!FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
-            abort_403(true);
-        }
+        $this->authorizeSyncAccess($followUp);
 
         $jobId = $followUp->zoho_calendar_job_id;
-        if (!$jobId) {
-            return response()->json(Reply::successWithData(
-                'Calendar sync status',
-                [
-                    'data' => [
-                        'jobId' => null,
-                        'syncStatus' => $followUp->zoho_calendar_sync_status,
-                        'eventUid' => $followUp->zoho_calendar_event_uid,
-                        'error' => null,
-                    ],
-                ]
-            ));
+        if (! $jobId) {
+            // No OL job: either the sync dispatched after the save hasn't run
+            // yet (pending), or OL rejected it outright (failed + stored reason).
+            return $this->statusResponse($followUp, $this->storedError($followUp));
         }
 
         $data = $syncService->getJobStatus((string) $jobId);
 
         if ($data === null) {
-            return response()->json(Reply::successWithData(
-                'Calendar sync status',
-                [
-                    'data' => [
-                        'jobId' => $jobId,
-                        'syncStatus' => $followUp->zoho_calendar_sync_status
-                            ?? DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
-                        'eventUid' => $followUp->zoho_calendar_event_uid,
-                        'error' => null,
-                    ],
-                ]
-            ));
+            return $this->statusResponse(
+                $followUp,
+                $this->storedError($followUp),
+                $followUp->zoho_calendar_sync_status ?? DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING
+            );
         }
 
         $httpStatus = $data['_httpStatus'] ?? null;
         unset($data['_httpStatus']);
 
         if ($httpStatus === 404) {
-            $followUp->update([
-                'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
-            ]);
-
-            $error = is_array($data['error'] ?? null)
-                ? $data['error']
+            $error = is_array($data['error'] ?? null) && isset($data['error']['message'])
+                ? ['code' => (string) ($data['error']['code'] ?? '404'), 'message' => (string) $data['error']['message']]
                 : ['code' => '404', 'message' => 'Calendar job or linked profile not found'];
 
-            return response()->json(Reply::successWithData(
-                'Calendar sync status',
-                [
-                    'data' => [
-                        'jobId' => $jobId,
-                        'syncStatus' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
-                        'eventUid' => $followUp->zoho_calendar_event_uid,
-                        'error' => $error,
-                    ],
-                ]
-            ));
+            $this->markFailed($followUp, $error);
+
+            return $this->statusResponse($followUp, $error);
         }
 
         $olStatus = (string) ($data['status'] ?? '');
-        $error = $data['error'] ?? null;
-        if (is_string($error)) {
-            $error = ['code' => 'error', 'message' => $error];
-        }
+        $error = $this->normalizeError($data['error'] ?? null);
 
-        if ($olStatus === 'failed' || $error) {
-            $followUp->update([
-                'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
-            ]);
+        if ($olStatus === 'failed' || $error !== null) {
+            $error ??= ['code' => 'failed', 'message' => 'Calendar sync failed.'];
+            $this->markFailed($followUp, $error);
 
-            return response()->json(Reply::successWithData(
-                'Calendar sync status',
-                [
-                    'data' => [
-                        'jobId' => $jobId,
-                        'syncStatus' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
-                        'eventUid' => $followUp->zoho_calendar_event_uid,
-                        'error' => is_array($error) ? $error : null,
-                    ],
-                ]
-            ));
+            return $this->statusResponse($followUp, $error);
         }
 
         if ($olStatus === 'completed') {
             $eventUid = $data['zohoEventId'] ?? null;
-            $followUp->update([
+            $followUp->updateQuietly([
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_SYNCED,
+                'zoho_calendar_sync_error' => null,
                 'zoho_calendar_event_uid' => is_string($eventUid) && $eventUid !== ''
                     ? $eventUid
                     : $followUp->zoho_calendar_event_uid,
             ]);
 
-            return response()->json(Reply::successWithData(
-                'Calendar sync status',
-                [
-                    'data' => [
-                        'jobId' => $jobId,
-                        'syncStatus' => DealFollowUp::ZOHO_CALENDAR_SYNC_SYNCED,
-                        'eventUid' => $followUp->zoho_calendar_event_uid,
-                        'error' => null,
-                    ],
-                ]
-            ));
+            return $this->statusResponse($followUp, null);
         }
 
-        // pending / processing / unknown → keep pending
-        $followUp->update([
-            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
-        ]);
+        // Only an explicitly pending OL job moves the row to pending. Anything
+        // else (processing, unknown, empty) leaves the stored status — and a
+        // stored failure's reason — untouched.
+        if (in_array($olStatus, ['pending', 'queued'], true)) {
+            $followUp->updateQuietly([
+                'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+            ]);
 
-        return response()->json(Reply::successWithData(
-            'Calendar sync status',
-            [
-                'data' => [
-                    'jobId' => $jobId,
-                    'syncStatus' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
-                    'eventUid' => $followUp->zoho_calendar_event_uid,
-                    'error' => null,
-                ],
-            ]
-        ));
+            return $this->statusResponse($followUp, null);
+        }
+
+        return $this->statusResponse(
+            $followUp,
+            $this->storedError($followUp),
+            $followUp->zoho_calendar_sync_status ?? DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING
+        );
+    }
+
+    /**
+     * The meeting's creator or host (the Zoho organizer whose calendar this
+     * is), and only while calendar sync is switched on.
+     */
+    private function authorizeSyncAccess(DealFollowUp $followUp): void
+    {
+        $userId = (int) user()->id;
+
+        abort_403($userId !== (int) $followUp->added_by && $userId !== (int) $followUp->host_id);
+        abort_403(! FeatureFlags::enabled('integrations.zoho-calendar-sync'));
+    }
+
+    /**
+     * @param  array{code: string, message: string}  $error
+     */
+    private function markFailed(DealFollowUp $followUp, array $error): void
+    {
+        $followUp->updateQuietly([
+            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+            'zoho_calendar_sync_error' => $error['message'],
+        ]);
+    }
+
+    /**
+     * @return array{code: string, message: string}|null
+     */
+    private function storedError(DealFollowUp $followUp): ?array
+    {
+        if ($followUp->zoho_calendar_sync_status !== DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED) {
+            return null;
+        }
+
+        return [
+            'code' => 'sync_failed',
+            'message' => $followUp->zoho_calendar_sync_error ?: 'Calendar sync failed.',
+        ];
+    }
+
+    /**
+     * @return array{code: string, message: string}|null
+     */
+    private function normalizeError(mixed $error): ?array
+    {
+        if (is_string($error) && $error !== '') {
+            return ['code' => 'error', 'message' => $error];
+        }
+
+        if (is_array($error) && isset($error['message']) && is_string($error['message'])) {
+            return ['code' => (string) ($error['code'] ?? 'error'), 'message' => $error['message']];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{code: string, message: string}|null  $error
+     * @return array<string, mixed>
+     */
+    private function syncData(DealFollowUp $followUp, ?array $error = null): array
+    {
+        return [
+            'jobId' => $followUp->zoho_calendar_job_id,
+            'syncStatus' => $followUp->zoho_calendar_sync_status,
+            'eventUid' => $followUp->zoho_calendar_event_uid,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @param  array{code: string, message: string}|null  $error
+     */
+    private function statusResponse(DealFollowUp $followUp, ?array $error, ?string $syncStatus = null): JsonResponse
+    {
+        $data = $this->syncData($followUp, $error);
+        if ($syncStatus !== null) {
+            $data['syncStatus'] = $syncStatus;
+        }
+
+        return response()->json(Reply::successWithData('Calendar sync status', ['data' => $data]));
     }
 }

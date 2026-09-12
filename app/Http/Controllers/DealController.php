@@ -2760,12 +2760,16 @@ class DealController extends AccountBaseController
             }
         }
 
+        // The form's timezone picker (creator's own by default, or the host's)
+        // decides what the entered wall-clock time means.
+        $timezone = UserTimezone::forWrite(user(), company(), $request->input('timezone'));
+
         $next_follow_up_date = UserTimezone::interpretWallClock(
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
             'd-m-Y H:i:s',
-            $request->timezone
+            $timezone
         );
 
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -2779,6 +2783,7 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date;
+        $followUp->timezone = $timezone;
         $followUp->remark = $request->remark;
         $followUp->duration = $request->filled('duration') ? (int) $request->duration : null;
         $followUp->send_reminder = 'yes';
@@ -2920,15 +2925,24 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
 
+        // The zone the form sent, else the one the meeting was booked in, else
+        // the actor's own — and the same zone is stored for the next edit.
+        $timezone = UserTimezone::forWrite(
+            user(),
+            company(),
+            $request->input('timezone') ?: $followUp->timezone
+        );
+
         $next_follow_up_date = UserTimezone::interpretWallClock(
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
             'd-m-Y H:i:s',
-            $request->timezone
+            $timezone
         );
         // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
+        $followUp->timezone = $timezone;
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';

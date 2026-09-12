@@ -286,6 +286,7 @@ class CrmWriteService
         $followUp->location = $data['location'] ?? 'office';
         $followUp->meeting_link = $data['meeting_link'] ?? null;
         $followUp->next_follow_up_date = $scheduledAt;
+        $followUp->timezone = $timezone;
         $followUp->remark = $data['remark'] ?? null;
         $followUp->duration = isset($data['duration']) ? (int) $data['duration'] : null;
         $followUp->send_reminder = 'yes';
@@ -898,6 +899,7 @@ class CrmWriteService
                 $followUp->added_by !== null ? (int) $followUp->added_by : null
             );
             $followUp->next_follow_up_date = Carbon::parse($data['scheduled_at'], $timezone)->setTimezone('UTC');
+            $followUp->timezone = $timezone;
         }
 
         if (array_key_exists('remark', $data)) {
