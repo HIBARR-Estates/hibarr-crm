@@ -324,9 +324,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     ]);
 
     const nextMeeting = useMemo(() => {
+        const now = Date.now();
         return (
             [...leadFollowUps]
-                .filter((f) => f.status !== "completed")
+                .filter(
+                    (f) =>
+                        f.status !== "completed" &&
+                        new Date(f.next_follow_up_date).getTime() > now,
+                )
                 .sort(
                     (a, b) =>
                         new Date(a.next_follow_up_date).getTime() -
