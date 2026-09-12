@@ -988,6 +988,7 @@ function OutcomeDetail({
         hostId: meetingForm.hostId,
         remark: meetingForm.remark,
         reminders: meetingForm.reminders,
+        timezone: meetingForm.timezone,
     });
 
     const handleCta = async () => {

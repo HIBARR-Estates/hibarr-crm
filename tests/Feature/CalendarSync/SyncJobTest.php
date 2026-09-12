@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Services\CalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
@@ -222,6 +223,49 @@ class SyncJobTest extends TestCase
         $this->assertEquals($host->id, $capturedPayload['creatorUserId'] ?? null);
     }
 
+    public function test_it_sends_the_organizer_timezone(): void
+    {
+        $this->setFeatureFlag('crm.meeting-host', true);
+
+        $capturedPayload = $this->fakeOlCreate();
+
+        $creator = User::factory()->create(['timezone' => 'America/New_York']);
+        $host = User::factory()->create(['timezone' => 'Europe/Berlin']);
+
+        $followUp = $this->makeFollowUp($creator, ['host_id' => $host->id]);
+
+        (new SyncCalendarEventJob($followUp->id))->handle(app(CalendarSyncService::class));
+
+        $this->assertSame('Europe/Berlin', $capturedPayload->payload['timezone'] ?? null);
+    }
+
+    public function test_it_falls_back_to_the_organizer_company_timezone(): void
+    {
+        $capturedPayload = $this->fakeOlCreate();
+
+        $creator = User::factory()->create(['company_id' => 1, 'timezone' => null]);
+        DB::table('companies')->where('id', 1)->update(['timezone' => 'Asia/Dubai']);
+
+        $followUp = $this->makeFollowUp($creator);
+
+        (new SyncCalendarEventJob($followUp->id))->handle(app(CalendarSyncService::class));
+
+        $this->assertSame('Asia/Dubai', $capturedPayload->payload['timezone'] ?? null);
+    }
+
+    public function test_it_sends_the_timezone_the_meeting_was_booked_in(): void
+    {
+        $capturedPayload = $this->fakeOlCreate();
+
+        $creator = User::factory()->create(['timezone' => 'America/New_York']);
+
+        $followUp = $this->makeFollowUp($creator, ['timezone' => 'Asia/Tokyo']);
+
+        (new SyncCalendarEventJob($followUp->id))->handle(app(CalendarSyncService::class));
+
+        $this->assertSame('Asia/Tokyo', $capturedPayload->payload['timezone'] ?? null);
+    }
+
     public function test_it_includes_lead_email_in_attendee_emails_for_deal_meeting(): void
     {
         config()->set('services.ol.base_url', 'https://ol.test/v1');
@@ -283,5 +327,49 @@ class SyncJobTest extends TestCase
         $this->assertContains('lead@example.com', $capturedPayload['attendeeEmails'] ?? []);
         $this->assertArrayNotHasKey('guestEmails', $capturedPayload);
         $this->assertArrayNotHasKey('contactEmail', $capturedPayload);
+    }
+
+    /**
+     * Fakes a successful OL create call; the returned holder's `payload`
+     * is filled with the request body once the job runs.
+     */
+    private function fakeOlCreate(): \stdClass
+    {
+        config()->set('services.ol.base_url', 'https://ol.test/v1');
+        config()->set('services.ol.api_key', 'ol-test-key');
+        config()->set('services.ol.timeout', 5);
+
+        $captured = new \stdClass;
+        $captured->payload = [];
+
+        Http::fake(function ($request) use ($captured) {
+            if ($request->url() === 'https://ol.test/v1/crm/events/zoho' && $request->method() === 'POST') {
+                $captured->payload = $request->data();
+
+                return Http::response(['success' => true, 'data' => ['jobId' => 'job-tz-123']], 202);
+            }
+
+            return Http::response([], 404);
+        });
+
+        return $captured;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function makeFollowUp(User $creator, array $attributes = []): DealFollowUp
+    {
+        $followUp = new DealFollowUp;
+        $followUp->added_by = $creator->id;
+        $followUp->next_follow_up_date = now();
+        $followUp->duration = 30;
+        $followUp->location = 'zoom';
+        $followUp->status = 'scheduled';
+        $followUp->participants = [$creator->id];
+        $followUp->forceFill($attributes);
+        $followUp->save();
+
+        return $followUp;
     }
 }

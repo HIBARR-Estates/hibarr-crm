@@ -43,15 +43,18 @@ class UserTimezone
     }
 
     /**
-     * Parse a naive wall-clock datetime in the actor's stored timezone and return UTC.
+     * Parse a naive wall-clock datetime and return UTC.
+     * Uses the actor's stored timezone unless a non-empty $override (the
+     * zone picked in the meeting form) is given — see {@see forWrite()}.
      */
     public static function interpretWallClock(
         ?User $user,
         ?Company $company,
         string $datetime,
-        string $format
+        string $format,
+        ?string $override = null
     ): Carbon {
-        $parsed = Carbon::createFromFormat($format, $datetime, self::resolve($user, $company));
+        $parsed = Carbon::createFromFormat($format, $datetime, self::forWrite($user, $company, $override));
 
         if (! $parsed instanceof Carbon) {
             throw new InvalidArgumentException(

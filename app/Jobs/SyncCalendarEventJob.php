@@ -54,11 +54,14 @@ class SyncCalendarEventJob implements ShouldQueue
                 $followUp->updateQuietly([
                     'zoho_calendar_job_id' => $jobId,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+                    'zoho_calendar_sync_error' => null,
                 ]);
             } else {
+                // Keep OL's reason — the meeting dialog shows it beside "Retry sync".
                 $followUp->updateQuietly([
                     'zoho_calendar_job_id' => null,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                    'zoho_calendar_sync_error' => $syncService->lastError()['message'] ?? 'Calendar sync failed.',
                 ]);
             }
         } catch (Throwable $e) {
@@ -71,6 +74,7 @@ class SyncCalendarEventJob implements ShouldQueue
             $followUp->updateQuietly([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                'zoho_calendar_sync_error' => $e->getMessage(),
             ]);
         }
     }
@@ -81,6 +85,7 @@ class SyncCalendarEventJob implements ShouldQueue
             DealFollowUp::where('id', $this->followUpId)->update([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                'zoho_calendar_sync_error' => $exception->getMessage(),
             ]);
         } catch (Throwable $e) {
             Log::error('SyncCalendarEventJob.failed failed to persist', [

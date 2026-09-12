@@ -1,8 +1,10 @@
 import type { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import timezonePlugin from "dayjs/plugin/timezone";
 
 dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
 
 export const MEETING_DURATION_OPTIONS = [
     { value: 15, label: "15 min" },
@@ -356,6 +358,12 @@ export interface MeetingFormState {
     participants: number[];
     /** User "in charge of" the meeting. Immutable after the meeting is saved. */
     hostId: number | null;
+    /**
+     * IANA zone the date/time are entered in. Empty until MeetingTimezoneField
+     * seeds it with the current user's zone; empty on submit lets the server
+     * fall back to that same zone.
+     */
+    timezone: string;
     remark: string;
     reminders: Reminder[];
 }
@@ -420,16 +428,29 @@ export function diffMinutesBetweenTimes(
     return diff > 0 ? diff : null;
 }
 
+/**
+ * At least 5 minutes from now. The date/time are read as `timezone`'s wall
+ * clock when given (the meeting form's picked zone), else the browser's.
+ */
 export function isMeetingStartInFuture(
     isoDate: string,
     startTime: string,
+    timezone?: string | null,
 ): boolean {
     if (!isoDate || !startTime) return false;
 
-    const selected = new Date(`${isoDate}T${startTime}:00`);
-    const minimum = new Date(Date.now() + 5 * 60 * 1000);
+    const wallClock = `${isoDate}T${startTime.length === 5 ? `${startTime}:00` : startTime}`;
+    let selectedMs = new Date(wallClock).getTime();
+    if (timezone) {
+        try {
+            selectedMs = dayjs.tz(wallClock, timezone).valueOf();
+        } catch {
+            // Unknown zone — keep the browser-local reading.
+        }
+    }
+    const minimum = Date.now() + 5 * 60 * 1000;
 
-    return selected.getTime() >= minimum.getTime();
+    return selectedMs >= minimum;
 }
 
 function collectIds(
@@ -523,6 +544,7 @@ export function buildEmptyMeetingForm(
         meetingLink: "",
         participants: getDefaultMeetingParticipants(source, currentUserId),
         hostId: getDefaultMeetingHost(source, currentUserId),
+        timezone: "",
         remark: "",
         reminders: [],
     };
@@ -625,6 +647,7 @@ export function buildMeetingFormFromFollowup(
             followup.host_id ??
             followup.host?.id ??
             getDefaultMeetingHost(source, currentUserId),
+        timezone: followup.timezone ?? "",
         remark: followup.remark || "",
         reminders: customReminders,
     };

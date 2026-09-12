@@ -152,6 +152,7 @@ export default function EditMeetingModal({
                     mustIncludeOwner={mustIncludeOwner}
                     hostLocked={hostLocked}
                     participantDirectory={participantDirectory}
+                    showTimezone={false}
                 />
             </div>
         </Modal>

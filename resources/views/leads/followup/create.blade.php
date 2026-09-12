@@ -36,6 +36,35 @@
                                 :fieldValue="now(company()->timezone)->addMinutes(30)->format(company()->time_format)" />
                         </div>
                     </div>
+                    @php
+                        // Date/time above are entered in this zone — the user's own by
+                        // default, or the host's (deal agent) via the button below.
+                        $meetingTimezone = \App\Support\UserTimezone::resolve(user(), company());
+                        $hostUser = \App\Support\FeatureFlags::enabled('crm.meeting-host')
+                            ? $deal->leadAgent?->user
+                            : null;
+                        $hostTimezone = $hostUser && (int) $hostUser->id !== (int) user()->id
+                            ? \App\Support\UserTimezone::resolve($hostUser, company())
+                            : null;
+                    @endphp
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="timezone" :fieldLabel="__('Timezone')" fieldName="timezone"
+                            search="true">
+                            @foreach (\DateTimeZone::listIdentifiers() as $timezoneOption)
+                                <option value="{{ $timezoneOption }}" @selected($timezoneOption === $meetingTimezone)>
+                                    {{ str_replace('_', ' ', $timezoneOption) }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
+                        <div class="mt-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary mr-2 meeting-timezone-option"
+                                data-timezone="{{ $meetingTimezone }}">My timezone</button>
+                            @if ($hostTimezone)
+                                <button type="button" class="btn btn-sm btn-outline-secondary meeting-timezone-option"
+                                    data-timezone="{{ $hostTimezone }}">Host's timezone ({{ $hostUser->name }})</button>
+                            @endif
+                        </div>
+                    </div>
                     <div class="col-md-6">
                         <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
                             search="true">
@@ -110,6 +139,10 @@
     $(document).ready(function() {
 
         $(".select-picker").selectpicker();
+
+        $('.meeting-timezone-option').click(function() {
+            $('#timezone').val($(this).data('timezone')).selectpicker('refresh');
+        });
 
         $('#start_time').timepicker({
             @if (company()->time_format == 'H:i')

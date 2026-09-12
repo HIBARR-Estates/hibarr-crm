@@ -256,6 +256,27 @@ class UserTimezoneTest extends TestCase
         $this->assertSame('2026-09-03 09:00:00', $stored->format('Y-m-d H:i:s'));
     }
 
+    public function test_interpret_wall_clock_uses_picked_timezone_override(): void
+    {
+        $user = new User;
+        $user->timezone = 'Africa/Lagos';
+
+        $company = new Company;
+        $company->timezone = 'Europe/Berlin';
+
+        $stored = UserTimezone::interpretWallClock(
+            $user,
+            $company,
+            '03-09-2026 10:00:00',
+            'd-m-Y H:i:s',
+            'Asia/Tokyo'
+        );
+
+        // Tokyo is UTC+9 (no DST).
+        $this->assertSame('2026-09-03 01:00:00', $stored->format('Y-m-d H:i:s'));
+        $this->assertSame('UTC', $stored->timezoneName);
+    }
+
     public function test_for_write_omitted_timezone_uses_created_by_user(): void
     {
         $createdBy = new User;

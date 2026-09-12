@@ -23,6 +23,7 @@ import {
 import { meetingRecordLink } from "../adapters/meetingViewModel";
 import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import MeetingConfirmationPanel from "./MeetingConfirmationPanel";
+import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 
 interface MeetingDetailCompactProps {
@@ -344,6 +345,11 @@ export default function MeetingDetailCompact({
                                         </div>
                                     ) : undefined
                                 }
+                            />
+
+                            <MeetingCalendarSyncRow
+                                meeting={meeting}
+                                userId={userId}
                             />
                         </div>
 

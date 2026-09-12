@@ -8,6 +8,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import useCalendarSyncCreateWatch from "@/Hooks/useCalendarSyncCreateWatch";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     canUseZohoMeeting,
@@ -36,6 +37,8 @@ export interface LeadMeetingCreateInput {
     hostId: number | null;
     remark: string;
     reminders: Reminder[];
+    /** IANA zone the date/time were entered in — see MeetingFormState. */
+    timezone?: string;
     dealId?: number | null;
     /** When true, skip the soft duplicate-meeting warning. */
     confirmDuplicate?: boolean;
@@ -54,6 +57,7 @@ interface FollowUpStorePayload {
     remark?: string;
     participants?: number[];
     host_id?: number | null;
+    timezone?: string;
 }
 
 function timesOverlap(
@@ -127,7 +131,7 @@ export function validateMeetingForm(
         validationErrors.push("Please select a start time.");
     } else if (
         input.date &&
-        !isMeetingStartInFuture(input.date, input.startTime)
+        !isMeetingStartInFuture(input.date, input.startTime, input.timezone)
     ) {
         validationErrors.push(
             "Start time must be at least 5 minutes in the future.",
@@ -179,6 +183,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
     const { leadFollowUps, addLeadFollowUp } = useLeadWorkspace();
+    const watchCalendarSync = useCalendarSyncCreateWatch();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -211,6 +216,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 host_id: input.hostId,
+                timezone: input.timezone || undefined,
             };
 
             if (input.dealId) {
@@ -227,6 +233,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         // Patch local list immediately — don't wait on deferred reload.
                         addLeadFollowUp(followUp);
                     }
+                    watchCalendarSync(followUp);
                     // Success toast comes from useApiMutate unless suppressed.
                     options.onSuccess?.();
                 },
@@ -247,7 +254,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 },
             });
         },
-        [addLeadFollowUp, lead.id, mutate, props.auth?.user?.timezone],
+        [addLeadFollowUp, lead.id, mutate, props.auth?.user?.timezone, watchCalendarSync],
     );
 
     const createMeeting = useCallback(

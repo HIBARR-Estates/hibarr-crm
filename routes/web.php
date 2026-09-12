@@ -572,6 +572,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         [\App\Http\Controllers\CalendarSyncController::class, 'status']
     )->name('calendar_sync.status');
 
+    // Meeting form "Host's timezone" button — fetched on click only.
+    Route::get(
+        'meetings/user-timezone/{userId}',
+        [\App\Http\Controllers\UserTimezoneController::class, 'show']
+    )->name('meetings.user_timezone')->whereNumber('userId');
+
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
     Route::resource('leadCategory', LeadCategoryController::class);

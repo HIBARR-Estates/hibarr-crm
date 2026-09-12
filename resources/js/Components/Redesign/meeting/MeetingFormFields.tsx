@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
+import { companyTimeDayjsFormat } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -36,6 +38,7 @@ import {
     supportsExternalMeetingCreate,
     usesAutoMeetingLink,
 } from "./meetingFormUtils";
+import MeetingTimezoneField from "./MeetingTimezoneField";
 
 interface MeetingFormFieldsProps {
     form: MeetingFormState;
@@ -67,6 +70,11 @@ interface MeetingFormFieldsProps {
      * every single-page caller (deal, lead, edit) wants and has always had.
      */
     section?: "essentials" | "details";
+    /**
+     * Timezone picker for the date/time. On for creates; edit forms turn it
+     * off since the meeting keeps the zone it was booked in.
+     */
+    showTimezone?: boolean;
 }
 
 const REMINDER_UNIT_OPTIONS: Array<{
@@ -94,6 +102,7 @@ export default function MeetingFormFields({
     hostLocked = false,
     participantDirectory = [],
     section,
+    showTimezone = true,
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -315,58 +324,85 @@ export default function MeetingFormFields({
 
             {showDetails && (
                 <>
-                    <ModalField
-                        label={t("pages.deals.workspace.meetings.date_label")}
+                    {/* Date, time, duration and timezone are one decision —
+                        grouped in a single block so they read as a unit. The
+                        inner fields drop ModalField's bottom margin; the
+                        block's gap spaces them instead. */}
+                    <div
+                        className="mb-4 flex flex-col gap-3.5 p-4"
+                        style={{
+                            border: `1px solid ${T.BORDER}`,
+                            borderRadius: 10,
+                        }}
                     >
-                        <input
-                            type="date"
-                            value={form.date}
-                            min={todayLocalDate}
-                            disabled={disabled}
-                            onChange={(event) =>
-                                updateForm({ date: event.target.value })
-                            }
-                        />
-                    </ModalField>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <ModalField
-                            label={t(
-                                "pages.deals.workspace.meetings.start_time",
-                            )}
-                        >
+                        <div className="modal-field" style={{ marginBottom: 0 }}>
+                            <label htmlFor="meeting-form-date">
+                                {t("pages.deals.workspace.meetings.date_label")}
+                            </label>
                             <input
-                                type="time"
-                                value={form.startTime}
+                                id="meeting-form-date"
+                                type="date"
+                                value={form.date}
+                                min={todayLocalDate}
                                 disabled={disabled}
                                 onChange={(event) =>
-                                    handleStartTimeChange(event.target.value)
+                                    updateForm({ date: event.target.value })
                                 }
                             />
-                        </ModalField>
+                        </div>
 
-                        <ModalField
-                            label={t("pages.deals.workspace.meetings.end_time")}
-                        >
-                            <input
-                                type="time"
-                                value={form.endTime}
-                                disabled={disabled}
-                                onChange={(event) =>
-                                    handleEndTimeChange(event.target.value)
-                                }
-                            />
-                        </ModalField>
-                    </div>
+                        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                            <div
+                                className="modal-field"
+                                style={{ marginBottom: 0 }}
+                            >
+                                <label htmlFor="meeting-form-start">
+                                    {t(
+                                        "pages.deals.workspace.meetings.start_time",
+                                    )}
+                                </label>
+                                <input
+                                    id="meeting-form-start"
+                                    type="time"
+                                    value={form.startTime}
+                                    disabled={disabled}
+                                    onChange={(event) =>
+                                        handleStartTimeChange(
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
 
-                    {form.startTime && (
-                        <div className="mb-3">
+                            <div
+                                className="modal-field"
+                                style={{ marginBottom: 0 }}
+                            >
+                                <label htmlFor="meeting-form-end">
+                                    {t(
+                                        "pages.deals.workspace.meetings.end_time",
+                                    )}
+                                </label>
+                                <input
+                                    id="meeting-form-end"
+                                    type="time"
+                                    value={form.endTime}
+                                    disabled={disabled}
+                                    onChange={(event) =>
+                                        handleEndTimeChange(event.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        {form.startTime && (
                             <button
                                 type="button"
                                 onClick={() =>
                                     setShowDuration((current) => !current)
                                 }
-                                className="meeting-form-link"
+                                className="meeting-form-link self-start"
+                                style={{ marginTop: -4 }}
                             >
                                 {showDuration
                                     ? t(
@@ -374,8 +410,30 @@ export default function MeetingFormFields({
                                       )
                                     : `+ ${t("pages.deals.workspace.meetings.add_duration")}`}
                             </button>
-                            {showDuration && (
-                                <div className="mt-2 flex flex-wrap gap-2">
+                        )}
+
+                        {form.startTime && showDuration && (
+                            <div className="flex flex-col gap-2.5">
+                                <span
+                                    className="font-semibold"
+                                    style={{
+                                        fontSize: 12,
+                                        color: T.TEXT_MUTED,
+                                    }}
+                                >
+                                    {td("Duration", { source: "en" })}{" "}
+                                    <span
+                                        className="font-normal"
+                                        style={{ color: T.TEXT_HINT }}
+                                    >
+                                        —{" "}
+                                        {td(
+                                            "sets the end time automatically",
+                                            { source: "en" },
+                                        )}
+                                    </span>
+                                </span>
+                                <div className="flex flex-wrap gap-2">
                                     {MEETING_DURATION_OPTIONS.map((option) => {
                                         const active =
                                             form.duration === option.value;
@@ -385,23 +443,30 @@ export default function MeetingFormFields({
                                                 key={option.value}
                                                 type="button"
                                                 disabled={disabled}
+                                                aria-pressed={active}
                                                 onClick={() =>
                                                     handleDurationSelect(
                                                         option.value,
                                                     )
                                                 }
-                                                className="rounded-lg border px-4 py-2 text-[13px] font-semibold transition-colors"
+                                                // Cards, not pills: same
+                                                // rounded-lg shape as the
+                                                // platform/provider choices.
+                                                className="rounded-lg border px-3.5 py-[7px] text-[13px] transition-colors"
                                                 style={{
                                                     fontFamily: "inherit",
+                                                    fontWeight: active
+                                                        ? 600
+                                                        : 500,
                                                     borderColor: active
-                                                        ? T.NAVY
+                                                        ? T.BLUE
                                                         : T.BORDER,
                                                     background: active
-                                                        ? T.NAVY
+                                                        ? T.BLUE_LIGHT
                                                         : T.WHITE,
                                                     color: active
-                                                        ? T.WHITE
-                                                        : T.TEXT_MUTED,
+                                                        ? T.BLUE_DARK
+                                                        : T.TEXT,
                                                 }}
                                             >
                                                 {option.label}
@@ -409,9 +474,41 @@ export default function MeetingFormFields({
                                         );
                                     })}
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                {form.duration && form.endTime && (
+                                    <span
+                                        style={{
+                                            fontSize: 12.5,
+                                            color: T.TEXT_MUTED,
+                                        }}
+                                    >
+                                        {td("Ends at", { source: "en" })}{" "}
+                                        <strong
+                                            style={{
+                                                color: T.BLUE_DARK,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            {dayjs(
+                                                `2000-01-01T${form.endTime}`,
+                                            ).format(companyTimeDayjsFormat())}
+                                        </strong>
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {showTimezone && (
+                            <MeetingTimezoneField
+                                value={form.timezone}
+                                onChange={(timezone) =>
+                                    updateForm({ timezone })
+                                }
+                                hostId={form.hostId}
+                                disabled={disabled}
+                                embedded
+                            />
+                        )}
+                    </div>
 
                     <ModalField
                         label={t("pages.deals.workspace.meetings.platform")}

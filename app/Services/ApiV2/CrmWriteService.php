@@ -286,6 +286,7 @@ class CrmWriteService
         $followUp->location = $data['location'] ?? 'office';
         $followUp->meeting_link = $data['meeting_link'] ?? null;
         $followUp->next_follow_up_date = $scheduledAt;
+        $followUp->timezone = $timezone;
         $followUp->remark = $data['remark'] ?? null;
         $followUp->duration = isset($data['duration']) ? (int) $data['duration'] : null;
         $followUp->send_reminder = 'yes';
