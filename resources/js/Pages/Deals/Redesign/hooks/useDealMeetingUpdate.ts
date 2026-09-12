@@ -7,7 +7,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
@@ -31,6 +31,7 @@ interface FollowUpUpdatePayload {
     remark?: string;
     participants?: number[];
     status?: string;
+    timezone?: string;
 }
 
 export default function useDealMeetingUpdate(deal: Deal) {
@@ -73,6 +74,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 status: statusOverride,
+                timezone: getBrowserTimezone(),
             };
 
             setErrors([]);
