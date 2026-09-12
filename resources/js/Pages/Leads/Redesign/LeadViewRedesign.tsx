@@ -323,27 +323,26 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
-    // Bumped once the soonest upcoming follow-up's time passes, so
-    // nextMeeting recomputes even when leadFollowUps itself hasn't changed.
+    // Ticks on a fixed interval so nextMeeting re-evaluates "now" as an
+    // upcoming follow-up's own scheduled time passes, even when
+    // leadFollowUps itself hasn't changed. A short fixed interval (rather
+    // than a setTimeout scheduled for the exact expiry) avoids the 32-bit
+    // setTimeout delay overflow that far-future dates would otherwise hit.
     const [meetingClockTick, setMeetingClockTick] = useState(0);
 
     useEffect(() => {
-        const now = Date.now();
-        const nextExpiry = leadFollowUps
-            .filter((f) => f.status !== "completed")
-            .map((f) => new Date(f.next_follow_up_date).getTime())
-            .filter((time) => time > now)
-            .sort((a, b) => a - b)[0];
+        const hasUpcoming = leadFollowUps.some(
+            (f) => f.status !== "completed",
+        );
+        if (!hasUpcoming) return;
 
-        if (nextExpiry === undefined) return;
-
-        const timeout = setTimeout(
+        const interval = setInterval(
             () => setMeetingClockTick((tick) => tick + 1),
-            nextExpiry - now + 1000,
+            60_000,
         );
 
-        return () => clearTimeout(timeout);
-    }, [leadFollowUps, meetingClockTick]);
+        return () => clearInterval(interval);
+    }, [leadFollowUps]);
 
     const nextMeeting = useMemo(() => {
         const now = Date.now();
