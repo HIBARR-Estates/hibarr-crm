@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
-import { companyTimeDayjsFormat } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -402,103 +401,55 @@ export default function MeetingFormFields({
                         </div>
 
                         {form.startTime && (
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setShowDuration((current) => !current)
-                                }
-                                className="meeting-form-link self-start"
-                                style={{ marginTop: -4 }}
-                            >
-                                {showDuration
-                                    ? t(
-                                          "pages.deals.workspace.meetings.hide_duration",
-                                      )
-                                    : `+ ${t("pages.deals.workspace.meetings.add_duration")}`}
-                            </button>
-                        )}
-
-                        {form.startTime && showDuration && (
-                            <div className="flex flex-col gap-2.5">
-                                <span
-                                    className="font-semibold"
-                                    style={{
-                                        fontSize: 12,
-                                        color: T.TEXT_MUTED,
-                                    }}
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowDuration((current) => !current)
+                                    }
+                                    className="meeting-form-link"
                                 >
-                                    {td("Duration", { source: "en" })}{" "}
-                                    <span
-                                        className="font-normal"
-                                        style={{ color: T.TEXT_HINT }}
-                                    >
-                                        —{" "}
-                                        {td(
-                                            "sets the end time automatically",
-                                            { source: "en" },
-                                        )}
-                                    </span>
-                                </span>
-                                <div className="flex flex-wrap gap-2">
-                                    {MEETING_DURATION_OPTIONS.map((option) => {
-                                        const active =
-                                            form.duration === option.value;
+                                    {showDuration
+                                        ? t(
+                                              "pages.deals.workspace.meetings.hide_duration",
+                                          )
+                                        : `+ ${t("pages.deals.workspace.meetings.add_duration")}`}
+                                </button>
+                                {showDuration && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {MEETING_DURATION_OPTIONS.map((option) => {
+                                            const active =
+                                                form.duration === option.value;
 
-                                        return (
-                                            <button
-                                                key={option.value}
-                                                type="button"
-                                                disabled={disabled}
-                                                aria-pressed={active}
-                                                onClick={() =>
-                                                    handleDurationSelect(
-                                                        option.value,
-                                                    )
-                                                }
-                                                // Cards, not pills: same
-                                                // rounded-lg shape as the
-                                                // platform/provider choices.
-                                                className="rounded-lg border px-3.5 py-[7px] text-[13px] transition-colors"
-                                                style={{
-                                                    fontFamily: "inherit",
-                                                    fontWeight: active
-                                                        ? 600
-                                                        : 500,
-                                                    borderColor: active
-                                                        ? T.BLUE
-                                                        : T.BORDER,
-                                                    background: active
-                                                        ? T.BLUE_LIGHT
-                                                        : T.WHITE,
-                                                    color: active
-                                                        ? T.BLUE_DARK
-                                                        : T.TEXT,
-                                                }}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {form.duration && form.endTime && (
-                                    <span
-                                        style={{
-                                            fontSize: 12.5,
-                                            color: T.TEXT_MUTED,
-                                        }}
-                                    >
-                                        {td("Ends at", { source: "en" })}{" "}
-                                        <strong
-                                            style={{
-                                                color: T.BLUE_DARK,
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {dayjs(
-                                                `2000-01-01T${form.endTime}`,
-                                            ).format(companyTimeDayjsFormat())}
-                                        </strong>
-                                    </span>
+                                            return (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    disabled={disabled}
+                                                    onClick={() =>
+                                                        handleDurationSelect(
+                                                            option.value,
+                                                        )
+                                                    }
+                                                    className="rounded-lg border px-4 py-2 text-[13px] font-semibold transition-colors"
+                                                    style={{
+                                                        fontFamily: "inherit",
+                                                        borderColor: active
+                                                            ? T.NAVY
+                                                            : T.BORDER,
+                                                        background: active
+                                                            ? T.NAVY
+                                                            : T.WHITE,
+                                                        color: active
+                                                            ? T.WHITE
+                                                            : T.TEXT_MUTED,
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         )}

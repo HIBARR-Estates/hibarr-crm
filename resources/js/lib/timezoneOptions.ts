@@ -1,4 +1,5 @@
 import type { SearchableSelectGroup } from "@/Components/Redesign/primitives/SearchableSelect";
+import { timezoneUtcOffset } from "@/lib/timezoneLabel";
 
 /**
  * IANA timezones grouped by region for a SearchableSelect. Uses the browser's
@@ -30,11 +31,17 @@ export function buildTimezoneGroups(): SearchableSelectGroup[] {
         ];
     }
 
+    const now = new Date();
     const grouped = new Map<string, { value: string; label: string }[]>();
     for (const zone of zones) {
         const region = zone.split("/")[0] ?? "Other";
         const list = grouped.get(region) ?? [];
-        list.push({ value: zone, label: zone.replace(/_/g, " ") });
+        // Live (DST-aware) offset in the label, so it shows in the list and
+        // is searchable ("UTC+3").
+        list.push({
+            value: zone,
+            label: `${zone.replace(/_/g, " ")} (${timezoneUtcOffset(zone, now)})`,
+        });
         grouped.set(region, list);
     }
 
