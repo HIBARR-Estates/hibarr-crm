@@ -13,13 +13,15 @@ type FollowUpStatus = "scheduled" | "completed" | "cancelled";
  * from the date. Until something wrote 'completed' through a working path, the
  * manager view had to count past-and-not-cancelled and say so.
  *
- * `reloadKeys` defaults to the agent view's props — pass the deferred prop
- * names the caller actually renders (e.g. the personal dashboard's `agenda`)
- * so the reload asks the server for data it will use.
+ * `reloadKeys` names the deferred props the caller actually renders (e.g. the
+ * personal dashboard's `agenda`), so the reload asks the server only for data
+ * it will use. Required rather than defaulted: it used to fall back to the
+ * agent view's prop names, and when that view was removed the default became a
+ * silent no-op reload.
  */
 export default function useDashboardMeetingStatus(
     onChanged: () => void,
-    reloadKeys: string[] = ["todaySchedule", "agentWeek"],
+    reloadKeys: string[],
 ) {
     const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
 

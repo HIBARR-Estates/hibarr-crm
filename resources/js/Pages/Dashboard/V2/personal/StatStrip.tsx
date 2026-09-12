@@ -3,7 +3,8 @@ import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { CommissionSummary, PersonalStats, PipelineRow } from "./types";
-import { dominantTotal, mergeCurrencyTotals, money } from "./format";
+import { money } from "../format";
+import { dominantTotal, mergeCurrencyTotals } from "./format";
 import FilterBadge from "./FilterBadge";
 
 type Tone = "up" | "down" | "flat";

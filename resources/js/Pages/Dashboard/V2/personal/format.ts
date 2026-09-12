@@ -3,37 +3,15 @@
  *
  * Pure functions with no hook access, so they can run outside the render path
  * and inside `useMemo` — same split as Deals/Redesign/adapters.
+ *
+ * Helpers that cross into the role-scoped views (money, greetingFor) live one
+ * level up in ../format — this file is only what these panels need.
  */
 
 import dayjs from "dayjs";
+import { money } from "../format";
 import type { QueueTask } from "../types";
 import type { CurrencyTotal, Severity } from "./types";
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-    EUR: "€",
-    USD: "$",
-    GBP: "£",
-    TRY: "₺",
-    AED: "AED ",
-    CHF: "CHF ",
-};
-
-/**
- * €965,000 under a million, €1.24M above.
- *
- * Exact below the threshold because a deal value is a real figure someone
- * quoted; abbreviated above it because a pipeline total is a magnitude, and
- * eleven digits in a stat tile read as noise.
- */
-export function money(total: number, currency: string): string {
-    const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
-
-    if (Math.abs(total) >= 1_000_000) {
-        return `${symbol}${(total / 1_000_000).toFixed(2)}M`;
-    }
-
-    return `${symbol}${Math.round(total).toLocaleString("en-US")}`;
-}
 
 /**
  * Folds same-currency rows together, ordered alphabetically by currency.
@@ -187,13 +165,4 @@ export function agendaDay(at: string): string {
     if (day.isSame(dayjs().add(1, "day"), "day")) return "Tomorrow";
 
     return day.format("ddd D MMM");
-}
-
-/** "Good morning" / "Good afternoon" / "Good evening", from the page's clock. */
-export function greetingFor(now: string): string {
-    const hour = dayjs(now).hour();
-
-    if (hour < 12) return "Good morning";
-
-    return hour < 18 ? "Good afternoon" : "Good evening";
 }
