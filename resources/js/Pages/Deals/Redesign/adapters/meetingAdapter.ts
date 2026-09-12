@@ -88,8 +88,11 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
         title: meetingType || "Meeting",
         status: normalizedStatus,
         startsAt,
-        startsAtLabel: formatMeetingDateTime(startsAt, { fallback: "No date" }),
-        timeLabel: formatMeetingTime(startsAt, "No time"),
+        startsAtLabel: formatMeetingDateTime(startsAt, {
+            fallback: "No date",
+            timezone: meeting.timezone,
+        }),
+        timeLabel: formatMeetingTime(startsAt, "No time", meeting.timezone),
         monthLabel: formatUserMonthShort(startsAt),
         dayLabel: viewerCalendarDay(startsAt),
         isUpcoming: bucket === "upcoming",

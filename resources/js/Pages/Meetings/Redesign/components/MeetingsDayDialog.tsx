@@ -128,7 +128,7 @@ export default function MeetingsDayDialog({
                                     fontVariantNumeric: "tabular-nums",
                                 }}
                             >
-                                {formatMeetingTime(event.start)}
+                                {formatMeetingTime(event.start, "--", event.timezone)}
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span

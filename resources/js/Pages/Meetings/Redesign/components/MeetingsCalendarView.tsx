@@ -37,6 +37,8 @@ export interface CalendarEvent {
     bucket: MeetingBucket;
     title: string | null;
     record_name: string | null;
+    /** IANA zone the meeting was booked in; null falls back to viewer zone. */
+    timezone?: string | null;
     participants: number[];
     /** Hover-card detail — the chip itself shows none of this. */
     record_type?: "deal" | "lead" | null;
@@ -648,7 +650,7 @@ export default function MeetingsCalendarView({
                                                         color: T.TEXT_MUTED,
                                                     }}
                                                 >
-                                                    {formatMeetingTime(event.start)}
+                                                    {formatMeetingTime(event.start, "--", event.timezone)}
                                                 </div>
                                             </button>
                                         );
@@ -879,7 +881,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                 <PreviewLine icon="clock">
                     {formatDate(event.start, "-")}
                     {" · "}
-                    {formatMeetingTime(event.start)}
+                    {formatMeetingTime(event.start, "--", event.timezone)}
                     {" · "}
                     {event.duration} {td("min")}
                 </PreviewLine>

@@ -214,7 +214,7 @@ export function toWorkspaceMeetingListItem(
         ? new Date(startsAt.getTime() + duration * 60 * 1000)
         : null;
     const endTimeLabel = formatUserTime(endDate);
-    const timeRangeLabel = formatMeetingTimeRange(startsAt, endDate);
+    const timeRangeLabel = formatMeetingTimeRange(startsAt, endDate, "--", meeting.timezone);
     const meetingLink =
         meeting.meeting_link && /^https?:\/\//i.test(meeting.meeting_link)
             ? meeting.meeting_link

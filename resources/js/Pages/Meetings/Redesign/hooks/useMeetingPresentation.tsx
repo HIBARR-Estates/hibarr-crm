@@ -128,7 +128,7 @@ export default function useMeetingPresentation({
     // to resolve — translate the stored string on the fly instead.
     const platformLabel = labelKey ? t(labelKey) : td(meeting.location);
 
-    const timeRange = formatMeetingTimeRange(meeting.next_follow_up_date, end);
+    const timeRange = formatMeetingTimeRange(meeting.next_follow_up_date, end, "--", meeting.timezone);
     const minutesRemaining = Math.max(0, end.diff(dayjs(), "minute"));
 
     const hostId = meeting.host_id ?? meeting.added_by?.id;

@@ -462,7 +462,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 </span>
                 <span className="flex items-center gap-1">
                     <ClockCircleOutlined />
-                    {formatMeetingTime(meeting.next_follow_up_date)}
+                    {formatMeetingTime(meeting.next_follow_up_date, "--", meeting.timezone)}
                 </span>
                 {/* <Tag
                     color={live ? "red" : getStatusColor(meeting.status)}

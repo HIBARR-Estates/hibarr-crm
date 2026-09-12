@@ -545,6 +545,7 @@ class MeetingsController extends AccountBaseController
             return [
                 'id' => $followUp->id,
                 'start' => $start?->toIso8601String(),
+                'timezone' => $followUp->timezone,
                 'duration' => $duration,
                 'location' => $followUp->location,
                 'status' => $followUp->status,
