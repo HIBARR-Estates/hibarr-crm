@@ -127,6 +127,12 @@ export default function MeetingTimezoneField({
                         options={timezoneGroups}
                         disabled={disabled}
                         popupMatchSelectWidth={false}
+                        // Options carry "(UTC+x)"; the offset already sits
+                        // beside the picker, so the chosen value shows the
+                        // zone name alone.
+                        labelRender={({ value: zone }) =>
+                            String(zone).replace(/_/g, " ")
+                        }
                         aria-label={td("Timezone", { source: "en" })}
                         // Borderless still pads its text; pull it back in line
                         // with the label above.
