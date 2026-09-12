@@ -110,12 +110,22 @@ class CalendarSyncController extends AccountBaseController
             return $this->statusResponse($followUp, null);
         }
 
-        // pending / processing / unknown → keep pending
-        $followUp->updateQuietly([
-            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
-        ]);
+        // Only an explicitly pending OL job moves the row to pending. Anything
+        // else (processing, unknown, empty) leaves the stored status — and a
+        // stored failure's reason — untouched.
+        if (in_array($olStatus, ['pending', 'queued'], true)) {
+            $followUp->updateQuietly([
+                'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+            ]);
 
-        return $this->statusResponse($followUp, null);
+            return $this->statusResponse($followUp, null);
+        }
+
+        return $this->statusResponse(
+            $followUp,
+            $this->storedError($followUp),
+            $followUp->zoho_calendar_sync_status ?? DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING
+        );
     }
 
     /**

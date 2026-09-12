@@ -115,18 +115,24 @@ export default function MeetingFormFields({
     const [reminderTime, setReminderTime] = useState(1);
     const [reminderUnit, setReminderUnit] = useState<Reminder["type"]>("day");
 
-    // Local calendar date, not `toISOString()`'s UTC one — that shifts the
-    // date by a day for anyone west of UTC in the evening (or east of it
-    // early in the morning), making "today" briefly unselectable or
-    // yesterday briefly bookable depending on which side of midnight UTC
-    // the viewer's clock happens to be on.
+    // "Today" on the picked timezone's calendar — the date/time are entered
+    // in that zone, so its midnight decides what's bookable. Falls back to
+    // the browser's local date (never `toISOString()`'s UTC one, which is a
+    // day off near midnight) only while no timezone is set.
     const todayLocalDate = useMemo(() => {
+        if (form.timezone) {
+            try {
+                return dayjs().tz(form.timezone).format("YYYY-MM-DD");
+            } catch {
+                // Unknown zone — use the browser's date below.
+            }
+        }
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, "0");
         const day = String(now.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
-    }, []);
+    }, [form.timezone]);
 
     const mode = modeFromPlatform(form.platform);
     const isVideoMeeting = isVideoPlatform(form.platform);

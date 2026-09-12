@@ -81,13 +81,16 @@ export default function useCalendarSync(
                           result.data.error?.message ||
                           "Calendar sync failed.",
             );
+            // A retry that returns the same jobId/status wouldn't restart the
+            // poller on its own — reset it so an exhausted poll resumes.
+            if (result.ok) refresh();
         } catch {
             setSyncStatus("failed");
             setError("Could not reach the server to retry the sync.");
         } finally {
             setRetrying(false);
         }
-    }, [followup.id, service]);
+    }, [followup.id, refresh, service]);
 
     return { status, error, retry, retrying, hasMaxAttempts, refresh };
 }

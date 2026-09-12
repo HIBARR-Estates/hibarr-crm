@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { Modal } from "antd";
+import dayjs from "dayjs";
 import type { Lead } from "@/Types/api/leads";
 import type { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import { useApiMutate } from "@/lib/api/client";
@@ -60,16 +61,30 @@ interface FollowUpStorePayload {
     timezone?: string;
 }
 
+/**
+ * Whether the entered start lands within a minute of an existing meeting.
+ * The entered date/time are read as `timezone`'s wall clock (the zone picked
+ * in the form), falling back to the browser's only when none is given.
+ */
 function timesOverlap(
     aDate: string,
     aStart: string,
     existingDateTime: string | null | undefined,
+    timezone?: string | null,
 ): boolean {
     if (!aDate || !aStart || !existingDateTime) return false;
-    const a = new Date(`${aDate}T${aStart}`);
-    const b = new Date(existingDateTime);
-    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
-    return Math.abs(a.getTime() - b.getTime()) < 60_000;
+    const wallClock = `${aDate}T${aStart.length === 5 ? `${aStart}:00` : aStart}`;
+    let aMs = new Date(wallClock).getTime();
+    if (timezone) {
+        try {
+            aMs = dayjs.tz(wallClock, timezone).valueOf();
+        } catch {
+            // Unknown zone — keep the browser-local reading.
+        }
+    }
+    const bMs = new Date(existingDateTime).getTime();
+    if (Number.isNaN(aMs) || Number.isNaN(bMs)) return false;
+    return Math.abs(aMs - bMs) < 60_000;
 }
 
 function extractFollowUp(response: unknown): DealFollowup | null {
@@ -283,6 +298,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         input.date,
                         input.startTime,
                         existing.next_follow_up_date as string | undefined,
+                        input.timezone,
                     );
                     if (!timeMatch) return false;
                     if (participantSet.size === 0) return true;

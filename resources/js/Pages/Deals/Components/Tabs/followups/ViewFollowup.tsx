@@ -37,6 +37,7 @@ import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import CalendarSyncStatus from "@/Features/Meetings/CalendarSyncStatus";
+import { canManageCalendarSync } from "@/Hooks/useCalendarSync";
 
 dayjs.extend(utc);
 
@@ -401,7 +402,7 @@ const ViewFollowup: React.FC<Props> = ({
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
     const shouldShowCalendarSync =
         featureEnabled &&
-        isCreator &&
+        (isCreator || canManageCalendarSync(followup, currentUserId)) &&
         (followup?.zoho_calendar_job_id ||
             followup?.zoho_calendar_sync_status);
 
@@ -539,6 +540,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     followup={followup}
                                     featureEnabled={featureEnabled}
                                     isCreator={isCreator}
+                                    currentUserId={currentUserId}
                                 />
                             </div>
                         )}

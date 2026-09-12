@@ -8,14 +8,19 @@ import Switch from "@/Components/Redesign/primitives/Switch";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { buildTimezoneGroups } from "@/lib/timezoneOptions";
 import { timezoneCity, timezoneUtcOffset } from "@/lib/timezoneLabel";
-import { getBrowserTimezone } from "@/lib/userTimezone";
 
-/** The signed-in user's saved timezone, falling back to the browser's. */
+/**
+ * The signed-in user's timezone as the server resolves it
+ * (UserTimezone::resolve: user → company → UTC). The saved user zone wins;
+ * otherwise `viewerTimezone` carries the server's fallback. Empty when
+ * neither is present, so the server applies its own fallback on save.
+ */
 export function useMyTimezone(): string {
     const { props } = usePage();
     return (
         (props.auth?.user?.timezone as string | null | undefined) ||
-        getBrowserTimezone()
+        props.viewerTimezone ||
+        ""
     );
 }
 
@@ -62,7 +67,7 @@ export default function MeetingTimezoneField({
     // after ours and wipes the seed in the same batch, so `value` never visibly
     // changes. Re-checking every render re-seeds whenever it's been cleared.
     useEffect(() => {
-        if (!value) onChange?.(myTimezone);
+        if (!value && myTimezone) onChange?.(myTimezone);
     });
 
     // A different host means a different timezone — don't keep the old one.
@@ -117,7 +122,7 @@ export default function MeetingTimezoneField({
                     )}
                     <SearchableSelect<string>
                         variant="borderless"
-                        value={current}
+                        value={current || undefined}
                         onChange={(next) => next && onChange?.(next)}
                         options={timezoneGroups}
                         disabled={disabled}
@@ -137,7 +142,7 @@ export default function MeetingTimezoneField({
                     className="whitespace-nowrap"
                     style={{ fontSize: 12.5, color: T.TEXT_MUTED }}
                 >
-                    {timezoneUtcOffset(current)}
+                    {current ? timezoneUtcOffset(current) : null}
                 </span>
                 {showHostOption && (
                     <Switch

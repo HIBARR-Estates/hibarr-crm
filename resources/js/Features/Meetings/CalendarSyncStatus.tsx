@@ -4,12 +4,14 @@ import {
     CloseCircleOutlined,
 } from "@ant-design/icons";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import useCalendarSync from "@/Hooks/useCalendarSync";
+import useCalendarSync, { canManageCalendarSync } from "@/Hooks/useCalendarSync";
 
 type Props = {
     followup: DealFollowup;
     featureEnabled: boolean;
     isCreator: boolean;
+    /** Lets the meeting's host see it too — the sync endpoints answer creator or host. */
+    currentUserId?: number | null;
 };
 
 /** Legacy (antd) sync pill — same state and retry as MeetingCalendarSyncRow. */
@@ -17,10 +19,11 @@ export default function CalendarSyncStatus({
     followup,
     featureEnabled,
     isCreator,
+    currentUserId,
 }: Props) {
     const show =
         featureEnabled &&
-        isCreator &&
+        (isCreator || canManageCalendarSync(followup, currentUserId)) &&
         Boolean(
             followup?.zoho_calendar_job_id ||
                 followup?.zoho_calendar_sync_status,

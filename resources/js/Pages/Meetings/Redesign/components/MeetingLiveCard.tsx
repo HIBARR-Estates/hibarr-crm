@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
@@ -43,6 +44,7 @@ export default function MeetingLiveCard({
 }: MeetingLiveCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const linkPendingId = useId();
     const {
         timeRange,
         minutesRemaining,
@@ -195,9 +197,13 @@ export default function MeetingLiveCard({
                 ) : isVideoPlatform(meeting.location) ? (
                     // Video call whose link isn't usable yet (e.g. Zoho still
                     // generating it) — still the join action, just not ready.
+                    // aria-disabled (not `disabled`) keeps it focusable so the
+                    // reason reaches keyboard and screen-reader users too.
                     <button
                         type="button"
-                        disabled
+                        aria-disabled="true"
+                        aria-describedby={linkPendingId}
+                        onClick={(event) => event.preventDefault()}
                         title={td("The meeting link isn't available yet")}
                         className="inline-flex cursor-not-allowed items-center gap-2 font-semibold"
                         style={{
@@ -213,6 +219,9 @@ export default function MeetingLiveCard({
                     >
                         <Icon name="video" size={15} />
                         {t("pages.meetings.card.actions.join_meeting")}
+                        <span id={linkPendingId} className="sr-only">
+                            {td("The meeting link isn't available yet")}
+                        </span>
                     </button>
                 ) : (
                     record?.href && (
