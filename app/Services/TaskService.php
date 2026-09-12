@@ -70,10 +70,10 @@ class TaskService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at'])
-                    ? UserTimezone::interpretWallClock($user, $user?->company, $data['remind_at'], company()->date_format . ' ' . company()->time_format)
+                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
                     : null;
             }
-            
+
             // Default Status
             $taskBoardColumn = TaskboardColumn::where('slug', 'to_do')->first();
             $task->board_column_id = $taskBoardColumn->id;
@@ -201,7 +201,7 @@ class TaskService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at'])
-                    ? UserTimezone::interpretWallClock($user, $user?->company, $data['remind_at'], company()->date_format . ' ' . company()->time_format)
+                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
                     : null;
             }
             
