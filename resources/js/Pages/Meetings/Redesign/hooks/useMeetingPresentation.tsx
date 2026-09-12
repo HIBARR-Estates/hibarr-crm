@@ -13,6 +13,7 @@ import type { AvatarStackPerson } from "@/Components/Redesign/primitives/AvatarS
 import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { formatMeetingTimeRange } from "../adapters/meetingTimeLabel";
 import {
     canJoinMeeting,
     hasMeetingPermission,
@@ -102,7 +103,7 @@ export default function useMeetingPresentation({
 }: UseMeetingPresentationOptions): MeetingPresentation {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { timezone, formatTime } = useUserDateTime();
+    const { timezone } = useUserDateTime();
 
     const live = bucket === "live";
     const past = bucket === "past";
@@ -127,7 +128,7 @@ export default function useMeetingPresentation({
     // to resolve — translate the stored string on the fly instead.
     const platformLabel = labelKey ? t(labelKey) : td(meeting.location);
 
-    const timeRange = `${formatTime(meeting.next_follow_up_date)} – ${formatTime(end)}`;
+    const timeRange = formatMeetingTimeRange(meeting.next_follow_up_date, end);
     const minutesRemaining = Math.max(0, end.diff(dayjs(), "minute"));
 
     const hostId = meeting.host_id ?? meeting.added_by?.id;

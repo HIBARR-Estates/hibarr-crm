@@ -125,6 +125,29 @@ export default function PersonalDashboard({
         setOverrides({});
     }, [queue]);
 
+    // Re-evaluate "next meeting" when the soonest agenda start passes, so an
+    // in-progress meeting cannot keep the Next badge while a later one is
+    // still queued.
+    const [agendaClock, setAgendaClock] = useState(() => dayjs().toISOString());
+    useEffect(() => {
+        const MAX_TIMEOUT_MS = 60 * 60 * 1000;
+        const nowMs = Date.now();
+        const nextExpiry = (agenda ?? [])
+            .map((entry) => (entry.at ? dayjs(entry.at).valueOf() : Number.NaN))
+            .filter((time) => time > nowMs)
+            .reduce<number | undefined>(
+                (soonest, time) =>
+                    soonest === undefined || time < soonest ? time : soonest,
+                undefined,
+            );
+        if (nextExpiry === undefined) return;
+        const timeout = setTimeout(
+            () => setAgendaClock(dayjs().toISOString()),
+            Math.min(nextExpiry - nowMs + 1000, MAX_TIMEOUT_MS),
+        );
+        return () => clearTimeout(timeout);
+    }, [agenda, agendaClock]);
+
     const clearOverride = useCallback((taskId: number) => {
         setOverrides((prev) => {
             if (!(taskId in prev)) return prev;
@@ -309,6 +332,7 @@ export default function PersonalDashboard({
                         <StatusLine
                             name={userName}
                             now={now}
+                            clock={agendaClock}
                             queue={visibleQueue}
                             agenda={agenda}
                             pipelines={pipelines}
@@ -471,6 +495,7 @@ export default function PersonalDashboard({
                                 <AgendaTimeline
                                     meetings={agenda ?? []}
                                     now={now}
+                                    clock={agendaClock}
                                     onOpenMeeting={setOpenMeeting}
                                     onScheduleMeeting={() => setScheduleOpen(true)}
                                 />

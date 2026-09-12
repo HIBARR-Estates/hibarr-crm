@@ -24,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { formatMeetingTime } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 import utc from "dayjs/plugin/utc";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -214,7 +215,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     onDelete,
 }) => {
     const { t } = useTranslation();
-    const { formatDate, formatTime } = useUserDateTime();
+    const { formatDate } = useUserDateTime();
     const live = isLiveMeeting(meeting);
     const hasValidLink =
         meeting.meeting_link &&
@@ -461,7 +462,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 </span>
                 <span className="flex items-center gap-1">
                     <ClockCircleOutlined />
-                    {formatTime(meeting.next_follow_up_date)}
+                    {formatMeetingTime(meeting.next_follow_up_date)}
                 </span>
                 {/* <Tag
                     color={live ? "red" : getStatusColor(meeting.status)}

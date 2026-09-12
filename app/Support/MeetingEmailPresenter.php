@@ -55,7 +55,23 @@ class MeetingEmailPresenter
             return '';
         }
 
-        return $at->format($this->company?->time_format ?? config('app.time_format', 'H:i'));
+        $time = $at->format($this->company?->time_format ?? config('app.time_format', 'H:i'));
+        $abbr = $this->meetingTimezoneAbbreviation();
+
+        return $abbr !== '' ? $time.' '.$abbr : $time;
+    }
+
+    /**
+     * Short timezone label for the company zone used in meetingAt() (e.g. CET).
+     */
+    public function meetingTimezoneAbbreviation(): string
+    {
+        $at = $this->meetingAt();
+        if (!$at) {
+            return '';
+        }
+
+        return trim((string) $at->format('T'));
     }
 
     public function leadName(): string

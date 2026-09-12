@@ -168,8 +168,11 @@ export default function WorkspaceOverviewTab({
     const topNotes = overview.notes.slice(0, 5);
     const openTasks = overview.tasks.filter((task) => task.isOpen);
     const topTasks = openTasks.slice(0, 5);
-    const upcomingMeetings = overview.meetings.filter((meeting) => meeting.isUpcoming);
-    const topMeetings = upcomingMeetings.slice(0, 5);
+    const liveMeetings = overview.meetings.filter((meeting) => meeting.isLive);
+    const upcomingMeetings = overview.meetings.filter(
+        (meeting) => meeting.isUpcoming,
+    );
+    const topMeetings = [...liveMeetings, ...upcomingMeetings].slice(0, 5);
 
     const rawTask = (id: number) => tasks.find((task) => task.id === id) ?? null;
     const rawNote = (id: number) => notes.find((note) => note.id === id) ?? null;
@@ -301,7 +304,7 @@ export default function WorkspaceOverviewTab({
             <OverviewColumn
                 canAdd={canAddMeeting}
                 title={t("pages.deals.workspace.overview.upcoming_meetings_col")}
-                count={upcomingMeetings.length}
+                count={liveMeetings.length + upcomingMeetings.length}
                 total={dealFollowUps.length}
                 onAdd={onAddMeeting}
                 onViewAll={() => onNavigateToSubTab("meetings")}
@@ -316,6 +319,9 @@ export default function WorkspaceOverviewTab({
                 {topMeetings.map((meeting) => {
                     const raw = rawMeeting(meeting.id);
                     const typeColor = raw?.meeting_type?.color || T.TEXT_MUTED;
+                    const canJoin =
+                        meeting.locationType === "video" &&
+                        (meeting.isUpcoming || meeting.isLive);
                     return (
                         <div
                             key={meeting.id}
@@ -327,58 +333,72 @@ export default function WorkspaceOverviewTab({
                                 dayLabel={meeting.dayLabel}
                                 onClick={() => setSelectedMeeting(raw)}
                             />
-                            <button
-                                type="button"
-                                onClick={() => setSelectedMeeting(raw)}
-                                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
-                            >
-                                <span className="flex items-center gap-1.5">
-                                    <span
-                                        aria-hidden="true"
-                                        className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
-                                        style={{ background: typeColor }}
-                                    />
-                                    <span className="text-xs font-semibold">
-                                        {meeting.title}
-                                    </span>
-                                </span>
-                                <span
-                                    className="mt-[3px] block text-[12px]"
-                                    style={{ color: T.TEXT_MUTED }}
+                            <div className="min-w-0 flex-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedMeeting(raw)}
+                                    className="w-full cursor-pointer border-none bg-transparent p-0 text-left"
                                 >
-                                    {meeting.timeLabel}
-                                </span>
-                                {meeting.attendeesLabel && (
+                                    <span className="flex min-w-0 items-center gap-1.5">
+                                        <span
+                                            aria-hidden="true"
+                                            className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
+                                            style={{ background: typeColor }}
+                                        />
+                                        <span className="min-w-0 truncate text-xs font-semibold">
+                                            {meeting.title}
+                                        </span>
+                                    </span>
                                     <span
-                                        className="mt-[3px] flex items-center gap-1 text-[12px]"
+                                        className="mt-[3px] block text-[12px]"
                                         style={{ color: T.TEXT_MUTED }}
                                     >
-                                        <DealIcon name="users" size={11} />
-                                        {meeting.attendeesLabel}
+                                        {meeting.timeLabel}
                                     </span>
+                                    {meeting.attendeesLabel && (
+                                        <span
+                                            className="mt-[3px] flex items-center gap-1 text-[12px]"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
+                                            <DealIcon name="users" size={11} />
+                                            {meeting.attendeesLabel}
+                                        </span>
+                                    )}
+                                </button>
+                                {/* Live + Join share one row so the pill
+                                    cannot overflow on top of the button. */}
+                                {(meeting.isLive || canJoin) && (
+                                    <div className="mt-1.5 flex items-center gap-2">
+                                        {meeting.isLive && (
+                                            <span className="dr-pill dr-pill-red min-w-0 truncate">
+                                                {t(
+                                                    "pages.deals.workspace.meetings.section_live",
+                                                )}
+                                            </span>
+                                        )}
+                                        {canJoin && (
+                                            <DealButton
+                                                variant="primary"
+                                                size="sm"
+                                                className="ml-auto shrink-0"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    window.open(
+                                                        meeting.location,
+                                                        "_blank",
+                                                        "noopener,noreferrer",
+                                                    );
+                                                }}
+                                            >
+                                                <DealIcon name="video" size={12} />
+                                                {t(
+                                                    "pages.deals.workspace.overview.join",
+                                                )}
+                                            </DealButton>
+                                        )}
+                                    </div>
                                 )}
-                            </button>
-                            {/* v2.2's Join button on upcoming video meetings
-                                (deal-v2-2.jsx:1561-1567) */}
-                            {meeting.locationType === "video" &&
-                                meeting.status === "scheduled" && (
-                                    <DealButton
-                                        variant="primary"
-                                        size="sm"
-                                        className="self-start"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            window.open(
-                                                meeting.location,
-                                                "_blank",
-                                                "noopener,noreferrer",
-                                            );
-                                        }}
-                                    >
-                                        <DealIcon name="video" size={12} />
-                                        {t("pages.deals.workspace.overview.join")}
-                                    </DealButton>
-                                )}
+                            </div>
                         </div>
                     );
                 })}

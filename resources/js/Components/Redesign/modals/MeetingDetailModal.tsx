@@ -171,7 +171,8 @@ export default function MeetingDetailModal({
         : attendees.slice(0, ATTENDEES_COLLAPSED_LIMIT);
     const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
     const reminders = meeting.reminders ?? [];
-    const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
+    const isActionable =
+        (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable;
     const showCancel = (canCancel ?? canEdit) && isActionable;
     const showSummaryBadge = item.isConcluded && item.summaryStatus !== "none";

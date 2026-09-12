@@ -11,6 +11,7 @@ import {
     REDESIGN_RADIUS as R,
     REDESIGN_TOKENS as T,
 } from "@/Components/Redesign/tokens";
+import { formatMeetingTime } from "../adapters/meetingTimeLabel";
 import {
     platformIconName,
     platformLabelKey,
@@ -146,7 +147,7 @@ export default function MeetingsCalendarView({
 }: MeetingsCalendarViewProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { timezone, formatTime } = useUserDateTime();
+    const { timezone } = useUserDateTime();
 
     // Hover preview. Positioned from the pointer rather than nested in the
     // cell, because the calendar card clips its own overflow and a popover
@@ -647,7 +648,7 @@ export default function MeetingsCalendarView({
                                                         color: T.TEXT_MUTED,
                                                     }}
                                                 >
-                                                    {formatTime(event.start)}
+                                                    {formatMeetingTime(event.start)}
                                                 </div>
                                             </button>
                                         );
@@ -810,7 +811,7 @@ function PreviewLine({
 function PreviewCard({ event }: { event: CalendarEvent }) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { formatDate, formatTime } = useUserDateTime();
+    const { formatDate } = useUserDateTime();
 
     const labelKey = platformLabelKey(event.location);
     const platform = labelKey ? t(labelKey) : td(event.location);
@@ -878,7 +879,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                 <PreviewLine icon="clock">
                     {formatDate(event.start, "-")}
                     {" · "}
-                    {formatTime(event.start)}
+                    {formatMeetingTime(event.start)}
                     {" · "}
                     {event.duration} {td("min")}
                 </PreviewLine>

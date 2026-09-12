@@ -308,7 +308,7 @@ export default function MeetingDetailCompact({
                                 action={
                                     item.meetingLink ? (
                                         <div className="flex items-center gap-2">
-                                            {item.isUpcoming && (
+                                            {(item.isUpcoming || item.isLive) && (
                                                 <a
                                                     href={item.meetingLink}
                                                     target="_blank"

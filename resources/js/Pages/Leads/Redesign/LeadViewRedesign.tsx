@@ -37,6 +37,8 @@ import {
     useCompanyCurrency,
 } from "./adapters/currencyAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
+import { toLeadMeetingPreview } from "./adapters/meetingAdapter";
+import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTick";
 import { itineraryCount } from "./adapters/itineraryAdapter";
 import { formatMobileForDisplay } from "@/lib/utils";
 import type { Lead } from "@/Types/api/leads";
@@ -323,57 +325,27 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
-    // Bumped so nextMeeting re-evaluates "now" as the soonest upcoming
-    // follow-up's own scheduled time passes, even when leadFollowUps itself
-    // hasn't changed. Scheduled for the exact remaining time when it's
-    // known-safe, but capped well under setTimeout's 32-bit delay limit
-    // (~24.8 days) so a far-future date can't overflow it — that would fire
-    // almost immediately and re-arm in a tight loop. When capped, the timer
-    // just re-checks and re-arms itself for the (now shorter) remainder.
-    const [meetingClockTick, setMeetingClockTick] = useState(0);
-
-    useEffect(() => {
-        const MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24h, safely under the limit
-
-        const now = Date.now();
-        const nextExpiry = leadFollowUps
-            .filter((f) => f.status !== "completed")
-            .map((f) => new Date(f.next_follow_up_date).getTime())
-            .filter((time) => time > now)
-            .reduce<number | undefined>(
-                (soonest, time) =>
-                    soonest === undefined || time < soonest ? time : soonest,
-                undefined,
-            );
-
-        if (nextExpiry === undefined) return;
-
-        const delay = Math.min(nextExpiry - now + 1000, MAX_TIMEOUT_MS);
-        const timeout = setTimeout(
-            () => setMeetingClockTick((tick) => tick + 1),
-            delay,
-        );
-
-        return () => clearTimeout(timeout);
-    }, [leadFollowUps, meetingClockTick]);
+    // Re-evaluate nextMeeting when a start or end boundary passes, so a live
+    // meeting doesn't keep the "next" slot and an ended one drops to past.
+    const meetingClockTick = useMeetingClockTick(leadFollowUps);
 
     const nextMeeting = useMemo(() => {
-        const now = Date.now();
+        // Soonest upcoming only — a live meeting is happening now, not "next".
         return (
             [...leadFollowUps]
-                .filter(
-                    (f) =>
-                        f.status !== "completed" &&
-                        new Date(f.next_follow_up_date).getTime() > now,
-                )
+                .map((followup) => ({
+                    followup,
+                    preview: toLeadMeetingPreview(followup),
+                }))
+                .filter(({ preview }) => preview.isUpcoming && preview.startsAt)
                 .sort(
-                    (a, b) =>
-                        new Date(a.next_follow_up_date).getTime() -
-                        new Date(b.next_follow_up_date).getTime(),
-                )[0] ?? null
+                    (left, right) =>
+                        left.preview.startsAt!.getTime() -
+                        right.preview.startsAt!.getTime(),
+                )[0]?.followup ?? null
         );
         // meetingClockTick is a deliberate dependency: it forces re-evaluation
-        // of "now" once the soonest follow-up's time passes.
+        // of "now" once the soonest follow-up's start or end passes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leadFollowUps, meetingClockTick]);
 
