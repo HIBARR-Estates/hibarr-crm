@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { message } from "antd";
 import { router, usePage } from "@inertiajs/react";
 import { errorFormatter } from "@/lib/api/utils/common";
-import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -80,6 +80,7 @@ export default function useDashboardMeetingReschedule(
                             ),
                             start_time: formatMeetingTimeForApi(input.startTime),
                             duration: input.duration,
+                            timezone: getBrowserTimezone(),
                         }),
                     },
                 );

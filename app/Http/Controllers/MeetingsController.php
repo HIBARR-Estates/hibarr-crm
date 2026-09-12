@@ -9,15 +9,19 @@ use App\Models\MeetingSavedView;
 use App\Models\MeetingSummary;
 use App\Models\MeetingType;
 use App\Models\User;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingVisibilityService;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
+use DateTimeZone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class MeetingsController extends AccountBaseController
@@ -942,14 +946,19 @@ class MeetingsController extends AccountBaseController
             'next_follow_up_date' => 'required|date_format:d-m-Y',
             'start_time' => 'required|date_format:H:i:s',
             'duration' => 'nullable|integer|min:5|max:480',
-            'timezone' => 'nullable|string|max:100',
+            'timezone' => [
+                'nullable',
+                'string',
+                Rule::in(DateTimeZone::listIdentifiers()),
+            ],
         ]);
 
         $newDateTime = UserTimezone::interpretWallClock(
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            'd-m-Y H:i:s'
+            'd-m-Y H:i:s',
+            $request->timezone
         );
 
         $followUp->next_follow_up_date = $newDateTime;
@@ -960,6 +969,10 @@ class MeetingsController extends AccountBaseController
         }
 
         $followUp->save();
+
+        app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
+
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
         return response()->json([
             'success' => true,
