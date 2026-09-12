@@ -54,10 +54,10 @@ class TaskService
             
             $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
                 ? null
-                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, $user?->company, $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
+                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, company(), $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
 
             $task->start_date = isset($data['start_date'])
-                ? UserTimezone::interpretWallClock($user, $user?->company, $data['start_date'], company()->date_format . ' ' . company()->time_format)
+                ? UserTimezone::interpretWallClock($user, company(), $data['start_date'], company()->date_format . ' ' . company()->time_format)
                 : null;
 
             $task->due_date = $dueDate;
@@ -186,11 +186,11 @@ class TaskService
             
             $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
                 ? null
-                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, $user?->company, $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
+                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, company(), $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
 
             // Handle Start Date null
             $task->start_date = isset($data['start_date'])
-                ? UserTimezone::interpretWallClock($user, $user?->company, $data['start_date'], company()->date_format . ' ' . company()->time_format)
+                ? UserTimezone::interpretWallClock($user, company(), $data['start_date'], company()->date_format . ' ' . company()->time_format)
                 : null;
 
             $task->due_date = $dueDate;
