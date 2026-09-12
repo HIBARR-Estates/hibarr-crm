@@ -323,26 +323,39 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
-    // Ticks on a fixed interval so nextMeeting re-evaluates "now" as an
-    // upcoming follow-up's own scheduled time passes, even when
-    // leadFollowUps itself hasn't changed. A short fixed interval (rather
-    // than a setTimeout scheduled for the exact expiry) avoids the 32-bit
-    // setTimeout delay overflow that far-future dates would otherwise hit.
+    // Bumped so nextMeeting re-evaluates "now" as the soonest upcoming
+    // follow-up's own scheduled time passes, even when leadFollowUps itself
+    // hasn't changed. Scheduled for the exact remaining time when it's
+    // known-safe, but capped well under setTimeout's 32-bit delay limit
+    // (~24.8 days) so a far-future date can't overflow it — that would fire
+    // almost immediately and re-arm in a tight loop. When capped, the timer
+    // just re-checks and re-arms itself for the (now shorter) remainder.
     const [meetingClockTick, setMeetingClockTick] = useState(0);
 
     useEffect(() => {
-        const hasUpcoming = leadFollowUps.some(
-            (f) => f.status !== "completed",
-        );
-        if (!hasUpcoming) return;
+        const MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24h, safely under the limit
 
-        const interval = setInterval(
+        const now = Date.now();
+        const nextExpiry = leadFollowUps
+            .filter((f) => f.status !== "completed")
+            .map((f) => new Date(f.next_follow_up_date).getTime())
+            .filter((time) => time > now)
+            .reduce<number | undefined>(
+                (soonest, time) =>
+                    soonest === undefined || time < soonest ? time : soonest,
+                undefined,
+            );
+
+        if (nextExpiry === undefined) return;
+
+        const delay = Math.min(nextExpiry - now + 1000, MAX_TIMEOUT_MS);
+        const timeout = setTimeout(
             () => setMeetingClockTick((tick) => tick + 1),
-            60_000,
+            delay,
         );
 
-        return () => clearInterval(interval);
-    }, [leadFollowUps]);
+        return () => clearTimeout(timeout);
+    }, [leadFollowUps, meetingClockTick]);
 
     const nextMeeting = useMemo(() => {
         const now = Date.now();
