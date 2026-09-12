@@ -7,7 +7,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     canUseZohoMeeting,
@@ -54,6 +54,7 @@ interface FollowUpStorePayload {
     remark?: string;
     participants?: number[];
     host_id?: number | null;
+    timezone?: string;
 }
 
 function timesOverlap(
@@ -211,6 +212,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 host_id: input.hostId,
+                timezone: getBrowserTimezone(),
             };
 
             if (input.dealId) {

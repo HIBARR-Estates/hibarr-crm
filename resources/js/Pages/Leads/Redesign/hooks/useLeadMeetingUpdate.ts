@@ -7,7 +7,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -34,6 +34,7 @@ interface FollowUpUpdatePayload {
     remark?: string;
     participants?: number[];
     status?: string;
+    timezone?: string;
 }
 
 export default function useLeadMeetingUpdate(lead: Lead) {
@@ -115,6 +116,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 status: statusOverride,
+                timezone: getBrowserTimezone(),
             };
 
             setErrors([]);

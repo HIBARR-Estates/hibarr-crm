@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Models\Company;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
 class UserTimezone
@@ -44,14 +44,17 @@ class UserTimezone
 
     /**
      * Parse a naive wall-clock datetime in the actor's stored timezone and return UTC.
+     * An optional $override (e.g. the browser's IANA timezone sent explicitly with the
+     * request) takes precedence over the stored user/company timezone — see {@see forWrite()}.
      */
     public static function interpretWallClock(
         ?User $user,
         ?Company $company,
         string $datetime,
-        string $format
+        string $format,
+        ?string $override = null
     ): Carbon {
-        $parsed = Carbon::createFromFormat($format, $datetime, self::resolve($user, $company));
+        $parsed = Carbon::createFromFormat($format, $datetime, self::forWrite($user, $company, $override));
 
         if (! $parsed instanceof Carbon) {
             throw new InvalidArgumentException(

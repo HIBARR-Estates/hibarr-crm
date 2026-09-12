@@ -2764,7 +2764,8 @@ class DealController extends AccountBaseController
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            'd-m-Y H:i:s'
+            'd-m-Y H:i:s',
+            $request->timezone
         );
 
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
@@ -2923,7 +2924,8 @@ class DealController extends AccountBaseController
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            'd-m-Y H:i:s'
+            'd-m-Y H:i:s',
+            $request->timezone
         );
         // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
