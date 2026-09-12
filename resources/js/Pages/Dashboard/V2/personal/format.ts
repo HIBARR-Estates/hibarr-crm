@@ -175,6 +175,45 @@ export function durationLabel(minutes: number | null | undefined): string | null
 }
 
 /**
+ * Still ahead of the clock — start time has not arrived. An in-progress
+ * meeting has already started, so it is not "next" even if it has not ended.
+ */
+export function isAgendaUpcoming(
+    at: string | null | undefined,
+    clock: dayjs.ConfigType,
+): boolean {
+    return Boolean(at && dayjs(at).isAfter(clock));
+}
+
+/**
+ * Currently happening — start has passed and end (start + duration) has not.
+ * Default duration matches DealFollowUp::DEFAULT_DURATION_MINUTES.
+ */
+export function isAgendaLive(
+    at: string | null | undefined,
+    durationMinutes: number | null | undefined,
+    clock: dayjs.ConfigType,
+): boolean {
+    if (!at) return false;
+    const start = dayjs(at);
+    if (!start.isValid()) return false;
+    const end = start.add(durationMinutes ?? 30, "minute");
+    const now = dayjs(clock);
+    return !start.isAfter(now) && !end.isBefore(now);
+}
+
+/** On the agenda rail: live or still upcoming (not yet ended). */
+export function isAgendaActive(
+    at: string | null | undefined,
+    durationMinutes: number | null | undefined,
+    clock: dayjs.ConfigType,
+): boolean {
+    return (
+        isAgendaUpcoming(at, clock) || isAgendaLive(at, durationMinutes, clock)
+    );
+}
+
+/**
  * The day an agenda entry falls on, relative where that reads better.
  *
  * The agenda can span the rest of the week, so a bare time is ambiguous the

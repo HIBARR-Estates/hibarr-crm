@@ -20,6 +20,7 @@ import {
     REDESIGN_TYPE as TY,
 } from "@/Components/Redesign/tokens";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
@@ -170,7 +171,8 @@ export default function MeetingDetailModal({
         : attendees.slice(0, ATTENDEES_COLLAPSED_LIMIT);
     const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
     const reminders = meeting.reminders ?? [];
-    const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
+    const isActionable =
+        (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable;
     const showCancel = (canCancel ?? canEdit) && isActionable;
     const showSummaryBadge = item.isConcluded && item.summaryStatus !== "none";
@@ -484,6 +486,11 @@ export default function MeetingDetailModal({
                                 </div>
                             )}
                         </div>
+
+                        <MeetingCalendarSyncRow
+                            meeting={meeting}
+                            className="mb-4"
+                        />
 
                         <div className="mb-4">
                             {item.meetingLink ? (

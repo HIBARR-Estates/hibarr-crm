@@ -3,12 +3,18 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ScheduleEntry } from "../types";
 import type { PersonalQueue, PipelineRow } from "./types";
-import { dominantTotal, greetingFor, mergeCurrencyTotals } from "./format";
+import { dominantTotal, greetingFor, isAgendaActive, isAgendaUpcoming, mergeCurrencyTotals } from "./format";
 
 interface StatusLineProps {
     name: string;
     /** Server clock, so the greeting doesn't flip on a stale browser. */
     now: string;
+    /**
+     * Clock used to pick "next is …". A meeting that has already started
+     * is in progress, not next — this should be a ticking client instant
+     * so it doesn't stay pinned to the page-load server stamp.
+     */
+    clock?: string;
     queue?: PersonalQueue;
     agenda?: ScheduleEntry[];
     pipelines?: PipelineRow[];
@@ -36,6 +42,7 @@ interface StatusLineProps {
 export default function StatusLine({
     name,
     now,
+    clock,
     queue,
     agenda,
     pipelines,
@@ -82,14 +89,29 @@ export default function StatusLine({
         summary = td("Nothing needs you right now.");
     }
 
-    const next = agenda?.find((entry) => entry.at && dayjs(entry.at).isAfter(now));
+    // Client clock, not the page-load `now`: a meeting that started while
+    // this page was open is in progress, not next — even if the agenda
+    // payload still lists it because the server filtered against an older
+    // instant. Greeting above still uses `now` so it doesn't flip on a
+    // skewed browser clock.
+    const clockStamp = clock ?? dayjs();
+    // "Next is …" is the soonest not-yet-started meeting. Live ones are
+    // already happening, so they don't steal that slot.
+    const upcomingAgenda = agenda
+        ?.filter((entry) => isAgendaUpcoming(entry.at, clockStamp))
+        .slice()
+        .sort((a, b) => (a.at ?? "").localeCompare(b.at ?? ""));
+    const next = upcomingAgenda?.[0];
+    const activeCount = agenda?.filter((entry) =>
+        isAgendaActive(entry.at, entry.duration, clockStamp),
+    ).length;
 
     const schedule = [
         // Empty agenda already has its own real estate below — the empty
         // state on the Agenda panel itself, with a "Schedule meeting" action.
         // Repeating "nothing booked" here said nothing that panel doesn't.
-        agenda && agenda.length > 0
-            ? `${agenda.length} ${td("calendar items")}`
+        activeCount && activeCount > 0
+            ? `${activeCount} ${td("calendar items")}`
             : null,
         next
             ? `${td("next is")} ${next.title} ${td("at")} ${dayjs(next.at).format("HH:mm")}`

@@ -29,6 +29,8 @@ import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { meetingBucket } from "@/Pages/Meetings/Redesign/adapters/meetingViewModel";
+import { getUserDateTimeTimezone } from "@/lib/userDateTime";
 
 dayjs.extend(relativeTime);
 
@@ -234,14 +236,22 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                     <div className="flex-1 divide-y divide-slate-100 overflow-y-auto">
                         {meetings.map((meeting) => {
                             const start = dayjs(meeting.next_follow_up_date);
-                            const isPast = start.isBefore(dayjs());
+                            const bucket = meetingBucket(
+                                meeting,
+                                getUserDateTimeTimezone(),
+                            );
+                            const isPast = bucket === "past";
+                            const isLive = bucket === "live";
                             const isSoon =
-                                !isPast && start.diff(dayjs(), "hour") <= 24;
-                            const accentColor = isPast
-                                ? "#ef4444"
-                                : isSoon
-                                  ? "#6366f1"
-                                  : "#e2e8f0";
+                                bucket === "upcoming" &&
+                                start.diff(dayjs(), "hour") <= 24;
+                            const accentColor = isLive
+                                ? "#dc2626"
+                                : isPast
+                                  ? "#94a3b8"
+                                  : isSoon
+                                    ? "#6366f1"
+                                    : "#e2e8f0";
                             const participants = meeting.participant_users ?? [];
 
                             return (
@@ -280,14 +290,20 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                                 </span>
                                                 <span
                                                     className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
-                                                        isPast
+                                                        isLive
                                                             ? "border-red-200 bg-red-50 text-red-700"
-                                                            : isSoon
-                                                              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                                                              : "border-slate-200 bg-slate-100 text-slate-500"
+                                                            : isPast
+                                                              ? "border-slate-200 bg-slate-100 text-slate-500"
+                                                              : isSoon
+                                                                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                                                : "border-slate-200 bg-slate-100 text-slate-500"
                                                     }`}
                                                 >
-                                                    {start.fromNow()}
+                                                    {isLive
+                                                        ? td("Live", {
+                                                              source: "en",
+                                                          })
+                                                        : start.fromNow()}
                                                 </span>
                                                 <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
                                                     <Dropdown

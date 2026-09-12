@@ -12,6 +12,13 @@ export interface CalendarSyncStatusData {
     error: CalendarSyncError;
 }
 
+export interface CalendarSyncRetryResult {
+    /** False when OL rejected the retry — `message` says why. */
+    ok: boolean;
+    data: CalendarSyncStatusData;
+    message?: string;
+}
+
 export interface CalendarSyncStatusResponse {
     status: string;
     message?: string;

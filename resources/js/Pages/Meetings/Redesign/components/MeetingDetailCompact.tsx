@@ -20,9 +20,11 @@ import {
     locationAddsDetail,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
+import { resolveMeetingDisplayTimezone } from "../adapters/meetingTimeLabel";
 import { meetingRecordLink } from "../adapters/meetingViewModel";
 import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import MeetingConfirmationPanel from "./MeetingConfirmationPanel";
+import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 
 interface MeetingDetailCompactProps {
@@ -113,7 +115,7 @@ export default function MeetingDetailCompact({
 }: MeetingDetailCompactProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { formatDate, formatDateTime, timezone } = useUserDateTime();
+    const { formatDate, formatDateTime } = useUserDateTime();
     const [panel, setPanel] = useState<Panel>("info");
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [showAllAttendees, setShowAllAttendees] = useState(false);
@@ -285,7 +287,7 @@ export default function MeetingDetailCompact({
                                 primary={item.timeRangeLabel}
                                 secondary={`${item.durationMinutes} ${t(
                                     "pages.deals.workspace.meetings.min_label",
-                                )} · ${timezone}`}
+                                )} · ${resolveMeetingDisplayTimezone(meeting.timezone)}`}
                             />
 
                             <InfoRow
@@ -307,7 +309,7 @@ export default function MeetingDetailCompact({
                                 action={
                                     item.meetingLink ? (
                                         <div className="flex items-center gap-2">
-                                            {item.isUpcoming && (
+                                            {(item.isUpcoming || item.isLive) && (
                                                 <a
                                                     href={item.meetingLink}
                                                     target="_blank"
@@ -344,6 +346,11 @@ export default function MeetingDetailCompact({
                                         </div>
                                     ) : undefined
                                 }
+                            />
+
+                            <MeetingCalendarSyncRow
+                                meeting={meeting}
+                                userId={userId}
                             />
                         </div>
 

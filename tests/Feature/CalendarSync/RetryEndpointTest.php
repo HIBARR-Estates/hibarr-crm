@@ -156,4 +156,44 @@ class RetryEndpointTest extends TestCase
             $followUp->zoho_calendar_sync_status,
         );
     }
+
+    public function test_it_returns_and_stores_the_ol_error_when_retry_is_rejected(): void
+    {
+        config()->set('services.ol.base_url', 'https://ol.test/v1');
+        config()->set('services.ol.api_key', 'ol-test-key');
+        config()->set('services.ol.timeout', 5);
+
+        $this->setFeatureFlag('integrations.zoho-calendar-sync', true);
+
+        $creator = User::factory()->create();
+
+        $followUp = new DealFollowUp();
+        $followUp->added_by = $creator->id;
+        $followUp->next_follow_up_date = now();
+        $followUp->duration = 30;
+        $followUp->location = 'office';
+        $followUp->meeting_link = '';
+        $followUp->status = 'scheduled';
+        $followUp->participants = [];
+        $followUp->zoho_calendar_job_id = null;
+        $followUp->zoho_calendar_sync_status = DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED;
+        $followUp->save();
+
+        Http::fake(fn () => Http::response([
+            'message' => 'Validation error.',
+            'data' => ['error' => [['field' => 'timezone', 'message' => '"timezone" is required']]],
+        ], 400));
+
+        $this->actingAs($creator);
+
+        $this->postJson(route('calendar_sync.retry', ['followUp' => $followUp->id]))
+            ->assertStatus(422)
+            ->assertJsonPath('status', 'fail')
+            ->assertJsonPath('message', 'Validation error: "timezone" is required')
+            ->assertJsonPath('data.syncStatus', DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED);
+
+        $followUp->refresh();
+
+        $this->assertSame('Validation error: "timezone" is required', $followUp->zoho_calendar_sync_error);
+    }
 }

@@ -55,15 +55,16 @@ export function useCalendarSyncJobPoller({
     }, [followUpId, jobId, initialStatus]);
 
     const refresh = useCallback(() => {
-        if (!jobId) return;
         setStatus("pending");
         setAttemptsMade(0);
         setHasMaxAttempts(false);
-    }, [jobId]);
+    }, []);
 
     useEffect(() => {
         if (!enabled) return;
-        if (!jobId) return;
+        // No jobId is still worth polling: right after a save the sync hasn't
+        // run yet, and when OL rejects it outright there is never a jobId —
+        // the status endpoint answers from the stored row in both cases.
         if (hasMaxAttempts) return;
         if (status !== "pending") return;
 

@@ -18,6 +18,9 @@ class SyncCalendarEventJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** User-facing reason stored when the job throws; details go to the log. */
+    private const FAILURE_REASON = 'Calendar sync failed. Please retry.';
+
     public int $tries = 3;
     public int $timeout = 30;
 
@@ -54,11 +57,14 @@ class SyncCalendarEventJob implements ShouldQueue
                 $followUp->updateQuietly([
                     'zoho_calendar_job_id' => $jobId,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+                    'zoho_calendar_sync_error' => null,
                 ]);
             } else {
+                // Keep OL's reason — the meeting dialog shows it beside "Retry sync".
                 $followUp->updateQuietly([
                     'zoho_calendar_job_id' => null,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                    'zoho_calendar_sync_error' => $syncService->lastError()['message'] ?? 'Calendar sync failed.',
                 ]);
             }
         } catch (Throwable $e) {
@@ -71,6 +77,8 @@ class SyncCalendarEventJob implements ShouldQueue
             $followUp->updateQuietly([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                // Raw exception text is logged above, never shown to users.
+                'zoho_calendar_sync_error' => self::FAILURE_REASON,
             ]);
         }
     }
@@ -81,6 +89,8 @@ class SyncCalendarEventJob implements ShouldQueue
             DealFollowUp::where('id', $this->followUpId)->update([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
+                // Raw exception text is logged below, never shown to users.
+                'zoho_calendar_sync_error' => self::FAILURE_REASON,
             ]);
         } catch (Throwable $e) {
             Log::error('SyncCalendarEventJob.failed failed to persist', [

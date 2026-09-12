@@ -39,9 +39,8 @@ export type MeetingsViewMode = "list" | "calendar";
 const DEFAULT_DURATION = 30;
 
 /**
- * Zoned start/end for a meeting. `next_follow_up_date` is a UTC instant; every
- * date the page shows has to be read in the viewer's timezone or a late-evening
- * meeting lands on the wrong calendar day.
+ * Zoned start/end for a meeting. Parsed the same way the printed time is
+ * (`dayjs(value)`, not `dayjs.utc`), then shown in the viewer's timezone.
  */
 export function meetingRange(
     meeting: Pick<DealFollowup, "next_follow_up_date"> & {
@@ -52,7 +51,10 @@ export function meetingRange(
 ) {
     const minutes =
         meeting.duration ?? meeting.effective_duration ?? DEFAULT_DURATION;
-    const start = dayjs.utc(meeting.next_follow_up_date).tz(timezone);
+    // Same parse as the time we print (`new Date` / `dayjs(...)`). Treating
+    // a naive string as UTC here made a locally-passed start look upcoming.
+    const parsed = dayjs(meeting.next_follow_up_date);
+    const start = parsed.isValid() ? parsed.tz(timezone) : parsed;
     return { start, end: start.add(minutes, "minute"), minutes };
 }
 
@@ -64,15 +66,59 @@ export function meetingBucket(
     timezone: string,
     now: dayjs.Dayjs = dayjs(),
 ): MeetingBucket {
-    const { start, end } = meetingRange(meeting, timezone);
+    const status = (meeting.status ?? "scheduled").trim();
+    // Completed/cancelled are always past, even if the wall-clock slot is open.
     if (
-        meeting.status === "scheduled" &&
-        !start.isAfter(now) &&
-        !end.isBefore(now)
+        status === "completed" ||
+        status === "cancelled" ||
+        status === "canceled"
     ) {
+        return "past";
+    }
+
+    const { start, end } = meetingRange(meeting, timezone);
+    if (!start.isValid()) {
+        return "upcoming";
+    }
+
+    // Live: start <= now <= end, still scheduled.
+    if (status === "scheduled" && !start.isAfter(now) && !end.isBefore(now)) {
         return "live";
     }
-    return start.isBefore(now) ? "past" : "upcoming";
+
+    // Past only after the end — a started meeting that hasn't ended is live.
+    if (end.isBefore(now)) {
+        return "past";
+    }
+
+    return "upcoming";
+}
+
+/** True when `now` is still before the meeting's start. */
+export function isMeetingUpcoming(
+    meeting: Parameters<typeof meetingBucket>[0],
+    timezone: string,
+    now: dayjs.Dayjs = dayjs(),
+): boolean {
+    return meetingBucket(meeting, timezone, now) === "upcoming";
+}
+
+/** True when `now` is between start and end (inclusive) and status is scheduled. */
+export function isMeetingLive(
+    meeting: Parameters<typeof meetingBucket>[0],
+    timezone: string,
+    now: dayjs.Dayjs = dayjs(),
+): boolean {
+    return meetingBucket(meeting, timezone, now) === "live";
+}
+
+/** True when `now` is after end, or the meeting is completed/cancelled. */
+export function isMeetingPast(
+    meeting: Parameters<typeof meetingBucket>[0],
+    timezone: string,
+    now: dayjs.Dayjs = dayjs(),
+): boolean {
+    return meetingBucket(meeting, timezone, now) === "past";
 }
 
 /**

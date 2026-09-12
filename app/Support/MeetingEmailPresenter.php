@@ -33,9 +33,31 @@ class MeetingEmailPresenter
             return null;
         }
 
-        $timezone = $this->company?->timezone ?? config('app.timezone');
+        try {
+            return $this->followUp->next_follow_up_date->copy()->timezone($this->displayTimezone());
+        } catch (\Throwable) {
+            // Invalid/unknown IANA on the meeting — fall back to company/app zone.
+            $fallback = $this->company?->timezone ?: (string) config('app.timezone');
 
-        return $this->followUp->next_follow_up_date->copy()->timezone($timezone);
+            return $this->followUp->next_follow_up_date->copy()->timezone($fallback ?: 'UTC');
+        }
+    }
+
+    /**
+     * Prefer the meeting's booked IANA zone; fall back to company (then app) timezone.
+     */
+    public function displayTimezone(): string
+    {
+        $meetingTimezone = $this->followUp->timezone;
+        if (is_string($meetingTimezone) && $meetingTimezone !== '') {
+            return $meetingTimezone;
+        }
+
+        $companyTimezone = $this->company?->timezone;
+
+        return (is_string($companyTimezone) && $companyTimezone !== '')
+            ? $companyTimezone
+            : (string) config('app.timezone');
     }
 
     public function meetingDate(): string
@@ -55,7 +77,33 @@ class MeetingEmailPresenter
             return '';
         }
 
-        return $at->format($this->company?->time_format ?? config('app.time_format', 'H:i'));
+        $time = $at->format($this->company?->time_format ?? config('app.time_format', 'H:i'));
+        $abbr = $this->meetingTimezoneAbbreviation();
+
+        // Always keep a timezone token on the clock so mail clients can't
+        // leave recipients guessing which zone the wall time is in.
+        return $abbr !== '' ? $time.' '.$abbr : $time;
+    }
+
+    /**
+     * Short timezone label for the zone used in meetingAt() (e.g. CET, GMT+4).
+     * Never empty when a meeting instant exists — PHP's `T` is blank for some zones.
+     */
+    public function meetingTimezoneAbbreviation(): string
+    {
+        $at = $this->meetingAt();
+        if (!$at) {
+            return '';
+        }
+
+        $abbr = trim((string) $at->format('T'));
+        // Keep classic letter abbreviations (CET, EAT, EST). Numeric "+04" is
+        // easy to miss in email — normalize those (and empty T) to GMT±H.
+        if ($abbr !== '' && preg_match('/^[A-Za-z]{2,5}$/', $abbr) === 1) {
+            return $abbr;
+        }
+
+        return $this->gmtOffsetLabel($at);
     }
 
     public function leadName(): string
@@ -665,6 +713,24 @@ class MeetingEmailPresenter
         }
 
         return $time;
+    }
+
+    /**
+     * GMT±H[:MM] label for zones where PHP has no letter abbreviation.
+     */
+    private function gmtOffsetLabel(CarbonInterface $at): string
+    {
+        $seconds = $at->getOffset();
+        $sign = $seconds >= 0 ? '+' : '-';
+        $abs = abs($seconds);
+        $hours = intdiv($abs, 3600);
+        $minutes = intdiv($abs % 3600, 60);
+
+        if ($minutes === 0) {
+            return 'GMT'.$sign.$hours;
+        }
+
+        return sprintf('GMT%s%d:%02d', $sign, $hours, $minutes);
     }
 
     private function countdownUntil(CarbonInterface $at): string
