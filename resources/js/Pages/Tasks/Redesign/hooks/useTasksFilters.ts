@@ -1,7 +1,4 @@
-import { useCallback, useMemo } from "react";
-import { router } from "@inertiajs/react";
-import { mergeQueryParams } from "@/lib/inertiaQuery";
-import type { FormDataConvertible } from "@inertiajs/core";
+import { useMemo } from "react";
 
 export interface TasksFilterState {
     status?: string | string[];
@@ -34,9 +31,9 @@ export function hasFilter(value: unknown): boolean {
 }
 
 /**
- * URL-synced task filters — same server round-trip the legacy Tasks/Index
- * already uses (`TaskController::index()` reads these off the request), just
- * driven from the redesign's pill/chip UI instead of the antd filter drawer.
+ * Task filter badge count — filter application itself goes through
+ * `FilterContext`/`taskFilterConfig`, this hook just counts active
+ * selections for the "Filters (N)" badge.
  */
 export default function useTasksFilters(filters: TasksFilterState) {
     /** Total selected values across every dimension (the Filters badge). */
@@ -52,24 +49,5 @@ export default function useTasksFilters(filters: TasksFilterState) {
         [filters],
     );
 
-    const applyFilters = useCallback(
-        (overrides: Record<string, FormDataConvertible>) => {
-            router.get(route("tasks.index"), mergeQueryParams(overrides), {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            });
-        },
-        [],
-    );
-
-    const clearAll = useCallback(() => {
-        router.get(
-            route("tasks.index"),
-            {},
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
-    }, []);
-
-    return { filters, activeCount, applyFilters, clearAll };
+    return { filters, activeCount };
 }

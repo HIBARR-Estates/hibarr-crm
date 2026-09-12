@@ -139,6 +139,7 @@ const createMeetingFilterConfig = ({
         fields,
         excludeFields,
         defaultValues: {},
+        only: ["meetings", "tabCounts", "hasAnyMeetings"],
     };
 };
 

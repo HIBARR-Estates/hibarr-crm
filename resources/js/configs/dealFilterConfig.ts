@@ -10,6 +10,8 @@ interface DealFilterProps {
     /** Pipeline currently shown by the page selector; "all" unpins it. */
     activePipelineId?: number | "all";
     excludeFields?: string[];
+    /** Whether the page is currently showing the kanban board (vs. table). */
+    isKanbanView?: boolean;
     [key: string]: any;
 }
 
@@ -191,6 +193,12 @@ export const createDealFilterConfig = (
         fields,
         excludeFields: props.excludeFields,
         defaultValues: {},
+        // Same prop set handlePipelineChange already requests for the same
+        // filtered-query dependency (Deals/Index.tsx) — kanban also needs
+        // fresh column metadata for the current filters.
+        only: props.isKanbanView
+            ? ["deals", "boardColumns", "filters", "stats"]
+            : ["deals", "filters", "stats"],
     };
 };
 

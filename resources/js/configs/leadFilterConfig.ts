@@ -70,6 +70,7 @@ export function buildLeadCustomFieldFilterFields(
 export const createLeadFilterConfig = (props: any): FilterConfig => ({
     routeName: "lead-contact.index",
     title: "Lead Filters",
+    only: ["leads", "filters"],
     fields: [
         {
             key: "search",
