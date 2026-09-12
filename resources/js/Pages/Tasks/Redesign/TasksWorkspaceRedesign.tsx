@@ -433,27 +433,6 @@ export default function TasksWorkspaceRedesign({
         setSelectAllMatching(false);
     }, [pagedTableTasks.total, filterSignature]);
 
-    const filtersInitialized = useRef(false);
-
-    useEffect(() => {
-        if (!filtersInitialized.current) {
-            filtersInitialized.current = true;
-            return;
-        }
-        router.get(route("tasks.index"), mergeQueryParams({ page: 1 }), {
-            only: [
-                "tableTasks",
-                "taskQuickCounts",
-                "stats",
-                "kanbanTasks",
-                "filters",
-                "now",
-            ],
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, [filterSignature]);
-
     const handleQuickFilter = (key: QuickFilterKey) => {
         router.get(
             route("tasks.index"),

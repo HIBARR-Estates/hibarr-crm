@@ -139,6 +139,12 @@ const createMeetingFilterConfig = ({
         fields,
         excludeFields,
         defaultValues: {},
+        // filterFacets isn't scoped to the drafted filter combination (same
+        // whole-visible-set shape as the lead facets — see
+        // MeetingFilterFacetsService), but the old unscoped reload still
+        // re-fetched it on every filter change; keep that refresh here too
+        // so the modal's counts don't go stale for the rest of the session.
+        only: ["meetings", "tabCounts", "hasAnyMeetings", "filterFacets"],
     };
 };
 

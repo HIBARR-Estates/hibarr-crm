@@ -119,6 +119,12 @@ const LeadBoardIndex = ({
                 ],
             }),
             routeName: "leadboards.index",
+            // This board's own prop shape differs from Deals' — don't inherit
+            // createDealFilterConfig's `only` list (scoped to "deals"/
+            // "boardColumns"), which doesn't exist as such here. Falls back
+            // to the full reload this page already used before scoped
+            // filter reloads existed elsewhere.
+            only: undefined,
         }),
         [categories, pipelines, props.stages, leadAgents]
     );

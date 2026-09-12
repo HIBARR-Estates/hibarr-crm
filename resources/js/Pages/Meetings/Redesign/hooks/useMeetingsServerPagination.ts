@@ -162,5 +162,38 @@ export default function useMeetingsServerPagination({
         [onPersistPageSize, visit],
     );
 
-    return { meetings: display, isPaging, goToPage, changePageSize };
+    // Lets a caller outside this hook (e.g. the "hide next up" toggle) paint
+    // an immediate, locally-known change to the list without waiting on a
+    // round trip — same idea as `goToPage`'s cache paint, just driven by the
+    // caller instead of the page-cache. Cleared automatically the moment a
+    // real `meetings` prop lands (see the effect above), so it can never
+    // drift from server truth for more than one request.
+    const applyOptimistic = useCallback(
+        (
+            updater: (
+                current: PaginatedFollowupResponse,
+            ) => PaginatedFollowupResponse,
+        ) => {
+            setOptimistic(updater(display));
+        },
+        [display],
+    );
+
+    // For an optimistic patch applied ahead of a reload that then fails or is
+    // cancelled — `onFinish` alone leaves the patch on screen indefinitely,
+    // since the effect above only clears it once a real `meetings` prop
+    // actually lands. Callers should pair this with the reload's
+    // error/cancel callbacks.
+    const clearOptimistic = useCallback(() => {
+        setOptimistic(null);
+    }, []);
+
+    return {
+        meetings: display,
+        isPaging,
+        goToPage,
+        changePageSize,
+        applyOptimistic,
+        clearOptimistic,
+    };
 }

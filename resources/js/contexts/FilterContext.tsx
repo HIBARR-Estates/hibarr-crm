@@ -76,6 +76,14 @@ export interface FilterConfig {
     fields: FilterFieldConfig[];
     excludeFields?: string[];
     defaultValues?: Record<string, any>;
+    /**
+     * Inertia partial-reload prop keys to request when filters change. Omit
+     * to fall back to a full (unscoped) visit — every scoped reload
+     * elsewhere on these pages (pagination, tab switches, pipeline/board
+     * switches) already knows its own list, so pass the same one here
+     * instead of re-fetching the whole page on every filter change.
+     */
+    only?: string[];
 }
 
 interface FilterContextValue {
@@ -368,6 +376,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                 };
 
                 router.get(route(config.routeName), finalParams, {
+                    only: config.only,
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
@@ -386,6 +395,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         if (!config) return;
 
         router.get(route(config.routeName), config.defaultValues || {}, {
+            only: config.only,
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -452,6 +462,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         };
 
         router.get(route(config.routeName), finalParams, {
+            only: config.only,
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -466,6 +477,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         clearAllFilters();
 
         router.get(route(config.routeName), config.defaultValues || {}, {
+            only: config.only,
             preserveState: true,
             preserveScroll: true,
             replace: true,
