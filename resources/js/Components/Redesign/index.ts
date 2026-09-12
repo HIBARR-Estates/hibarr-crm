@@ -69,7 +69,10 @@ export {
     hasNoteScopeAccess,
 } from "./adapters/noteAdapter";
 export type { WorkspaceNotePreview } from "./adapters/noteAdapter";
+/** @deprecated Flag-off fallback only — use MeetingViewModal for viewing meetings. */
 export { default as MeetingDetailModal } from "./modals/MeetingDetailModal";
+export { default as MeetingViewModal } from "./modals/MeetingViewModal";
+export { default as MeetingDetailCompact } from "./modals/MeetingDetailCompact";
 export { default as ItineraryModal } from "./modals/ItineraryModal";
 export type {
     ItineraryFormInput,

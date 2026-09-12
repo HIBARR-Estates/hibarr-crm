@@ -2,8 +2,8 @@ import { usePage } from "@inertiajs/react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import DealEditMeetingModal from "./DealEditMeetingModal";
@@ -17,6 +17,8 @@ interface DealMeetingDetailModalProps {
     canEdit: boolean;
     canDelete: boolean;
     onClose: () => void;
+    /** Open compact viewer on the Summary tab. */
+    initialPanel?: "info" | "summary";
 }
 
 export default function DealMeetingDetailModal({
@@ -26,6 +28,7 @@ export default function DealMeetingDetailModal({
     canEdit,
     canDelete,
     onClose,
+    initialPanel = "info",
 }: DealMeetingDetailModalProps) {
     const { setDealFollowUps, dealFollowUps } = useDealWorkspace();
     const meeting =
@@ -54,62 +57,124 @@ export default function DealMeetingDetailModal({
         );
     };
 
+    const nested = ({
+        editOpen,
+        rescheduleOpen,
+        deleteOpen,
+        setEditOpen,
+        setRescheduleOpen,
+        setDeleteOpen,
+    }: {
+        editOpen: boolean;
+        rescheduleOpen: boolean;
+        deleteOpen: boolean;
+        setEditOpen: (open: boolean) => void;
+        setRescheduleOpen: (open: boolean) => void;
+        setDeleteOpen: (open: boolean) => void;
+    }) =>
+        meeting ? (
+            <>
+                <DealEditMeetingModal
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    deal={deal}
+                    followup={meeting}
+                    meetingTypes={meetingTypes}
+                />
+                <DealRescheduleMeetingModal
+                    open={rescheduleOpen}
+                    onClose={() => setRescheduleOpen(false)}
+                    followup={meeting}
+                />
+                <DeleteFollowup
+                    open={deleteOpen}
+                    onClose={() => {
+                        setDeleteOpen(false);
+                        onClose();
+                    }}
+                    followup={meeting}
+                    skipReload
+                    onDeleted={(followupId) => {
+                        setDealFollowUps((prev) =>
+                            prev.filter((f) => f.id !== followupId),
+                        );
+                    }}
+                />
+            </>
+        ) : null;
+
     return (
-        <MeetingDetailModal
+        <MeetingViewModal
             meeting={meeting}
             canEdit={canEdit}
             canDelete={canDelete}
             onClose={onClose}
             isUpdating={isUpdating}
             onCancelMeeting={handleCancelMeeting}
-            renderNestedModals={({
-                editOpen,
-                rescheduleOpen,
-                deleteOpen,
-                summaryOpen,
-                setEditOpen,
-                setRescheduleOpen,
-                setDeleteOpen,
-                setSummaryOpen,
-            }) =>
-                meeting ? (
-                    <>
-                        {summaryOpen && (
-                            <ViewFollowup
-                                open={summaryOpen}
-                                onClose={() => setSummaryOpen(false)}
-                                followup={meeting}
-                                deal={deal}
-                            />
-                        )}
-                        <DealEditMeetingModal
-                            open={editOpen}
-                            onClose={() => setEditOpen(false)}
-                            deal={deal}
-                            followup={meeting}
-                            meetingTypes={meetingTypes}
-                        />
-                        <DealRescheduleMeetingModal
-                            open={rescheduleOpen}
-                            onClose={() => setRescheduleOpen(false)}
-                            followup={meeting}
-                        />
-                        <DeleteFollowup
-                            open={deleteOpen}
-                            onClose={() => {
-                                setDeleteOpen(false);
-                                onClose();
-                            }}
-                            followup={meeting}
-                            skipReload
-                            onDeleted={(followupId) => {
-                                setDealFollowUps((prev) =>
-                                    prev.filter((f) => f.id !== followupId),
-                                );
-                            }}
-                        />
-                    </>
-                ) : null
+            includeSummary
+            userId={currentUserId}
+            initialPanel={initialPanel}
+            renderNestedModals={nested}
+            fallback={
+                <MeetingDetailModal
+                    meeting={meeting}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    onClose={onClose}
+                    isUpdating={isUpdating}
+                    onCancelMeeting={handleCancelMeeting}
+                    renderNestedModals={({
+                        editOpen,
+                        rescheduleOpen,
+                        deleteOpen,
+                        summaryOpen,
+                        setEditOpen,
+                        setRescheduleOpen,
+                        setDeleteOpen,
+                        setSummaryOpen,
+                    }) =>
+                        meeting ? (
+                            <>
+                                {summaryOpen && (
+                                    <ViewFollowup
+                                        open={summaryOpen}
+                                        onClose={() => setSummaryOpen(false)}
+                                        followup={meeting}
+                                        deal={deal}
+                                    />
+                                )}
+                                <DealEditMeetingModal
+                                    open={editOpen}
+                                    onClose={() => setEditOpen(false)}
+                                    deal={deal}
+                                    followup={meeting}
+                                    meetingTypes={meetingTypes}
+                                />
+                                <DealRescheduleMeetingModal
+                                    open={rescheduleOpen}
+                                    onClose={() => setRescheduleOpen(false)}
+                                    followup={meeting}
+                                />
+                                <DeleteFollowup
+                                    open={deleteOpen}
+                                    onClose={() => {
+                                        setDeleteOpen(false);
+                                        onClose();
+                                    }}
+                                    followup={meeting}
+                                    skipReload
+                                    onDeleted={(followupId) => {
+                                        setDealFollowUps((prev) =>
+                                            prev.filter(
+                                                (f) => f.id !== followupId,
+                                            ),
+                                        );
+                                    }}
+                                />
+                            </>
+                        ) : null
+                    }
+                />
             }
         />
     );

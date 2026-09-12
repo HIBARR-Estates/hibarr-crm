@@ -1,3 +1,4 @@
+import useMeetingsPageRedesignFlag from "@/Hooks/useMeetingsPageRedesignFlag";
 import React, { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
 import { Tag, Button, Dropdown, Empty, Pagination } from "antd";
@@ -808,9 +809,7 @@ function LegacyMeetingsIndex() {
 }
 
 const Index = () => {
-    const page = usePage();
-    const useRedesign =
-        page.props.featureFlags?.["crm.meetings-page-redesign"] === true;
+    const useRedesign = useMeetingsPageRedesignFlag();
 
     return useRedesign ? (
         <MeetingsWorkspaceRedesign />
