@@ -260,11 +260,17 @@ export default function MeetingsWorkspaceRedesign() {
     // ── Paging ─────────────────────────────────────────────────────────
     // Page N+1 is fetched in the background while page N is on screen, so
     // stepping forward paints from cache instead of waiting on a request.
-    const { meetings, isPaging, goToPage, changePageSize, applyOptimistic } =
-        useMeetingsServerPagination({
-            meetings: meetingsProp,
-            only: LIST_PROPS,
-        });
+    const {
+        meetings,
+        isPaging,
+        goToPage,
+        changePageSize,
+        applyOptimistic,
+        clearOptimistic,
+    } = useMeetingsServerPagination({
+        meetings: meetingsProp,
+        only: LIST_PROPS,
+    });
 
     // Hiding the strip has to give its meetings back to the list, and showing
     // it has to take them away again — both are server-side, so the toggle
@@ -280,20 +286,51 @@ export default function MeetingsWorkspaceRedesign() {
         setStripVisible(next);
         setIsTogglingStrip(true);
 
-        if (!next && upcomingSoon && upcomingSoon.length > 0) {
+        // The "past" tab's own query never excluded next-up meetings in the
+        // first place (upcomingSoonIds is upcoming-scoped by construction),
+        // so there is nothing to give back there — splicing would inject
+        // rows that don't belong in that bucket.
+        if (
+            !next &&
+            activeTab !== "past" &&
+            upcomingSoon &&
+            upcomingSoon.length > 0
+        ) {
             applyOptimistic((current) => {
                 const existingIds = new Set(current.data.map((m) => m.id));
                 const returning = upcomingSoon.filter(
                     (m) => !existingIds.has(m.id),
                 );
                 if (returning.length === 0) return current;
-                return { ...current, data: [...returning, ...current.data] };
+
+                // Cap at the page's own size and grow the pager math by only
+                // the rows actually kept — anything past the cap will show up
+                // correctly once the reload's real page lands.
+                const combined = [...returning, ...current.data];
+                const data = combined.slice(0, current.per_page);
+                const keptReturning = Math.min(
+                    returning.length,
+                    current.per_page,
+                );
+                const total = current.total + keptReturning;
+
+                return {
+                    ...current,
+                    data,
+                    total,
+                    last_page: Math.max(
+                        1,
+                        Math.ceil(total / current.per_page),
+                    ),
+                };
             });
         }
 
         router.reload({
             only: [...LIST_PROPS, "upcomingSoon"],
             onFinish: () => setIsTogglingStrip(false),
+            onError: () => clearOptimistic(),
+            onCancel: () => clearOptimistic(),
         });
     };
 

@@ -179,5 +179,21 @@ export default function useMeetingsServerPagination({
         [display],
     );
 
-    return { meetings: display, isPaging, goToPage, changePageSize, applyOptimistic };
+    // For an optimistic patch applied ahead of a reload that then fails or is
+    // cancelled — `onFinish` alone leaves the patch on screen indefinitely,
+    // since the effect above only clears it once a real `meetings` prop
+    // actually lands. Callers should pair this with the reload's
+    // error/cancel callbacks.
+    const clearOptimistic = useCallback(() => {
+        setOptimistic(null);
+    }, []);
+
+    return {
+        meetings: display,
+        isPaging,
+        goToPage,
+        changePageSize,
+        applyOptimistic,
+        clearOptimistic,
+    };
 }

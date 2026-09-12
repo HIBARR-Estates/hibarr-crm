@@ -70,7 +70,12 @@ export function buildLeadCustomFieldFilterFields(
 export const createLeadFilterConfig = (props: any): FilterConfig => ({
     routeName: "lead-contact.index",
     title: "Lead Filters",
-    only: ["leads", "filters"],
+    // filterFacets isn't scoped to the drafted filter combination (it's a
+    // whole-visible-set count, see LeadFilterFacetsService's docblock), but
+    // the old unscoped reload still re-fetched it on every filter change —
+    // keep that refresh so the modal's counts don't go stale against
+    // underlying data changes for the rest of the session.
+    only: ["leads", "filters", "filterFacets"],
     fields: [
         {
             key: "search",
