@@ -18,7 +18,7 @@ use App\Traits\RecordsCrmEvents;
 use App\Services\DealNotificationService;
 use App\Services\Reminders\TaskReminderSync;
 use App\Services\TaskLifecycleNotificationService;
-use Carbon\Carbon;
+use App\Support\UserTimezone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -54,12 +54,12 @@ class TaskService
             
             $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
                 ? null
-                : (isset($data['due_date']) ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['due_date']) : null);
+                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, $user?->company, $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
 
             $task->start_date = isset($data['start_date'])
-                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date'])
+                ? UserTimezone::interpretWallClock($user, $user?->company, $data['start_date'], company()->date_format . ' ' . company()->time_format)
                 : null;
-                
+
             $task->due_date = $dueDate;
             $task->project_id = $data['project_id'] ?? null;
             $task->task_category_id = $data['category_id'] ?? null;
@@ -70,7 +70,7 @@ class TaskService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at'])
-                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
+                    ? UserTimezone::interpretWallClock($user, $user?->company, $data['remind_at'], company()->date_format . ' ' . company()->time_format)
                     : null;
             }
             
@@ -173,6 +173,8 @@ class TaskService
      */
     public function updateTask(Task $task, array $data, ?User $user = null): Task
     {
+        $user = $user ?? auth()->user();
+
         DB::beginTransaction();
 
         try {
@@ -184,13 +186,13 @@ class TaskService
             
             $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
                 ? null
-                : (isset($data['due_date']) ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['due_date']) : null);
+                : (isset($data['due_date']) ? UserTimezone::interpretWallClock($user, $user?->company, $data['due_date'], company()->date_format . ' ' . company()->time_format) : null);
 
             // Handle Start Date null
             $task->start_date = isset($data['start_date'])
-                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date'])
+                ? UserTimezone::interpretWallClock($user, $user?->company, $data['start_date'], company()->date_format . ' ' . company()->time_format)
                 : null;
-            
+
             $task->due_date = $dueDate;
             $task->priority = $data['priority'] ?? $task->priority;
             $task->task_category_id = $data['category_id'] ?? $task->task_category_id;
@@ -199,7 +201,7 @@ class TaskService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at'])
-                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
+                    ? UserTimezone::interpretWallClock($user, $user?->company, $data['remind_at'], company()->date_format . ' ' . company()->time_format)
                     : null;
             }
             

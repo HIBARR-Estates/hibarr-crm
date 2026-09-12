@@ -9,9 +9,11 @@ use App\Models\MeetingSavedView;
 use App\Models\MeetingSummary;
 use App\Models\MeetingType;
 use App\Models\User;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingVisibilityService;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
@@ -949,7 +951,8 @@ class MeetingsController extends AccountBaseController
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            'd-m-Y H:i:s'
+            'd-m-Y H:i:s',
+            $request->filled('timezone') ? $request->timezone : null
         );
 
         $followUp->next_follow_up_date = $newDateTime;
@@ -960,6 +963,10 @@ class MeetingsController extends AccountBaseController
         }
 
         $followUp->save();
+
+        app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
+
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp->fresh());
 
         return response()->json([
             'success' => true,
