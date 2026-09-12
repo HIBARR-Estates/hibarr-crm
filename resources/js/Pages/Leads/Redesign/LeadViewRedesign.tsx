@@ -323,6 +323,28 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
+    // Bumped once the soonest upcoming follow-up's time passes, so
+    // nextMeeting recomputes even when leadFollowUps itself hasn't changed.
+    const [meetingClockTick, setMeetingClockTick] = useState(0);
+
+    useEffect(() => {
+        const now = Date.now();
+        const nextExpiry = leadFollowUps
+            .filter((f) => f.status !== "completed")
+            .map((f) => new Date(f.next_follow_up_date).getTime())
+            .filter((time) => time > now)
+            .sort((a, b) => a - b)[0];
+
+        if (nextExpiry === undefined) return;
+
+        const timeout = setTimeout(
+            () => setMeetingClockTick((tick) => tick + 1),
+            nextExpiry - now + 1000,
+        );
+
+        return () => clearTimeout(timeout);
+    }, [leadFollowUps, meetingClockTick]);
+
     const nextMeeting = useMemo(() => {
         const now = Date.now();
         return (
@@ -338,7 +360,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         new Date(b.next_follow_up_date).getTime(),
                 )[0] ?? null
         );
-    }, [leadFollowUps]);
+        // meetingClockTick is a deliberate dependency: it forces re-evaluation
+        // of "now" once the soonest follow-up's time passes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leadFollowUps, meetingClockTick]);
 
     const openTasks = useMemo(
         () => tasks.filter((task) => toLeadTaskPreview(task).isOpen),
