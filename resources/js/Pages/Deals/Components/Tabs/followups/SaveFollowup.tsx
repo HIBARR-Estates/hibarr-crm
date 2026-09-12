@@ -38,6 +38,7 @@ import HtmlEditor from "@/Components/HtmlEditor";
 import MeetingTypeSelector from "./MeetingTypeSelector";
 import FormDataSelector from "@/Components/FormDataSelector";
 import MeetingTimezoneField from "@/Components/Redesign/meeting/MeetingTimezoneField";
+import { getBrowserTimezone } from "@/lib/userTimezone";
 import {
     getDefaultMeetingHost,
     isMeetingStartInFuture,
@@ -382,7 +383,9 @@ export default function SaveFollowup({
             reminders:           customReminders,
             remark:              values.remark || "",
             participants:        participants,
-            timezone:            values.timezone || undefined,
+            // An edit has no timezone field and shows browser-local time —
+            // say so, or the server would read it in the meeting's stored zone.
+            timezone:            values.timezone || (followup ? getBrowserTimezone() : undefined),
             ...(values.duration ? { duration: values.duration } : {}),
         };
 
@@ -481,6 +484,10 @@ export default function SaveFollowup({
                 <Form.Item
                     name="start_time"
                     label="Start Time"
+                    // Re-run the validator when the zone changes (picker or
+                    // host-time switch both write `timezone`), so a stale
+                    // "must be in the future" message clears.
+                    dependencies={["timezone"]}
                     rules={[
                         { required: true, message: "Please select a start time" },
                         {

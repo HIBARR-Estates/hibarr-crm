@@ -899,6 +899,7 @@ class CrmWriteService
                 $followUp->added_by !== null ? (int) $followUp->added_by : null
             );
             $followUp->next_follow_up_date = Carbon::parse($data['scheduled_at'], $timezone)->setTimezone('UTC');
+            $followUp->timezone = $timezone;
         }
 
         if (array_key_exists('remark', $data)) {

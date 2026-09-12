@@ -39,8 +39,13 @@ class CalendarSyncController extends AccountBaseController
         $error = $syncService->lastError()
             ?? ['code' => 'sync_failed', 'message' => 'Calendar sync failed.'];
 
+        // Only OL confirming the job doesn't exist (404) retires its id. A
+        // network/config failure or any other ambiguous result keeps it, so
+        // the next status poll or retry can still reach that job.
+        $jobConfirmedMissing = ($error['code'] ?? null) === '404';
+
         $followUp->updateQuietly([
-            'zoho_calendar_job_id' => null,
+            'zoho_calendar_job_id' => $jobId && ! $jobConfirmedMissing ? $jobId : null,
             'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             'zoho_calendar_sync_error' => $error['message'],
         ]);

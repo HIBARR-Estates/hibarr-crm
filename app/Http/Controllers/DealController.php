@@ -2925,15 +2925,24 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
 
+        // The zone the form sent, else the one the meeting was booked in, else
+        // the actor's own — and the same zone is stored for the next edit.
+        $timezone = UserTimezone::forWrite(
+            user(),
+            company(),
+            $request->input('timezone') ?: $followUp->timezone
+        );
+
         $next_follow_up_date = UserTimezone::interpretWallClock(
             user(),
             company(),
             $request->next_follow_up_date.' '.$request->start_time,
             'd-m-Y H:i:s',
-            $request->timezone
+            $timezone
         );
         // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
+        $followUp->timezone = $timezone;
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';

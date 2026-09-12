@@ -619,12 +619,29 @@ function toTimeValue(value: dayjs.Dayjs): string {
     return value.format("HH:mm");
 }
 
+/**
+ * A stored instant as wall clock in the zone the meeting was booked in, so an
+ * edit round-trips through follow_up_update (which reads it in that same
+ * zone). Legacy rows without a zone keep the browser-local reading.
+ */
+function followupWallClock(followup: DealFollowup): dayjs.Dayjs {
+    const instant = dayjs.utc(followup.next_follow_up_date);
+    if (followup.timezone) {
+        try {
+            return instant.tz(followup.timezone);
+        } catch {
+            // Unknown zone — fall back to browser-local below.
+        }
+    }
+    return instant.local();
+}
+
 export function buildMeetingFormFromFollowup(
     followup: DealFollowup,
     source: MeetingParticipantSource | null | undefined,
     currentUserId?: number,
 ): MeetingFormState {
-    const localDate = dayjs.utc(followup.next_follow_up_date).local();
+    const localDate = followupWallClock(followup);
     const duration = followup.duration ?? followup.effective_duration ?? 30;
     const startTime = toTimeValue(localDate);
     const customReminders =

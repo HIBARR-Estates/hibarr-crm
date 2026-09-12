@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarSyncService } from "@/Services/CalendarSyncService";
 import { useCalendarSyncJobPoller } from "@/Hooks/useCalendarSyncJobPoller";
 import type { CalendarSyncUiStatus } from "@/Types/calendar-sync";
@@ -43,12 +43,17 @@ export default function useCalendarSync(
         followup.zoho_calendar_sync_error ?? null,
     );
     const [retrying, setRetrying] = useState(false);
+    // The meeting currently shown — a retry that resolves after a switch
+    // must not write its result onto the next meeting.
+    const activeFollowUpIdRef = useRef(followup.id);
+    activeFollowUpIdRef.current = followup.id;
 
     // A different meeting starts from its own stored state.
     useEffect(() => {
         setJobId(followup.zoho_calendar_job_id ?? null);
         setSyncStatus(followup.zoho_calendar_sync_status ?? null);
         setError(followup.zoho_calendar_sync_error ?? null);
+        setRetrying(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps -- reseed per meeting, not per re-render
     }, [followup.id]);
 
@@ -67,9 +72,14 @@ export default function useCalendarSync(
     });
 
     const retry = useCallback(async () => {
+        const requestFollowUpId = followup.id;
+        const isCurrent = () =>
+            activeFollowUpIdRef.current === requestFollowUpId;
+
         setRetrying(true);
         try {
-            const result = await service.retry(followup.id);
+            const result = await service.retry(requestFollowUpId);
+            if (!isCurrent()) return;
             setJobId(result.data.jobId ?? null);
             setSyncStatus(
                 result.data.syncStatus ?? (result.ok ? "pending" : "failed"),
@@ -85,10 +95,12 @@ export default function useCalendarSync(
             // poller on its own — reset it so an exhausted poll resumes.
             if (result.ok) refresh();
         } catch {
+            if (!isCurrent()) return;
             setSyncStatus("failed");
             setError("Could not reach the server to retry the sync.");
         } finally {
-            setRetrying(false);
+            // The switch already reset `retrying` for the new meeting.
+            if (isCurrent()) setRetrying(false);
         }
     }, [followup.id, refresh, service]);
 
