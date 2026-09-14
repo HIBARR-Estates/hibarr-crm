@@ -74,7 +74,9 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 status: statusOverride,
-                timezone: getBrowserTimezone(),
+                // The zone the form's wall clock is in (the meeting's stored
+                // one); browser-local only for legacy rows without one.
+                timezone: input.timezone || getBrowserTimezone(),
             };
 
             setErrors([]);

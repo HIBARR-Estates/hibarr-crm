@@ -1,12 +1,15 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import dayjs from "dayjs";
 import {
-    formatUserDateTime,
     formatUserMonthShort,
-    formatUserTime,
     getUserDateTimeTimezone,
     isUserDateTimeEnabled,
 } from "@/lib/userDateTime";
+import { meetingBucket } from "@/Pages/Meetings/Redesign/adapters/meetingViewModel";
+import {
+    formatMeetingDateTime,
+    formatMeetingTime,
+} from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 
 export interface WorkspaceMeetingPreview {
     id: number;
@@ -17,7 +20,11 @@ export interface WorkspaceMeetingPreview {
     timeLabel: string;
     monthLabel: string;
     dayLabel: string;
+    /** Start is still ahead of the clock. */
     isUpcoming: boolean;
+    /** Start has passed and end has not — currently happening. */
+    isLive: boolean;
+    /** End has passed, or status is completed/cancelled. */
     isPast: boolean;
     location: string;
     locationType: "video" | "in_person" | "phone";
@@ -68,7 +75,10 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
     const startsAt = parseDate(meeting.next_follow_up_date);
     const normalizedStatus = meeting.status?.trim() || "scheduled";
     const meetingType = meeting.meeting_type?.name?.trim();
-    const isUpcoming = startsAt ? startsAt.getTime() >= Date.now() : false;
+    // Same start/end clock as the Meetings page strip — not start-only.
+    const bucket = startsAt
+        ? meetingBucket(meeting, getUserDateTimeTimezone())
+        : null;
     const { location, locationType } = resolveLocation(meeting);
     const attendees =
         meeting.participant_users?.map((user) => user.name).filter(Boolean) ?? [];
@@ -78,12 +88,16 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
         title: meetingType || "Meeting",
         status: normalizedStatus,
         startsAt,
-        startsAtLabel: formatUserDateTime(startsAt, { fallback: "No date" }),
-        timeLabel: formatUserTime(startsAt, "No time"),
+        startsAtLabel: formatMeetingDateTime(startsAt, {
+            fallback: "No date",
+            timezone: meeting.timezone,
+        }),
+        timeLabel: formatMeetingTime(startsAt, "No time", meeting.timezone),
         monthLabel: formatUserMonthShort(startsAt),
         dayLabel: viewerCalendarDay(startsAt),
-        isUpcoming,
-        isPast: startsAt ? startsAt.getTime() < Date.now() : false,
+        isUpcoming: bucket === "upcoming",
+        isLive: bucket === "live",
+        isPast: bucket === "past",
         location,
         locationType,
         attendeesLabel:

@@ -43,9 +43,9 @@ class UserTimezone
     }
 
     /**
-     * Parse a naive wall-clock datetime in the actor's stored timezone and return UTC.
-     * An optional $override (e.g. the browser's IANA timezone sent explicitly with the
-     * request) takes precedence over the stored user/company timezone — see {@see forWrite()}.
+     * Parse a naive wall-clock datetime and return UTC.
+     * Uses the actor's stored timezone unless a non-empty $override (the
+     * zone picked in the meeting form) is given — see {@see forWrite()}.
      */
     public static function interpretWallClock(
         ?User $user,

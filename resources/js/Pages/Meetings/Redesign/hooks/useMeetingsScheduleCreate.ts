@@ -4,10 +4,8 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import useCalendarSyncCreateWatch from "@/Hooks/useCalendarSyncCreateWatch";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -52,6 +50,7 @@ export interface ScheduleTarget {
 export default function useMeetingsScheduleCreate() {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
+    const watchCalendarSync = useCalendarSyncCreateWatch();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -106,7 +105,7 @@ export default function useMeetingsScheduleCreate() {
                 remark: form.remark.trim(),
                 participants: form.participants,
                 host_id: form.hostId,
-                timezone: getBrowserTimezone(),
+                timezone: form.timezone || undefined,
             };
 
             setErrors([]);
@@ -123,6 +122,7 @@ export default function useMeetingsScheduleCreate() {
                         return;
                     }
                     setErrors([]);
+                    watchCalendarSync(response.data);
                     onSuccess?.();
                 },
                 onError: (errorResponse) => {
@@ -141,7 +141,7 @@ export default function useMeetingsScheduleCreate() {
                 },
             });
         },
-        [mutate, props.auth?.user?.email, props.auth?.user?.timezone],
+        [mutate, props.auth?.user?.email, props.auth?.user?.timezone, watchCalendarSync],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

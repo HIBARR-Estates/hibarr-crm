@@ -210,7 +210,9 @@ export default function MeetingCard({
                     {/* Open the record, and join the call. Both leave the
                         meetings list where it is — you come back to it after
                         the meeting, so it should still be there. */}
-                    {record?.href && (
+                    {/* Live and joinable: attending is the action; the record
+                        is still one click away via its name above. */}
+                    {record?.href && !(live && showJoin) && (
                         <a
                             href={record.href}
                             target="_blank"

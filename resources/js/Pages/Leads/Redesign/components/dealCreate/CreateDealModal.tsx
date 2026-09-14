@@ -462,6 +462,7 @@ export default function CreateDealModal({
                               meetingForm.remark.trim() ||
                               `Kickoff for ${resolvedName}`,
                           reminders: meetingForm.reminders,
+                          timezone: meetingForm.timezone,
                       }
                     : undefined,
         };

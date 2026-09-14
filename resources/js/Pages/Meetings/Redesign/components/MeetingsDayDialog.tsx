@@ -1,6 +1,5 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
@@ -8,6 +7,7 @@ import {
     REDESIGN_RADIUS as R,
     REDESIGN_TOKENS as T,
 } from "@/Components/Redesign/tokens";
+import { formatMeetingTime } from "../adapters/meetingTimeLabel";
 import {
     platformIconName,
     platformLabelKey,
@@ -56,7 +56,6 @@ export default function MeetingsDayDialog({
 }: MeetingsDayDialogProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { formatTime } = useUserDateTime();
 
     if (!day) return null;
 
@@ -129,7 +128,7 @@ export default function MeetingsDayDialog({
                                     fontVariantNumeric: "tabular-nums",
                                 }}
                             >
-                                {formatTime(event.start)}
+                                {formatMeetingTime(event.start, "--", event.timezone)}
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span

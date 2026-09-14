@@ -17,6 +17,14 @@
 
 return [
 
+    'telephony' => [
+        'call' => 'Call',
+        'success' => 'Your line is ringing. Answer to connect the call.',
+        'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
+        'permission_denied' => 'You do not have permission to place calls.',
+        'generic_error' => 'Unable to initiate the call. Please try again.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'AI Summary',
         'title_lead' => 'AI Lead Summary',
@@ -1039,8 +1047,10 @@ return [
                 'cancel_meeting_confirm_title' => 'Cancel meeting?',
                 'cancel_meeting_confirm_message' => 'Attendees will no longer be reminded and the calendar event will be removed.',
                 'upcoming_label' => 'upcoming',
+                'live_label' => 'live',
                 'past_label' => 'past',
                 'section_upcoming' => 'Upcoming',
+                'section_live' => 'Happening now',
                 'section_past' => 'Past',
                 'cancel_meetings' => 'Cancel meetings',
                 'empty' => 'No meetings yet',

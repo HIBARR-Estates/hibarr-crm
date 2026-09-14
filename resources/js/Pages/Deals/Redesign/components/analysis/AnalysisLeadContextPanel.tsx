@@ -12,6 +12,8 @@ import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
+import useClickToCall from "@/Hooks/useClickToCall";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -86,13 +88,24 @@ function FieldSkeleton() {
 
 // ── ProfileCard (revamp §C.1) ──────────────────────────────────────────────
 
-function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
+function ProfileCard({
+    leadName,
+    email,
+    primaryPhone,
+    dealId,
+    whatsapp,
+    imageUrl,
+}: {
     leadName: string;
     email: string;
-    phones: string[];
+    primaryPhone: string;
+    dealId: number;
     whatsapp: string;
     imageUrl?: string;
 }) {
+    const { isEnabled: clickToCallEnabled, initiateCall, isCalling } =
+        useClickToCall();
+    const dealCallEntity = { type: "deal" as const, id: dealId };
     const initials = initialsFromName(leadName);
     const [imgError, setImgError] = useState(false);
 
@@ -122,26 +135,31 @@ function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
                     {email && (
                         <div className="text-xs text-slate-500 truncate">{email}</div>
                     )}
-                    {phones[0] && (
-                        <div className="text-xs text-slate-500 truncate">{phones[0]}</div>
+                    {primaryPhone && (
+                        <div className="text-xs text-slate-500 truncate">
+                            {primaryPhone}
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* Action buttons */}
             <div className="flex gap-2">
-                {phones[0] && (
-                    <a
-                        href={`tel:${phones[0]}`}
-                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                {primaryPhone && clickToCallEnabled && (
+                    <button
+                        type="button"
+                        disabled={isCalling(primaryPhone, dealCallEntity)}
+                        onClick={() =>
+                            void initiateCall(primaryPhone, dealCallEntity)
+                        }
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-60"
                         style={{ backgroundColor: "#0A2E5D" }}
                     >
-                        {/* Handset icon */}
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                         {"Call"}
-                    </a>
+                    </button>
                 )}
                 {email && (
                     <a
@@ -209,7 +227,17 @@ export default function AnalysisLeadContextPanel({
 
     const leadName = contact?.client_name || (deal as any).client_name || "";
     const email = contact?.client_email || "";
-    const phones = [contact?.mobile, contact?.cell, contact?.office].filter(Boolean);
+    const primaryPhone =
+        resolveLeadPhoneDisplay(
+            contact?.mobile,
+            contact?.mobile_with_phonecode,
+        ) ||
+        resolveLeadPhoneDisplay(contact?.cell) ||
+        resolveLeadPhoneDisplay(
+            contact?.office,
+            contact?.office_phone_formatted,
+        ) ||
+        "";
     const whatsapp = contact?.client_whatsapp || "";
 
     // ── Data derivations ─────────────────────────────────────────────────
@@ -372,7 +400,8 @@ export default function AnalysisLeadContextPanel({
             <ProfileCard
                 leadName={leadName}
                 email={email}
-                phones={phones}
+                primaryPhone={primaryPhone}
+                dealId={deal.id}
                 whatsapp={whatsapp}
                 imageUrl={
                     contact?.image && contact?.image_url

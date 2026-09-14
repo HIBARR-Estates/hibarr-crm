@@ -3,11 +3,13 @@ import dayjs from "dayjs";
 import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ScheduleEntry } from "../types";
-import { agendaDay, durationLabel } from "./format";
+import { agendaDay, durationLabel, isAgendaActive, isAgendaLive, isAgendaUpcoming } from "./format";
 
 interface AgendaTimelineProps {
     meetings: ScheduleEntry[];
     now: string;
+    /** Ticking client clock; when omitted, `now` is used. */
+    clock?: string;
     onOpenMeeting: (meeting: ScheduleEntry) => void;
     /** Opens the Schedule Meeting drawer — the empty state's own CTA. */
     onScheduleMeeting: () => void;
@@ -23,20 +25,31 @@ interface AgendaTimelineProps {
 export default function AgendaTimeline({
     meetings,
     now,
+    clock,
     onOpenMeeting,
     onScheduleMeeting,
 }: AgendaTimelineProps) {
     const { td } = useTd();
 
-    // Strictly ahead of the clock — the server already filters this, but the
-    // page's own `now` is the one both the queue and the agenda agree on.
+    // Live + upcoming. Prefer the ticking client stamp so a meeting that
+    // started (or ended) while this page was open moves buckets without reload.
+    const clockStamp = clock ?? now;
     const items = useMemo(
         () =>
             meetings
-                .filter((meeting) => meeting.at && dayjs(meeting.at).isAfter(now))
+                .filter((meeting) =>
+                    isAgendaActive(meeting.at, meeting.duration, clockStamp),
+                )
                 .sort((a, b) => (a.at as string).localeCompare(b.at as string)),
-        [meetings, now],
+        [meetings, clockStamp],
     );
+
+    const nextUpcomingId = useMemo(() => {
+        const next = items.find((meeting) =>
+            isAgendaUpcoming(meeting.at, clockStamp),
+        );
+        return next?.id ?? null;
+    }, [items, clockStamp]);
 
     if (!items.length) {
         return (
@@ -143,7 +156,12 @@ export default function AgendaTimeline({
 
             <div>
                 {items.map((meeting, index) => {
-                    const isNext = index === 0;
+                    const live = isAgendaLive(
+                        meeting.at,
+                        meeting.duration,
+                        clockStamp,
+                    );
+                    const isNext = !live && meeting.id === nextUpcomingId;
                     const meta = [
                         meeting.type,
                         meeting.location_label,
@@ -190,7 +208,11 @@ export default function AgendaTimeline({
                                     style={{
                                         fontSize: 13,
                                         fontWeight: 600,
-                                        color: isNext ? T.BLUE : T.TEXT,
+                                        color: live
+                                            ? T.RED
+                                            : isNext
+                                              ? T.BLUE
+                                              : T.TEXT,
                                     }}
                                 >
                                     {dayjs(meeting.at).format("HH:mm")}
@@ -213,7 +235,11 @@ export default function AgendaTimeline({
                                     width: 2,
                                     alignSelf: "stretch",
                                     borderRadius: 2,
-                                    background: isNext ? T.BLUE : T.NAVY,
+                                    background: live
+                                        ? T.RED
+                                        : isNext
+                                          ? T.BLUE
+                                          : T.NAVY,
                                     flex: "none",
                                 }}
                             />
@@ -241,6 +267,18 @@ export default function AgendaTimeline({
                                     >
                                         {meeting.title}
                                     </span>
+                                    {live && (
+                                        <Badge
+                                            variant="red"
+                                            style={{
+                                                letterSpacing: "0.04em",
+                                                textTransform: "uppercase",
+                                                padding: "4px 7px",
+                                            }}
+                                        >
+                                            {td("Live")}
+                                        </Badge>
+                                    )}
                                     {isNext && (
                                         <Badge
                                             variant="blue"

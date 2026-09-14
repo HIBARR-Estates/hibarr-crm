@@ -4,6 +4,7 @@ import type { Task } from "@/Types/api/tasks";
 import { useMemo } from "react";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
+import useMeetingClockTick from "./useMeetingClockTick";
 import {
     toWorkspaceMeetingPreview,
     type WorkspaceMeetingPreview,
@@ -36,6 +37,7 @@ export default function useWorkspaceOverview({
 }: UseWorkspaceOverviewArgs): WorkspaceOverviewData {
     useUserDateTime();
     const dateTimeVersion = getUserDateTimeContextVersion();
+    const meetingClockTick = useMeetingClockTick(dealFollowUps);
     const mappedNotes = useMemo(() => notes.map(toWorkspaceNotePreview), [notes]);
 
     const mappedTasks = useMemo(() => {
@@ -66,14 +68,17 @@ export default function useWorkspaceOverview({
                 if (!left.startsAt && right.startsAt) return 1;
                 return left.title.localeCompare(right.title);
             });
-    }, [dealFollowUps, dateTimeVersion]);
+    }, [dealFollowUps, dateTimeVersion, meetingClockTick]);
 
     const openTasksCount = useMemo(
         () => mappedTasks.filter((task) => task.isOpen).length,
         [mappedTasks],
     );
     const upcomingMeetingsCount = useMemo(
-        () => mappedMeetings.filter((meeting) => meeting.isUpcoming).length,
+        () =>
+            mappedMeetings.filter(
+                (meeting) => meeting.isUpcoming || meeting.isLive,
+            ).length,
         [mappedMeetings],
     );
 

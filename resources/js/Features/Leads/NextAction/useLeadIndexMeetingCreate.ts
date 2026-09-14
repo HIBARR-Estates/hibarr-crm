@@ -4,7 +4,8 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
+import useCalendarSyncCreateWatch from "@/Hooks/useCalendarSyncCreateWatch";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -50,6 +51,7 @@ export default function useLeadIndexMeetingCreate(
 ) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
+    const watchCalendarSync = useCalendarSyncCreateWatch();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -73,6 +75,7 @@ export default function useLeadIndexMeetingCreate(
                     hostId: form.hostId,
                     remark: form.remark,
                     reminders: form.reminders,
+                    timezone: form.timezone,
                 },
                 {
                     hasOwnerOrDeal: Boolean(leadOwnerId),
@@ -99,7 +102,7 @@ export default function useLeadIndexMeetingCreate(
                 remark: form.remark.trim(),
                 participants: form.participants,
                 host_id: form.hostId,
-                timezone: getBrowserTimezone(),
+                timezone: form.timezone || undefined,
             };
 
             setErrors([]);
@@ -118,6 +121,7 @@ export default function useLeadIndexMeetingCreate(
                         return;
                     }
                     setErrors([]);
+                    watchCalendarSync(response.data);
                     onSuccess?.();
                 },
                 onError: (errorResponse) => {
@@ -133,7 +137,7 @@ export default function useLeadIndexMeetingCreate(
                 },
             });
         },
-        [leadId, leadOwnerId, mutate, props.auth?.user?.email, props.auth?.user?.timezone],
+        [leadId, leadOwnerId, mutate, props.auth?.user?.email, props.auth?.user?.timezone, watchCalendarSync],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);
