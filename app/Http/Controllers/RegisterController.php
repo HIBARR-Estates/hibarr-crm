@@ -135,6 +135,8 @@ class RegisterController extends Controller
      */
     public function setupAccount(AccountSetupRequest $request)
     {
+        abort_if(User::exists(), 403, 'Account setup has already been completed.');
+
         // Update company name
         $setting = Company::firstOrCreate();
         $setting->company_name = $request->company_name;
