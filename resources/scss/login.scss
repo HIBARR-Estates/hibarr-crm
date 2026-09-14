@@ -1,99 +1,60 @@
-.login_section{
-    min-height: calc(100vh - 56px);
+/* Auth shell styles live in resources/views/components/auth.blade.php
+   so the branded login layout does not depend on a Mix rebuild.
+   Keep these rules as a fallback for compiled main.css consumers. */
+
+.hibarr-auth {
+    min-height: 100dvh;
+    background: #003160;
 }
-.login_header{
-    box-shadow: 0 1px 0 0 $grey;
-    padding: 12px 0px;
 
-    img{
-        max-height: 32px;
-    }
-
-    h3{
-        font-size: 21px;
-        color:  $dark_text;
-        font-weight: normal;
-    }
+.login_section {
+    min-height: 100dvh;
 }
-.login_box{
-    width: 452px;
-    padding: 30px 30px;
 
-    @include media-breakpoint-down(sm){
-        width: 95%;
+.login_box {
+    width: 100%;
+    max-width: 420px;
+    padding: 36px 32px 28px;
+
+    @include media-breakpoint-down(sm) {
+        width: 100%;
+        padding: 28px 20px 22px;
     }
 
-    h3{
-        font-size: 21px;
-        color:  $dark_text;
-        font-weight: normal;
+    h3 {
+        font-size: 22px;
+        color: #1a1f2e;
+        font-weight: 600;
     }
 
     a {
-        border: 1px solid $grey;
+        border: none;
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 10px 0px;
-        color: $dark_text;
-        font-size: 18px;
-        &:focus,
-        &:hover{
-        border-color:$light;
-        box-shadow:none;
-        }
-
-        span{
-            width: 28px;
-            height: 28px;
-            background-color: #F3F3F3;
-            border-radius: 50%;
-            padding: 5px;
-            margin-right: 13px;
-            overflow: hidden;
-            line-height: 17px;
-        }
-    }
-
-    p{
+        padding: 12px 16px;
+        color: #1a1f2e;
         font-size: 15px;
-        color: $dark_grey;
+    }
+
+    p {
+        font-size: 15px;
+        color: #5b6472;
         font-weight: normal;
-
-        &:after,
-        &:before{
-            content: '';
-            width: 81px;
-            height: 1px;
-            position: absolute;
-            background-color: $light_text;
-            top: 50%;
-
-            @include media-breakpoint-down(sm){
-                content: none;
-            }
-        }
-
-        &:before{
-            left: 0;
-        }
-
-        &:after{
-            right: 0;
-        }
     }
 }
 
-.login_box .form-group label{
-    font-size: 15px;
-    color: $dark_grey;
+.login_box .form-group label {
+    font-size: 13px;
+    color: #5b6472;
 }
-.forgot_pswd a{
-    color: $dark_grey;
+
+.forgot_pswd a {
+    color: #5b6472;
     padding: 0;
     border: none;
     text-decoration: underline;
-    font-size: 12px;
-    justify-content: left;
+    font-size: 13px;
+    justify-content: center;
 }
