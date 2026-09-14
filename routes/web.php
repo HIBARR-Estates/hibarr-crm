@@ -25,6 +25,7 @@ use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
 use App\Http\Controllers\DealNoteController;
 use App\Http\Controllers\DealPaymentController;
+use App\Http\Controllers\TelephonyCallController;
 use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
@@ -1412,6 +1413,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
+
+    Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
 
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
