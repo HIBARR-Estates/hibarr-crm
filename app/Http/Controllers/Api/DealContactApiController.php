@@ -41,7 +41,8 @@ class DealContactApiController extends Controller
      */
     public function __construct()
     {
-        // $this->middleware('api.token.auth');
+        // Authentication is route middleware (api.token in routes/api.php). Kept
+        // empty so Controller::__construct's web-session setup doesn't run here.
     }
 
     /**
@@ -54,6 +55,8 @@ class DealContactApiController extends Controller
         try {
             $dealId = $request->input('deal_id');
             $newStageId = $request->input('new_stage_id');
+            // Set by ApiTokenAuth from the token's own company.
+            $companyId = $request->header('X-COMPANY-ID');
 
             // Debug logging
             Log::info('API Request Data:', [
@@ -61,14 +64,16 @@ class DealContactApiController extends Controller
                 'new_stage_id' => $newStageId,
             ]);
 
-            // Check if deal exists
-            $deal = Deal::find($dealId);
+            // Check if deal exists (within the token's company)
+            $deal = Deal::where('company_id', $companyId)->find($dealId);
             if (! $deal) {
                 return Reply::error("Deal with ID {$dealId} not found.");
             }
 
-            // Check if stage exists
-            $newStage = PipelineStage::find($newStageId);
+            // Check if stage exists: the deal's company's stages, or shared ones
+            $newStage = PipelineStage::where(function ($query) use ($deal) {
+                $query->where('company_id', $deal->company_id)->orWhereNull('company_id');
+            })->find($newStageId);
             if (! $newStage) {
                 return Reply::error("Pipeline stage with ID {$newStageId} not found.");
             }
