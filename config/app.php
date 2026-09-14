@@ -252,6 +252,9 @@ return [
         /*
          * Package Service Providers...
          */
+        // froiden/envato is excluded from auto-discovery (composer.json) and
+        // registered through this subclass, which does not load its route file.
+        App\Providers\FroidenEnvatoServiceProvider::class,
 
         /*
          * Application Service Providers...
