@@ -407,7 +407,7 @@ class BitrixImportController extends Controller
 
     public function taskImport(Request $request)
     {
-        $companyId = $request->header('X-COMPANY-ID') ?? 1;
+        $companyId = $request->header('X-COMPANY-ID');
         $bitrixDealId = $request->input('dealId');
         $tasks = $request->input('tasks', []);
         
