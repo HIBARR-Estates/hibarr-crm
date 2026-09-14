@@ -130,8 +130,10 @@ return [
     |
     */
 
+    // Self-service registration is disabled: Keycloak SSO is the only
+    // supported way to obtain access to the CRM, and registration would
+    // create an account and log the user in directly, bypassing that.
     'features' => [
-        Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::updateProfileInformation(),
