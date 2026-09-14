@@ -44,9 +44,9 @@ Route::get('/invoice/download/{id}', [HomeController::class, 'downloadInvoice'])
 Route::post('/invoice-payment-failed/{invoiceId}', [HomeController::class, 'invoicePaymentfailed'])->name('front.invoice_payment_failed');
 
 Route::get('/lead-form/{id}', [HomeController::class, 'leadForm'])->name('front.lead_form');
-Route::post('/lead-form/leadStore', [HomeController::class, 'leadStore'])->name('front.lead_store');
+Route::post('/lead-form/leadStore', [HomeController::class, 'leadStore'])->middleware('throttle:10,1')->name('front.lead_store');
 Route::get('/ticket-form/{id}', [HomeController::class, 'ticketForm'])->name('front.ticket_form');
-Route::post('/lead-form/ticket-store', [HomeController::class, 'ticketStore'])->name('front.ticket_store');
+Route::post('/lead-form/ticket-store', [HomeController::class, 'ticketStore'])->middleware('throttle:10,1')->name('front.ticket_store');
 
 Route::post('/contract/sign/{id}', [PublicUrlController::class, 'contractSign'])->name('front.contract.sign');
 Route::get('/contract/download/{id}', [PublicUrlController::class, 'contractDownload'])->name('front.contract.download');
