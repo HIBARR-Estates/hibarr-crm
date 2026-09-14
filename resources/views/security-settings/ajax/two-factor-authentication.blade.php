@@ -146,21 +146,12 @@
 
 <script>
     $('#regenerate-codes').click(function() {
-        let url = "/user/two-factor-recovery-codes";
-        let token = "{{ csrf_token() }}";
-        let method = 'POST';
+        // Fortify requires a fresh password confirmation before regenerating codes;
+        // the confirm modal regenerates them once the password is accepted.
+        let url = "{{ route('verify_2fa_password') }}" + '?method=recovery_codes&status=regenerate';
 
-        $.easyAjax({
-            url: url,
-            type: "POST",
-            data: {
-                '_token': token,
-                '_method': method
-            },
-            success: function(response) {
-                window.location.reload();
-            }
-        });
+        $(MODAL_DEFAULT + ' ' + MODAL_HEADING).html('...');
+        $.ajaxModal(MODAL_DEFAULT, url);
     });
 
     $('.change-2fa-status').click(function() {

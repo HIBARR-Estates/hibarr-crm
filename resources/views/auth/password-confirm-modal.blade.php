@@ -42,10 +42,29 @@
             type: "POST",
             data: $('#reset-password-form').serialize(),
             success: function(response) {
-                changeFortifySettings();
+                if ('{{ $method }}' === 'recovery_codes') {
+                    regenerateRecoveryCodes();
+                } else {
+                    changeFortifySettings();
+                }
             }
         })
     });
+
+    function regenerateRecoveryCodes() {
+        $.easyAjax({
+            url: "/user/two-factor-recovery-codes",
+            type: "POST",
+            blockUI: true,
+            container: '#reset-password-form',
+            data: {
+                '_token': "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                window.location.reload();
+            }
+        });
+    }
 
     function changeFortifySettings() {
 
