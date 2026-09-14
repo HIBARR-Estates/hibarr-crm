@@ -709,7 +709,8 @@ class DealObserver
                 'address' => $lead->address,
             ];
 
-            $user = User::create($data);
+            // forceCreate: company_id is guarded on User; $data is built above from the lead.
+            $user = User::forceCreate($data);
             $user->clientDetails()->create($data);
             $client_id = $user->id;
 

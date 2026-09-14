@@ -263,12 +263,29 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     ];
 
     /**
-     * The attributes that are mass assignable.
+     * Columns that request data must never set through create()/update()/fill().
+     * ClientController passes $request->all() straight into User::create/update,
+     * so tenancy, approval, permission-sync and 2FA state are guarded here.
+     * Trusted internal code that builds its own array uses forceCreate/forceFill.
+     * (login and status stay assignable: the client forms post them.)
      *
      * @var array
      */
     protected $guarded = [
-        'id'
+        'id',
+        'company_id',
+        'admin_approval',
+        'permission_sync',
+        'customised_permissions',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed',
+        'two_factor_email_confirmed',
+        'two_fa_verify_via',
+        'two_factor_code',
+        'two_factor_expires_at',
+        'remember_token',
+        'last_login',
     ];
 
     /**
