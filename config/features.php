@@ -46,5 +46,6 @@ return [
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
+        'shared.3cx-calling',
     ],
 ];

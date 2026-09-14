@@ -6,7 +6,9 @@ import {
     RightOutlined,
 } from "@ant-design/icons";
 import { Tooltip } from "antd";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TelephonyCallEntity } from "@/Types/api/telephony";
 
 // ─── DetailFieldEditContext ────────────────────────────────────────────────────
 // Lets a child EditableField register its startEditing fn so the parent
@@ -117,6 +119,10 @@ interface DetailFieldProps {
     className?: string;
     /** Plain-text value to copy to clipboard on icon click (e.g. email, phone) */
     copyValue?: string;
+    /** Dialable phone for 3CX click-to-call (when shared.3cx-calling is on). */
+    callPhone?: string;
+    /** Originating CRM entity passed to the telephony proxy. */
+    callEntity?: TelephonyCallEntity;
     /** Match the parent grid's breakpoint kind — pass this whenever the
      * DetailSection/CustomFieldDisplay it's rendered in was given
      * useContainerQuery, otherwise a span-2 field ignores the container's
@@ -135,6 +141,8 @@ export function DetailField({
     span = 1,
     className = "",
     copyValue,
+    callPhone,
+    callEntity,
     useContainerQuery = false,
     dataDealField,
     dataFieldKey,
@@ -228,6 +236,12 @@ export function DetailField({
                         <div className="min-w-0 flex-1 overflow-hidden break-words [overflow-wrap:anywhere]">
                             {children}
                         </div>
+                        {callPhone && callEntity && !isFieldEditing && (
+                            <ClickToCallButton
+                                phone={callPhone}
+                                entity={callEntity}
+                            />
+                        )}
                         {copyValue && !isFieldEditing && (
                             <Tooltip title={copied ? "Copied!" : "Copy"}>
                                 {copied ? (
