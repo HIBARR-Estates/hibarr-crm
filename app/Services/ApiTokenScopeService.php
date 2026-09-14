@@ -37,28 +37,16 @@ class ApiTokenScopeService
     }
 
     /**
-     * Null means unrestricted (full access).
+     * Scopes granted by a token's permissions payload. Empty or malformed
+     * payloads grant nothing — full access is the token's separate
+     * `unrestricted` flag, never an absence of scopes.
      *
-     * @return list<string>|null
+     * @return list<string>
      */
-    public static function normalizeScopes(mixed $permissions): ?array
+    public static function normalizeScopes(mixed $permissions): array
     {
-        if ($permissions === null) {
-            return null;
-        }
-
         if (is_string($permissions)) {
-            if ($permissions === '') {
-                return [];
-            }
-
-            $decoded = json_decode($permissions, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-                return [];
-            }
-
-            $permissions = $decoded;
+            $permissions = json_decode($permissions, true);
         }
 
         if (!is_array($permissions)) {
@@ -66,17 +54,7 @@ class ApiTokenScopeService
         }
 
         if (array_key_exists('scopes', $permissions)) {
-            $scopes = $permissions['scopes'];
-
-            if ($scopes === null || $scopes === []) {
-                return null;
-            }
-
-            return self::sanitizeScopes(is_array($scopes) ? $scopes : []);
-        }
-
-        if ($permissions === []) {
-            return null;
+            return self::sanitizeScopes(is_array($permissions['scopes']) ? $permissions['scopes'] : []);
         }
 
         if (array_is_list($permissions)) {
@@ -86,22 +64,18 @@ class ApiTokenScopeService
         return [];
     }
 
-    public static function isUnrestricted(mixed $permissions): bool
+    public static function routeAllowed(?string $routeName, mixed $permissions, bool $unrestricted = false): bool
     {
-        return self::normalizeScopes($permissions) === null;
-    }
-
-    public static function routeAllowed(?string $routeName, mixed $permissions): bool
-    {
-        if ($routeName === null || $routeName === '') {
+        if ($unrestricted) {
             return true;
+        }
+
+        // Scopes are route names, so an unnamed route can't be granted.
+        if ($routeName === null || $routeName === '') {
+            return false;
         }
 
         $scopes = self::normalizeScopes($permissions);
-
-        if ($scopes === null) {
-            return true;
-        }
 
         if (in_array($routeName, $scopes, true)) {
             return true;
@@ -139,7 +113,7 @@ class ApiTokenScopeService
      */
     public static function scopesForToken(mixed $permissions): array
     {
-        return self::normalizeScopes($permissions) ?? [];
+        return self::normalizeScopes($permissions);
     }
 
     /**
