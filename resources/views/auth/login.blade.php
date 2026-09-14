@@ -1,11 +1,15 @@
 <x-auth>
     <div id="login-form">
-        <h3 class="mb-4 f-w-500">@lang('app.login')</h3>
+        <h3 class="auth-title">@lang('auth.signIn')</h3>
 
-        <a href="{{ route('social_login', 'keycloak') }}" class="mb-3 height_50 rounded f-w-500">
-            <span><i class="fa fa-shield-alt" style="font-size: 18px;"></i></span>
+        <a href="{{ route('social_login', 'keycloak') }}" class="auth-sso-btn">
+            <span class="auth-sso-icon"><i class="fa fa-shield-alt"></i></span>
             @lang('auth.signInKeycloak')
         </a>
+
+        <p class="auth-support">
+            {!! __('auth.signInSupport', ['email' => '<a href="mailto:support@hibarr.de">support@hibarr.de</a>']) !!}
+        </p>
     </div>
 
     <x-slot name="scripts">

@@ -12,7 +12,6 @@ use Froiden\Envato\Traits\AppBoot;
 use Illuminate\Support\Facades\App;
 use App\Actions\Fortify\CreateNewUser;
 use Illuminate\Support\ServiceProvider;
-use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use Laravel\Fortify\Contracts\LogoutResponse;
 use App\Actions\Fortify\AttemptToAuthenticate;
@@ -68,7 +67,6 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
-        Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         // Fortify::authenticateThrough();
         // Email/password authentication is disabled: Keycloak SSO (see
@@ -81,15 +79,6 @@ class FortifyServiceProvider extends ServiceProvider
             ]);
         });
 
-
-        Fortify::requestPasswordResetLinkView(function () {
-            $globalSetting = GlobalSetting::first();
-            App::setLocale($globalSetting->locale);
-            Carbon::setLocale($globalSetting->locale);
-            setlocale(LC_TIME, $globalSetting->locale . '_' . mb_strtoupper($globalSetting->locale));
-
-            return view('auth.passwords.forget', ['globalSetting' => $globalSetting]);
-        });
 
         Fortify::loginView(function () {
 
@@ -124,15 +113,6 @@ class FortifyServiceProvider extends ServiceProvider
                 'languages' => $languages,
             ]);
 
-        });
-
-        Fortify::resetPasswordView(function ($request) {
-            $globalSetting = GlobalSetting::first();
-            App::setLocale($globalSetting->locale);
-            Carbon::setLocale($globalSetting->locale);
-            setlocale(LC_TIME, $globalSetting->locale . '_' . mb_strtoupper($globalSetting->locale));
-
-            return view('auth.passwords.reset-password', ['request' => $request, 'globalSetting' => $globalSetting]);
         });
 
         Fortify::confirmPasswordView(function ($request) {

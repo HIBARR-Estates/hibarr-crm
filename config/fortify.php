@@ -130,11 +130,11 @@ return [
     |
     */
 
-    // Self-service registration is disabled: Keycloak SSO is the only
-    // supported way to obtain access to the CRM, and registration would
-    // create an account and log the user in directly, bypassing that.
+    // Self-service registration and password reset are disabled: Keycloak
+    // SSO is the only supported way to obtain access to the CRM.
+    // Public /forgot-password and /reset-password URLs redirect to login
+    // (see routes/web-public.php) so old links cannot recover a local password.
     'features' => [
-        Features::resetPasswords(),
         Features::emailVerification(),
         Features::updateProfileInformation(),
         Features::updatePasswords(),
