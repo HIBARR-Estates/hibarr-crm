@@ -18,7 +18,7 @@ import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
@@ -369,7 +369,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
             </Card>
 
             {canAdd && (
-                <ScheduleMeetingDrawer
+                <MeetingScheduleModal
                     open={scheduleOpen}
                     onClose={() => setScheduleOpen(false)}
                     userDeals={userDeals}

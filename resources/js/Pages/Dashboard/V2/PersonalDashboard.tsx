@@ -17,7 +17,7 @@ import DashboardPanel, {
 import PersonalTaskModal from "./personal/PersonalTaskModal";
 import PersonalTaskCreateModal from "./personal/PersonalTaskCreateModal";
 import MeetingActionModals from "./components/MeetingActionModals";
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import useDashboardTaskReschedule from "./hooks/useDashboardTaskReschedule";
 import useDashboardMeetingStatus from "./hooks/useDashboardMeetingStatus";
 import type { QueueTask, ScheduleEntry } from "./types";
@@ -526,7 +526,7 @@ export default function PersonalDashboard({
                         }
                     />
 
-                    <ScheduleMeetingDrawer
+                    <MeetingScheduleModal
                         open={scheduleOpen}
                         onClose={() => setScheduleOpen(false)}
                         userDeals={userDeals ?? []}

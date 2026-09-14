@@ -40,7 +40,7 @@ import { getStatusColor } from "@/lib/utils";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
@@ -768,8 +768,8 @@ function LegacyMeetingsIndex() {
                 />
             </div>
 
-            {/* ── Schedule Meeting Drawer ──────────────────────────── */}
-            <ScheduleMeetingDrawer
+            {/* ── Schedule Meeting (shared orphan flow) ────────────── */}
+            <MeetingScheduleModal
                 open={scheduleOpen}
                 onClose={() => setScheduleOpen(false)}
                 userDeals={userDeals}
