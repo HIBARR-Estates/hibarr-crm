@@ -25,8 +25,8 @@ Route::get('/', function () {
     return redirect(route('login'));
 });
 
-Route::get('/invitation/{code}', [RegisterController::class, 'invitation'])->name('invitation');
-Route::post('/invitation/accept-invite', [RegisterController::class, 'acceptInvite'])->name('accept_invite');
+Route::get('/invitation/{code}', [RegisterController::class, 'invitation'])->middleware('throttle:10,1')->name('invitation');
+Route::post('/invitation/accept-invite', [RegisterController::class, 'acceptInvite'])->middleware('throttle:10,1')->name('accept_invite');
 
 
 
