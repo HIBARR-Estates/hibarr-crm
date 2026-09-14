@@ -94,6 +94,38 @@ class DealPaymentRequestTest extends TestCase
         ]);
     }
 
+    public function test_create_omits_provider_key_when_not_supplied(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '510',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/510',
+                    'amount' => 1000,
+                ],
+            ], 201),
+        ]);
+
+        $deal = $this->makeDeal();
+        $user = $this->makeUser();
+
+        $result = app(DealPaymentService::class)->createForDeal($deal, $user, [
+            'amount' => 1000,
+            'currency' => 'EUR',
+        ]);
+
+        Http::assertSent(function ($request) {
+            $data = $request->data();
+
+            return $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+                && !array_key_exists('provider_key', $data);
+        });
+
+        $this->assertSame('510', $result['payment_id']);
+        $this->assertSame('https://checkout.test/pay/510', $result['checkout_url']);
+    }
+
     public function test_get_merges_local_checkout_url_with_ol_pull_status(): void
     {
         $paymentId = $this->insertPayment([
