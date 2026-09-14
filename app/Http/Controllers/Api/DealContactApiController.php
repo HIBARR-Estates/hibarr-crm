@@ -70,9 +70,10 @@ class DealContactApiController extends Controller
                 return Reply::error("Deal with ID {$dealId} not found.");
             }
 
-            // Check if stage exists: the deal's company's stages, or shared ones
-            $newStage = PipelineStage::where(function ($query) use ($deal) {
-                $query->where('company_id', $deal->company_id)->orWhereNull('company_id');
+            // The stage must sit in a pipeline owned by the deal's company. Token
+            // requests get no CompanyScope, so the pipeline's company is checked here.
+            $newStage = PipelineStage::whereHas('pipeline', function ($query) use ($deal) {
+                $query->where('company_id', $deal->company_id);
             })->find($newStageId);
             if (! $newStage) {
                 return Reply::error("Pipeline stage with ID {$newStageId} not found.");
