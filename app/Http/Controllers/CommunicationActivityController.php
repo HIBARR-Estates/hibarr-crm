@@ -49,6 +49,11 @@ class CommunicationActivityController extends Controller
      */
     public function getDealActivities(Request $request, $dealId)
     {
+        // X-COMPANY-ID is set by ApiTokenAuth from the token (not the client), and
+        // the deal must belong to that company. Token requests get no CompanyScope.
+        $companyId = $request->header('X-COMPANY-ID');
+        abort_unless($companyId && Deal::where('company_id', $companyId)->whereKey($dealId)->exists(), 404);
+
         $perPage = $request->get('per_page', $this->defaultPageSize);
         $activities = CommunicationActivity::where('deal_id', $dealId)
             ->with(['replies', 'parentActivity'])
@@ -65,6 +70,10 @@ class CommunicationActivityController extends Controller
      */
     public function getLeadActivities(Request $request, $leadId)
     {
+        // Same tenant check as getDealActivities(), through the parent lead.
+        $companyId = $request->header('X-COMPANY-ID');
+        abort_unless($companyId && Lead::where('company_id', $companyId)->whereKey($leadId)->exists(), 404);
+
         $perPage = $request->get('per_page', $this->defaultPageSize);
         $activities = CommunicationActivity::where('lead_id', $leadId)
             ->with(['replies', 'parentActivity'])
@@ -81,8 +90,12 @@ class CommunicationActivityController extends Controller
      */
     public function getActivitiesByChannel(Request $request, $channelType)
     {
+        $companyId = $request->header('X-COMPANY-ID');
+        abort_unless($companyId, 404);
+
         $perPage = $request->get('per_page', $this->defaultPageSize);
-        $activities = CommunicationActivity::where('channel_type', $channelType)
+        $activities = CommunicationActivity::where('company_id', $companyId)
+            ->where('channel_type', $channelType)
             ->orderByDesc('timestamp')
             ->paginate($perPage);
 
