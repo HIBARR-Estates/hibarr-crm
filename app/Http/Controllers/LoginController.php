@@ -80,6 +80,11 @@ class LoginController extends Controller
 
     public function redirect($provider)
     {
+        // Keycloak SSO is the only supported way to sign in to the CRM.
+        if ($provider !== 'keycloak') {
+            abort(404);
+        }
+
         $this->setSocailAuthConfigs();
 
         return Socialite::driver($provider)->redirect();
@@ -87,6 +92,11 @@ class LoginController extends Controller
 
     public function callback(Request $request, $provider)
     {
+        // Keycloak SSO is the only supported way to sign in to the CRM.
+        if ($provider !== 'keycloak') {
+            abort(404);
+        }
+
         Log::info("Social login callback started", ['provider' => $provider, 'query' => $request->query()]);
 
         $this->setSocailAuthConfigs();
