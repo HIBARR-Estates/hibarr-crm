@@ -282,7 +282,7 @@
                                           @if ($label->description)
                                                 data-toggle="popover"
                                                 data-placement="top"
-                                                data-content="{!! $label->description !!}"
+                                                data-content="{{ clean_html($label->description) }}"
                                                 data-html="true"
                                                 data-trigger="hover"
                                             @endif

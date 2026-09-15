@@ -35,7 +35,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! $comment->comment !!}
+                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! clean_html($comment->comment) !!}
                 </div>
             </div>
         </div>

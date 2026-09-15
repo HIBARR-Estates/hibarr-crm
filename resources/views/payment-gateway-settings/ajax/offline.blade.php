@@ -17,7 +17,7 @@
                         <td>{{ $loop->iteration }}</td>
 {{--                        <td>@if($method->image) <img src="{{$method->image_url}}" height="100px" width="100px">@else - @endif</td>--}}
                         <td>{{ $method->name }}</td>
-                        <td class="text-break">{!! nl2br($method->description) !!} </td>
+                        <td class="text-break">{!! clean_html(nl2br($method->description)) !!} </td>
                         <td>{!! ($method->status == 'yes') ? \App\Helper\Common::active(): \App\Helper\Common::inactive() !!}</td>
 
                         <td class="text-right">

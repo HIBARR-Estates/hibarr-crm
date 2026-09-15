@@ -36,7 +36,7 @@
                 <x-cards.data :title="__('app.project') . ' ' . __('app.note')"
                     otherClasses="d-flex justify-content-between align-items-center">
                     <div class="text-dark-grey mb-0 ql-editor">
-                        {!! $template->notes !!}
+                        {!! clean_html($template->notes) !!}
                     </div>
                 </x-cards.data>
             </div>

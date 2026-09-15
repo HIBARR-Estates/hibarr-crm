@@ -132,7 +132,7 @@
             </table>
             <div class="row">
                 <div class="col-sm-12 ql-editor">
-                    {!! $invoice->description !!}
+                    {!! clean_html($invoice->description) !!}
                 </div>
             </div>
             @if (count($invoice->items) > 0)
@@ -338,7 +338,7 @@
                             <table>
                                 <tr>@lang('app.note')</tr>
                                 <tr>
-                                    <p class="text-dark-grey">{!! !empty($invoice->note) ? nl2br($invoice->note) : '--' !!}</p>
+                                    <p class="text-dark-grey">{!! clean_html(!empty($invoice->note) ? nl2br($invoice->note) : '--') !!}</p>
                                 </tr>
                             </table>
                         </td>
