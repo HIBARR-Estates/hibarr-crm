@@ -2,8 +2,11 @@
 
 namespace Tests\Unit\Http;
 
+use App\Http\Controllers\EmailTemplateController;
+use App\Http\Controllers\TicketController;
 use App\Http\Middleware\SanitizeRichTextInput;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Tests\TestCase;
 
 class SanitizeRichTextInputTest extends TestCase
@@ -36,21 +39,39 @@ class SanitizeRichTextInputTest extends TestCase
         $this->assertStringNotContainsString('onerror', $this->handle($request)->input('details'));
     }
 
-    public function test_email_template_fields_and_non_rich_text_keys_are_left_alone(): void
+    public function test_email_template_fields_stay_raw_on_the_template_editor_routes(): void
     {
         $template = '<html><head><style>p { color: red; }</style></head><body><p onclick="x()">Hi</p></body></html>';
 
-        $request = $this->handle(Request::create('/templates', 'POST', [
+        $request = Request::create('/account/settings/email-templates/1', 'PUT', [
             'body' => $template,
             'subject' => '<b>Subject</b>',
             'preheader' => '<i>Preheader</i>',
-            'name' => self::PAYLOAD,
-        ]));
+        ]);
+        $request->setRouteResolver(fn () => new Route('PUT', 'account/settings/email-templates/{email_template}', ['uses' => EmailTemplateController::class . '@update']));
+
+        $request = $this->handle($request);
 
         $this->assertSame($template, $request->input('body'));
         $this->assertSame('<b>Subject</b>', $request->input('subject'));
         $this->assertSame('<i>Preheader</i>', $request->input('preheader'));
-        // Non-rich-text keys are stripped by the XSS middleware, not here.
+    }
+
+    public function test_template_field_names_are_sanitized_on_other_routes(): void
+    {
+        $request = Request::create('/account/tickets', 'POST', ['subject' => self::PAYLOAD, 'body' => self::PAYLOAD]);
+        $request->setRouteResolver(fn () => new Route('POST', 'account/tickets', ['uses' => TicketController::class . '@store']));
+
+        $request = $this->handle($request);
+
+        $this->assertStringNotContainsString('onerror', $request->input('subject'));
+        $this->assertStringNotContainsString('onerror', $request->input('body'));
+    }
+
+    public function test_non_rich_text_keys_are_left_to_the_xss_middleware(): void
+    {
+        $request = $this->handle(Request::create('/notes', 'POST', ['name' => self::PAYLOAD]));
+
         $this->assertSame(self::PAYLOAD, $request->input('name'));
     }
 

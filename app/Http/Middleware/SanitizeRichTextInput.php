@@ -2,9 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\EmailTemplateController;
 use App\Support\HtmlSanitizer;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Nwidart\Modules\Facades\Module;
 
 /**
@@ -19,9 +21,13 @@ class SanitizeRichTextInput
 {
     /**
      * Email template fields (Settings > Automation > Email Templates): full HTML
-     * documents authored by admins with manage_company_setting, kept raw on purpose.
+     * documents authored by admins with manage_company_setting. They stay raw
+     * only on that editor's routes; elsewhere (ticket and contract subjects,
+     * for example) they're sanitized like the other rich-text keys.
      */
     private const RAW_HTML_KEYS = ['body', 'subject', 'preheader'];
+
+    private const RAW_HTML_CONTROLLERS = [EmailTemplateController::class];
 
     public function handle(Request $request, Closure $next)
     {
@@ -29,7 +35,13 @@ class SanitizeRichTextInput
             return $next($request);
         }
 
-        $keys = array_diff($this->richTextKeys(), self::RAW_HTML_KEYS);
+        $keys = $this->richTextKeys();
+        $route = $request->route();
+
+        if ($route instanceof Route && in_array($route->getControllerClass(), self::RAW_HTML_CONTROLLERS, true)) {
+            $keys = array_diff($keys, self::RAW_HTML_KEYS);
+        }
+
         $changed = [];
 
         foreach ($request->input() as $key => $value) {
