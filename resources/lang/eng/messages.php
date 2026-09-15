@@ -329,6 +329,7 @@ return array(
     'addLinkedinCallback' => 'Add this callback url on your linkedin app settings.',
     'addTwitterCallback' => 'Add this callback url on your twitter app settings.',
     'addKeycloakCallback' => 'Add this callback url as a Valid Redirect URI in your Keycloak client settings.',
+    'keycloakAlwaysEnabled' => 'Keycloak is the only supported way to sign in to the CRM and cannot be disabled.',
     'clockOutTimeError' => 'Clock-out time cannot be less than clock in time',
     'leaveTypeValueError' => 'No of leaves should be greater than or equal to Zero',
     'employeeLeaveQuota' => 'No of leaves should be greater than or equal to Zero and should be greater than leaves taken',

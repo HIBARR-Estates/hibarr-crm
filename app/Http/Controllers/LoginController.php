@@ -104,8 +104,8 @@ class LoginController extends Controller
     public function redirect($provider)
     {
         // Keycloak SSO is the only supported way to sign in to the CRM,
-        // and only when an admin has enabled it in Social Login Settings.
-        if ($provider !== 'keycloak' || !$this->socialProviderEnabled($provider)) {
+        // and it can't be disabled (Social Login Settings forces it on).
+        if ($provider !== 'keycloak') {
             abort(404);
         }
 
@@ -117,8 +117,8 @@ class LoginController extends Controller
     public function callback(Request $request, $provider)
     {
         // Keycloak SSO is the only supported way to sign in to the CRM,
-        // and only when an admin has enabled it in Social Login Settings.
-        if ($provider !== 'keycloak' || !$this->socialProviderEnabled($provider)) {
+        // and it can't be disabled (Social Login Settings forces it on).
+        if ($provider !== 'keycloak') {
             abort(404);
         }
 
@@ -223,11 +223,6 @@ class LoginController extends Controller
             return redirect()->route('login')->with(['message' => $e->getMessage()]);
         }
       
-    }
-
-    private function socialProviderEnabled(string $service): bool
-    {
-        return social_auth_setting()?->{$service . '_status'} === 'enable';
     }
 
     /**
