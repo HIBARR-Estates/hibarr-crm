@@ -57,6 +57,13 @@ return new class extends Migration
 
         $decoded = json_decode($permissions, true);
 
+        // Malformed JSON never meant full access under the old rule — it fell
+        // through normalizeScopes() to an empty scope list, same as any other
+        // non-array value.
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return false;
+        }
+
         if ($decoded === null) {
             return true;
         }
