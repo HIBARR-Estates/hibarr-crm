@@ -22,6 +22,7 @@ import { Link, usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { getStatusColor } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
@@ -320,13 +321,22 @@ export default function LeadFollowUpTab({
                 followup={followUp}
             />
 
-            {followUp && (
-                <ViewFollowup
-                    open={action === "view"}
+            {followUp && action === "view" && (
+                <MeetingViewModal
+                    meeting={followUp}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => handleClose()}
-                    followup={followUp}
-                    deal={viewDeal}
-                    lead={lead}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open
+                            onClose={() => handleClose()}
+                            followup={followUp}
+                            deal={viewDeal}
+                            lead={lead}
+                        />
+                    }
                 />
             )}
         </>

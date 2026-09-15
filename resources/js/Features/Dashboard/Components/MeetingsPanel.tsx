@@ -18,8 +18,9 @@ import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
@@ -368,7 +369,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
             </Card>
 
             {canAdd && (
-                <ScheduleMeetingDrawer
+                <MeetingScheduleModal
                     open={scheduleOpen}
                     onClose={() => setScheduleOpen(false)}
                     userDeals={userDeals}
@@ -377,14 +378,23 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                 />
             )}
 
-            {selectedMeeting && (meetingDeal || meetingLead) && (
-                <ViewFollowup
-                    open={action === "view"}
+            {selectedMeeting && (meetingDeal || meetingLead) && action === "view" && (
+                <MeetingViewModal
+                    meeting={selectedMeeting}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => handleClose(undefined)}
-                    followup={selectedMeeting}
-                    deal={meetingDeal}
-                    lead={meetingLead as Lead}
-                    onEdit={() => handleAction("edit", selectedMeeting)}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open
+                            onClose={() => handleClose(undefined)}
+                            followup={selectedMeeting}
+                            deal={meetingDeal}
+                            lead={meetingLead as Lead}
+                            onEdit={() => handleAction("edit", selectedMeeting)}
+                        />
+                    }
                 />
             )}
 

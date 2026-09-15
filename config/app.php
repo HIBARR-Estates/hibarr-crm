@@ -252,6 +252,9 @@ return [
         /*
          * Package Service Providers...
          */
+        // froiden/envato is excluded from auto-discovery (composer.json) and
+        // registered through this subclass, which does not load its route file.
+        App\Providers\FroidenEnvatoServiceProvider::class,
 
         /*
          * Application Service Providers...
@@ -269,7 +272,9 @@ return [
         App\Providers\FortifyServiceProvider::class,
         Barryvdh\TranslationManager\ManagerServiceProvider::class,
         Macellan\Zip\ZipServiceProvider::class,
-        Froiden\LaravelInstaller\Providers\LaravelInstallerServiceProvider::class,
+        // Froiden\LaravelInstaller is intentionally not registered: its public
+        // /install/* GET routes rewrite .env and run migrate:fresh, gated only by
+        // a storage/installed marker. Deploys go through Jenkins, not the wizard.
     ],
 
     /*

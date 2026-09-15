@@ -3,6 +3,7 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
     EditMeetingModal,
     MeetingDetailModal,
+    MeetingViewModal,
     RescheduleMeetingModal,
 } from "@/Components/Redesign";
 import {
@@ -22,6 +23,7 @@ interface LeadMeetingDetailModalProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     permissions?: Record<string, string>;
     onClose: () => void;
+    initialPanel?: "info" | "summary";
 }
 
 function canEditMeeting(
@@ -57,6 +59,7 @@ export default function LeadMeetingDetailModal({
     meetingTypes,
     permissions,
     onClose,
+    initialPanel = "info",
 }: LeadMeetingDetailModalProps) {
     const { td } = useTd();
     const { props } = usePage();
@@ -119,119 +122,160 @@ export default function LeadMeetingDetailModal({
         );
     };
 
+    const redesignNested = ({
+        editOpen,
+        rescheduleOpen,
+        deleteOpen,
+        setEditOpen,
+        setRescheduleOpen,
+        setDeleteOpen,
+    }: {
+        editOpen: boolean;
+        rescheduleOpen: boolean;
+        deleteOpen: boolean;
+        setEditOpen: (open: boolean) => void;
+        setRescheduleOpen: (open: boolean) => void;
+        setDeleteOpen: (open: boolean) => void;
+    }) => {
+        if (!meeting) return null;
+
+        return (
+            <>
+                <EditMeetingModal
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    saving={isUpdating}
+                    errors={updateErrors}
+                    meetingTypes={meetingTypes}
+                    initialForm={buildMeetingFormFromFollowup(
+                        meeting,
+                        null,
+                        userId,
+                    )}
+                    onSubmit={(form) => {
+                        clearUpdateErrors();
+                        updateMeeting(
+                            meeting.id,
+                            {
+                                meetingTypeId: form.meetingTypeId,
+                                date: form.date,
+                                startTime: form.startTime,
+                                endTime: form.endTime,
+                                duration: form.duration,
+                                platform: form.platform,
+                                locationDetail: form.locationDetail,
+                                meetingLink: form.meetingLink,
+                                participants: form.participants,
+                                hostId: form.hostId,
+                                remark: form.remark,
+                                reminders: form.reminders,
+                                dealId: meeting.deal_id,
+                            },
+                            () => setEditOpen(false),
+                        );
+                    }}
+                    mustIncludeOwner={mustIncludeOwner}
+                    labels={{
+                        title: td("Edit meeting", { source: "en" }),
+                        cancel: td("Cancel", { source: "en" }),
+                        submit: td("Save", { source: "en" }),
+                    }}
+                />
+                <RescheduleMeetingModal
+                    open={rescheduleOpen}
+                    onClose={() => setRescheduleOpen(false)}
+                    saving={isRescheduling}
+                    errors={rescheduleErrors}
+                    initialForm={buildRescheduleFormFromFollowup(meeting)}
+                    onSubmit={(form) => {
+                        clearRescheduleErrors();
+                        rescheduleMeeting(form, () => setRescheduleOpen(false));
+                    }}
+                    labels={{
+                        title: td("Reschedule meeting", { source: "en" }),
+                        cancel: td("Cancel", { source: "en" }),
+                        submit: td("Reschedule", { source: "en" }),
+                        newDate: td("New date", { source: "en" }),
+                        newStartTime: td("Start time", { source: "en" }),
+                        duration: td("Duration", { source: "en" }),
+                        hideDuration: td("Hide duration", { source: "en" }),
+                        addDuration: td("Add duration", { source: "en" }),
+                        endTime: td("End time", { source: "en" }),
+                    }}
+                />
+                <DeleteFollowup
+                    open={deleteOpen}
+                    onClose={() => {
+                        setDeleteOpen(false);
+                        onClose();
+                    }}
+                    followup={meeting}
+                    skipReload
+                    onDeleted={(followupId) => {
+                        setLeadFollowUps((prev) =>
+                            prev.filter((item) => item.id !== followupId),
+                        );
+                    }}
+                />
+            </>
+        );
+    };
+
     return (
-        <MeetingDetailModal
+        <MeetingViewModal
             meeting={meeting}
             canEdit={canEdit}
             canDelete={canDelete}
             onClose={onClose}
             isUpdating={isUpdating || isRescheduling}
             onCancelMeeting={handleCancelMeeting}
-            renderNestedModals={({
-                editOpen,
-                rescheduleOpen,
-                deleteOpen,
-                summaryOpen,
-                setEditOpen,
-                setRescheduleOpen,
-                setDeleteOpen,
-                setSummaryOpen,
-            }) => {
-                if (!meeting) return null;
+            includeSummary
+            initialPanel={initialPanel}
+            userId={userId}
+            renderNestedModals={redesignNested}
+            fallback={
+                <MeetingDetailModal
+                    meeting={meeting}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    onClose={onClose}
+                    isUpdating={isUpdating || isRescheduling}
+                    onCancelMeeting={handleCancelMeeting}
+                    renderNestedModals={({
+                        editOpen,
+                        rescheduleOpen,
+                        deleteOpen,
+                        summaryOpen,
+                        setEditOpen,
+                        setRescheduleOpen,
+                        setDeleteOpen,
+                        setSummaryOpen,
+                    }) => {
+                        if (!meeting) return null;
 
-                return (
-                    <>
-                        {summaryOpen && linkedDeal && (
-                            <ViewFollowup
-                                open={summaryOpen}
-                                onClose={() => setSummaryOpen(false)}
-                                followup={meeting}
-                                deal={linkedDeal}
-                            />
-                        )}
-                        <EditMeetingModal
-                            open={editOpen}
-                            onClose={() => setEditOpen(false)}
-                            saving={isUpdating}
-                            errors={updateErrors}
-                            meetingTypes={meetingTypes}
-                            initialForm={buildMeetingFormFromFollowup(
-                                meeting,
-                                null,
-                                userId,
-                            )}
-                            onSubmit={(form) => {
-                                clearUpdateErrors();
-                                updateMeeting(
-                                    meeting.id,
-                                    {
-                                        meetingTypeId: form.meetingTypeId,
-                                        date: form.date,
-                                        startTime: form.startTime,
-                                        endTime: form.endTime,
-                                        duration: form.duration,
-                                        platform: form.platform,
-                                        locationDetail: form.locationDetail,
-                                        meetingLink: form.meetingLink,
-                                        participants: form.participants,
-                                        hostId: form.hostId,
-                                        remark: form.remark,
-                                        reminders: form.reminders,
-                                        dealId: meeting.deal_id,
-                                    },
-                                    () => setEditOpen(false),
-                                );
-                            }}
-                            mustIncludeOwner={mustIncludeOwner}
-                            labels={{
-                                title: td("Edit meeting", { source: "en" }),
-                                cancel: td("Cancel", { source: "en" }),
-                                submit: td("Save", { source: "en" }),
-                            }}
-                        />
-                        <RescheduleMeetingModal
-                            open={rescheduleOpen}
-                            onClose={() => setRescheduleOpen(false)}
-                            saving={isRescheduling}
-                            errors={rescheduleErrors}
-                            initialForm={buildRescheduleFormFromFollowup(
-                                meeting,
-                            )}
-                            onSubmit={(form) => {
-                                clearRescheduleErrors();
-                                rescheduleMeeting(form, () =>
-                                    setRescheduleOpen(false),
-                                );
-                            }}
-                            labels={{
-                                title: td("Reschedule meeting", { source: "en" }),
-                                cancel: td("Cancel", { source: "en" }),
-                                submit: td("Reschedule", { source: "en" }),
-                                newDate: td("New date", { source: "en" }),
-                                newStartTime: td("Start time", { source: "en" }),
-                                duration: td("Duration", { source: "en" }),
-                                hideDuration: td("Hide duration", { source: "en" }),
-                                addDuration: td("Add duration", { source: "en" }),
-                                endTime: td("End time", { source: "en" }),
-                            }}
-                        />
-                        <DeleteFollowup
-                            open={deleteOpen}
-                            onClose={() => {
-                                setDeleteOpen(false);
-                                onClose();
-                            }}
-                            followup={meeting}
-                            skipReload
-                            onDeleted={(followupId) => {
-                                setLeadFollowUps((prev) =>
-                                    prev.filter((item) => item.id !== followupId),
-                                );
-                            }}
-                        />
-                    </>
-                );
-            }}
+                        return (
+                            <>
+                                {summaryOpen && linkedDeal && (
+                                    <ViewFollowup
+                                        open={summaryOpen}
+                                        onClose={() => setSummaryOpen(false)}
+                                        followup={meeting}
+                                        deal={linkedDeal}
+                                    />
+                                )}
+                                {redesignNested({
+                                    editOpen,
+                                    rescheduleOpen,
+                                    deleteOpen,
+                                    setEditOpen,
+                                    setRescheduleOpen,
+                                    setDeleteOpen,
+                                })}
+                            </>
+                        );
+                    }}
+                />
+            }
         />
     );
 }

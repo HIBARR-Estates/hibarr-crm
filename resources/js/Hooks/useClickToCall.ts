@@ -22,7 +22,7 @@ function isNoExtensionError(status: number | undefined, serverMessage: string): 
 }
 
 export default function useClickToCall() {
-    const { props } = usePage<{ featureFlags?: Record<string, boolean> }>();
+    const { props } = usePage();
     const { t } = useTranslation();
     const [callingKey, setCallingKey] = useState<string | null>(null);
 
