@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealFileUpload from "../../hooks/useDealFileUpload";
 import { initialsFromName } from "../../adapters/initials";
@@ -748,7 +749,7 @@ export default function AnalysisLeadContextPanel({
                             <div
                                 className="dr-clamp-3 text-xs text-slate-500"
                                 dangerouslySetInnerHTML={{
-                                    __html: note.details || note.text || "",
+                                    __html: DOMPurify.sanitize(note.details || note.text || ""),
                                 }}
                             />
                             {note.added_by?.name && (
