@@ -113,7 +113,7 @@ class TwoFASettingController extends AccountBaseController
     {
         $user = auth()->user();
 
-        if ($user->two_factor_code != $request->code || $user->two_factor_expires_at->isPast()) {
+        if (!$user->hasValidTwoFactorCode((string) $request->code)) {
             return Reply::error(__('messages.invalid2FaCode'));
         }
 

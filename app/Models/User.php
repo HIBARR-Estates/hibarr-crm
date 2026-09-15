@@ -1260,9 +1260,26 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     public function generateTwoFactorCode()
     {
         $this->timestamps = false;
-        $this->two_factor_code = rand(100000, 999999);
+        $this->two_factor_code = random_int(100000, 999999);
         $this->two_factor_expires_at = now()->addMinutes(10);
         $this->save();
+    }
+
+    /**
+     * Check an emailed 2FA code: exact match, and still inside its window.
+     * two_factor_expires_at has no working cast, so it can arrive as a string.
+     */
+    public function hasValidTwoFactorCode(string $code): bool
+    {
+        if (is_null($this->two_factor_code) || is_null($this->two_factor_expires_at)) {
+            return false;
+        }
+
+        if (now()->gte($this->two_factor_expires_at)) {
+            return false;
+        }
+
+        return hash_equals((string) $this->two_factor_code, $code);
     }
 
     public function resetTwoFactorCode()
