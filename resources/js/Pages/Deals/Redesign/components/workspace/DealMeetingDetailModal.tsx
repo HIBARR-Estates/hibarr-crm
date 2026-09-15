@@ -2,6 +2,7 @@ import { usePage } from "@inertiajs/react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
+import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
 import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
