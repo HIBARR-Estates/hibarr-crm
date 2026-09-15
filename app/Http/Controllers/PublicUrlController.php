@@ -410,6 +410,10 @@ class PublicUrlController extends Controller
 
     public function checkEnv()
     {
+        // Reports debug mode, PHP version, environment and installed modules;
+        // the route requires a session, and only admins may read it.
+        abort_403(!in_array('admin', user_roles()));
+
         $plugins = Module::all(); /* @phpstan-ignore-line */
         $updateArray = [];
         $updateArrayEnabled = [];
