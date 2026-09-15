@@ -160,5 +160,9 @@ return [
             'OL_DEAL_PAYMENT_REQUEST_PATH',
             '/internal/payments/deal-requests'
         ),
+        'telephony_calls_path' => env(
+            'OL_TELEPHONY_CALLS_PATH',
+            '/telephony/calls'
+        ),
     ],
 ];

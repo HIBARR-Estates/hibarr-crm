@@ -3,19 +3,15 @@
 namespace App\Providers;
 
 use Carbon\Carbon;
-use App\Models\User;
 use App\Models\Company;
-use App\Scopes\ActiveScope;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Fortify;
 use App\Models\GlobalSetting;
 use Laravel\Fortify\Features;
 use Froiden\Envato\Traits\AppBoot;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Hash;
 use App\Actions\Fortify\CreateNewUser;
 use Illuminate\Support\ServiceProvider;
-use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use Laravel\Fortify\Contracts\LogoutResponse;
 use App\Actions\Fortify\AttemptToAuthenticate;
@@ -71,53 +67,18 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
-        Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         // Fortify::authenticateThrough();
+        // Email/password authentication is disabled: Keycloak SSO (see
+        // LoginController::redirect/callback) is the only supported way to
+        // sign in to the CRM. This callback always denies the credentials
+        // so the POST /login endpoint can never establish a session.
         Fortify::authenticateUsing(function (Request $request) {
-            $rules = [
-                'email' => 'required|email:rfc,strict'
-            ];
-
-            $request->validate($rules);
-
-            $user = User::withoutGlobalScope(ActiveScope::class)
-                ->where('email', $request->email)
-                ->first();
-
-
-            if ($user && Hash::check($request->password, $user->password)) {
-
-                if ($user->status === 'deactive') {
-                    throw ValidationException::withMessages([
-                        'email' => __('auth.failedBlocked')
-                    ]);
-                }
-
-                if ($user->login === 'disable') {
-                    throw ValidationException::withMessages([
-                        'email' => __('auth.failedLoginDisabled')
-                    ]);
-                }
-
-                session()->forget('locale');
-                session()->put([
-                    'current_latitude' => $request->current_latitude,
-                    'current_longitude' => $request->current_longitude,
-                ]);
-                return $user;
-            }
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
         });
 
-
-        Fortify::requestPasswordResetLinkView(function () {
-            $globalSetting = GlobalSetting::first();
-            App::setLocale($globalSetting->locale);
-            Carbon::setLocale($globalSetting->locale);
-            setlocale(LC_TIME, $globalSetting->locale . '_' . mb_strtoupper($globalSetting->locale));
-
-            return view('auth.passwords.forget', ['globalSetting' => $globalSetting]);
-        });
 
         Fortify::loginView(function () {
 
@@ -152,15 +113,6 @@ class FortifyServiceProvider extends ServiceProvider
                 'languages' => $languages,
             ]);
 
-        });
-
-        Fortify::resetPasswordView(function ($request) {
-            $globalSetting = GlobalSetting::first();
-            App::setLocale($globalSetting->locale);
-            Carbon::setLocale($globalSetting->locale);
-            setlocale(LC_TIME, $globalSetting->locale . '_' . mb_strtoupper($globalSetting->locale));
-
-            return view('auth.passwords.reset-password', ['request' => $request, 'globalSetting' => $globalSetting]);
         });
 
         Fortify::confirmPasswordView(function ($request) {
