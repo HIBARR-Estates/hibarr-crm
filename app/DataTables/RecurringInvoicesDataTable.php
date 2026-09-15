@@ -40,7 +40,7 @@ class RecurringInvoicesDataTable extends BaseDataTable
             ->filterColumn('invoice_number', function ($query, $keyword) use ($invoiceSettings) {
                 $string = ltrim(str_replace($invoiceSettings->invoice_prefix . $invoiceSettings->invoice_number_separator, '', $keyword), '0');
                 $sql = 'invoices.invoice_number  like ?';
-                $query->whereRaw($sql, ['%{$string}%']);
+                $query->whereRaw($sql, ["%{$string}%"]);
             })
             ->addColumn('action', function ($row) use ($firstInvoice, $userId) {
 
