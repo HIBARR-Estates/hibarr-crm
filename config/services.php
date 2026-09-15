@@ -100,6 +100,13 @@ return [
         'default_user_id' => (int) env('NOTIFICATION_SERVICE_DEFAULT_USER_ID', 1),
     ],
 
+    'social_auth' => [
+        // social_auth_setting() cache TTL, in seconds. Bounds how long a write
+        // to social_auth_settings made outside SocialAuthSettingController
+        // (migration, tinker, another admin path) can leave a stale row cached.
+        'settings_cache_ttl' => (int) env('SOCIAL_AUTH_SETTINGS_CACHE_TTL', 60),
+    ],
+
     'keycloak' => [
         'client_id'     => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),

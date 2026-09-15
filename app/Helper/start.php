@@ -493,11 +493,11 @@ if (!function_exists('social_auth_setting')) {
     // @codingStandardsIgnoreLine
     function social_auth_setting()
     {
-        if (!cache()->has('social_auth_setting')) {
-            cache(['social_auth_setting' => SocialAuthSetting::first()]);
-        }
-
-        return cache('social_auth_setting');
+        return cache()->remember(
+            'social_auth_setting',
+            (int) config('services.social_auth.settings_cache_ttl', 60),
+            fn () => SocialAuthSetting::first(),
+        );
     }
 
 }
