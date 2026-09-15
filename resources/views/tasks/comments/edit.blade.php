@@ -13,9 +13,9 @@
                         alt="{{ $comment->user->name }}">
                     <div class="media-body bg-white">
                         <div class="form-group">
-                            <div id="task-edit-comment">{!! $comment->comment !!}</div>
+                            <div id="task-edit-comment">{!! clean_html($comment->comment) !!}</div>
                             <textarea name="comment" class="form-control invisible d-none"
-                                id="task-edit-comment-text">{!!  $comment->comment !!}</textarea>
+                                id="task-edit-comment-text">{!! clean_html($comment->comment) !!}</textarea>
                         </div>
                     </div>
                 </div>

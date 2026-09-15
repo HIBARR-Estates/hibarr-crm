@@ -349,7 +349,7 @@ $deleteOrderPermission = user()->permission('delete_order');
                         <table>
                             <tr>@lang('app.clientNote')</tr>
                             <tr>
-                                <p class="text-dark-grey">{!! !empty($order->note) ? nl2br($order->note) : '--' !!}</p>
+                                <p class="text-dark-grey">{!! clean_html(!empty($order->note) ? nl2br($order->note) : '--') !!}</p>
                             </tr>
                         </table>
                     </td>

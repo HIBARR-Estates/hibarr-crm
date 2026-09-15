@@ -124,7 +124,7 @@
                 <div class="form-group">
                     <x-forms.label fieldId="description" :fieldLabel="__('app.description')">
                     </x-forms.label>
-                    <div id="description">{!! isset($proposal) ? $proposal->description : ($proposalTemplate ? $proposalTemplate->description : '') !!}</div>
+                    <div id="description">{!! clean_html(isset($proposal) ? $proposal->description : ($proposalTemplate ? $proposalTemplate->description : '')) !!}</div>
                     <textarea name="description" id="description-text" class="d-none"></textarea>
                 </div>
             </div>

@@ -167,7 +167,7 @@ $approveExpensePermission = user()->permission('approve_expenses');
                         <div class="form-group my-3">
                             <x-forms.label fieldId="description" :fieldLabel="__('app.description')">
                             </x-forms.label>
-                            <div id="description">{!! $expense->description !!}</div>
+                            <div id="description">{!! clean_html($expense->description) !!}</div>
                             <textarea name="description" id="description-text" class="d-none"></textarea>
                         </div>
                     </div>

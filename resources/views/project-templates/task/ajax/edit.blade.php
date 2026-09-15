@@ -82,7 +82,7 @@
                         <div class="form-group my-3">
                             <x-forms.label fieldId="description" :fieldLabel="__('app.description')">
                             </x-forms.label>
-                            <div id="description">{!! $task->description !!}</div>
+                            <div id="description">{!! clean_html($task->description) !!}</div>
                             <textarea name="description" id="description-text" class="d-none"></textarea>
                         </div>
                     </div>
