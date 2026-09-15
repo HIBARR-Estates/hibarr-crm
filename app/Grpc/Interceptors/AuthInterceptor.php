@@ -50,7 +50,8 @@ class AuthInterceptor implements CoreInterceptorInterface
         $token = $this->getContextMetadata($context, self::METADATA_API_TOKEN);
         $companyId = $this->getContextMetadata($context, self::METADATA_COMPANY_ID);
 
-        Log::debug("gRPC Auth - API Token: " . ($token ? substr($token, 0, 10) . '...' : 'null'));
+        // Never log any part of the token itself.
+        Log::debug("gRPC Auth - API Token present: " . ($token ? 'yes' : 'no'));
         Log::debug("gRPC Auth - Company ID: " . $companyId);
 
         // Validate presence of required credentials
