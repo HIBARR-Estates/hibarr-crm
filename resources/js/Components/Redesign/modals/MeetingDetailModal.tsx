@@ -1,3 +1,9 @@
+/**
+ * @deprecated Do not use as a meeting viewer.
+ * The only view-meeting UI is MeetingViewModal (MeetingDetailCompact),
+ * gated by crm.meetings-page-redesign. This file is the flag-off fallback
+ * and must not be imported by new callers.
+ */
 import { type ReactNode, useState } from "react";
 import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -132,6 +138,12 @@ function meetingRecordLink(meeting: DealFollowup): RecordLink | null {
     return null;
 }
 
+/**
+ * @deprecated Do not use as a meeting viewer.
+ * The only view-meeting UI is MeetingViewModal (MeetingDetailCompact),
+ * gated by crm.meetings-page-redesign. This file is the flag-off fallback
+ * and must not be imported by new callers.
+ */
 /** Meeting detail shell — view + cancel confirm; nested modals injected by wrappers. */
 export default function MeetingDetailModal({
     meeting,

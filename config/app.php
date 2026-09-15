@@ -269,7 +269,9 @@ return [
         App\Providers\FortifyServiceProvider::class,
         Barryvdh\TranslationManager\ManagerServiceProvider::class,
         Macellan\Zip\ZipServiceProvider::class,
-        Froiden\LaravelInstaller\Providers\LaravelInstallerServiceProvider::class,
+        // Froiden\LaravelInstaller is intentionally not registered: its public
+        // /install/* GET routes rewrite .env and run migrate:fresh, gated only by
+        // a storage/installed marker. Deploys go through Jenkins, not the wizard.
     ],
 
     /*

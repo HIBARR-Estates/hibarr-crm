@@ -23,7 +23,7 @@ import MeetingsCalendarView, {
 } from "./components/MeetingsCalendarView";
 import MeetingsDayDialog from "./components/MeetingsDayDialog";
 import MeetingsCalendarSkeleton from "./components/MeetingsCalendarSkeleton";
-import MeetingsScheduleDialog from "./components/MeetingsScheduleDialog";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MeetingsDetailDialog, {
     type MeetingDetailAction,
 } from "./components/MeetingsDetailDialog";
@@ -557,10 +557,10 @@ export default function MeetingsWorkspaceRedesign() {
                 )}
             </div>
 
-            <MeetingsScheduleDialog
+            <MeetingScheduleModal
                 open={scheduleOpen}
                 onClose={() => setScheduleOpen(false)}
-                onScheduled={reloadList}
+                onSuccess={reloadList}
                 userDeals={userDeals}
                 userLeads={userLeads}
                 meetingTypes={meetingTypes}

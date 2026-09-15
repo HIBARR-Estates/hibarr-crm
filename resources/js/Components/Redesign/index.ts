@@ -69,7 +69,13 @@ export {
     hasNoteScopeAccess,
 } from "./adapters/noteAdapter";
 export type { WorkspaceNotePreview } from "./adapters/noteAdapter";
+/** @deprecated Flag-off fallback only — use MeetingViewModal for viewing meetings. */
 export { default as MeetingDetailModal } from "./modals/MeetingDetailModal";
+export { default as MeetingViewModal } from "./modals/MeetingViewModal";
+export { default as MeetingScheduleModal } from "./modals/MeetingScheduleModal";
+export { default as MeetingDetailCompact } from "./modals/MeetingDetailCompact";
+/** @deprecated Prefer MeetingScheduleModal — flag-gated orphan schedule entry. */
+export { default as OrphanScheduleMeetingDialog } from "./modals/OrphanScheduleMeetingDialog";
 export { default as ItineraryModal } from "./modals/ItineraryModal";
 export type {
     ItineraryFormInput,
