@@ -36,18 +36,9 @@ class LoginController extends Controller
 
     public function checkEmail(LoginRequest $request)
     {
-        $user = User::where('email', $request->email)
-            ->select('id')
-            ->where('status', 'active')
-            ->where('login', 'enable')
-            ->first();
-
-        if (is_null($user)) {
-            throw ValidationException::withMessages([
-                Fortify::username() => __('messages.invalidOrInactiveAccount'),
-            ]);
-        }
-
+        // Same answer whether or not the address has an active account, so this
+        // step can't be used to discover accounts. The password step rejects
+        // unknown addresses with Fortify's generic failed-login message.
         return response([
             'status' => 'success'
         ]);
