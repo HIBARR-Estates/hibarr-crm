@@ -101,24 +101,11 @@ class LoginController extends Controller
         return Reply::success(__('messages.codeSent'));
     }
 
-    /**
-     * Callback name => Socialite driver. redirect/{provider} receives the driver
-     * name (login.blade.php buttons); callback/{provider} receives the key, which
-     * is also the "{key}_status" column in social_auth_settings and the
-     * socials.social_service value.
-     */
-    private const SOCIAL_DRIVERS = [
-        'google' => 'google',
-        'facebook' => 'facebook',
-        'keycloak' => 'keycloak',
-        'twitter' => 'twitter-oauth-2',
-        'linkedin' => 'linkedin-openid',
-    ];
-
     public function redirect($provider)
     {
-        // Keycloak SSO is the only supported way to sign in to the CRM.
-        if ($provider !== 'keycloak') {
+        // Keycloak SSO is the only supported way to sign in to the CRM,
+        // and only when an admin has enabled it in Social Login Settings.
+        if ($provider !== 'keycloak' || !$this->socialProviderEnabled($provider)) {
             abort(404);
         }
 
@@ -129,8 +116,9 @@ class LoginController extends Controller
 
     public function callback(Request $request, $provider)
     {
-        // Keycloak SSO is the only supported way to sign in to the CRM.
-        if ($provider !== 'keycloak') {
+        // Keycloak SSO is the only supported way to sign in to the CRM,
+        // and only when an admin has enabled it in Social Login Settings.
+        if ($provider !== 'keycloak' || !$this->socialProviderEnabled($provider)) {
             abort(404);
         }
 
@@ -150,7 +138,7 @@ class LoginController extends Controller
             try {
                 // Stateful on purpose: Socialite checks the OAuth state that
                 // redirect() stored in the session, which blocks login CSRF.
-                $data = Socialite::driver(self::SOCIAL_DRIVERS[$provider])->user(); /* @phpstan-ignore-line */
+                $data = Socialite::driver($provider)->user(); /* @phpstan-ignore-line */
 
                 Log::info("Socialite user retrieved", [
                     'provider' => $provider,
@@ -198,12 +186,18 @@ class LoginController extends Controller
             // User found
             DB::beginTransaction();
 
-            Social::updateOrCreate(['user_id' => $user->id], [
-                'social_id' => $data->id,
-                'social_service' => $provider,
-            ]);
+            try {
+                Social::updateOrCreate(['user_id' => $user->id], [
+                    'social_id' => $data->id,
+                    'social_service' => $provider,
+                ]);
 
-            DB::commit();
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+
+                throw $e;
+            }
 
             Log::info("Social record saved, logging in user", ['user_id' => $user->id]);
 
@@ -243,10 +237,6 @@ class LoginController extends Controller
      */
     private function findSocialLoginUser(string $service, $data): ?User
     {
-        if ($service == 'twitter') {
-            return User::where(['twitter_id' => $data->id])->first();
-        }
-
         $linkedUserId = Social::where('social_service', $service)
             ->where('social_id', (string) $data->id)
             ->value('user_id');
