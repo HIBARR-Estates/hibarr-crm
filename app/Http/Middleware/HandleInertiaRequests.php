@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
 use App\Services\I18nTranslationService;
+use App\Support\AppBuild;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        return AppBuild::id() ?? parent::version($request);
     }
 
     /**
@@ -68,6 +69,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
+            'appBuildId' => fn() => AppBuild::clientId(),
             'company' => fn() => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'appName' => fn() => function_exists('companyOrGlobalSetting')
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))

@@ -5,6 +5,7 @@ import {
     type WorkspaceMeetingPreview,
 } from "./meetingAdapter";
 import { formatUserTime } from "@/lib/userDateTime";
+import { formatMeetingTimeRange } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 
 export type MeetingSummaryStatus = "available" | "pending" | "none";
 
@@ -38,13 +39,18 @@ export interface MeetingStatusDisplay {
  * chip already makes.
  */
 export function getMeetingStatusDisplay(
-    item: Pick<WorkspaceMeetingPreview, "isPast"> & { statusLabel: string },
+    item: Pick<WorkspaceMeetingPreview, "isPast" | "isLive"> & {
+        statusLabel: string;
+    },
 ): MeetingStatusDisplay {
     if (item.statusLabel === "completed") {
         return { label: "Completed", tone: "dr-pill-green", dotColor: "#177a5b" };
     }
     if (item.statusLabel === "canceled" || item.statusLabel === "cancelled") {
         return { label: "Cancelled", tone: "dr-pill-red", dotColor: "#b91c1c" };
+    }
+    if (item.isLive) {
+        return { label: "Live", tone: "dr-pill-red", dotColor: "#dc2626" };
     }
     if (item.isPast) {
         return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: "#9ca3af" };
@@ -208,7 +214,7 @@ export function toWorkspaceMeetingListItem(
         ? new Date(startsAt.getTime() + duration * 60 * 1000)
         : null;
     const endTimeLabel = formatUserTime(endDate);
-    const timeRangeLabel = `${preview.timeLabel} – ${endTimeLabel}`;
+    const timeRangeLabel = formatMeetingTimeRange(startsAt, endDate, "--", meeting.timezone);
     const meetingLink =
         meeting.meeting_link && /^https?:\/\//i.test(meeting.meeting_link)
             ? meeting.meeting_link

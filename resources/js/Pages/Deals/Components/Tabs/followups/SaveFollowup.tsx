@@ -37,6 +37,12 @@ import { useState, useEffect } from "react";
 import HtmlEditor from "@/Components/HtmlEditor";
 import MeetingTypeSelector from "./MeetingTypeSelector";
 import FormDataSelector from "@/Components/FormDataSelector";
+import MeetingTimezoneField from "@/Components/Redesign/meeting/MeetingTimezoneField";
+import { getBrowserTimezone } from "@/lib/userTimezone";
+import {
+    getDefaultMeetingHost,
+    isMeetingStartInFuture,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 export interface SaveFollowupFormData {
     lead_id?: number;
@@ -50,6 +56,8 @@ export interface SaveFollowupFormData {
     reminders: Reminder[];
     remark?: string;
     participants?: number[];
+    /** IANA zone the date/time were entered in (create only). */
+    timezone?: string;
 }
 
 export type SaveFollowupContext = "lead" | "deal";
@@ -375,6 +383,9 @@ export default function SaveFollowup({
             reminders:           customReminders,
             remark:              values.remark || "",
             participants:        participants,
+            // An edit has no timezone field and shows browser-local time —
+            // say so, or the server would read it in the meeting's stored zone.
+            timezone:            values.timezone || (followup ? getBrowserTimezone() : undefined),
             ...(values.duration ? { duration: values.duration } : {}),
         };
 
@@ -473,6 +484,10 @@ export default function SaveFollowup({
                 <Form.Item
                     name="start_time"
                     label="Start Time"
+                    // Re-run the validator when the zone changes (picker or
+                    // host-time switch both write `timezone`), so a stale
+                    // "must be in the future" message clears.
+                    dependencies={["timezone"]}
                     rules={[
                         { required: true, message: "Please select a start time" },
                         {
@@ -480,12 +495,14 @@ export default function SaveFollowup({
                                 const selectedDate = form.getFieldValue("next_follow_up_date");
                                 if (!value || !selectedDate) return Promise.resolve();
                                 if (!dayjs.isDayjs(selectedDate) || !dayjs.isDayjs(value)) return Promise.resolve();
-                                const selectedDateTime = dayjs(selectedDate)
-                                    .hour(value.hour())
-                                    .minute(value.minute())
-                                    .second(0)
-                                    .millisecond(0);
-                                if (selectedDateTime.isBefore(dayjs().add(5, "minute"))) {
+                                // Judged on the picked timezone's clock, not the browser's.
+                                if (
+                                    !isMeetingStartInFuture(
+                                        dayjs(selectedDate).format("YYYY-MM-DD"),
+                                        value.format("HH:mm"),
+                                        form.getFieldValue("timezone"),
+                                    )
+                                ) {
                                     return Promise.reject(new Error("Start time must be at least 5 minutes in the future."));
                                 }
                                 return Promise.resolve();
@@ -503,6 +520,21 @@ export default function SaveFollowup({
                     />
                 </Form.Item>
             </div>
+
+            {/* Timezone — create only; an edit keeps the zone it was booked in */}
+            {!isEditing && (
+                <Form.Item
+                    name="timezone"
+                    label="Timezone"
+                    tooltip="The meeting date and start time are in this timezone"
+                    className="mb-0"
+                >
+                    <MeetingTimezoneField
+                        hostId={getDefaultMeetingHost(deal ?? lead, currentUserId)}
+                        disabled={loading || isScheduled}
+                    />
+                </Form.Item>
+            )}
 
             {/* ── Meeting Details ── */}
             <SectionDivider label="Meeting Details" />

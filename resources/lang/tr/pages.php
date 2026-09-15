@@ -1053,7 +1053,7 @@ return [
                 'other_files' => 'Diğer dosyalar',
                 'uploading' => 'Yükleniyor',
                 'drop_hint' => 'Dosyaları buraya bırakın veya yüklemek için tıklayın',
-                'size_hint' => 'PDF, görseller, ZIP — en fazla 200 MB',
+                'size_hint' => 'Her dosya türü — en fazla 20 GB',
                 'empty' => 'Hiç dosya yüklenmedi',
                 'uploaded_label' => 'Yüklendi',
                 'download' => 'İndir',

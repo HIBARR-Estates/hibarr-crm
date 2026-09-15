@@ -40,6 +40,30 @@ export function timezoneChipLabel(
     return `${city} · ${offset}`;
 }
 
+/**
+ * Short timezone name for a wall clock (CET, EAT, GMT+3).
+ * Falls back to a live UTC offset when Intl has no abbreviation.
+ */
+export function timezoneShortName(
+    timeZone: string,
+    at: Date = new Date(),
+): string {
+    const trimmed = timeZone.trim() || "UTC";
+    try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: trimmed,
+            timeZoneName: "short",
+        }).formatToParts(at);
+        const name = parts.find((part) => part.type === "timeZoneName")?.value;
+        if (name && name.trim() !== "") {
+            return name.trim();
+        }
+    } catch {
+        // Invalid IANA zone — fall through to offset.
+    }
+    return timezoneUtcOffset(trimmed, at);
+}
+
 function offsetMinutesInZone(timeZone: string, date: Date): number {
     const parts = new Intl.DateTimeFormat("en-US", {
         timeZone,

@@ -36,6 +36,7 @@ class CalendarSyncDispatcher
         // meeting-update notifications.
         $model->updateQuietly([
             'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+            'zoho_calendar_sync_error' => null,
         ]);
 
         Log::info('CalendarSyncDispatcher: scheduling calendar sync', [

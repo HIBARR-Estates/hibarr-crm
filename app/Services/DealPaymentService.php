@@ -65,18 +65,28 @@ class DealPaymentService
             ?? 'EUR'
         )));
 
-        $providerKey = (string) ($input['provider_key'] ?? 'manual-bank-transfer');
+        $providerKey = !empty($input['provider_key'])
+            ? (string) $input['provider_key']
+            : null;
 
-        $olPayload = $this->olProxy->createForDeal($deal, [
+        $olPayload = $this->olProxy->createForDeal($deal, array_filter([
             'amount' => $amount,
             'currency' => $currency,
             'provider_key' => $providerKey,
-        ]);
+        ], static fn ($value) => $value !== null && $value !== ''));
 
         $paymentId = (string) ($olPayload['paymentId'] ?? $olPayload['payment_id'] ?? '');
         if ($paymentId === '') {
             throw new HttpException(502, 'Payment service did not return a payment id.');
         }
+
+        $resolvedProvider = $providerKey
+            ?? (string) ($olPayload['providerKey'] ?? $olPayload['provider_key'] ?? '');
+        $resolvedPaymentType = strtolower((string) (
+            $olPayload['paymentType']
+            ?? $olPayload['payment_type']
+            ?? ($resolvedProvider !== '' ? $this->paymentTypeFromProvider($resolvedProvider) : '')
+        ));
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)
             ->without(['order'])
@@ -88,14 +98,14 @@ class DealPaymentService
         $payment->deal_id = $deal->id;
         $payment->external_reference = $paymentId;
         $payment->amount = round((float) ($olPayload['amount'] ?? $amount), 2);
-        $payment->gateway = $providerKey;
+        $payment->gateway = $resolvedProvider !== '' ? $resolvedProvider : null;
         $payment->status = 'pending';
         $payment->checkout_url = (string) ($olPayload['checkoutUrl'] ?? $olPayload['checkout_url'] ?? '');
         $payment->expires_at = !empty($olPayload['expiresAt'] ?? $olPayload['expires_at'] ?? null)
             ? Carbon::parse($olPayload['expiresAt'] ?? $olPayload['expires_at'])
             : null;
         $payment->ol_status = strtolower((string) ($olPayload['status'] ?? 'pending'));
-        $payment->ol_payment_type = $this->paymentTypeFromProvider($providerKey);
+        $payment->ol_payment_type = $resolvedPaymentType !== '' ? $resolvedPaymentType : null;
         $payment->added_by = $user->id;
 
         if ($deal->currency_id) {

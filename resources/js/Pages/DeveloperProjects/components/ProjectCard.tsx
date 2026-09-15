@@ -23,8 +23,13 @@ function formatCompletionDate(
     return formatCompanyDate(dateStr);
 }
 
+const FIRST_ROW_EAGER_COUNT = 4;
+const LCP_HIGH_PRIORITY_COUNT = 2;
+
 interface ProjectCardProps {
     project: DeveloperProject;
+    /** Zero-based index in the visible grid. First row loads eagerly for LCP. */
+    index?: number;
     onEdit?: (project: DeveloperProject) => void;
     onDelete?: (project: DeveloperProject) => void;
     showHiddenBadge?: boolean;
@@ -32,6 +37,7 @@ interface ProjectCardProps {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
     project,
+    index = FIRST_ROW_EAGER_COUNT,
     onEdit,
     onDelete,
     showHiddenBadge = false,
@@ -49,7 +55,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     const soldPct =
         totalUnits > 0 ? Math.round((totalSold / totalUnits) * 100) : 0;
 
-    // First project photo from assets
+    const eager = index < FIRST_ROW_EAGER_COUNT;
+    const imageLoading = eager ? "eager" : "lazy";
+    const imageFetchPriority = index < LCP_HIGH_PRIORITY_COUNT ? "high" : "auto";
+
+    // Cover pick from the listing thumbnail; assets[0] is a fallback for callers
+    // that still send the gallery (e.g. older payloads).
     const firstPhoto =
         project?.thumbnail?.url ?? project.assets?.[0]?.url ?? null;
 
@@ -132,6 +143,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     <img
                         src={project.developer.logo_url}
                         alt={project.developer.name}
+                        loading={imageLoading}
+                        decoding="async"
                         className="max-h-full w-full object-contain"
                     />
                 ) : (
@@ -166,6 +179,11 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     <img
                         src={firstPhoto}
                         alt={project.name}
+                        width={520}
+                        height={192}
+                        loading={imageLoading}
+                        decoding="async"
+                        fetchPriority={imageFetchPriority}
                         className="w-full h-full object-cover"
                     />
                 ) : (

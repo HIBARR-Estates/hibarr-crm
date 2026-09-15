@@ -39,10 +39,12 @@ export interface DealPaymentRequest {
 export interface DealPaymentCreateInput {
     amount?: number;
     currency?: string;
+    /** Optional. Omit so OL checkout lets the client choose how to pay. */
     provider_key?: "manual-bank-transfer" | "nowpayments";
 }
 
 export interface DealPaymentResponse {
     status: string;
     data: DealPaymentRequest | null;
+    message?: string;
 }

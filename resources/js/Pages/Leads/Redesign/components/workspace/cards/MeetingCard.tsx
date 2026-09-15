@@ -1,5 +1,5 @@
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
-import { getMeetingStatusTone } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
+import { getMeetingStatusDisplay } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import type { LeadMeetingPreview } from "../../../adapters/meetingAdapter";
 
 interface MeetingCardProps {
@@ -8,7 +8,11 @@ interface MeetingCardProps {
 }
 
 export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
-    const statusTone = getMeetingStatusTone(meeting.status);
+    const status = getMeetingStatusDisplay({
+        isPast: meeting.isPast,
+        isLive: meeting.isLive,
+        statusLabel: meeting.status,
+    });
 
     return (
         <button
@@ -26,8 +30,10 @@ export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
                     <span className="truncate text-[13px] font-semibold text-[#1a1f2e]">
                         {meeting.title}
                     </span>
-                    <span className={`v2-pill ${statusTone.replace("dr-", "v2-")}`}>
-                        {meeting.status}
+                    <span
+                        className={`v2-pill ${status.tone.replace("dr-", "v2-")}`}
+                    >
+                        {status.label}
                     </span>
                 </div>
                 <div className="text-[11px] text-[#9ca3af]">

@@ -17,6 +17,14 @@
 
 return [
 
+    'telephony' => [
+        'call' => 'Call',
+        'success' => 'Your line is ringing. Answer to connect the call.',
+        'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
+        'permission_denied' => 'You do not have permission to place calls.',
+        'generic_error' => 'Unable to initiate the call. Please try again.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'AI Summary',
         'title_lead' => 'AI Lead Summary',
@@ -1039,8 +1047,10 @@ return [
                 'cancel_meeting_confirm_title' => 'Cancel meeting?',
                 'cancel_meeting_confirm_message' => 'Attendees will no longer be reminded and the calendar event will be removed.',
                 'upcoming_label' => 'upcoming',
+                'live_label' => 'live',
                 'past_label' => 'past',
                 'section_upcoming' => 'Upcoming',
+                'section_live' => 'Happening now',
                 'section_past' => 'Past',
                 'cancel_meetings' => 'Cancel meetings',
                 'empty' => 'No meetings yet',
@@ -1093,7 +1103,7 @@ return [
                 'uploading' => 'Uploading',
                 'cancel_upload' => 'Cancel upload',
                 'drop_hint' => 'Drop files here or click to upload',
-                'size_hint' => 'PDF, images, ZIP — max 200 MB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'empty' => 'No files uploaded',
                 'uploaded_label' => 'Uploaded',
                 'download' => 'Download',
@@ -1164,7 +1174,7 @@ return [
                 'field_title' => 'Title',
                 'field_amount' => 'Amount',
                 'field_document' => 'Document',
-                'size_hint' => 'Any file type — max 1 GB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'validation' => [
                     'expose_required' => 'Select an expose to link',
                     'title_required' => 'A title is required',

@@ -96,7 +96,9 @@ export default function useMeetingsMeetingUpdate() {
                 reminders: form.reminders,
                 remark: form.remark.trim(),
                 participants: form.participants,
-                timezone: getBrowserTimezone(),
+                // The zone the form's wall clock is in (the meeting's stored
+                // one); browser-local only for legacy rows without one.
+                timezone: form.timezone || getBrowserTimezone(),
             };
 
             setErrors([]);

@@ -463,7 +463,7 @@ export default function useDealExposes(scope: Scope) {
                 if (input.file) {
                     if (input.file.size > DEAL_EXPOSE_MAX_UPLOAD_BYTES) {
                         const msg = td(
-                            "This file exceeds the 1 GB maximum size.",
+                            "This file exceeds the 20 GB maximum size.",
                             { source: "en" },
                         );
                         message.error(msg);

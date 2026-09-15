@@ -278,17 +278,18 @@ class LeadFileController extends AccountBaseController
 
         $deal = Deal::findOrFail($request->deal_id);
         $createdFiles = [];
+        $userId = user()->id;
 
         foreach ($request->input('files') as $fileData) {
             $file = new DealFile;
             $file->deal_id = $deal->id;
-            $file->user_id = $this->user->id;
+            $file->user_id = $userId;
             $file->filename = $fileData['originalName'];
             $file->hashname = ''; // Not used for external files
             $file->size = $fileData['size'] ?? 0;
             $file->external_url = $fileData['downloadUrl'];
             $file->object_path = $fileData['objectPath'];
-            $file->added_by = $this->user->id;
+            $file->added_by = $userId;
             $file->save();
 
             $createdFiles[] = $file;

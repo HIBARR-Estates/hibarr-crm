@@ -88,7 +88,7 @@ export default function MeetingsUpcomingStrip({
         bucket: meetingBucket(meeting, timezone),
     }));
     const live = buckets.filter(({ bucket }) => bucket === "live");
-    const upcoming = buckets.filter(({ bucket }) => bucket !== "live");
+    const upcoming = buckets.filter(({ bucket }) => bucket === "upcoming");
 
     return (
         <section className="mb-5" aria-label={td("Next meetings")}>
@@ -109,19 +109,24 @@ export default function MeetingsUpcomingStrip({
             )}
 
             {upcoming.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {upcoming.map(({ meeting, bucket }) => (
-                        <MeetingCard
-                            key={meeting.id}
-                            meeting={meeting}
-                            bucket={bucket}
-                            // Selection is a list concern; these cards are a
-                            // shortcut, not rows you act on in bulk.
-                            selectable={false}
-                            {...handlers(meeting)}
-                        />
-                    ))}
-                </div>
+                <>
+                    {live.length > 0 && (
+                        <StripHeading label={td("Next up")} />
+                    )}
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {upcoming.map(({ meeting, bucket }) => (
+                            <MeetingCard
+                                key={meeting.id}
+                                meeting={meeting}
+                                bucket={bucket}
+                                // Selection is a list concern; these cards are a
+                                // shortcut, not rows you act on in bulk.
+                                selectable={false}
+                                {...handlers(meeting)}
+                            />
+                        ))}
+                    </div>
+                </>
             )}
         </section>
     );
