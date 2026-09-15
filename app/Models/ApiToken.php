@@ -14,12 +14,14 @@ class ApiToken extends Model
         'token',
         'name',
         'permissions',
+        'unrestricted',
         'revoked',
         'company_id',
     ];
 
     protected $casts = [
         'permissions' => 'array',
+        'unrestricted' => 'boolean',
         'revoked' => 'boolean',
     ];
 
@@ -76,9 +78,13 @@ class ApiToken extends Model
         return substr($token, 0, 8) . str_repeat('•', 8) . substr($token, -4);
     }
 
+    /**
+     * Full access to every api.token route. Granted explicitly by an admin;
+     * a token without scopes otherwise reaches nothing.
+     */
     public function isUnrestricted(): bool
     {
-        return ApiTokenScopeService::isUnrestricted($this->permissions);
+        return (bool) $this->unrestricted;
     }
 
     /**

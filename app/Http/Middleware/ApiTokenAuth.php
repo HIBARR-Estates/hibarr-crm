@@ -34,26 +34,20 @@ class ApiTokenAuth
             return response()->json(['message' => $message], 401);
         }
 
+        // A token only acts for the company it was issued to. The header may
+        // repeat that company but never pick another one, and a token with no
+        // company is refused rather than guessed.
         $tokenCompanyId = $tokenData->company_id ? (int) $tokenData->company_id : null;
         $requestCompanyId = $this->parseCompanyIdHeader($companyId);
 
-        $resolvedCompanyId = $this->resolveCompanyId($requestCompanyId, $tokenCompanyId);
-        if (!$resolvedCompanyId) {
-            if ($this->isV2Route($request)) {
-                $resolvedCompanyId = 1;
-            } else {
-                return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
-            }
-        }
-
-        if ($this->hasCompanyMismatch($requestCompanyId, $tokenCompanyId)) {
+        if (!$tokenCompanyId || $this->hasCompanyMismatch($requestCompanyId, $tokenCompanyId)) {
             return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
         }
 
-        $request->headers->set('X-COMPANY-ID', (string) $resolvedCompanyId);
+        $request->headers->set('X-COMPANY-ID', (string) $tokenCompanyId);
 
         $routeName = $request->route()?->getName();
-        if (!ApiTokenScopeService::routeAllowed($routeName, $tokenData->permissions ?? null)) {
+        if (!ApiTokenScopeService::routeAllowed($routeName, $tokenData->permissions ?? null, $tokenData->isUnrestricted())) {
             return response()->json([
                 'message' => __('messages.apiTokenEndpointForbidden'),
             ], 403);
@@ -90,20 +84,8 @@ class ApiTokenAuth
         return is_numeric($companyIdHeader) ? (int) $companyIdHeader : null;
     }
 
-    private function resolveCompanyId(?int $requestCompanyId, ?int $tokenCompanyId): ?int
+    private function hasCompanyMismatch(?int $requestCompanyId, int $tokenCompanyId): bool
     {
-        return $requestCompanyId ?? $tokenCompanyId;
-    }
-
-    private function isV2Route(Request $request): bool
-    {
-        $path = ltrim((string) $request->path(), '/');
-
-        return $path === 'api/v2' || str_starts_with($path, 'api/v2/');
-    }
-
-    private function hasCompanyMismatch(?int $requestCompanyId, ?int $tokenCompanyId): bool
-    {
-        return (bool) ($requestCompanyId && $tokenCompanyId && $requestCompanyId !== $tokenCompanyId);
+        return $requestCompanyId !== null && $requestCompanyId !== $tokenCompanyId;
     }
 }
