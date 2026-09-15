@@ -25,6 +25,15 @@ class LoginController extends Controller
 
     protected $redirectTo = 'account/dashboard';
 
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Limiters are defined in RouteServiceProvider::configureRateLimiting().
+        $this->middleware('throttle:login-email-check')->only('checkEmail');
+        $this->middleware('throttle:two-factor-code')->only(['checkCode', 'resendCode']);
+    }
+
     public function checkEmail(LoginRequest $request)
     {
         $user = User::where('email', $request->email)
@@ -50,15 +59,24 @@ class LoginController extends Controller
             'code' => 'required',
         ]);
 
-        $user = User::findOrFail($request->user_id);
+        // The challenge belongs to whoever passed the password step in this
+        // session (RedirectIfTwoFactorAuthenticatable sets login.id) — never
+        // to a user id sent by the browser.
+        $user = User::find($request->session()->get('login.id'));
 
-        if ($request->code == $user->two_factor_code) {
+        if (is_null($user)) {
+            return redirect()->route('login');
+        }
+
+        if ($user->hasValidTwoFactorCode((string) $request->code)) {
 
             // Reset codes and expire_at after verification
             $user->resetTwoFactorCode();
+            $request->session()->forget(['login.id', 'login.remember', 'login.authenticate_via']);
 
             // Attempt login
             Auth::login($user);
+            $request->session()->regenerate();
 
             return redirect()->route('dashboard');
         }
@@ -71,7 +89,12 @@ class LoginController extends Controller
 
     public function resendCode(Request $request)
     {
-        $user = User::findOrFail($request->user_id);
+        $user = User::find($request->session()->get('login.id'));
+
+        if (is_null($user)) {
+            return Reply::error(__('messages.unAuthorisedUser'));
+        }
+
         $user->generateTwoFactorCode();
         event(new TwoFactorCodeEvent($user));
 
@@ -94,8 +117,10 @@ class LoginController extends Controller
 
     public function redirect($provider)
     {
-        $service = array_search($provider, self::SOCIAL_DRIVERS, true);
-        abort_unless($service !== false && $this->socialProviderEnabled($service), 404);
+        // Keycloak SSO is the only supported way to sign in to the CRM.
+        if ($provider !== 'keycloak') {
+            abort(404);
+        }
 
         $this->setSocailAuthConfigs();
 
@@ -104,9 +129,13 @@ class LoginController extends Controller
 
     public function callback(Request $request, $provider)
     {
-        Log::info("Social login callback started", ['provider' => $provider]);
+        // Keycloak SSO is the only supported way to sign in to the CRM.
+        if ($provider !== 'keycloak') {
+            abort(404);
+        }
 
-        abort_unless(array_key_exists($provider, self::SOCIAL_DRIVERS) && $this->socialProviderEnabled($provider), 404);
+        // Query string carries the OAuth code — kept out of the log.
+        Log::info("Social login callback started", ['provider' => $provider]);
 
         $this->setSocailAuthConfigs();
 

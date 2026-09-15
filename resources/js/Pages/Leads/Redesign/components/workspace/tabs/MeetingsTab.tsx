@@ -5,7 +5,6 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import {
     getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
@@ -69,8 +68,8 @@ export default function MeetingsTab({
     const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
         null,
     );
-    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
-        null,
+    const [detailInitialPanel, setDetailInitialPanel] = useState<"info" | "summary">(
+        "info",
     );
 
     const {
@@ -83,12 +82,6 @@ export default function MeetingsTab({
     const detailFollowup =
         leadFollowUps.find((followup) => followup.id === detailFollowupId) ??
         null;
-    const summaryFollowup =
-        leadFollowUps.find((followup) => followup.id === summaryFollowupId) ??
-        null;
-    const summaryDeal = summaryFollowup?.deal_id
-        ? (deals.find((deal) => deal.id === summaryFollowup.deal_id) ?? null)
-        : null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string; status: string },
@@ -322,13 +315,14 @@ export default function MeetingsTab({
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                selectMode
-                                                    ? toggleSelect(meeting.id)
-                                                    : setDetailFollowupId(
-                                                          meeting.id,
-                                                      )
-                                            }
+                                            onClick={() => {
+                                                if (selectMode) {
+                                                    toggleSelect(meeting.id);
+                                                    return;
+                                                }
+                                                setDetailInitialPanel("info");
+                                                setDetailFollowupId(meeting.id);
+                                            }}
                                             aria-label={
                                                 selectMode
                                                     ? `Select meeting ${meeting.title}`
@@ -399,9 +393,8 @@ export default function MeetingsTab({
                                                                     event,
                                                                 ) => {
                                                                     event.stopPropagation();
-                                                                    setSummaryFollowupId(
-                                                                        meeting.id,
-                                                                    );
+                                                                    setDetailInitialPanel("summary");
+                                                                    setDetailFollowupId(meeting.id);
                                                                 }}
                                                                 onKeyDown={(
                                                                     event,
@@ -411,9 +404,8 @@ export default function MeetingsTab({
                                                                         "Enter"
                                                                     ) {
                                                                         event.stopPropagation();
-                                                                        setSummaryFollowupId(
-                                                                            meeting.id,
-                                                                        );
+                                                                        setDetailInitialPanel("summary");
+                                                                        setDetailFollowupId(meeting.id);
                                                                     }
                                                                 }}
                                                             >
@@ -511,17 +503,12 @@ export default function MeetingsTab({
                 meeting={detailFollowup}
                 meetingTypes={meetingTypes}
                 permissions={permissions}
-                onClose={() => setDetailFollowupId(null)}
+                initialPanel={detailInitialPanel}
+                onClose={() => {
+                    setDetailFollowupId(null);
+                    setDetailInitialPanel("info");
+                }}
             />
-
-            {summaryFollowup && summaryDeal && (
-                <ViewFollowup
-                    open={!!summaryFollowup}
-                    onClose={() => setSummaryFollowupId(null)}
-                    followup={summaryFollowup}
-                    deal={summaryDeal}
-                />
-            )}
 
             <DealConfirmDialog
                 open={confirmBulkCancel}

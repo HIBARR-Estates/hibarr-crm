@@ -8,7 +8,6 @@ import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import {
     getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
@@ -112,14 +111,12 @@ export default function WorkspaceMeetingsTab({
     const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
         null,
     );
-    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
-        null,
+    const [detailInitialPanel, setDetailInitialPanel] = useState<"info" | "summary">(
+        "info",
     );
 
     const detailFollowup =
         followUps.find((followup) => followup.id === detailFollowupId) ?? null;
-    const summaryFollowup =
-        followUps.find((followup) => followup.id === summaryFollowupId) ?? null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string; status: string },
@@ -327,13 +324,14 @@ export default function WorkspaceMeetingsTab({
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                selectMode
-                                                    ? toggleSelect(meeting.id)
-                                                    : setDetailFollowupId(
-                                                          meeting.id,
-                                                      )
-                                            }
+                                            onClick={() => {
+                                                if (selectMode) {
+                                                    toggleSelect(meeting.id);
+                                                    return;
+                                                }
+                                                setDetailInitialPanel("info");
+                                                setDetailFollowupId(meeting.id);
+                                            }}
                                             aria-label={
                                                 selectMode
                                                     ? t(
@@ -414,9 +412,8 @@ export default function WorkspaceMeetingsTab({
                                                                     event,
                                                                 ) => {
                                                                     event.stopPropagation();
-                                                                    setSummaryFollowupId(
-                                                                        meeting.id,
-                                                                    );
+                                                                    setDetailInitialPanel("summary");
+                                                                    setDetailFollowupId(meeting.id);
                                                                 }}
                                                                 onKeyDown={(
                                                                     event,
@@ -426,9 +423,8 @@ export default function WorkspaceMeetingsTab({
                                                                         "Enter"
                                                                     ) {
                                                                         event.stopPropagation();
-                                                                        setSummaryFollowupId(
-                                                                            meeting.id,
-                                                                        );
+                                                                        setDetailInitialPanel("summary");
+                                                                        setDetailFollowupId(meeting.id);
                                                                     }
                                                                 }}
                                                             >
@@ -492,6 +488,7 @@ export default function WorkspaceMeetingsTab({
                 meeting={detailFollowup}
                 deal={deal}
                 meetingTypes={meetingTypes}
+                initialPanel={detailInitialPanel}
                 canEdit={
                     detailFollowup
                         ? canEditMeeting(
@@ -512,17 +509,12 @@ export default function WorkspaceMeetingsTab({
                           )
                         : false
                 }
-                onClose={() => setDetailFollowupId(null)}
+                onClose={() => {
+                    setDetailFollowupId(null);
+                    setDetailInitialPanel("info");
+                }}
             />
 
-            {summaryFollowup && (
-                <ViewFollowup
-                    open={!!summaryFollowup}
-                    onClose={() => setSummaryFollowupId(null)}
-                    followup={summaryFollowup}
-                    deal={deal}
-                />
-            )}
 
             <DealConfirmDialog
                 open={confirmBulkCancel}
