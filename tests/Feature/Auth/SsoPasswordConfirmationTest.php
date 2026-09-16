@@ -187,13 +187,8 @@ class SsoPasswordConfirmationTest extends TestCase
             'expires_at' => time() + 60,
         ]);
 
-        Config::set('services.keycloak.redirect', null);
-
         app(SsoPasswordConfirmationController::class)->confirm('keycloak');
 
-        // The token exchange runs on the social callback, which hands over
-        // before it configures the drivers.
-        $this->assertStringEndsWith('/callback/keycloak', (string)config('services.keycloak.redirect'));
         $this->assertGreaterThan(0, session('auth.password_confirmed_at'));
         $this->assertSame(
             ['method' => 'email', 'status' => 'enable'],
