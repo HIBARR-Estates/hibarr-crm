@@ -3,7 +3,7 @@
 How an agent acting fully autonomously (no human approving each step) should
 turn a task description into a tracked Jira issue, a correctly-named branch,
 and a pull request back to `develop`. This documents the sequence actually
-used for HIB-1666 ("Add product tour to personal dashboard") as a concrete
+used for PROJ-1234 ("Add product tour to personal dashboard") as a concrete
 example other agents can follow.
 
 ## 1. Research before creating anything
@@ -48,7 +48,7 @@ you're about to act on has actually come back.
   reused components/flags), and acceptance criteria. This becomes the
   source of truth for anyone (human or agent) picking up the issue later —
   write it as if the branch/PR didn't exist yet.
-- Record the returned issue key (e.g. `HIB-1666`) — everything downstream
+- Record the returned issue key (e.g. `PROJ-1234`) — everything downstream
   is named from it.
 
 ## 3. Derive the branch name from the Jira key and create it
@@ -60,7 +60,7 @@ construct it manually):
 <ISSUE-KEY>-<kebab-case-summary>
 ```
 
-e.g. `HIB-1666-add-product-tour-to-personal-dashboard`. Lowercase, hyphens,
+e.g. `PROJ-1234-add-product-tour-to-personal-dashboard`. Lowercase, hyphens,
 no issue-type prefix, summary trimmed to stay reasonably short.
 
 Create it from an up-to-date `develop`, not from whatever branch the
