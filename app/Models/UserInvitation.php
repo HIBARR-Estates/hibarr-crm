@@ -45,7 +45,46 @@ class UserInvitation extends BaseModel
 
     use Notifiable, HasCompany;
 
+    /** Invitations stop working this many days after they are created. */
+    public const EXPIRY_DAYS = 7;
+
     protected $guarded = ['id'];
+
+    protected $casts = [
+        'expires_at' => 'datetime',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $invite) {
+            $invite->expires_at ??= now()->addDays(self::EXPIRY_DAYS);
+        });
+    }
+
+    public static function generateCode(): string
+    {
+        return \Illuminate\Support\Str::random(40);
+    }
+
+    /**
+     * Invitations that can still be opened or accepted: active and unexpired.
+     */
+    public function scopeUsable(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where('status', 'active')->where('expires_at', '>', now());
+    }
+
+    /**
+     * Link invites may be limited to one email domain (email_restriction).
+     */
+    public function allowsEmail(string $email): bool
+    {
+        if (empty($this->email_restriction)) {
+            return true;
+        }
+
+        return str_ends_with(strtolower($email), '@' . strtolower(ltrim($this->email_restriction, '@')));
+    }
 
     public function user(): BelongsTo
     {
