@@ -1198,6 +1198,10 @@ class HomeController extends Controller
 
     public function syncPermissions()
     {
+        // The scheduler already runs this every minute; the route is a manual
+        // trigger, so it needs a session (route middleware) and an admin.
+        abort_403(!in_array('admin', user_roles()));
+
         return Artisan::call('sync-user-permissions');
     }
 

@@ -57,7 +57,7 @@ Route::post('/lead-form/ticket-store', [HomeController::class, 'ticketStore'])->
 
 Route::post('/contract/sign/{id}', [PublicUrlController::class, 'contractSign'])->name('front.contract.sign');
 Route::get('/contract/download/{id}', [PublicUrlController::class, 'contractDownload'])->name('front.contract.download');
-Route::get('/check-env', [PublicUrlController::class, 'checkEnv'])->name('front.check-env');
+Route::get('/check-env', [PublicUrlController::class, 'checkEnv'])->middleware('auth')->name('front.check-env');
 // Estimate Public url
 
 Route::post('/estimate/decline/{id}', [PublicUrlController::class, 'estimateDecline'])->name('front.estimate.decline');
@@ -145,7 +145,7 @@ Route::get('quill-image/{image}', [ImageController::class, 'getImage'])->name('i
 Route::get('cropper/{element}', [ImageController::class, 'cropper'])->name('cropper');
 
 // Sync user permissions
-Route::get('sync-user-permissions', [HomeController::class, 'syncPermissions'])->name('sync_user_permissions');
+Route::get('sync-user-permissions', [HomeController::class, 'syncPermissions'])->middleware('auth')->name('sync_user_permissions');
 
 Route::get('file/{type}/{path}', [FileController::class, 'getFile'])->name('file.getFile');
 
