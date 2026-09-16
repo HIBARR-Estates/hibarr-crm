@@ -171,6 +171,7 @@ export interface ConsultationCalendlyPayload {
         utmCampaign?: string;
         utmTerm?: string;
         utmContent?: string;
+        agt?: number;
     };
 }
 
