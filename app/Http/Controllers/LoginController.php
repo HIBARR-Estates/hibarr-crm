@@ -94,7 +94,8 @@ class LoginController extends Controller
 
     public function redirect($provider)
     {
-        // Keycloak SSO is the only supported way to sign in to the CRM.
+        // Keycloak SSO is the only supported way to sign in to the CRM,
+        // and it can't be disabled (Social Login Settings forces it on).
         if ($provider !== 'keycloak') {
             abort(404);
         }
@@ -106,7 +107,8 @@ class LoginController extends Controller
 
     public function callback(Request $request, $provider)
     {
-        // Keycloak SSO is the only supported way to sign in to the CRM.
+        // Keycloak SSO is the only supported way to sign in to the CRM,
+        // and it can't be disabled (Social Login Settings forces it on).
         if ($provider !== 'keycloak') {
             abort(404);
         }
@@ -117,7 +119,8 @@ class LoginController extends Controller
             return app(SsoPasswordConfirmationController::class)->confirm($provider);
         }
 
-        Log::info("Social login callback started", ['provider' => $provider, 'query' => $request->query()]);
+        // Query string carries the OAuth code — kept out of the log.
+        Log::info("Social login callback started", ['provider' => $provider]);
 
         $this->setSocailAuthConfigs();
 
@@ -130,18 +133,9 @@ class LoginController extends Controller
 
         try {
             try {
-                if ($provider != 'twitter' && $provider != 'linkedin') {
-                    $data = Socialite::driver($provider)->stateless()->user(); /* @phpstan-ignore-line */
-                }
-                elseif ($provider == 'twitter') {
-                    $data = Socialite::driver('twitter-oauth-2')->user(); /* @phpstan-ignore-line */
-                }
-                elseif ($provider == 'linkedin') {
-                    $data = Socialite::driver('linkedin-openid')->user(); /* @phpstan-ignore-line */
-                }
-                else {
-                    $data = Socialite::driver($provider)->user();
-                }
+                // Stateful on purpose: Socialite checks the OAuth state that
+                // redirect() stored in the session, which blocks login CSRF.
+                $data = Socialite::driver($provider)->user(); /* @phpstan-ignore-line */
 
                 Log::info("Socialite user retrieved", [
                     'provider' => $provider,
@@ -159,12 +153,7 @@ class LoginController extends Controller
                 return redirect()->route('login')->with(['message' => $e->getMessage()]);
             }
 
-            if ($provider == 'twitter') {
-                $user = User::where(['twitter_id' => $data->id])->first();
-            }
-            else {
-                $user = User::where(['email' => $data->email])->first();
-            }
+            $user = $this->findSocialLoginUser($provider, $data);
 
             Log::info("User lookup result", [
                 'provider' => $provider,
@@ -194,12 +183,18 @@ class LoginController extends Controller
             // User found
             DB::beginTransaction();
 
-            Social::updateOrCreate(['user_id' => $user->id], [
-                'social_id' => $data->id,
-                'social_service' => $provider,
-            ]);
+            try {
+                Social::updateOrCreate(['user_id' => $user->id], [
+                    'social_id' => $data->id,
+                    'social_service' => $provider,
+                ]);
 
-            DB::commit();
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+
+                throw $e;
+            }
 
             Log::info("Social record saved, logging in user", ['user_id' => $user->id]);
 
@@ -225,6 +220,33 @@ class LoginController extends Controller
             return redirect()->route('login')->with(['message' => $e->getMessage()]);
         }
       
+    }
+
+    /**
+     * Resolve the local account for a provider identity. An identity linked on
+     * an earlier login signs straight in; otherwise the provider's email is only
+     * trusted when the provider asserts it is verified.
+     */
+    private function findSocialLoginUser(string $service, $data): ?User
+    {
+        $linkedUserId = Social::where('social_service', $service)
+            ->where('social_id', (string) $data->id)
+            ->value('user_id');
+
+        if ($linkedUserId) {
+            return User::where('id', $linkedUserId)->first();
+        }
+
+        $raw = $data->getRaw();
+        $emailVerified = filter_var($raw['email_verified'] ?? $raw['verified_email'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if (!$emailVerified || empty($data->email)) {
+            Log::warning("Social login: unlinked identity without a verified email", ['provider' => $service]);
+
+            return null;
+        }
+
+        return User::where(['email' => $data->email])->first();
     }
 
     public function redirectPath()

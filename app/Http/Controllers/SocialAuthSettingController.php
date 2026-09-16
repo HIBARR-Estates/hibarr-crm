@@ -77,7 +77,9 @@ class SocialAuthSettingController extends AccountBaseController
             $socialAuth->keycloak_secret_id = $request->keycloak_secret_id;
             $socialAuth->keycloak_base_url  = $request->keycloak_base_url;
             $socialAuth->keycloak_realm     = $request->keycloak_realm;
-            $socialAuth->keycloak_status = $request->keycloak_status ? 'enable' : 'disable';
+            // Keycloak is the only supported sign-in method and can never be
+            // turned off, regardless of what the request sends.
+            $socialAuth->keycloak_status = 'enable';
         }
 
         $socialAuth->save();
