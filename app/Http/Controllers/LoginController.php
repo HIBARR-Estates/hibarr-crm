@@ -111,6 +111,12 @@ class LoginController extends Controller
             abort(404);
         }
 
+        // A pending SSO password confirmation reuses this callback so the
+        // provider needs no extra redirect URI registered.
+        if (session()->has(SsoPasswordConfirmationController::SESSION_KEY)) {
+            return app(SsoPasswordConfirmationController::class)->confirm($provider);
+        }
+
         Log::info("Social login callback started", ['provider' => $provider, 'query' => $request->query()]);
 
         $this->setSocailAuthConfigs();

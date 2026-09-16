@@ -4,6 +4,7 @@ namespace App\Http\Requests\User;
 
 use App\Models\UserInvitation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class AcceptInviteRequest extends FormRequest
 {
@@ -31,7 +32,7 @@ class AcceptInviteRequest extends FormRequest
 
         $rules = [
             'name' => 'required',
-            'password' => 'required|min:8'
+            'password' => ['required', Password::defaults()]
         ];
 
         if (request()->has('email_address')) {
