@@ -706,7 +706,10 @@ class HomeController extends Controller
     // public function leadStore(StorePublicLead $request)
     public function leadStore(StorePublicLead $request)
     {
-        $company = Company::findOrFail($request->company_id);
+        // The form identifies its company by the public hash it was rendered with
+        // (lead-form/{hash}). Public requests get no CompanyScope, so every lookup
+        // below is filtered by this company explicitly.
+        $company = Company::where('hash', $request->company_hash)->firstOrFail();
 
         if (global_setting()->google_recaptcha_status == 'active') {
             // Checking is google recaptcha is valid
@@ -725,7 +728,7 @@ class HomeController extends Controller
         $leadContact = null;
 
         if (request()->has('email') && !is_null($request->email)) {
-            $leadContact = Lead::where('client_email', $request->email)->first();
+            $leadContact = Lead::where('company_id', $company->id)->where('client_email', $request->email)->first();
         }
 
         if (is_null($leadContact)) {
@@ -762,13 +765,13 @@ class HomeController extends Controller
         $lead->note = (request()->has('message') ? $request->message : null);
         $lead->value = 0;
         $lead->currency_id = $company->currency_id;
-        $lead->category_id = $request->category_id ?? null;
+        $lead->category_id = LeadCategory::where('company_id', $company->id)->whereKey($request->category_id)->value('id');
         Session::put('is_deal', true);
         $lead->save();
 
         if (!is_null($request->product)) {
 
-            $products = $request->product;
+            $products = Product::where('company_id', $company->id)->whereIn('id', (array) $request->product)->pluck('id');
 
             foreach ($products as $product) {
                 $leadProduct = new LeadProduct();
@@ -824,7 +827,9 @@ class HomeController extends Controller
      */
     public function ticketStore(StoreCustomTicket $request)
     {
-        $company = Company::findOrFail($request->company_id);
+        // Same as leadStore: the company comes from the form's public hash
+        // (ticket-form/{hash}) and every lookup below is filtered by it.
+        $company = Company::where('hash', $request->company_hash)->firstOrFail();
 
         if (global_setting()->google_recaptcha_status == 'active') {
 
@@ -839,14 +844,17 @@ class HomeController extends Controller
         }
 
         /* $rules['g-recaptcha-response'] = 'required'; */
-        $existing_user = User::withoutGlobalScope(ActiveScope::class)->select('id', 'email')->where('email', $request->email)->first();
+        $existing_user = User::withoutGlobalScope(ActiveScope::class)->select('id', 'email')
+            ->where('company_id', $company->id)
+            ->where('email', $request->email)
+            ->first();
         $newUser = $existing_user;
 
         if (!$existing_user) {
             $password = str_random(8);
             // create new user
             $client = new User();
-            $client->company_id = $request->company_id;
+            $client->company_id = $company->id;
             $client->name = $request->name;
             $client->email = $request->email;
             $client->email_notifications = $request->email_notifications ?? 1;
@@ -884,9 +892,9 @@ class HomeController extends Controller
         $ticket->subject = (request()->has('ticket_subject') ? $request->ticket_subject : '');
         $ticket->status = 'open';
         $ticket->user_id = $newUser->id;
-        $ticket->type_id = (request()->has('type') ? $request->type : null);
+        $ticket->type_id = TicketType::where('company_id', $company->id)->whereKey($request->type)->value('id');
         $ticket->priority = (request()->has('priority') ? $request->priority : 'medium');
-        $ticket->group_id = (request()->has('assign_group') ? $request->assign_group : null);
+        $ticket->group_id = TicketGroup::where('company_id', $company->id)->whereKey($request->assign_group)->value('id');
         $ticket->save();
 
         // Save first message
