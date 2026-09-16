@@ -507,7 +507,7 @@
                                     <table>
                                         <tr>@lang('app.note')</tr>
                                         <tr>
-                                            <p class="text-dark-grey">{!! !empty($invoice->note) ? nl2br($invoice->note) : '--' !!}</p>
+                                            <p class="text-dark-grey">{!! clean_html(!empty($invoice->note) ? nl2br($invoice->note) : '--') !!}</p>
                                         </tr>
                                     </table>
                                 </td>

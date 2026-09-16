@@ -1274,3 +1274,16 @@ if (!function_exists('isRtl')) {
     }
 
 }
+
+if (!function_exists('clean_html')) {
+
+    /**
+     * Sanitize user-authored rich text for raw Blade output: {!! clean_html($note->details) !!}.
+     * Keeps editor formatting and drops anything that can run script (App\Support\HtmlSanitizer).
+     */
+    function clean_html($html): string
+    {
+        return (string) \App\Support\HtmlSanitizer::clean($html === null ? null : (string) $html);
+    }
+
+}

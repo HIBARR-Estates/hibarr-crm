@@ -213,7 +213,7 @@
                         </table>
                         <div class="row">
                             <div class="col-sm-12 ql-editor">
-                                {!! $estimate->description !!}
+                                {!! clean_html($estimate->description) !!}
                             </div>
                         </div>
                         <table width="100%" class="inv-desc d-none d-lg-table d-md-table">
@@ -429,7 +429,7 @@
                                     <table>
                                         <tr>@lang('app.note')</tr>
                                         <tr>
-                                            <p class="text-dark-grey">{!! $estimate->note ?? '--' !!}</p>
+                                            <p class="text-dark-grey">{!! clean_html($estimate->note ?? '--') !!}</p>
                                         </tr>
                                     </table>
                                 </td>

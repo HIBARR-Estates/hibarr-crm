@@ -35,7 +35,7 @@
                 <td data-row-id="{{ $item->id }}" data-column="label_color" contenteditable="true">
                     {!! $item->label_color !!}
                 </td>
-                <td data-row-id="{{ $item->id }}" data-column="description" contenteditable="true">{!! $item->description !!}
+                <td data-row-id="{{ $item->id }}" data-column="description" contenteditable="true">{!! clean_html($item->description) !!}
                 </td>
                 <td data-row-id="{{ $item->id }}" data-column="project">
                     <select class="form-control select-picker change-project" name="project" id="project_id"

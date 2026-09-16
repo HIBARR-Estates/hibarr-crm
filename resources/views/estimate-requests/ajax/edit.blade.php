@@ -86,7 +86,7 @@
                 <div class="form-group">
                     <x-forms.label fieldId="description" :fieldLabel="__('modules.estimateRequest.description')" :fieldRequired='true'>
                     </x-forms.label>
-                    <div id="description">{!! $estimateRequest->description !!}</div>
+                    <div id="description">{!! clean_html($estimateRequest->description) !!}</div>
                     <textarea name="description" id="description-text" class="d-none"></textarea>
                 </div>
             </div>

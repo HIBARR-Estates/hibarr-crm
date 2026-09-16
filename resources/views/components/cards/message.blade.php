@@ -37,7 +37,7 @@
 
             @if ($message->message != '')
                 <div class="card-text text-dark-grey text-justify mb-2 p-0 text-wrap text-break ql-editor f-13">
-                    <span>{!! nl2br($message->message) !!}</span>
+                    <span>{!! clean_html(nl2br($message->message)) !!}</span>
                 </div>
             @endif
 

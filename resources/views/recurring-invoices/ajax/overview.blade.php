@@ -310,7 +310,7 @@
                                 <table>
                                     <tr>@lang('app.note')</tr>
                                     <tr>
-                                        <p class="text-dark-grey">{!! $invoice->note ?? '--' !!}</p>
+                                        <p class="text-dark-grey">{!! clean_html($invoice->note ?? '--') !!}</p>
                                     </tr>
                                 </table>
                             </td>
