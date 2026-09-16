@@ -148,7 +148,15 @@
 
         const pusher = new Pusher('{{ $pusherSettings->pusher_app_key }}', {
             cluster: '{{ $pusherSettings->pusher_cluster }}',
-            forceTLS: '{{ $pusherSettings->force_tls }}'
+            forceTLS: '{{ $pusherSettings->force_tls }}',
+            // Private channels (e.g. private-messages.{userId}) are authorized by
+            // Laravel's broadcasting/auth route against routes/channels.php.
+            authEndpoint: '/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            }
         });
 
     </script>

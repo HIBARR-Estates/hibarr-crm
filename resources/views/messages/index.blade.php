@@ -601,7 +601,8 @@
         @endif
 
         if ((pusher_setting.status === 1 && pusher_setting.messages === 1) || (pusher_setting.status == "1" && pusher_setting.messages == "1")) {
-            var channel = pusher.subscribe('messages-channel');
+            // This user's private channel only (routes/channels.php: messages.{userId}).
+            var channel = pusher.subscribe('private-messages.{{ user()->id }}');
             channel.bind('messages.received', function (data) {
                 fetchUserMessages()
 
@@ -610,9 +611,63 @@
                 }
             });
 
+            // Typing whispers use the open conversation's private channel,
+            // chat.{lowId}.{highId} (App\Events\NewMessage::conversationChannel).
+            function conversationChannel(otherUserId) {
+                var ids = [parseInt("{{ user()->id }}", 10), parseInt(otherUserId, 10)].sort(function (a, b) {
+                    return a - b;
+                });
+
+                return 'chat.' + ids[0] + '.' + ids[1];
+            }
+
+            var typingChannelName = null;
+
+            function listenForTyping(otherUserId) {
+                if (!otherUserId) {
+                    return;
+                }
+
+                var channelName = conversationChannel(otherUserId);
+
+                if (channelName === typingChannelName) {
+                    return;
+                }
+
+                if (typingChannelName) {
+                    Echo.leave(typingChannelName);
+                }
+
+                typingChannelName = channelName;
+
+                Echo.private(channelName).listenForWhisper('typing', (e) => {
+                    var currentUserId = $('#current_user_id').val();
+
+                    if (e.to == Laravel.user.id && e.from == currentUserId) {
+                        e.typing ? $('#chatBox').find('.typing').removeClass('invisible').addClass('visible') : $('#chatBox').find('.typing').removeClass('visible').addClass('invisible')
+                        // remove is typing indicator after 0.9s
+                        setTimeout(function () {
+                            e.typing = false;
+                            $('#chatBox').find('.typing').removeClass('visible').addClass('invisible');
+                        }, 1500);
+                    }
+                });
+            }
+
+            $('body').on('click', '.show-user-messages', function () {
+                listenForTyping($(this).data('user-id'));
+            });
+
+            listenForTyping($('#current_user_id').val());
+
             $('#submitTexts').on('keydown', function () {
                 var currentUserId = $('#current_user_id').val();
-                let channel2 = Echo.private('chat');
+
+                if (!currentUserId) {
+                    return;
+                }
+
+                let channel2 = Echo.private(conversationChannel(currentUserId));
                 setTimeout(() => {
                     channel2.whisper('typing', {
                         from: "{{ user()->id }}",
@@ -620,20 +675,6 @@
                         typing: true
                     })
                 }, 300)
-            });
-
-
-            Echo.private('chat').listenForWhisper('typing', (e) => {
-                var currentUserId = $('#current_user_id').val();
-
-                if (e.to == Laravel.user.id && e.from == currentUserId) {
-                    e.typing ? $('#chatBox').find('.typing').removeClass('invisible').addClass('visible') : $('#chatBox').find('.typing').removeClass('visible').addClass('invisible')
-                    // remove is typing indicator after 0.9s
-                    setTimeout(function () {
-                        e.typing = false;
-                        $('#chatBox').find('.typing').removeClass('visible').addClass('invisible');
-                    }, 1500);
-                }
             });
         } else {
             window.setInterval(function () {
