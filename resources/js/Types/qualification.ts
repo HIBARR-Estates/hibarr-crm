@@ -171,6 +171,7 @@ export interface ConsultationCalendlyPayload {
         utmCampaign?: string;
         utmTerm?: string;
         utmContent?: string;
+        /** OL attribution: referring user id (map to CRM `referral_agent_id` on sync). */
         agt?: number;
     };
 }

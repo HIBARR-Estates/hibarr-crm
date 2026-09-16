@@ -17,6 +17,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
+use App\Scopes\CompanyScope;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
@@ -213,6 +214,7 @@ class DealContactApiController extends Controller
                     'message' => 'Duplicate request ignored; an identical request was received in the last '.self::DUPLICATE_REQUEST_WINDOW.' seconds.',
                     'contact_id' => $duplicateContactId,
                     'company_id' => $companyId,
+                    'referred_by_agent_id' => $this->leadReferrerIdForCompany((int) $duplicateContactId, $companyId),
                 ], 200);
             }
 
@@ -234,6 +236,9 @@ class DealContactApiController extends Controller
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
                     $fieldsChanged = $this->applyLeadOptionalFields($existingLead, $request);
+                    if ($this->applyReferralAgentToLead($existingLead, $request)) {
+                        $fieldsChanged = true;
+                    }
                     if ($fieldsChanged) {
                         $existingLead->saveQuietly();
                     }
@@ -262,6 +267,8 @@ class DealContactApiController extends Controller
                 }
             }
 
+            $savedReferrerId = $this->leadReferrerIdForCompany((int) $contactId, $companyId);
+
             Log::info('Deal creation request processed synchronously', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
@@ -274,6 +281,7 @@ class DealContactApiController extends Controller
                 'message' => 'Deal creation request is being processed.',
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
+                'referred_by_agent_id' => $savedReferrerId,
             ], 200);
 
         } catch (\Exception $e) {
@@ -507,7 +515,7 @@ class DealContactApiController extends Controller
 
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
-                    $this->applyReferralAgentToNewLead($contact, $request);
+                    $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
@@ -551,6 +559,9 @@ class DealContactApiController extends Controller
                     if ($this->applyLeadOptionalFields($existingContact, $request)) {
                         $updated = true;
                     }
+                    if ($this->applyReferralAgentToLead($existingContact, $request)) {
+                        $updated = true;
+                    }
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
@@ -576,6 +587,7 @@ class DealContactApiController extends Controller
                 return Reply::successWithData($isNewContact ? 'Contact created successfully' : 'Contact updated successfully', [
                     'contact_id' => $contactId,
                     'is_new' => $isNewContact,
+                    'referred_by_agent_id' => $savedContact?->referred_by_agent_id,
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
                 ]);
@@ -634,6 +646,9 @@ class DealContactApiController extends Controller
                 if ($this->applyLeadOptionalFields($existingContact, $request)) {
                     $updated = true;
                 }
+                if ($this->applyReferralAgentToLead($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
@@ -677,6 +692,9 @@ class DealContactApiController extends Controller
                 if ($this->applyLeadOptionalFields($existingContact, $request)) {
                     $updated = true;
                 }
+                if ($this->applyReferralAgentToLead($existingContact, $request)) {
+                    $updated = true;
+                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
@@ -706,7 +724,7 @@ class DealContactApiController extends Controller
         }
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
-        $this->applyReferralAgentToNewLead($contact, $request);
+        $this->applyReferralAgentToLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -884,29 +902,76 @@ class DealContactApiController extends Controller
 
     /**
      * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
-     * Invalid, missing, or cross-company IDs are ignored.
+     * Write-once: skipped when the lead already has a referrer. Invalid, missing,
+     * or cross-company IDs are ignored (lead create/update still proceeds). Only
+     * referral_agent_id (users.id, like lead_owner_id); CRM stores lead_agents.id.
+     * utmInfo is marketing-only.
+     *
+     * @return bool True when referred_by_agent_id was set on the in-memory lead.
      */
-    private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
+    private function applyReferralAgentToLead(Lead $lead, Request $request): bool
     {
-        $referralAgentId = $request->input('referral_agent_id', $request->input('referal_agent_id'));
-        if ($referralAgentId === null || $referralAgentId === '') {
-            return;
+        if ($lead->referred_by_agent_id !== null) {
+            return false;
         }
 
-        if (! is_numeric($referralAgentId) || ! $lead->company_id) {
-            return;
+        if (! $lead->company_id) {
+            return false;
         }
 
+        $resolvedAgentId = $this->resolveReferralLeadAgentId($request, (int) $lead->company_id);
+        if ($resolvedAgentId === null) {
+            return false;
+        }
+
+        $lead->referred_by_agent_id = $resolvedAgentId;
+
+        return true;
+    }
+
+    private function leadReferrerIdForCompany(int $contactId, int $companyId): ?int
+    {
+        $referrerId = Lead::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereKey($contactId)
+            ->value('referred_by_agent_id');
+
+        return $referrerId !== null ? (int) $referrerId : null;
+    }
+
+    private function resolveReferralLeadAgentId(Request $request, int $companyId): ?int
+    {
+        $raw = $request->input('referral_agent_id');
+        if ($raw === null || $raw === '' || ! is_numeric($raw)) {
+            return null;
+        }
+
+        return $this->resolveLeadAgentIdFromReferralUserId((int) $raw, $companyId);
+    }
+
+    /**
+     * Map a referring users.id to lead_agents.id for the company (same pattern as deal_owner_id → agent).
+     */
+    private function resolveLeadAgentIdFromReferralUserId(int $userId, int $companyId): ?int
+    {
         $agent = LeadAgent::query()
-            ->where('company_id', $lead->company_id)
-            ->whereKey((int) $referralAgentId)
+            ->withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
             ->first();
 
-        if ($agent === null) {
-            return;
+        if ($agent !== null) {
+            return (int) $agent->id;
         }
 
-        $lead->referred_by_agent_id = $agent->id;
+        // Legacy callers that still send lead_agents.id in referral fields.
+        $legacyAgent = LeadAgent::query()
+            ->withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->whereKey($userId)
+            ->first();
+
+        return $legacyAgent ? (int) $legacyAgent->id : null;
     }
 
     /**
@@ -1011,11 +1076,13 @@ class DealContactApiController extends Controller
         if ($request->has('utmInfo') && is_array($request->utmInfo)) {
             $utmInfo = $request->utmInfo;
             $marketingPayload = [
-                'utm_source' => Arr::get($utmInfo, 'source'),
-                'utm_medium' => Arr::get($utmInfo, 'medium'),
-                'utm_campaign' => Arr::get($utmInfo, 'utm_campaign') ?? Arr::get($utmInfo, 'campaign'),
-                'utm_term' => Arr::get($utmInfo, 'term'),
-                'utm_content' => Arr::get($utmInfo, 'content'),
+                'utm_source' => Arr::get($utmInfo, 'source') ?? Arr::get($utmInfo, 'utmSource'),
+                'utm_medium' => Arr::get($utmInfo, 'medium') ?? Arr::get($utmInfo, 'utmMedium'),
+                'utm_campaign' => Arr::get($utmInfo, 'utm_campaign')
+                    ?? Arr::get($utmInfo, 'campaign')
+                    ?? Arr::get($utmInfo, 'utmCampaign'),
+                'utm_term' => Arr::get($utmInfo, 'term') ?? Arr::get($utmInfo, 'utmTerm'),
+                'utm_content' => Arr::get($utmInfo, 'content') ?? Arr::get($utmInfo, 'utmContent'),
             ];
         }
 
