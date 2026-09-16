@@ -8,6 +8,7 @@ use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
+use App\Support\RequestCompany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Requests\CommunicationActivity\StoreRequest;
@@ -24,8 +25,8 @@ class CommunicationActivityController extends Controller
      */
     public function store(StoreRequest $request)
     {
-        // get the company id from the header and attach it to the request
-        $companyId = $request->header('X-COMPANY-ID');
+        // The session user's or API token's company, never a client-sent header
+        $companyId = RequestCompany::id($request);
 
         if (!$companyId) {
             return Reply::error(__('messages.missingCompanyId'));
@@ -100,7 +101,7 @@ class CommunicationActivityController extends Controller
     public function sendEmailToCustomer(SendEmailRequest $request)
     {
         try {
-            $companyId = $request->header('X-COMPANY-ID');
+            $companyId = RequestCompany::id($request);
             
             if (!$companyId) {
                 return Reply::error(__('messages.missingCompanyId'));

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\ApiToken;
 use App\Services\ApiTokenScopeService;
+use App\Support\RequestCompany;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -58,6 +59,10 @@ class ApiTokenAuth
                 'message' => __('messages.apiTokenEndpointForbidden'),
             ], 403);
         }
+
+        // The validated company (see RequestCompany::id()), kept apart from the
+        // header so controllers can tell it from a client-sent value.
+        $request->attributes->set(RequestCompany::TOKEN_COMPANY_ATTRIBUTE, (int) $request->header('X-COMPANY-ID'));
 
         return $next($request);
     }
