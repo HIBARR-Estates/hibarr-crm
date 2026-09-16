@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f63e760daddfa369741920b45f581b3e",
+    "content-hash": "546a5728799ed3a377817e22e7af23e2",
     "packages": [
         {
             "name": "apimatic/jsonmapper",

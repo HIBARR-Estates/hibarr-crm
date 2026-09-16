@@ -45,6 +45,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ParsePatchMultipart::class, // Parse multipart for PATCH requests
+            \App\Http\Middleware\SanitizeRichTextInput::class, // After PATCH multipart parsing, so those fields are covered too
             \App\Http\Middleware\HandleInertiaRequests::class,
         ],
 
@@ -52,6 +53,7 @@ class Kernel extends HttpKernel
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SanitizeRichTextInput::class,
         ],
     ];
 

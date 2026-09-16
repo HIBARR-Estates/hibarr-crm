@@ -21,6 +21,7 @@
         "edujugon/push-notification": "^5.2",
         "eluceo/ical": "^0.16.1",
         "endroid/qr-code": "^5.0",
+        "ezyang/htmlpurifier": "^4.15",
         "froiden/envato": "^5.0",
         "froiden/laravel-installer": "^1.6",
         "froiden/laravel-rest-api": "^10.0",
