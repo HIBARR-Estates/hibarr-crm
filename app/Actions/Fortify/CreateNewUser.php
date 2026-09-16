@@ -63,7 +63,9 @@ class CreateNewUser implements CreatesNewUsers
             }
         }
 
-        $user = User::create([
+        // forceCreate: company_id and admin_approval are guarded on User, and this
+        // array is built here, not taken from the request.
+        $user = User::forceCreate([
             'company_id' => $company->id,
             'name' => $input['name'],
             'email' => $input['email'],
