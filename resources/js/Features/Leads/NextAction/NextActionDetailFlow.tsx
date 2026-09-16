@@ -13,6 +13,7 @@ import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import TaskDetailModal from "@/Components/Redesign/modals/TaskDetailModal";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import RescheduleMeetingModal from "@/Components/Redesign/modals/RescheduleMeetingModal";
 import { buildRescheduleFormFromFollowup } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadIndexMeetingReschedule from "./useLeadIndexMeetingReschedule";
@@ -213,18 +214,15 @@ export default function NextActionDetailFlow({
                 }}
             />
 
-            <MeetingDetailModal
+            <MeetingViewModal
                 meeting={action?.type === "meeting" ? meeting : null}
                 canEdit={false}
                 canDelete={false}
                 canReschedule
                 onClose={handleClose}
                 isUpdating={isRescheduling}
-                // Cancel is gated behind canEdit and so never renders here;
-                // editing a lead-only meeting needs the deal it belongs to
-                // (deals.follow_up_update 500s without one), so both stay on
-                // the lead's own page — closing is the honest no-op.
                 onCancelMeeting={handleClose}
+                includeSummary={false}
                 renderNestedModals={({ rescheduleOpen, setRescheduleOpen }) =>
                     meeting ? (
                         <RescheduleMeetingModal
@@ -267,6 +265,64 @@ export default function NextActionDetailFlow({
                             }}
                         />
                     ) : null
+                }
+                fallback={
+                                <MeetingDetailModal
+                                    meeting={action?.type === "meeting" ? meeting : null}
+                                    canEdit={false}
+                                    canDelete={false}
+                                    canReschedule
+                                    onClose={handleClose}
+                                    isUpdating={isRescheduling}
+                                    // Cancel is gated behind canEdit and so never renders here;
+                                    // editing a lead-only meeting needs the deal it belongs to
+                                    // (deals.follow_up_update 500s without one), so both stay on
+                                    // the lead's own page — closing is the honest no-op.
+                                    onCancelMeeting={handleClose}
+                                    renderNestedModals={({ rescheduleOpen, setRescheduleOpen }) =>
+                                        meeting ? (
+                                            <RescheduleMeetingModal
+                                                open={rescheduleOpen}
+                                                onClose={() => setRescheduleOpen(false)}
+                                                saving={isRescheduling}
+                                                errors={meetingErrors}
+                                                initialForm={rescheduleInitialForm}
+                                                onSubmit={(payload) =>
+                                                    rescheduleMeeting(payload, () =>
+                                                        setRescheduleOpen(false),
+                                                    )
+                                                }
+                                                labels={{
+                                                    title: t(
+                                                        "pages.deals.workspace.meetings.reschedule_meeting",
+                                                    ),
+                                                    cancel: t("pages.deals.common.cancel"),
+                                                    submit: t(
+                                                        "pages.deals.workspace.meetings.reschedule",
+                                                    ),
+                                                    newDate: t(
+                                                        "pages.deals.workspace.meetings.new_date",
+                                                    ),
+                                                    newStartTime: t(
+                                                        "pages.deals.workspace.meetings.new_start_time",
+                                                    ),
+                                                    duration: t(
+                                                        "pages.deals.workspace.meetings.duration",
+                                                    ),
+                                                    hideDuration: t(
+                                                        "pages.deals.workspace.meetings.hide_duration",
+                                                    ),
+                                                    addDuration: t(
+                                                        "pages.deals.workspace.meetings.add_duration",
+                                                    ),
+                                                    endTime: t(
+                                                        "pages.deals.workspace.meetings.end_time",
+                                                    ),
+                                                }}
+                                            />
+                                        ) : null
+                                    }
+                                />
                 }
             />
         </>
