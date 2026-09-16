@@ -1,0 +1,16 @@
+# Secret scanning config, used by .github/workflows/security-scan.yml and
+# `make security-secrets`.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Files that only ever hold placeholders or upstream hashes"
+paths = [
+  '''\.env\.example$''',
+  '''composer\.lock$''',
+  '''package-lock\.json$''',
+  '''public/js/.*\.min\.js$''',
+  '''public/vendor/.*''',
+  '''scripts/security-audit-baseline\.json$''',
+]

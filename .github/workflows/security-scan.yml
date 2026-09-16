@@ -1,0 +1,89 @@
+name: Security scan
+
+# Dependency advisories and secret scanning, the gate Phase 1 found missing.
+# Deploys still run from Jenkins; nothing here touches them.
+
+on:
+  pull_request:
+    branches: [develop, main, staging]
+  push:
+    branches: [develop, main, staging]
+  schedule:
+    # Monday morning, to catch advisories published since the last push.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependencies:
+    name: Dependency advisories
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Both read the lock files only, so no install step is needed.
+      - name: composer audit
+        run: php scripts/security-audit-gate.php composer
+
+      - name: npm audit
+        run: php scripts/security-audit-gate.php npm
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.21.2
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # New commits only: the history already holds known leaks, tracked in
+      # HIB-1617 and HIB-1618, which the scheduled run below reports on.
+      - name: Scan the new commits
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            range="${{ github.sha }}~1..${{ github.sha }}"
+          else
+            range="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          echo "Scanning $range"
+          gitleaks detect --no-banner --redact --log-opts="$range"
+
+      - name: Scan the whole history
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        run: gitleaks detect --no-banner --redact --report-path gitleaks-report.json
+
+      - name: Keep the history report
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore

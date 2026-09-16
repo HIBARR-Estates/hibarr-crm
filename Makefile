@@ -67,6 +67,19 @@ migrate:
 	php artisan migrate --force
 
 # ------------------------------------
+# Security scans (same gates as .github/workflows/security-scan.yml)
+# ------------------------------------
+
+security-audit:
+	php scripts/security-audit-gate.php
+
+security-audit-update:
+	php scripts/security-audit-gate.php --update
+
+security-secrets:
+	gitleaks detect --no-banner --redact
+
+# ------------------------------------
 # gRPC / Protocol Buffers
 # ------------------------------------
 
@@ -74,7 +87,7 @@ PROTO_DIR := proto
 PROTO_OUT := app/Grpc/Generated
 PROTOC := protoc
 
-.PHONY: proto proto-clean rr-install rr-serve rr-serve-prod rr-stop rr-workers
+.PHONY: proto proto-clean rr-install rr-serve rr-serve-prod rr-stop rr-workers security-audit security-audit-update security-secrets
 
 # Generate PHP classes from .proto files
 proto:
