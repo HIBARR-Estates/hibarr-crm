@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Events\TwoFactorCodeEvent;
 use Illuminate\Support\Facades\Response;
 use App\Http\Requests\TwoFaCodeValidation;
+use App\Support\SsoReauthentication;
 
 class TwoFASettingController extends AccountBaseController
 {
@@ -22,6 +23,11 @@ class TwoFASettingController extends AccountBaseController
     {
         $this->method = request()->method;
         $this->status = request()->status;
+
+        // SSO-only users may not know their local password, so the modal also
+        // offers re-authenticating with the provider they sign in with.
+        $this->ssoProvider = SsoReauthentication::providerFor(auth()->user());
+        $this->ssoProviderLabel = $this->ssoProvider ? SsoReauthentication::label($this->ssoProvider) : null;
 
         return view('auth.password-confirm-modal', $this->data);
     }

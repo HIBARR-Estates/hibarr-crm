@@ -4,7 +4,7 @@
     }
 </style>
 <!-- SETTINGS START -->
-<div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100 p-4 ">
+<div id="two-fa-settings" class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100 p-4 ">
 
     <div class="row">
 
@@ -144,6 +144,8 @@
 </div>
 <!-- SETTINGS END -->
 
+@include('auth.two-fa-actions')
+
 <script>
     $('#regenerate-codes').click(function() {
         // Fortify requires a fresh password confirmation before regenerating codes;
@@ -178,4 +180,11 @@
         $(MODAL_DEFAULT + ' ' + MODAL_HEADING).html('...');
         $.ajaxModal(MODAL_DEFAULT, url);
     });
+
+@if (session()->has('two_fa_resume'))
+    // The user just confirmed their identity with the SSO provider, so finish
+    // the change they started before leaving the page.
+    window.runConfirmedTwoFaAction('{{ session('two_fa_resume')['method'] }}',
+        '{{ session('two_fa_resume')['status'] }}', '#two-fa-settings');
+@endif
 </script>
