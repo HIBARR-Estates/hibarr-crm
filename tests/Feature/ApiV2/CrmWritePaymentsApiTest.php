@@ -255,6 +255,7 @@ class CrmWritePaymentsApiTest extends TestCase
                 $table->unsignedInteger('company_id')->nullable();
                 $table->string('name');
                 $table->json('permissions')->nullable();
+                $table->boolean('unrestricted')->default(false);
                 $table->boolean('revoked')->default(false);
                 $table->timestamps();
             });
@@ -264,6 +265,8 @@ class CrmWritePaymentsApiTest extends TestCase
             'token' => ApiToken::hashToken($token),
             'name' => 'Test Token',
             'permissions' => json_encode($permissions),
+            // No scopes = the full-access token these tests used before scopes became opt-in.
+            'unrestricted' => in_array($permissions, [[], null], true),
             'revoked' => false,
             'company_id' => $this->companyId,
             'created_at' => now(),
