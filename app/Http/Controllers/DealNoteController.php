@@ -123,11 +123,12 @@ class DealNoteController extends AccountBaseController
         // A generic 'add_deal_note' scope doesn't know about deal-specific watcher status,
         // so that has to be checked separately here. Admins and users with unrestricted
         // edit_deals keep write access even if they are also listed as watchers.
-        $noteDeal = Deal::find($request->lead_id);
+        // CompanyScope limits this to the user's company: another tenant's deal id
+        // 404s instead of getting a note (and a CRM event) attached to it.
+        $noteDeal = Deal::findOrFail($request->lead_id);
         $isUnrestrictedWriter = in_array('admin', user_roles())
             || user()->permission('edit_deals') === 'all';
         if (!$isUnrestrictedWriter
-            && $noteDeal
             && $noteDeal->added_by != user()->id
             && !$noteDeal->hasTeamMemberAccess(user()->id)
             && $noteDeal->dealWatchers()->where('user_id', user()->id)->exists()
@@ -137,7 +138,7 @@ class DealNoteController extends AccountBaseController
 
         $note = new DealNote();
         $note->title = $request->filled('title') ? $request->title : null;
-        $note->deal_id = $request->lead_id;
+        $note->deal_id = $noteDeal->id;
         $note->details = trim_editor($request->details);
         if ($request->filled('remind_at')) {
             $note->remind_at = $request->remind_at;
@@ -150,16 +151,13 @@ class DealNoteController extends AccountBaseController
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
 
         // ── CRM Event: deal_note_added ──
-        $deal = Deal::withoutGlobalScopes()->find($note->deal_id);
-        if ($deal) {
-            $this->recordCrmEvent('deal_note_added', $deal, [
-                'metadata' => [
-                    'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
-                    'note_id' => $note->id,
-                    'note_title' => $note->title,
-                ],
-            ]);
-        }
+        $this->recordCrmEvent('deal_note_added', $noteDeal, [
+            'metadata' => [
+                'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
+                'note_id' => $note->id,
+                'note_title' => $note->title,
+            ],
+        ]);
 
         app(NoteReminderSync::class)->syncFromDealNote($note->load('deal.leadAgent.user', 'addedBy'));
 

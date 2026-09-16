@@ -171,7 +171,7 @@ class   TicketDataTable extends BaseDataTable
             return '<i class="fa fa-circle mr-2 text-' . $status[0] . '"></i>' . $status[1];
         });
         $datatables->editColumn('ticket_status', fn($row) => $row->status);
-        $datatables->editColumn('subject', fn($row) => '<a href="' . route('tickets.show', $row->ticket_number) . '" class="text-darkest-grey">' . $row->subject . '</a>' . $row->badge());
+        $datatables->editColumn('subject', fn($row) => '<a href="' . route('tickets.show', $row->ticket_number) . '" class="text-darkest-grey">' . e($row->subject) . '</a>' . $row->badge());
         $datatables->addColumn('name', fn($row) => $row->requester ? $row->requester->name : $row->ticket_number);
         $datatables->editColumn('user_id', function ($row) {
             if (is_null($row->requester)) {

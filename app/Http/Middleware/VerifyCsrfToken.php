@@ -12,12 +12,18 @@ class VerifyCsrfToken extends Middleware
      * @var array
      */
     protected $except = [
-        '*-webhook/*',
-        '*_webhook/*',
-        '*_webhook',
-        '*-webhook',
-        '/lead-form/leadStore',
-        '/lead-form/ticket-store',
-        '*/iclock/*',
+        // Payment gateway webhook callbacks (routes/web-public.php). List each
+        // route explicitly: a new route must opt out of CSRF on purpose.
+        'flutterwave-webhook/*',
+        'mollie-webhook/*',
+        'payfast-webhook/*',
+        'paypal-webhook/*',
+        'paystack-webhook/*',
+        'razorpay-webhook/*',
+        'square-webhook/*',
+        'verify-webhook/*', // Stripe
+        // Public lead and ticket forms
+        'lead-form/leadStore',
+        'lead-form/ticket-store',
     ];
 }

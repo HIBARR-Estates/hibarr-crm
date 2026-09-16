@@ -51,6 +51,7 @@ use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecuritySettingController;
+use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
@@ -124,6 +125,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
     Route::get('verify-2fa-password', [TwoFASettingController::class, 'verify'])->name('verify_2fa_password');
+    Route::get('sso-confirm-password', [SsoPasswordConfirmationController::class, 'redirect'])->name('sso_confirm_password');
     Route::get('2fa-confirm', [TwoFASettingController::class, 'showConfirm'])->name('two-fa-settings.validate_confirm');
     Route::post('2fa-confirm', [TwoFASettingController::class, 'confirm'])->name('two-fa-settings.confirm');
     Route::get('2fa-email-confirm', [TwoFASettingController::class, 'showEmailConfirm'])->name('two-fa-settings.validate_email_confirm');

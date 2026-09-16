@@ -36,18 +36,9 @@ class LoginController extends Controller
 
     public function checkEmail(LoginRequest $request)
     {
-        $user = User::where('email', $request->email)
-            ->select('id')
-            ->where('status', 'active')
-            ->where('login', 'enable')
-            ->first();
-
-        if (is_null($user)) {
-            throw ValidationException::withMessages([
-                Fortify::username() => __('messages.invalidOrInactiveAccount'),
-            ]);
-        }
-
+        // Same answer whether or not the address has an active account, so this
+        // step can't be used to discover accounts. The password step rejects
+        // unknown addresses with Fortify's generic failed-login message.
         return response([
             'status' => 'success'
         ]);
@@ -120,6 +111,12 @@ class LoginController extends Controller
         // and it can't be disabled (Social Login Settings forces it on).
         if ($provider !== 'keycloak') {
             abort(404);
+        }
+
+        // A pending SSO password confirmation reuses this callback so the
+        // provider needs no extra redirect URI registered.
+        if (session()->has(SsoPasswordConfirmationController::SESSION_KEY)) {
+            return app(SsoPasswordConfirmationController::class)->confirm($provider);
         }
 
         // Query string carries the OAuth code — kept out of the log.
