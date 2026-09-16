@@ -13,11 +13,10 @@ use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealHistory;
 use App\Models\Lead;
-use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
-use App\Scopes\CompanyScope;
+use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
@@ -236,9 +235,6 @@ class DealContactApiController extends Controller
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
                     $fieldsChanged = $this->applyLeadOptionalFields($existingLead, $request);
-                    if ($this->applyReferralAgentToLead($existingLead, $request)) {
-                        $fieldsChanged = true;
-                    }
                     if ($fieldsChanged) {
                         $existingLead->saveQuietly();
                     }
@@ -559,9 +555,6 @@ class DealContactApiController extends Controller
                     if ($this->applyLeadOptionalFields($existingContact, $request)) {
                         $updated = true;
                     }
-                    if ($this->applyReferralAgentToLead($existingContact, $request)) {
-                        $updated = true;
-                    }
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
@@ -646,9 +639,6 @@ class DealContactApiController extends Controller
                 if ($this->applyLeadOptionalFields($existingContact, $request)) {
                     $updated = true;
                 }
-                if ($this->applyReferralAgentToLead($existingContact, $request)) {
-                    $updated = true;
-                }
                 if ($updated) {
                     $existingContact->saveQuietly();
                 }
@@ -690,9 +680,6 @@ class DealContactApiController extends Controller
                     $updated = true;
                 }
                 if ($this->applyLeadOptionalFields($existingContact, $request)) {
-                    $updated = true;
-                }
-                if ($this->applyReferralAgentToLead($existingContact, $request)) {
                     $updated = true;
                 }
                 if ($updated) {
@@ -901,13 +888,7 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
-     * Write-once: skipped when the lead already has a referrer. Invalid, missing,
-     * or cross-company IDs are ignored (lead create/update still proceeds). Only
-     * referral_agent_id (users.id, like lead_owner_id); CRM stores lead_agents.id.
-     * utmInfo is marketing-only.
-     *
-     * @return bool True when referred_by_agent_id was set on the in-memory lead.
+     * @return bool True when referred_by_agent_id was set on the in-memory lead (caller saves).
      */
     private function applyReferralAgentToLead(Lead $lead, Request $request): bool
     {
@@ -915,16 +896,17 @@ class DealContactApiController extends Controller
             return false;
         }
 
-        if (! $lead->company_id) {
+        $raw = $request->input('referral_agent_id');
+        if ($raw === null || $raw === '' || ! is_numeric($raw)) {
             return false;
         }
 
-        $resolvedAgentId = $this->resolveReferralLeadAgentId($request, (int) $lead->company_id);
-        if ($resolvedAgentId === null) {
+        $agentId = app(DealAgentAssignmentService::class)->findLeadAgentIdForUser((int) $raw);
+        if ($agentId === null) {
             return false;
         }
 
-        $lead->referred_by_agent_id = $resolvedAgentId;
+        $lead->referred_by_agent_id = $agentId;
 
         return true;
     }
@@ -937,41 +919,6 @@ class DealContactApiController extends Controller
             ->value('referred_by_agent_id');
 
         return $referrerId !== null ? (int) $referrerId : null;
-    }
-
-    private function resolveReferralLeadAgentId(Request $request, int $companyId): ?int
-    {
-        $raw = $request->input('referral_agent_id');
-        if ($raw === null || $raw === '' || ! is_numeric($raw)) {
-            return null;
-        }
-
-        return $this->resolveLeadAgentIdFromReferralUserId((int) $raw, $companyId);
-    }
-
-    /**
-     * Map a referring users.id to lead_agents.id for the company (same pattern as deal_owner_id → agent).
-     */
-    private function resolveLeadAgentIdFromReferralUserId(int $userId, int $companyId): ?int
-    {
-        $agent = LeadAgent::query()
-            ->withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $companyId)
-            ->where('user_id', $userId)
-            ->first();
-
-        if ($agent !== null) {
-            return (int) $agent->id;
-        }
-
-        // Legacy callers that still send lead_agents.id in referral fields.
-        $legacyAgent = LeadAgent::query()
-            ->withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $companyId)
-            ->whereKey($userId)
-            ->first();
-
-        return $legacyAgent ? (int) $legacyAgent->id : null;
     }
 
     /**

@@ -86,11 +86,10 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function test_apply_referral_agent_sets_referrer_on_existing_lead_when_missing(): void
+    public function test_apply_referral_agent_sets_referrer_on_new_lead(): void
     {
         $agentId = $this->insertLeadAgent();
-        $leadId = $this->insertLead(['referred_by_agent_id' => null]);
-        $lead = Lead::withoutGlobalScopes()->findOrFail($leadId);
+        $lead = $this->newUnsavedLead();
 
         $changed = $this->invokeApplyReferralAgentToLead($lead, new Request([
             'referral_agent_id' => self::REFERRING_USER_ID,
@@ -100,29 +99,14 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->assertSame($agentId, (int) $lead->referred_by_agent_id);
     }
 
-    public function test_apply_referral_agent_accepts_lead_agents_id_legacy_value(): void
+    public function test_apply_referral_agent_is_write_once_in_memory(): void
     {
-        $agentId = $this->insertLeadAgent(['user_id' => 99]);
-        $lead = Lead::withoutGlobalScopes()->findOrFail($this->insertLead());
+        $this->insertLeadAgent();
+        $lead = $this->newUnsavedLead(['referred_by_agent_id' => 99]);
 
-        $changed = $this->invokeApplyReferralAgentToLead($lead, new Request([
-            'referral_agent_id' => $agentId,
-        ]));
-
-        $this->assertTrue($changed);
-        $this->assertSame($agentId, (int) $lead->referred_by_agent_id);
-    }
-
-    public function test_apply_referral_agent_is_write_once(): void
-    {
-        $agentId = $this->insertLeadAgent();
-        $lead = Lead::withoutGlobalScopes()->findOrFail($this->insertLead(['referred_by_agent_id' => 99]));
-
-        $changed = $this->invokeApplyReferralAgentToLead($lead, new Request([
+        $this->assertFalse($this->invokeApplyReferralAgentToLead($lead, new Request([
             'referral_agent_id' => self::REFERRING_USER_ID,
-        ]));
-
-        $this->assertFalse($changed);
+        ])));
         $this->assertSame(99, (int) $lead->referred_by_agent_id);
     }
 
@@ -242,27 +226,32 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->assertNull(Lead::withoutGlobalScopes()->findOrFail($result['id'])->referred_by_agent_id);
     }
 
-    public function test_resolve_contact_applies_referral_agent_to_existing_lead(): void
+    public function test_resolve_contact_applies_referral_agent_on_new_lead(): void
     {
         $agentId = $this->insertLeadAgent();
-        $leadId = $this->insertLead([
-            'client_name' => 'Ada Lovelace',
-            'client_email' => 'ada@example.com',
-            'mobile' => '+49151',
-            'referred_by_agent_id' => null,
-        ]);
 
         $result = $this->invokeResolveContact(new Request([
-            'name' => 'Ada Lovelace',
-            'email' => 'ada@example.com',
-            'phone' => '+49151',
+            'name' => 'Referred Lead',
+            'email' => 'referred-new@example.com',
             'referral_agent_id' => self::REFERRING_USER_ID,
         ]), $this->companyId);
 
-        $this->assertSame($leadId, $result['id']);
-        $this->assertFalse($result['was_created']);
-        $this->assertTrue($result['should_fire']);
-        $this->assertSame($agentId, (int) Lead::withoutGlobalScopes()->findOrFail($leadId)->referred_by_agent_id);
+        $this->assertTrue($result['was_created']);
+        $this->assertSame($agentId, (int) Lead::withoutGlobalScopes()->findOrFail($result['id'])->referred_by_agent_id);
+    }
+
+    private function newUnsavedLead(array $overrides = []): Lead
+    {
+        $lead = new Lead;
+        $lead->company_id = $this->companyId;
+        $lead->client_name = 'Test Lead';
+        $lead->client_email = 'unsaved@example.com';
+
+        foreach ($overrides as $key => $value) {
+            $lead->{$key} = $value;
+        }
+
+        return $lead;
     }
 
     private function invokeApplyReferralAgentToLead(Lead $lead, Request $request): bool

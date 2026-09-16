@@ -335,7 +335,7 @@ Response
 
 # OL → CRM: partner referrer on lead create
 
-When OL creates or updates a CRM lead via the API token endpoints, partner attribution is stored on `leads.referred_by_agent_id` (write-once).
+When OL **creates** a CRM lead via the API token endpoints, partner attribution is stored on `leads.referred_by_agent_id` (write-once; not applied on contact update).
 
 **Endpoints (same auth as other external APIs):**
 
