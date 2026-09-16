@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Str;
 use App\Models\ClientDetails;
 use App\Models\Country;
 use Exception;
@@ -67,7 +68,9 @@ class ImportClientJob implements ShouldQueue
                     $user->company_id = $this->company?->id;
                     $user->name = $this->getColumnValue('name');
                     $user->email = $this->isColumnExists('email') && $this->isEmailValid($this->getColumnValue('email')) ? $this->getColumnValue('email') : null;
-                    $user->password = bcrypt(123456);
+                    // Imported accounts get an unusable random password: they sign in
+                    // through SSO or set one with a password reset.
+                    $user->password = bcrypt(Str::password(32));
                     $user->mobile = $this->isColumnExists('mobile') ? $this->getColumnValue('mobile') : null;
                     $user->gender = $this->isColumnExists('gender') ? strtolower($this->getColumnValue('gender')) : null;
                     $user->country_id = $countryID;
