@@ -68,12 +68,15 @@ environment happened to check out at session start:
 
 ```bash
 git fetch origin develop
-git checkout -B <ISSUE-KEY>-<kebab-case-summary> origin/develop
+git checkout <ISSUE-KEY>-<kebab-case-summary> 2>/dev/null || \
+  git checkout -b <ISSUE-KEY>-<kebab-case-summary> origin/develop
 ```
 
-`checkout -B` (not `-b`) so this is safe to re-run — it resets the branch to
-match `develop` if it already exists locally from a previous attempt,
-instead of failing.
+Check out the branch if it already exists locally (e.g. from a previous
+attempt) instead of recreating it — that preserves any commits already made
+on it. Only create it fresh from `origin/develop` when it doesn't exist yet.
+Avoid `checkout -B`/`reset --hard` here: those force the branch to match
+`develop`, silently discarding local commits on a rerun.
 
 **If your execution environment pre-assigns a different branch name** (for
 example, a harness convention like `claude/<slug>`) and the task explicitly
