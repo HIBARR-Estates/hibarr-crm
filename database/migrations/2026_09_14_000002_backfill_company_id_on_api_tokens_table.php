@@ -20,23 +20,30 @@ return new class extends Migration
             return;
         }
 
-        $tokenIds = DB::table('api_tokens')->whereNull('company_id')->pluck('id');
+        $unbound = DB::table('api_tokens')->whereNull('company_id');
 
-        if ($tokenIds->isEmpty()) {
+        if (! $unbound->exists()) {
             return;
         }
 
         $companyIds = DB::table('companies')->limit(2)->pluck('id');
 
         if ($companyIds->count() !== 1) {
-            Log::warning('api_tokens company backfill skipped: owner company is ambiguous, set company_id on these tokens manually', [
-                'token_ids' => $tokenIds->all(),
-            ]);
+            // Chunked so a large install doesn't load every id into memory or a single log line.
+            $unbound->select('id')->chunkById(200, function ($tokens) {
+                Log::warning('api_tokens company backfill skipped: owner company is ambiguous, set company_id on these tokens manually', [
+                    'token_ids' => $tokens->pluck('id')->all(),
+                ]);
+            });
 
             return;
         }
 
-        DB::table('api_tokens')->whereIn('id', $tokenIds)->update(['company_id' => $companyIds->first()]);
+        $companyId = $companyIds->first();
+
+        $unbound->select('id')->chunkById(200, function ($tokens) use ($companyId) {
+            DB::table('api_tokens')->whereIn('id', $tokens->pluck('id'))->update(['company_id' => $companyId]);
+        });
     }
 
     public function down(): void
