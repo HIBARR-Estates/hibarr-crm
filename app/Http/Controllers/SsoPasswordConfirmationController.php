@@ -82,6 +82,10 @@ class SsoPasswordConfirmationController extends Controller
             return $redirect->with('message', __('messages.ssoConfirmationFailed'));
         }
 
+        // LoginController hands over before it configures the drivers, and the
+        // token exchange below needs the credentials from the social settings.
+        $this->setSocailAuthConfigs();
+
         try {
             $data = Socialite::driver($provider)->stateless()->user(); /* @phpstan-ignore-line */
         } catch (Exception $e) {
