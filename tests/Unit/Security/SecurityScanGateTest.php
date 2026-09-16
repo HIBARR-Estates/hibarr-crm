@@ -3,11 +3,10 @@
 namespace Tests\Unit\Security;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Yaml\Yaml;
 
 /**
- * The CI gate is only useful while it is wired up, so check the pieces are
- * present and consistent with each other.
+ * The advisory gate is run by hand (make security-audit), so check the pieces
+ * it needs are present and consistent with each other.
  */
 class SecurityScanGateTest extends TestCase
 {
@@ -17,22 +16,23 @@ class SecurityScanGateTest extends TestCase
         return dirname(__DIR__, 3);
     }
 
-    public function test_the_workflow_runs_both_scans_on_pull_requests(): void
+    public function test_the_makefile_exposes_the_scans(): void
     {
-        $workflow = Yaml::parseFile($this->root() . '/.github/workflows/security-scan.yml');
+        $makefile = (string)file_get_contents($this->root() . '/Makefile');
 
-        // "on" is parsed as the boolean true by the YAML 1.1 spec.
-        $triggers = $workflow['on'] ?? $workflow[true];
+        $this->assertStringContainsString('security-audit:', $makefile);
+        $this->assertStringContainsString('security-audit-update:', $makefile);
+        $this->assertStringContainsString('security-secrets:', $makefile);
+        $this->assertStringContainsString('scripts/security-audit-gate.php', $makefile);
+    }
 
-        $this->assertArrayHasKey('pull_request', $triggers);
-        $this->assertContains('develop', $triggers['pull_request']['branches']);
-        $this->assertArrayHasKey('dependencies', $workflow['jobs']);
-        $this->assertArrayHasKey('secrets', $workflow['jobs']);
+    public function test_the_gate_script_reads_the_baseline_next_to_it(): void
+    {
+        $script = (string)file_get_contents($this->root() . '/scripts/security-audit-gate.php');
 
-        $commands = implode("\n", array_column($workflow['jobs']['dependencies']['steps'], 'run'));
-
-        $this->assertStringContainsString('security-audit-gate.php composer', $commands);
-        $this->assertStringContainsString('security-audit-gate.php npm', $commands);
+        $this->assertStringContainsString("security-audit-baseline.json", $script);
+        $this->assertStringContainsString('composer audit --locked', $script);
+        $this->assertStringContainsString('npm audit --omit=dev', $script);
     }
 
     public function test_the_baseline_lists_both_ecosystems(): void

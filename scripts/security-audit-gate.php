@@ -6,15 +6,20 @@ declare(strict_types=1);
 /**
  * Dependency advisory gate.
  *
- * Runs `composer audit` and `npm audit` and fails when an advisory shows up
- * that is not in scripts/security-audit-baseline.json. The baseline is the
- * backlog we already know about, so the build only breaks on something new.
+ * Runs `composer audit` and `npm audit` and reports advisories that are not in
+ * scripts/security-audit-baseline.json. The baseline is the backlog we already
+ * know about, so only something new is flagged.
  *
+ * Run it before a dependency change lands, and after bumping composer.json or
+ * package.json:
+ *
+ *   make security-audit                            or:
  *   php scripts/security-audit-gate.php            both ecosystems
  *   php scripts/security-audit-gate.php composer   one of composer|npm
  *   php scripts/security-audit-gate.php --update   rewrite the baseline
  *
- * Exit codes: 0 nothing new, 1 new advisories, 2 an audit could not run.
+ * Exit codes: 0 nothing new, 1 new advisories, 2 an audit could not run, so it
+ * can be wired into CI later without changing anything here.
  */
 
 const BASELINE_FILE = __DIR__ . '/security-audit-baseline.json';

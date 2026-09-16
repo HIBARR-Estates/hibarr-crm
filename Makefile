@@ -67,7 +67,7 @@ migrate:
 	php artisan migrate --force
 
 # ------------------------------------
-# Security scans (same gates as .github/workflows/security-scan.yml)
+# Security scans (run manually; see scripts/security-audit-gate.php)
 # ------------------------------------
 
 security-audit:

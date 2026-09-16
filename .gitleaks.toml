@@ -1,5 +1,5 @@
-# Secret scanning config, used by .github/workflows/security-scan.yml and
-# `make security-secrets`.
+# Secret scanning config, used by `make security-secrets`
+# (gitleaks detect --no-banner --redact).
 
 [extend]
 useDefault = true
