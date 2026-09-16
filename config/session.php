@@ -168,7 +168,11 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // When SESSION_SECURE_COOKIE is unset or empty, follow how the app is served:
+    // HTTPS deployments get secure cookies, local http:// setups keep working.
+    'secure' => in_array(env('SESSION_SECURE_COOKIE'), [null, ''], true)
+        ? (bool) env('REDIRECT_HTTPS', false) || str_starts_with((string) env('APP_URL', ''), 'https://')
+        : (bool) env('SESSION_SECURE_COOKIE'),
 
     /*
     |--------------------------------------------------------------------------

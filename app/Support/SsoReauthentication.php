@@ -15,6 +15,11 @@ class SsoReauthentication
 {
 
     /**
+     * Providers the social callback still accepts, see LoginController::callback.
+     */
+    private const SUPPORTED_PROVIDERS = ['keycloak'];
+
+    /**
      * The provider this user can re-authenticate with, or null when they have
      * never signed in socially or that provider has since been disabled.
      */
@@ -27,6 +32,10 @@ class SsoReauthentication
         $social = Social::where('user_id', $user->id)->first();
 
         if (is_null($social) || is_null($social->social_service)) {
+            return null;
+        }
+
+        if (!in_array($social->social_service, self::SUPPORTED_PROVIDERS, true)) {
             return null;
         }
 

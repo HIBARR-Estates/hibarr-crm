@@ -42,6 +42,11 @@ export interface ScheduleMeetingDrawerProps {
     onSuccess?: () => void;
 }
 
+/**
+ * @deprecated Flag-off fallback only — use MeetingScheduleModal for orphan/
+ * global meeting create (Dashboard, Meetings index). Do not import this for
+ * new schedule entry points.
+ */
 export default function ScheduleMeetingDrawer({
     open,
     onClose,

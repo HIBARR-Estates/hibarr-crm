@@ -49,6 +49,20 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
         });
+
+        // Email-first login step. Keyed per address + IP so a shared office IP
+        // doesn't lock everyone out, while one address can't be enumerated fast.
+        RateLimiter::for('login-email-check', function (Request $request) {
+            return Limit::perMinute(10)->by(strtolower((string) $request->input('email')) . '|' . $request->ip());
+        });
+
+        // Emailed 2FA code verify/resend. Keyed to the login challenge held in
+        // the session (set after the password step), falling back to IP.
+        RateLimiter::for('two-factor-code', function (Request $request) {
+            $loginId = $request->hasSession() ? $request->session()->get('login.id') : null;
+
+            return Limit::perMinute(5)->by($loginId ? 'user:' . $loginId : 'ip:' . $request->ip());
+        });
     }
 
     /**

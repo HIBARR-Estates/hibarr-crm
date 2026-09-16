@@ -141,6 +141,15 @@ class SsoPasswordConfirmationTest extends TestCase
         $this->assertNull(SsoReauthentication::providerFor($user));
     }
 
+    public function test_a_provider_the_login_callback_rejects_is_not_offered(): void
+    {
+        $user = $this->ssoUser();
+        Social::where('user_id', $user->id)->update(['social_service' => 'google']);
+        SocialAuthSetting::first()->update(['google_status' => 'enable']);
+
+        $this->assertNull(SsoReauthentication::providerFor($user->refresh()));
+    }
+
     public function test_a_user_without_a_social_login_cannot_start_the_sso_confirmation(): void
     {
         $user = $this->ssoUser();

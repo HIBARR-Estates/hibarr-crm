@@ -1166,7 +1166,7 @@ class EmployeeController extends AccountBaseController
                 $invite->email = $email->value;
                 $invite->message = $request->message;
                 $invite->invitation_type = 'email';
-                $invite->invitation_code = sha1(time() . user()->id);
+                $invite->invitation_code = UserInvitation::generateCode();
                 $invite->save();
             }
         }
@@ -1184,7 +1184,7 @@ class EmployeeController extends AccountBaseController
         $invite = new UserInvitation();
         $invite->user_id = user()->id;
         $invite->invitation_type = 'link';
-        $invite->invitation_code = sha1(time() . user()->id);
+        $invite->invitation_code = UserInvitation::generateCode();
         $invite->email_restriction = (($request->allow_email == 'selected') ? $request->email_domain : null);
         $invite->save();
 
