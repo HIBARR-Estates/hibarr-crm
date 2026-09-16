@@ -156,6 +156,11 @@
                 "PKSA-8x19-j2j3-bn67",
                 "PKSA-xbp4-qwr2-cbjj"
             ]
+        },
+        "policy": {
+            "advisories": {
+                "block": false
+            }
         }
     },
     "extra": {
