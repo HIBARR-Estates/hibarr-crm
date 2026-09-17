@@ -18,21 +18,24 @@ use Froiden\RestAPI\Facades\ApiRoute;
 use Illuminate\Support\Facades\Route;
 
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
-    ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
+    // Used by the CRM frontend (session cookie) and by services (API token).
+    ApiRoute::middleware(['api.token.or.session'])->group(function () {
+        ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
 
-    ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
-    ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
-    ApiRoute::post('internal/communication-activities/send-email', ['as' => 'api.communication-activities.send-email.internal', 'uses' => 'CommunicationActivityController@sendEmailToCustomer']);
-  
-    // CRM Event Record Keeping Engine Routes
-    ApiRoute::post('crm-events', ['as' => 'api.crm-events.store', 'uses' => 'CrmEventController@store']);
-    ApiRoute::post('crm-events/batch', ['as' => 'api.crm-events.batch', 'uses' => 'CrmEventController@storeBatch']);
-    ApiRoute::get('crm-events', ['as' => 'api.crm-events.index', 'uses' => 'CrmEventController@index']);
-    ApiRoute::get('crm-events/chain/{correlationId}', ['as' => 'api.crm-events.chain', 'uses' => 'CrmEventController@chain']);
-    ApiRoute::get('crm-events/{uuid}', ['as' => 'api.crm-events.show', 'uses' => 'CrmEventController@show']);
-    ApiRoute::patch('crm-events/{uuid}', ['as' => 'api.crm-events.update', 'uses' => 'CrmEventController@update']);
-    ApiRoute::delete('crm-events/{uuid}', ['as' => 'api.crm-events.destroy', 'uses' => 'CrmEventController@destroy']);
-    ApiRoute::get('crm-event-types', ['as' => 'api.crm-event-types.index', 'uses' => 'CrmEventTypeController@index']);
+        ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
+        ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
+        ApiRoute::post('internal/communication-activities/send-email', ['as' => 'api.communication-activities.send-email.internal', 'uses' => 'CommunicationActivityController@sendEmailToCustomer']);
+
+        // CRM Event Record Keeping Engine Routes
+        ApiRoute::post('crm-events', ['as' => 'api.crm-events.store', 'uses' => 'CrmEventController@store']);
+        ApiRoute::post('crm-events/batch', ['as' => 'api.crm-events.batch', 'uses' => 'CrmEventController@storeBatch']);
+        ApiRoute::get('crm-events', ['as' => 'api.crm-events.index', 'uses' => 'CrmEventController@index']);
+        ApiRoute::get('crm-events/chain/{correlationId}', ['as' => 'api.crm-events.chain', 'uses' => 'CrmEventController@chain']);
+        ApiRoute::get('crm-events/{uuid}', ['as' => 'api.crm-events.show', 'uses' => 'CrmEventController@show']);
+        ApiRoute::patch('crm-events/{uuid}', ['as' => 'api.crm-events.update', 'uses' => 'CrmEventController@update']);
+        ApiRoute::delete('crm-events/{uuid}', ['as' => 'api.crm-events.destroy', 'uses' => 'CrmEventController@destroy']);
+        ApiRoute::get('crm-event-types', ['as' => 'api.crm-event-types.index', 'uses' => 'CrmEventTypeController@index']);
+    });
 
     // External Communications Module Routes
     ApiRoute::middleware(['api.token'])->group(function () {
@@ -157,7 +160,9 @@ Route::middleware(['api.token'])->prefix('v2')->group(function () {
 
 // API Routes for external applications
 ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
-    ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealContactApiController@changeStage']);
+    ApiRoute::middleware(['api.token'])->group(function () {
+        ApiRoute::post('deals/change-stage', ['as' => 'api.deals.changeStage', 'uses' => 'DealContactApiController@changeStage']);
+    });
     // ->validate([
     //     'deal_id' => 'required|exists:deals,id',
     //     'new_stage_id' => 'required|exists:pipeline_stages,id',

@@ -51,6 +51,7 @@ use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecuritySettingController;
+use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
@@ -75,6 +76,9 @@ use App\Http\Controllers\UnitTypeController;
 use App\Http\Controllers\UpdateAppController;
 use App\Http\Controllers\UserPreferencesController;
 use App\Http\Controllers\UserReminderPreferenceController;
+use App\Http\Middleware\EnsureUserIsAdmin;
+use Froiden\Envato\Controllers\PurchaseVerificationController;
+use Froiden\Envato\Controllers\UpdateScriptVersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function () {
@@ -121,6 +125,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
     Route::get('verify-2fa-password', [TwoFASettingController::class, 'verify'])->name('verify_2fa_password');
+    Route::get('sso-confirm-password', [SsoPasswordConfirmationController::class, 'redirect'])->name('sso_confirm_password');
     Route::get('2fa-confirm', [TwoFASettingController::class, 'showConfirm'])->name('two-fa-settings.validate_confirm');
     Route::post('2fa-confirm', [TwoFASettingController::class, 'confirm'])->name('two-fa-settings.confirm');
     Route::get('2fa-email-confirm', [TwoFASettingController::class, 'showEmailConfirm'])->name('two-fa-settings.validate_email_confirm');
@@ -422,4 +427,22 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('update-settings/deleteFile', [UpdateAppController::class, 'deleteFile'])->name('update-settings.deleteFile');
     Route::get('update-settings/install', [UpdateAppController::class, 'install'])->name('update-settings.install');
     Route::resource('update-settings', UpdateAppController::class);
+});
+
+// froiden/envato routes used by the update and module settings pages. The package's own
+// route file is not loaded (see App\Providers\FroidenEnvatoServiceProvider).
+Route::group(['middleware' => ['auth', EnsureUserIsAdmin::class]], function () {
+    Route::get('verify-purchase', [PurchaseVerificationController::class, 'verifyPurchase'])->name('verify-purchase');
+    Route::post('purchase-verified', [PurchaseVerificationController::class, 'purchaseVerified'])->name('purchase-verified');
+
+    Route::group(['as' => 'admin.', 'prefix' => 'admin'], function () {
+        Route::get('update-version/update/{module?}', [UpdateScriptVersionController::class, 'update'])->name('updateVersion.update');
+        Route::get('update-version/download/{module?}', [UpdateScriptVersionController::class, 'download'])->name('updateVersion.download');
+        Route::get('update-version/downloadPercent/{module?}', [UpdateScriptVersionController::class, 'downloadPercent'])->name('updateVersion.downloadPercent');
+        Route::get('update-version/checkIfFileExtracted/{module?}', [UpdateScriptVersionController::class, 'checkIfFileExtracted'])->name('updateVersion.checkIfFileExtracted');
+        Route::get('update-version/install/{module?}', [UpdateScriptVersionController::class, 'install'])->name('updateVersion.install');
+        Route::get('update-version/checkSupport/{module?}', [UpdateScriptVersionController::class, 'checkSupport'])->name('updateVersion.checkSupport');
+        Route::get('update-version/refresh/{module?}', [UpdateScriptVersionController::class, 'refresh'])->name('updateVersion.refresh');
+        Route::post('update-version/notify/{module}', [UpdateScriptVersionController::class, 'notify'])->name('updateVersion.notify');
+    });
 });

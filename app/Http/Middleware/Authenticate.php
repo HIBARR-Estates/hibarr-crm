@@ -53,9 +53,11 @@ class Authenticate extends Middleware
         }
 
         if (user()) {
+            // Cleared by EmployeeController::update whenever status or login changes.
             $isActive = cache()->rememberForever('user_is_active_' . user()->id, function () {
                 return User::where('id', user()->id)
                     ->where('status', 'active')
+                    ->where('login', 'enable')
                     ->exists();
             });
 

@@ -493,11 +493,11 @@ if (!function_exists('social_auth_setting')) {
     // @codingStandardsIgnoreLine
     function social_auth_setting()
     {
-        if (!cache()->has('social_auth_setting')) {
-            cache(['social_auth_setting' => SocialAuthSetting::first()]);
-        }
-
-        return cache('social_auth_setting');
+        return cache()->remember(
+            'social_auth_setting',
+            (int) config('services.social_auth.settings_cache_ttl', 60),
+            fn () => SocialAuthSetting::first(),
+        );
     }
 
 }
@@ -1271,6 +1271,19 @@ if (!function_exists('isRtl')) {
         $isRtl = session('isRtl');
 
         return is_null($class) ? $isRtl : ($isRtl ? $class : false);
+    }
+
+}
+
+if (!function_exists('clean_html')) {
+
+    /**
+     * Sanitize user-authored rich text for raw Blade output: {!! clean_html($note->details) !!}.
+     * Keeps editor formatting and drops anything that can run script (App\Support\HtmlSanitizer).
+     */
+    function clean_html($html): string
+    {
+        return (string) \App\Support\HtmlSanitizer::clean($html === null ? null : (string) $html);
     }
 
 }

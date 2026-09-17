@@ -43,7 +43,13 @@ class BitrixImportController extends Controller
             return Reply::error('Deal name is required.');
         }
 
-        $companyId = 1;
+        // ApiTokenAuth sets X-COMPANY-ID from the token's own company; imports
+        // used to be written into company 1 whatever token was used.
+        $companyId = (int) $request->header('X-COMPANY-ID');
+
+        if (!$companyId) {
+            return Reply::error(__('messages.missingCompanyId'));
+        }
 
         try {
             $result = DB::transaction(function () use ($dealData, $contactData, $responsibleData, $dealName, $companyId) {
@@ -407,7 +413,7 @@ class BitrixImportController extends Controller
 
     public function taskImport(Request $request)
     {
-        $companyId = $request->header('X-COMPANY-ID') ?? 1;
+        $companyId = $request->header('X-COMPANY-ID');
         $bitrixDealId = $request->input('dealId');
         $tasks = $request->input('tasks', []);
         

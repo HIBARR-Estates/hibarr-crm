@@ -35,11 +35,18 @@ trait SocialAuthSettings
         Config::set('services.linkedin-openid.client_secret', ($settings->linkedin_secret_id) ?: env('LINKEDIN_CLIENT_SECRET'));
         Config::set('services.linkedin-openid.redirect', $this->updateMainAppUrl(route('social_login_callback', 'linkedin')));
 
-        Config::set('services.keycloak.client_id', ($settings->keycloak_client_id) ?: env('KEYCLOAK_CLIENT_ID'));
-        Config::set('services.keycloak.client_secret', ($settings->keycloak_secret_id) ?: env('KEYCLOAK_CLIENT_SECRET'));
+        // Env/config wins over the admin UI row so local KEYCLOAK_* values
+        // are not overwritten by whatever is in social_auth_settings (e.g. "crm").
+        Config::set('services.keycloak.client_id', $this->firstFilled(config('services.keycloak.client_id'), $settings->keycloak_client_id));
+        Config::set('services.keycloak.client_secret', $this->firstFilled(config('services.keycloak.client_secret'), $settings->keycloak_secret_id));
         Config::set('services.keycloak.redirect', $this->updateMainAppUrl(route('social_login_callback', 'keycloak')));
-        Config::set('services.keycloak.base_url', ($settings->keycloak_base_url) ?: env('KEYCLOAK_BASE_URL'));
-        Config::set('services.keycloak.realms', ($settings->keycloak_realm) ?: env('KEYCLOAK_REALM'));
+        Config::set('services.keycloak.base_url', $this->firstFilled(config('services.keycloak.base_url'), $settings->keycloak_base_url));
+        Config::set('services.keycloak.realms', $this->firstFilled(config('services.keycloak.realms'), $settings->keycloak_realm));
+    }
+
+    private function firstFilled($fromConfig, $fromSettings)
+    {
+        return (is_string($fromConfig) && $fromConfig !== '') ? $fromConfig : $fromSettings;
     }
 
     private function updateMainAppUrl($url)

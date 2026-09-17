@@ -67,7 +67,7 @@ export interface AgentWeek {
 }
 
 /**
- * A full follow-up, so the row can open MeetingDetailModal in place.
+ * A full follow-up, so the row can open MeetingViewModal in place.
  *
  * `location_label` is a display string and deliberately NOT `location` — the
  * model's own `location` is the raw platform slug the meeting adapters switch

@@ -333,6 +333,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->id();
             $table->string('token');
             $table->unsignedInteger('company_id')->nullable();
+            $table->boolean('unrestricted')->default(false);
             $table->boolean('revoked')->default(false);
             $table->timestamps();
         });
@@ -534,6 +535,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
         DB::table('api_tokens')->insert([
             'token' => \App\Models\ApiToken::hashToken($token),
             'company_id' => $companyId,
+            'unrestricted' => true,
             'revoked' => false,
             'created_at' => now(),
             'updated_at' => now(),

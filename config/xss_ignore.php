@@ -2,6 +2,10 @@
 
 return [
 
+    // Keys listed here skip the XSS middleware's strip_tags(). Their values go
+    // through an HTML allow-list in App\Http\Middleware\SanitizeRichTextInput
+    // instead. The email template fields at the bottom stay raw, but only on the
+    // email template editor's routes.
     'description',
     'outro_description',
     'summery',

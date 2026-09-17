@@ -65,7 +65,7 @@
                 @endif
                 <div class="card-text f-14 text-dark-grey">
                     <div class="card-text f-14 text-dark-grey text-justify">
-                        {!! $comment->comment !!}
+                        {!! clean_html($comment->comment) !!}
                     </div>
                     <div id="emoji-{{$comment->id}}">
                         <button class="btn cursor-pointer comment-like mr-2 f-12 btn-sm" data-toggle="tooltip" data-comment-id="{{ $comment->id }}"

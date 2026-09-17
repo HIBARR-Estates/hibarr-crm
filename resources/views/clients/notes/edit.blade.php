@@ -77,7 +77,7 @@
                         <div class="form-group">
                             <x-forms.label class="my-3" fieldId="notes" :fieldLabel="__('modules.client.noteDetail')">
                             </x-forms.label>
-                            <div id="details">{!! $note->details !!}</div>
+                            <div id="details">{!! clean_html($note->details) !!}</div>
                             <textarea name="details" id="details-text" class="d-none"></textarea>
                         </div>
                     </div>

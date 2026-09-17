@@ -101,6 +101,39 @@ return [
             'total_deals' => 'Total Deals',
             'weekly_activities' => 'Weekly Activities',
         ],
+        'tour' => [
+            'next' => 'Next',
+            'back' => 'Back',
+            'done' => 'Done',
+            'skip' => 'Skip tour',
+            'replay_menu_item' => 'Replay guide',
+            'steps' => [
+                'status_line' => [
+                    'title' => 'Your day at a glance',
+                    'body' => 'A quick summary of what needs you today, plus what is open across your deals and what is coming up next on your calendar.',
+                ],
+                'stat_strip' => [
+                    'title' => 'Leads, deals, meetings, commission',
+                    'body' => 'Four numbers this page is built around. A red chip means something needs a look — click it to jump straight to the filtered list.',
+                ],
+                'queue_panel' => [
+                    'title' => 'Needs your attention',
+                    'body' => 'Your open tasks, grouped into Overdue, Due today, and Later. Complete or reschedule a task right from its row — the list updates instantly.',
+                ],
+                'pipeline_panel' => [
+                    'title' => 'Open deals by pipeline',
+                    'body' => 'How your open deals are spread across pipelines, with their combined value. Select a bar to see those deals.',
+                ],
+                'agenda' => [
+                    'title' => 'Your agenda',
+                    'body' => 'Meetings ahead of you today and beyond, with the live one and the next one called out. Nothing booked yet? Schedule one straight from here.',
+                ],
+                'closing' => [
+                    'title' => "You're ready",
+                    'body' => 'Replay this guide anytime from Replay guide at the top of this page.',
+                ],
+            ],
+        ],
     ],
 
     'leads' => [

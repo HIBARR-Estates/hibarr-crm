@@ -27,7 +27,8 @@ class StorePublicLead extends CoreRequest
      */
     public function rules()
     {
-        $company = Company::findOrFail($this->request->get('company_id'));
+        // Same company resolution as HomeController::leadStore: the form's public hash.
+        $company = Company::where('hash', $this->request->get('company_hash'))->firstOrFail();
         $rules = array();
         $rules['name'] = 'required';
         $rules['email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . $company->id.'|unique:users,email,null,id,company_id,' . $company->id;

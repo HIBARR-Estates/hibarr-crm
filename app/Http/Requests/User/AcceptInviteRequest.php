@@ -4,6 +4,7 @@ namespace App\Http\Requests\User;
 
 use App\Models\UserInvitation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class AcceptInviteRequest extends FormRequest
 {
@@ -25,13 +26,13 @@ class AcceptInviteRequest extends FormRequest
      */
     public function rules()
     {
-        $invite = UserInvitation::where('invitation_code', request()->invite)
-            ->where('status', 'active')
+        $invite = UserInvitation::usable()
+            ->where('invitation_code', request()->invite)
             ->first();
 
         $rules = [
             'name' => 'required',
-            'password' => 'required|min:8'
+            'password' => ['required', Password::defaults()]
         ];
 
         if (request()->has('email_address')) {
@@ -44,7 +45,7 @@ class AcceptInviteRequest extends FormRequest
             $rules['terms_and_conditions'] = 'required';
         }
 
-        $rules['email'] = 'required|email:rfc,strict|unique:users,email,null,id,company_id,' . $invite->company->id;
+        $rules['email'] = 'required|email:rfc,strict|unique:users,email,null,id,company_id,' . $invite?->company_id;
 
         return $rules;
     }

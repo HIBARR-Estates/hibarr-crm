@@ -35,7 +35,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-text f-14 text-dark-grey text-justify">{!! $note->note !!}
+                <div class="card-text f-14 text-dark-grey text-justify">{!! clean_html($note->note) !!}
                 </div>
             </div>
         </div>
