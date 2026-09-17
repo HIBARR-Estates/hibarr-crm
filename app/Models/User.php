@@ -293,7 +293,13 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
      *
      * @var array
      */
-    protected $hidden = ['password', 'remember_token', 'created_at', 'updated_at', 'headers','location_details'];
+    protected $hidden = [
+        'password', 'remember_token', 'created_at', 'updated_at', 'headers', 'location_details',
+        // 2FA material must never reach the browser (security audit Phase 9, P9-01):
+        // secret/recovery codes are ciphertext but shouldn't ship regardless, and
+        // the email-OTP code/expiry are plaintext.
+        'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_code', 'two_factor_expires_at',
+    ];
 
     public $dates = ['created_at', 'updated_at', 'last_login', 'two_factor_expires_at'];
 
