@@ -15,8 +15,8 @@ import {
 } from "@/lib/leadAge";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
+import Button from "@/Components/Redesign/primitives/Button";
+import EditableField from "@/Components/Redesign/primitives/EditableField";
 import DealInfoGroupTitle from "@/Pages/Deals/Redesign/components/deal-info/DealInfoGroupTitle";
 import type { Lead } from "@/Types/api/leads";
 import { getDossierFieldValue } from "../../adapters/dossierAdapter";
@@ -96,13 +96,13 @@ function AddContactMethodForm({
 
     if (!open) {
         return (
-            <DealButton
+            <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setOpen(true)}
             >
                 {td("Add", { source: "en" })}
-            </DealButton>
+            </Button>
         );
     }
 
@@ -130,7 +130,7 @@ function AddContactMethodForm({
                 onPressEnter={submit}
                 style={{ width: 200 }}
             />
-            <DealButton
+            <Button
                 variant="primary"
                 size="sm"
                 loading={saving}
@@ -138,15 +138,15 @@ function AddContactMethodForm({
                 disabled={!identifier.trim()}
             >
                 {td("Save", { source: "en" })}
-            </DealButton>
-            <DealButton
+            </Button>
+            <Button
                 variant="ghost"
                 size="sm"
                 disabled={saving}
                 onClick={reset}
             >
                 {td("Cancel", { source: "en" })}
-            </DealButton>
+            </Button>
         </div>
     );
 }
@@ -320,7 +320,7 @@ export default function LeadInfoSectionPanel({
         <>
             <FieldGrid>
                 <DetailField label={td("Salutation", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.salutation || ""}
                         fieldName="salutation"
                         selectorType="salutations"
@@ -339,7 +339,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Full name", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.client_name || ""}
                         fieldName="client_name"
                         fieldType="text"
@@ -393,7 +393,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Nationality", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={(lead as any).nationality || ""}
                         fieldName="nationality"
                         fieldType="country"
@@ -405,7 +405,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.gender")}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.gender || ""}
                         fieldName="gender"
                         fieldType="select"
@@ -436,7 +436,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Languages", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={(lead as any).languages || []}
                         fieldName="languages"
                         fieldType="multiselect"
@@ -461,7 +461,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Occupation", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={(lead as any).occupation || ""}
                         fieldName="occupation"
                         fieldType="text"
@@ -473,7 +473,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.company")}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.company_name || ""}
                         fieldName="company_name"
                         fieldType="text"
@@ -497,7 +497,7 @@ export default function LeadInfoSectionPanel({
                     label={t("pages.leads.info.fields.email")}
                     copyValue={lead.client_email || undefined}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={lead.client_email || ""}
                         fieldName="client_email"
                         fieldType="email"
@@ -527,7 +527,7 @@ export default function LeadInfoSectionPanel({
                     }
                     callEntity={leadCallEntity}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={resolveLeadPhoneDisplay(
                             lead.mobile,
                             lead.mobile_with_phonecode,
@@ -558,7 +558,7 @@ export default function LeadInfoSectionPanel({
                     }
                     callEntity={leadCallEntity}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={resolveLeadPhoneDisplay(
                             lead.office,
                             lead.office_phone_formatted,
@@ -587,7 +587,7 @@ export default function LeadInfoSectionPanel({
                     }
                     callEntity={leadCallEntity}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={resolveLeadPhoneDisplay(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
                         fieldType="phone"
@@ -602,7 +602,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Telegram", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.client_telegram || ""}
                         fieldName="client_telegram"
                         fieldType="text"
@@ -617,7 +617,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={td("Instagram", { source: "en" })}>
-                    <DealEditableField
+                    <EditableField
                         value={lead.client_instagram || ""}
                         fieldName="client_instagram"
                         fieldType="text"
@@ -640,7 +640,7 @@ export default function LeadInfoSectionPanel({
 
             {(canEdit || lead.contact_methods?.some((method) => !method.is_main)) && (
                 <div className="mb-5">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-dr-text-muted">
                         {td("Additional emails/phones", { source: "en" })}
                     </span>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -726,7 +726,7 @@ export default function LeadInfoSectionPanel({
                 <DetailField
                     label={t("pages.leads.info.fields.joined_whatsapp_group")}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={
                             lead.marketing?.has_joined_the_whatsapp_group
                                 ? 1
@@ -743,7 +743,7 @@ export default function LeadInfoSectionPanel({
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
                         displayValue={
-                            <span className="text-gray-700">
+                            <span className="text-dr-gray-darker">
                                 {lead.marketing?.has_joined_the_whatsapp_group
                                     ? t("pages.leads.marketing.yes")
                                     : t("pages.leads.marketing.no")}
@@ -756,9 +756,9 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.added_by")}>
-                    <span className="text-[13px] text-[#0f172a]">
+                    <span className="text-[13px] text-dr-text">
                         {getDossierFieldValue(lead, "addedBy") || (
-                            <span className="italic text-gray-400">--</span>
+                            <span className="italic text-dr-text-hint">--</span>
                         )}
                     </span>
                 </DetailField>
@@ -773,7 +773,7 @@ export default function LeadInfoSectionPanel({
                 span={2}
                 useContainerQuery
             >
-                <DealEditableField
+                <EditableField
                     value={lead.address || ""}
                     fieldName="address"
                     fieldType="textarea"
@@ -786,7 +786,7 @@ export default function LeadInfoSectionPanel({
                 />
             </DetailField>
             <DetailField label={t("pages.leads.info.fields.postal_code")}>
-                <DealEditableField
+                <EditableField
                     value={lead.postal_code || ""}
                     fieldName="postal_code"
                     fieldType="text"
@@ -801,7 +801,7 @@ export default function LeadInfoSectionPanel({
                 />
             </DetailField>
             <DetailField label={t("pages.leads.info.fields.city")}>
-                <DealEditableField
+                <EditableField
                     value={lead.city || ""}
                     fieldName="city"
                     fieldType="text"
@@ -814,7 +814,7 @@ export default function LeadInfoSectionPanel({
                 />
             </DetailField>
             <DetailField label={t("pages.leads.info.fields.state")}>
-                <DealEditableField
+                <EditableField
                     value={lead.state || ""}
                     fieldName="state"
                     fieldType="text"
@@ -827,7 +827,7 @@ export default function LeadInfoSectionPanel({
                 />
             </DetailField>
             <DetailField label={t("pages.leads.info.fields.country")}>
-                <DealEditableField
+                <EditableField
                     value={lead.country || ""}
                     fieldName="country"
                     fieldType="country"
@@ -885,10 +885,10 @@ export default function LeadInfoSectionPanel({
         <section className="@container pl-[26px] pt-1">
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
+                    <h3 className="mb-0.5 text-base font-medium text-dr-text">
                         {td(sectionTitle, { source: "en" })}
                     </h3>
-                    <p className="text-xs text-[#5b6472]">
+                    <p className="text-xs text-dr-text-muted">
                         {td(sectionSubtitle, { source: "en" })}
                     </p>
                 </div>
@@ -903,15 +903,15 @@ export default function LeadInfoSectionPanel({
                                     })}
                                 </span>
                             )}
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleCancelEdit}
                                 disabled={isSavingAll}
                             >
                                 {t("pages.leads.info.actions.cancel_edit")}
-                            </DealButton>
-                            <DealButton
+                            </Button>
+                            <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={handleSaveAll}
@@ -919,16 +919,16 @@ export default function LeadInfoSectionPanel({
                                 loading={isSavingAll}
                             >
                                 {t("pages.leads.info.actions.save_all_tooltip")}
-                            </DealButton>
+                            </Button>
                         </div>
                     ) : (
-                        <DealButton
+                        <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleEnterEdit}
                         >
                             {t("pages.deals.info.edit_fields")}
-                        </DealButton>
+                        </Button>
                     ))}
             </div>
             {renderSectionBody()}

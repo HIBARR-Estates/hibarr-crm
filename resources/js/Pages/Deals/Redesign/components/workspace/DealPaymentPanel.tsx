@@ -9,10 +9,10 @@ import {
     mapDealPaymentUiState,
     paymentUiStateLabel,
 } from "../../adapters/mapDealPaymentUiState";
-import DealBadge from "../primitives/DealBadge";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import DealIcon from "../primitives/DealIcon";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 
 interface DealPaymentPanelProps {
@@ -112,7 +112,7 @@ export default function DealPaymentPanel({
 
     if (paymentRequestLoading) {
         return (
-            <p className="py-2 text-xs italic text-[#9ca3af]">
+            <p className="py-2 text-xs italic text-dr-text-hint">
                 {td("Loading payment status...")}
             </p>
         );
@@ -122,31 +122,31 @@ export default function DealPaymentPanel({
         <div className="space-y-3">
             {!mapped.hasPaymentRequest ? (
                 <>
-                    <p className="text-xs text-[#5b6472]">
+                    <p className="text-xs text-dr-text-muted">
                         {td("Create a payment request to share a checkout link with the customer.")}
                     </p>
                     {canCreatePaymentRequest && (
-                        <DealButton
+                        <Button
                             variant="primary"
                             size="sm"
                             onClick={openCreateModal}
                         >
                             {td("Create Payment Request")}
-                        </DealButton>
+                        </Button>
                     )}
                 </>
             ) : (
                 <>
                     <div className="flex items-start justify-between gap-2">
-                        <DealBadge variant={mapped.uiState === "failed" ? "red" : "gray"}>
+                        <Badge variant={mapped.uiState === "failed" ? "red" : "gray"}>
                             {statusLabel}
-                        </DealBadge>
+                        </Badge>
                         {!isTerminalPaymentState(mapped.uiState) && (
                             <button
                                 type="button"
                                 onClick={() => void refreshStatus()}
                                 disabled={refreshing}
-                                className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5] disabled:opacity-50"
+                                className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-dr-blue disabled:opacity-50"
                             >
                                 {refreshing ? td("Refreshing...") : td("Refresh")}
                             </button>
@@ -154,13 +154,13 @@ export default function DealPaymentPanel({
                     </div>
 
                     {statusTimestamp && (
-                        <p className="text-xs text-[#5b6472]">
+                        <p className="text-xs text-dr-text-muted">
                             {td("Updated")}: {statusTimestamp}
                         </p>
                     )}
 
                     {paymentRequest?.verified_by && (
-                        <p className="text-xs text-[#5b6472]">
+                        <p className="text-xs text-dr-text-muted">
                             {td("Confirmed by")} {paymentRequest.verified_by.name}
                             {paymentRequest.verified_at
                                 ? ` · ${formatTimestamp(paymentRequest.verified_at)}`
@@ -169,19 +169,19 @@ export default function DealPaymentPanel({
                     )}
 
                     {mapped.showCheckoutUrl && paymentRequest?.checkout_url && (
-                        <div className="rounded-md border border-[#eef0f3] bg-[#fafbfc] p-2.5">
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#5b6472]">
+                        <div className="rounded-md border border-dr-border-soft bg-[#fafbfc] p-2.5">
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
                                 {td("Checkout link")}
                             </p>
-                            <p className="break-all text-xs text-[#1a1f2e]">
+                            <p className="break-all text-xs text-dr-text">
                                 {paymentRequest.checkout_url}
                             </p>
                             <button
                                 type="button"
                                 onClick={() => void handleCopyCheckoutUrl()}
-                                className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
+                                className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-xs font-semibold text-dr-blue"
                             >
-                                <DealIcon name="copy" size={12} />
+                                <Icon name="copy" size={12} />
                                 {td("Copy link")}
                             </button>
                         </div>
@@ -198,21 +198,21 @@ export default function DealPaymentPanel({
                             href={paymentRequest.proof_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#1a6bb5] no-underline"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-dr-blue no-underline"
                         >
-                            <DealIcon name="file-text" size={12} />
+                            <Icon name="file-text" size={12} />
                             {td("View payment proof")}
                         </a>
                     )}
 
                     {mapped.canConfirm && canConfirmPaymentTransfer && (
-                        <DealButton
+                        <Button
                             variant="primary"
                             size="sm"
                             onClick={() => setConfirmOpen(true)}
                         >
                             {td("Confirm Transfer")}
-                        </DealButton>
+                        </Button>
                     )}
                 </>
             )}
@@ -256,7 +256,7 @@ export default function DealPaymentPanel({
                         </p>
                     )}
                     <div className="flex justify-end gap-2 pt-2">
-                        <DealButton
+                        <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
@@ -265,20 +265,20 @@ export default function DealPaymentPanel({
                             }}
                         >
                             {td("Cancel")}
-                        </DealButton>
-                        <DealButton
+                        </Button>
+                        <Button
                             variant="primary"
                             size="sm"
                             onClick={() => void handleCreate()}
                             disabled={creating}
                         >
                             {creating ? td("Creating...") : td("Create")}
-                        </DealButton>
+                        </Button>
                     </div>
                 </div>
             </DealModal>
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmOpen}
                 title={td("Confirm bank transfer?")}
                 message={td(

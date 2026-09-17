@@ -5,7 +5,7 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import { ROW_PADDING, TASK_ICON, type DensityOption } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
-import type { TaskRowAction } from "./primitives/TaskRowMenu";
+import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import type { TaskGroup } from "./list/types";
 import TaskListGroupHeader from "./list/TaskListGroupHeader";
 import TaskListRow from "./list/TaskListRow";
@@ -21,7 +21,7 @@ interface TasksListViewProps {
     onOpen: (vm: TaskViewModel) => void;
     onStatusChange: (vm: TaskViewModel, slug: string, columnId: number) => void;
     isStatusPending: (taskId: number) => boolean;
-    rowActions: (vm: TaskViewModel) => TaskRowAction[];
+    rowActions: (vm: TaskViewModel) => RowAction[];
     selected: Set<number>;
     onToggleSelect: (vm: TaskViewModel) => void;
     onToggleGroup: (tasks: TaskViewModel[], select: boolean) => void;

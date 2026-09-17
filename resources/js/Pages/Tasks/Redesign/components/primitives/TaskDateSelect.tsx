@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import { TASK_ICON } from "../../config/taskDesignTokens";
 import { TaskGlyph } from "./TaskGlyphs";
@@ -468,8 +471,8 @@ export default function TaskDateSelect({
                                 style={{
                                     padding: "6px 14px",
                                     borderRadius: 6,
-                                    background: T.BLUE,
-                                    color: T.WHITE,
+                                    background: B.PRIMARY_BG,
+                                    color: B.PRIMARY_TEXT,
                                     border: "none",
                                     fontSize: 14,
                                     fontWeight: 600,

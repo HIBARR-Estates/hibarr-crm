@@ -473,7 +473,7 @@ function DealViewRedesignInner(
                 labels={DEAL_TOUR_LABELS}
             />
 
-            <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
+            <div className="deal-redesign min-h-screen bg-dr-gray">
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <DealStickyHeader
                         deal={deal}
@@ -605,7 +605,7 @@ function DealViewRedesignInner(
                                     </div>
                                 )}
 
-                                <section className="overflow-hidden rounded-xl border border-[#e2e5ea] bg-white">
+                                <section className="overflow-hidden rounded-xl border border-dr-border bg-white">
                                     <div data-tour="deal-tabs">
                                         <DealTabBar
                                             activeTab={activeTab}

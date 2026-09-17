@@ -41,3 +41,37 @@ $additional_grey: #F2F4F7;
 $pink: #ea4c89;
 
 $amt_grey: #e7e9eb;
+
+/************************ BUTTONS — legacy design tokens ***********************/
+/* Button colours for the legacy Blade design (its own token set; the React
+   redesign's live in resources/js/Components/Redesign/design-tokens.json).
+   Values are the legacy look as-is. btn.scss and .btn-active read only these. */
+
+$btn-primary-bg: $blue;
+$btn-primary-border: $blue;
+$btn-primary-text: #fff;
+$btn-primary-hover-bg: #000;
+$btn-primary-hover-border: #000;
+$btn-primary-hover-text: #fff;
+
+$btn-secondary-bg: #fff;
+$btn-secondary-border: $dark_grey;
+$btn-secondary-text: $dark_grey;
+$btn-secondary-hover-bg: #000;
+$btn-secondary-hover-border: #000;
+$btn-secondary-hover-text: #fff;
+
+$btn-cancel-bg: #fff;
+$btn-cancel-border: #fff;
+$btn-cancel-text: $light_text;
+$btn-cancel-hover-bg: #000;
+$btn-cancel-hover-border: #000;
+$btn-cancel-hover-text: #fff;
+
+$btn-danger-bg: $red;
+$btn-danger-text: #fff;
+$btn-danger-hover-bg: #000;
+
+$btn-active-bg: #000;
+$btn-active-border: #000;
+$btn-active-text: #fff;

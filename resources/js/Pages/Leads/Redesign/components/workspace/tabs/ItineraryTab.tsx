@@ -16,14 +16,14 @@ import {
     toWorkspaceItineraryItem,
     type WorkspaceItineraryItem,
 } from "@/Pages/Deals/Redesign/adapters/itineraryAdapter";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import {
-    DEAL_REDESIGN_RADIUS as R,
-    DEAL_REDESIGN_TOKENS as T,
-    DEAL_REDESIGN_TYPE as TY,
-} from "@/Pages/Deals/Redesign/tokens";
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+    REDESIGN_TYPE as TY,
+} from "@/Components/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import useLeadItineraryMutations from "../../../hooks/useLeadItineraryMutations";
 import LeadItineraryModal from "../LeadItineraryModal";
@@ -228,7 +228,7 @@ function ItineraryCard({
                             color: isPastSection ? T.TEXT_MUTED : T.NAVY,
                         }}
                     >
-                        <DealIcon
+                        <Icon
                             name="clock"
                             size={13}
                             color={isPastSection ? T.TEXT_MUTED : T.BLUE}
@@ -250,13 +250,13 @@ function ItineraryCard({
 
             <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1.5 sm:flex-row sm:items-center">
                 {canEdit && (
-                    <DealButton
+                    <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(leg.raw)}
                     >
                         {t("pages.deals.common.edit")}
-                    </DealButton>
+                    </Button>
                 )}
                 {canEdit && (
                     <button
@@ -370,14 +370,14 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
         editingLeg?.deal_id ?? defaultDealId ?? deals[0]?.id ?? null;
 
     const addFlightButton = canEdit ? (
-        <DealButton
+        <Button
             variant="primary"
             size="sm"
-            icon={<DealIcon name="plus" size={14} />}
+            icon={<Icon name="plus" size={14} />}
             onClick={openCreate}
         >
             {ft("add_flight")}
-        </DealButton>
+        </Button>
     ) : null;
 
     // No flights at all: no toolbar, no filters — just the empty state and its
@@ -493,7 +493,7 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                 />
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmDeleteLeg != null}
                 title={ft("delete_flight")}
                 message={ft("delete_confirm")}

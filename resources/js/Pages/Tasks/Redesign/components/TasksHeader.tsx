@@ -1,6 +1,9 @@
 import { ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
 
@@ -181,9 +184,9 @@ export default function TasksHeader({
                         style={{
                             padding: "9px 16px",
                             borderRadius: 8,
-                            background: T.BLUE,
-                            color: T.WHITE,
-                            border: `1px solid ${T.BLUE}`,
+                            background: B.PRIMARY_BG,
+                            color: B.PRIMARY_TEXT,
+                            border: `1px solid ${B.PRIMARY_BG}`,
                             fontSize: 15,
                             fontWeight: 600,
                             cursor: "pointer",

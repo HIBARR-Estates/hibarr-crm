@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import useTranslation from "@/Hooks/useTranslation";
-import DealAvatar from "../primitives/DealAvatar";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
 import DealAgentPicker from "../primitives/DealAgentPicker";
-import DealIcon from "../primitives/DealIcon";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import useDealTeamMutations from "../../hooks/useDealTeamMutations";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface AgentInfo {
     id: number;
@@ -75,7 +75,7 @@ export default function DealAgentCard({
     const chip = (
         <>
             {agent ? (
-                <DealAvatar type="agent" size={34} initials={agent.initials} />
+                <Avatar type="agent" size={34} initials={agent.initials} />
             ) : (
                 <span
                     style={{
@@ -91,7 +91,7 @@ export default function DealAgentCard({
                         flexShrink: 0,
                     }}
                 >
-                    <DealIcon name="users" size={15} />
+                    <Icon name="users" size={15} />
                 </span>
             )}
             <span>
@@ -168,7 +168,7 @@ export default function DealAgentCard({
                             <span className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent h-3 w-3" />
                         </span>
                     ) : (
-                        <DealIcon name={open ? "chevron-up" : "chevron-down"} size={14} />
+                        <Icon name={open ? "chevron-up" : "chevron-down"} size={14} />
                     )}
                 </span>
             </button>

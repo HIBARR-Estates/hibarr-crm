@@ -34,7 +34,7 @@ export default function AnalysisStatusBanner({ analysis, totalFilled, totalField
         }
         : completedWithGaps
             ? {
-                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
+                background: "linear-gradient(135deg, var(--dr-navy) 0%, #1a4a9c 100%)",
                 dot: "#FBBF24",
                 bar: "#FBBF24",
                 cta: "text-amber-200",
@@ -44,7 +44,7 @@ export default function AnalysisStatusBanner({ analysis, totalFilled, totalField
             : {
                 // Red, not navy: an unfinished analysis is the one state that needs
                 // to read as outstanding work from across the deal list.
-                background: "linear-gradient(135deg, #991B1B 0%, #DC2626 100%)",
+                background: "linear-gradient(135deg, #991B1B 0%, var(--dr-red) 100%)",
                 dot: "#FCA5A5",
                 bar: "#FCA5A5",
                 cta: "text-red-200",

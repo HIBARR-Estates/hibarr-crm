@@ -18,10 +18,10 @@ import useDealFileUpload from "../../hooks/useDealFileUpload";
 import useDealDocuments, { type DealDocumentItem } from "../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
 import useDealFileMutations from "../../hooks/useDealFileMutations";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
 import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface DocumentSlotSectionProps {
@@ -50,11 +50,11 @@ function DocumentSlotSection({
 
     return (
         <section className="mb-5">
-            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">{title}</div>
+            <div className="mb-1 text-[14px] font-bold text-dr-text">{title}</div>
             <div className="mb-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
                 {hint}
             </div>
-            <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+            <div className="rounded-lg border border-dr-border bg-white px-3.5">
                 {slots.map((doc) => (
                     <DealDocumentSlotRow
                         key={doc.id}
@@ -291,7 +291,7 @@ export default function WorkspaceFilesTab({
             />
 
             {slots.length > 0 && (
-                <div className="mb-2 text-[14px] font-bold text-[#1a1f2e]">
+                <div className="mb-2 text-[14px] font-bold text-dr-text">
                     {t("pages.deals.workspace.files.other_files")}
                 </div>
             )}
@@ -349,7 +349,7 @@ export default function WorkspaceFilesTab({
                 ))
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={Boolean(deleteFile)}
                 title={t("pages.deals.common.delete")}
                 message={

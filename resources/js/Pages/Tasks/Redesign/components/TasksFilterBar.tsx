@@ -1,7 +1,7 @@
 import { FilterOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import TaskSegmented from "./primitives/TaskSegmented";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 
 export type QuickFilterKey =
     "all" | "mine" | "byme" | "open" | "today" | "overdue" | "mentioned";
@@ -67,7 +67,7 @@ export default function TasksFilterBar({
         <div>
             <div className="flex flex-wrap items-center gap-2.5 pb-[18px]">
                 <div data-tour="tasks-list-quick-filters">
-                    <TaskSegmented
+                    <Segmented
                         value={quickFilter}
                         ariaLabel={td("Task view")}
                         onChange={onQuickFilter}
@@ -96,7 +96,7 @@ export default function TasksFilterBar({
                             >
                                 {td("Group by")}
                             </span>
-                            <TaskSegmented
+                            <Segmented
                                 value={groupMode}
                                 ariaLabel={td("Group by")}
                                 onChange={onGroupMode}

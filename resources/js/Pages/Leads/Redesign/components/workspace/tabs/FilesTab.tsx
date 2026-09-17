@@ -310,13 +310,13 @@ export default function FilesTab({
     const leadDocumentsSection =
         leadLevelSlots.length > 0 ? (
             <section className="mb-5">
-                <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                <div className="mb-1 text-[14px] font-bold text-dr-text">
                     {td("Lead documents", { source: "en" })}
                 </div>
-                <div className="mb-2 text-[12px] text-[#9ca3af]">
+                <div className="mb-2 text-[12px] text-dr-text-hint">
                     {td("Required or optional file fields for this lead. Upload each into its slot.", { source: "en" })}
                 </div>
-                <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+                <div className="rounded-lg border border-dr-border bg-white px-3.5">
                     {leadLevelSlots.map(renderDocRow)}
                 </div>
             </section>
@@ -338,10 +338,10 @@ export default function FilesTab({
                     data="dealFileFields"
                     fallback={
                         <section className="mb-5">
-                            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                            <div className="mb-1 text-[14px] font-bold text-dr-text">
                                 {td("Lead documents", { source: "en" })}
                             </div>
-                            <div className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f6f7f9]" />
+                            <div className="h-16 animate-pulse rounded-lg border border-dr-border bg-[#f6f7f9]" />
                         </section>
                     }
                 >
@@ -357,22 +357,22 @@ export default function FilesTab({
                     data="dealFileFields"
                     fallback={
                         <section className="mb-5">
-                            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                            <div className="mb-1 text-[14px] font-bold text-dr-text">
                                 {td("Deal files", { source: "en" })}
                             </div>
-                            <div className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f6f7f9]" />
+                            <div className="h-16 animate-pulse rounded-lg border border-dr-border bg-[#f6f7f9]" />
                         </section>
                     }
                 >
                     {dealFileGroups.length > 0 ? (
                 <section className="mb-5">
-                    <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                    <div className="mb-1 text-[14px] font-bold text-dr-text">
                         {td("Deal files", { source: "en" })}
                     </div>
-                    <div className="mb-2 text-[12px] text-[#9ca3af]">
+                    <div className="mb-2 text-[12px] text-dr-text-hint">
                         {td("Files from this lead's deals, grouped by deal.", { source: "en" })}
                     </div>
-                    <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+                    <div className="rounded-lg border border-dr-border bg-white px-3.5">
                         {dealFileGroups.map((group) => (
                             <CollapsibleGroup
                                 key={group.dealId}
@@ -389,7 +389,7 @@ export default function FilesTab({
             ) : null}
 
             {hasDocumentSlots ? (
-                <div className="mb-2 text-[14px] font-bold text-[#1a1f2e]">
+                <div className="mb-2 text-[14px] font-bold text-dr-text">
                     {td("Other files", { source: "en" })}
                 </div>
             ) : null}
@@ -397,7 +397,7 @@ export default function FilesTab({
             {!filesGroupingEnabled && dropzone}
 
             {filesLoading ? (
-                <p className="px-1 text-[13px] text-[#9ca3af]">
+                <p className="px-1 text-[13px] text-dr-text-hint">
                     {td("Loading files…", { source: "en" })}
                 </p>
             ) : visibleFiles.length === 0 ? (

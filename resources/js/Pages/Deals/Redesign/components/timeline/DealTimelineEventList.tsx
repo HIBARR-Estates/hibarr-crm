@@ -4,9 +4,9 @@ import type { TimelineEventViewModel } from "../../adapters/timelineAdapter";
 import useDealTimelineEventMutations, {
     TimelineEventUpdateInput,
 } from "../../hooks/useDealTimelineEventMutations";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import DealTimelineEventRow from "./DealTimelineEventRow";
 import DealTimelineEventEditModal from "./DealTimelineEventEditModal";
 
@@ -27,10 +27,10 @@ function TimelineSkeleton() {
         <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="flex gap-3">
-                    <div className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#e2e5ea]" />
+                    <div className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-dr-border" />
                     <div className="flex-1 space-y-2">
-                        <div className="h-4 w-2/3 animate-pulse rounded bg-[#eef1f5]" />
-                        <div className="h-3 w-1/3 animate-pulse rounded bg-[#eef1f5]" />
+                        <div className="h-4 w-2/3 animate-pulse rounded bg-dr-skeleton" />
+                        <div className="h-3 w-1/3 animate-pulse rounded bg-dr-skeleton" />
                     </div>
                 </div>
             ))}
@@ -102,13 +102,13 @@ export default function DealTimelineEventList({
 
             {hasNextPage && (
                 <div className="pt-1">
-                    <DealButton
+                    <Button
                         variant="ghost"
                         onClick={onLoadMore}
                         loading={isFetchingNextPage}
                     >
                         {t("pages.deals.timeline.load_more")}
-                    </DealButton>
+                    </Button>
                 </div>
             )}
 
@@ -120,7 +120,7 @@ export default function DealTimelineEventList({
                 onSubmit={handleEditSubmit}
             />
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={deletingEvent !== null}
                 title={t("pages.deals.timeline.delete_confirm_title")}
                 message={t("pages.deals.timeline.delete_confirm_message")}

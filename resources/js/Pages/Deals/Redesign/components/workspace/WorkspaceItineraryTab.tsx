@@ -12,18 +12,18 @@ import {
 } from "../../adapters/itineraryAdapter";
 import useDealItinerary from "../../hooks/useDealItinerary";
 import DealItineraryModal from "./DealItineraryModal";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import DealIcon from "../primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import {
     ItineraryEmptyState,
     ItineraryFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import {
-    DEAL_REDESIGN_RADIUS as R,
-    DEAL_REDESIGN_TOKENS as T,
-    DEAL_REDESIGN_TYPE as TY,
-} from "../../tokens";
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+    REDESIGN_TYPE as TY,
+} from "@/Components/Redesign/tokens";
 
 type ItineraryFilter = "all" | "arrival" | "departure" | "transfer";
 
@@ -162,7 +162,7 @@ function ItineraryCard({
                             color: isPastSection ? T.TEXT_MUTED : T.NAVY,
                         }}
                     >
-                        <DealIcon
+                        <Icon
                             name="clock"
                             size={13}
                             color={isPastSection ? T.TEXT_MUTED : T.BLUE}
@@ -184,13 +184,13 @@ function ItineraryCard({
 
             <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1.5 sm:flex-row sm:items-center">
                 {canAdd && (
-                    <DealButton
+                    <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(leg.raw)}
                     >
                         {t("pages.deals.common.edit")}
-                    </DealButton>
+                    </Button>
                 )}
                 {canDelete && (
                     <button
@@ -324,14 +324,14 @@ export default function WorkspaceItineraryTab({
                         ))}
                     </div>
                     {canAdd && (
-                        <DealButton
+                        <Button
                             variant="primary"
                             size="sm"
-                            icon={<DealIcon name="plus" size={14} />}
+                            icon={<Icon name="plus" size={14} />}
                             onClick={openCreate}
                         >
                             {ft("add_flight")}
-                        </DealButton>
+                        </Button>
                     )}
                 </div>
             )}
@@ -397,7 +397,7 @@ export default function WorkspaceItineraryTab({
                 leg={editingLeg}
             />
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmDeleteId != null}
                 title={ft("delete_flight")}
                 message={ft("delete_confirm")}

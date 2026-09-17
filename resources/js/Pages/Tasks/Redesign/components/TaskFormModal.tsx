@@ -11,7 +11,10 @@ import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import {
     readTaskFormDraft,
@@ -25,7 +28,7 @@ import {
     type TaskLinkRef,
 } from "../adapters/taskFormValues";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
-import TaskModalShell from "./primitives/TaskModalShell";
+import ModalShell from "@/Components/Redesign/primitives/ModalShell";
 import TaskFormPills from "./form/TaskFormPills";
 import TaskFormLinksPopover from "./form/TaskFormLinksPopover";
 import TaskFormLinkChips from "./form/TaskFormLinkChips";
@@ -233,7 +236,8 @@ export default function TaskFormModal({
     };
 
     return (
-        <TaskModalShell
+        <ModalShell
+            overlayClassName="tasks-modal-overlay"
             open={open}
             onClose={() => !saving && onClose()}
             onEscape={() => {
@@ -511,9 +515,9 @@ export default function TaskFormModal({
                     style={{
                         padding: "9px 16px",
                         borderRadius: 8,
-                        background: T.BLUE,
-                        color: T.WHITE,
-                        border: `1px solid ${T.BLUE}`,
+                        background: B.PRIMARY_BG,
+                        color: B.PRIMARY_TEXT,
+                        border: `1px solid ${B.PRIMARY_BG}`,
                         fontSize: 15,
                         fontWeight: 600,
                         cursor: "pointer",
@@ -530,7 +534,7 @@ export default function TaskFormModal({
                           : td("Save changes")}
                 </button>
             </div>
-        </TaskModalShell>
+        </ModalShell>
     );
 }
 

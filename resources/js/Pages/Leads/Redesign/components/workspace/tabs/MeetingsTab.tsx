@@ -10,20 +10,20 @@ import {
     getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
-import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/DealBulkActionBar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
-import DealDateBlock from "@/Pages/Deals/Redesign/components/primitives/DealDateBlock";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import DateBlock from "@/Components/Redesign/primitives/DateBlock";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { MeetingsEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
-import DealSelectCheckbox from "@/Pages/Deals/Redesign/components/primitives/DealSelectCheckbox";
+import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import { ScheduleMeetingModal } from "@/Components/Redesign";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     buildEmptyMeetingForm,
     getMeetingOwner,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
@@ -188,7 +188,7 @@ export default function MeetingsTab({
         <>
             {hasMeetings && (
                 <div className="mb-3.5 flex items-center justify-between gap-3">
-                    <span className="text-xs text-[#5b6472]">
+                    <span className="text-xs text-dr-text-muted">
                         {[
                             live.length > 0
                                 ? `${live.length} ${t("pages.deals.workspace.meetings.live_label")}`
@@ -201,7 +201,7 @@ export default function MeetingsTab({
                     </span>
                     <div className="flex gap-1.5">
                         {showSelectMode && (
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() =>
@@ -213,27 +213,27 @@ export default function MeetingsTab({
                                 {selectMode
                                     ? t("pages.deals.common.cancel")
                                     : t("pages.deals.common.select")}
-                            </DealButton>
+                            </Button>
                         )}
                         {showSchedule && (
-                            <DealButton
+                            <Button
                                 variant="primary"
                                 size="sm"
-                                icon={<DealIcon name="plus" size={14} />}
+                                icon={<Icon name="plus" size={14} />}
                                 onClick={() => {
                                     clearCreateErrors();
                                     setScheduleOpen(true);
                                 }}
                             >
                                 {t("pages.deals.workspace.meetings.schedule")}
-                            </DealButton>
+                            </Button>
                         )}
                     </div>
                 </div>
             )}
 
             {selectMode && (
-                <DealBulkActionBar
+                <BulkActionBar
                     count={selected.size}
                     onClear={() => setSelected(new Set())}
                     clearLabel={t("pages.deals.common.clear")}
@@ -257,7 +257,7 @@ export default function MeetingsTab({
                     >
                         {t("pages.deals.workspace.meetings.cancel_meetings")}
                     </button>
-                </DealBulkActionBar>
+                </BulkActionBar>
             )}
 
             {!hasMeetings ? (
@@ -309,7 +309,7 @@ export default function MeetingsTab({
                                     >
                                         {selectMode && (
                                             <div className="pt-0.5">
-                                                <DealSelectCheckbox
+                                                <SelectCheckbox
                                                     checked={selected.has(
                                                         meeting.id,
                                                     )}
@@ -337,7 +337,7 @@ export default function MeetingsTab({
                                             className="flex min-w-0 flex-1 cursor-pointer gap-3.5 border-none bg-transparent p-0 text-left"
                                             style={{ color: T.TEXT }}
                                         >
-                                            <DealDateBlock
+                                            <DateBlock
                                                 monthLabel={meeting.monthLabel}
                                                 dayLabel={meeting.dayLabel}
                                                 muted={isPastSection}
@@ -452,7 +452,7 @@ export default function MeetingsTab({
                                                             color: T.TEXT_MUTED,
                                                         }}
                                                     >
-                                                        <DealIcon
+                                                        <Icon
                                                             name="users"
                                                             size={12}
                                                         />
@@ -523,7 +523,7 @@ export default function MeetingsTab({
                 />
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmBulkCancel}
                 title={`${t("pages.deals.common.cancel")} ${selected.size} ${
                     selected.size === 1

@@ -6,11 +6,11 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import useTranslation from "@/Hooks/useTranslation";
 import useWorkspaceOverview from "@/Pages/Deals/Redesign/hooks/useWorkspaceOverview";
-import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealDateBlock from "@/Pages/Deals/Redesign/components/primitives/DealDateBlock";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
+import DateBlock from "@/Components/Redesign/primitives/DateBlock";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import useLeadTaskStatus from "../../../hooks/useLeadTaskStatus";
 import type { WorkspaceTabId } from "../../../types";
@@ -78,14 +78,14 @@ function OverviewColumn({
                     {title} <span style={{ fontWeight: 400 }}>· {count}</span>
                 </span>
                 {!isEmpty && canAdd && (
-                    <DealButton
+                    <Button
                         variant="ghost"
                         size="sm"
                         onClick={onAdd}
                         aria-label={`${t("pages.deals.workspace.overview.add")} - ${title}`}
                     >
                         + {t("pages.deals.workspace.overview.add")}
-                    </DealButton>
+                    </Button>
                 )}
             </div>
             <div className="flex-1">
@@ -100,18 +100,18 @@ function OverviewColumn({
                             className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
                             style={{ background: T.BLUE_LIGHT }}
                         >
-                            <DealIcon name={empty.icon} size={17} color="#14538c" />
+                            <Icon name={empty.icon} size={17} color={T.BLUE_DARK} />
                         </div>
-                        <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
+                        <div className="mb-[3px] text-[13px] font-semibold text-dr-text">
                             {empty.title}
                         </div>
-                        <div className="mb-3 text-xs leading-relaxed text-[#5b6472]">
+                        <div className="mb-3 text-xs leading-relaxed text-dr-text-muted">
                             {empty.hint}
                         </div>
                         {canAdd && (
-                            <DealButton variant="primary" onClick={onAdd}>
+                            <Button variant="primary" onClick={onAdd}>
                                 + {empty.actionLabel}
-                            </DealButton>
+                            </Button>
                         )}
                     </div>
                 ) : (
@@ -211,7 +211,7 @@ export default function OverviewTab({
                         >
                             <div className="mb-1.5 flex items-center justify-between gap-2">
                                 <span className="flex min-w-0 items-center gap-1.5">
-                                    <DealAvatar size={20} initials={note.authorInitials} />
+                                    <Avatar size={20} initials={note.authorInitials} />
                                     <span className="truncate text-xs font-semibold">
                                         {note.title || note.authorName}
                                     </span>
@@ -279,7 +279,7 @@ export default function OverviewTab({
                                             fontWeight: overdue ? 600 : 400,
                                         }}
                                     >
-                                        <DealIcon name="calendar" size={11} />
+                                        <Icon name="calendar" size={11} />
                                         {task.dueDateLabel || t("pages.deals.common.no_due_date")}
                                         {overdue
                                             ? ` · ${t("pages.deals.workspace.tasks.overdue")}`
@@ -333,7 +333,7 @@ export default function OverviewTab({
                                 className="dr-card mb-2 flex gap-2.5"
                                 style={{ padding: "10px 12px" }}
                             >
-                                <DealDateBlock
+                                <DateBlock
                                     monthLabel={meeting.monthLabel}
                                     dayLabel={meeting.dayLabel}
                                     onClick={() => setSelectedMeeting(raw)}
@@ -365,7 +365,7 @@ export default function OverviewTab({
                                                 className="mt-[3px] flex items-center gap-1 text-[12px]"
                                                 style={{ color: T.TEXT_MUTED }}
                                             >
-                                                <DealIcon name="users" size={11} />
+                                                <Icon name="users" size={11} />
                                                 {meeting.attendeesLabel}
                                             </span>
                                         )}
@@ -382,7 +382,7 @@ export default function OverviewTab({
                                                 </span>
                                             )}
                                             {canJoin && (
-                                                <DealButton
+                                                <Button
                                                     variant="primary"
                                                     size="sm"
                                                     className="ml-auto shrink-0"
@@ -395,11 +395,11 @@ export default function OverviewTab({
                                                         );
                                                     }}
                                                 >
-                                                    <DealIcon name="video" size={12} />
+                                                    <Icon name="video" size={12} />
                                                     {t(
                                                         "pages.deals.workspace.overview.join",
                                                     )}
-                                                </DealButton>
+                                                </Button>
                                             )}
                                         </div>
                                     )}

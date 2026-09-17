@@ -4,8 +4,8 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import FileDropzone from "@/Components/Redesign/primitives/FileDropzone";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import type {
     AddExposeInput,
     DealExposeEntityQuery,
@@ -17,7 +17,7 @@ import {
     exposeEntityKey,
 } from "../../adapters/dealExposeAdapter";
 import type { DealExposeLinkableEntity } from "@/Types/api/dealExposes";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface AddExposeModalProps {
     open: boolean;
@@ -208,12 +208,12 @@ export default function AddExposeModal({
             closeAriaLabel={t("app.close")}
             footer={
                 isLinked ? (
-                    <DealButton onClick={onClose} disabled={linkingKey !== null}>
+                    <Button onClick={onClose} disabled={linkingKey !== null}>
                         {t("app.cancel")}
-                    </DealButton>
+                    </Button>
                 ) : (
                     <>
-                        <DealButton
+                        <Button
                             onClick={() => {
                                 if (manualUploadActive) {
                                     onCancelUpload?.();
@@ -226,8 +226,8 @@ export default function AddExposeModal({
                             {manualUploadActive
                                 ? t("pages.deals.workspace.files.cancel_upload")
                                 : t("app.cancel")}
-                        </DealButton>
-                        <DealButton
+                        </Button>
+                        <Button
                             variant="primary"
                             loading={isManualBusy}
                             disabled={isManualBusy}
@@ -238,7 +238,7 @@ export default function AddExposeModal({
                             {manualUploadActive && isUploadingFile
                                 ? t("pages.deals.workspace.files.uploading")
                                 : t("pages.deals.workspace.exposes.add")}
-                        </DealButton>
+                        </Button>
                     </>
                 )
             }
@@ -254,13 +254,13 @@ export default function AddExposeModal({
                             <span>
                                 {t("pages.deals.workspace.exposes.load_failed")}
                             </span>
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={reloadEntities}
                             >
                                 {t("pages.deals.workspace.exposes.retry")}
-                            </DealButton>
+                            </Button>
                         </div>
                     ) : (
                         <>
@@ -275,12 +275,12 @@ export default function AddExposeModal({
                                         setFilterText("");
                                     }}
                                 >
-                                    <DealIcon name="chevron-left" size={15} />
+                                    <Icon name="chevron-left" size={15} />
                                     {activeProject.title}
                                 </button>
                             ) : (
                                 <div className="flex gap-1.5">
-                                    <DealButton
+                                    <Button
                                         variant={
                                             tab === "properties"
                                                 ? "navy"
@@ -294,8 +294,8 @@ export default function AddExposeModal({
                                         }}
                                     >
                                         {td("Properties", { source: "en" })}
-                                    </DealButton>
-                                    <DealButton
+                                    </Button>
+                                    <Button
                                         variant={
                                             tab === "projects"
                                                 ? "navy"
@@ -309,7 +309,7 @@ export default function AddExposeModal({
                                         }}
                                     >
                                         {td("Projects", { source: "en" })}
-                                    </DealButton>
+                                    </Button>
                                 </div>
                             )}
 
@@ -389,7 +389,7 @@ export default function AddExposeModal({
 
                                     {entitiesHasMore && (
                                         <div className="flex justify-center">
-                                            <DealButton
+                                            <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 loading={entitiesLoadingMore}
@@ -402,7 +402,7 @@ export default function AddExposeModal({
                                                 {td("Load more", {
                                                     source: "en",
                                                 })}
-                                            </DealButton>
+                                            </Button>
                                         </div>
                                     )}
                                 </>
@@ -506,7 +506,7 @@ function EntityCard({
                         className="h-full w-full object-cover"
                     />
                 ) : (
-                    <DealIcon name="building" size={32} color={T.TEXT_HINT} />
+                    <Icon name="building" size={32} color={T.TEXT_HINT} />
                 )}
                 {loading && (
                     <div

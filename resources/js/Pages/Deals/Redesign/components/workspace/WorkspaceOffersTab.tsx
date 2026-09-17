@@ -8,11 +8,11 @@ import {
     type WorkspaceOfferApplicationItem,
 } from "../../adapters/offerApplicationAdapter";
 import useDealOffers from "../../hooks/useDealOffers";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import EmptyState from "../primitives/DealEmptyState";
-import DealIcon from "../primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface WorkspaceOffersTabProps {
     deal: Deal;
@@ -42,7 +42,7 @@ function OffersSkeleton({
         <div
             role="status"
             aria-label={loadingAria}
-            className="mb-2.5 overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white"
+            className="mb-2.5 overflow-hidden rounded-[10px] border border-dr-border bg-white"
         >
             <table className="dr-table">
                 <thead>
@@ -129,7 +129,7 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                 action={{
                     label: t("pages.deals.workspace.offers.retry"),
                     onClick: () => refetch(),
-                    icon: <DealIcon name="refresh" size={15} />,
+                    icon: <Icon name="refresh" size={15} />,
                 }}
             />
         );
@@ -143,10 +143,10 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
         <div>
             <div className="mb-3.5 flex items-center justify-between gap-3">
                 <div>
-                    <div className="text-[13px] font-semibold text-[#1a1f2e]">
+                    <div className="text-[13px] font-semibold text-dr-text">
                         {t("pages.deals.workspace.offers.applied_title")}
                     </div>
-                    <div className="text-xs text-[#5b6472]">
+                    <div className="text-xs text-dr-text-muted">
                         {t("pages.deals.workspace.offers.applied_hint")}
                     </div>
                 </div>
@@ -199,7 +199,7 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                 />
             ) : (
                 <>
-                    <div className="mb-2.5 overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
+                    <div className="mb-2.5 overflow-hidden rounded-[10px] border border-dr-border bg-white">
                         <table className="dr-table">
                             <thead>
                                 <tr>
@@ -241,8 +241,8 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                                     (item: WorkspaceOfferApplicationItem) => (
                                         <tr key={item.id}>
                                             <td>
-                                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#1a1f2e]">
-                                                    <DealIcon
+                                                <span className="inline-flex items-center gap-1.5 font-semibold text-dr-text">
+                                                    <Icon
                                                         name="award"
                                                         size={13}
                                                         color={T.GREEN}
@@ -289,7 +289,7 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                         </table>
                     </div>
                     <div className="flex items-baseline justify-end gap-2">
-                        <span className="text-xs text-[#5b6472]">
+                        <span className="text-xs text-dr-text-muted">
                             {t("pages.deals.workspace.offers.total_discount")}
                         </span>
                         <span
@@ -302,7 +302,7 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
                 </>
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmRemoveAll}
                 title={t(
                     "pages.deals.workspace.offers.remove_all_confirm_title",

@@ -25,6 +25,7 @@ export { default as Avatar } from "./primitives/Avatar";
 export { default as AvatarStack } from "./primitives/AvatarStack";
 export type { AvatarStackPerson } from "./primitives/AvatarStack";
 export { Modal, ModalField } from "./primitives/Modal";
+export { default as ModalShell } from "./primitives/ModalShell";
 export { default as PanelHeader } from "./primitives/PanelHeader";
 export { default as ConfirmDialog } from "./primitives/ConfirmDialog";
 export { default as Switch } from "./primitives/Switch";

@@ -1,4 +1,4 @@
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { RailSectionGroup, RailStep } from "./analysisRailItems";
 
 interface Props {
@@ -84,7 +84,7 @@ function AnswerCard({
             className="w-full text-left px-4 py-2.5 transition-colors relative border-b"
             style={{
                 borderColor: T.BORDER,
-                backgroundColor: isActive ? T.BLUE_LIGHT : "#ffffff",
+                backgroundColor: isActive ? T.BLUE_LIGHT : T.WHITE,
                 cursor: locked ? "not-allowed" : "pointer",
             }}
             onMouseEnter={(e) => {
@@ -94,13 +94,13 @@ function AnswerCard({
             }}
             onMouseLeave={(e) => {
                 if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.backgroundColor = "#ffffff";
+                    (e.currentTarget as HTMLElement).style.backgroundColor = T.WHITE;
                 }
             }}
         >
             <div
                 className="absolute left-0 top-0 bottom-0 w-1"
-                style={{ backgroundColor: isActive ? "#38bdf8" : "transparent" }}
+                style={{ backgroundColor: isActive ? "var(--dr-sky)" : "transparent" }}
             />
             {/* Question lighter than its answer — the weight difference replaces the
                 labels and the box that used to separate them. */}
