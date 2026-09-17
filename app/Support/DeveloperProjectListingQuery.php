@@ -130,8 +130,10 @@ class DeveloperProjectListingQuery
 
         self::applyIntRange($query, 'number_of_phases', $filters['min_number_of_phases'] ?? null, $filters['max_number_of_phases'] ?? null);
         self::applyIntRange($query, 'total_units', $filters['min_total_units'] ?? null, $filters['max_total_units'] ?? null);
-        self::applyUnitTypeIntRange($query, 'bedrooms', $filters['min_bedrooms'] ?? null, $filters['max_bedrooms'] ?? null);
-        self::applyUnitTypeIntRange($query, 'bathrooms', $filters['min_bathrooms'] ?? null, $filters['max_bathrooms'] ?? null);
+        self::applyUnitTypeRanges($query, [
+            'bedrooms' => [$filters['min_bedrooms'] ?? null, $filters['max_bedrooms'] ?? null],
+            'bathrooms' => [$filters['min_bathrooms'] ?? null, $filters['max_bathrooms'] ?? null],
+        ]);
 
         if (!empty($filters['downpayment_type'])) {
             $query->whereRaw(
@@ -218,25 +220,35 @@ class DeveloperProjectListingQuery
     }
 
     /**
-     * Range-filters on a related unit type's column — a project matches if it
-     * has at least one unit type whose value falls in [$min, $max], since
-     * bedrooms/bathrooms live on developer_project_unit_types, not on the
-     * project itself.
+     * Range-filters on related unit type columns — a project matches if it
+     * has at least one unit type satisfying *every* given [min, max] range at
+     * once (e.g. bedrooms AND bathrooms both land on the same unit type),
+     * since those columns live on developer_project_unit_types, not on the
+     * project itself. All ranges are combined into a single whereHas so they
+     * can't each be satisfied by a different unit type.
      *
      * @param  Builder<\App\Models\DeveloperProject>  $query
+     * @param  array<string, array{0: mixed, 1: mixed}>  $ranges  column => [min, max]
      */
-    private static function applyUnitTypeIntRange(Builder $query, string $column, mixed $min, mixed $max): void
+    private static function applyUnitTypeRanges(Builder $query, array $ranges): void
     {
-        if (($min === null || $min === '') && ($max === null || $max === '')) {
+        $ranges = array_filter(
+            $ranges,
+            fn (array $range) => ($range[0] !== null && $range[0] !== '') || ($range[1] !== null && $range[1] !== '')
+        );
+
+        if ($ranges === []) {
             return;
         }
 
-        $query->whereHas('unitTypes', function (Builder $q) use ($column, $min, $max) {
-            if ($min !== null && $min !== '') {
-                $q->where($column, '>=', (int) $min);
-            }
-            if ($max !== null && $max !== '') {
-                $q->where($column, '<=', (int) $max);
+        $query->whereHas('unitTypes', function (Builder $q) use ($ranges) {
+            foreach ($ranges as $column => [$min, $max]) {
+                if ($min !== null && $min !== '') {
+                    $q->where($column, '>=', (int) $min);
+                }
+                if ($max !== null && $max !== '') {
+                    $q->where($column, '<=', (int) $max);
+                }
             }
         });
     }
