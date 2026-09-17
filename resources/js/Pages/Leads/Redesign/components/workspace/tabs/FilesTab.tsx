@@ -14,6 +14,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealFilesGroupingFlag from "@/Hooks/useDealFilesGroupingFlag";
 import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import { isLoading } from "@/lib/utils";
 import type { LeadContactFile } from "@/Types/api/file";
 import type { CustomField } from "@/Types";
@@ -310,12 +311,15 @@ export default function FilesTab({
     const leadDocumentsSection =
         leadLevelSlots.length > 0 ? (
             <section className="mb-5">
-                <div className="mb-1 text-[14px] font-bold text-dr-text">
-                    {td("Lead documents", { source: "en" })}
-                </div>
-                <div className="mb-2 text-[12px] text-dr-text-hint">
-                    {td("Required or optional file fields for this lead. Upload each into its slot.", { source: "en" })}
-                </div>
+                <WorkspaceTabSectionHeader
+                    title={td("Lead documents", { source: "en" })}
+                    count={leadLevelSlots.length}
+                    hint={td(
+                        "Required or optional file fields for this lead. Upload each into its slot.",
+                        { source: "en" },
+                    )}
+                    className="mb-2.5"
+                />
                 <div className="rounded-lg border border-dr-border bg-white px-3.5">
                     {leadLevelSlots.map(renderDocRow)}
                 </div>
@@ -366,12 +370,18 @@ export default function FilesTab({
                 >
                     {dealFileGroups.length > 0 ? (
                 <section className="mb-5">
-                    <div className="mb-1 text-[14px] font-bold text-dr-text">
-                        {td("Deal files", { source: "en" })}
-                    </div>
-                    <div className="mb-2 text-[12px] text-dr-text-hint">
-                        {td("Files from this lead's deals, grouped by deal.", { source: "en" })}
-                    </div>
+                    <WorkspaceTabSectionHeader
+                        title={td("Deal files", { source: "en" })}
+                        count={dealFileGroups.reduce(
+                            (n, g) => n + g.docs.length,
+                            0,
+                        )}
+                        hint={td(
+                            "Files from this lead's deals, grouped by deal.",
+                            { source: "en" },
+                        )}
+                        className="mb-2.5"
+                    />
                     <div className="rounded-lg border border-dr-border bg-white px-3.5">
                         {dealFileGroups.map((group) => (
                             <CollapsibleGroup
@@ -388,10 +398,20 @@ export default function FilesTab({
                 </Deferred>
             ) : null}
 
-            {hasDocumentSlots ? (
-                <div className="mb-2 text-[14px] font-bold text-dr-text">
-                    {td("Other files", { source: "en" })}
-                </div>
+            {hasDocumentSlots || visibleFiles.length > 0 ? (
+                <WorkspaceTabSectionHeader
+                    title={td("Other files", { source: "en" })}
+                    count={
+                        visibleFiles.length > 0
+                            ? visibleFiles.length
+                            : undefined
+                    }
+                    hint={td(
+                        "General attachments on the lead — not tied to a document slot.",
+                        { source: "en" },
+                    )}
+                    className="mb-2.5"
+                />
             ) : null}
 
             {!filesGroupingEnabled && dropzone}

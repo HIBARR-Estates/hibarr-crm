@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -9,7 +9,7 @@ import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDr
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
-import Button from "@/Components/Redesign/primitives/Button";
+import OverviewColumn from "@/Components/Redesign/workspace/OverviewColumn";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
@@ -32,97 +32,6 @@ interface WorkspaceOverviewTabProps {
     onAddTask: () => void;
     onAddMeeting: () => void;
     onAddNote: () => void;
-}
-
-interface EmptyMeta {
-    icon: string;
-    title: string;
-    hint: string;
-    actionLabel: string;
-}
-
-function OverviewColumn({
-    title,
-    count,
-    total,
-    onAdd,
-    onViewAll,
-    empty,
-    isEmpty,
-    canAdd = true,
-    children,
-}: {
-    title: string;
-    count: number;
-    total: number;
-    onAdd: () => void;
-    onViewAll: () => void;
-    empty: EmptyMeta;
-    isEmpty: boolean;
-    /** Hides the add affordances when the user lacks the add permission. */
-    canAdd?: boolean;
-    children: ReactNode;
-}) {
-    const { t } = useTranslation();
-    return (
-        <div className="dr-ov-col">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
-                <span className="dr-label">
-                    {title} <span style={{ fontWeight: 400 }}>· {count}</span>
-                </span>
-                {!isEmpty && canAdd && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onAdd}
-                        aria-label={`${t("pages.deals.workspace.overview.add")} - ${title}`}
-                    >
-                        + {t("pages.deals.workspace.overview.add")}
-                    </Button>
-                )}
-            </div>
-            <div className="flex-1">
-                {isEmpty ? (
-                    <div
-                        role="status"
-                        className="rounded-[10px] border border-dashed px-3.5 py-[22px] text-center"
-                        style={{ borderColor: T.BORDER, background: T.SURFACE }}
-                    >
-                        <div
-                            aria-hidden="true"
-                            className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
-                            style={{ background: T.BLUE_LIGHT }}
-                        >
-                            <Icon name={empty.icon} size={17} color={T.BLUE_DARK} />
-                        </div>
-                        <div className="mb-[3px] text-[13px] font-semibold text-dr-text">
-                            {empty.title}
-                        </div>
-                        <div className="mb-3 text-xs leading-relaxed text-dr-text-muted">
-                            {empty.hint}
-                        </div>
-                        {canAdd && (
-                            <Button variant="primary" onClick={onAdd}>
-                                + {empty.actionLabel}
-                            </Button>
-                        )}
-                    </div>
-                ) : (
-                    children
-                )}
-            </div>
-            {total > 0 && (
-                <button
-                    type="button"
-                    onClick={onViewAll}
-                    className="mt-2 cursor-pointer border-none bg-transparent px-0 py-1.5 text-left text-xs font-semibold"
-                    style={{ color: T.BLUE }}
-                >
-                    {t("pages.deals.workspace.overview.view_all")} →
-                </button>
-            )}
-        </div>
-    );
 }
 
 export default function WorkspaceOverviewTab({

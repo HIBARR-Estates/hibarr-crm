@@ -89,9 +89,9 @@ export default function TasksFilterBar({
                                 className="uppercase"
                                 style={{
                                     fontSize: 14,
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     letterSpacing: "0.05em",
-                                    color: T.TEXT_HINT,
+                                    color: T.TEXT,
                                 }}
                             >
                                 {td("Group by")}
@@ -121,7 +121,7 @@ export default function TasksFilterBar({
                             padding: "7px 12px",
                             borderRadius: 8,
                             fontSize: 14,
-                            fontWeight: 600,
+                            fontWeight: hasFilters ? 600 : 500,
                             cursor: "pointer",
                             background: hasFilters ? T.BLUE_LIGHT : T.WHITE,
                             color: hasFilters ? T.BLUE_DARK : T.TEXT_MUTED,

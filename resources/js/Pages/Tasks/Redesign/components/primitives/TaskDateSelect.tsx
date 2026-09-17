@@ -38,7 +38,7 @@ const FIELD: React.CSSProperties = {
 
 const MICRO: React.CSSProperties = {
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 600,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
     color: T.TEXT_MUTED,
@@ -260,7 +260,7 @@ export default function TaskDateSelect({
                     border: "none",
                     borderRadius: 6,
                     fontSize: 14,
-                    fontWeight: 600,
+                    fontWeight: active ? 600 : 500,
                     lineHeight: 1.5,
                     cursor: "pointer",
                     background: active ? T.WHITE : "transparent",
@@ -289,7 +289,7 @@ export default function TaskDateSelect({
                     padding: "7px 13px",
                     borderRadius: 6,
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: hasDue ? 600 : 500,
                     lineHeight: 1.5,
                     background: hasDue ? T.BLUE_LIGHT : T.WHITE,
                     color: hasDue ? T.BLUE_DARK : T.TEXT_MUTED,
@@ -457,7 +457,7 @@ export default function TaskDateSelect({
                                     border: "none",
                                     padding: 0,
                                     fontSize: 14,
-                                    fontWeight: 600,
+                                    fontWeight: 500,
                                     color: T.TEXT_MUTED,
                                     cursor: "pointer",
                                 }}

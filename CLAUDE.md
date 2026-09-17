@@ -43,6 +43,18 @@ Each design version owns one token set, and its screens read only from that set.
   - Primitives: `primitives/` (`Button`, `Modal`, `ModalShell`, `Badge`, pickers, …) and `redesign.css` (`.dr-*` classes, the one `.redesign-modal-overlay` at z-index 1300). Import them directly — no page-prefixed re-exports (`DealButton`, `TaskSegmented`) or restated CSS.
 - **Legacy** — Blade/Bootstrap screens and non-redesign React/antd pages keep their existing look. Blade button colours are the `$btn-*` tokens in `resources/scss/variables.scss` (read by `btn.scss` and `.btn-active`). Don't point legacy screens at redesign tokens or redesign screens at legacy ones.
 
+### Component layers (each design version)
+
+Every design version has **one shared library** plus **page-local components**. Do not copy UI between pages when it belongs in the shared layer.
+
+| Layer | Redesign (v2) | Legacy |
+| --- | --- | --- |
+| **Shared** | `resources/js/Components/Redesign/` — `design-tokens.json`, `primitives/`, `workspace/` (e.g. `EmptyState`, `OverviewColumn`, `WorkspaceEmptyStates`), cross-page modals under `modals/` and `meeting/` | `resources/scss/variables.scss`, Bootstrap patterns, shared Blade partials |
+| **Page-specific** | `resources/js/Pages/{Deals,Leads,Tasks,Meetings,...}/Redesign/components/` — composition for that screen only (`header/`, `tabs/`, `workspace/`, …) | Blade views + page-scoped JS under `resources/js/Pages/**` (non-Redesign) |
+| **Page primitives** | `Pages/.../Redesign/components/primitives/` — **only** when the widget is tied to that entity or page data (e.g. `DealMoneyInput`, `TaskStatusSelect`). Thin i18n wrappers over shared primitives (`DealModal` → `Modal`) live here too | N/A |
+
+**Rules:** If Deal and Lead (or two tabs) need the same UI, add or extend `Components/Redesign/` first. Page files wire data, permissions, and navigation; they should not restate dashed empty states, column chrome, or button/modal markup. Import shared pieces from `@/Components/Redesign` (or a direct path under that tree), not from another page’s folder — except temporary bridges called out in code review.
+
 ## Product tours
 
 Spotlight walkthroughs use the shared engine in `resources/js/Components/ProductTour/` (`ProductTour` + `useProductTour` + `product-tours.seen`). Do not add a second tour library.

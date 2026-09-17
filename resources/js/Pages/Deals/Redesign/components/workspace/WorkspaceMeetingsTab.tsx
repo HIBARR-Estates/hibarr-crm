@@ -18,6 +18,7 @@ import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { MeetingsEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import DealMeetingDetailModal from "./DealMeetingDetailModal";
@@ -269,7 +270,17 @@ export default function WorkspaceMeetingsTab({
                     onSchedule={showSchedule ? onScheduleMeeting : undefined}
                 />
             ) : (
-                (
+                <>
+                    <WorkspaceTabSectionHeader
+                        title={t("pages.deals.tabs.meetings")}
+                        count={followUps.length}
+                        hint={td(
+                            "Grouped below as live, upcoming, and past — open a card for full details.",
+                            { source: "en" },
+                        )}
+                        className="mb-3"
+                    />
+                {(
                     [
                         { label: "Live" as const, items: live },
                         { label: "Upcoming" as const, items: upcoming },
@@ -481,7 +492,8 @@ export default function WorkspaceMeetingsTab({
                                 ))}
                             </section>
                         );
-                    })
+                    })}
+                </>
             )}
 
             <DealMeetingDetailModal

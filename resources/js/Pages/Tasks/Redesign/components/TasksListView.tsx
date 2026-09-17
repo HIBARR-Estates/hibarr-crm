@@ -42,7 +42,10 @@ export default function TasksListView({
     onToggleGroup,
 }: TasksListViewProps) {
     const { td } = useTd();
-    const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+    /** Due-date grouping includes a "Completed" section — keep it folded on first paint. */
+    const [collapsed, setCollapsed] = useState<Set<string>>(
+        () => new Set(["done"]),
+    );
     const rowPad = ROW_PADDING[density];
 
     const toggleGroup = (key: string) =>
@@ -68,7 +71,7 @@ export default function TasksListView({
                 <span
                     style={{
                         fontSize: 15,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_MUTED,
                     }}
                 >

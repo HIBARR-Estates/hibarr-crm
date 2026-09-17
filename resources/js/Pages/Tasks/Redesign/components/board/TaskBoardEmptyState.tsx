@@ -37,7 +37,7 @@ export default function TaskBoardEmptyState({ slug }: TaskBoardEmptyStateProps) 
             <span
                 style={{
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: 500,
                     color: T.TEXT_MUTED,
                     textAlign: "center",
                 }}

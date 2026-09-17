@@ -56,6 +56,7 @@ import {
     patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import {
     buildTaskListTourSteps,
     TASKS_LIST_TOUR_ID,
@@ -580,6 +581,7 @@ export default function TasksWorkspaceRedesign({
                     labels={TASKS_LIST_TOUR_LABELS}
                 />
             )}
+            <div style={{ fontFamily: REDESIGN_FONT_STACK }}>
             <TasksWorkspaceChrome
                 view={view}
                 onViewChange={setView}
@@ -714,6 +716,7 @@ export default function TasksWorkspaceRedesign({
                         }
                     />
                 )}
+            </div>
             </div>
 
             <TasksWorkspaceModals

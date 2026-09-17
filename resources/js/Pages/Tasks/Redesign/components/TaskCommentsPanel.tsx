@@ -210,7 +210,7 @@ export default function TaskCommentsPanel({
                     <span
                         style={{
                             fontSize: 14,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             color: T.TEXT_MUTED,
                             background: T.NAVY_SOFT,
                             borderRadius: 999,
@@ -273,7 +273,7 @@ export default function TaskCommentsPanel({
                             borderRadius: 999,
                             background: T.WHITE,
                             fontSize: 13.5,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             color: T.TEXT_MUTED,
                             cursor: loadingMore ? "default" : "pointer",
                             opacity: loadingMore ? 0.6 : 1,

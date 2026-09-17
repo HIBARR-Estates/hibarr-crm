@@ -4,6 +4,7 @@ import {
     ItineraryEmptyState,
     ItineraryFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TdFn } from "@/lib/dynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -424,25 +425,23 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                 {addFlightButton}
             </div>
 
-            {filtered.length > 0 && (
-                <div
-                    className="mb-3"
-                    style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}
-                >
-                    {upcoming.length}{" "}
-                    {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                    {past.length}{" "}
-                    {t("pages.deals.workspace.meetings.past_label")}
-                </div>
-            )}
-
             {filtered.length === 0 ? (
                 <ItineraryFilterEmptyState
                     entity="lead"
                     onShowAll={() => setFilter("all")}
                 />
             ) : (
-                sections.map((section) => {
+                <>
+                    <WorkspaceTabSectionHeader
+                        title={ft("title")}
+                        count={filtered.length}
+                        hint={td(
+                            "Flights across this lead's deals — each card shows route, time, and which deal it belongs to.",
+                            { source: "en" },
+                        )}
+                        className="mb-3"
+                    />
+                {sections.map((section) => {
                     const isPastSection = section.label === "Past";
                     return (
                         <section key={section.label} className="mb-3">
@@ -480,7 +479,8 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                             </div>
                         </section>
                     );
-                })
+                })}
+                </>
             )}
 
             {modalOpen && (

@@ -181,7 +181,11 @@ export default function TaskListRow({
                     className="truncate"
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight:
+                            vm.dueColor === T.TEXT_MUTED ||
+                            vm.dueColor === T.TEXT_HINT
+                                ? 500
+                                : 600,
                         fontVariantNumeric: "tabular-nums",
                         color: vm.dueColor,
                     }}

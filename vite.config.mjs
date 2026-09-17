@@ -1,6 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import laravel from "laravel-vite-plugin";
 import react from "@vitejs/plugin-react";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
     // Mix inlines MIX_* via webpack DefinePlugin; Vite does not. Redesign
@@ -20,9 +24,19 @@ export default defineConfig(({ mode }) => {
         plugins: [
             laravel({
                 input: ["resources/js/inertia.tsx"],
-                refresh: ["resources/js/**"],
+                // Default refresh paths (views, routes, lang) — do not include
+                // resources/js/** or every TS edit triggers a full page reload.
+                refresh: true,
             }),
             react(),
         ],
+        resolve: {
+            alias: {
+                "@inertia-load-page": path.resolve(
+                    projectRoot,
+                    "resources/js/inertia/loadPage.vite.ts",
+                ),
+            },
+        },
     };
 });

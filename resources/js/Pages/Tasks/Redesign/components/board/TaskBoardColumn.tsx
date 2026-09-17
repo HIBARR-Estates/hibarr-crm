@@ -148,7 +148,7 @@ export default function TaskBoardColumn({
                 <span
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_MUTED,
                         background: T.BG,
                         border: `1px solid ${T.BORDER}`,

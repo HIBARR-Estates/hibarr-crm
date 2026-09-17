@@ -158,10 +158,15 @@ export function ItineraryFilterEmptyState({
     );
 }
 
+/**
+ * Files tabs keep a light inline hint under the dropzone / file list — not the
+ * dashed tab empty card. Upload lives in `FileDropzone`; duplicating it in a
+ * full `EmptyState` was redundant on this screen.
+ */
 export function FilesEmptyState({
     title,
     /** False when the user cannot upload — the dropzone is not rendered then,
-     *  so pointing at it would describe a control that is not on screen. */
+     *  so use copy that does not refer to dropping files above. */
     canUpload = true,
 }: {
     title: string;
@@ -169,17 +174,17 @@ export function FilesEmptyState({
 }) {
     const { td } = useTd();
 
+    const message = canUpload
+        ? title
+        : td(
+              "Contracts, IDs and other paperwork attached here will show up in this list.",
+              { source: "en" },
+          );
+
     return (
-        <EmptyState
-            icon="paperclip"
-            title={title}
-            description={td(
-                canUpload
-                    ? "Drop a file above to attach contracts, IDs and other paperwork."
-                    : "Contracts, IDs and other paperwork attached here will show up in this list.",
-                { source: "en" },
-            )}
-        />
+        <p className="px-1 text-[13px] italic text-dr-text-hint" role="status">
+            {message}
+        </p>
     );
 }
 

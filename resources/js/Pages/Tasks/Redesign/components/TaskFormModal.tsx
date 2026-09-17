@@ -96,6 +96,7 @@ export default function TaskFormModal({
     const [recordType, setRecordType] = useState<RecordTypeKey>("lead");
     const [recordQuery, setRecordQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const titleRef = useRef<HTMLInputElement>(null);
     const checklistRef = useRef<TaskFormChecklistHandle>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const assigneeTriggerRef = useRef<HTMLButtonElement>(null);
@@ -167,6 +168,20 @@ export default function TaskFormModal({
         if (!open || !draftKey || !formHydrated) return;
         writeTaskFormDraft(draftKey, form);
     }, [open, draftKey, form, formHydrated]);
+
+    useEffect(() => {
+        if (!open || !formHydrated) return;
+        const id = window.setTimeout(() => {
+            const input = titleRef.current;
+            if (!input) return;
+            input.focus({ preventScroll: true });
+            if (mode === "edit") {
+                const end = input.value.length;
+                input.setSelectionRange(end, end);
+            }
+        }, 0);
+        return () => window.clearTimeout(id);
+    }, [open, formHydrated, mode]);
 
     const isLocked = (link: TaskLinkRef) =>
         lockedLinks.some(
@@ -313,8 +328,8 @@ export default function TaskFormModal({
                 )}
 
                 <input
+                    ref={titleRef}
                     value={form.title}
-                    autoFocus
                     onChange={(event) => patchForm({ title: event.target.value })}
                     className="tasks-bare-input"
                     placeholder={td("Task name")}

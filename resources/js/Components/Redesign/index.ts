@@ -65,6 +65,17 @@ export { default as RescheduleMeetingModal } from "./modals/RescheduleMeetingMod
 export { default as TaskDetailModal } from "./modals/TaskDetailModal";
 export { default as NoteDetailModal } from "./modals/NoteDetailModal";
 export { default as WorkspaceNotesTab } from "./workspace/WorkspaceNotesTab";
+export { default as WorkspaceTabSectionHeader } from "./workspace/WorkspaceTabSectionHeader";
+export { buildWorkspaceTaskTabSections } from "./workspace/buildWorkspaceTaskTabSections";
+export type {
+    WorkspaceTaskTabFilter,
+    WorkspaceTaskTabSection,
+} from "./workspace/buildWorkspaceTaskTabSections";
+export { default as OverviewColumn } from "./workspace/OverviewColumn";
+export type {
+    OverviewColumnEmptyMeta,
+    OverviewColumnProps,
+} from "./workspace/OverviewColumn";
 export {
     toWorkspaceNotePreview,
     hasNoteScopeAccess,

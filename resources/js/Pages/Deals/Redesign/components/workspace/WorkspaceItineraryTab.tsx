@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import {
@@ -19,6 +20,7 @@ import {
     ItineraryEmptyState,
     ItineraryFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import {
     REDESIGN_RADIUS as R,
     REDESIGN_TOKENS as T,
@@ -219,6 +221,7 @@ export default function WorkspaceItineraryTab({
     canAdd,
     canDelete,
 }: WorkspaceItineraryTabProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const [filter, setFilter] = useState<ItineraryFilter>("all");
@@ -336,18 +339,6 @@ export default function WorkspaceItineraryTab({
                 </div>
             )}
 
-            {filtered.length > 0 && (
-                <div
-                    className="mb-3"
-                    style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}
-                >
-                    {upcoming.length}{" "}
-                    {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                    {past.length}{" "}
-                    {t("pages.deals.workspace.meetings.past_label")}
-                </div>
-            )}
-
             {!hasItems ? (
                 <ItineraryEmptyState onAdd={canAdd ? openCreate : undefined} />
             ) : filtered.length === 0 ? (
@@ -356,7 +347,17 @@ export default function WorkspaceItineraryTab({
                     onShowAll={() => setFilter("all")}
                 />
             ) : (
-                sections.map((section) => {
+                <>
+                    <WorkspaceTabSectionHeader
+                        title={ft("title")}
+                        count={filtered.length}
+                        hint={td(
+                            "Each card is a flight leg — grouped as upcoming or past. Use filters above to narrow by direction or transfer.",
+                            { source: "en" },
+                        )}
+                        className="mb-3"
+                    />
+                {sections.map((section) => {
                     const isPastSection = section.label === "Past";
                     return (
                         <section key={section.label} className="mb-3">
@@ -387,7 +388,8 @@ export default function WorkspaceItineraryTab({
                             </div>
                         </section>
                     );
-                })
+                })}
+                </>
             )}
 
             <DealItineraryModal

@@ -23,6 +23,8 @@ import {
     TasksEmptyState,
     TasksFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import { buildWorkspaceTaskTabSections } from "@/Components/Redesign/workspace/buildWorkspaceTaskTabSections";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import DealPeoplePicker, {
@@ -330,6 +332,28 @@ export default function TasksTab({
         all: t("pages.deals.workspace.tasks.filter_all"),
     };
 
+    const taskSections = useMemo(
+        () =>
+            buildWorkspaceTaskTabSections(
+                filter,
+                filteredTasks,
+                tasks,
+                taskBoardColumns,
+                {
+                    open: filterLabels.open,
+                    done: filterLabels.done,
+                },
+            ),
+        [
+            filter,
+            filteredTasks,
+            tasks,
+            taskBoardColumns,
+            filterLabels.open,
+            filterLabels.done,
+        ],
+    );
+
     const showAddTask = canAddTasks(permissions) && Boolean(onAddTask);
     const canBulkDelete = !permissions || permissions.delete_tasks === "all";
     const showSelectMode = true;
@@ -574,7 +598,24 @@ export default function TasksTab({
                     onShowAll={() => setFilter("all")}
                 />
             ) : (
-                filteredTasks.map((task) => {
+                taskSections.map((section, sectionIndex) => (
+                    <section
+                        key={section.key}
+                        className={sectionIndex > 0 ? "mt-4" : undefined}
+                    >
+                        <WorkspaceTabSectionHeader
+                            title={section.title}
+                            count={section.tasks.length}
+                            hint={
+                                sectionIndex === 0
+                                    ? td(
+                                          "Each card is one task — use the title, due date, assignee, and status to find it.",
+                                          { source: "en" },
+                                      )
+                                    : undefined
+                            }
+                        />
+                        {section.tasks.map((task) => {
                     const rawTask = tasks.find((item) => item.id === task.id);
                     const done = rawTask
                         ? isTaskDone(rawTask, taskBoardColumns)
@@ -590,7 +631,7 @@ export default function TasksTab({
                     return (
                         <article
                             key={task.id}
-                            className="mb-2 flex flex-wrap items-start gap-3 rounded-lg border border-dr-border bg-white px-3.5 py-3 last:mb-0"
+                            className="dr-card flex flex-wrap items-start gap-3 !py-3"
                             style={{ opacity: done ? 0.65 : 1 }}
                         >
                             {selectMode && (
@@ -696,7 +737,9 @@ export default function TasksTab({
                             </div>
                         </article>
                     );
-                })
+                        })}
+                    </section>
+                ))
             )}
 
             {useRedesignedTasks ? (
