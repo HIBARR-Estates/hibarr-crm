@@ -98,6 +98,7 @@ abstract class LeadAutomationTestCase extends TestCase
             $table->string('trigger')->nullable();
             $table->boolean('active')->default(false);
             $table->integer('priority')->default(0);
+            $table->string('condition_logic')->default('all');
             $table->timestamps();
         });
 
@@ -248,6 +249,7 @@ abstract class LeadAutomationTestCase extends TestCase
             $table->string('trigger')->nullable();
             $table->boolean('active')->default(true);
             $table->integer('priority')->default(0);
+            $table->string('condition_logic')->default('all');
             $table->timestamps();
         });
 
