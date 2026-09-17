@@ -1,7 +1,7 @@
 @php
     $inputPrefix = $inputPrefix ?? '';
     $selectedScopes = $selectedScopes ?? [];
-    $unrestricted = $unrestricted ?? true;
+    $unrestricted = $unrestricted ?? false;
     $idPrefix = $inputPrefix !== '' ? $inputPrefix . '-' : '';
 @endphp
 

@@ -56,7 +56,7 @@
                                     <x-forms.label class="my-3" fieldId="summery"
                                                    :fieldLabel="__('modules.contracts.summery')">
                                     </x-forms.label>
-                                    <div id="summery">{!! $appreciation->summary !!}</div>
+                                    <div id="summery">{!! clean_html($appreciation->summary) !!}</div>
                                     <textarea name="summery" id="summery-text" class="d-none"></textarea>
                                 </div>
                             </div>

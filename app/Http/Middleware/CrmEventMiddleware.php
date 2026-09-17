@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\CrmEventSource;
 use App\Services\CrmEventService;
+use App\Support\RequestCompany;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -62,8 +63,7 @@ class CrmEventMiddleware
         }
 
         // Resolve company ID
-        $companyId = $request->header('X-COMPANY-ID')
-            ?? (auth()->check() ? (auth()->user()->company_id ?? null) : null);
+        $companyId = RequestCompany::id($request);
 
         if (!$companyId) {
             return;

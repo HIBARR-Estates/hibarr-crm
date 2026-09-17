@@ -48,6 +48,9 @@ return [
 
     'seeding' => false,
     'redirect_https' => env('REDIRECT_HTTPS', false),
+    // Comma-separated proxy IPs/CIDRs, or "*". Read via config so it survives
+    // config:cache; see App\Http\Middleware\TrustProxies for the default.
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
     'seed_record_count' => env('SEED_RECORD_COUNT', 5),
     'extra_company_seed_count' => env('EXTRA_COMPANY_SEED_COUNT', 0),
     /*
@@ -252,6 +255,9 @@ return [
         /*
          * Package Service Providers...
          */
+        // froiden/envato is excluded from auto-discovery (composer.json) and
+        // registered through this subclass, which does not load its route file.
+        App\Providers\FroidenEnvatoServiceProvider::class,
 
         /*
          * Application Service Providers...

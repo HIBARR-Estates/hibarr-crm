@@ -54,7 +54,7 @@ $unreadMessageCount = $user->unread_messages_count ?? 0;
                     'text-dark' => $unreadMessageCount > 0,
                     'font-weight-bold' => $unreadMessageCount > 0,
                 ])>
-                <div class="message-container">{!! nl2br($message->message) !!}</div>
+                <div class="message-container">{!! clean_html(nl2br($message->message)) !!}</div>
 
                     @if ($unreadMessageCount > 0)
                         <div>

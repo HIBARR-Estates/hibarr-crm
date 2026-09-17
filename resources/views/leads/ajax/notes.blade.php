@@ -23,7 +23,7 @@
                     <tr>
                         <td>
                             <a href="{{ route('deal-notes.show', $note->id) }}" class="openRightModal" style="color:black;">
-                                <div class="mb-0 text-dark-grey f-14 w-70 text-wrap ql-editor p-0">{!! nl2br($note->details) !!}</div>
+                                <div class="mb-0 text-dark-grey f-14 w-70 text-wrap ql-editor p-0">{!! clean_html(nl2br($note->details)) !!}</div>
                             </a>
                         </td>
                         <td>{{ $note->created_at->timezone(company()->timezone)->translatedFormat(company()->date_format . ' ' . company()->time_format) }}</td>

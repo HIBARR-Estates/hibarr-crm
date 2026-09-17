@@ -173,9 +173,15 @@ export default function DealPaymentPanel({
                             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#5b6472]">
                                 {td("Checkout link")}
                             </p>
-                            <p className="break-all text-xs text-[#1a1f2e]">
+                            <a
+                                href={paymentRequest.checkout_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={paymentRequest.checkout_url}
+                                className="block truncate text-xs text-[#1a6bb5]"
+                            >
                                 {paymentRequest.checkout_url}
-                            </p>
+                            </a>
                             <button
                                 type="button"
                                 onClick={() => void handleCopyCheckoutUrl()}

@@ -32,8 +32,8 @@ Route::post('/forgot-password', fn () => redirect()->route('login'))->name('pass
 Route::get('/reset-password/{token}', fn () => redirect()->route('login'))->name('password.reset');
 Route::post('/reset-password', fn () => redirect()->route('login'))->name('password.update');
 
-Route::get('/invitation/{code}', [RegisterController::class, 'invitation'])->name('invitation');
-Route::post('/invitation/accept-invite', [RegisterController::class, 'acceptInvite'])->name('accept_invite');
+Route::get('/invitation/{code}', [RegisterController::class, 'invitation'])->middleware('throttle:10,1')->name('invitation');
+Route::post('/invitation/accept-invite', [RegisterController::class, 'acceptInvite'])->middleware('throttle:10,1')->name('accept_invite');
 
 
 
@@ -51,13 +51,13 @@ Route::get('/invoice/download/{id}', [HomeController::class, 'downloadInvoice'])
 Route::post('/invoice-payment-failed/{invoiceId}', [HomeController::class, 'invoicePaymentfailed'])->name('front.invoice_payment_failed');
 
 Route::get('/lead-form/{id}', [HomeController::class, 'leadForm'])->name('front.lead_form');
-Route::post('/lead-form/leadStore', [HomeController::class, 'leadStore'])->name('front.lead_store');
+Route::post('/lead-form/leadStore', [HomeController::class, 'leadStore'])->middleware('throttle:10,1')->name('front.lead_store');
 Route::get('/ticket-form/{id}', [HomeController::class, 'ticketForm'])->name('front.ticket_form');
-Route::post('/lead-form/ticket-store', [HomeController::class, 'ticketStore'])->name('front.ticket_store');
+Route::post('/lead-form/ticket-store', [HomeController::class, 'ticketStore'])->middleware('throttle:10,1')->name('front.ticket_store');
 
 Route::post('/contract/sign/{id}', [PublicUrlController::class, 'contractSign'])->name('front.contract.sign');
 Route::get('/contract/download/{id}', [PublicUrlController::class, 'contractDownload'])->name('front.contract.download');
-Route::get('/check-env', [PublicUrlController::class, 'checkEnv'])->name('front.check-env');
+Route::get('/check-env', [PublicUrlController::class, 'checkEnv'])->middleware('auth')->name('front.check-env');
 // Estimate Public url
 
 Route::post('/estimate/decline/{id}', [PublicUrlController::class, 'estimateDecline'])->name('front.estimate.decline');
@@ -145,7 +145,7 @@ Route::get('quill-image/{image}', [ImageController::class, 'getImage'])->name('i
 Route::get('cropper/{element}', [ImageController::class, 'cropper'])->name('cropper');
 
 // Sync user permissions
-Route::get('sync-user-permissions', [HomeController::class, 'syncPermissions'])->name('sync_user_permissions');
+Route::get('sync-user-permissions', [HomeController::class, 'syncPermissions'])->middleware('auth')->name('sync_user_permissions');
 
 Route::get('file/{type}/{path}', [FileController::class, 'getFile'])->name('file.getFile');
 

@@ -105,7 +105,7 @@
                 <p class="f-15">{{ $invoice->name }}</p>
                 <br>
                 <h5>@lang('app.description')</h5>
-                <div class="ql-editor p-0 pb-3">{!! $invoice->description !!}</div>
+                <div class="ql-editor p-0 pb-3">{!! clean_html($invoice->description) !!}</div>
             <table width="100%" class="inv-desc d-none d-lg-table d-md-table mt-5">
                 <tr>
                     <td colspan="2">

@@ -334,7 +334,7 @@
                         <table>
                             <tr>@lang('app.note')</tr>
                             <tr>
-                                <p class="text-dark-grey">{!! $creditNote->note ? nl2br($creditNote->note) : '--' !!}</p>
+                                <p class="text-dark-grey">{!! clean_html($creditNote->note ? nl2br($creditNote->note) : '--') !!}</p>
                             </tr>
                         </table>
                     </td>

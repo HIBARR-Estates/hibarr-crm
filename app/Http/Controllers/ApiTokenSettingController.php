@@ -50,6 +50,7 @@ class ApiTokenSettingController extends AccountBaseController
             'token' => ApiToken::hashToken($plainToken),
             'name' => $request->name,
             'company_id' => company()->id,
+            'unrestricted' => $request->boolean('unrestricted'),
             'permissions' => $this->resolvePermissionsPayload($request),
             'revoked' => false,
         ]);
@@ -78,6 +79,7 @@ class ApiTokenSettingController extends AccountBaseController
         }
 
         if ($request->has('unrestricted') || $request->has('scopes')) {
+            $apiToken->unrestricted = $request->boolean('unrestricted');
             $apiToken->permissions = $this->resolvePermissionsPayload($request);
         }
 
@@ -126,14 +128,20 @@ class ApiTokenSettingController extends AccountBaseController
             'scopes.*' => ['string', Rule::in(ApiTokenScopeService::allScopeKeys())],
         ];
 
-        return Validator::make($request->all(), $rules)->after(function ($validator) use ($request) {
+        return Validator::make($request->all(), $rules)->after(function ($validator) use ($request, $updating) {
             if ($request->boolean('unrestricted')) {
+                return;
+            }
+
+            // Renaming or revoking a token leaves its access as it is.
+            if ($updating && !$request->has('scopes') && !$request->has('unrestricted')) {
                 return;
             }
 
             $scopes = $request->input('scopes');
 
-            if (is_array($scopes) && count($scopes) === 0) {
+            // A token without scopes reaches nothing, so require at least one.
+            if (!is_array($scopes) || count($scopes) === 0) {
                 $validator->errors()->add('scopes', __('messages.apiTokenScopesRequired'));
             }
         });

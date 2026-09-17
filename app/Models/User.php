@@ -263,12 +263,29 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     ];
 
     /**
-     * The attributes that are mass assignable.
+     * Columns that request data must never set through create()/update()/fill().
+     * ClientController passes $request->all() straight into User::create/update,
+     * so tenancy, approval, permission-sync and 2FA state are guarded here.
+     * Trusted internal code that builds its own array uses forceCreate/forceFill.
+     * (login and status stay assignable: the client forms post them.)
      *
      * @var array
      */
     protected $guarded = [
-        'id'
+        'id',
+        'company_id',
+        'admin_approval',
+        'permission_sync',
+        'customised_permissions',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed',
+        'two_factor_email_confirmed',
+        'two_fa_verify_via',
+        'two_factor_code',
+        'two_factor_expires_at',
+        'remember_token',
+        'last_login',
     ];
 
     /**
@@ -1260,9 +1277,26 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
     public function generateTwoFactorCode()
     {
         $this->timestamps = false;
-        $this->two_factor_code = rand(100000, 999999);
+        $this->two_factor_code = random_int(100000, 999999);
         $this->two_factor_expires_at = now()->addMinutes(10);
         $this->save();
+    }
+
+    /**
+     * Check an emailed 2FA code: exact match, and still inside its window.
+     * two_factor_expires_at has no working cast, so it can arrive as a string.
+     */
+    public function hasValidTwoFactorCode(string $code): bool
+    {
+        if (is_null($this->two_factor_code) || is_null($this->two_factor_expires_at)) {
+            return false;
+        }
+
+        if (now()->gte($this->two_factor_expires_at)) {
+            return false;
+        }
+
+        return hash_equals((string) $this->two_factor_code, $code);
     }
 
     public function resetTwoFactorCode()

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -43,7 +44,7 @@ class CreateNewUser implements CreatesNewUsers
                 'max:255',
                 Rule::unique(User::class),
             ],
-            'password' => 'required|min:8',
+            'password' => ['required', Password::defaults()],
         ];
 
         if (global_setting()->sign_up_terms == 'yes') {
@@ -63,7 +64,9 @@ class CreateNewUser implements CreatesNewUsers
             }
         }
 
-        $user = User::create([
+        // forceCreate: company_id and admin_approval are guarded on User, and this
+        // array is built here, not taken from the request.
+        $user = User::forceCreate([
             'company_id' => $company->id,
             'name' => $input['name'],
             'email' => $input['email'],

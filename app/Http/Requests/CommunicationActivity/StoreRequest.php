@@ -14,7 +14,9 @@ class StoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        // The route middleware (api.token / api.token.or.session) sets X-COMPANY-ID
+        // from the API token or the signed-in user; without it there's no tenant.
+        return filled($this->header('X-COMPANY-ID'));
     }
 
     /**

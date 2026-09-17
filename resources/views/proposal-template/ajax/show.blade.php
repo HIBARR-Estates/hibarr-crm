@@ -107,7 +107,7 @@
             </table>
             <div class="row">
                 <div class="col-sm-12 ql-editor">
-                    {!! $invoice->description !!}
+                    {!! clean_html($invoice->description) !!}
                 </div>
             </div>
             <table width="100%" class="inv-desc d-none d-lg-table d-md-table">
