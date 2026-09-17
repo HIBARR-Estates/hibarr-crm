@@ -260,7 +260,10 @@ export default function OverviewTab({
                                                 className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
                                                 style={{ background: typeColor }}
                                             />
-                                            <span className="min-w-0 truncate text-xs font-semibold">
+                                            <span
+                                                className="min-w-0 truncate text-xs font-semibold"
+                                                style={{ color: T.TEXT }}
+                                            >
                                                 {meeting.title}
                                             </span>
                                         </span>

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import "../redesign.css";
+import { REDESIGN_FONT_STACK, REDESIGN_TOKENS as T } from "../tokens";
 
 const FOCUSABLE =
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -132,7 +133,11 @@ export default function ModalShell({
                     : "redesign-modal-overlay"
             }
             role="presentation"
-            style={zIndex !== undefined ? { zIndex } : undefined}
+            style={{
+                ...(zIndex !== undefined ? { zIndex } : undefined),
+                fontFamily: REDESIGN_FONT_STACK,
+                color: T.TEXT,
+            }}
             onClick={() => {
                 if (closeOnBackdrop) onClose();
             }}
@@ -150,7 +155,12 @@ export default function ModalShell({
                 // The panel can take programmatic focus on open so screen
                 // readers land inside the dialog — without this reset the
                 // browser's default focus ring outlines the whole panel.
-                style={{ ...panelStyle, outline: "none" }}
+                style={{
+                    ...panelStyle,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    color: "inherit",
+                }}
             >
                 {children}
             </div>

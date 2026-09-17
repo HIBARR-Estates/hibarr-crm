@@ -307,9 +307,6 @@ export default function MeetingsTab({
                                     <div
                                         key={meeting.id}
                                         className="dr-card flex items-start gap-2.5"
-                                        style={{
-                                            opacity: isPastSection ? 0.8 : 1,
-                                        }}
                                     >
                                         {selectMode && (
                                             <div className="pt-0.5">
@@ -361,7 +358,10 @@ export default function MeetingsTab({
                                                             "pages.deals.workspace.meetings.meeting_type",
                                                         )}: ${meeting.title}`}
                                                     />
-                                                    <span className="text-[13px] font-semibold">
+                                                    <span
+                                                        className="text-[13px] font-semibold"
+                                                        style={{ color: T.TEXT }}
+                                                    >
                                                         {meeting.title}
                                                     </span>
                                                     <span

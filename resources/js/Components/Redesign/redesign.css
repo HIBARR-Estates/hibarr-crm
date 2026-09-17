@@ -16,9 +16,21 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    /* Portaled to document.body — must not inherit legacy layout body font. */
+    font-family: var(
+        --dr-font-sans,
+        "IBM Plex Sans",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif
+    );
+    color: var(--dr-text);
 }
 
 .redesign-modal-overlay .modal-panel {
+    font-family: inherit;
+    color: inherit;
     background: var(--dr-white);
     border-radius: 14px;
     border: 1px solid var(--dr-border);
@@ -305,6 +317,16 @@
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(22, 41, 77, 0.14);
     padding: 6px;
+    /* Portaled to document.body (Deal/Lead menus, MenuSelect, …). */
+    font-family: var(
+        --dr-font-sans,
+        "IBM Plex Sans",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif
+    );
+    color: var(--dr-text);
     /* useFloatingMenuPosition sets an inline max-height; without this the
        overflowing items (e.g. Delete deal, always last) are clipped away
        instead of being reachable. */
