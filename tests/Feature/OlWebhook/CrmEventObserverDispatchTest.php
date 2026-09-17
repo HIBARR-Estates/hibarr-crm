@@ -6,12 +6,14 @@ use App\Jobs\DispatchOlWebhookJob;
 use App\Models\CrmEvent;
 use App\Models\CrmEventType;
 use App\Observers\CrmEventObserver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 class CrmEventObserverDispatchTest extends TestCase
 {
+    use RefreshDatabase;
     use SetsFeatureFlags;
 
     public function test_it_dispatches_webhook_job_for_supported_event_when_flag_enabled(): void
@@ -21,13 +23,13 @@ class CrmEventObserverDispatchTest extends TestCase
         config()->set('services.ol_webhook.endpoint', 'https://example.com/webhook');
         config()->set('crm_events.ol_webhook.event_slugs', ['lead_created']);
 
-        $event = new CrmEvent();
+        $event = new CrmEvent;
         $event->id = 42;
         $event->setRelation('eventType', new CrmEventType(['slug' => 'lead_created']));
 
         Queue::fake();
 
-        (new CrmEventObserver())->created($event);
+        (new CrmEventObserver)->created($event);
 
         Queue::assertPushed(DispatchOlWebhookJob::class);
     }
@@ -39,13 +41,13 @@ class CrmEventObserverDispatchTest extends TestCase
         config()->set('services.ol_webhook.endpoint', 'https://example.com/webhook');
         config()->set('crm_events.ol_webhook.event_slugs', ['lead_created']);
 
-        $event = new CrmEvent();
+        $event = new CrmEvent;
         $event->id = 42;
         $event->setRelation('eventType', new CrmEventType(['slug' => 'lead_created']));
 
         Queue::fake();
 
-        (new CrmEventObserver())->created($event);
+        (new CrmEventObserver)->created($event);
 
         Queue::assertNothingPushed();
     }
@@ -57,15 +59,14 @@ class CrmEventObserverDispatchTest extends TestCase
         config()->set('services.ol_webhook.endpoint', 'https://example.com/webhook');
         config()->set('crm_events.ol_webhook.event_slugs', ['lead_created']);
 
-        $event = new CrmEvent();
+        $event = new CrmEvent;
         $event->id = 42;
         $event->setRelation('eventType', new CrmEventType(['slug' => 'deal_closed_won']));
 
         Queue::fake();
 
-        (new CrmEventObserver())->created($event);
+        (new CrmEventObserver)->created($event);
 
         Queue::assertNothingPushed();
     }
 }
-
