@@ -317,8 +317,9 @@ const Index = ({
             stages: pick("lead-stages"),
             activePipelineId,
             excludeFields: ["search"],
+            isKanbanView,
         });
-    }, [filterFormData, pipelines, activePipelineId]);
+    }, [filterFormData, pipelines, activePipelineId, isKanbanView]);
 
     // Setup search and filter contexts
     const { filter } = usePageSearchAndFilter({

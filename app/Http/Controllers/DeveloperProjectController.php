@@ -202,6 +202,8 @@ class DeveloperProjectController extends AccountBaseController
             'min_total_units', 'max_total_units',
             'min_payment_plan_duration', 'max_payment_plan_duration',
             'min_starting_price', 'max_starting_price',
+            'min_bedrooms', 'max_bedrooms',
+            'min_bathrooms', 'max_bathrooms',
             'downpayment_type', 'rental_guarantee', 'is_hidden',
             'facilities',
         ];

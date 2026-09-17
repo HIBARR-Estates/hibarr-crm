@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Models\LeadAutomation;
 use App\Models\LeadAutomationAction;
@@ -81,16 +82,23 @@ class LeadAutomationService
             return true;
         }
 
+        $isAny = $automation->condition_logic === DealAutomation::CONDITION_LOGIC_ANY;
+
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($lead, $condition->field);
             $fieldChanged = $condition->operator === 'changed' ? $this->fieldChanged($lead, $condition->field) : null;
+            $passed = $this->conditionEvaluator->evaluate($fieldValue, $condition, $fieldChanged);
 
-            if (! $this->conditionEvaluator->evaluate($fieldValue, $condition, $fieldChanged)) {
-                return false;
+            if ($isAny && $passed) {
+                return true; // OR logic: one pass is enough
+            }
+
+            if (! $isAny && ! $passed) {
+                return false; // AND logic: one failure is enough
             }
         }
 
-        return true;
+        return ! $isAny; // AND: every condition passed. OR: none did.
     }
 
     /**

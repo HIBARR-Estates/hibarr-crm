@@ -13,10 +13,10 @@ use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealHistory;
 use App\Models\Lead;
-use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
+use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
@@ -213,6 +213,7 @@ class DealContactApiController extends Controller
                     'message' => 'Duplicate request ignored; an identical request was received in the last '.self::DUPLICATE_REQUEST_WINDOW.' seconds.',
                     'contact_id' => $duplicateContactId,
                     'company_id' => $companyId,
+                    'referred_by_agent_id' => $this->leadReferrerIdForCompany((int) $duplicateContactId, $companyId),
                 ], 200);
             }
 
@@ -262,6 +263,8 @@ class DealContactApiController extends Controller
                 }
             }
 
+            $savedReferrerId = $this->leadReferrerIdForCompany((int) $contactId, $companyId);
+
             Log::info('Deal creation request processed synchronously', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
@@ -274,6 +277,7 @@ class DealContactApiController extends Controller
                 'message' => 'Deal creation request is being processed.',
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
+                'referred_by_agent_id' => $savedReferrerId,
             ], 200);
 
         } catch (\Exception $e) {
@@ -507,7 +511,7 @@ class DealContactApiController extends Controller
 
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
-                    $this->applyReferralAgentToNewLead($contact, $request);
+                    $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCategories($contact, $request, true);
                     $this->applyLeadCustomFields($contact, $request);
@@ -576,6 +580,7 @@ class DealContactApiController extends Controller
                 return Reply::successWithData($isNewContact ? 'Contact created successfully' : 'Contact updated successfully', [
                     'contact_id' => $contactId,
                     'is_new' => $isNewContact,
+                    'referred_by_agent_id' => $savedContact?->referred_by_agent_id,
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
                 ]);
@@ -706,7 +711,7 @@ class DealContactApiController extends Controller
         }
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
-        $this->applyReferralAgentToNewLead($contact, $request);
+        $this->applyReferralAgentToLead($contact, $request);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -883,30 +888,37 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Set referred_by_agent_id when the ID is a LeadAgent in the lead's company.
-     * Invalid, missing, or cross-company IDs are ignored.
+     * @return bool True when referred_by_agent_id was set on the in-memory lead (caller saves).
      */
-    private function applyReferralAgentToNewLead(Lead $lead, Request $request): void
+    private function applyReferralAgentToLead(Lead $lead, Request $request): bool
     {
-        $referralAgentId = $request->input('referral_agent_id', $request->input('referal_agent_id'));
-        if ($referralAgentId === null || $referralAgentId === '') {
-            return;
+        if ($lead->referred_by_agent_id !== null) {
+            return false;
         }
 
-        if (! is_numeric($referralAgentId) || ! $lead->company_id) {
-            return;
+        $raw = $request->input('referral_agent_id');
+        if ($raw === null || $raw === '' || ! is_numeric($raw)) {
+            return false;
         }
 
-        $agent = LeadAgent::query()
-            ->where('company_id', $lead->company_id)
-            ->whereKey((int) $referralAgentId)
-            ->first();
-
-        if ($agent === null) {
-            return;
+        $agentId = app(DealAgentAssignmentService::class)->findLeadAgentIdForUser((int) $raw);
+        if ($agentId === null) {
+            return false;
         }
 
-        $lead->referred_by_agent_id = $agent->id;
+        $lead->referred_by_agent_id = $agentId;
+
+        return true;
+    }
+
+    private function leadReferrerIdForCompany(int $contactId, int $companyId): ?int
+    {
+        $referrerId = Lead::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereKey($contactId)
+            ->value('referred_by_agent_id');
+
+        return $referrerId !== null ? (int) $referrerId : null;
     }
 
     /**
@@ -1011,11 +1023,13 @@ class DealContactApiController extends Controller
         if ($request->has('utmInfo') && is_array($request->utmInfo)) {
             $utmInfo = $request->utmInfo;
             $marketingPayload = [
-                'utm_source' => Arr::get($utmInfo, 'source'),
-                'utm_medium' => Arr::get($utmInfo, 'medium'),
-                'utm_campaign' => Arr::get($utmInfo, 'utm_campaign') ?? Arr::get($utmInfo, 'campaign'),
-                'utm_term' => Arr::get($utmInfo, 'term'),
-                'utm_content' => Arr::get($utmInfo, 'content'),
+                'utm_source' => Arr::get($utmInfo, 'source') ?? Arr::get($utmInfo, 'utmSource'),
+                'utm_medium' => Arr::get($utmInfo, 'medium') ?? Arr::get($utmInfo, 'utmMedium'),
+                'utm_campaign' => Arr::get($utmInfo, 'utm_campaign')
+                    ?? Arr::get($utmInfo, 'campaign')
+                    ?? Arr::get($utmInfo, 'utmCampaign'),
+                'utm_term' => Arr::get($utmInfo, 'term') ?? Arr::get($utmInfo, 'utmTerm'),
+                'utm_content' => Arr::get($utmInfo, 'content') ?? Arr::get($utmInfo, 'utmContent'),
             ];
         }
 

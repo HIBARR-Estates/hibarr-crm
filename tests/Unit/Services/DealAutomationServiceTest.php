@@ -126,6 +126,99 @@ class DealAutomationServiceTest extends TestCase
         $this->assertEquals(1, $deal->pipeline_stage_id);
     }
 
+    public function test_process_executes_actions_when_any_condition_passes_with_or_logic()
+    {
+        // Mock Deal
+        $deal = Mockery::mock(Deal::class)->makePartial();
+        $deal->id = 1;
+        $deal->lead_pipeline_id = 1;
+        $deal->pipeline_stage_id = 1;
+        $deal->shouldReceive('save')->once();
+
+        // Mock Automation set to OR ("any") condition logic
+        $automation = Mockery::mock(DealAutomation::class)->makePartial();
+        $automation->setRawAttributes(['id' => 1, 'name' => 'Test Auto', 'condition_logic' => 'any']);
+
+        $failingCondition = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $failingCondition->setRawAttributes(['field' => 'val', 'operator' => '>', 'value' => 100]);
+        $passingCondition = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $passingCondition->setRawAttributes(['field' => 'other', 'operator' => '=', 'value' => 1]);
+        $action = (object) ['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
+
+        $automation->setRelation('conditions', collect([$failingCondition, $passingCondition]));
+        $automation->setRelation('actions', collect([$action]));
+
+        // Mock Service (Partial)
+        $service = Mockery::mock(DealAutomationService::class, [
+            $this->fieldResolver,
+            $this->conditionEvaluator,
+        ])->makePartial();
+        $service->shouldAllowMockingProtectedMethods();
+
+        $service->shouldReceive('getAutomations')
+            ->with(1, 'trigger', 'deal')
+            ->andReturn(collect([$automation]));
+
+        $currentStage = Mockery::mock(PipelineStage::class)->makePartial();
+        $currentStage->setRawAttributes(['id' => 1, 'priority' => 10, 'name' => 'Stage 10']);
+        $targetStage = Mockery::mock(PipelineStage::class)->makePartial();
+        $targetStage->setRawAttributes(['id' => 2, 'priority' => 5, 'name' => 'Stage 5']);
+
+        $service->shouldReceive('getStage')->with(1)->andReturn($currentStage);
+        $service->shouldReceive('getStage')->with(2)->andReturn($targetStage);
+        $service->shouldReceive('recordCrmEvent')->zeroOrMoreTimes();
+
+        // First condition fails, second passes — OR should still fire the automation.
+        $this->fieldResolver->shouldReceive('resolve')->andReturn(200);
+        $this->conditionEvaluator->shouldReceive('evaluate')->andReturn(false, true);
+
+        $service->process($deal, 'trigger');
+
+        $this->assertEquals(2, $deal->pipeline_stage_id);
+    }
+
+    public function test_process_skips_actions_when_no_condition_passes_with_or_logic()
+    {
+        // Mock Deal
+        $deal = Mockery::mock(Deal::class)->makePartial();
+        $deal->id = 1;
+        $deal->lead_pipeline_id = 1;
+        $deal->pipeline_stage_id = 1;
+        $deal->shouldReceive('save')->never();
+
+        // Mock Automation set to OR ("any") condition logic
+        $automation = Mockery::mock(DealAutomation::class)->makePartial();
+        $automation->setRawAttributes(['id' => 1, 'name' => 'Test Auto', 'condition_logic' => 'any']);
+
+        $conditionOne = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $conditionOne->setRawAttributes(['field' => 'val', 'operator' => '>', 'value' => 100]);
+        $conditionTwo = Mockery::mock(DealAutomationCondition::class)->makePartial();
+        $conditionTwo->setRawAttributes(['field' => 'other', 'operator' => '=', 'value' => 1]);
+        $action = (object) ['target_stage_id' => 2, 'target_pipeline_id' => 1, 'forward_only' => false];
+
+        $automation->setRelation('conditions', collect([$conditionOne, $conditionTwo]));
+        $automation->setRelation('actions', collect([$action]));
+
+        // Mock Service (Partial)
+        $service = Mockery::mock(DealAutomationService::class, [
+            $this->fieldResolver,
+            $this->conditionEvaluator,
+        ])->makePartial();
+        $service->shouldAllowMockingProtectedMethods();
+
+        $service->shouldReceive('getAutomations')
+            ->with(1, 'trigger', 'deal')
+            ->andReturn(collect([$automation]));
+
+        // Neither condition passes — OR should not fire the automation.
+        $this->fieldResolver->shouldReceive('resolve')->andReturn(50);
+        $this->conditionEvaluator->shouldReceive('evaluate')->andReturn(false);
+
+        $service->process($deal, 'trigger');
+
+        $this->assertEquals(1, $deal->pipeline_stage_id);
+    }
+
     public function test_process_respects_forward_only_logic()
     {
         // Mock Deal

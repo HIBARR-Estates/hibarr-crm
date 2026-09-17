@@ -19,6 +19,7 @@ class LeadAutomation extends BaseModel
         'trigger',
         'active',
         'priority',
+        'condition_logic',
     ];
 
     protected $casts = [
