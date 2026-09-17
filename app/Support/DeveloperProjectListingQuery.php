@@ -42,7 +42,8 @@ class DeveloperProjectListingQuery
      *                                         min_total_units, max_total_units, payment_plan_duration,
      *                                         min_payment_plan_duration, max_payment_plan_duration,
      *                                         downpayment_type, rental_guarantee, is_hidden, facilities,
-     *                                         price_min, price_max, min_starting_price, max_starting_price, sort
+     *                                         price_min, price_max, min_starting_price, max_starting_price,
+     *                                         min_bedrooms, max_bedrooms, min_bathrooms, max_bathrooms, sort
      * @param  bool  $filtersModalEnabled  When true, use city/area location filters; otherwise location_id
      * @return Builder<\App\Models\DeveloperProject>
      */
@@ -129,6 +130,8 @@ class DeveloperProjectListingQuery
 
         self::applyIntRange($query, 'number_of_phases', $filters['min_number_of_phases'] ?? null, $filters['max_number_of_phases'] ?? null);
         self::applyIntRange($query, 'total_units', $filters['min_total_units'] ?? null, $filters['max_total_units'] ?? null);
+        self::applyUnitTypeIntRange($query, 'bedrooms', $filters['min_bedrooms'] ?? null, $filters['max_bedrooms'] ?? null);
+        self::applyUnitTypeIntRange($query, 'bathrooms', $filters['min_bathrooms'] ?? null, $filters['max_bathrooms'] ?? null);
 
         if (!empty($filters['downpayment_type'])) {
             $query->whereRaw(
@@ -212,6 +215,30 @@ class DeveloperProjectListingQuery
         if ($max !== null && $max !== '') {
             $query->where($column, '<=', (int) $max);
         }
+    }
+
+    /**
+     * Range-filters on a related unit type's column — a project matches if it
+     * has at least one unit type whose value falls in [$min, $max], since
+     * bedrooms/bathrooms live on developer_project_unit_types, not on the
+     * project itself.
+     *
+     * @param  Builder<\App\Models\DeveloperProject>  $query
+     */
+    private static function applyUnitTypeIntRange(Builder $query, string $column, mixed $min, mixed $max): void
+    {
+        if (($min === null || $min === '') && ($max === null || $max === '')) {
+            return;
+        }
+
+        $query->whereHas('unitTypes', function (Builder $q) use ($column, $min, $max) {
+            if ($min !== null && $min !== '') {
+                $q->where($column, '>=', (int) $min);
+            }
+            if ($max !== null && $max !== '') {
+                $q->where($column, '<=', (int) $max);
+            }
+        });
     }
 
     /**
