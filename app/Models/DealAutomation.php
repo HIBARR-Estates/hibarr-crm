@@ -23,6 +23,7 @@ class DealAutomation extends BaseModel
         'wait_duration_unit',
         'active',
         'priority',
+        'condition_logic',
     ];
 
     /**
@@ -65,6 +66,15 @@ class DealAutomation extends BaseModel
     public const DATE_RECURRENCE_YEARLY = 'yearly';
 
     public const DATE_RECURRENCE_ONCE = 'once';
+
+    /**
+     * How an automation's conditions combine: ALL requires every condition to
+     * pass (the historical, and still default, behavior); ANY requires just
+     * one. Shared by DealAutomationService and LeadAutomationService.
+     */
+    public const CONDITION_LOGIC_ALL = 'all';
+
+    public const CONDITION_LOGIC_ANY = 'any';
 
     protected $casts = [
         'active' => 'boolean',
