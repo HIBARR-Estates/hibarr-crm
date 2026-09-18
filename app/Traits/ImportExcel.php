@@ -11,6 +11,7 @@ use Maatwebsite\Excel\HeadingRowImport;
 use Maatwebsite\Excel\Imports\HeadingRowFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Froiden\RestAPI\Exceptions\ApiException;
 use ReflectionClass;
 
 trait ImportExcel
@@ -24,6 +25,11 @@ trait ImportExcel
         @ini_set('max_execution_time', '600');
     }
 
+    private function importSessionKey(string $importClassName): string
+    {
+        return "import.{$importClassName}.file";
+    }
+
     public function importFileProcess($request, $importClass)
     {
         $this->applyImportResourceLimits();
@@ -31,9 +37,12 @@ trait ImportExcel
         $this->importClassName = (new ReflectionClass($importClass))->getShortName();
 
         $this->file = Files::upload($request->import_file, Files::IMPORT_FOLDER);
+        Session::put($this->importSessionKey($this->importClassName), $this->file);
+
+        $importPath = Files::resolveSafeUploadPath($this->file, Files::IMPORT_FOLDER, true);
 
         $importInstance = new $importClass;
-        Excel::import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $this->file));
+        Excel::import($importInstance, $importPath);
         $excelData = $importInstance->getProcessedData();
         if ($request->has('heading')) {
             array_shift($excelData);
@@ -61,11 +70,11 @@ trait ImportExcel
         $this->matchedColumns = array();
 
         if ($this->hasHeading) {
-            $this->heading = (new HeadingRowImport)->toArray(public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $this->file))[0][0];
+            $this->heading = (new HeadingRowImport)->toArray($importPath)[0][0];
 
             // Excel Format None for get Heading Row Without Format and after change back to config
             HeadingRowFormatter::default('none');
-            $this->fileHeading = (new HeadingRowImport)->toArray(public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $this->file))[0][0];
+            $this->fileHeading = (new HeadingRowImport)->toArray($importPath)[0][0];
             HeadingRowFormatter::default(config('excel.imports.heading_row.formatter'));
 
             array_shift($excelData);
@@ -89,6 +98,24 @@ trait ImportExcel
         // get class name from $importClass
         $importClassName = (new ReflectionClass($importClass))->getShortName();
         Log::info('Importing to queue: ' . $importClassName);
+
+        // Never trust the client-supplied `file` param for path-building — resolve
+        // the server-generated filename that step 1 stored in the session instead.
+        $sessionKey = $this->importSessionKey($importClassName);
+        $file = Session::get($sessionKey);
+
+        if (!is_string($file) || $file === '') {
+            Log::warning("Import process attempted without a valid session file reference for {$importClassName}.");
+            throw new ApiException(__('messages.importSessionExpired'), null, 422, 422);
+        }
+
+        try {
+            $importPath = Files::resolveSafeUploadPath($file, Files::IMPORT_FOLDER, true);
+        } catch (\InvalidArgumentException $e) {
+            Session::forget($sessionKey);
+            Log::warning("Rejected unsafe import file reference for {$importClassName}: " . $e->getMessage());
+            throw new ApiException(__('messages.importSessionExpired'), null, 422, 422);
+        }
 
         // Signal all running queue workers to stop after their current job
         // so they release row-level locks on the jobs / failed_jobs tables.
@@ -118,6 +145,8 @@ trait ImportExcel
         } catch (\Exception $e) {
             Log::warning('Could not flush failed jobs: ' . $e->getMessage());
         }
+
+        try {
         // Get index of an array not null value with key
         $columns = array_filter($request->columns, function ($value) {
             return $value !== null;
@@ -130,10 +159,10 @@ trait ImportExcel
             }
         }
 
-        Log::info('Starting Excel import', ['file' => $request->file, 'memory_before' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
-        
+        Log::info('Starting Excel import', ['file' => $file, 'memory_before' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
+
         $importInstance = new $importClass;
-        Excel::import($importInstance, public_path(Files::UPLOAD_FOLDER . '/' . Files::IMPORT_FOLDER . '/' . $request->file));
+        Excel::import($importInstance, $importPath);
         $excelData = $importInstance->getProcessedData();
         
         Log::info('Excel loaded', ['rows' => count($excelData), 'memory_after' => memory_get_usage(true) / 1024 / 1024 . 'MB']);
@@ -230,9 +259,11 @@ trait ImportExcel
         // Return the first batch for legacy single-batch tracking
         $batch = $this->importBatches[0] ?? null;
 
-        Files::deleteFile($request->file, Files::IMPORT_FOLDER);
-
         return $batch;
+        } finally {
+            Files::deleteFile($file, Files::IMPORT_FOLDER);
+            Session::forget($sessionKey);
+        }
     }
 
     /**
