@@ -5,6 +5,7 @@ interface Props {
     analysis: UseDealAnalysisReturn;
     totalFilled: number;
     totalFields: number;
+    isMobileResponsive?: boolean;
 }
 
 /**
@@ -12,7 +13,7 @@ interface Props {
  * never collapses to a pill on completion — and always reports field progress,
  * including when the analysis was marked complete with fields still empty.
  */
-export default function AnalysisStatusBanner({ analysis, totalFilled, totalFields }: Props) {
+export default function AnalysisStatusBanner({ analysis, totalFilled, totalFields, isMobileResponsive = false }: Props) {
     const { td } = useTd();
 
     const missing = Math.max(0, totalFields - totalFilled);
@@ -60,12 +61,15 @@ export default function AnalysisStatusBanner({ analysis, totalFilled, totalField
         <button
             type="button"
             onClick={analysis.open}
-            className={`${shouldPulse ? "analysis-banner-pulse " : ""}w-full lg:w-[220px] lg:min-w-[200px] shrink-0 cursor-pointer text-left h-full overflow-hidden flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+            className={`${shouldPulse ? "analysis-banner-pulse " : ""}${
+                isMobileResponsive ? "w-full lg:w-[220px] lg:min-w-[200px] " : ""
+            }shrink-0 cursor-pointer text-left h-full overflow-hidden flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
             style={{
                 background: theme.background,
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
+                ...(isMobileResponsive ? {} : { width: 220, minWidth: 200 }),
             }}
         >
             {/* Title row with status dot */}

@@ -724,15 +724,21 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
-                            <div className="mb-4">
-                                <DossierQuickActions
-                                    onLogAction={() => setLogActionOpen(true)}
-                                    onAddNote={() => setAddNoteOpen(true)}
-                                    onScheduleMeeting={() =>
-                                        setAddMeetingOpen(true)
-                                    }
-                                />
-                            </div>
+                            {isMobileResponsive && (
+                                <div className="mb-4">
+                                    <DossierQuickActions
+                                        onLogAction={() =>
+                                            setLogActionOpen(true)
+                                        }
+                                        onAddNote={() =>
+                                            setAddNoteOpen(true)
+                                        }
+                                        onScheduleMeeting={() =>
+                                            setAddMeetingOpen(true)
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
@@ -799,6 +805,17 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
+                            {!isMobileResponsive && (
+                                <DossierQuickActions
+                                    onLogAction={() =>
+                                        setLogActionOpen(true)
+                                    }
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            )}
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(
