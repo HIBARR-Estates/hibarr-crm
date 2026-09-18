@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
+import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
+import Button from "@/Components/Redesign/primitives/Button";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type {
@@ -147,14 +156,17 @@ export default function ExposesPanel({
     const hasExposes = exposes.length > 0;
     const showAdd = onAdd && canEdit;
 
-    const renderAddMenu = (align: "header" | "empty") =>
+    const headerAddPos = useFloatingMenuPosition(
+        addOpen && hasExposes,
+        addRef,
+        { align: "right", maxHeight: 320 },
+    );
+
+    const renderAddMenu = (style?: CSSProperties) =>
         addOpen && onAdd ? (
             <div
-                className={`dr-menu absolute z-30 w-[264px] ${
-                    align === "header"
-                        ? "right-0 top-[calc(100%+6px)]"
-                        : "left-1/2 top-full mt-1.5 -translate-x-1/2"
-                }`}
+                className="dr-menu w-[264px]"
+                style={style}
                 role="menu"
             >
                 <button
@@ -241,11 +253,18 @@ export default function ExposesPanel({
                                 <DealIcon name="plus" size={14} />
                                 {t("pages.deals.workspace.exposes.add")}
                             </button>
-                            {renderAddMenu("header")}
                         </div>
                     )}
                 </div>
             )}
+            {hasExposes &&
+                addOpen &&
+                headerAddPos &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    renderAddMenu(headerAddPos),
+                    document.body,
+                )}
 
             {exposes.length > 0 && (
                 <div
@@ -289,27 +308,49 @@ export default function ExposesPanel({
                     }}
                 />
             ) : exposes.length === 0 ? (
-                <div ref={addRef} className="relative">
-                    <EmptyState
-                        icon="layers"
-                        title={t("pages.deals.workspace.exposes.empty")}
-                        description={t(
-                            "pages.deals.workspace.exposes.empty_hint",
-                        )}
-                        action={
-                            showAdd
-                                ? {
-                                      label: t(
-                                          "pages.deals.workspace.exposes.add",
-                                      ),
-                                      onClick: () =>
-                                          setAddOpen((open) => !open),
-                                  }
-                                : undefined
-                        }
-                    />
-                    {renderAddMenu("empty")}
-                </div>
+                <EmptyState
+                    icon="layers"
+                    title={t("pages.deals.workspace.exposes.empty")}
+                    description={t(
+                        "pages.deals.workspace.exposes.empty_hint",
+                    )}
+                    footer={
+                        showAdd ? (
+                            <div className="mx-auto flex max-w-sm flex-col gap-2">
+                                <Button
+                                    variant="primary"
+                                    className="w-full"
+                                    icon={
+                                        <DealIcon
+                                            name="external-link"
+                                            size={15}
+                                        />
+                                    }
+                                    onClick={() => onAdd("linked")}
+                                >
+                                    {t(
+                                        "pages.deals.workspace.exposes.add_linked",
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full"
+                                    icon={
+                                        <DealIcon
+                                            name="paperclip"
+                                            size={15}
+                                        />
+                                    }
+                                    onClick={() => onAdd("manual")}
+                                >
+                                    {t(
+                                        "pages.deals.workspace.exposes.add_manual",
+                                    )}
+                                </Button>
+                            </div>
+                        ) : undefined
+                    }
+                />
             ) : (
                 <div className="flex flex-col gap-[18px]">
                     {groups.map((group) => (
