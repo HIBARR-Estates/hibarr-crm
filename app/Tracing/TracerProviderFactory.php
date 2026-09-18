@@ -98,6 +98,9 @@ class TracerProviderFactory
                 ResourceAttributes::SERVICE_NAME => config('opentelemetry.resource.service_name', 'hibarr-crm'),
                 ResourceAttributes::DEPLOYMENT_ENVIRONMENT_NAME => config('opentelemetry.resource.environment', 'production'),
                 ResourceAttributes::SERVICE_VERSION => config('app.version', '1.0.0'),
+                // Lets the "CRM Reliability" dashboard's hostname variable
+                // isolate a single bad instance among a fleet.
+                ResourceAttributes::HOST_NAME => gethostname() ?: 'unknown',
             ]),
         );
     }
