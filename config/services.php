@@ -88,9 +88,9 @@ return [
     ],
 
     'dynamic_translation' => [
-        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
-        'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
-        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+        'base_url' => env('DYNAMIC_TRANSLATION_BASE_URL', ''),
+        'timeout' => (int) env('DYNAMIC_TRANSLATION_TIMEOUT', 30),
+        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY'),
     ],
 
     'notification_service' => [
@@ -154,15 +154,15 @@ return [
     'ol' => [
         // Used for OL integration endpoints (e.g. Zoho Calendar sync jobs).
         // Default includes `/v1` to match frontend configuration.
-        'base_url' => env('OL_BASE_URL', env('MIX_OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
-        'api_key' => env('OL_API_KEY', env('MIX_OL_API_KEY')),
+        'base_url' => env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1'),
+        'api_key' => env('OL_API_KEY'),
         'timeout' => (int) env('OL_API_TIMEOUT', 15),
         // Provisional HIB-1185 path; override via env when OL locks the contract.
         'payment_review_decision_path' => env(
             'OL_PAYMENT_REVIEW_DECISION_PATH',
             '/internal/payments/review-decision'
         ),
-        'crm_webhook_api_key' => env('CRM_WEBHOOK_API_KEY'),
+        'crm_webhook_api_key' => env('OL_WEBHOOK_API_KEY'),
         'deal_payment_request_path' => env(
             'OL_DEAL_PAYMENT_REQUEST_PATH',
             '/internal/payments/deal-requests'
