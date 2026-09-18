@@ -102,11 +102,14 @@ export default function ExposesPanel({
     const { td } = useTd();
     const [addOpen, setAddOpen] = useState(false);
     const addRef = useRef<HTMLDivElement>(null);
+    const addMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!addOpen) return undefined;
         const onDocClick = (event: MouseEvent) => {
-            if (addRef.current?.contains(event.target as Node)) return;
+            const target = event.target as Node;
+            if (addRef.current?.contains(target)) return;
+            if (addMenuRef.current?.contains(target)) return;
             setAddOpen(false);
         };
         const onKey = (event: KeyboardEvent) => {
@@ -165,6 +168,7 @@ export default function ExposesPanel({
     const renderAddMenu = (style?: CSSProperties) =>
         addOpen && onAdd ? (
             <div
+                ref={addMenuRef}
                 className="dr-menu w-[264px]"
                 style={style}
                 role="menu"
