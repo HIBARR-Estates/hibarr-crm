@@ -105,6 +105,7 @@ return array(
     'reasonForLeaveApproval' => 'Reason for leave approval',
     'importSuccess' => 'File imported successfully.',
     'importError' => 'Issue in importing file. Please check the file and try again. Ensure its populated and not empty.',
+    'importSessionExpired' => 'Your import session has expired or is invalid. Please upload the file again.',
     'newFileUploadedToTheProject' => 'New file uploaded to the project.',
     'isAddedAsProjectMember' => 'is added as a project member.',
     'memberRemovedFromProject' => 'Member removed from project successfully.',
