@@ -18,3 +18,23 @@ export interface LeadSourcePermissions {
     delete: string;
     reorder: boolean;
 }
+
+export interface LeadStatusRow {
+    id: number;
+    key: string;
+    label: string;
+    description: string | null;
+    sort_order: number;
+    label_color: string;
+    leads_count: number;
+    is_system: boolean;
+    is_default: boolean;
+}
+
+export interface LeadStatusDraft {
+    key: string;
+    label: string;
+    description: string;
+    label_color: string;
+    sort_order: number;
+}

@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { App } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import Button from "@/Components/Redesign/primitives/Button";
-import Icon from "@/Components/Redesign/primitives/Icon";
 import {
     REDESIGN_FONT_STACK,
-    REDESIGN_RADIUS,
     REDESIGN_TOKENS as T,
     REDESIGN_TYPE,
 } from "@/Components/Redesign/tokens";
@@ -14,10 +11,16 @@ import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import FirstContactSlaTab from "./FirstContactSlaTab";
 import LeadSourcesSection from "./LeadSourcesSection";
+import LeadStatusesSection from "./LeadStatusesSection";
+import useLeadSettingsNavigation, {
+    type LeadSettingsTab,
+} from "./hooks/useLeadSettingsNavigation";
 import type {
     LeadSourcePermissions,
     LeadSourceRow,
+    LeadStatusRow,
     SlaSettings,
 } from "./types";
 
@@ -26,21 +29,25 @@ export default function LeadSettingsIndex({
     settings,
     sources: initialSources,
     sourcePermissions,
+    leadStatuses: initialStatuses,
     currentUserId,
 }: {
     pageTitle: string;
     settings: SlaSettings;
     sources: LeadSourceRow[];
     sourcePermissions: LeadSourcePermissions;
+    leadStatuses: LeadStatusRow[];
     currentUserId: number;
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
+    const { tab, setTab } = useLeadSettingsNavigation();
 
     const [hours, setHours] = useState(settings.first_contact_sla_hours);
     const [hasChanges, setHasChanges] = useState(false);
     const [sources, setSources] = useState(initialSources);
+    const [statuses, setStatuses] = useState(initialStatuses);
 
     const updateMutation = useApiMutate<unknown, unknown, unknown>(
         route("settings-leads.update"),
@@ -56,8 +63,9 @@ export default function LeadSettingsIndex({
         setSources(initialSources);
     }, [initialSources]);
 
-    const clampHours = (value: number) =>
-        Math.max(settings.min_hours, Math.min(settings.max_hours, value));
+    useEffect(() => {
+        setStatuses(initialStatuses);
+    }, [initialStatuses]);
 
     const handleSave = () => {
         updateMutation.mutate(
@@ -80,6 +88,27 @@ export default function LeadSettingsIndex({
         );
     };
 
+    const tabs: Array<{
+        key: LeadSettingsTab;
+        label: string;
+        count?: number;
+    }> = [
+        {
+            key: "sources",
+            label: td("Sources", { source: "en" }),
+            count: sources.length,
+        },
+        {
+            key: "statuses",
+            label: td("Lead statuses", { source: "en" }),
+            count: statuses.length,
+        },
+        {
+            key: "sla",
+            label: td("First contact", { source: "en" }),
+        },
+    ];
+
     return (
         <PageLayout
             breadcrumbs={[
@@ -91,13 +120,13 @@ export default function LeadSettingsIndex({
             ]}
         >
             <div
-                className="mx-auto flex w-full max-w-3xl flex-col gap-4"
+                className="mx-auto flex w-full max-w-4xl flex-col"
                 style={{
                     padding: "8px 0 32px",
                     fontFamily: REDESIGN_FONT_STACK,
                 }}
             >
-                <div>
+                <div style={{ marginBottom: 20 }}>
                     <div
                         style={{
                             fontSize: REDESIGN_TYPE.CAPTION,
@@ -131,132 +160,121 @@ export default function LeadSettingsIndex({
                         }}
                     >
                         {td(
-                            "Company defaults for how leads are handled — sources, first-contact timing, and related rules. More settings will join this page.",
+                            "Company defaults for how leads are handled. Each group of settings lives on its own tab — more will join this page over time.",
                             { source: "en" },
                         )}
                     </p>
                 </div>
 
-                <LeadSourcesSection
-                    sources={sources}
-                    setSources={setSources}
-                    permissions={sourcePermissions}
-                    currentUserId={currentUserId}
-                />
-
-                <section
+                <div
                     style={{
-                        background: T.SURFACE,
+                        background: T.WHITE,
                         border: `1px solid ${T.BORDER}`,
-                        borderRadius: REDESIGN_RADIUS.MD,
-                        padding: 20,
+                        borderRadius: 10,
+                        overflow: "hidden",
                     }}
                 >
                     <div
+                        role="tablist"
                         style={{
-                            fontSize: REDESIGN_TYPE.CAPTION,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            color: T.GRAY_DARKER,
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "0 24px",
+                            padding: "0 22px",
+                            borderBottom: `1px solid ${T.BORDER}`,
                         }}
                     >
-                        {td("First contact SLA", { source: "en" })}
+                        {tabs.map((item) => {
+                            const active = tab === item.key;
+                            return (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    onClick={() => setTab(item.key)}
+                                    style={{
+                                        position: "relative",
+                                        background: "none",
+                                        border: "none",
+                                        padding: "14px 0 12px",
+                                        cursor: "pointer",
+                                        fontSize: 14,
+                                        fontWeight: active ? 600 : 500,
+                                        color: active ? T.NAVY : T.TEXT_MUTED,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                    }}
+                                >
+                                    {item.label}
+                                    {item.count != null && (
+                                        <span
+                                            style={{
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                color: active
+                                                    ? T.BLUE_DARK
+                                                    : T.TEXT_MUTED,
+                                                background: active
+                                                    ? T.BLUE_LIGHT
+                                                    : T.GRAY_MID,
+                                                borderRadius: 999,
+                                                padding: "1px 8px",
+                                            }}
+                                        >
+                                            {item.count}
+                                        </span>
+                                    )}
+                                    {active && (
+                                        <span
+                                            style={{
+                                                position: "absolute",
+                                                left: 0,
+                                                right: 0,
+                                                bottom: -1,
+                                                height: 2,
+                                                background: T.BLUE,
+                                                borderRadius: 2,
+                                            }}
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
-                    <p
-                        style={{
-                            margin: "4px 0 14px",
-                            fontSize: REDESIGN_TYPE.BODY,
-                            color: T.TEXT_MUTED,
-                            lineHeight: 1.45,
-                        }}
-                    >
-                        {td(
-                            "How long an agent has to make first contact with a new lead. Drives the Contacted within SLA figure and the overdue-contact column on the team dashboard.",
-                            { source: "en" },
+
+                    <div style={{ padding: "20px 22px 24px" }}>
+                        {tab === "sources" && (
+                            <LeadSourcesSection
+                                sources={sources}
+                                setSources={setSources}
+                                permissions={sourcePermissions}
+                                currentUserId={currentUserId}
+                            />
                         )}
-                    </p>
-
-                    <label
-                        htmlFor="first-contact-sla-hours"
-                        style={{
-                            display: "block",
-                            fontSize: REDESIGN_TYPE.CAPTION,
-                            fontWeight: 700,
-                            letterSpacing: "0.05em",
-                            textTransform: "uppercase",
-                            color: T.TEXT_MUTED,
-                            marginBottom: 8,
-                        }}
-                    >
-                        {td("Hours to first contact", { source: "en" })}
-                    </label>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                        }}
-                    >
-                        <input
-                            id="first-contact-sla-hours"
-                            type="number"
-                            className="dr-input"
-                            min={settings.min_hours}
-                            max={settings.max_hours}
-                            value={hours}
-                            onChange={(e) => {
-                                const next = Number(e.target.value);
-                                if (!Number.isFinite(next)) return;
-                                setHours(clampHours(next));
-                                setHasChanges(true);
-                            }}
-                            style={{ width: 120, fontSize: REDESIGN_TYPE.BODY }}
-                        />
-                        <span
-                            style={{
-                                fontSize: REDESIGN_TYPE.BODY,
-                                color: T.TEXT_MUTED,
-                            }}
-                        >
-                            {td("hours", { source: "en" })}
-                        </span>
-                    </div>
-
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-end",
-                            gap: 12,
-                            marginTop: 18,
-                            paddingTop: 16,
-                            borderTop: `1px solid ${T.BORDER_SOFT}`,
-                        }}
-                    >
-                        {hasChanges && (
-                            <span
-                                style={{
-                                    fontSize: REDESIGN_TYPE.CAPTION,
-                                    color: T.AMBER_TEXT,
+                        {tab === "statuses" && (
+                            <LeadStatusesSection
+                                statuses={statuses}
+                                setStatuses={setStatuses}
+                            />
+                        )}
+                        {tab === "sla" && (
+                            <FirstContactSlaTab
+                                settings={settings}
+                                hours={hours}
+                                hasChanges={hasChanges}
+                                saving={updateMutation.isPending}
+                                onHoursChange={(next) => {
+                                    setHours(next);
+                                    setHasChanges(true);
                                 }}
-                            >
-                                {td("You have unsaved changes", {
-                                    source: "en",
-                                })}
-                            </span>
+                                onSave={handleSave}
+                            />
                         )}
-                        <Button
-                            variant="primary"
-                            icon={<Icon name="check" size={15} />}
-                            onClick={handleSave}
-                            loading={updateMutation.isPending}
-                            disabled={!hasChanges}
-                        >
-                            {t("app.save")}
-                        </Button>
                     </div>
-                </section>
+                </div>
             </div>
         </PageLayout>
     );

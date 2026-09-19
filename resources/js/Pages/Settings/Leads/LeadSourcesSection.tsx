@@ -5,7 +5,6 @@ import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import {
-    REDESIGN_RADIUS,
     REDESIGN_TOKENS as T,
     REDESIGN_TYPE,
 } from "@/Components/Redesign/tokens";
@@ -96,14 +95,7 @@ export default function LeadSourcesSection({
     };
 
     return (
-        <section
-            style={{
-                background: T.SURFACE,
-                border: `1px solid ${T.BORDER}`,
-                borderRadius: REDESIGN_RADIUS.MD,
-                padding: 20,
-            }}
-        >
+        <div>
             <div
                 style={{
                     display: "flex",
@@ -111,23 +103,13 @@ export default function LeadSourcesSection({
                     justifyContent: "space-between",
                     gap: 12,
                     flexWrap: "wrap",
+                    marginBottom: 16,
                 }}
             >
                 <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                    <div
-                        style={{
-                            fontSize: REDESIGN_TYPE.CAPTION,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            color: T.GRAY_DARKER,
-                        }}
-                    >
-                        {td("Lead sources", { source: "en" })}
-                    </div>
                     <p
                         style={{
-                            margin: "4px 0 0",
+                            margin: 0,
                             fontSize: REDESIGN_TYPE.BODY,
                             color: T.TEXT_MUTED,
                             lineHeight: 1.45,
@@ -151,7 +133,7 @@ export default function LeadSourcesSection({
                 )}
             </div>
 
-            <div style={{ marginTop: 16 }}>
+            <div>
                 {sources.length === 0 ? (
                     <EmptyState
                         icon="list"
@@ -328,6 +310,6 @@ export default function LeadSourcesSection({
                 onConfirm={() => void handleDelete()}
                 onCancel={() => setDeleteTarget(null)}
             />
-        </section>
+        </div>
     );
 }

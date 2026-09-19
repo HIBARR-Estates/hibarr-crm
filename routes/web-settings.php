@@ -89,13 +89,17 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
 
-    /* Leads settings hub — sources, first-contact SLA, and related defaults */
+    /* Leads settings hub — sources, statuses, first-contact SLA, and related defaults */
     Route::get('leads', [LeadSettingsHubController::class, 'page'])->name('settings-leads.index');
     Route::put('leads', [LeadSettingsHubController::class, 'update'])->name('settings-leads.update');
     Route::post('leads/sources/reorder', [LeadSettingsHubController::class, 'reorderSources'])->name('settings-leads.sources.reorder');
     Route::post('leads/sources', [LeadSettingsHubController::class, 'storeSource'])->name('settings-leads.sources.store');
     Route::put('leads/sources/{source}', [LeadSettingsHubController::class, 'updateSource'])->name('settings-leads.sources.update');
     Route::delete('leads/sources/{source}', [LeadSettingsHubController::class, 'destroySource'])->name('settings-leads.sources.destroy');
+    Route::post('leads/statuses/reorder', [LeadSettingsHubController::class, 'reorderStatuses'])->name('settings-leads.statuses.reorder');
+    Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
+    Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
+    Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');

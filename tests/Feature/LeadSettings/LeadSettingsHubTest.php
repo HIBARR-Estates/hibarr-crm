@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\LeadSettings;
 
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Models\User;
@@ -166,12 +167,121 @@ class LeadSettingsHubTest extends TestCase
         $this->assertSame(3, (int) LeadSource::find($second)->sort_order);
     }
 
+    public function test_creating_a_lead_status_persists_the_row(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->postJson('/account/settings/leads/statuses', [
+            'key' => 'vip_lead',
+            'label' => 'VIP',
+            'description' => 'Priority inbound',
+            'label_color' => '#112233',
+            'sort_order' => 10,
+        ])->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('lead_status.key', 'vip_lead')
+            ->assertJsonPath('lead_status.label', 'VIP')
+            ->assertJsonPath('lead_status.is_system', false);
+
+        $this->assertSame(1, LeadLifecycleStatus::count());
+        $this->assertSame('VIP', LeadLifecycleStatus::first()->label);
+    }
+
+    public function test_reserved_status_keys_are_rejected(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->postJson('/account/settings/leads/statuses', [
+            'key' => 'new',
+            'label' => 'New',
+            'label_color' => '#6c757d',
+        ])->assertStatus(422);
+    }
+
+    public function test_updating_a_lead_status_renames_it(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertStatus('qualifying', 'Qualifying', 3);
+
+        $this->putJson("/account/settings/leads/statuses/{$id}", [
+            'label' => 'In review',
+            'description' => 'Still qualifying',
+            'label_color' => '#ffc107',
+            'sort_order' => 3,
+        ])->assertOk()->assertJsonPath('lead_status.label', 'In review');
+
+        $this->assertSame('In review', LeadLifecycleStatus::find($id)->label);
+        $this->assertSame('qualifying', LeadLifecycleStatus::find($id)->key);
+    }
+
+    public function test_built_in_lead_statuses_cannot_be_deleted(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertStatus('new', 'New', 1);
+
+        $this->deleteJson("/account/settings/leads/statuses/{$id}")
+            ->assertStatus(422);
+
+        $this->assertSame(1, LeadLifecycleStatus::count());
+    }
+
+    public function test_custom_unused_lead_statuses_can_be_deleted(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertStatus('vip_lead', 'VIP', 10);
+
+        $this->deleteJson("/account/settings/leads/statuses/{$id}")
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertSame(0, LeadLifecycleStatus::count());
+    }
+
+    public function test_lead_statuses_can_be_reordered(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $first = $this->insertStatus('new', 'New', 1);
+        $second = $this->insertStatus('contacted', 'Contacted', 2);
+        $third = $this->insertStatus('vip_lead', 'VIP', 3);
+
+        $this->postJson('/account/settings/leads/statuses/reorder', [
+            'statusIds' => [$third, $first, $second],
+        ])->assertOk()->assertJsonPath('status', 'success');
+
+        $this->assertSame(1, (int) LeadLifecycleStatus::find($third)->sort_order);
+        $this->assertSame(2, (int) LeadLifecycleStatus::find($first)->sort_order);
+        $this->assertSame(3, (int) LeadLifecycleStatus::find($second)->sort_order);
+    }
+
     private function insertSource(string $type, int $sortOrder): int
     {
         return (int) DB::table('lead_sources')->insertGetId([
             'company_id' => $this->companyId,
             'type' => $type,
             'sort_order' => $sortOrder,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function insertStatus(string $key, string $label, int $sortOrder): int
+    {
+        return (int) DB::table('lead_lifecycle_statuses')->insertGetId([
+            'company_id' => $this->companyId,
+            'key' => $key,
+            'label' => $label,
+            'sort_order' => $sortOrder,
+            'label_color' => '#6c757d',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -190,6 +300,8 @@ class LeadSettingsHubTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('leads');
+        Schema::dropIfExists('lead_lifecycle_statuses');
         Schema::dropIfExists('lead_sources');
         Schema::dropIfExists('lead_setting');
         Schema::dropIfExists('users');
@@ -228,6 +340,25 @@ class LeadSettingsHubTest extends TestCase
             $table->integer('sort_order')->default(0);
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id');
+            $table->string('key', 50);
+            $table->string('label');
+            $table->text('description')->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->string('label_color', 20)->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('leads', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedBigInteger('lead_lifecycle_status_id')->nullable();
+            $table->timestamp('deleted_at')->nullable();
             $table->timestamps();
         });
     }

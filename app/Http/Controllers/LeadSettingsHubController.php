@@ -3,23 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Helper\Reply;
+use App\Http\Requests\LeadSetting\StoreLeadLifecycleStatus;
+use App\Http\Requests\LeadSetting\UpdateLeadLifecycleStatus;
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\LeadLifecycleStatusService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
  * React lead settings hub on the admin settings overview.
  *
- * First-contact SLA and lead sources live here; more lead settings will move
- * here from the legacy Blade screens. Sources and the SLA column are still
- * editable from the Blade lead-settings tabs; both UIs write the same tables.
+ * Sources, lead statuses (contact lifecycles), and first-contact SLA live
+ * here; more lead settings will move here from the legacy Blade screens.
+ * Both UIs write the same tables.
  */
 class LeadSettingsHubController extends AccountBaseController
 {
-    public function __construct()
-    {
+    public function __construct(
+        private readonly LeadLifecycleStatusService $lifecycleStatusService,
+    ) {
         parent::__construct();
         $this->pageTitle = 'app.menu.leadSettings';
         $this->activeSettingMenu = 'lead_settings';
@@ -49,6 +55,11 @@ class LeadSettingsHubController extends AccountBaseController
                 'delete' => $deletePermission,
                 'reorder' => $editPermission === 'all',
             ],
+            'leadStatuses' => $this->lifecycleStatusService
+                ->listForCompany((int) company()->id)
+                ->map(fn (LeadLifecycleStatus $status) => $this->serializeStatus($status))
+                ->values()
+                ->all(),
             'currentUserId' => (int) user()->id,
         ]);
     }
@@ -90,27 +101,29 @@ class LeadSettingsHubController extends AccountBaseController
         ]));
     }
 
-    public function updateSource(Request $request, LeadSource $source)
+    public function updateSource(Request $request, int $source)
     {
-        abort_403(! $this->canEditSource($source));
+        $model = LeadSource::findOrFail($source);
+        abort_403(! $this->canEditSource($model));
 
         $validated = $request->validate([
-            'type' => 'required|unique:lead_sources,type,'.$source->id.',id,company_id,'.company()->id,
+            'type' => 'required|unique:lead_sources,type,'.$model->id.',id,company_id,'.company()->id,
         ]);
 
-        $source->type = $validated['type'];
-        $source->save();
+        $model->type = $validated['type'];
+        $model->save();
 
         return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
-            'source' => $this->serializeSource($source->fresh()),
+            'source' => $this->serializeSource($model->fresh()),
         ]));
     }
 
-    public function destroySource(LeadSource $source)
+    public function destroySource(int $source)
     {
-        abort_403(! $this->canDeleteSource($source));
+        $model = LeadSource::findOrFail($source);
+        abort_403(! $this->canDeleteSource($model));
 
-        $source->delete();
+        $model->delete();
 
         return response()->json(Reply::success(__('messages.deleteSuccess')));
     }
@@ -150,6 +163,67 @@ class LeadSettingsHubController extends AccountBaseController
         ]));
     }
 
+    public function storeStatus(StoreLeadLifecycleStatus $request)
+    {
+        $status = $this->lifecycleStatusService->create(
+            (int) company()->id,
+            $request->validated(),
+        );
+
+        return response()->json(Reply::successWithData(__('messages.recordSaved'), [
+            'lead_status' => $this->serializeStatus($status),
+        ]));
+    }
+
+    public function updateStatus(UpdateLeadLifecycleStatus $request, int $status)
+    {
+        $model = LeadLifecycleStatus::findOrFail($status);
+        $updated = $this->lifecycleStatusService->update($model, $request->validated());
+
+        return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
+            'lead_status' => $this->serializeStatus($updated),
+        ]));
+    }
+
+    public function destroyStatus(int $status)
+    {
+        $model = LeadLifecycleStatus::findOrFail($status);
+
+        try {
+            $this->lifecycleStatusService->delete($model);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'status' => [$exception->getMessage()],
+            ]);
+        }
+
+        return response()->json(Reply::success(__('messages.deleteSuccess')));
+    }
+
+    public function reorderStatuses(Request $request)
+    {
+        $validated = $request->validate([
+            'statusIds' => 'required|array',
+            'statusIds.*' => 'required|integer',
+        ]);
+
+        try {
+            $statuses = $this->lifecycleStatusService->reorder(
+                (int) company()->id,
+                array_map('intval', $validated['statusIds']),
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 400);
+        }
+
+        return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
+            'lead_statuses' => $statuses
+                ->map(fn (LeadLifecycleStatus $status) => $this->serializeStatus($status))
+                ->values()
+                ->all(),
+        ]));
+    }
+
     /**
      * @return array{first_contact_sla_hours: int, min_hours: int, max_hours: int, default_hours: int}
      */
@@ -175,6 +249,28 @@ class LeadSettingsHubController extends AccountBaseController
             'type' => (string) $source->type,
             'sort_order' => (int) $source->sort_order,
             'added_by' => $source->added_by !== null ? (int) $source->added_by : null,
+        ];
+    }
+
+    /**
+     * @return array{id: int, key: string, label: string, description: string|null, sort_order: int, label_color: string, leads_count: int, is_system: bool, is_default: bool}
+     */
+    private function serializeStatus(LeadLifecycleStatus $status): array
+    {
+        if (! array_key_exists('leads_count', $status->getAttributes())) {
+            $status->loadCount('leads');
+        }
+
+        return [
+            'id' => (int) $status->id,
+            'key' => (string) $status->key,
+            'label' => (string) $status->label,
+            'description' => $status->description !== null ? (string) $status->description : null,
+            'sort_order' => (int) $status->sort_order,
+            'label_color' => (string) ($status->label_color ?: '#6c757d'),
+            'leads_count' => (int) $status->leads_count,
+            'is_system' => $status->isSystemKey(),
+            'is_default' => $status->isDefaultForNewLeads(),
         ];
     }
 
