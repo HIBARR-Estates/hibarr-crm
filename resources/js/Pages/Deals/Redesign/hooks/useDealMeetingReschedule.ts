@@ -2,10 +2,7 @@ import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { getBrowserTimezone, persistUserTimezoneOnce } from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     formatMeetingDateForApi,

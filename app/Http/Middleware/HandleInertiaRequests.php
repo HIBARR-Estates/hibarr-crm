@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
 use App\Services\I18nTranslationService;
+use App\Support\AppBuild;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        return AppBuild::id() ?? parent::version($request);
     }
 
     /**
@@ -49,56 +50,57 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            'auth' => fn () => [
+            'auth' => fn() => [
                 'user' => auth()->user() ? $this->getUserWithLeadAgentId() : null,
                 'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
                 'modules' => function_exists('user_modules') ? user_modules() : [],
             ],
-            'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
-            'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
+            'default_currency_symbol' => fn() => $this->getDefaultCurrencySymbol(),
+            'default_currency_code' => fn() => $this->getDefaultCurrencyCode(),
             // countries / currencies: page props or GET /account/api/form-data/{type} (Task B3)
-            'errors' => fn () => $request->session()->get('errors')
+            'errors' => fn() => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],
             'flash' => [
-                'property' => fn () => $request->session()->get('property'),
-                'message' => fn () => $request->session()->get('message'),
-                'error' => fn () => $request->session()->get('error'),
-                'success' => fn () => $request->session()->get('success'),
+                'property' => fn() => $request->session()->get('property'),
+                'message' => fn() => $request->session()->get('message'),
+                'error' => fn() => $request->session()->get('error'),
+                'success' => fn() => $request->session()->get('success'),
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
-            'company' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
-            'appName' => fn () => function_exists('companyOrGlobalSetting')
+            'appBuildId' => fn() => AppBuild::clientId(),
+            'company' => fn() => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            'appName' => fn() => function_exists('companyOrGlobalSetting')
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
                 : config('app.name'),
-            'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
-            'notificationAlertSettings' => fn () => $request->user()
-                ? Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $request->user()->id))
+            'appTheme' => fn() => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            'notificationAlertSettings' => fn() => $request->user()
+                ? Inertia::defer(fn() => UserNotificationAlertSetting::forUser((int) $request->user()->id))
                 : null,
             // Permissions/modules live on auth.*; sidebar keeps only sidebar-specific extras.
             'sidebar' => [
-                'unreadMessagesCount' => fn () => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,
-                'customLinks' => fn () => function_exists('user') ? $this->getCustomLinks() : [],
-                'worksuitePlugins' => fn () => function_exists('user') ? $this->getWorksuitePlugins() : [],
+                'unreadMessagesCount' => fn() => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,
+                'customLinks' => fn() => function_exists('user') ? $this->getCustomLinks() : [],
+                'worksuitePlugins' => fn() => function_exists('user') ? $this->getWorksuitePlugins() : [],
             ],
             'currentRouteName' => $request->route() ? $request->route()->getName() : '',
-            'pipelines' => fn () => $this->getPipelines(),
+            'pipelines' => fn() => $this->getPipelines(),
 
             // Internationalization props (dictionaries load via GET /account/api/i18n/{locale}.json)
-            'locale' => fn () => $this->getCurrentLocale(),
-            'isRtl' => fn () => $this->isRtlLocale(),
-            'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
-            'featureFlags' => fn () => FeatureFlags::forInertia(),
-            'viewerTimezone' => fn () => UserTimezone::forViewer(
+            'locale' => fn() => $this->getCurrentLocale(),
+            'isRtl' => fn() => $this->isRtlLocale(),
+            'availableLocales' => fn() => app(I18nTranslationService::class)->getAvailableLocales(),
+            'featureFlags' => fn() => FeatureFlags::forInertia(),
+            'viewerTimezone' => fn() => UserTimezone::forViewer(
                 $request->user(),
                 function_exists('company') ? company() : null
             ),
-            'integrationsHubUrl' => fn () => $this->getIntegrationsHubUrl(),
-            'posthog' => fn () => $this->getPostHogConfig(),
-            'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
-            'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
-            'stages' => fn () => $this->getPipelineStages($request),
+            'integrationsHubUrl' => fn() => $this->getIntegrationsHubUrl(),
+            'posthog' => fn() => $this->getPostHogConfig(),
+            'pipelineCategoryScopeMap' => fn() => $this->getPipelineCategoryScopeMap($request),
+            'pipelineFieldScopeMap' => fn() => $this->getPipelineFieldScopeMap($request),
+            'stages' => fn() => $this->getPipelineStages($request),
         ]);
     }
 
@@ -250,27 +252,31 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Get the authenticated user with their LeadAgent ID appended.
+     * Auth user payload for Inertia, with computed display-only fields.
+     *
+     * Clone before setAttribute so those keys never dirty the live
+     * auth/session User (they are not users columns).
      */
     private function getUserWithLeadAgentId()
     {
         $user = auth()->user()->load(['roles', 'employeeDetail.designation']);
+        $shared = clone $user;
 
         // Append the first lead_agent id for this user (used by invitation feature)
         $leadAgent = \App\Models\LeadAgent::where('user_id', $user->id)->first();
-        $user->setAttribute('lead_agent_id', $leadAgent?->id);
+        $shared->setAttribute('lead_agent_id', $leadAgent?->id);
 
         // Used by integrations feature UIs to decide whether to show an integration badge.
-        $user->setAttribute('has_zoho_profile', ! empty($user->employeeDetail?->zoho_id));
+        $shared->setAttribute('has_zoho_profile', ! empty($user->employeeDetail?->zoho_id));
 
         // Drives ProductTour auto-launch (useProductTour). Per-tourId so list
         // tours do not share seen-state with deal/lead detail tours.
-        $user->setAttribute(
+        $shared->setAttribute(
             'seen_product_tours',
             UserProductTour::seenTourIdsForUser((int) $user->id)
         );
 
-        return $user;
+        return $shared;
     }
 
     /**

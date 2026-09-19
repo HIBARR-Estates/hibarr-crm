@@ -32,6 +32,7 @@ interface DealTeamModalProps {
         designation_name?: string;
     }>;
     canEdit?: boolean;
+    canEditAgent?: boolean;
 }
 
 type AddingRole = "agent" | "participants" | "watchers" | null;
@@ -131,7 +132,9 @@ export default function DealTeamModal({
     watchers,
     employees,
     canEdit = true,
+    canEditAgent,
 }: DealTeamModalProps) {
+    const agentEditable = canEditAgent ?? canEdit;
     const { t } = useTranslation();
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
     const [adding, setAdding] = useState<AddingRole>(null);
@@ -169,7 +172,7 @@ export default function DealTeamModal({
     );
 
     const handleAgentPick = (agentId: number) => {
-        if (!canEdit) return;
+        if (!agentEditable) return;
         setPendingPickId(agentId);
         saveTeamField("agent_id", agentId)
             .then(() => setAdding(null))
@@ -177,7 +180,7 @@ export default function DealTeamModal({
     };
 
     const handleUnassignAgent = () => {
-        if (!canEdit || !agent) return;
+        if (!agentEditable || !agent) return;
         setPendingRemoveId(agent.id);
         saveTeamField("agent_id", null).finally(() => setPendingRemoveId(null));
     };
@@ -243,7 +246,7 @@ export default function DealTeamModal({
                         )}`}
                         tagVariant="blue"
                         action={
-                            canEdit && agent ? (
+                            agentEditable && agent ? (
                                 <DealButton
                                     variant="ghost"
                                     size="sm"
@@ -265,7 +268,7 @@ export default function DealTeamModal({
                                 }}
                                 type="agent"
                                 onRemove={
-                                    canEdit ? handleUnassignAgent : undefined
+                                    agentEditable ? handleUnassignAgent : undefined
                                 }
                                 removing={pendingRemoveId === agent.id}
                             />
@@ -274,7 +277,7 @@ export default function DealTeamModal({
                                 <p className="mb-2.5 text-xs text-[#5b6472]">
                                     {t("pages.deals.header.team.no_agent_hint")}
                                 </p>
-                                {canEdit && (
+                                {agentEditable && (
                                     <DealButton
                                         variant="primary"
                                         size="sm"
@@ -287,7 +290,7 @@ export default function DealTeamModal({
                                 )}
                             </div>
                         )}
-                        {canEdit && adding === "agent" && (
+                        {agentEditable && adding === "agent" && (
                             <PickerSlot>
                                 <DealAgentPicker
                                     exclude={taken}

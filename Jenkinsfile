@@ -133,7 +133,8 @@ pipeline {
                             chmod -R 775 bootstrap/cache || true
                             # ----------------------------
 
-                            # Run Build via Makefile
+                            # Run Build via Makefile (BUILD_ID is expanded by the Jenkins agent)
+                            export BUILD_ID=$BUILD_ID
                             make build-artifact
 
                             echo 'Step 1b: gRPC binary setup...'

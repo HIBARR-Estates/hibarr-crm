@@ -5,10 +5,11 @@
     <div class="row">
         <div class="col-lg-12 mb-4">
             <x-forms.checkbox :fieldLabel="__('app.status')" fieldName="keycloak_status" fieldId="keycloakButton"
-                fieldValue="enable" fieldRequired="true" :checked="$credentials->keycloak_status == 'enable'" />
+                fieldValue="enable" fieldRequired="true" :checked="true" :fieldPermission="true" />
+            <p class="text-muted f-12 mb-0">(@lang('messages.keycloakAlwaysEnabled'))</p>
         </div>
 
-        <div class="col-lg-12 keycloakSection mb-3 @if ($credentials->keycloak_status !== 'enable') d-none @endif">
+        <div class="col-lg-12 keycloakSection mb-3">
             <div class="row">
                 <div class="col-lg-6">
                     <x-forms.text :fieldLabel="__('app.socialAuthSettings.keycloakClientId')"
@@ -70,9 +71,3 @@
         <!-- Buttons End -->
     </div>
 </div>
-
-<script>
-    $('#keycloakButton').on('change', function() {
-        $('.keycloakSection').toggleClass('d-none');
-    });
-</script>

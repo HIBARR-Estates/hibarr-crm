@@ -396,7 +396,7 @@ class FormDataService
             return $leadService->getPaginatedLeads($request, user()->permission('view_lead'));
         }
         
-        return $leadService->getDropdownLeads($request->get('limit', 100));
+        return $leadService->getDropdownLeads($request->get('limit', 100), $request->get('search'));
     }
 
     /**

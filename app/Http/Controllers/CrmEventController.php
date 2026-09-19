@@ -8,6 +8,7 @@ use App\Enums\CrmEventStatus;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Services\CrmEventService;
+use App\Support\RequestCompany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -456,16 +457,12 @@ class CrmEventController extends Controller
     }
 
     /**
-     * Resolve company ID from the X-COMPANY-ID header (external API consumers)
-     * or from the authenticated session user (frontend / Inertia requests).
+     * Company of the authenticated session user (frontend / Inertia requests)
+     * or of the API token (external consumers) — never a bare client header.
      */
     protected function resolveCompanyId(Request $request): int
     {
-        if ($request->hasHeader('X-COMPANY-ID') && $request->header('X-COMPANY-ID') !== '') {
-            return (int) $request->header('X-COMPANY-ID');
-        }
-
-        return (int) (Auth::user()?->company_id ?? 0);
+        return RequestCompany::id($request) ?? 0;
     }
 
     /**

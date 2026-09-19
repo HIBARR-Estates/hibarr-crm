@@ -6,6 +6,8 @@ use App\Models\Deal;
 use App\Models\User;
 use App\Services\MlmCommissionService;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\PackageCommissionTestCase;
 
 /**
@@ -20,6 +22,40 @@ use Tests\PackageCommissionTestCase;
  */
 class DealValueBreakdownSummaryTest extends PackageCommissionTestCase
 {
+    use SetsFeatureFlags;
+
+    public function test_deal_value_commission_flag_is_known(): void
+    {
+        $this->assertContains(
+            MlmCommissionService::DEAL_VALUE_COMMISSION_FLAG,
+            config('features.known_flags'),
+        );
+    }
+
+    /**
+     * With the flag off the deal value panel must not receive commission
+     * figures at all — hiding them client-side still ships the amounts.
+     */
+    public function test_breakdown_omits_commission_when_the_flag_is_off(): void
+    {
+        $this->setFeatureFlag(MlmCommissionService::DEAL_VALUE_COMMISSION_FLAG, false);
+
+        $ctx = $this->seedAgentOnly();
+        $packageId = $this->seedPackage($ctx['company'], 1500, 'fixed', 500);
+        $dealId = $this->seedDeal($ctx['company'], $ctx['agent'], 1400);
+        $this->attachPackage($dealId, $packageId);
+
+        $deal = Deal::withoutGlobalScopes()->findOrFail($dealId);
+        $viewer = User::withoutGlobalScopes()->findOrFail(
+            $this->agentUserId($ctx['agent']),
+        );
+
+        $breakdown = app(MlmCommissionService::class)
+            ->attachCommissionSummary([], $deal, $viewer);
+
+        $this->assertNull($breakdown['commission']);
+    }
+
     /** @return array{company: int, agent: int} */
     private function seedAgentOnly(): array
     {
@@ -39,6 +75,11 @@ class DealValueBreakdownSummaryTest extends PackageCommissionTestCase
         }
 
         return app(MlmCommissionService::class)->getCommissionSummary($query->findOrFail($dealId));
+    }
+
+    private function agentUserId(int $agentId): int
+    {
+        return (int) DB::table('lead_agents')->where('id', $agentId)->value('user_id');
     }
 
     public function test_package_deal_revenue_is_value_minus_commission(): void

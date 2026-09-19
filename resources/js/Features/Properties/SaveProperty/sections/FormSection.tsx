@@ -15,6 +15,11 @@ interface FormSectionProps {
     extra?: React.ReactNode;
     /** Section description shown under the title */
     description?: string;
+    /**
+     * Keep children mounted when collapsed so Ant Design Form.Items stay
+     * registered and their values are included in validateFields()/submit.
+     */
+    keepMounted?: boolean;
 }
 
 /**
@@ -29,6 +34,7 @@ const FormSection: React.FC<FormSectionProps> = ({
     errorCount = 0,
     extra,
     description,
+    keepMounted = false,
 }) => {
     const [open, setOpen] = useState(defaultOpen);
 
@@ -74,8 +80,11 @@ const FormSection: React.FC<FormSectionProps> = ({
                 </div>
             </div>
             {/* Content */}
-            {open && (
-                <div className="px-5 pb-5 pt-1 border-t border-gray-100">
+            {(open || keepMounted) && (
+                <div
+                    className="px-5 pb-5 pt-1 border-t border-gray-100"
+                    hidden={!open}
+                >
                     {children}
                 </div>
             )}

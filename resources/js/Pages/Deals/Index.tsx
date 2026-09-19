@@ -40,9 +40,10 @@ import {
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { MenuProps, Spin } from "antd";
-import { DataTable } from "@/Components/DataTable";
+import { DataTable, withMobileResponsiveColumns } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import ImportDeals from "@/Features/Deals/ImportDeals";
@@ -58,6 +59,7 @@ import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
@@ -140,6 +142,7 @@ const Index = ({
     addLeadPermission = "all",
 }: IndexProps) => {
     const { t } = useTranslation();
+    useUserDateTime();
 
     // Get current user and permissions for deal permission checks
     const { props: pageProps } = usePage<any>();
@@ -152,6 +155,7 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const showProductTour =
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
     const tourRef = useRef<ProductTourHandle>(null);
@@ -315,8 +319,9 @@ const Index = ({
             stages: pick("lead-stages"),
             activePipelineId,
             excludeFields: ["search"],
+            isKanbanView,
         });
-    }, [filterFormData, pipelines, activePipelineId]);
+    }, [filterFormData, pipelines, activePipelineId, isKanbanView]);
 
     // Setup search and filter contexts
     const { filter } = usePageSearchAndFilter({
@@ -414,6 +419,9 @@ const Index = ({
     // Handle agent change from table or card
     const handleAgentChange = useCallback(
         (deal: Deal, agentId: number | null) => {
+            if (deal.commission_locked) {
+                return;
+            }
             changeAgent(
                 { deal_id: deal.id, agent_id: agentId },
                 {
@@ -524,13 +532,17 @@ const Index = ({
         ];
     };
 
-    const columns = DEAL_TABLE_COLUMNS({
-        actionItems: getActionItems,
-        onAgentChange: handleAgentChange,
-        canEdit: canEditDeal,
-        t,
-        td,
-    });
+    const columns = withMobileResponsiveColumns(
+        DEAL_TABLE_COLUMNS({
+            actionItems: getActionItems,
+            onAgentChange: handleAgentChange,
+            canEdit: canEditDeal,
+            t,
+            td,
+        }),
+        ["created_at", "lead_source", "updated_at"],
+        isMobileResponsive,
+    );
 
     const valueLeadPipelineId = activePipelineId;
 

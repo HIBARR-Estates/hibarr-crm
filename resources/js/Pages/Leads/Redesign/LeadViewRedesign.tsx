@@ -16,6 +16,7 @@ import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -37,6 +38,8 @@ import {
     useCompanyCurrency,
 } from "./adapters/currencyAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
+import { toLeadMeetingPreview } from "./adapters/meetingAdapter";
+import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTick";
 import { itineraryCount } from "./adapters/itineraryAdapter";
 import { formatMobileForDisplay } from "@/lib/utils";
 import type { Lead } from "@/Types/api/leads";
@@ -117,6 +120,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -323,17 +327,29 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
+    // Re-evaluate nextMeeting when a start or end boundary passes, so a live
+    // meeting doesn't keep the "next" slot and an ended one drops to past.
+    const meetingClockTick = useMeetingClockTick(leadFollowUps);
+
     const nextMeeting = useMemo(() => {
+        // Soonest upcoming only — a live meeting is happening now, not "next".
         return (
             [...leadFollowUps]
-                .filter((f) => f.status !== "completed")
+                .map((followup) => ({
+                    followup,
+                    preview: toLeadMeetingPreview(followup),
+                }))
+                .filter(({ preview }) => preview.isUpcoming && preview.startsAt)
                 .sort(
-                    (a, b) =>
-                        new Date(a.next_follow_up_date).getTime() -
-                        new Date(b.next_follow_up_date).getTime(),
-                )[0] ?? null
+                    (left, right) =>
+                        left.preview.startsAt!.getTime() -
+                        right.preview.startsAt!.getTime(),
+                )[0]?.followup ?? null
         );
-    }, [leadFollowUps]);
+        // meetingClockTick is a deliberate dependency: it forces re-evaluation
+        // of "now" once the soonest follow-up's start or end passes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leadFollowUps, meetingClockTick]);
 
     const openTasks = useMemo(
         () => tasks.filter((task) => toLeadTaskPreview(task).isOpen),
@@ -639,7 +655,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 { name: pageTitle },
             ]}
         >
-            <div className="lead-redesign">
+            <div
+                className={`lead-redesign ${
+                    isMobileResponsive ? "lr-mobile-responsive" : ""
+                }`}
+            >
                 {showProductTour && (
                     <ProductTour
                         ref={tourRef}
@@ -704,6 +724,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
+                            {isMobileResponsive && (
+                                <div className="mb-4">
+                                    <DossierQuickActions
+                                        onLogAction={() =>
+                                            setLogActionOpen(true)
+                                        }
+                                        onAddNote={() =>
+                                            setAddNoteOpen(true)
+                                        }
+                                        onScheduleMeeting={() =>
+                                            setAddMeetingOpen(true)
+                                        }
+                                    />
+                                </div>
+                            )}
+
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
                                     leadId={lead.id}
@@ -769,11 +805,17 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
-                            <DossierQuickActions
-                                onLogAction={() => setLogActionOpen(true)}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onScheduleMeeting={() => setAddMeetingOpen(true)}
-                            />
+                            {!isMobileResponsive && (
+                                <DossierQuickActions
+                                    onLogAction={() =>
+                                        setLogActionOpen(true)
+                                    }
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            )}
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(
@@ -1042,6 +1084,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
+                            timezone: form.timezone,
                         },
                         () => setAddMeetingOpen(false),
                     )

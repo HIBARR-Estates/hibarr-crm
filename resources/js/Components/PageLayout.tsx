@@ -18,10 +18,15 @@ import {
     SettingOutlined,
 } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
+import { MenuOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useMobileSidebar } from "@/contexts/MobileSidebarContext";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
+import TimezoneIndicator from "./TimezoneIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -54,7 +59,7 @@ export default function PageLayout({
     searchComp,
     filterSection,
     config = defaultConfig,
-    mainContentClassName = "px-6 py-6",
+    mainContentClassName,
     onRefresh,
     isRefreshing = false,
 }: PageLayoutProps) {
@@ -87,9 +92,33 @@ export default function PageLayout({
 
     const { message } = App.useApp();
     const { t } = useTranslation();
+    const { td } = useTd();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const { openMobileSidebar } = useMobileSidebar();
     const { props } = usePage<PageProps>();
     const { auth, appName, flash } = props;
     const { user } = auth;
+
+    // Flag off preserves the exact previous default/classes at every width.
+    const resolvedMainContentClassName =
+        mainContentClassName ??
+        (isMobileResponsive ? "px-3 sm:px-6 py-4 sm:py-6" : "px-6 py-6");
+    const topbarPaddingClassName = isMobileResponsive
+        ? "px-3 sm:px-6 py-3 sm:py-4"
+        : "px-6 py-4";
+    // Keep search on its own row below the app's lg (1024px) mobile cutoff.
+    const topbarRowClassName = isMobileResponsive
+        ? "flex items-center gap-x-3 lg:gap-x-6 gap-y-3 flex-wrap lg:flex-nowrap"
+        : "flex items-center gap-x-6";
+    const searchWrapperClassName = isMobileResponsive
+        ? "order-last lg:order-none basis-full lg:basis-0 lg:flex-1 min-w-0"
+        : "flex-1";
+    const searchInnerClassName = isMobileResponsive
+        ? "w-full max-w-lg mx-auto min-w-0"
+        : "max-w-lg mx-auto";
+    const userIdentityClassName = isMobileResponsive
+        ? "hidden lg:flex flex-col min-w-0"
+        : "flex flex-col";
 
     useEffect(() => {
         if (flash?.success) {
@@ -159,12 +188,24 @@ export default function PageLayout({
 
             <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
-                <div className="bg-white border-b border-gray-200 px-6 py-4">
-                    <div className="flex items-center gap-x-6">
-                        <div className="">
+                <div
+                    className={`bg-white border-b border-gray-200 ${topbarPaddingClassName}`}
+                >
+                    <div className={topbarRowClassName}>
+                        {isMobileResponsive && (
+                            <button
+                                type="button"
+                                onClick={openMobileSidebar}
+                                aria-label={td("Open menu", { source: "en" })}
+                                className="lg:hidden flex items-center justify-center w-11 h-11 -ml-2 flex-shrink-0 rounded-lg text-gray-600 hover:bg-gray-100"
+                            >
+                                <MenuOutlined className="text-lg" />
+                            </button>
+                        )}
+                        <div className="min-w-0">
                             <div className="flex items-center space-x-3">
                                 {config.showTitle && (
-                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-xs">
+                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-[60vw] sm:max-w-xs">
                                         {title}
                                     </h1>
                                 )}
@@ -182,15 +223,24 @@ export default function PageLayout({
 
                         {/* Search Component */}
                         {searchComp && (
-                            <div className="flex-1">
-                                {/* set a max width so it doesn't stretch too far */}
-                                <div className="max-w-lg mx-auto">
+                            <div className={searchWrapperClassName}>
+                                {/* Full-width on the wrapped mobile row; cap width on desktop. */}
+                                <div className={searchInnerClassName}>
                                     {searchComp}
                                 </div>
                             </div>
                         )}
-                        <div className="ml-auto flex items-center gap-2 sm:gap-4">
-                            <LanguageSwitcher />
+                        <div className="ml-auto flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                            <div className="flex items-center gap-2">
+                                <LanguageSwitcher
+                                    labelClassName={
+                                        isMobileResponsive
+                                            ? "hidden lg:inline-flex"
+                                            : undefined
+                                    }
+                                />
+                                <TimezoneIndicator />
+                            </div>
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}
@@ -206,7 +256,7 @@ export default function PageLayout({
                                         >
                                             {user?.name?.charAt(0)}
                                         </Avatar>
-                                        <div className="flex flex-col">
+                                        <div className={userIdentityClassName}>
                                             <span className="text-sm font-medium truncate">
                                                 {user?.name}
                                             </span>
@@ -233,7 +283,7 @@ export default function PageLayout({
                 )}
 
                 {/* Main Content */}
-                <div className={mainContentClassName}>{children}</div>
+                <div className={resolvedMainContentClassName}>{children}</div>
             </div>
         </>
     );

@@ -5,9 +5,8 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import {
-    getMeetingStatusTone,
+    getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/DealBulkActionBar";
@@ -25,6 +24,9 @@ import {
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
+import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTick";
 import useLeadMeetingCreate from "../../../hooks/useLeadMeetingCreate";
 import LeadMeetingDetailModal from "../LeadMeetingDetailModal";
 
@@ -53,9 +55,12 @@ export default function MeetingsTab({
 }: MeetingsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    useUserDateTime();
+    const dateTimeVersion = getUserDateTimeContextVersion();
     const { props } = usePage();
     const { lead, leadFollowUps, setLeadFollowUps, addLeadFollowUp, deals } =
         useLeadWorkspace();
+    const meetingClockTick = useMeetingClockTick(leadFollowUps);
     const [scheduleOpen, setScheduleOpen] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -63,8 +68,8 @@ export default function MeetingsTab({
     const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
         null,
     );
-    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
-        null,
+    const [detailInitialPanel, setDetailInitialPanel] = useState<"info" | "summary">(
+        "info",
     );
 
     const {
@@ -77,12 +82,6 @@ export default function MeetingsTab({
     const detailFollowup =
         leadFollowUps.find((followup) => followup.id === detailFollowupId) ??
         null;
-    const summaryFollowup =
-        leadFollowUps.find((followup) => followup.id === summaryFollowupId) ??
-        null;
-    const summaryDeal = summaryFollowup?.deal_id
-        ? (deals.find((deal) => deal.id === summaryFollowup.deal_id) ?? null)
-        : null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string; status: string },
@@ -92,13 +91,14 @@ export default function MeetingsTab({
     const isBulkUpdating = isLoading({ status: bulkStatus });
 
     const meetings = useMemo(
-        () =>
-            leadFollowUps.map((followup) =>
-                toWorkspaceMeetingListItem(followup),
-            ),
-        [leadFollowUps],
+        () => leadFollowUps.map((followup) => toWorkspaceMeetingListItem(followup)),
+        [leadFollowUps, dateTimeVersion, meetingClockTick],
     );
 
+    const live = useMemo(
+        () => meetings.filter((meeting) => meeting.isLive),
+        [meetings],
+    );
     const upcoming = useMemo(
         () => meetings.filter((meeting) => meeting.isUpcoming),
         [meetings],
@@ -182,10 +182,15 @@ export default function MeetingsTab({
             {hasMeetings && (
                 <div className="mb-3.5 flex items-center justify-between gap-3">
                     <span className="text-xs text-[#5b6472]">
-                        {upcoming.length}{" "}
-                        {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                        {past.length}{" "}
-                        {t("pages.deals.workspace.meetings.past_label")}
+                        {[
+                            live.length > 0
+                                ? `${live.length} ${t("pages.deals.workspace.meetings.live_label")}`
+                                : null,
+                            `${upcoming.length} ${t("pages.deals.workspace.meetings.upcoming_label")}`,
+                            `${past.length} ${t("pages.deals.workspace.meetings.past_label")}`,
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </span>
                     <div className="flex gap-1.5">
                         {showSelectMode && (
@@ -262,6 +267,7 @@ export default function MeetingsTab({
             ) : (
                 (
                     [
+                        { label: "Live" as const, items: live },
                         { label: "Upcoming" as const, items: upcoming },
                         { label: "Past" as const, items: past },
                     ] as const
@@ -269,16 +275,22 @@ export default function MeetingsTab({
                     .filter((section) => section.items.length > 0)
                     .map((section) => {
                         const isPastSection = section.label === "Past";
+                        const sectionTitle =
+                            section.label === "Live"
+                                ? t(
+                                      "pages.deals.workspace.meetings.section_live",
+                                  )
+                                : section.label === "Upcoming"
+                                  ? t(
+                                        "pages.deals.workspace.meetings.section_upcoming",
+                                    )
+                                  : t(
+                                        "pages.deals.workspace.meetings.section_past",
+                                    );
                         return (
                             <section key={section.label} className="mb-2">
                                 <div className="dr-label mb-2">
-                                    {section.label === "Upcoming"
-                                        ? t(
-                                              "pages.deals.workspace.meetings.section_upcoming",
-                                          )
-                                        : t(
-                                              "pages.deals.workspace.meetings.section_past",
-                                          )}
+                                    {sectionTitle}
                                 </div>
                                 {section.items.map((meeting) => (
                                     <div
@@ -303,13 +315,14 @@ export default function MeetingsTab({
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                selectMode
-                                                    ? toggleSelect(meeting.id)
-                                                    : setDetailFollowupId(
-                                                          meeting.id,
-                                                      )
-                                            }
+                                            onClick={() => {
+                                                if (selectMode) {
+                                                    toggleSelect(meeting.id);
+                                                    return;
+                                                }
+                                                setDetailInitialPanel("info");
+                                                setDetailFollowupId(meeting.id);
+                                            }}
                                             aria-label={
                                                 selectMode
                                                     ? `Select meeting ${meeting.title}`
@@ -354,12 +367,16 @@ export default function MeetingsTab({
                                                         )}
                                                     </span>
                                                     <span
-                                                        className={`dr-pill ${getMeetingStatusTone(
-                                                            meeting.statusLabel,
-                                                        )}`}
+                                                        className={`dr-pill ${
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).tone
+                                                        }`}
                                                     >
                                                         {td(
-                                                            meeting.statusLabel,
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).label,
                                                             { source: "en" },
                                                         )}
                                                     </span>
@@ -376,9 +393,8 @@ export default function MeetingsTab({
                                                                     event,
                                                                 ) => {
                                                                     event.stopPropagation();
-                                                                    setSummaryFollowupId(
-                                                                        meeting.id,
-                                                                    );
+                                                                    setDetailInitialPanel("summary");
+                                                                    setDetailFollowupId(meeting.id);
                                                                 }}
                                                                 onKeyDown={(
                                                                     event,
@@ -388,9 +404,8 @@ export default function MeetingsTab({
                                                                         "Enter"
                                                                     ) {
                                                                         event.stopPropagation();
-                                                                        setSummaryFollowupId(
-                                                                            meeting.id,
-                                                                        );
+                                                                        setDetailInitialPanel("summary");
+                                                                        setDetailFollowupId(meeting.id);
                                                                     }
                                                                 }}
                                                             >
@@ -471,6 +486,7 @@ export default function MeetingsTab({
                             hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
+                            timezone: form.timezone,
                         },
                         () => handleCreateSuccess(),
                     )
@@ -487,17 +503,12 @@ export default function MeetingsTab({
                 meeting={detailFollowup}
                 meetingTypes={meetingTypes}
                 permissions={permissions}
-                onClose={() => setDetailFollowupId(null)}
+                initialPanel={detailInitialPanel}
+                onClose={() => {
+                    setDetailFollowupId(null);
+                    setDetailInitialPanel("info");
+                }}
             />
-
-            {summaryFollowup && summaryDeal && (
-                <ViewFollowup
-                    open={!!summaryFollowup}
-                    onClose={() => setSummaryFollowupId(null)}
-                    followup={summaryFollowup}
-                    deal={summaryDeal}
-                />
-            )}
 
             <DealConfirmDialog
                 open={confirmBulkCancel}

@@ -97,7 +97,7 @@ color: #fff !important;
                                     <x-forms.label class="my-3" fieldId="description-text"
                                         :fieldLabel="__('modules.knowledgeBase.knowledgeDesc')">
                                     </x-forms.label>
-                                    <div id="description"> {!! $knowledge->description !!} </div>
+                                    <div id="description"> {!! clean_html($knowledge->description) !!} </div>
                                     <textarea name="description" id="description-text" class="d-none"></textarea>
                                 </div>
                             </div>

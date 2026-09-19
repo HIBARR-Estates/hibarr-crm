@@ -18,8 +18,9 @@ import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
@@ -29,6 +30,8 @@ import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { meetingBucket } from "@/Pages/Meetings/Redesign/adapters/meetingViewModel";
+import { getUserDateTimeTimezone } from "@/lib/userDateTime";
 
 dayjs.extend(relativeTime);
 
@@ -234,14 +237,22 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                     <div className="flex-1 divide-y divide-slate-100 overflow-y-auto">
                         {meetings.map((meeting) => {
                             const start = dayjs(meeting.next_follow_up_date);
-                            const isPast = start.isBefore(dayjs());
+                            const bucket = meetingBucket(
+                                meeting,
+                                getUserDateTimeTimezone(),
+                            );
+                            const isPast = bucket === "past";
+                            const isLive = bucket === "live";
                             const isSoon =
-                                !isPast && start.diff(dayjs(), "hour") <= 24;
-                            const accentColor = isPast
-                                ? "#ef4444"
-                                : isSoon
-                                  ? "#6366f1"
-                                  : "#e2e8f0";
+                                bucket === "upcoming" &&
+                                start.diff(dayjs(), "hour") <= 24;
+                            const accentColor = isLive
+                                ? "#dc2626"
+                                : isPast
+                                  ? "#94a3b8"
+                                  : isSoon
+                                    ? "#6366f1"
+                                    : "#e2e8f0";
                             const participants = meeting.participant_users ?? [];
 
                             return (
@@ -280,14 +291,20 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                                 </span>
                                                 <span
                                                     className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
-                                                        isPast
+                                                        isLive
                                                             ? "border-red-200 bg-red-50 text-red-700"
-                                                            : isSoon
-                                                              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                                                              : "border-slate-200 bg-slate-100 text-slate-500"
+                                                            : isPast
+                                                              ? "border-slate-200 bg-slate-100 text-slate-500"
+                                                              : isSoon
+                                                                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                                                : "border-slate-200 bg-slate-100 text-slate-500"
                                                     }`}
                                                 >
-                                                    {start.fromNow()}
+                                                    {isLive
+                                                        ? td("Live", {
+                                                              source: "en",
+                                                          })
+                                                        : start.fromNow()}
                                                 </span>
                                                 <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
                                                     <Dropdown
@@ -352,7 +369,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
             </Card>
 
             {canAdd && (
-                <ScheduleMeetingDrawer
+                <MeetingScheduleModal
                     open={scheduleOpen}
                     onClose={() => setScheduleOpen(false)}
                     userDeals={userDeals}
@@ -361,14 +378,23 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                 />
             )}
 
-            {selectedMeeting && (meetingDeal || meetingLead) && (
-                <ViewFollowup
-                    open={action === "view"}
+            {selectedMeeting && (meetingDeal || meetingLead) && action === "view" && (
+                <MeetingViewModal
+                    meeting={selectedMeeting}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => handleClose(undefined)}
-                    followup={selectedMeeting}
-                    deal={meetingDeal}
-                    lead={meetingLead as Lead}
-                    onEdit={() => handleAction("edit", selectedMeeting)}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open
+                            onClose={() => handleClose(undefined)}
+                            followup={selectedMeeting}
+                            deal={meetingDeal}
+                            lead={meetingLead as Lead}
+                            onEdit={() => handleAction("edit", selectedMeeting)}
+                        />
+                    }
                 />
             )}
 

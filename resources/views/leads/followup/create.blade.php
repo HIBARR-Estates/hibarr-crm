@@ -23,17 +23,47 @@
                             labelClasses="custom-label-class"  otherClasses="custom-value-class" />
                     </div>
 
+                    @php
+                        // Date/time below are entered in this zone — the user's own by
+                        // default, or the host's (deal agent) via the button further down.
+                        // Their defaults are "now" on that same zone's clock.
+                        $meetingTimezone = \App\Support\UserTimezone::resolve(user(), company());
+                        $hostUser = \App\Support\FeatureFlags::enabled('crm.meeting-host')
+                            ? $deal->leadAgent?->user
+                            : null;
+                        $hostTimezone = $hostUser && (int) $hostUser->id !== (int) user()->id
+                            ? \App\Support\UserTimezone::resolve($hostUser, company())
+                            : null;
+                    @endphp
                     <div class="col-md-6">
                         <x-forms.datepicker fieldId="next_follow_up_date" fieldRequired="true"
                             :fieldLabel="__('modules.lead.leadFollowUp')" fieldName="next_follow_up_date"
-                            :fieldValue="now(company()->timezone)->format(company()->date_format)"
+                            :fieldValue="now($meetingTimezone)->format(company()->date_format)"
                             :fieldPlaceholder="__('placeholders.date')" />
                     </div>
                     <div class="col-md-6">
                         <div class="bootstrap-timepicker timepicker">
                             <x-forms.text :fieldLabel="__('Meeting Start Time')" :fieldPlaceholder="__('placeholders.hours')"
                                 fieldName="start_time" fieldId="start_time" fieldRequired="true"
-                                :fieldValue="now(company()->timezone)->addMinutes(30)->format(company()->time_format)" />
+                                :fieldValue="now($meetingTimezone)->addMinutes(30)->format(company()->time_format)" />
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <x-forms.select fieldId="timezone" :fieldLabel="__('Timezone')" fieldName="timezone"
+                            search="true">
+                            @foreach (\DateTimeZone::listIdentifiers() as $timezoneOption)
+                                <option value="{{ $timezoneOption }}" @selected($timezoneOption === $meetingTimezone)>
+                                    {{ str_replace('_', ' ', $timezoneOption) }}
+                                </option>
+                            @endforeach
+                        </x-forms.select>
+                        <div class="mt-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary mr-2 meeting-timezone-option"
+                                data-timezone="{{ $meetingTimezone }}">My timezone</button>
+                            @if ($hostTimezone)
+                                <button type="button" class="btn btn-sm btn-outline-secondary meeting-timezone-option"
+                                    data-timezone="{{ $hostTimezone }}">Host's timezone ({{ $hostUser->name }})</button>
+                            @endif
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -110,6 +140,10 @@
     $(document).ready(function() {
 
         $(".select-picker").selectpicker();
+
+        $('.meeting-timezone-option').click(function() {
+            $('#timezone').val($(this).data('timezone')).selectpicker('refresh');
+        });
 
         $('#start_time').timepicker({
             @if (company()->time_format == 'H:i')

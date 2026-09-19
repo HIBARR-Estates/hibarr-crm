@@ -423,12 +423,22 @@ class LeadService
     }
 
     /**
-     * Get dropdown leads (limited for performance)
+     * Get dropdown leads (limited for performance). $search, when given,
+     * filters by name or email — a lighter-weight alternative to
+     * getPaginatedLeads()'s fuller filter set (which also matches phone
+     * numbers via LeadSearchQuery) for callers that just need a quick
+     * type-to-find picker.
      */
-    public function getDropdownLeads(int $limit = 100): \Illuminate\Support\Collection
+    public function getDropdownLeads(int $limit = 100, ?string $search = null): \Illuminate\Support\Collection
     {
-        return Lead::select('id', 'client_name', 'salutation', 'lead_owner')
+        return Lead::select('id', 'client_name', 'client_email', 'salutation', 'lead_owner')
             ->where('company_id', company()->id)
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('client_name', 'like', '%'.$search.'%')
+                        ->orWhere('client_email', 'like', '%'.$search.'%');
+                });
+            })
             ->orderBy('client_name')
             ->limit($limit)
             ->get()
@@ -444,6 +454,7 @@ class LeadService
                     'id' => $contact->id,
                     'client_name' => $contact->client_name,
                     'client_name_salutation' => $salutationDisplay.$contact->client_name,
+                    'client_email' => $contact->client_email,
                     'lead_owner' => $contact->lead_owner,
                 ];
             });

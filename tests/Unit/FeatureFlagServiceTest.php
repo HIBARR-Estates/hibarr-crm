@@ -175,6 +175,26 @@ class FeatureFlagServiceTest extends TestCase
         $this->assertTrue($inertiaFlags['crm.lead-ai-summary']);
     }
 
+    public function test_deal_value_commission_flag_is_exposed_for_inertia(): void
+    {
+        Http::fake([
+            '*/shared/flags*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'flags' => [
+                        'crm.deal-value-commission' => true,
+                    ],
+                ],
+            ]),
+        ]);
+
+        $service = app(FeatureFlagService::class);
+        $inertiaFlags = $service->forInertia();
+
+        $this->assertArrayHasKey('crm.deal-value-commission', $inertiaFlags);
+        $this->assertTrue($inertiaFlags['crm.deal-value-commission']);
+    }
+
     public function test_cache_write_failure_still_returns_api_flags(): void
     {
         Http::fake([

@@ -7,11 +7,9 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import {
-    getBrowserTimezone,
-    persistUserTimezoneOnce,
-} from "@/lib/userTimezone";
+import { persistUserTimezoneOnce } from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
+import useCalendarSyncCreateWatch from "@/Hooks/useCalendarSyncCreateWatch";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     canUseZohoMeeting,
@@ -40,6 +38,8 @@ export interface DealMeetingCreateInput {
     hostId: number | null;
     remark: string;
     reminders: Reminder[];
+    /** IANA zone the date/time were entered in — see MeetingFormState. */
+    timezone?: string;
 }
 
 interface FollowUpStorePayload {
@@ -52,9 +52,9 @@ interface FollowUpStorePayload {
     duration?: number | null;
     reminders: Reminder[];
     remark?: string;
-    timezone?: string;
     participants?: number[];
     host_id?: number | null;
+    timezone?: string;
 }
 
 function dealHasAgent(deal: Deal): boolean {
@@ -69,6 +69,7 @@ export default function useDealMeetingCreate(deal: Deal) {
     const [errors, setErrors] = useState<string[]>([]);
     const { setDealFollowUps } = useDealWorkspace();
     const { props } = usePage();
+    const watchCalendarSync = useCalendarSyncCreateWatch();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -104,7 +105,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 );
             } else if (
                 input.date &&
-                !isMeetingStartInFuture(input.date, input.startTime)
+                !isMeetingStartInFuture(input.date, input.startTime, input.timezone)
             ) {
                 validationErrors.push(
                     t("pages.deals.workspace.meetings.validation.start_time_future"),
@@ -178,7 +179,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 host_id: input.hostId,
-                timezone: getBrowserTimezone(),
+                timezone: input.timezone || undefined,
             };
 
             setErrors([]);
@@ -190,6 +191,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                         const created = response.data;
                         setDealFollowUps((prev) => [created, ...prev]);
                     }
+                    watchCalendarSync(response?.data);
                     onSuccess?.();
                 },
                 onError: (errorResponse) => {
@@ -205,7 +207,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 },
             });
         },
-        [deal, mutate, props.auth?.user?.timezone, setDealFollowUps, t],
+        [deal, mutate, props.auth?.user?.timezone, setDealFollowUps, t, watchCalendarSync],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

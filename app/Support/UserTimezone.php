@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Company;
 use App\Models\User;
+use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 
 class UserTimezone
 {
@@ -25,6 +27,42 @@ class UserTimezone
         }
 
         return 'UTC';
+    }
+
+    /**
+     * Timezone for persisting a meeting instant.
+     * Non-empty $override (API V2) wins; otherwise {@see resolve()}.
+     */
+    public static function forWrite(?User $user, ?Company $company = null, ?string $override = null): string
+    {
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        return self::resolve($user, $company);
+    }
+
+    /**
+     * Parse a naive wall-clock datetime and return UTC.
+     * Uses the actor's stored timezone unless a non-empty $override (the
+     * zone picked in the meeting form) is given — see {@see forWrite()}.
+     */
+    public static function interpretWallClock(
+        ?User $user,
+        ?Company $company,
+        string $datetime,
+        string $format,
+        ?string $override = null
+    ): Carbon {
+        $parsed = Carbon::createFromFormat($format, $datetime, self::forWrite($user, $company, $override));
+
+        if (! $parsed instanceof Carbon) {
+            throw new InvalidArgumentException(
+                "Unable to parse datetime [{$datetime}] with format [{$format}]."
+            );
+        }
+
+        return $parsed->utc();
     }
 
     /**

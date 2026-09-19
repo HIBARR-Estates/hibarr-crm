@@ -22,6 +22,10 @@ class DealOfferService
      */
     public function applyOffersToDeal(Deal $deal): void
     {
+        if ($deal->isCommissionLocked()) {
+            return;
+        }
+
         $deal->loadMissing([
             'products.property.developerProject',
             'products.property.developerProjectUnitType',
@@ -103,6 +107,10 @@ class DealOfferService
      */
     public function removeOffersFromDeal(Deal $deal): void
     {
+        if ($deal->isCommissionLocked()) {
+            return;
+        }
+
         $deal->offerApplications()->delete();
 
         Log::info('DealOfferService: Removed all offers from deal', [

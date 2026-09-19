@@ -18,7 +18,11 @@ export type TriggerKey =
     | "lead_created"
     | "lead_updated"
     | "lead_followup_created"
-    | "date_based";
+    | "date_based"
+    | "lead_created_api"
+    | "lead_updated_api"
+    | "deal_created_api"
+    | "deal_updated_api";
 
 export type ActionType =
     | "stage_transition"
@@ -30,10 +34,14 @@ export type ActionType =
     | "meta_conversion"
     | "wait";
 
-/** Exactly the operators ConditionEvaluatorService understands — "changed"
- * is accepted by the picker (parity with the Blade UI) but always evaluates
- * to false server-side today; a pre-existing gap, not something to fix here. */
+/** Exactly the operators ConditionEvaluatorService understands. "changed"
+ * evaluates true when the field changed on the same save that fired the
+ * automation — only supported for a native column on the subject itself. */
 export type ConditionOperator = "=" | ">" | "<" | "contains" | "exists" | "changed";
+
+/** Whole-automation condition combination mode: "all" (AND, default) or
+ * "any" (OR) — matches DealAutomationService::evaluateConditions(). */
+export type ConditionLogic = "all" | "any";
 
 export type LogStatus = "success" | "failed" | "skipped";
 
@@ -87,6 +95,7 @@ export interface Automation {
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     active: boolean;
     priority: number;
+    condition_logic: ConditionLogic;
     conditions: DealAutomationCondition[];
     actions: DealAutomationAction[];
 }
@@ -193,7 +202,10 @@ export interface RunLogEntry {
     action: string;
     status: LogStatus;
     channel: LogChannel | null;
-    details: RunLogDetails | null;
+    /** Present on detail fetch; omitted from the run-history list payload. */
+    details?: RunLogDetails | null;
+    /** True when structured diagnostics exist and can be fetched on expand. */
+    has_details?: boolean;
     executed_at: string;
     automation?: { id: number; name: string } | null;
     deal?: { id: number; name: string } | null;

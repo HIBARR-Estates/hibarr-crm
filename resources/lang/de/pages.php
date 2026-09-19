@@ -85,6 +85,39 @@ return [
             'total_deals' => 'Deals gesamt',
             'weekly_activities' => 'Wöchentliche Aktivitäten',
         ],
+        'tour' => [
+            'next' => 'Weiter',
+            'back' => 'Zurück',
+            'done' => 'Fertig',
+            'skip' => 'Tour überspringen',
+            'replay_menu_item' => 'Anleitung erneut anzeigen',
+            'steps' => [
+                'status_line' => [
+                    'title' => 'Ihr Tag auf einen Blick',
+                    'body' => 'Eine kurze Zusammenfassung dessen, was heute von Ihnen gebraucht wird, dazu was in Ihren Deals offen ist und was als Nächstes in Ihrem Kalender ansteht.',
+                ],
+                'stat_strip' => [
+                    'title' => 'Leads, Deals, Meetings, Provision',
+                    'body' => 'Vier Zahlen, um die sich diese Seite dreht. Ein rotes Label bedeutet, dass etwas Aufmerksamkeit braucht — klicken Sie darauf, um direkt zur gefilterten Liste zu springen.',
+                ],
+                'queue_panel' => [
+                    'title' => 'Braucht Ihre Aufmerksamkeit',
+                    'body' => 'Ihre offenen Aufgaben, gruppiert in Überfällig, Heute fällig und Später. Erledigen oder verschieben Sie eine Aufgabe direkt aus der Zeile — die Liste aktualisiert sich sofort.',
+                ],
+                'pipeline_panel' => [
+                    'title' => 'Offene Deals nach Pipeline',
+                    'body' => 'Wie sich Ihre offenen Deals auf die Pipelines verteilen, mit ihrem Gesamtwert. Wählen Sie einen Balken, um diese Deals zu sehen.',
+                ],
+                'agenda' => [
+                    'title' => 'Ihre Agenda',
+                    'body' => 'Meetings, die heute und danach vor Ihnen liegen, mit dem laufenden und dem nächsten Termin hervorgehoben. Noch nichts gebucht? Planen Sie direkt von hier aus eines.',
+                ],
+                'closing' => [
+                    'title' => 'Sie sind startklar',
+                    'body' => 'Spielen Sie diese Anleitung jederzeit über „Anleitung erneut anzeigen“ oben auf dieser Seite erneut ab.',
+                ],
+            ],
+        ],
     ],
 
     'leads' => [
@@ -1076,7 +1109,7 @@ return [
                 'other_files' => 'Weitere Dateien',
                 'uploading' => 'Wird hochgeladen',
                 'drop_hint' => 'Dateien hier ablegen oder zum Hochladen klicken',
-                'size_hint' => 'PDF, Bilder, ZIP — max. 200 MB',
+                'size_hint' => 'Beliebiger Dateityp — max. 20 GB',
                 'empty' => 'Keine Dateien hochgeladen',
                 'uploaded_label' => 'Hochgeladen',
                 'download' => 'Herunterladen',
@@ -1392,6 +1425,7 @@ return [
                 'view' => 'Anzeigen',
                 'edit' => 'Bearbeiten',
                 'join_meeting' => 'Meeting beitreten',
+                'report' => 'Nachbereitungsbericht',
                 'delete' => 'Löschen',
             ],
         ],

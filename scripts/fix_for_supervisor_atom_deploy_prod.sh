@@ -3,7 +3,7 @@
 set -euo pipefail
 
 LIVE_LINK="${LIVE_LINK:-/home/hibarr/hibarr-crm}"
-QUEUES="default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send"
+QUEUES="default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send,ol_webhooks,expose"
 
 # 1. Verify the symlink exists and where it points
 ls -la "$LIVE_LINK"

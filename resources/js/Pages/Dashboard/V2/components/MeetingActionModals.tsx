@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import RescheduleMeetingModal, {
     type RescheduleMeetingSubmitPayload,
 } from "@/Components/Redesign/modals/RescheduleMeetingModal";
@@ -35,8 +36,46 @@ export default function MeetingActionModals({
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
         useDashboardMeetingReschedule(meeting?.id ?? null, reloadKeys);
 
+    const rescheduleNested = ({
+        rescheduleOpen,
+        setRescheduleOpen,
+    }: {
+        rescheduleOpen: boolean;
+        setRescheduleOpen: (open: boolean) => void;
+    }) =>
+        meeting ? (
+            <Reschedule
+                open={rescheduleOpen}
+                onClose={() => setRescheduleOpen(false)}
+                meeting={meeting}
+                saving={isRescheduling}
+                errors={errors}
+                clearErrors={clearErrors}
+                onSubmit={(payload, done) => rescheduleMeeting(payload, done)}
+                labels={{
+                    title: t(
+                        "pages.deals.workspace.meetings.reschedule_meeting",
+                    ),
+                    cancel: t("pages.deals.common.cancel"),
+                    submit: t("pages.deals.workspace.meetings.reschedule"),
+                    newDate: t("pages.deals.workspace.meetings.new_date"),
+                    newStartTime: t(
+                        "pages.deals.workspace.meetings.new_start_time",
+                    ),
+                    duration: t("pages.deals.workspace.meetings.duration"),
+                    hideDuration: t(
+                        "pages.deals.workspace.meetings.hide_duration",
+                    ),
+                    addDuration: t(
+                        "pages.deals.workspace.meetings.add_duration",
+                    ),
+                    endTime: t("pages.deals.workspace.meetings.end_time"),
+                }}
+            />
+        ) : null;
+
     return (
-        <MeetingDetailModal
+        <MeetingViewModal
             meeting={meeting}
             canEdit={false}
             canDelete={false}
@@ -44,42 +83,23 @@ export default function MeetingActionModals({
             onClose={onClose}
             isUpdating={isRescheduling || markingHeld}
             onMarkHeld={meeting ? () => onMarkHeld(meeting.id) : undefined}
-            // Cancel is gated behind canEdit and so never renders here; the
-            // prop is required, and closing is the honest no-op.
             onCancelMeeting={onClose}
-            renderNestedModals={({ rescheduleOpen, setRescheduleOpen }) =>
-                meeting ? (
-                    <Reschedule
-                        open={rescheduleOpen}
-                        onClose={() => setRescheduleOpen(false)}
-                        meeting={meeting}
-                        saving={isRescheduling}
-                        errors={errors}
-                        clearErrors={clearErrors}
-                        onSubmit={(payload, done) =>
-                            rescheduleMeeting(payload, done)
-                        }
-                        labels={{
-                            title: t(
-                                "pages.deals.workspace.meetings.reschedule_meeting",
-                            ),
-                            cancel: t("pages.deals.common.cancel"),
-                            submit: t("pages.deals.workspace.meetings.reschedule"),
-                            newDate: t("pages.deals.workspace.meetings.new_date"),
-                            newStartTime: t(
-                                "pages.deals.workspace.meetings.new_start_time",
-                            ),
-                            duration: t("pages.deals.workspace.meetings.duration"),
-                            hideDuration: t(
-                                "pages.deals.workspace.meetings.hide_duration",
-                            ),
-                            addDuration: t(
-                                "pages.deals.workspace.meetings.add_duration",
-                            ),
-                            endTime: t("pages.deals.workspace.meetings.end_time"),
-                        }}
-                    />
-                ) : null
+            includeSummary={false}
+            renderNestedModals={rescheduleNested}
+            fallback={
+                <MeetingDetailModal
+                    meeting={meeting}
+                    canEdit={false}
+                    canDelete={false}
+                    canReschedule
+                    onClose={onClose}
+                    isUpdating={isRescheduling || markingHeld}
+                    onMarkHeld={
+                        meeting ? () => onMarkHeld(meeting.id) : undefined
+                    }
+                    onCancelMeeting={onClose}
+                    renderNestedModals={rescheduleNested}
+                />
             }
         />
     );

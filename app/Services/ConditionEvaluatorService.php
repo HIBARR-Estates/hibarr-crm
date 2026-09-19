@@ -9,7 +9,35 @@ use Illuminate\Support\Str;
 
 class ConditionEvaluatorService
 {
-    public function evaluate($resolvedValue, DealAutomationCondition|LeadAutomationCondition $condition): bool
+    /**
+     * Date/datetime shapes worth parsing for comparison — deliberately
+     * narrow (anchored, not "contains digits somewhere") so an arbitrary
+     * text/id field never gets misread as a date. Covers what a native
+     * `<input type=date>` sends (ISO) and what Carbon::toDateTimeString()
+     * produces, plus the common slashed/dotted and written-out forms.
+     */
+    private const DATE_PATTERNS = [
+        '/^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$/',
+        '/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/',
+        '/^\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}$/',
+        '/^[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}$/',
+    ];
+
+    /**
+     * @param  bool|null  $fieldChanged  Whether the condition's field changed
+     *                                   during the event that triggered this
+     *                                   evaluation — required for the
+     *                                   'changed' operator, which a resolved
+     *                                   value alone can't answer (this class
+     *                                   has no model/history access). The
+     *                                   caller resolves it via the subject's
+     *                                   own Eloquent dirty-tracking before
+     *                                   calling here; null (not evaluable —
+     *                                   e.g. a custom field, or a freshly
+     *                                   reloaded subject with no in-memory
+     *                                   change history) is treated as false.
+     */
+    public function evaluate($resolvedValue, DealAutomationCondition|LeadAutomationCondition $condition, ?bool $fieldChanged = null): bool
     {
         $operator = $condition->operator;
         $conditionValue = $condition->value;
@@ -19,24 +47,8 @@ class ConditionEvaluatorService
             return !empty($resolvedValue);
         }
 
-        // Handle 'changed' operator - this requires context about previous state which we might not have here directly.
-        // For now, we assume 'changed' is handled at a higher level or we need to pass previous value.
-        // If we only have resolvedValue (current), we can't check 'changed' unless we pass $previousValue.
-        // The prompt says "Accepts a resolved value and a condition object".
-        // If 'changed' is required, we might need to rethink the signature or assume it's always true if triggered by an event that implies change?
-        // Or maybe we just return false for now if we can't evaluate it.
-        // However, the RFC says "Evaluates operators: ... changed".
-        // Let's assume for now 'changed' is not supported in this stateless evaluator or we need to pass extra context.
-        // But wait, if the trigger is "deal_updated", we might know it changed.
-        // Let's skip 'changed' implementation here or treat it as "always true" if we assume the caller filters by changed fields?
-        // No, that's dangerous.
-        // Let's implement the standard operators first.
-        
         if ($operator === 'changed') {
-             // We cannot evaluate 'changed' without previous value.
-             // We will return false or throw exception.
-             // For now, let's return false to be safe.
-             return false;
+            return (bool) $fieldChanged;
         }
 
         // Normalize values for comparison
@@ -61,9 +73,14 @@ class ConditionEvaluatorService
     }
 
     /**
-     * Normalize value for comparison.
+     * Normalize a value for comparison: numbers become numeric, a date/time
+     * value (whether it arrives as a DateTimeInterface from the resolver, or
+     * a string that unambiguously looks like a date) becomes a Unix
+     * timestamp so two dates in different formats/types still compare
+     * correctly — everything else (names, statuses, ids, free text) is left
+     * exactly as resolved.
      *
-     * @param mixed $value
+     * @param  mixed  $value
      * @return mixed
      */
     protected function normalizeValue($value)
@@ -72,29 +89,44 @@ class ConditionEvaluatorService
             return null;
         }
 
+        if ($value instanceof \DateTimeInterface) {
+            return $value->getTimestamp();
+        }
+
         if (is_numeric($value)) {
             return $value + 0; // Convert to int or float
         }
 
-        if (is_string($value)) {
-            // Check if it's a date
-            if (strtotime($value) !== false) {
-                // It's a date string, but be careful with simple numbers or strings that look like dates.
-                // For safety, maybe only convert if it looks like Y-m-d or similar?
-                // Or just compare as strings/timestamps if both are dates.
-                // Let's keep it simple: if it parses as Carbon, use timestamp for comparison?
-                // But "100" parses as date? No.
-                // Let's stick to string comparison for non-numeric strings unless we know the field type.
-                // Without field type metadata, aggressive date parsing is risky.
+        if (is_string($value) && $this->looksLikeDate($value)) {
+            try {
+                return Carbon::parse($value)->getTimestamp();
+            } catch (\Throwable $e) {
+                // Didn't actually parse (e.g. "13/45/2026") — fall through
+                // and compare it as a plain string instead of erroring.
                 return $value;
             }
-            return $value;
-        }
-        
-        if ($value instanceof Carbon) {
-            return $value->toDateTimeString();
         }
 
         return $value;
+    }
+
+    /**
+     * Whether $value's shape unambiguously looks like a date/datetime, not
+     * whether it necessarily parses — Carbon::parse() still gets the final
+     * say (and a try/catch) in normalizeValue(). Kept intentionally narrow:
+     * matching on "contains 4 digits" would misfire on ids, phone numbers,
+     * and reference codes.
+     */
+    protected function looksLikeDate(string $value): bool
+    {
+        $trimmed = trim($value);
+
+        foreach (self::DATE_PATTERNS as $pattern) {
+            if (preg_match($pattern, $trimmed) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

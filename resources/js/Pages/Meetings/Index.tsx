@@ -1,3 +1,4 @@
+import useMeetingsPageRedesignFlag from "@/Hooks/useMeetingsPageRedesignFlag";
 import React, { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
 import { Tag, Button, Dropdown, Empty, Pagination } from "antd";
@@ -24,6 +25,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { formatMeetingTime } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 import utc from "dayjs/plugin/utc";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -38,11 +40,17 @@ import { getStatusColor } from "@/lib/utils";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
+import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
+import type {
+    MeetingsTab,
+    MeetingsTabCounts,
+} from "./Redesign/adapters/meetingViewModel";
+import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
 dayjs.extend(utc);
 
@@ -55,15 +63,46 @@ interface OverviewStats {
     completed: number;
 }
 
-interface MeetingsPageProps extends PageProps {
+interface MeetingsSharedProps extends PageProps {
     pageTitle: string;
     overviewStats: OverviewStats;
-    upcomingMeetings: PaginatedFollowupResponse;
-    pastMeetings: PaginatedFollowupResponse;
     userDeals: { id: number; name: string }[];
     userLeads: { id: number; name: string }[];
     meetingTypes: { id: number; name: string }[];
     permissions: Record<string, string>;
+}
+
+/** Props the legacy two-section page renders (flag off). */
+interface MeetingsPageProps extends MeetingsSharedProps {
+    upcomingMeetings: PaginatedFollowupResponse;
+    pastMeetings: PaginatedFollowupResponse;
+}
+
+/**
+ * Props the redesigned page renders (flag on): one tab-driven list plus the
+ * calendar month, which the controller ships as a deferred prop and so is
+ * absent until the calendar view asks for it.
+ */
+export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
+    meetings: PaginatedFollowupResponse;
+    tabCounts: MeetingsTabCounts;
+    activeTab: MeetingsTab;
+    calendarMeetings?: CalendarPayload;
+    /** Month this render registered the deferred calendar for, else null. */
+    calendarRequestedMonth: string | null;
+    /** Host-filter options; deferred, so undefined until they arrive. */
+    filterPeople?: Array<{ id: number; name: string }>;
+    /** The next few meetings for the cards above the list; deferred. */
+    upcomingSoon?: DealFollowup[];
+    /** False only for someone who has never had a meeting at all. */
+    hasAnyMeetings: boolean;
+    /**
+     * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
+     * the page itself rather than through props, so these are declared for
+     * the page's own loading checks, not to be passed down.
+     */
+    filterFacets?: Record<string, unknown>;
+    savedViews?: Array<Record<string, unknown>>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -177,7 +216,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     onDelete,
 }) => {
     const { t } = useTranslation();
-    const { formatDate, formatTime } = useUserDateTime();
+    const { formatDate } = useUserDateTime();
     const live = isLiveMeeting(meeting);
     const hasValidLink =
         meeting.meeting_link &&
@@ -407,7 +446,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         }}
                     >
                         {meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name}
+                            meeting.lead.client_name}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -424,7 +463,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 </span>
                 <span className="flex items-center gap-1">
                     <ClockCircleOutlined />
-                    {formatTime(meeting.next_follow_up_date)}
+                    {formatMeetingTime(meeting.next_follow_up_date, "--", meeting.timezone)}
                 </span>
                 {/* <Tag
                     color={live ? "red" : getStatusColor(meeting.status)}
@@ -590,7 +629,7 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
 
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
-function MeetingsIndex() {
+function LegacyMeetingsIndex() {
     const { props } = usePage<MeetingsPageProps>();
     const {
         overviewStats,
@@ -729,8 +768,8 @@ function MeetingsIndex() {
                 />
             </div>
 
-            {/* ── Schedule Meeting Drawer ──────────────────────────── */}
-            <ScheduleMeetingDrawer
+            {/* ── Schedule Meeting (shared orphan flow) ────────────── */}
+            <MeetingScheduleModal
                 open={scheduleOpen}
                 onClose={() => setScheduleOpen(false)}
                 userDeals={userDeals}
@@ -769,8 +808,18 @@ function MeetingsIndex() {
     );
 }
 
-MeetingsIndex.layout = (page: React.ReactNode) => (
+const Index = () => {
+    const useRedesign = useMeetingsPageRedesignFlag();
+
+    return useRedesign ? (
+        <MeetingsWorkspaceRedesign />
+    ) : (
+        <LegacyMeetingsIndex />
+    );
+};
+
+Index.layout = (page: React.ReactNode) => (
     <DashboardLayout>{page}</DashboardLayout>
 );
 
-export default MeetingsIndex;
+export default Index;

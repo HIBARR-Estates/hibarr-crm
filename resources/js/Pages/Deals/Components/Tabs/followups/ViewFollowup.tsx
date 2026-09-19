@@ -1,3 +1,9 @@
+/**
+ * @deprecated Do not use as a meeting viewer.
+ * The only view-meeting UI is MeetingViewModal (MeetingDetailCompact),
+ * gated by crm.meetings-page-redesign. This file is the flag-off fallback
+ * and must not be imported by new callers.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
@@ -37,6 +43,7 @@ import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import CalendarSyncStatus from "@/Features/Meetings/CalendarSyncStatus";
+import { canManageCalendarSync } from "@/Hooks/useCalendarSync";
 
 dayjs.extend(utc);
 
@@ -119,9 +126,6 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
             setLoading(true);
             setError(null);
 
-            const browserTimezone =
-                Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-
             const csrfToken =
                 document
                     .querySelector('meta[name="csrf-token"]')
@@ -142,7 +146,6 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                             values.next_follow_up_date.format("DD-MM-YYYY"),
                         start_time: values.start_time.format("HH:mm:ss"),
                         duration: values.duration || null,
-                        timezone: browserTimezone,
                     }),
                 },
             );
@@ -405,7 +408,7 @@ const ViewFollowup: React.FC<Props> = ({
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
     const shouldShowCalendarSync =
         featureEnabled &&
-        isCreator &&
+        (isCreator || canManageCalendarSync(followup, currentUserId)) &&
         (followup?.zoho_calendar_job_id ||
             followup?.zoho_calendar_sync_status);
 
@@ -543,6 +546,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     followup={followup}
                                     featureEnabled={featureEnabled}
                                     isCreator={isCreator}
+                                    currentUserId={currentUserId}
                                 />
                             </div>
                         )}

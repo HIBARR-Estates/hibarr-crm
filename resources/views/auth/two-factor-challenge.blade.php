@@ -23,8 +23,6 @@
             <label id="2fa-code-label" for="code">@lang('app.twoFactorCode')</label>
 
             @includeIf('sections.2fa-input-field')
-
-            <input type="hidden" value="{{ Session::get('login.id') }}" name="user_id">
         </div>
         <div class="form-group text-left recovery_code d-none">
             <label for="code">@lang('app.twoFactorRecoveryCode')</label>
@@ -84,16 +82,12 @@
 
             function resendCode() {
                 let url = "{{ route('resend_code') }}";
-                let user_id = "{{ Session::get('login.id') }}";
                 $.easyAjax({
                     url: url,
                     container: '.login_box',
                     type: "GET",
                     blockUI: true,
                     messagePosition: "pop",
-                    data: {
-                        user_id: user_id
-                    },
                     success: function(response) {
                         if (response.status === 'success') {
                             showEmailMessage();

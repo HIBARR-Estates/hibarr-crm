@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\User;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class AccountSetupRequest extends FormRequest
 {
@@ -14,7 +16,7 @@ class AccountSetupRequest extends FormRequest
 
     public function authorize()
     {
-        return true;
+        return !User::exists();
     }
 
     /**
@@ -30,7 +32,7 @@ class AccountSetupRequest extends FormRequest
             'company_name' => 'required',
             'full_name' => 'required',
             'email' => 'required|email:rfc,strict',
-            'password' => 'required|min:8',
+            'password' => ['required', Password::defaults()],
         ];
 
         if ($global && $global->sign_up_terms == 'yes') {

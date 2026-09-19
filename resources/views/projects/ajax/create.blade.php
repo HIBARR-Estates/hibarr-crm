@@ -140,9 +140,9 @@
                                 <x-forms.label class="my-3" fieldId="notes"
                                                :fieldLabel="__('modules.projects.note')">
                                 </x-forms.label>
-                                <div id="notes">{!! $projectTemplate->notes ?? '' !!} {!! ($project) ? $project->notes : '' !!}</div>
+                                <div id="notes">{!! clean_html($projectTemplate->notes ?? '') !!} {!! clean_html(($project) ? $project->notes : '') !!}</div>
                                 <textarea name="notes" id="notes-text"
-                                          class="d-none">{!! $projectTemplate->notes ?? '' !!} {!! ($project) ? $project->notes : '' !!}</textarea>
+                                          class="d-none">{!! clean_html($projectTemplate->notes ?? '') !!} {!! clean_html(($project) ? $project->notes : '') !!}</textarea>
                             </div>
                         </div>
                     @endif

@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Deferred, Head, router } from "@inertiajs/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Deferred, Head, router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { message } from "antd";
-import DashboardLayout from "@/Components/DashboardLayout";
+import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import ProductTour, {
+    type ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
@@ -19,7 +23,7 @@ import DashboardPanel, {
 import PersonalTaskModal from "./personal/PersonalTaskModal";
 import PersonalTaskCreateModal from "./personal/PersonalTaskCreateModal";
 import MeetingActionModals from "./components/MeetingActionModals";
-import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
+import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
 import useDashboardTaskReschedule from "./hooks/useDashboardTaskReschedule";
 import useDashboardMeetingStatus from "./hooks/useDashboardMeetingStatus";
 import type { QueueTask, ScheduleEntry } from "./types";
@@ -39,6 +43,11 @@ import type {
     PipelineRow,
     Severity,
 } from "./personal/types";
+import {
+    buildPersonalDashboardTourSteps,
+    PERSONAL_DASHBOARD_TOUR_ID,
+    PERSONAL_DASHBOARD_TOUR_LABELS,
+} from "./config/personalDashboardTourSteps";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
@@ -98,6 +107,15 @@ export default function PersonalDashboard({
     userLeads,
 }: PersonalDashboardProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const { props: pageProps } = usePage<PageProps>();
+    const showProductTour =
+        pageProps.featureFlags?.["crm.personal-dashboard"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
+    const personalDashboardTourSteps = useMemo(
+        () => buildPersonalDashboardTourSteps(),
+        [],
+    );
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [openMeeting, setOpenMeeting] = useState<ScheduleEntry | null>(null);
@@ -130,6 +148,29 @@ export default function PersonalDashboard({
     useEffect(() => {
         setOverrides({});
     }, [queue]);
+
+    // Re-evaluate "next meeting" when the soonest agenda start passes, so an
+    // in-progress meeting cannot keep the Next badge while a later one is
+    // still queued.
+    const [agendaClock, setAgendaClock] = useState(() => dayjs().toISOString());
+    useEffect(() => {
+        const MAX_TIMEOUT_MS = 60 * 60 * 1000;
+        const nowMs = Date.now();
+        const nextExpiry = (agenda ?? [])
+            .map((entry) => (entry.at ? dayjs(entry.at).valueOf() : Number.NaN))
+            .filter((time) => time > nowMs)
+            .reduce<number | undefined>(
+                (soonest, time) =>
+                    soonest === undefined || time < soonest ? time : soonest,
+                undefined,
+            );
+        if (nextExpiry === undefined) return;
+        const timeout = setTimeout(
+            () => setAgendaClock(dayjs().toISOString()),
+            Math.min(nextExpiry - nowMs + 1000, MAX_TIMEOUT_MS),
+        );
+        return () => clearTimeout(timeout);
+    }, [agenda, agendaClock]);
 
     const clearOverride = useCallback((taskId: number) => {
         setOverrides((prev) => {
@@ -164,7 +205,7 @@ export default function PersonalDashboard({
         },
     );
     const { reschedule, isPending: isSnoozing } = useDashboardTaskReschedule(
-        () => {},
+        () => { },
         (taskId) => clearOverride(taskId),
     );
     const { markHeld, isPending: isMarkingHeld } = useDashboardMeetingStatus(
@@ -293,8 +334,8 @@ export default function PersonalDashboard({
         () =>
             visibleQueue
                 ? visibleQueue.counts.overdue +
-                  visibleQueue.counts.today +
-                  visibleQueue.counts.later
+                visibleQueue.counts.today +
+                visibleQueue.counts.later
                 : 0,
         [visibleQueue],
     );
@@ -308,34 +349,85 @@ export default function PersonalDashboard({
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
-                    <DashboardHeader
-                        userName={userName}
-                        now={now}
-                        subtext={
+                    {showProductTour && (
+                        <ProductTour
+                            ref={tourRef}
+                            tourId={PERSONAL_DASHBOARD_TOUR_ID}
+                            steps={personalDashboardTourSteps}
+                            labels={PERSONAL_DASHBOARD_TOUR_LABELS}
+                        />
+                    )}
+
+                    <header
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 18,
+                            flexWrap: "wrap",
+                            marginBottom: 16,
+                        }}
+                    >
+                        <div data-tour="dashboard-status-line">
                             <StatusLine
                                 now={now}
+                                clock={agendaClock}
                                 queue={visibleQueue}
                                 agenda={agenda}
                                 pipelines={pipelines}
                             />
-                        }
-                        actions={
-                            /* One segment is not a switcher: an account with
-                               no role view has nowhere else to go. */
-                            switcher.length > 1 && (
-                                <SegmentedControl
-                                    label="Dashboard"
-                                    active="personal"
-                                    segments={switcher}
-                                    onSelect={(view) =>
-                                        view !== "personal" && go({ view })
-                                    }
-                                />
-                            )
-                        }
-                    />
+                        </div>
 
-                    <div style={{ marginBottom: 20 }}>
+                        <div
+                            style={{
+                                marginLeft: "auto",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            {showProductTour && (
+                                <button
+                                    type="button"
+                                    className="dr-btn dr-btn-ghost"
+                                    onClick={() =>
+                                        tourRef.current?.restart()
+                                    }
+                                >
+                                    {t("pages.dashboard.tour.replay_menu_item")}
+                                </button>
+                            )}
+                            {availableViews && availableViews.length > 0 && (
+                                <>
+                                    <SegmentedControl
+                                        label="Dashboard"
+                                        active="personal"
+                                        segments={[
+                                            {
+                                                value: "personal",
+                                                label: "My work",
+                                            },
+                                            {
+                                                value: "manager",
+                                                label: "Team",
+                                                // Deactivated for now.
+                                                disabled: true,
+                                            },
+                                        ]}
+                                        onSelect={(view) =>
+                                            view !== "personal" &&
+                                            go({ view })
+                                        }
+                                    />
+                                </>
+                            )}
+                        </div>
+                    </header>
+
+                    <div
+                        data-tour="dashboard-stat-strip"
+                        style={{ marginBottom: 20 }}
+                    >
                         <StatStrip
                             userId={userId}
                             windowDays={windowDays}
@@ -350,6 +442,7 @@ export default function PersonalDashboard({
                         <div className="dv2-main">
                             <DashboardPanel
                                 flush
+                                dataTour="dashboard-queue-panel"
                                 title="Needs your attention"
                                 extra={
                                     <div
@@ -435,7 +528,10 @@ export default function PersonalDashboard({
                                 re-enable later; Pipeline takes the full row
                                 until then instead of leaving an empty cell
                                 beside it. */}
-                            <DashboardPanel title="Open deals by pipeline">
+                            <DashboardPanel
+                                dataTour="dashboard-pipeline-panel"
+                                title="Open deals by pipeline"
+                            >
                                 <Deferred
                                     data="pipelines"
                                     fallback={<PanelSkeleton rows={4} />}
@@ -448,7 +544,7 @@ export default function PersonalDashboard({
                             </DashboardPanel>
                         </div>
 
-                        <div className="dv2-rail">
+                        <div className="dv2-rail" data-tour="dashboard-agenda">
                             <Deferred
                                 data="agenda"
                                 fallback={<CardSkeleton height={220} />}
@@ -456,6 +552,7 @@ export default function PersonalDashboard({
                                 <AgendaTimeline
                                     meetings={agenda ?? []}
                                     now={now}
+                                    clock={agendaClock}
                                     onOpenMeeting={setOpenMeeting}
                                     onScheduleMeeting={() => setScheduleOpen(true)}
                                 />
@@ -487,7 +584,7 @@ export default function PersonalDashboard({
                         reloadKeys={["agenda", "stats"]}
                     />
 
-                    <ScheduleMeetingDrawer
+                    <MeetingScheduleModal
                         open={scheduleOpen}
                         onClose={() => setScheduleOpen(false)}
                         userDeals={userDeals ?? []}

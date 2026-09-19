@@ -4,6 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import EditMeetingModal from "@/Components/Redesign/modals/EditMeetingModal";
+import type { PersonOption } from "@/Components/Redesign/primitives/PeoplePicker";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     requiresManualMeetingLink,
@@ -60,6 +61,29 @@ export default function DealEditMeetingModal({
         return buildMeetingFormFromFollowup(followup, deal, currentUserId);
     }, [open, followup, deal, currentUserId]);
     const mustIncludeOwner = useMemo(() => getMeetingOwner(deal), [deal]);
+    // Names for people already on this meeting — the host/participant
+    // pickers only search the "employees" directory, which won't necessarily
+    // list everyone already assigned, so without this an existing pick can
+    // render as "User #<id>".
+    const participantDirectory = useMemo<PersonOption[]>(() => {
+        if (!followup) return [];
+        const people: PersonOption[] = (followup.participant_users ?? []).map(
+            (person) => ({ id: person.id, name: person.name }),
+        );
+        if (followup.host && !people.some((p) => p.id === followup.host!.id)) {
+            people.push({ id: followup.host.id, name: followup.host.name });
+        }
+        if (
+            followup.added_by &&
+            !people.some((p) => p.id === followup.added_by!.id)
+        ) {
+            people.push({
+                id: followup.added_by.id,
+                name: followup.added_by.name,
+            });
+        }
+        return people;
+    }, [followup]);
 
     const handleClose = () => {
         if (isUpdating) return;
@@ -133,6 +157,7 @@ export default function DealEditMeetingModal({
             initialForm={initialForm}
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
+            participantDirectory={participantDirectory}
             labels={{
                 title: t("pages.deals.workspace.meetings.edit_meeting"),
                 cancel: t("pages.deals.common.cancel"),

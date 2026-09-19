@@ -293,7 +293,15 @@ const Show = ({
                         unitTypes={unitTypes ?? []}
                         initialEditUnitTypeId={initialEditUnitTypeId}
                         onRefresh={() =>
-                            router.reload({ only: ["unitTypes", "project"] })
+                            router.reload({
+                                only: [
+                                    "unitTypes",
+                                    "project",
+                                    "statistics",
+                                    "unitTypesSummary",
+                                    "unitTypePriceList",
+                                ],
+                            })
                         }
                     />
                 );

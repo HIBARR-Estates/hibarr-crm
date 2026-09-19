@@ -6,10 +6,13 @@ type TeamField = "agent_id" | "deal_participant" | "deal_watcher";
 
 export default function useDealTeamMutations(dealId: number) {
     const [savingField, setSavingField] = useState<TeamField | null>(null);
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, deal } = useDealWorkspace();
 
     const saveTeamField = useCallback(
         async (field: TeamField, value: number | number[] | null) => {
+            if (field === "agent_id" && deal.commission_locked) {
+                return;
+            }
             setSavingField(field);
             try {
                 const response = await axios.patch(
@@ -31,7 +34,7 @@ export default function useDealTeamMutations(dealId: number) {
                 setSavingField(null);
             }
         },
-        [dealId, setDeal],
+        [deal.commission_locked, dealId, setDeal],
     );
 
     const isSaving = (field: TeamField) => savingField === field;

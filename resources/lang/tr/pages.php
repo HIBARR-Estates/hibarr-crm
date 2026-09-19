@@ -66,6 +66,39 @@ return [
             'total_deals' => 'Toplam Anlaşmalar',
             'weekly_activities' => 'Haftalık Aktiviteler',
         ],
+        'tour' => [
+            'next' => 'İleri',
+            'back' => 'Geri',
+            'done' => 'Bitti',
+            'skip' => 'Turu atla',
+            'replay_menu_item' => 'Rehberi yeniden oynat',
+            'steps' => [
+                'status_line' => [
+                    'title' => 'Gününüz bir bakışta',
+                    'body' => 'Bugün sizden ne beklendiğinin kısa bir özeti, anlaşmalarınızda neyin açık olduğu ve takviminizde sırada ne olduğu.',
+                ],
+                'stat_strip' => [
+                    'title' => 'Potansiyel müşteriler, anlaşmalar, toplantılar, komisyon',
+                    'body' => 'Bu sayfanın etrafında kurulduğu dört sayı. Kırmızı bir rozet bir şeye bakılması gerektiği anlamına gelir — filtrelenmiş listeye gitmek için tıklayın.',
+                ],
+                'queue_panel' => [
+                    'title' => 'Dikkatinizi gerektiriyor',
+                    'body' => 'Açık görevleriniz Gecikmiş, Bugün son tarih ve Daha sonra olarak gruplanır. Bir görevi doğrudan satırından tamamlayın veya erteleyin — liste anında güncellenir.',
+                ],
+                'pipeline_panel' => [
+                    'title' => 'Pipeline’a göre açık anlaşmalar',
+                    'body' => 'Açık anlaşmalarınızın pipeline’lara nasıl dağıldığı, toplam değerleriyle birlikte. Bu anlaşmaları görmek için bir çubuğu seçin.',
+                ],
+                'agenda' => [
+                    'title' => 'Ajandanız',
+                    'body' => 'Bugün ve sonrasında sizi bekleyen toplantılar; devam eden ve bir sonraki toplantı öne çıkarılır. Henüz bir şey planlanmadı mı? Buradan doğrudan bir toplantı planlayın.',
+                ],
+                'closing' => [
+                    'title' => 'Hazırsınız',
+                    'body' => 'Bu rehberi istediğiniz zaman sayfanın üstündeki Rehberi yeniden oynat ile tekrar oynatın.',
+                ],
+            ],
+        ],
     ],
 
     'leads' => [
@@ -1053,7 +1086,7 @@ return [
                 'other_files' => 'Diğer dosyalar',
                 'uploading' => 'Yükleniyor',
                 'drop_hint' => 'Dosyaları buraya bırakın veya yüklemek için tıklayın',
-                'size_hint' => 'PDF, görseller, ZIP — en fazla 200 MB',
+                'size_hint' => 'Her dosya türü — en fazla 20 GB',
                 'empty' => 'Hiç dosya yüklenmedi',
                 'uploaded_label' => 'Yüklendi',
                 'download' => 'İndir',
@@ -1370,6 +1403,7 @@ return [
                 'view' => 'Görüntüle',
                 'edit' => 'Düzenle',
                 'join_meeting' => 'Toplantıya katıl',
+                'report' => 'Toplantı raporu',
                 'delete' => 'Sil',
             ],
         ],

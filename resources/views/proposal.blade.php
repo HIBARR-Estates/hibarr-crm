@@ -203,7 +203,7 @@
                         </table>
                         <div class="row">
                             <div class="col-sm-12 ql-editor">
-                                {!! $proposal->description !!}
+                                {!! clean_html($proposal->description) !!}
                             </div>
                         </div>
                         @if (count($proposal->items) > 0)
@@ -428,7 +428,7 @@
                                         <table>
                                             <tr>@lang('app.note')</tr>
                                             <tr>
-                                                <p class="text-dark-grey">{!! !empty($proposal->note) ? nl2br($proposal->note) : '--' !!}</p>
+                                                <p class="text-dark-grey">{!! clean_html(!empty($proposal->note) ? nl2br($proposal->note) : '--') !!}</p>
                                             </tr>
                                         </table>
                                     </td>

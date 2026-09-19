@@ -323,6 +323,66 @@ class LeadAutomationEngineTest extends LeadAutomationTestCase
         $this->assertSame(0, LeadNote::count());
     }
 
+    public function test_or_logic_fires_when_any_condition_matches(): void
+    {
+        $this->setFeatureFlag('crm.lead-automation-engine', true);
+
+        $automation = $this->makeAutomation(['condition_logic' => 'any']);
+        LeadAutomationCondition::create([
+            'lead_automation_id' => $automation->id,
+            'field' => 'client_name',
+            'operator' => '=',
+            'value' => 'Nobody', // fails
+        ]);
+        LeadAutomationCondition::create([
+            'lead_automation_id' => $automation->id,
+            'field' => 'client_name',
+            'operator' => '=',
+            'value' => 'Jane Lead', // passes
+        ]);
+        LeadAutomationAction::create([
+            'lead_automation_id' => $automation->id,
+            'action_type' => 'create_note',
+            'payload' => ['title' => 'Or matched', 'details' => 'x'],
+            'priority' => 1,
+        ]);
+
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        app(LeadAutomationService::class)->process($lead, 'lead_updated');
+
+        $this->assertSame(1, LeadNote::where('title', 'Or matched')->count());
+    }
+
+    public function test_or_logic_skips_actions_when_no_condition_matches(): void
+    {
+        $this->setFeatureFlag('crm.lead-automation-engine', true);
+
+        $automation = $this->makeAutomation(['condition_logic' => 'any']);
+        LeadAutomationCondition::create([
+            'lead_automation_id' => $automation->id,
+            'field' => 'client_name',
+            'operator' => '=',
+            'value' => 'Nobody',
+        ]);
+        LeadAutomationCondition::create([
+            'lead_automation_id' => $automation->id,
+            'field' => 'client_name',
+            'operator' => '=',
+            'value' => 'Also Nobody',
+        ]);
+        LeadAutomationAction::create([
+            'lead_automation_id' => $automation->id,
+            'action_type' => 'create_note',
+            'payload' => ['title' => 'Should not run', 'details' => 'x'],
+            'priority' => 1,
+        ]);
+
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        app(LeadAutomationService::class)->process($lead, 'lead_updated');
+
+        $this->assertSame(0, LeadNote::count());
+    }
+
     public function test_deal_automation_action_payload_column_is_nullable(): void
     {
         $row = DealAutomationAction::create([

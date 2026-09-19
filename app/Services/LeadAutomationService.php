@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Models\LeadAutomation;
 use App\Models\LeadAutomationAction;
@@ -81,14 +82,39 @@ class LeadAutomationService
             return true;
         }
 
+        $isAny = $automation->condition_logic === DealAutomation::CONDITION_LOGIC_ANY;
+
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($lead, $condition->field);
-            if (! $this->conditionEvaluator->evaluate($fieldValue, $condition)) {
-                return false;
+            $fieldChanged = $condition->operator === 'changed' ? $this->fieldChanged($lead, $condition->field) : null;
+            $passed = $this->conditionEvaluator->evaluate($fieldValue, $condition, $fieldChanged);
+
+            if ($isAny && $passed) {
+                return true; // OR logic: one pass is enough
+            }
+
+            if (! $isAny && ! $passed) {
+                return false; // AND logic: one failure is enough
             }
         }
 
-        return true;
+        return ! $isAny; // AND: every condition passed. OR: none did.
+    }
+
+    /**
+     * Same reasoning as DealAutomationService::fieldChanged() — only
+     * answerable for a native Lead column, only within the same in-memory
+     * instance that was just saved, and false for a brand-new record.
+     */
+    protected function fieldChanged(Lead $lead, string $field): bool
+    {
+        if ($lead->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($lead, $field);
+
+        return $column !== null && (bool) $lead->wasChanged($column);
     }
 
     protected function executeActions(Lead $lead, LeadAutomation $automation): void

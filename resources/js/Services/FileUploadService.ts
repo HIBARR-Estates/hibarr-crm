@@ -228,6 +228,7 @@ export class FileUploadService implements IFileUploadService {
                                 "X-Api-Key": this.config.apiKey,
                                 "Content-Type": "multipart/form-data",
                             },
+                            // 0 = no axios timeout; large files cancel via CancelToken instead.
                             timeout: uploadTimeoutMs,
                             cancelToken: cancelSource.token,
                             onUploadProgress: (

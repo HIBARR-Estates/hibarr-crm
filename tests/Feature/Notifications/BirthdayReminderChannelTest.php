@@ -91,7 +91,8 @@ class BirthdayReminderChannelTest extends TestCase
 
     private function makeBirthdayEmployee(Company $company): User
     {
-        $user = User::create([
+        // forceCreate: company_id is guarded on User.
+        $user = User::forceCreate([
             'company_id' => $company->id,
             'name' => 'Birthday User',
             'email' => 'birthday'.uniqid().'@example.com',

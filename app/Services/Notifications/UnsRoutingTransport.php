@@ -75,8 +75,8 @@ class UnsRoutingTransport implements TransportInterface
 
             Log::warning('UNS email routing failed: falling back to SMTP.', [
                 'event' => $payload['event'] ?? null,
-                'recipient' => $payload['data']['emailAddress'] ?? null,
                 'user_id' => $payload['userId'] ?? null,
+                'correlation_id' => $context['correlation_id'] ?? null,
             ]);
         } catch (\Throwable $exception) {
             $unsResult = ['error' => $exception->getMessage()];

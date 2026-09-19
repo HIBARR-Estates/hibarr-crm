@@ -8,9 +8,8 @@ import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import {
-    getMeetingStatusTone,
+    getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
 } from "../../adapters/meetingListAdapter";
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
@@ -23,6 +22,9 @@ import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealMeetingDetailModal from "./DealMeetingDetailModal";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
+import useMeetingClockTick from "../../hooks/useMeetingClockTick";
 
 interface WorkspaceMeetingsTabProps {
     deal: Deal;
@@ -96,6 +98,9 @@ export default function WorkspaceMeetingsTab({
 }: WorkspaceMeetingsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    useUserDateTime();
+    const dateTimeVersion = getUserDateTimeContextVersion();
+    const meetingClockTick = useMeetingClockTick(followUps);
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const { isWatcherOnly } = useDealPermissions(deal);
@@ -106,14 +111,12 @@ export default function WorkspaceMeetingsTab({
     const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
         null,
     );
-    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
-        null,
+    const [detailInitialPanel, setDetailInitialPanel] = useState<"info" | "summary">(
+        "info",
     );
 
     const detailFollowup =
         followUps.find((followup) => followup.id === detailFollowupId) ?? null;
-    const summaryFollowup =
-        followUps.find((followup) => followup.id === summaryFollowupId) ?? null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string; status: string },
@@ -124,9 +127,13 @@ export default function WorkspaceMeetingsTab({
 
     const meetings = useMemo(
         () => followUps.map((followup) => toWorkspaceMeetingListItem(followup)),
-        [followUps],
+        [followUps, dateTimeVersion, meetingClockTick],
     );
 
+    const live = useMemo(
+        () => meetings.filter((meeting) => meeting.isLive),
+        [meetings],
+    );
     const upcoming = useMemo(
         () => meetings.filter((meeting) => meeting.isUpcoming),
         [meetings],
@@ -189,10 +196,15 @@ export default function WorkspaceMeetingsTab({
             {hasMeetings && (
                 <div className="mb-3.5 flex items-center justify-between gap-3">
                     <span className="text-xs text-[#5b6472]">
-                        {upcoming.length}{" "}
-                        {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                        {past.length}{" "}
-                        {t("pages.deals.workspace.meetings.past_label")}
+                        {[
+                            live.length > 0
+                                ? `${live.length} ${t("pages.deals.workspace.meetings.live_label")}`
+                                : null,
+                            `${upcoming.length} ${t("pages.deals.workspace.meetings.upcoming_label")}`,
+                            `${past.length} ${t("pages.deals.workspace.meetings.past_label")}`,
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </span>
                     <div className="flex gap-1.5">
                         {showSelectMode && (
@@ -259,6 +271,7 @@ export default function WorkspaceMeetingsTab({
             ) : (
                 (
                     [
+                        { label: "Live" as const, items: live },
                         { label: "Upcoming" as const, items: upcoming },
                         { label: "Past" as const, items: past },
                     ] as const
@@ -266,16 +279,22 @@ export default function WorkspaceMeetingsTab({
                     .filter((section) => section.items.length > 0)
                     .map((section) => {
                         const isPastSection = section.label === "Past";
+                        const sectionTitle =
+                            section.label === "Live"
+                                ? t(
+                                      "pages.deals.workspace.meetings.section_live",
+                                  )
+                                : section.label === "Upcoming"
+                                  ? t(
+                                        "pages.deals.workspace.meetings.section_upcoming",
+                                    )
+                                  : t(
+                                        "pages.deals.workspace.meetings.section_past",
+                                    );
                         return (
                             <section key={section.label} className="mb-2">
                                 <div className="dr-label mb-2">
-                                    {section.label === "Upcoming"
-                                        ? t(
-                                              "pages.deals.workspace.meetings.section_upcoming",
-                                          )
-                                        : t(
-                                              "pages.deals.workspace.meetings.section_past",
-                                          )}
+                                    {sectionTitle}
                                 </div>
                                 {section.items.map((meeting) => (
                                     <div
@@ -305,13 +324,14 @@ export default function WorkspaceMeetingsTab({
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                selectMode
-                                                    ? toggleSelect(meeting.id)
-                                                    : setDetailFollowupId(
-                                                          meeting.id,
-                                                      )
-                                            }
+                                            onClick={() => {
+                                                if (selectMode) {
+                                                    toggleSelect(meeting.id);
+                                                    return;
+                                                }
+                                                setDetailInitialPanel("info");
+                                                setDetailFollowupId(meeting.id);
+                                            }}
                                             aria-label={
                                                 selectMode
                                                     ? t(
@@ -366,12 +386,16 @@ export default function WorkspaceMeetingsTab({
                                                         )}
                                                     </span>
                                                     <span
-                                                        className={`dr-pill ${getMeetingStatusTone(
-                                                            meeting.statusLabel,
-                                                        )}`}
+                                                        className={`dr-pill ${
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).tone
+                                                        }`}
                                                     >
                                                         {td(
-                                                            meeting.statusLabel,
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).label,
                                                             { source: "en" },
                                                         )}
                                                     </span>
@@ -388,9 +412,8 @@ export default function WorkspaceMeetingsTab({
                                                                     event,
                                                                 ) => {
                                                                     event.stopPropagation();
-                                                                    setSummaryFollowupId(
-                                                                        meeting.id,
-                                                                    );
+                                                                    setDetailInitialPanel("summary");
+                                                                    setDetailFollowupId(meeting.id);
                                                                 }}
                                                                 onKeyDown={(
                                                                     event,
@@ -400,9 +423,8 @@ export default function WorkspaceMeetingsTab({
                                                                         "Enter"
                                                                     ) {
                                                                         event.stopPropagation();
-                                                                        setSummaryFollowupId(
-                                                                            meeting.id,
-                                                                        );
+                                                                        setDetailInitialPanel("summary");
+                                                                        setDetailFollowupId(meeting.id);
                                                                     }
                                                                 }}
                                                             >
@@ -466,6 +488,7 @@ export default function WorkspaceMeetingsTab({
                 meeting={detailFollowup}
                 deal={deal}
                 meetingTypes={meetingTypes}
+                initialPanel={detailInitialPanel}
                 canEdit={
                     detailFollowup
                         ? canEditMeeting(
@@ -486,17 +509,12 @@ export default function WorkspaceMeetingsTab({
                           )
                         : false
                 }
-                onClose={() => setDetailFollowupId(null)}
+                onClose={() => {
+                    setDetailFollowupId(null);
+                    setDetailInitialPanel("info");
+                }}
             />
 
-            {summaryFollowup && (
-                <ViewFollowup
-                    open={!!summaryFollowup}
-                    onClose={() => setSummaryFollowupId(null)}
-                    followup={summaryFollowup}
-                    deal={deal}
-                />
-            )}
 
             <DealConfirmDialog
                 open={confirmBulkCancel}

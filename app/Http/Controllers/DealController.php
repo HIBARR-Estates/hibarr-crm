@@ -62,6 +62,7 @@ use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
+use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
@@ -1052,7 +1053,7 @@ class DealController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
         abort_403(! $access['canAccess']);
 
-        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
+        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
@@ -1608,15 +1609,21 @@ class DealController extends AccountBaseController
         $removedProductIds = array_diff($oldProductIds, $comparableProductIds);
 
         if ($deal->isCommissionLocked() && (
-            $deal->isDirty(['manual_value', 'value', 'value_source'])
+            $deal->isDirty(['manual_value', 'value', 'value_source', 'agent_id'])
             || ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
             || ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds)))
         )) {
+            $lockMessage = $deal->isDirty('agent_id') && ! $deal->isDirty(['manual_value', 'value', 'value_source'])
+                && ! ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
+                && ! ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds)))
+                ? __('messages.dealAgentLockedByCommission')
+                : __('messages.dealValueLockedByCommission');
+
             if ($request->header('X-Inertia')) {
-                return redirect()->back()->with('error', __('messages.dealValueLockedByCommission'));
+                return redirect()->back()->with('error', $lockMessage);
             }
 
-            return Reply::error(__('messages.dealValueLockedByCommission'));
+            return Reply::error($lockMessage);
         }
 
         $deal->save();
@@ -1746,8 +1753,11 @@ class DealController extends AccountBaseController
             }
         }
 
-        // Auto-apply offers based on product properties
-        app(DealOfferService::class)->applyOffersToDeal($deal);
+        // Auto-apply offers based on product properties. Skip when commission
+        // is already calculated — apply rebuilds applications from scratch.
+        if (! $deal->isCommissionLocked()) {
+            app(DealOfferService::class)->applyOffersToDeal($deal);
+        }
 
         // Recompute the canonical value now that products/packages may have changed —
         // unlike patch(), update() previously only ever set $deal->value from an explicit
@@ -1946,13 +1956,24 @@ class DealController extends AccountBaseController
         $validatedData = $request->validated();
 
         // A commission was already calculated against this deal's value — a
-        // narrower block than isLocked() above: everything else about the
-        // deal (stage, agent, notes) stays editable, only what feeds the
-        // value is refused.
+        // narrower block than isLocked() above: stage and notes stay editable,
+        // but value-feeding fields and the agent (payout already ran against
+        // them) are refused.
         if ($deal->isCommissionLocked() && Deal::touchesValueFields($validatedData)) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealValueLockedByCommission'),
+            ], 403);
+        }
+
+        if (
+            $deal->isCommissionLocked()
+            && Deal::touchesAgentField($validatedData)
+            && $deal->agentWouldChange($validatedData['agent_id'] ?? null)
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealAgentLockedByCommission'),
             ], 403);
         }
 
@@ -2101,7 +2122,9 @@ class DealController extends AccountBaseController
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
                 $deal->products()->sync($validatedData['products']);
                 $productsUpdated = true;
-                app(DealOfferService::class)->applyOffersToDeal($deal);
+                if (! $deal->isCommissionLocked()) {
+                    app(DealOfferService::class)->applyOffersToDeal($deal);
+                }
             }
 
             // Any value-affecting key means calculated_value (and therefore
@@ -2266,6 +2289,10 @@ class DealController extends AccountBaseController
 
         if ($deal->isLocked()) {
             return Reply::error(__('messages.dealLocked'));
+        }
+
+        if ($deal->isCommissionLocked()) {
+            return Reply::error(__('messages.dealAgentLockedByCommission'));
         }
 
         $this->editPermission = user()->permission('edit_deals');
@@ -2572,7 +2599,7 @@ class DealController extends AccountBaseController
         }
 
         foreach ($deals as $deal) {
-            if ((bool) $deal->is_locked) {
+            if ((bool) $deal->is_locked || $deal->isCommissionLocked()) {
                 continue;
             }
 
@@ -2733,22 +2760,17 @@ class DealController extends AccountBaseController
             }
         }
 
-        $browserTimezone = $request->timezone;
+        // The form's timezone picker (creator's own by default, or the host's)
+        // decides what the entered wall-clock time means.
+        $timezone = UserTimezone::forWrite(user(), company(), $request->input('timezone'));
 
-        if (! $browserTimezone) {
-            $browserTimezone = company()->timezone ?? 'UTC';
-            \Log::warning('Browser timezone not provided in follow-up request, using company timezone', [
-                'deal_id' => $request->deal_id,
-                'lead_id' => $request->lead_id,
-                'company_timezone' => $browserTimezone,
-            ]);
-        }
-
-        $next_follow_up_date = Carbon::createFromFormat(
-            'd-m-Y H:i:s',
+        $next_follow_up_date = UserTimezone::interpretWallClock(
+            user(),
+            company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            $browserTimezone
-        )->setTimezone('UTC');
+            'd-m-Y H:i:s',
+            $timezone
+        );
 
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
         $customReminders = $request->reminders ?? [];
@@ -2761,6 +2783,7 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date;
+        $followUp->timezone = $timezone;
         $followUp->remark = $request->remark;
         $followUp->duration = $request->filled('duration') ? (int) $request->duration : null;
         $followUp->send_reminder = 'yes';
@@ -2834,7 +2857,7 @@ class DealController extends AccountBaseController
      */
     private function loadFollowUpWithParticipants($followUpId): DealFollowUp
     {
-        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
+        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
 
         $participantIds = collect($followUp->participants ?? []);
         $participantUsersMap = $participantIds->isEmpty()
@@ -2848,7 +2871,7 @@ class DealController extends AccountBaseController
             ->values()
             ->toArray();
 
-        $host = $followUp->host_id ? User::find($followUp->host_id, ['id', 'name', 'image']) : null;
+        $host = $followUp->host;
         $followUp->host = $host
             ? ['id' => $host->id, 'name' => $host->name, 'image' => $host->image ? $host->image_url : null]
             : null;
@@ -2902,27 +2925,24 @@ class DealController extends AccountBaseController
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
 
-        // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        // Prefer browser timezone from request, fallback to company timezone if not provided
-        $browserTimezone = $request->input('timezone');
+        // The zone the form sent, else the one the meeting was booked in, else
+        // the actor's own — and the same zone is stored for the next edit.
+        $timezone = UserTimezone::forWrite(
+            user(),
+            company(),
+            $request->input('timezone') ?: $followUp->timezone
+        );
 
-        if (! $browserTimezone) {
-            // Fallback to company timezone if browser timezone not provided
-            $browserTimezone = company()->timezone ?? 'UTC';
-            \Log::warning('Browser timezone not provided in follow-up update request, using company timezone', [
-                'follow_up_id' => $followUp->id,
-                'deal_id' => $request->deal_id,
-                'company_timezone' => $browserTimezone,
-            ]);
-        }
-
-        $next_follow_up_date = Carbon::createFromFormat(
-            'd-m-Y H:i:s',
+        $next_follow_up_date = UserTimezone::interpretWallClock(
+            user(),
+            company(),
             $request->next_follow_up_date.' '.$request->start_time,
-            $browserTimezone
-        )->setTimezone('UTC'); // Convert from browser/company timezone to UTC for database storage
+            'd-m-Y H:i:s',
+            $timezone
+        );
         // Assign Carbon instance directly - Laravel will handle the conversion
         $followUp->next_follow_up_date = $next_follow_up_date;
+        $followUp->timezone = $timezone;
 
         $followUp->remark = $request->remark;
         $followUp->status = $request->status ?? 'scheduled';

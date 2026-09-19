@@ -185,8 +185,10 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                             }
                                             description={[
                                                 ut.formatted_price,
-                                                ut.bedrooms
-                                                    ? `${ut.bedrooms} bed`
+                                                ut.bedrooms != null
+                                                    ? ut.bedrooms === 0
+                                                        ? "Studio"
+                                                        : `${ut.bedrooms} bed`
                                                     : null,
                                                 ut.bathrooms
                                                     ? `${ut.bathrooms} bath`

@@ -46,7 +46,7 @@ $deleteContractDiscussionPermission = user()->permission('delete_contract_discus
                 @if(($isClient == true) && $client)
                     <div class="text-grey f-10 float-left mt-0">{{ __('(Added By : ') . $client->name . ')' }}</div><br/>
                 @endif
-                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! $discussion->message !!}
+                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! clean_html($discussion->message) !!}
                 </div>
             </div>
         </div>

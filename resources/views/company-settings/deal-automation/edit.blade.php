@@ -146,6 +146,14 @@
 
                 <hr>
                 <h4 class="mb-3">Conditions</h4>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <x-forms.select fieldId="condition_logic" :fieldLabel="__('Combine Conditions')" fieldName="condition_logic">
+                            <option value="all" {{ ($automation->condition_logic ?? 'all') == 'all' ? 'selected' : '' }}>Match all conditions (AND)</option>
+                            <option value="any" {{ ($automation->condition_logic ?? 'all') == 'any' ? 'selected' : '' }}>Match any condition (OR)</option>
+                        </x-forms.select>
+                    </div>
+                </div>
                 <div id="conditions-container">
                     @if(isset($automation) && $automation->conditions->count() > 0)
                         @foreach($automation->conditions as $index => $condition)

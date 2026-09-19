@@ -440,6 +440,7 @@ class LeadContactController extends AccountBaseController
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
+                    'host:id,name,image',
                     'meetingType',
                     'meetingSummary',
                     'deal:id,name',

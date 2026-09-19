@@ -19,6 +19,8 @@ interface EmptyStateAction {
 interface EmptyStateProps {
     title?: string;
     description?: string;
+    /** Extra controls inside the dashed card (e.g. two add paths on Exposés). */
+    footer?: ReactNode;
     /**
      * Glyph for the circular badge — any name the Icon primitive knows.
      * Give each tab its own so the states stay distinguishable at a glance.
@@ -53,6 +55,7 @@ export default function EmptyState({
     description,
     icon = "file-text",
     action,
+    footer,
     role = "status",
 }: EmptyStateProps) {
     return (
@@ -102,6 +105,7 @@ export default function EmptyState({
                     {action.label}
                 </Button>
             )}
+            {footer ? <div className="mt-3.5">{footer}</div> : null}
         </div>
     );
 }

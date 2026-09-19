@@ -13,17 +13,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * DeveloperProjectUnitType Model
- * 
+ *
  * Represents a specific unit type within a developer/construction project.
  * Each project can have multiple unit types (e.g., 2+1 Apartment, Studio Villa)
  * with their own specifications, features, pricing, photos, and legal info.
- * 
+ *
  * Reference codes follow the pattern: DEVELOPER-NNN-UTxx
  * (e.g., AKACAN-001-UT01)
  */
 class DeveloperProjectUnitType extends BaseModel
 {
-    use HasFactory, HasCompany, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
+    use HasCompany, HasFactory, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
 
     protected $table = 'developer_project_unit_types';
 
@@ -31,6 +31,7 @@ class DeveloperProjectUnitType extends BaseModel
     // Primary Category Constants
     // ================================================================
     const CATEGORY_RESIDENTIAL = 'residential';
+
     const CATEGORY_COMMERCIAL = 'commercial';
 
     const PRIMARY_CATEGORIES = [
@@ -162,6 +163,54 @@ class DeveloperProjectUnitType extends BaseModel
         'wallpaper' => 'Wallpaper',
         'water_booster' => 'Water Booster',
     ];
+
+    /**
+     * Allowed inside-feature strings: static keys/labels plus Property Config
+     * lookup names and labels. Used for validation so config-only features save.
+     *
+     * @return list<string>
+     */
+    public static function allowedInsideFeatureValues(): array
+    {
+        return self::allowedFeatureValues(self::INSIDE_FEATURES, PropertyInteriorFeature::class);
+    }
+
+    /**
+     * Allowed outside-feature strings: static keys/labels plus Property Config
+     * lookup names and labels.
+     *
+     * @return list<string>
+     */
+    public static function allowedOutsideFeatureValues(): array
+    {
+        return self::allowedFeatureValues(self::OUTSIDE_FEATURES, PropertyExteriorFeature::class);
+    }
+
+    /**
+     * @param  array<string, string>  $static
+     * @param  class-string  $lookupClass
+     * @return list<string>
+     */
+    private static function allowedFeatureValues(array $static, string $lookupClass): array
+    {
+        $values = array_merge(array_keys($static), array_values($static));
+
+        try {
+            $lookups = $lookupClass::query()->get(['name', 'label']);
+            foreach ($lookups as $row) {
+                if (is_string($row->name) && $row->name !== '') {
+                    $values[] = $row->name;
+                }
+                if (is_string($row->label) && $row->label !== '') {
+                    $values[] = $row->label;
+                }
+            }
+        } catch (\Throwable) {
+            // Lookup table may be missing during migrations.
+        }
+
+        return array_values(array_unique($values));
+    }
 
     // ================================================================
     // Fillable Fields
@@ -308,8 +357,6 @@ class DeveloperProjectUnitType extends BaseModel
      * Generate a reference code for this unit type.
      * Pattern: DEVELOPER-NNN-UTxx
      * e.g., AKACAN-001-UT01
-     *
-     * @return string
      */
     public function generateReferenceCode(): string
     {
@@ -317,7 +364,7 @@ class DeveloperProjectUnitType extends BaseModel
 
         // Get project ref code or generate one
         $projectRef = $project->reference_code;
-        if (!$projectRef) {
+        if (! $projectRef) {
             $projectRef = $project->generateReferenceCode();
             $project->update(['reference_code' => $projectRef]);
         }
@@ -328,18 +375,19 @@ class DeveloperProjectUnitType extends BaseModel
             ->where('developer_project_id', $this->developer_project_id)
             ->where('id', '!=', $this->id ?? 0)
             ->whereNotNull('reference_code')
-            ->where('reference_code', 'like', $projectRef . '-UT%')
+            ->where('reference_code', 'like', $projectRef.'-UT%')
             ->pluck('reference_code')
             ->map(function ($code) use ($projectRef) {
                 // Extract numeric part after "-UT" (e.g., "AKACAN-001-UT03" → 3)
-                $suffix = str_replace($projectRef . '-UT', '', $code);
+                $suffix = str_replace($projectRef.'-UT', '', $code);
+
                 return is_numeric($suffix) ? (int) $suffix : 0;
             })
             ->max();
 
         $unitNumber = str_pad(($maxNumber ?? 0) + 1, 2, '0', STR_PAD_LEFT);
 
-        return $projectRef . '-UT' . $unitNumber;
+        return $projectRef.'-UT'.$unitNumber;
     }
 
     // ================================================================
@@ -369,8 +417,11 @@ class DeveloperProjectUnitType extends BaseModel
      */
     public function getFormattedPriceAttribute(): ?string
     {
-        if (!$this->starting_price) return null;
-        return $this->currency_symbol . number_format((float) $this->starting_price, 0);
+        if (! $this->starting_price) {
+            return null;
+        }
+
+        return $this->currency_symbol.number_format((float) $this->starting_price, 0);
     }
 
     /**
@@ -382,7 +433,7 @@ class DeveloperProjectUnitType extends BaseModel
         $parts = [];
 
         if ($this->bedrooms !== null) {
-            $parts[] = $this->bedrooms . '+1';
+            $parts[] = $this->bedrooms.'+1';
         }
 
         $types = $this->primary_category === self::CATEGORY_COMMERCIAL

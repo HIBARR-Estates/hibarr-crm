@@ -210,6 +210,13 @@ build-artifact:
 	npm install
 	php artisan ziggy:generate
 	npm run production
+	$(MAKE) write-build-version
+
+# Opaque id sitting tabs poll against after a deploy (`public/build-version.json`).
+write-build-version:
+	@BUILD_SHA=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown); \
+	printf '{"id":"%s-%s"}\n' "$${BUILD_ID:-local}" "$$BUILD_SHA" > public/build-version.json; \
+	echo "Wrote public/build-version.json"
 
 # This target is for the server to run after extracting the artifact
 finalize-deploy:

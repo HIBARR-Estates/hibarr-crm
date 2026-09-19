@@ -20,8 +20,12 @@ class OlDealPaymentProxyService
             'deal_id' => $deal->id,
             'amount' => round((float) $input['amount'], 2),
             'currency' => strtoupper((string) $input['currency']),
-            'provider_key' => (string) ($input['provider_key'] ?? 'manual-bank-transfer'),
         ];
+
+        // Omit provider_key unless explicitly set so OL checkout can let the client choose.
+        if (!empty($input['provider_key'])) {
+            $payload['provider_key'] = (string) $input['provider_key'];
+        }
 
         $response = $this->request('POST', $this->dealPaymentRequestPath(), $payload);
 

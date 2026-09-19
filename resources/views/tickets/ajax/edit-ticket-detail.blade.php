@@ -20,7 +20,7 @@
                                 <x-forms.label fieldId="description" :fieldLabel="__('app.description')"
                                         fieldRequired="true">
                                 </x-forms.label>
-                                <div id="description3">{!! $reply->message !!}</div>
+                                <div id="description3">{!! clean_html($reply->message) !!}</div>
                                 <textarea name="description" id="description-text3" class="d-none"></textarea>
                             @endif
                         @endif

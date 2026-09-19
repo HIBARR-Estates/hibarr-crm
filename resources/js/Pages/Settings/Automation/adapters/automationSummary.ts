@@ -266,8 +266,8 @@ export function describeAction(
 }
 
 /**
- * "Runs every time it's triggered" vs "Only runs when all N checks pass" —
- * the AND logic matches DealAutomationService::evaluateConditions().
+ * "Runs every time it's triggered" vs "Only runs when all/any N checks pass" —
+ * mirrors the AND/OR branch in DealAutomationService::evaluateConditions().
  */
 export function describeConditionGate(automation: Automation): string {
     const count = automation.conditions.length;
@@ -276,8 +276,12 @@ export function describeConditionGate(automation: Automation): string {
         return "Runs every time the trigger fires — no conditions to meet";
     }
 
-    return count === 1
-        ? "Only runs when this is true"
+    if (count === 1) {
+        return "Only runs when this is true";
+    }
+
+    return automation.condition_logic === "any"
+        ? `Only runs when any of these ${count} are true`
         : `Only runs when all ${count} of these are true`;
 }
 

@@ -58,13 +58,13 @@
                         <br>
                     @endif
                     </div>
-                    <span class="ql-editor f-13 px-0">{!! nl2br($message->message) !!}</span>
+                    <span class="ql-editor f-13 px-0">{!! clean_html(nl2br($message->message)) !!}</span>
                 </div>
             @endif
 
             <div class="form-control edit-note-message d-none" id="text-{{$message->id}}">
                 <div class="card-text text-dark-grey text-justify mb-2" id="message-{{ $message->id }}">
-                    <div id="description-note{{$message->id}}">{!! nl2br($message->message) !!}</div>
+                    <div id="description-note{{$message->id}}">{!! clean_html(nl2br($message->message)) !!}</div>
                 </div>
                 <div class="form-group">
                     <div class="my-1 form-group">
