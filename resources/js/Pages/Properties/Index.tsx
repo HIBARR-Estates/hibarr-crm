@@ -473,10 +473,21 @@ const Index = ({
                     ) : undefined
                 }
             >
-                <div className="max-w-7xl mx-auto space-y-6">
+                <div className="max-w-7xl mx-auto space-y-6 min-w-0">
                     {/* Unified Tab Navigation */}
-                    <div className="flex justify-center">
+                    <div
+                        className={
+                            isMobileResponsive
+                                ? "flex justify-center w-full min-w-0"
+                                : "flex justify-center"
+                        }
+                    >
                         <Segmented
+                            className={
+                                isMobileResponsive
+                                    ? "properties-page-tabs max-w-full"
+                                    : undefined
+                            }
                             options={tabOptions}
                             value={activeTab}
                             onChange={handleTabChange}
@@ -488,8 +499,14 @@ const Index = ({
                     {showPropertiesTable && (
                         <>
                             {/* Header with Actions */}
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                                <div className="flex items-center gap-3">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 min-w-0">
+                                <div
+                                    className={
+                                        isMobileResponsive
+                                            ? "flex flex-wrap items-center gap-2 min-w-0"
+                                            : "flex items-center gap-3"
+                                    }
+                                >
                                     <Button
                                         type="primary"
                                         icon={<PlusOutlined />}
@@ -567,7 +584,13 @@ const Index = ({
                                     </Link>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div
+                                    className={
+                                        isMobileResponsive
+                                            ? "flex flex-wrap items-center gap-2 min-w-0"
+                                            : "flex items-center gap-3"
+                                    }
+                                >
                                     <Button
                                         icon={
                                             <ReloadOutlined

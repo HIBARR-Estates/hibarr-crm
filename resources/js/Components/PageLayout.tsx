@@ -106,12 +106,19 @@ export default function PageLayout({
     const topbarPaddingClassName = isMobileResponsive
         ? "px-3 sm:px-6 py-3 sm:py-4"
         : "px-6 py-4";
+    // Keep search on its own row below the app's lg (1024px) mobile cutoff.
     const topbarRowClassName = isMobileResponsive
-        ? "flex items-center gap-x-3 sm:gap-x-6 flex-wrap sm:flex-nowrap"
+        ? "flex items-center gap-x-3 lg:gap-x-6 gap-y-3 flex-wrap lg:flex-nowrap"
         : "flex items-center gap-x-6";
     const searchWrapperClassName = isMobileResponsive
-        ? "order-3 sm:order-none basis-full sm:basis-0 sm:flex-1"
+        ? "order-last lg:order-none basis-full lg:basis-0 lg:flex-1 min-w-0"
         : "flex-1";
+    const searchInnerClassName = isMobileResponsive
+        ? "w-full max-w-lg mx-auto min-w-0"
+        : "max-w-lg mx-auto";
+    const userIdentityClassName = isMobileResponsive
+        ? "hidden lg:flex flex-col min-w-0"
+        : "flex flex-col";
 
     useEffect(() => {
         if (flash?.success) {
@@ -217,15 +224,21 @@ export default function PageLayout({
                         {/* Search Component */}
                         {searchComp && (
                             <div className={searchWrapperClassName}>
-                                {/* set a max width so it doesn't stretch too far */}
-                                <div className="max-w-lg mx-auto">
+                                {/* Full-width on the wrapped mobile row; cap width on desktop. */}
+                                <div className={searchInnerClassName}>
                                     {searchComp}
                                 </div>
                             </div>
                         )}
-                        <div className="ml-auto flex items-center gap-2 sm:gap-4">
+                        <div className="ml-auto flex items-center gap-2 sm:gap-4 flex-shrink-0">
                             <div className="flex items-center gap-2">
-                                <LanguageSwitcher />
+                                <LanguageSwitcher
+                                    labelClassName={
+                                        isMobileResponsive
+                                            ? "hidden lg:inline-flex"
+                                            : undefined
+                                    }
+                                />
                                 <TimezoneIndicator />
                             </div>
                             <NotificationDropdown pollingInterval={30000} />
@@ -243,7 +256,7 @@ export default function PageLayout({
                                         >
                                             {user?.name?.charAt(0)}
                                         </Avatar>
-                                        <div className="flex flex-col">
+                                        <div className={userIdentityClassName}>
                                             <span className="text-sm font-medium truncate">
                                                 {user?.name}
                                             </span>
