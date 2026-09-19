@@ -37,6 +37,9 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { permissions } = usePermission();
+    const canManageLeadSettings = isPermissionAll(
+        permissions.manage_lead_setting,
+    );
     const canManageNotifications = isPermissionAll(
         permissions.manage_notification_setting,
     );
@@ -76,7 +79,10 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
             iconColor: "text-purple-500",
             title: t("app.menu.lead"),
             description: t("app.settingsHub.leadsDesc"),
-            connected: false,
+            connected: canManageLeadSettings,
+            onOpen: canManageLeadSettings
+                ? () => router.visit(route("settings-leads.index"))
+                : undefined,
         },
         {
             key: "deals",

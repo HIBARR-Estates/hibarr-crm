@@ -1,36 +1,25 @@
-import { useState } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
-import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import DashboardHeader, {
+    HeaderSubtext,
+} from "./components/DashboardHeader";
+import SegmentedControl from "./personal/SegmentedControl";
+import DateRangePicker from "./components/DateRangePicker";
+import {
+    buildSwitcher,
+    VIEW_SUBTEXT,
+    WINDOWED,
+    type DashboardRange,
+    type ViewKey,
+} from "./viewConfig";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import AgentView, { AgentViewProps } from "./views/AgentView";
 import ManagerView, { ManagerViewProps } from "./views/ManagerView";
+import TeamView, { TeamViewProps } from "./views/TeamView";
 import LeadershipView, { LeadershipViewProps } from "./views/LeadershipView";
 import PartnerView, { PartnerViewProps } from "./views/PartnerView";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
-
-type ViewKey = "agent" | "manager" | "leadership" | "partner";
-
-const VIEW_LABELS: Record<ViewKey, string> = {
-    agent: "My work",
-    manager: "Team",
-    leadership: "Company",
-    partner: "Partner",
-};
-
-/** Windows offered by the period picker. Must match the controller's whitelist. */
-const PERIODS = [
-    { days: 30, label: "Last 30 days" },
-    { days: 90, label: "Last 90 days" },
-    { days: 365, label: "Last 12 months" },
-];
-
-/** Views whose panels are windowed, and so get the period picker. */
-const WINDOWED: ViewKey[] = ["manager"];
 
 /**
  * The deferred panel props all arrive as top-level page props, so the shell
@@ -39,34 +28,62 @@ const WINDOWED: ViewKey[] = ["manager"];
 type DashboardV2Props = {
     availableViews: ViewKey[];
     activeView: ViewKey;
-    period: number;
+    /** The window, as the server resolved it — preset or custom. */
+    range: DashboardRange;
     now: string;
+    /** Greeted in the shared header, same as on the personal dashboard. */
+    userName: string;
     personalDashboardEnabled?: boolean;
-} & AgentViewProps &
-    ManagerViewProps &
+} & ManagerViewProps &
+    TeamViewProps &
     LeadershipViewProps &
     PartnerViewProps;
 
 /**
- * Shell for the four role-scoped dashboards.
+ * How the window reads in the subtext: rolling for a preset, dated for a range
+ * the user picked. English source strings — translated at the call site.
+ */
+function windowLabel(range: DashboardRange): string {
+    return range.preset
+        ? `Last ${range.preset} days.`
+        : `${range.from} to ${range.to}.`;
+}
+
+/**
+ * Shell for the role-scoped dashboards.
  *
  * Which views appear comes from independent view_*_dashboard permissions, so a
- * user holding several (leadership commonly holds agent + leadership) gets a
+ * user holding several (a manager commonly holds team + downline) gets a
  * switcher. Switching is a real visit with ?view= rather than client state —
  * only the active view's panels are deferred server-side, so we never pay to
  * compute panels nobody is looking at.
  */
 export default function DashboardV2(props: DashboardV2Props) {
-    const { availableViews, activeView, period, now, personalDashboardEnabled } = props;
+    const { availableViews, activeView, range, now, userName, personalDashboardEnabled } =
+        props;
     const { td } = useTd();
     const { auth } = usePage<PageProps>().props;
-    const [addLeadOpen, setAddLeadOpen] = useState(false);
+
+    // The current window travels with every visit so switching views keeps it.
+    // A custom range carries from/to; a preset carries days — sending both
+    // would let the server pick the wrong one.
+    const windowParams = range.preset
+        ? { days: range.preset }
+        : { from: range.from, to: range.to };
 
     const go = (params: Record<string, string | number>) =>
         router.visit(
-            route("dashboard.v2", { view: activeView, days: period, ...params }),
+            route("dashboard.v2", {
+                view: activeView,
+                ...windowParams,
+                ...params,
+            }),
             { preserveScroll: true },
         );
+
+    // Identical to the personal dashboard's, by construction — see
+    // buildSwitcher. The switcher must not change shape when you use it.
+    const switcher = buildSwitcher(availableViews, !!personalDashboardEnabled);
 
     return (
         <DashboardLayout>
@@ -77,134 +94,67 @@ export default function DashboardV2(props: DashboardV2Props) {
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            flexWrap: "wrap",
-                            marginBottom: 18,
-                        }}
-                    >
-                        {personalDashboardEnabled || availableViews.length > 1 ? (
-                            <nav className="dv2-tabs" aria-label={td("Dashboard")}>
-                                {personalDashboardEnabled && (
-                                    <button
-                                        type="button"
-                                        className="dv2-tab"
-                                        onClick={() => go({ view: "personal" })}
-                                    >
-                                        {td("My work")}
-                                    </button>
-                                )}
-                                {availableViews.map((view) => (
-                                    <button
-                                        key={view}
-                                        type="button"
-                                        className="dv2-tab"
-                                        aria-current={
-                                            view === activeView
-                                                ? "page"
-                                                : undefined
+                    <DashboardHeader
+                        userName={userName}
+                        now={now}
+                        subtext={
+                            <HeaderSubtext>
+                                {WINDOWED.includes(activeView)
+                                    ? `${VIEW_SUBTEXT[activeView]} ${windowLabel(range)}`
+                                    : VIEW_SUBTEXT[activeView]}
+                            </HeaderSubtext>
+                        }
+                        actions={
+                            <>
+                                {/* One segment is not a switcher. With the
+                                    personal dashboard on there are always at
+                                    least two, so this only bites for an
+                                    account holding exactly one role view. */}
+                                {switcher.length > 1 && (
+                                    <SegmentedControl
+                                        label="Dashboard"
+                                        active={activeView}
+                                        segments={switcher}
+                                        onSelect={(view) =>
+                                            view !== activeView && go({ view })
                                         }
-                                        onClick={() => go({ view })}
-                                    >
-                                        {td(VIEW_LABELS[view])}
-                                    </button>
-                                ))}
-                            </nav>
-                        ) : (
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    fontSize: 19,
-                                    fontWeight: 700,
-                                    color: T.NAVY,
-                                }}
-                            >
-                                {td(VIEW_LABELS[activeView])}
-                            </h1>
-                        )}
+                                    />
+                                )}
 
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {activeView === "partner" && (
-                                <span className="dr-pill dr-pill-blue">
-                                    {td("Your referrals only · no deal values")}
-                                </span>
-                            )}
+                                {WINDOWED.includes(activeView) && (
+                                    <DateRangePicker
+                                        value={range}
+                                        // A new window replaces the old one
+                                        // rather than merging with it, so a
+                                        // preset never leaves stale from/to
+                                        // behind (and vice versa).
+                                        onChange={(params) =>
+                                            router.visit(
+                                                route("dashboard.v2", {
+                                                    view: activeView,
+                                                    ...params,
+                                                }),
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    />
+                                )}
+                            </>
+                        }
+                    />
 
-                            {WINDOWED.includes(activeView) && (
-                                <select
-                                    className="dr-input"
-                                    aria-label={td("Period")}
-                                    value={period}
-                                    style={{ minHeight: 38, width: "auto" }}
-                                    onChange={(event) =>
-                                        go({ days: event.target.value })
-                                    }
-                                >
-                                    {PERIODS.map((option) => (
-                                        <option
-                                            key={option.days}
-                                            value={option.days}
-                                        >
-                                            {td(option.label)}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-
-                            {activeView === "agent" && (
-                                <>
-                                    <span
-                                        style={{
-                                            fontSize: 12,
-                                            color: T.TEXT_HINT,
-                                            marginRight: 4,
-                                        }}
-                                    >
-                                        {dayjs(now).format("ddd D MMM · HH:mm")}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="dr-btn dr-btn-primary"
-                                        onClick={() => setAddLeadOpen(true)}
-                                    >
-                                        {td("Add lead")}
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </header>
-
-                    {activeView === "agent" && <AgentView {...props} />}
                     {activeView === "manager" && (
-                        <ManagerView {...props} currentUserId={auth?.user?.id} />
+                        <ManagerView
+                            {...props}
+                            period={range.days}
+                            currentUserId={auth?.user?.id}
+                        />
+                    )}
+                    {activeView === "team" && (
+                        <TeamView {...props} period={range.days} />
                     )}
                     {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}
-
-                    {/* SaveLeadModal reloads the keys it's given on success, so
-                        the new lead lands in the queue without a page visit. */}
-                    {addLeadOpen && (
-                        <SaveLeadModal
-                            open
-                            onClose={() => setAddLeadOpen(false)}
-                            reloadKeys={[
-                                "actionQueue",
-                                "agentWeek",
-                                "agentPipeline",
-                            ]}
-                        />
-                    )}
                 </div>
             </PageLayout>
         </DashboardLayout>

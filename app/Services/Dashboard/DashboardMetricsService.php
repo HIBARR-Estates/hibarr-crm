@@ -107,48 +107,16 @@ class DashboardMetricsService
             ->all();
     }
 
-    // ── Agent view ───────────────────────────────────────────────
+    // ── Next-step coverage ───────────────────────────────────────
 
     /**
-     * The ranked "what do I do first" list. Ordering is deliberate: things that
-     * are already late outrank things that are merely hot.
+     * Open records nobody nominated a next step on, leads first.
      *
-     * `counts` are the true totals; the row arrays are capped. An agent with 95
-     * overdue tasks needs to be told 95 — counting the rows we chose to ship
-     * would quietly under-report exactly the people in most trouble.
-     */
-    public function actionQueue(int $userId): array
-    {
-        $agentIds = $this->agentIdsForUser($userId);
-
-        return [
-            'overdueTasks' => $this->overdueTasks($userId),
-            'hotLeads' => $this->hotLeadsNeedingContact($userId),
-            // Correct, and permanently empty: stalled-ness is read from
-            // pipeline_stages.target_duration_days, which is NULL on every
-            // stage today. Configured, not inferred — leave the bucket alone
-            // rather than "fixing" it with a guess. noNextStep below is the
-            // signal that actually lights up.
-            'stalledDeals' => $this->stalledDeals($agentIds),
-            'noNextStep' => $this->recordsWithoutNextStep($userId),
-            'counts' => [
-                'overdueTasks' => $this->overdueTaskQuery($userId)->count(),
-                'hotLeads' => $this->hotLeadQuery($userId)->count(),
-                'stalledDeals' => $this->stalledDealQuery($agentIds)?->count() ?? 0,
-                'noNextStep' => $this->recordsWithoutNextStepCount($userId, $agentIds),
-            ],
-        ];
-    }
-
-    /**
-     * Open records the agent owns that nobody has committed a next action on.
-     *
-     * Replaces the "no activity for N days" guess. Silence is not the same as
-     * neglect — a quiet deal may simply be waiting on a notary — but a record
-     * with no open next-step task is unambiguous, because somebody had to
-     * deliberately not nominate one.
-     *
-     * @return array<int, array{type: string, id: int, name: string, days_open: int}>
+     * No production caller since the agent view was removed: the personal
+     * dashboard counts the same thing through leadsWithoutNextStep() and
+     * dealsWithoutNextStep() directly. Kept because NextStepTest pins the
+     * "what counts as covered" semantics through this method, and those
+     * semantics still ship — deleting it would delete the coverage with it.
      */
     private function recordsWithoutNextStep(int $userId, int $limit = self::QUEUE_ROWS): array
     {
@@ -179,12 +147,6 @@ class DashboardMetricsService
             ->take($limit)
             ->values()
             ->all();
-    }
-
-    private function recordsWithoutNextStepCount(int $userId, array $agentIds): int
-    {
-        return $this->leadsWithoutNextStep($userId)->count()
-            + ($this->dealsWithoutNextStep($agentIds)?->count() ?? 0);
     }
 
     private function leadsWithoutNextStep(int $userId)
@@ -229,48 +191,6 @@ class DashboardMetricsService
                 ->whereNull('tasks.deleted_at')
                 ->when($doneColumnId, fn ($q) => $q->where('tasks.board_column_id', '<>', $doneColumnId));
         };
-    }
-
-    /**
-     * Overdue tasks, each carrying the CRM record it hangs off.
-     *
-     * The linked record is what makes the queue readable: 18 of one agent's 23
-     * overdue tasks belong to a single lead, so without it the list reads as 23
-     * separate problems instead of one.
-     *
-     * Rows are full tasks via toFrontendArray() rather than a trimmed shape,
-     * because the queue opens TaskDetailModal in place — which needs
-     * description, priority, assignees and the board column — and because
-     * tasks.store/tasks.update return exactly this, so a row and a post-save
-     * patch are the same object.
-     */
-    private function overdueTaskQuery(int $userId)
-    {
-        return Task::query()
-            ->pending()
-            ->visibleToUser($userId)
-            ->whereNotNull('due_date')
-            ->where('due_date', '<', now());
-    }
-
-    private function overdueTasks(int $userId): array
-    {
-        $tasks = $this->overdueTaskQuery($userId)
-            ->with(['users:id,name,image', 'boardColumn:id,slug,column_name'])
-            ->orderBy('due_date')
-            ->limit(self::QUEUE_ROWS)
-            ->get();
-
-        $related = $this->relatedRecords($tasks->pluck('id')->all());
-
-        return $tasks
-            ->map(fn (Task $task) => $task->toFrontendArray() + [
-                'days_overdue' => (int) now()->startOfDay()->diffInDays(
-                    Carbon::parse($task->due_date)->startOfDay()
-                ),
-                'related' => $related[$task->id] ?? null,
-            ])
-            ->all();
     }
 
     /**
@@ -323,149 +243,7 @@ class DashboardMetricsService
         return $out;
     }
 
-    /**
-     * Hot/warm leads the agent owns that have never been contacted. Uses the
-     * first_contacted_at stamp — NULL genuinely means "no agent activity yet".
-     */
-    private function hotLeadQuery(int $userId)
-    {
-        return Lead::query()
-            ->where('lead_owner', $userId)
-            ->whereNull('first_contacted_at')
-            ->whereIn('temperature', ['hot', 'warm']);
-    }
-
-    private function hotLeadsNeedingContact(int $userId): array
-    {
-        return $this->hotLeadQuery($userId)
-            ->orderByRaw("FIELD(temperature, 'hot', 'warm')")
-            ->orderBy('created_at')
-            ->limit(self::QUEUE_ROWS)
-            ->get(['id', 'client_name', 'temperature', 'created_at'])
-            ->map(fn (Lead $lead) => [
-                'id' => $lead->id,
-                'client_name' => $lead->client_name,
-                'temperature' => $lead->temperature?->value,
-                'waiting_hours' => (int) $lead->created_at->diffInHours(now()),
-            ])
-            ->all();
-    }
-
-    /**
-     * Deals sitting in a stage longer than that stage's configured target.
-     * Stages with no target_duration_days are never flagged — configured, not
-     * inferred, so the screen can't invent a bottleneck that nobody agreed on.
-     */
-    private function stalledDealQuery(array $agentIds)
-    {
-        if (empty($agentIds)) {
-            return null;
-        }
-
-        return Deal::query()
-            ->join('pipeline_stages', 'pipeline_stages.id', '=', 'deals.pipeline_stage_id')
-            ->whereIn('deals.agent_id', $agentIds)
-            ->whereNull('deals.outcome_status')
-            ->whereNotNull('pipeline_stages.target_duration_days')
-            ->whereNotNull('deals.stage_entered_at')
-            ->whereRaw('deals.stage_entered_at < DATE_SUB(NOW(), INTERVAL pipeline_stages.target_duration_days DAY)');
-    }
-
-    public function stalledDeals(array $agentIds): array
-    {
-        $query = $this->stalledDealQuery($agentIds);
-
-        if (is_null($query)) {
-            return [];
-        }
-
-        return $query
-            ->orderBy('deals.stage_entered_at')
-            ->limit(self::QUEUE_ROWS)
-            // Joined stage columns are aliases, not Deal attributes.
-            ->toBase()
-            ->get([
-                'deals.id',
-                'deals.name',
-                'deals.stage_entered_at',
-                'pipeline_stages.name as stage_name',
-                'pipeline_stages.target_duration_days',
-            ])
-            ->map(fn ($deal) => [
-                'id' => $deal->id,
-                'name' => $deal->name,
-                'stage_name' => $deal->stage_name,
-                'days_in_stage' => (int) Carbon::parse($deal->stage_entered_at)->diffInDays(now()),
-                'target_days' => (int) $deal->target_duration_days,
-            ])
-            ->all();
-    }
-
-    /**
-     * The week strip: what the agent actually did, not what they were assigned.
-     *
-     * "Activities logged" from the design has no single home in this schema —
-     * `communication_activities` is empty and `deal_histories` only covers the
-     * deal side — so the strip counts the three things that are unambiguously
-     * recorded (meetings, deals, first contacts) plus the response median.
-     */
-    public function agentWeek(int $userId): array
-    {
-        $start = now()->startOfWeek();
-        $agentIds = $this->agentIdsForUser($userId);
-
-        $responseMinutes = Lead::query()
-            ->where('lead_owner', $userId)
-            ->whereNotNull('assigned_at')
-            ->whereNotNull('first_contacted_at')
-            ->where('first_contacted_at', '>=', $start)
-            ->toBase()
-            ->selectRaw('TIMESTAMPDIFF(MINUTE, assigned_at, first_contacted_at) as minutes')
-            ->pluck('minutes')
-            ->all();
-
-        $medianMinutes = $this->median(array_map('intval', $responseMinutes));
-
-        return [
-            'weekStart' => $start->toDateString(),
-            'meetings' => $this->heldMeetings()
-                ->visibleToUser($userId)
-                ->where('next_follow_up_date', '>=', $start)
-                ->count(),
-            'dealsCreated' => Deal::query()
-                ->whereIn('agent_id', $agentIds ?: [0])
-                ->where('created_at', '>=', $start)
-                ->count(),
-            'leadsContacted' => Lead::query()
-                ->where('lead_owner', $userId)
-                ->where('first_contacted_at', '>=', $start)
-                ->count(),
-            'medianResponseMinutes' => $medianMinutes === null ? null : (int) round($medianMinutes),
-        ];
-    }
-
-    /**
-     * Today's and tomorrow's meetings for the agent.
-     *
-     * Follow-ups are the meeting record here (`lead_follow_up`); there is no
-     * separate Meeting entity. Cancelled ones are dropped, everything else is
-     * shown with the status it carries.
-     *
-     * Rows are full follow-ups, for the same reason overdueTasks() returns full
-     * tasks: the panel opens MeetingDetailModal in place.
-     */
-    public function todaySchedule(int $userId): array
-    {
-        $followUps = $this->followUpQuery($userId)
-            ->whereBetween('next_follow_up_date', [now()->startOfDay(), now()->addDay()->endOfDay()])
-            ->orderBy('next_follow_up_date')
-            ->limit(12)
-            ->get();
-
-        return $this->mapFollowUps($followUps);
-    }
-
-    /** Base query shared by todaySchedule() and followUpsDue() — only the date window differs. */
+    /** Base query shared by the agenda panels — only the date window differs. */
     private function followUpQuery(int $userId)
     {
         return DealFollowUp::query()
@@ -501,23 +279,6 @@ class DashboardMetricsService
                 'duration' => $followUp->getEffectiveDuration(),
             ])
             ->all();
-    }
-
-    /**
-     * The agent's own pipeline: stage counts plus open value.
-     *
-     * Value stays split by currency for the same reason the leadership view
-     * splits it — the stored exchange rates are unmaintained, so one rolled-up
-     * total would look authoritative and be wrong.
-     */
-    public function agentPipeline(int $userId): array
-    {
-        $agentIds = $this->agentIdsForUser($userId);
-
-        return [
-            'funnel' => $this->stageFunnel($agentIds),
-            'value' => $this->pipelineValueByCurrency($agentIds),
-        ];
     }
 
     // ── Personal dashboard ─────────────────────────────────────────
@@ -626,7 +387,7 @@ class DashboardMetricsService
      * untouched for a week.
      *
      * Grouped by pipeline, never by stage: the pipelines carry different stage
-     * sets with no shared ordinal (see stageFunnel()'s own note), so a single
+     * sets with no shared ordinal, so a single
      * cross-pipeline funnel would stack unlike things.
      *
      * Value stays split by currency inside each pipeline for the same reason
@@ -813,7 +574,7 @@ class DashboardMetricsService
 
         // Upcoming counts what's booked ahead; attended/missed reads the
         // outcome an agent already logged behind (see MeetingAttendanceOutcome
-        // and QueueRowActions' "Log attendance" action) — never inferred from
+        // and the meeting modal's "Log attendance" action) — never inferred from
         // whether a meeting is merely in the past, since a meeting with no
         // outcome logged yet is unknown, not missed.
         $meetingCounts = $this->followUpQuery($userId)
@@ -1015,98 +776,6 @@ class DashboardMetricsService
     }
 
     // ── Manager view ─────────────────────────────────────────────
-
-    /**
-     * Deals per stage for one pipeline, in that pipeline's own stage order.
-     *
-     * One pipeline at a time, deliberately. There are 11 pipelines sharing 67
-     * stages and several reuse the same stage names ("NEW" appears in most of
-     * them), so a merged funnel renders dozens of near-empty bars with repeated
-     * labels — unreadable, and it implies a single funnel the business doesn't
-     * actually run.
-     *
-     * Defaults to the pipeline where the scope has the most open deals, and
-     * returns the alternatives so the UI can offer a selector without a second
-     * round-trip.
-     *
-     * @return array{pipelines: array, pipeline_id: int|null, stages: array}
-     */
-    public function stageFunnel(array $agentIds, ?int $pipelineId = null): array
-    {
-        $pipelineCounts = Deal::query()
-            ->join('lead_pipelines', 'lead_pipelines.id', '=', 'deals.lead_pipeline_id')
-            ->whereNull('deals.outcome_status')
-            ->when(! empty($agentIds), fn ($q) => $q->whereIn('deals.agent_id', $agentIds))
-            ->groupBy('lead_pipelines.id', 'lead_pipelines.name')
-            ->orderByDesc('deal_count')
-            ->toBase()
-            ->get([
-                'lead_pipelines.id',
-                'lead_pipelines.name',
-                DB::raw('COUNT(deals.id) as deal_count'),
-            ]);
-
-        if ($pipelineCounts->isEmpty()) {
-            return ['pipelines' => [], 'pipeline_id' => null, 'stages' => []];
-        }
-
-        $available = $pipelineCounts->map(fn ($row) => [
-            'id' => (int) $row->id,
-            'name' => $row->name,
-            'deal_count' => (int) $row->deal_count,
-        ])->all();
-
-        // Fall back to the busiest pipeline when the requested one isn't in scope,
-        // so a stale ?pipeline= can't render an empty funnel.
-        $selectedId = collect($available)->firstWhere('id', $pipelineId)['id']
-            ?? $available[0]['id'];
-
-        $stages = PipelineStage::query()
-            ->where('pipeline_stages.lead_pipeline_id', $selectedId)
-            ->leftJoin('deals', function ($join) use ($agentIds) {
-                $join->on('deals.pipeline_stage_id', '=', 'pipeline_stages.id')
-                    ->whereNull('deals.outcome_status');
-
-                if (! empty($agentIds)) {
-                    $join->whereIn('deals.agent_id', $agentIds);
-                }
-            })
-            ->groupBy('pipeline_stages.id', 'pipeline_stages.name', 'pipeline_stages.priority')
-            ->orderBy('pipeline_stages.priority')
-            // Aggregate rows, not entities — skip Eloquent hydration.
-            ->toBase()
-            ->get([
-                'pipeline_stages.id',
-                'pipeline_stages.name',
-                DB::raw('COUNT(deals.id) as deal_count'),
-            ])
-            ->map(fn ($stage) => [
-                'id' => (int) $stage->id,
-                'name' => $stage->name,
-                'count' => (int) $stage->deal_count,
-            ])
-            ->all();
-
-        $dwell = $this->medianDaysInStage($agentIds, $selectedId);
-
-        $stages = array_map(fn (array $stage) => $stage + [
-            // How long the deals sitting here have been here. A direct
-            // measurement, unlike median_days, which infers from past moves.
-            'open_median_days' => $dwell[$stage['id']]['open_median_days'] ?? null,
-            // Historic transit time. Null below three samples — a median over
-            // one or two deals is not a median.
-            'median_days' => ($dwell[$stage['id']]['samples'] ?? 0) >= 3
-                ? $dwell[$stage['id']]['median_days']
-                : null,
-            'samples' => $dwell[$stage['id']]['samples'] ?? 0,
-        ], $stages);
-
-        return [
-            'pipelines' => $available,
-            'pipeline_id' => $selectedId,
-            'stages' => $stages,
-        ];
-    }
 
     /**
      * The five headline numbers, each against the equivalent previous window.

@@ -5,27 +5,27 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\LeadCategory;
 use App\Models\LeadPipeline;
+use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\User;
-use App\Support\FeatureFlags;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use App\Models\LeadSetting;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\PackageRoutingFieldCatalog;
+use App\Support\FeatureFlags;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LeadSettingController extends AccountBaseController
 {
-
     public function __construct()
     {
         parent::__construct();
         $this->pageTitle = 'modules.deal.leadSetting';
         $this->activeSettingMenu = 'lead_settings';
         $this->middleware(function ($request, $next) {
-            abort_403(!(user()->permission('manage_lead_setting') == 'all' && in_array('leads', user_modules())));
+            abort_403(! (user()->permission('manage_lead_setting') == 'all' && in_array('leads', user_modules())));
+
             return $next($request);
         });
     }
@@ -85,6 +85,7 @@ class LeadSettingController extends AccountBaseController
 
         if (request()->ajax()) {
             $html = view($this->view, $this->data)->render();
+
             return Reply::dataOnly(['status' => 'success', 'html' => $html, 'title' => $this->pageTitle, 'activeTab' => $this->activeTab]);
         }
 
@@ -95,14 +96,13 @@ class LeadSettingController extends AccountBaseController
     /**
      * Update the lead setting.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
     public function updateLeadSettingStatus($id, Request $request)
     {
         $leadSetting = LeadSetting::where('company_id', $id)->first();
 
-        if(!$leadSetting){
+        if (! $leadSetting) {
             $leadSetting = new LeadSetting;
             $leadSetting->company_id = $id;
             $leadSetting->user_id = $request->userId;
@@ -128,27 +128,15 @@ class LeadSettingController extends AccountBaseController
             'first_contact_sla_hours' => [
                 'required',
                 'integer',
-                'min:' . DashboardMetricsService::SLA_HOURS_MIN,
-                'max:' . DashboardMetricsService::SLA_HOURS_MAX,
+                'min:'.DashboardMetricsService::SLA_HOURS_MIN,
+                'max:'.DashboardMetricsService::SLA_HOURS_MAX,
             ],
         ]);
 
-        // Assigned rather than mass-filled: LeadSetting declares no $fillable, so
-        // it is totally guarded and fill() would throw. Same shape as
-        // updateLeadSettingStatus above.
-        $companyId = company()->id;
-        $leadSetting = LeadSetting::where('company_id', $companyId)->first();
-
-        if (! $leadSetting) {
-            // A company that has never opened this screen has no row at all, and
-            // without this the saved SLA would silently stay at the default.
-            $leadSetting = new LeadSetting;
-            $leadSetting->company_id = $companyId;
-            $leadSetting->user_id = user()->id;
-        }
-
-        $leadSetting->first_contact_sla_hours = (int) $request->first_contact_sla_hours;
-        $leadSetting->save();
+        LeadSetting::persistFirstContactSlaHours(
+            (int) $request->first_contact_sla_hours,
+            (int) user()->id,
+        );
 
         return Reply::success(__('messages.updateSuccess'));
     }
@@ -182,5 +170,4 @@ class LeadSettingController extends AccountBaseController
 
         return Reply::success(__('messages.updateSuccess'));
     }
-
 }

@@ -14,6 +14,8 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import type { Task } from "@/Types/api/tasks";
+import DashboardHeader from "./components/DashboardHeader";
+import { buildSwitcher, type ViewKey } from "./viewConfig";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
@@ -49,8 +51,7 @@ import {
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-/** Only Team is offered next to My work — see the controller's own note. */
-type RoleView = "manager";
+
 
 export interface PersonalDashboardProps {
     now: string;
@@ -59,8 +60,13 @@ export interface PersonalDashboardProps {
     userId: number;
     /** DashboardMetricsService::PERSONAL_WINDOW_DAYS — how far ahead we look. */
     windowDays: number;
-    /** ["manager"] for a manager, empty for everyone else. */
-    availableViews?: RoleView[];
+    /**
+     * Every role view this account holds, permission- and flag-gated by the
+     * controller. buildSwitcher decides which become tabs — this page does not
+     * narrow the list itself, or its switcher would differ from the one on the
+     * view you land on.
+     */
+    availableViews?: ViewKey[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
@@ -199,7 +205,7 @@ export default function PersonalDashboard({
         },
     );
     const { reschedule, isPending: isSnoozing } = useDashboardTaskReschedule(
-        () => {},
+        () => { },
         (taskId) => clearOverride(taskId),
     );
     const { markHeld, isPending: isMarkingHeld } = useDashboardMeetingStatus(
@@ -209,6 +215,11 @@ export default function PersonalDashboard({
 
     const go = (next: Record<string, string>) =>
         router.visit(route("dashboard.v2", next), { preserveScroll: true });
+
+    // This page is always the personal dashboard, so the flag that gates it is
+    // on by definition — buildSwitcher's other caller is the one that has to
+    // pass it through.
+    const switcher = buildSwitcher(availableViews ?? [], true);
 
     const visitRecord = useCallback(
         (record: { type: "lead" | "deal"; id: number }) =>
@@ -323,8 +334,8 @@ export default function PersonalDashboard({
         () =>
             visibleQueue
                 ? visibleQueue.counts.overdue +
-                  visibleQueue.counts.today +
-                  visibleQueue.counts.later
+                visibleQueue.counts.today +
+                visibleQueue.counts.later
                 : 0,
         [visibleQueue],
     );
@@ -358,7 +369,6 @@ export default function PersonalDashboard({
                     >
                         <div data-tour="dashboard-status-line">
                             <StatusLine
-                                name={userName}
                                 now={now}
                                 clock={agendaClock}
                                 queue={visibleQueue}
@@ -571,6 +581,7 @@ export default function PersonalDashboard({
                         markingHeld={
                             openMeeting ? isMarkingHeld(openMeeting.id) : false
                         }
+                        reloadKeys={["agenda", "stats"]}
                     />
 
                     <MeetingScheduleModal
