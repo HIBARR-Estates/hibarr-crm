@@ -445,6 +445,22 @@
 .workspace-note-card-clamp .workspace-note-html.html-content ol {
     padding-left: 1.2em;
 }
+/*
+ * HIB-1402 — below the app's lg breakpoint (1024px), bump the list toolbar
+ * buttons up to a ~44px touch target. Scoped to .entity-list-header (the
+ * Leads/Deals list toolbar band) rather than the bare .dr-btn class — that
+ * class is the shared button primitive used everywhere (modals, workspace
+ * tabs, panel headers), so an unscoped rule would resize unrelated buttons
+ * app-wide. Desktop density (.dr-btn's normal 9px/16px padding) is
+ * untouched at >=1024px and everywhere outside the list toolbar.
+ */
+@media (max-width: 1023px) {
+    .entity-list-header .dr-btn {
+        min-height: 44px;
+        padding: 11px 16px;
+    }
+}
+
 .workspace-note-card-clamp .workspace-note-html.html-content li {
     margin-bottom: 0;
 }

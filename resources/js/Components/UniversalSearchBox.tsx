@@ -153,7 +153,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     };
 
     return (
-        <div className={className}>
+        <div className={`min-w-0 ${className}`}>
             <Input.Search
                 ref={inputRef}
                 placeholder={placeholder || "Search..."}
