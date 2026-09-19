@@ -558,6 +558,33 @@
         height: 42px !important;
     }
 
+    /* Affix/search inputs: keep the 44px hit target on the wrapper, not the
+       inner <input>. Do not set `display` here — Input.Search uses
+       table-cell on the affix wrapper, and overriding it (or flexing the
+       group without min-width:0) pushes the search button off-screen. */
+    body.mobile-responsive-layout .ant-input-affix-wrapper {
+        align-items: center;
+    }
+    body.mobile-responsive-layout .ant-input-affix-wrapper > input.ant-input {
+        min-height: 0 !important;
+        height: auto !important;
+        line-height: 22px;
+    }
+    body.mobile-responsive-layout .ant-input-search,
+    body.mobile-responsive-layout .ant-input-search .ant-input-group,
+    body.mobile-responsive-layout .ant-input-search .ant-input-wrapper {
+        max-width: 100%;
+        min-width: 0;
+    }
+    body.mobile-responsive-layout .ant-input-search .ant-input-affix-wrapper {
+        min-width: 0;
+    }
+    body.mobile-responsive-layout .ant-input-search .ant-input-search-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     /* Buttons — minimum ~44px touch target (icon-only buttons included) */
     body.mobile-responsive-layout .ant-btn {
         min-height: 44px;
@@ -592,5 +619,17 @@
     }
     body.mobile-responsive-layout .ant-drawer-content-wrapper {
         max-width: 100vw !important;
+    }
+
+    /* Properties list tabs: wrap All / Properties / My Drafts instead of
+       overflowing the viewport as one nowrap segmented control. */
+    body.mobile-responsive-layout .properties-page-tabs.ant-segmented {
+        height: auto !important;
+        max-width: 100%;
+    }
+    body.mobile-responsive-layout .properties-page-tabs .ant-segmented-group {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
     }
 }
