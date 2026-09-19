@@ -104,20 +104,50 @@
                 @endphp
                 
                 @foreach($groupsToShow as $groupIndex => $group)
+                    @php
+                        // Access criteria from already-eager-loaded relationship
+                        // Criteria should be loaded via eager loading in controller (criteria.referenceField)
+                        $groupCriteria = collect();
+                        if ($group && isset($group->criteria)) {
+                            // Access the already-loaded criteria relationship
+                            if (is_object($group->criteria) && method_exists($group->criteria, 'sortBy')) {
+                                $groupCriteria = $group->criteria->sortBy('id')->values();
+                            } elseif (is_array($group->criteria)) {
+                                $groupCriteria = collect($group->criteria)->sortBy('id')->values();
+                            } else {
+                                $groupCriteria = collect($group->criteria);
+                            }
+                        }
+
+                        // A group holding even one criterion this tab can't edit is
+                        // locked whole: its criteria are already read-only below, but
+                        // leaving the group's own controls live let this tab flip a
+                        // React-built rule's action/operator/enabled state — or delete
+                        // the group outright, taking the uneditable criterion with it.
+                        $groupIsLocked = $groupCriteria->contains(
+                            fn ($criterion) => ($criterion->reference_source ?? 'custom_field') !== 'custom_field'
+                        );
+                    @endphp
                     <div class="group-item card mb-3" data-group-index="{{ $groupIndex }}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Rule Group {{ $groupIndex + 1 }}</h5>
-                            @if(count($groupsToShow) > 1)
+                            @if(count($groupsToShow) > 1 && !$groupIsLocked)
                                 <button type="button" class="btn btn-danger btn-sm remove-group">
                                     <i class="fa fa-trash"></i> Remove Group
                                 </button>
                             @endif
                         </div>
                         <div class="card-body">
+                            @if($groupIsLocked)
+                                <div class="alert alert-secondary mb-3 py-1 px-2" style="font-size: 12px;">
+                                    This group contains a criterion this tab can't edit — edit the whole group from the field's visibility rule builder, not here.
+                                </div>
+                            @endif
                             <div class="form-group mb-3">
                                 <label class="control-label">
                                     <input type="checkbox" name="groups[{{ $groupIndex }}][enabled]" value="1" 
-                                           {{ (!$group || $group->enabled !== false) ? 'checked' : '' }} />
+                                           {{ (!$group || $group->enabled !== false) ? 'checked' : '' }}
+                                           @if($groupIsLocked) disabled @endif />
                                     Enable this group
                                 </label>
                                 <small class="form-text text-muted">
@@ -127,7 +157,7 @@
                             
                             <div class="form-group mb-3">
                                 <label class="control-label">Visibility Action</label>
-                                <select name="groups[{{ $groupIndex }}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8">
+                                <select name="groups[{{ $groupIndex }}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="show" {{ (!$group || $group->visibility_action == 'show' || !$group->visibility_action) ? 'selected' : '' }}>
                                         Show field when this group matches
                                     </option>
@@ -142,7 +172,7 @@
                             
                             <div class="form-group">
                                 <label class="control-label">Group Operator</label>
-                                <select name="groups[{{ $groupIndex }}][group_operator]" class="form-control select-picker group-operator-select" data-size="8">
+                                <select name="groups[{{ $groupIndex }}][group_operator]" class="form-control select-picker group-operator-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="AND" {{ (!$group || $group->group_operator == 'AND') ? 'selected' : '' }}>
                                         AND (all criteria must match)
                                     </option>
@@ -153,33 +183,41 @@
                             </div>
 
                             <div class="criteria-container" data-group-index="{{ $groupIndex }}">
-                                @php
-                                    // Access criteria from already-eager-loaded relationship
-                                    // Criteria should be loaded via eager loading in controller (criteria.referenceField)
-                                    $groupCriteria = collect();
-                                    if ($group && isset($group->criteria)) {
-                                        // Access the already-loaded criteria relationship
-                                        if (is_object($group->criteria) && method_exists($group->criteria, 'sortBy')) {
-                                            $groupCriteria = $group->criteria->sortBy('id')->values();
-                                        } elseif (is_array($group->criteria)) {
-                                            $groupCriteria = collect($group->criteria)->sortBy('id')->values();
-                                        } else {
-                                            $groupCriteria = collect($group->criteria);
-                                        }
-                                    }
-                                @endphp
                                 @if($group && $groupCriteria && $groupCriteria->count() > 0)
                                     @foreach($groupCriteria as $criterionIndex => $criterion)
-                                        <div class="criterion-item card mb-2" data-criterion-index="{{ $criterionIndex }}">
+                                        @php
+                                            $criterionSource = $criterion->reference_source ?? 'custom_field';
+                                        @endphp
+                                        <div class="criterion-item card mb-2" data-criterion-index="{{ $criterionIndex }}" data-reference-source="{{ $criterionSource }}">
                                             <div class="card-body">
+                                                @if($criterionSource !== 'custom_field')
+                                                    {{-- This legacy tab only has UI to edit custom_field criteria. A
+                                                         pipeline/pipeline_stage/deal_package/record criterion (built in
+                                                         the newer React rule builder) is shown fully read-only here —
+                                                         reference, value, operator and negate are all disabled and the
+                                                         remove button is hidden — so saving this tab round-trips it
+                                                         unchanged instead of dropping it or corrupting it into a
+                                                         broken custom_field criterion. --}}
+                                                    @php
+                                                        $criterionSourceLabel = [
+                                                            'pipeline' => 'pipeline',
+                                                            'pipeline_stage' => 'pipeline stage',
+                                                            'deal_package' => 'package',
+                                                            'record' => 'record',
+                                                        ][$criterionSource] ?? 'pipeline stage';
+                                                    @endphp
+                                                    <div class="alert alert-secondary mb-2 py-1 px-2" style="font-size: 12px;">
+                                                        This criterion reads the deal's <strong>{{ $criterionSourceLabel }}</strong> — edit it from the field's visibility rule builder, not here.
+                                                    </div>
+                                                @endif
                                                 <div class="row">
                                                     <div class="col-md-4">
                                                         <div class="form-group">
                                                             <label>Reference Field</label>
-                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8">
+                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
                                                                 <option value="">Select field...</option>
                                                                 @foreach($otherFields as $availableField)
-                                                                    <option value="{{ $availableField->id }}" 
+                                                                    <option value="{{ $availableField->id }}"
                                                                             {{ $criterion->reference_field_id == $availableField->id ? 'selected' : '' }}>
                                                                         {{ $availableField->label }} ({{ $availableField->type }})
                                                                     </option>
@@ -190,7 +228,7 @@
                                                     <div class="col-md-3">
                                                         <div class="form-group">
                                                             <label>Operator</label>
-                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][operator]" class="form-control select-picker operator-select" data-size="8">
+                                                            <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][operator]" class="form-control select-picker operator-select" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
                                                                 <option value="equals" {{ $criterion->operator == 'equals' ? 'selected' : '' }}>equals</option>
                                                                 <option value="exists" {{ $criterion->operator == 'exists' ? 'selected' : '' }}>exists</option>
                                                                 <option value="boolean" {{ $criterion->operator == 'boolean' ? 'selected' : '' }}>is boolean</option>
@@ -206,28 +244,32 @@
                                                     <div class="col-md-4">
                                                         <div class="form-group value-input-group">
                                                             <label>Value</label>
-                                                            <input type="text" 
-                                                                   name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]" 
+                                                            <input type="text"
+                                                                   name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
                                                                    id="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
-                                                                   class="form-control height-35 f-14 reference-value-input" 
+                                                                   class="form-control height-35 f-14 reference-value-input"
                                                                    value="{{ $criterion->reference_value ?? '' }}"
-                                                                   placeholder="Enter value" />
+                                                                   placeholder="Enter value"
+                                                                   @if($criterionSource !== 'custom_field') disabled @endif />
                                                         </div>
                                                     </div>
                                                     <div class="col-md-1">
                                                         <div class="form-group">
                                                             <label>&nbsp;</label>
-                                                            <button type="button" class="btn btn-danger btn-sm remove-criterion" style="display: block;">
-                                                                <i class="fa fa-trash"></i>
-                                                            </button>
+                                                            @if($criterionSource === 'custom_field')
+                                                                <button type="button" class="btn btn-danger btn-sm remove-criterion" style="display: block;">
+                                                                    <i class="fa fa-trash"></i>
+                                                                </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-md-12">
                                                         <label>
-                                                            <input type="checkbox" name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][negate]" value="1" 
-                                                                   {{ $criterion->negate ? 'checked' : '' }} />
+                                                            <input type="checkbox" name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][negate]" value="1"
+                                                                   {{ $criterion->negate ? 'checked' : '' }}
+                                                                   @if($criterionSource !== 'custom_field') disabled @endif />
                                                             Negate (NOT) - Reverse the condition
                                                         </label>
                                                     </div>
@@ -238,9 +280,11 @@
                                 @endif
                             </div>
 
-                            <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="{{ $groupIndex }}">
-                                <i class="fa fa-plus"></i> Add Criterion
-                            </button>
+                            @if(!$groupIsLocked)
+                                <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="{{ $groupIndex }}">
+                                    <i class="fa fa-plus"></i> Add Criterion
+                                </button>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -771,10 +815,26 @@ $(document).ready(function() {
                 
                 const referenceValue = $(this).find('.reference-value-input').val();
                 const negate = $(this).find('input[name*="[negate]"]').is(':checked');
+                // This tab has no picker for a pipeline/pipeline_stage criterion's
+                // value (it's not a custom field, so reference_field_id is never
+                // set) — that criterion is rendered read-only (see the blade
+                // template) and must round-trip via this data attribute instead
+                // of being silently dropped by the `referenceFieldId && operator`
+                // check below.
+                const referenceSource = $(this).data('reference-source') || 'custom_field';
 
                 // Debug: Log each criterion being collected
 
-                if (referenceFieldId && operator) {
+                if (referenceSource !== 'custom_field' && operator) {
+                    group.criteria.push({
+                        reference_source: referenceSource,
+                        reference_field_id: null,
+                        operator: operator,
+                        reference_value: (operator === 'exists' || operator === 'boolean') ? null : (referenceValue ? String(referenceValue).trim() : null),
+                        negate: Boolean(negate)
+                    });
+                    hasCriteria = true;
+                } else if (referenceFieldId && operator) {
                     // Only require value for operators that need it
                     if (operator !== 'exists' && operator !== 'boolean') {
                         if (!referenceValue || referenceValue.trim() === '') {
@@ -785,12 +845,13 @@ $(document).ready(function() {
                     }
 
                     const criterionData = {
+                        reference_source: 'custom_field',
                         reference_field_id: parseInt(referenceFieldId),
                         operator: operator,
                         reference_value: (operator === 'exists' || operator === 'boolean') ? null : (referenceValue ? referenceValue.trim() : null),
                         negate: Boolean(negate)
                     };
-                    
+
                     group.criteria.push(criterionData);
                     hasCriteria = true;
                 }

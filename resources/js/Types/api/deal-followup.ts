@@ -1,6 +1,7 @@
 import { User } from "..";
 import { Deal } from "./deals";
 import { Lead } from "./leads";
+import type { MeetingAttendanceOutcome } from "./meeting-attendance-confirmation";
 
 export interface Reminder {
     time: number;
@@ -33,6 +34,8 @@ export interface DealFollowup {
     /** User "in charge of" the meeting. Immutable once the meeting is saved. */
     host_id?: number | null;
     host?: { id: number; name: string; image?: string | null } | null;
+    /** IANA zone the meeting was booked in; next_follow_up_date stays UTC. */
+    timezone?: string | null;
     meeting_type?: {
         id: number;
         name: string;
@@ -42,12 +45,28 @@ export interface DealFollowup {
     reminders?: Reminder[];
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
-    deal?: Pick<Deal, "id" | "name"> | Deal;
+    deal?:
+        | (Pick<Deal, "id" | "name"> & {
+              leadStage?: {
+                  id: number;
+                  name: string;
+                  slug?: string;
+                  label_color?: string | null;
+              } | null;
+              contact?: { id: number; client_name: string } | null;
+          })
+        | Deal;
     zoho_calendar_job_id?: string | null;
     zoho_calendar_sync_status?: "pending" | "synced" | "failed" | null;
     zoho_calendar_event_uid?: string | null;
+    /** OL's reason for the last failed sync; null once synced. */
+    zoho_calendar_sync_error?: string | null;
     /** Tri-state: null = not yet confirmed, true/false = manually confirmed after the meeting. */
     client_attended?: boolean | null;
+    /** Set once, via the attendance-confirmation flow — null while still pending. */
+    attendance_outcome?: MeetingAttendanceOutcome | null;
+    attendance_outcome_logged_at?: string | null;
+    attendance_outcome_logged_by?: number | null;
     lead?: Pick<
         Lead,
         "id" | "client_name" | "client_name_salutation" | "company_name"

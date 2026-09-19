@@ -27,6 +27,9 @@ interface HostFieldProps {
     disabled?: boolean;
     changeLabel?: string;
     pickLabel?: string;
+    /** Names for a `value` that might not be in the "employees" directory this
+     *  field searches — see AssigneeField's `knownPeople` for why. */
+    knownPeople?: PersonOption[];
 }
 
 function mapEmployee(employee: EmployeeRecord): PersonOption {
@@ -47,6 +50,7 @@ export default function HostField({
     disabled = false,
     changeLabel = "Change",
     pickLabel = "Select host",
+    knownPeople = [],
 }: HostFieldProps) {
     const { props } = usePage<
         PageProps & { employees?: EmployeeRecord[] }
@@ -94,12 +98,13 @@ export default function HostField({
         remotePeople.length > 0 || !loading ? remotePeople : seedPeople;
 
     const byId = useMemo(() => {
-        const map = new Map(people.map((person) => [person.id, person]));
+        const map = new Map(knownPeople.map((person) => [person.id, person]));
+        for (const person of people) map.set(person.id, person);
         for (const person of seedPeople) {
             if (!map.has(person.id)) map.set(person.id, person);
         }
         return map;
-    }, [people, seedPeople]);
+    }, [people, seedPeople, knownPeople]);
 
     const blocked = !loading && Boolean(error) && people.length === 0;
     const current = value != null ? byId.get(value) : undefined;

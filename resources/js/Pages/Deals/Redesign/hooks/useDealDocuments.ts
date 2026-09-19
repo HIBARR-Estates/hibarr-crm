@@ -1,21 +1,42 @@
 import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
+import {
+    hasUploadedValue,
+    normalizeLabel,
+    readCustomFieldValue,
+    resolveFileUrl,
+} from "@/lib/documentFieldValue";
 
 export interface DealDocumentItem {
     id: string;
     label: string;
     uploaded: boolean;
-    source: "hibarr" | "custom" | "attachment";
+    /** "lead" = a lead-owned field cross-populated here (see FieldModal's "Show in Deal") — rendered in its own "Personal files" section, not the deal's own Documents section. */
+    source: "custom" | "lead" | "attachment";
     /**
      * Field identity for uploading into this slot via
      * `useDealInfoFieldUpdate().handleFieldUpdate`. Absent for "attachment"
      * rows, which are already-uploaded loose files with no slot behind them.
      */
     fieldName?: string;
-    updateType?: "hibarr_field" | "custom_field";
+    /**
+     * "lead_custom_field" routes the write straight to the lead (see
+     * DealUpdateType::LEAD_CUSTOM_FIELD) — used for "lead"-source slots,
+     * whose value is genuinely the lead's own, shared across every deal.
+     * Plain "custom_field" writes to this deal.
+     */
+    updateType?: "custom_field" | "lead_custom_field";
     /** Resolved URL of the stored document, when it looks like one. */
     fileUrl?: string;
+    /**
+     * Set only on the Lead page's cross-deal slots (useLeadCrossDealDocuments)
+     * — never on this deal's own slots, which are inherently already "this
+     * deal". Used to route an upload/replace to the right deal and (on the
+     * Lead Files tab) to group slots by deal — see FilesTab.tsx.
+     */
+    dealId?: number;
+    dealName?: string;
 }
 
 interface CustomFieldDefinition {
@@ -24,93 +45,8 @@ interface CustomFieldDefinition {
     name?: string;
     type?: string;
     custom_field_category_id?: string | number;
-}
-
-const HIBARR_DOCUMENT_FIELDS: Array<{
-    key: keyof NonNullable<Deal["hibarr_fields"]>;
-    label: string;
-    /** All three are real file uploads — HibarrDealFields.php appends a
-     * `<key>_url` accessor for each (getDepositConfirmationUrlAttribute()
-     * included), so deposit_confirmation resolves a viewable URL exactly
-     * like the other two once a file's been uploaded to it. */
-    isFile: boolean;
-}> = [
-    { key: "deposit_confirmation", label: "Deposit confirmation", isFile: true },
-    { key: "reservation_agreement", label: "Reservation agreement", isFile: true },
-    { key: "sales_contract", label: "Sales contract", isFile: true },
-];
-
-const NON_FILE_STRINGS = new Set([
-    "no",
-    "false",
-    "n/a",
-    "na",
-    "none",
-    "pending",
-    "yes",
-]);
-
-function hasUploadedValue(value: unknown): boolean {
-    if (value === null || value === undefined) return false;
-    if (typeof value === "boolean") return value;
-    if (Array.isArray(value)) return value.length > 0;
-    if (typeof value === "object") return Object.keys(value as object).length > 0;
-
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (!trimmed) return false;
-        if (NON_FILE_STRINGS.has(trimmed.toLowerCase())) return false;
-        return true;
-    }
-
-    return Boolean(value);
-}
-
-function readCustomFieldValue(
-    deal: Deal,
-    fieldId: number,
-): unknown {
-    const data = deal.custom_fields_data ?? {};
-    return data[`field_${fieldId}`] ?? data[fieldId];
-}
-
-function normalizeLabel(field: CustomFieldDefinition): string {
-    return field.label?.trim() || field.name?.trim() || `Field ${field.id}`;
-}
-
-const IS_URL = /^(https?:\/\/|\/)/i;
-
-/**
- * Resolve a stored file value into a viewable URL. Handles an already-absolute
- * URL/path, a bare stored filename (served from `/user-uploads/<dir>/`), and
- * an array/JSON list of filenames (takes the first). `dir` is the storage
- * subfolder — `hibarr_fields` or `custom_fields`, matching how EditableField /
- * CustomFieldDisplay build their own links.
- */
-function resolveFileUrl(value: unknown, dir: string): string | undefined {
-    let filename: string | undefined;
-
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (!trimmed) return undefined;
-        if (IS_URL.test(trimmed)) return trimmed;
-        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                const first = Array.isArray(parsed) ? parsed[0] : parsed;
-                filename = typeof first === "string" ? first : undefined;
-            } catch {
-                filename = trimmed;
-            }
-        } else {
-            filename = trimmed;
-        }
-    } else if (Array.isArray(value) && value.length > 0) {
-        filename = typeof value[0] === "string" ? value[0] : undefined;
-    }
-
-    if (!filename) return undefined;
-    return IS_URL.test(filename) ? filename : `/user-uploads/${dir}/${filename}`;
+    /** Lead-owned FILE fields only — whether this field may appear on a deal's Files tab at all. Defaults to true when absent. */
+    show_in_deal?: boolean;
 }
 
 export default function useDealDocuments(
@@ -122,49 +58,46 @@ export default function useDealDocuments(
      * categories. Omit to include every custom file field.
      */
     categoryIds?: number[],
+    /**
+     * Field visibility, keyed by field id — from evaluateAllFieldsVisibility()
+     * over this deal's rule sets (pipeline-context included). A file field
+     * evaluating to `false` is dropped entirely rather than shown unfilled.
+     * Omit to show every matching field unconditionally (pre-visibility-rules
+     * behaviour).
+     */
+    visibilityMap?: Record<number, boolean>,
+    /**
+     * Lead-owned FILE fields whose pipeline rule matches this deal — one slot
+     * on the deal view, same as any other custom file field. Their values
+     * live on the lead (shared across every deal on that lead), passed in
+     * separately as `leadFileFieldsData` — not on `deal.custom_fields_data`
+     * and not in `customFields` directly.
+     */
+    leadFileFields: CustomFieldDefinition[] = [],
+    leadFileFieldsData: Record<string, unknown> = {},
 ) {
     return useMemo(() => {
         const items: DealDocumentItem[] = [];
         const allowedCategories =
             categoryIds && categoryIds.length > 0 ? new Set(categoryIds) : null;
-
-        for (const doc of HIBARR_DOCUMENT_FIELDS) {
-            const fields = deal.hibarr_fields;
-            const rawValue = fields ? fields[doc.key] : null;
-            // The model appends `<key>_url` accessors (HibarrDealFields.php)
-            // that resolve the correct href for both local storage
-            // (public/user-uploads) and S3 (a signed URL) — authoritative, so
-            // we never hand-build the path for hibarr documents.
-            const urlValue = fields
-                ? (fields as unknown as Record<string, unknown>)[
-                      `${String(doc.key)}_url`
-                  ]
-                : null;
-            items.push({
-                id: `hibarr-${doc.key}`,
-                label: doc.label,
-                uploaded: hasUploadedValue(rawValue),
-                source: "hibarr",
-                fieldName: String(doc.key),
-                updateType: "hibarr_field",
-                fileUrl:
-                    doc.isFile &&
-                    typeof urlValue === "string" &&
-                    urlValue.trim()
-                        ? urlValue
-                        : undefined,
-            });
-        }
+        const isVisible = (fieldId: number) =>
+            !visibilityMap || visibilityMap[fieldId] !== false;
 
         for (const field of customFields) {
             if (field.type !== "file") continue;
+            // A field with no category assigned isn't category-scoped at all
+            // (e.g. the HIBARR document fields migrated straight to custom
+            // fields with no category) — only gate fields that actually
+            // declare one and it isn't in the allowed set.
             if (
                 allowedCategories &&
+                field.custom_field_category_id != null &&
                 !allowedCategories.has(Number(field.custom_field_category_id))
             ) {
                 continue;
             }
-            const value = readCustomFieldValue(deal, field.id);
+            if (!isVisible(field.id)) continue;
+            const value = readCustomFieldValue(deal.custom_fields_data, field.id);
             items.push({
                 id: `custom-${field.id}`,
                 label: normalizeLabel(field),
@@ -172,6 +105,35 @@ export default function useDealDocuments(
                 source: "custom",
                 fieldName: `field_${field.id}`,
                 updateType: "custom_field",
+                fileUrl: resolveFileUrl(value, "custom_fields"),
+            });
+        }
+
+        // Lead-owned file fields cross-populated here (FieldModal's "Show in
+        // Deal", gated the same way — typically a `pipeline equals <this
+        // deal's pipeline>` rule). Tagged source: "lead" so the Files tab
+        // renders these under their own "Personal files" section, separate
+        // from this deal's own Documents. Not category-scoped: they aren't
+        // part of this deal's own custom_field_category_scopes. The value
+        // itself is genuinely the lead's own (shared across every deal on
+        // that lead) — updateType: "lead_custom_field" below routes an
+        // upload/replace straight to the lead, not this deal.
+        for (const field of leadFileFields) {
+            if (field.type !== "file") continue;
+            if (field.show_in_deal === false) continue;
+            if (!isVisible(field.id)) continue;
+            // The value genuinely lives on the lead — read leadFileFieldsData
+            // first so a null/stale entry on this deal's own custom_fields_data
+            // (e.g. a batch fetch that included the key with no value) can't
+            // suppress a value that's actually present on the lead.
+            const value = readCustomFieldValue(leadFileFieldsData, field.id, deal.custom_fields_data);
+            items.push({
+                id: `lead-${field.id}`,
+                label: normalizeLabel(field),
+                uploaded: hasUploadedValue(value),
+                source: "lead",
+                fieldName: `field_${field.id}`,
+                updateType: "lead_custom_field",
                 fileUrl: resolveFileUrl(value, "custom_fields"),
             });
         }
@@ -206,5 +168,5 @@ export default function useDealDocuments(
             uploadedCount: slots.filter((item) => item.uploaded).length,
             totalCount: slots.length,
         };
-    }, [categoryIds, customFields, deal, files]);
+    }, [categoryIds, customFields, deal, files, visibilityMap, leadFileFields, leadFileFieldsData]);
 }

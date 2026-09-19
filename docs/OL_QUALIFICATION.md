@@ -333,6 +333,78 @@ Response
 
 ---
 
+# OL → CRM: partner referrer on lead create
+
+When OL **creates** a CRM lead via the API token endpoints, partner attribution is stored on `leads.referred_by_agent_id` (write-once; not applied on contact update).
+
+**Endpoints (same auth as other external APIs):**
+
+- `POST {CRM_BASE_URL}/api/v1/contact/create`
+- `POST {CRM_BASE_URL}/api/v1/deal/create`
+
+**Headers:** `X-API-TOKEN`, `X-COMPANY-ID` (token company; must match).
+
+**Referrer (single CRM field):**
+
+| Field | Meaning |
+| --- | --- |
+| `referral_agent_id` | Referring **`users.id`** (same as `lead_owner_id`). CRM resolves to `leads.referred_by_agent_id` (`lead_agents.id`). |
+
+OL keeps `utmInfo.agt` in its own store for attribution analytics; **map it to `referral_agent_id` before calling CRM**. Do not rely on `utmInfo.agt` on the CRM request — UTM is marketing-only there.
+
+Aliases normalized to `referral_agent_id`: `referralAgentId`, `referal_agent_id`.
+
+Unresolvable or malformed `referral_agent_id` values never fail the request — the lead is still created/updated and response `referred_by_agent_id` may be null.
+
+**Example CRM body (OL → contact/create):**
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "lead_owner_id": 7,
+  "referral_agent_id": 42,
+  "utmInfo": {
+    "source": "test"
+  },
+  "ip_address": "::1",
+  "user_agent": "Mozilla/5.0 ..."
+}
+```
+
+UTM keys accept snake_case (`source`, `medium`, …) or camelCase (`utmSource`, `utmMedium`, …) for marketing storage only.
+
+**Success response confirmation (OL should assert this):**
+
+`POST /api/v1/contact/create` — inside `data`:
+
+```json
+{
+  "contact_id": 108,
+  "is_new": true,
+  "referred_by_agent_id": 7,
+  "preferred_contact_times": [],
+  "preferred_contact_time": null
+}
+```
+
+`POST /api/v1/deal/create`:
+
+```json
+{
+  "status": "accepted",
+  "contact_id": 108,
+  "company_id": 1,
+  "referred_by_agent_id": 7
+}
+```
+
+(`referred_by_agent_id` in the response is the stored **`lead_agents.id`**, not the `users.id` sent in `referral_agent_id`.)
+
+OL should assert: when `referral_agent_id` was a valid referring user with a lead-agent row, response `referred_by_agent_id` is non-null.
+
+---
+
 # CRM qualification complete (local)
 
 OL does **not** receive selected outcomes. CRM owns session completion.

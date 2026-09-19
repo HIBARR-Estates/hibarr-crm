@@ -137,6 +137,35 @@ class CrmWriteApiTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_token_without_company_is_rejected(): void
+    {
+        $this->insertApiToken('test-crm-write-token', companyId: null);
+
+        $this->getJson('/api/v2/notes/1', ['X-API-TOKEN' => 'test-crm-write-token'])->assertStatus(401);
+        $this->getJson('/api/v2/notes/1', [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '1',
+        ])->assertStatus(401);
+    }
+
+    public function test_missing_company_header_uses_token_company(): void
+    {
+        $this->insertApiToken('test-crm-write-token', companyId: 1);
+
+        // Reaches the controller (422: type query param missing) rather than 401.
+        $this->getJson('/api/v2/notes/1', ['X-API-TOKEN' => 'test-crm-write-token'])->assertStatus(422);
+    }
+
+    public function test_token_without_scopes_or_full_access_is_forbidden(): void
+    {
+        $this->insertApiToken('test-crm-write-token', unrestricted: false);
+
+        $this->getJson('/api/v2/notes/1', [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '1',
+        ])->assertStatus(403);
+    }
+
     public function test_list_endpoints_accept_filter_query_params(): void
     {
         $this->insertApiToken('test-crm-write-token');
@@ -206,6 +235,7 @@ class CrmWriteApiTest extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->string('name');
             $table->json('permissions')->nullable();
+            $table->boolean('unrestricted')->default(false);
             $table->boolean('revoked')->default(false);
             $table->timestamps();
         });
@@ -271,12 +301,13 @@ class CrmWriteApiTest extends TestCase
         }
     }
 
-    private function insertApiToken(string $token, ?int $companyId = 1): void
+    private function insertApiToken(string $token, ?int $companyId = 1, bool $unrestricted = true): void
     {
         DB::table('api_tokens')->insert([
             'token' => ApiToken::hashToken($token),
             'name' => 'Test Token',
             'permissions' => json_encode([]),
+            'unrestricted' => $unrestricted,
             'revoked' => false,
             'company_id' => $companyId,
             'created_at' => now(),

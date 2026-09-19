@@ -12,8 +12,15 @@ type FollowUpStatus = "scheduled" | "completed" | "cancelled";
  * This is what makes "meetings held" a recorded fact rather than an inference
  * from the date. Until something wrote 'completed' through a working path, the
  * manager view had to count past-and-not-cancelled and say so.
+ *
+ * `reloadKeys` defaults to the agent view's props — pass the deferred prop
+ * names the caller actually renders (e.g. the personal dashboard's `agenda`)
+ * so the reload asks the server for data it will use.
  */
-export default function useDashboardMeetingStatus(onChanged: () => void) {
+export default function useDashboardMeetingStatus(
+    onChanged: () => void,
+    reloadKeys: string[] = ["todaySchedule", "agentWeek"],
+) {
     const [pendingIds, setPendingIds] = useState<Set<number>>(() => new Set());
 
     const setStatus = async (followUpId: number, status: FollowUpStatus) => {
@@ -27,7 +34,7 @@ export default function useDashboardMeetingStatus(onChanged: () => void) {
             message.success(
                 status === "completed" ? "Marked as held" : "Meeting updated",
             );
-            router.reload({ only: ["todaySchedule", "agentWeek"] });
+            router.reload({ only: reloadKeys });
             onChanged();
         } catch (error) {
             const formatted = errorFormatter(error);

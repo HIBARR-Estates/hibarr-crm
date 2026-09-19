@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "@inertiajs/react";
-import { EmptyState } from "@/Components/Redesign";
+import {
+    ItineraryEmptyState,
+    ItineraryFilterEmptyState,
+} from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TdFn } from "@/lib/dynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -300,10 +303,7 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
 
     const defaultDealId = deals[0]?.id ?? null;
 
-    const items = useMemo(
-        () => legs.map(toWorkspaceItineraryItem),
-        [legs],
-    );
+    const items = useMemo(() => legs.map(toWorkspaceItineraryItem), [legs]);
 
     const filtered = useMemo(
         () =>
@@ -369,21 +369,23 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
     const modalDealId =
         editingLeg?.deal_id ?? defaultDealId ?? deals[0]?.id ?? null;
 
-    const addFlightButton =
-        canEdit ? (
-            <DealButton variant="primary" size="sm" onClick={openCreate}>
-                + {ft("add_flight")}
-            </DealButton>
-        ) : null;
+    const addFlightButton = canEdit ? (
+        <DealButton
+            variant="primary"
+            size="sm"
+            icon={<DealIcon name="plus" size={14} />}
+            onClick={openCreate}
+        >
+            {ft("add_flight")}
+        </DealButton>
+    ) : null;
 
+    // No flights at all: no toolbar, no filters — just the empty state and its
+    // single call to action, the same shape every other tab uses.
     if (legs.length === 0) {
         return (
             <div className="space-y-4">
-                <div className="flex justify-end">{addFlightButton}</div>
-                <EmptyState
-                    title={td("No flights yet", { source: "en" })}
-                    description={td("Add flights and airport transfers for this lead’s inspection trip.", { source: "en" })}
-                />
+                <ItineraryEmptyState onAdd={canEdit ? openCreate : undefined} />
                 {modalOpen && (
                     <LeadItineraryModal
                         open={modalOpen}
@@ -435,21 +437,10 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
             )}
 
             {filtered.length === 0 ? (
-                <div
-                    role="status"
-                    className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-                    style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
-                >
-                    <div
-                        className="mb-[3px] font-semibold"
-                        style={{ fontSize: TY.BODY, color: T.TEXT }}
-                    >
-                        {ft("empty")}
-                    </div>
-                    <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
-                        {td("Track the client's inspection-trip flights and airport transfers here.", { source: "en" })}
-                    </div>
-                </div>
+                <ItineraryFilterEmptyState
+                    entity="lead"
+                    onShowAll={() => setFilter("all")}
+                />
             ) : (
                 sections.map((section) => {
                     const isPastSection = section.label === "Past";
@@ -471,9 +462,9 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                                         leg={leg}
                                         deal={
                                             leg.raw.deal_id != null
-                                                ? dealById.get(
+                                                ? (dealById.get(
                                                       leg.raw.deal_id,
-                                                  ) ?? null
+                                                  ) ?? null)
                                                 : null
                                         }
                                         isPastSection={isPastSection}

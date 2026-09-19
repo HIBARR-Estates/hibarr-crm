@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Models\LeadAutomation;
 use App\Models\LeadAutomationAction;
@@ -17,6 +18,7 @@ use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 
 class LeadAutomationService
 {
@@ -80,14 +82,39 @@ class LeadAutomationService
             return true;
         }
 
+        $isAny = $automation->condition_logic === DealAutomation::CONDITION_LOGIC_ANY;
+
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($lead, $condition->field);
-            if (! $this->conditionEvaluator->evaluate($fieldValue, $condition)) {
-                return false;
+            $fieldChanged = $condition->operator === 'changed' ? $this->fieldChanged($lead, $condition->field) : null;
+            $passed = $this->conditionEvaluator->evaluate($fieldValue, $condition, $fieldChanged);
+
+            if ($isAny && $passed) {
+                return true; // OR logic: one pass is enough
+            }
+
+            if (! $isAny && ! $passed) {
+                return false; // AND logic: one failure is enough
             }
         }
 
-        return true;
+        return ! $isAny; // AND: every condition passed. OR: none did.
+    }
+
+    /**
+     * Same reasoning as DealAutomationService::fieldChanged() — only
+     * answerable for a native Lead column, only within the same in-memory
+     * instance that was just saved, and false for a brand-new record.
+     */
+    protected function fieldChanged(Lead $lead, string $field): bool
+    {
+        if ($lead->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($lead, $field);
+
+        return $column !== null && (bool) $lead->wasChanged($column);
     }
 
     protected function executeActions(Lead $lead, LeadAutomation $automation): void
@@ -294,12 +321,26 @@ class LeadAutomationService
                 continue;
             }
 
+            $correlationId = (string) Str::uuid();
+
             try {
-                $notification = new LeadAutomationEmailNotification(
+                $notification = (new LeadAutomationEmailNotification(
                     $templateId,
                     $variables,
                     $company
-                );
+                ))->withDeliveryContext([
+                    // These notifications are queued, so the delivery result
+                    // lands in email_delivery_logs (written by
+                    // UnsRoutingTransport) rather than here — the correlation
+                    // id is what ties the two together.
+                    'source' => 'lead_automation',
+                    'correlation_id' => $correlationId,
+                    'company_id' => $companyId,
+                    'automation_id' => $automation->id,
+                    'automation_name' => $automation->name,
+                    'lead_id' => $lead->id,
+                    'plunk_template_id' => $templateId,
+                ]);
 
                 if (isset($recipient['user'])) {
                     $recipient['user']->notify($notification);
@@ -307,10 +348,15 @@ class LeadAutomationService
                     Notification::route('mail', $email)->notify($notification);
                 }
 
-                $dispatched[] = ['email' => $email, 'role' => $recipient['role'] ?? null];
+                $dispatched[] = [
+                    'email' => $email,
+                    'role' => $recipient['role'] ?? null,
+                    'correlation_id' => $correlationId,
+                ];
             } catch (\Throwable $e) {
                 $skipped[] = [
                     'email' => $email,
+                    'correlation_id' => $correlationId,
                     'error' => $e->getMessage(),
                 ];
             }
@@ -319,6 +365,10 @@ class LeadAutomationService
         $result = $dispatched !== [] ? 'success' : 'failed';
         $this->logAction($lead, $automation, 'send_email', $result, [
             'template_id' => $templateId,
+            // Queued at this point, not delivered. The system that actually
+            // delivered each one (UNS/Plunk or the PHP SMTP fallback) and its
+            // response are in email_delivery_logs, joined on correlation_id.
+            'delivery' => 'queued',
             'dispatched' => $dispatched,
             'skipped' => $skipped,
         ]);

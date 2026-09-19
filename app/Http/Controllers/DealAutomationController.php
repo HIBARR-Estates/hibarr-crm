@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Helper\Reply;
+use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\EmailTemplate;
+use App\Models\Lead;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\User;
@@ -83,6 +85,9 @@ class DealAutomationController extends AccountBaseController
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
+                'condition_logic' => $request->condition_logic === DealAutomation::CONDITION_LOGIC_ANY
+                    ? DealAutomation::CONDITION_LOGIC_ANY
+                    : DealAutomation::CONDITION_LOGIC_ALL,
             ]);
 
             $this->syncConditions($automation, $request);
@@ -139,6 +144,9 @@ class DealAutomationController extends AccountBaseController
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
+                'condition_logic' => $request->condition_logic === DealAutomation::CONDITION_LOGIC_ANY
+                    ? DealAutomation::CONDITION_LOGIC_ANY
+                    : DealAutomation::CONDITION_LOGIC_ALL,
             ]);
 
             $automation->conditions()->delete();
@@ -187,17 +195,155 @@ class DealAutomationController extends AccountBaseController
     {
         abort_403(! AutomationV2Feature::enabled());
 
-        $query = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
-            ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
-            ->when($request->filled('channel'), fn ($q) => $q->where('channel', $request->channel))
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('executed_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to))
-            ->orderByDesc('executed_at');
-
         $perPage = min(max($request->integer('per_page', 25), 1), 100);
 
-        return Reply::dataOnly(['status' => 'success', 'data' => $query->paginate($perPage)]);
+        // Paginate *runs*, not steps: one execution of a three-action
+        // automation is one row here, with its three steps nested under it.
+        // Status is applied to the derived run status, not individual steps.
+        $runs = DB::query()
+            ->fromSub($this->runsQuery($this->logFilters($request, exceptStatus: true))->getQuery(), 'runs')
+            ->when($request->filled('status'), fn ($q) => $q->whereRaw($this->derivedRunStatusSql().' = ?', [$request->status]))
+            ->orderByDesc('executed_at')
+            ->paginate($perPage);
+
+        $runIds = collect($runs->items())->pluck('run_id')->all();
+
+        // Every step of the matched runs, filters deliberately not reapplied —
+        // filtering to status=failed should surface the runs that failed, but
+        // still show what else happened in them.
+        $steps = DealAutomationLog::with(['automation:id,name', 'deal:id,name', 'lead:id,client_name'])
+            ->whereIn('run_id', $runIds)
+            ->orderBy('executed_at')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('run_id');
+
+        $runs->setCollection(
+            collect($runs->items())->map(function ($run) use ($steps) {
+                $runSteps = $steps->get($run->run_id, collect());
+                $first = $runSteps->first();
+
+                return [
+                    'run_id' => $run->run_id,
+                    'automation_id' => $first?->automation_id,
+                    'automation' => $first?->automation,
+                    'deal' => $first?->deal,
+                    'lead' => $first?->lead,
+                    'status' => $this->worstStepStatus($runSteps),
+                    'steps_count' => $runSteps->count(),
+                    'started_at' => $runSteps->min('executed_at'),
+                    'executed_at' => $runSteps->max('executed_at') ?? $run->executed_at,
+                    'steps' => $runSteps->map(fn (DealAutomationLog $step) => $this->summarizeLogStep($step))->values(),
+                ];
+            })->values()
+        );
+
+        return Reply::dataOnly(['status' => 'success', 'data' => $runs]);
+    }
+
+    /**
+     * Structured diagnostics for one log step — fetched on demand when a run
+     * history row is expanded, so the list payload stays a step summary.
+     */
+    public function logDetail($id)
+    {
+        abort_403(! AutomationV2Feature::enabled());
+
+        $log = DealAutomationLog::findOrFail($id);
+
+        return Reply::dataOnly(['status' => 'success', 'data' => [
+            'id' => $log->id,
+            'details' => $log->details,
+        ]]);
+    }
+
+    /**
+     * Step summary for the run-history list — omits the heavy `details` blob.
+     *
+     * @return array<string, mixed>
+     */
+    protected function summarizeLogStep(DealAutomationLog $step): array
+    {
+        return [
+            'id' => $step->id,
+            'automation_id' => $step->automation_id,
+            'run_id' => $step->run_id,
+            'deal_id' => $step->deal_id,
+            'lead_id' => $step->lead_id,
+            'action' => $step->action,
+            'status' => $step->status,
+            'channel' => $step->channel,
+            'executed_at' => $step->executed_at,
+            'has_details' => ! empty($step->details),
+            'automation' => $step->automation,
+            'deal' => $step->deal,
+            'lead' => $step->lead,
+        ];
+    }
+
+    /**
+     * The shared filter set for the log/stat endpoints. Applied to steps —
+     * a run matches when any of its steps does.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function logFilters(Request $request, bool $exceptStatus = false)
+    {
+        return DealAutomationLog::query()
+            ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id))
+            ->when(! $exceptStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('channel'), fn ($q) => $q->where('channel', $request->channel))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('executed_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('executed_at', '<=', $request->date_to));
+    }
+
+    /**
+     * Collapse step rows into one row per execution. Everything that counts
+     * "runs" goes through this, so a multi-action automation stops counting
+     * once per action.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function runsQuery($base)
+    {
+        // CASE rather than MySQL's `SUM(status = ...)` so the same query runs
+        // under the sqlite connection the test suite uses. deal_id/lead_id are
+        // constant within a run, so MIN() just picks that shared value.
+        return (clone $base)
+            ->selectRaw('run_id')
+            ->selectRaw('MIN(deal_id) as deal_id, MIN(lead_id) as lead_id')
+            ->selectRaw('COUNT(*) as steps')
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_steps', [DealAutomationLog::STATUS_FAILED])
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as successful_steps', [DealAutomationLog::STATUS_SUCCESS])
+            ->selectRaw('MAX(executed_at) as executed_at')
+            ->groupBy('run_id');
+    }
+
+    /** SQL expression for a run's derived status from grouped step counts. */
+    protected function derivedRunStatusSql(): string
+    {
+        return "CASE WHEN failed_steps > 0 THEN 'failed' WHEN successful_steps = 0 THEN 'skipped' ELSE 'success' END";
+    }
+
+    /**
+     * A run is only as good as its worst step: one failed action makes the
+     * whole run failed, and an all-skipped run is skipped rather than a
+     * success it never was.
+     *
+     * @param  \Illuminate\Support\Collection<int, DealAutomationLog>  $steps
+     */
+    protected function worstStepStatus($steps): string
+    {
+        if ($steps->contains('status', DealAutomationLog::STATUS_FAILED)) {
+            return DealAutomationLog::STATUS_FAILED;
+        }
+
+        if ($steps->isNotEmpty() && ! $steps->contains('status', DealAutomationLog::STATUS_SUCCESS)) {
+            return DealAutomationLog::STATUS_SKIPPED;
+        }
+
+        return DealAutomationLog::STATUS_SUCCESS;
     }
 
     /**
@@ -212,12 +358,14 @@ class DealAutomationController extends AccountBaseController
         $base = DealAutomationLog::query()
             ->when($request->filled('automation_id'), fn ($q) => $q->where('automation_id', $request->automation_id));
 
-        $totalRuns = (clone $base)->count();
-        $successCount = (clone $base)->where('status', DealAutomationLog::STATUS_SUCCESS)->count();
+        // Every count here is over executions, not the individual action rows
+        // that make them up — a three-action automation is one run, not three.
+        $totalRuns = $this->countRuns($base);
+        $successCount = $this->countRuns($base, fn ($q) => $q->where('failed_steps', 0)->where('successful_steps', '>', 0));
         $lastRun = (clone $base)->orderByDesc('executed_at')->value('executed_at');
 
-        $daily = (clone $base)
-            ->where('executed_at', '>=', now()->subDays(6)->startOfDay())
+        $daily = DB::query()
+            ->fromSub($this->runsQuery((clone $base)->where('executed_at', '>=', now()->subDays(6)->startOfDay()))->getQuery(), 'runs')
             ->selectRaw('DATE(executed_at) as day, COUNT(*) as total')
             ->groupBy('day')
             ->pluck('total', 'day');
@@ -228,12 +376,110 @@ class DealAutomationController extends AccountBaseController
             return ['day' => $date, 'value' => (int) ($daily[$date] ?? 0)];
         })->values();
 
+        // Costs two extra grouped queries, so it's only built when the caller
+        // asks for it — today that's the Fired-for panel, which is behind a
+        // front-end toggle (SHOW_FIRED_FOR) and currently off.
+        $firedFor = $request->boolean('fired_for')
+            ? $this->firedForBreakdown($base, min(max($request->integer('fired_for_limit', 25), 1), 100))
+            : ['rows' => [], 'total' => 0];
+
         return Reply::dataOnly(['status' => 'success', 'data' => [
             'total_runs' => $totalRuns,
             'success_rate' => $totalRuns > 0 ? round($successCount / $totalRuns * 100, 1) : null,
             'last_run_at' => $lastRun,
             'runs_last_7_days' => $chart,
+            'fired_for' => $firedFor['rows'],
+            'fired_for_total' => $firedFor['total'],
         ]]);
+    }
+
+    /**
+     * Count executions matching the filters, optionally narrowed by a
+     * condition on the grouped run (e.g. `failed_steps = 0`).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     */
+    protected function countRuns($base, ?callable $constrain = null): int
+    {
+        $query = DB::query()->fromSub($this->runsQuery($base)->getQuery(), 'runs');
+
+        if ($constrain) {
+            $constrain($query);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Who the automation actually fired for — one entry per deal/lead it ran
+     * against, with that record's own run tally, rather than a single opaque
+     * "N runs" number. Ordered by run count so the records an automation keeps
+     * re-firing on (usually the interesting ones) come first.
+     *
+     * Names are hydrated in two follow-up queries instead of a join so the
+     * grouped aggregate stays a single simple statement — the log table is the
+     * only thing that grows here.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $base
+     * @return array{rows: array<int, array<string, mixed>>, total: int}
+     */
+    protected function firedForBreakdown($base, int $limit): array
+    {
+        // Runs per record, rolled up from the per-run subquery — so a record an
+        // automation fired for twice reads as 2, not as its total action count.
+        $grouped = DB::query()
+            ->fromSub($this->runsQuery($base)->getQuery(), 'runs')
+            ->selectRaw('deal_id, lead_id, COUNT(*) as runs')
+            ->selectRaw('SUM(CASE WHEN failed_steps > 0 THEN 1 ELSE 0 END) as failed_runs')
+            ->selectRaw('SUM(CASE WHEN failed_steps = 0 AND successful_steps > 0 THEN 1 ELSE 0 END) as success_runs')
+            ->selectRaw('SUM(steps) as total_steps')
+            ->selectRaw('MAX(executed_at) as last_run_at')
+            ->groupBy('deal_id', 'lead_id')
+            ->orderByDesc('runs')
+            ->limit($limit)
+            ->get();
+
+        // Distinct subjects overall, so the UI can say "showing 25 of 300".
+        // Counted over a grouped subquery rather than MySQL's multi-column
+        // COUNT(DISTINCT a, b), which sqlite (the test connection) rejects.
+        $total = DB::query()->fromSub(
+            (clone $base)->select('deal_id', 'lead_id')->groupBy('deal_id', 'lead_id')->getQuery(),
+            'subjects'
+        )->count();
+
+        $deals = Deal::with('contact:id,client_name,client_email')
+            ->whereIn('id', $grouped->pluck('deal_id')->filter()->all())
+            ->get(['id', 'name', 'lead_id'])
+            ->keyBy('id');
+
+        $leads = Lead::whereIn('id', $grouped->pluck('lead_id')->filter()->all())
+            ->get(['id', 'client_name', 'client_email'])
+            ->keyBy('id');
+
+        $rows = $grouped->map(function ($row) use ($deals, $leads) {
+            $deal = $row->deal_id ? $deals->get($row->deal_id) : null;
+            $lead = $row->lead_id ? $leads->get($row->lead_id) : ($deal?->contact);
+
+            return [
+                'subject_type' => $deal ? 'deal' : 'lead',
+                'deal_id' => $row->deal_id,
+                'lead_id' => $row->lead_id ?: $deal?->lead_id,
+                // The record the automation ran against…
+                'record_name' => $deal?->name ?? $lead?->client_name,
+                // …and the person behind it (a deal's linked contact).
+                'person_name' => $lead?->client_name,
+                'person_email' => $lead?->client_email,
+                'runs' => (int) $row->runs,
+                'success_runs' => (int) $row->success_runs,
+                'failed_runs' => (int) $row->failed_runs,
+                // Actions performed across those runs — the number the old
+                // "runs" figure was actually showing.
+                'total_steps' => (int) $row->total_steps,
+                'last_run_at' => $row->last_run_at,
+            ];
+        })->values()->all();
+
+        return ['rows' => $rows, 'total' => (int) $total];
     }
 
     /**
@@ -302,6 +548,39 @@ class DealAutomationController extends AccountBaseController
     }
 
     /**
+     * Trigger keys valid for $subjectType — matches the frontend's
+     * TRIGGER_SUBJECT map (resources/js/Pages/Settings/Automation/shared.ts)
+     * exactly. Without this, a request could save e.g. subject_type=lead
+     * with trigger=deal_created_api; the API write paths only ever emit
+     * the trigger matching the subject they actually wrote, so a mismatched
+     * automation would silently never fire.
+     *
+     * @return array<int, string>
+     */
+    protected function allowedTriggersFor(string $subjectType): array
+    {
+        $anyTriggers = ['custom_field_updated', DealAutomation::TRIGGER_DATE_BASED];
+
+        $dealTriggers = [
+            'deal_created', 'deal_updated', 'followup_created',
+            DealAutomation::TRIGGER_DEAL_CREATED_API,
+            DealAutomation::TRIGGER_DEAL_UPDATED_API,
+        ];
+
+        $leadTriggers = [
+            'lead_created', 'lead_updated',
+            DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
+            DealAutomation::TRIGGER_LEAD_CREATED_API,
+            DealAutomation::TRIGGER_LEAD_UPDATED_API,
+        ];
+
+        return array_merge(
+            $anyTriggers,
+            $subjectType === DealAutomation::SUBJECT_LEAD ? $leadTriggers : $dealTriggers
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function validationRules(string $subjectType): array
@@ -314,17 +593,13 @@ class DealAutomationController extends AccountBaseController
             'name' => 'required|string|max:255',
             'subject_type' => ['required', Rule::in([DealAutomation::SUBJECT_DEAL, DealAutomation::SUBJECT_LEAD])],
             'pipeline_id' => 'nullable|exists:lead_pipelines,id',
-            'trigger' => ['nullable', Rule::in([
-                'deal_created', 'deal_updated', 'followup_created', 'custom_field_updated',
-                'lead_created', 'lead_updated',
-                DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
-                DealAutomation::TRIGGER_DATE_BASED,
-            ])],
+            'trigger' => ['nullable', Rule::in($this->allowedTriggersFor($subjectType))],
             'trigger_date_field' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', 'string'],
             'trigger_date_recurrence' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', Rule::in(array_keys(AutomationFieldCatalog::DATE_RECURRENCES))],
             'wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',
+            'condition_logic' => ['nullable', Rule::in([DealAutomation::CONDITION_LOGIC_ALL, DealAutomation::CONDITION_LOGIC_ANY])],
             'conditions' => 'array',
             'conditions.*.field' => 'required|string|max:255',
             'conditions.*.operator' => ['required', Rule::in(['=', '>', '<', 'contains', 'exists', 'changed'])],
@@ -456,6 +731,10 @@ class DealAutomationController extends AccountBaseController
             'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_DATE_BASED,
+            DealAutomation::TRIGGER_LEAD_CREATED_API,
+            DealAutomation::TRIGGER_LEAD_UPDATED_API,
+            DealAutomation::TRIGGER_DEAL_CREATED_API,
+            DealAutomation::TRIGGER_DEAL_UPDATED_API,
         ], true));
 
         abort_403($request->filled('wait_duration_value'));

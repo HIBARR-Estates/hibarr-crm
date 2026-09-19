@@ -29,6 +29,7 @@ import { ContentRenderer } from "@/Components/ContentRenderer";
 import AddFollowup from "./followups/AddFollowup";
 import EditFollowup from "./followups/EditFollowup";
 import DeleteFollowup from "./followups/DeleteFollowup";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "./followups/ViewFollowup";
 import BulkFollowupActionSelector from "./followups/bulk/BulkFollowupActionSelector";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -382,12 +383,21 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             />
 
             {/* View Follow-up Modal */}
-            {followUp && (
-                <ViewFollowup
-                    open={action === "view"}
+            {followUp && action === "view" && (
+                <MeetingViewModal
+                    meeting={followUp}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => handleClose()}
-                    followup={followUp}
-                    deal={deal}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open
+                            onClose={() => handleClose()}
+                            followup={followUp}
+                            deal={deal}
+                        />
+                    }
                 />
             )}
         </>

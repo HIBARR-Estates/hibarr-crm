@@ -38,9 +38,15 @@ export function applyTaskStatus(task: Task, slug: string): Task {
  * The caller supplies what to do on success, because the three surfaces that
  * use this hold their tasks differently: the deal and lead workspaces patch
  * their context, the dashboard re-resolves a deferred prop.
+ *
+ * `onError` is optional and fires before `onChanged` would have — for a
+ * caller that already moved a task out of view the instant the click
+ * happened (see the personal dashboard's queue), it's the only hook that can
+ * put the row back. Callers happy to just wait for the request are unaffected.
  */
 export default function useTaskStatus(
     onChanged: (taskId: number, slug: string) => void,
+    onError?: (taskId: number, slug: string) => void,
 ) {
     const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
     const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(
@@ -62,6 +68,7 @@ export default function useTaskStatus(
             { taskId, status: slug },
             {
                 onSuccess: () => onChanged(taskId, slug),
+                onError: () => onError?.(taskId, slug),
                 onSettled: () => markPending(taskId, false),
             },
         );

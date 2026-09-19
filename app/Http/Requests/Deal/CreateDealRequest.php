@@ -54,6 +54,14 @@ class CreateDealRequest extends CoreRequest
             ]);
         }
 
+        if (! $this->exists('referral_agent_id') && $this->exists('referralAgentId')) {
+            $this->merge([
+                'referral_agent_id' => $this->input('referralAgentId'),
+            ]);
+        }
+
+        $this->dropInvalidReferralAgentId();
+
         if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
             $this->merge([
                 'preferred_contact_times' => $this->input('preferred_contact_time'),
@@ -143,8 +151,7 @@ class CreateDealRequest extends CoreRequest
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
-            'referral_agent_id' => $this->referralAgentRules($companyId),
-            'referal_agent_id' => $this->referralAgentRules($companyId),
+            'referral_agent_id' => 'nullable|integer|min:1',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -184,6 +191,11 @@ class CreateDealRequest extends CoreRequest
             'utmInfo.campaign' => 'nullable|string|max:255',
             'utmInfo.term' => 'nullable|string|max:255',
             'utmInfo.content' => 'nullable|string|max:255',
+            'utmInfo.utmSource' => 'nullable|string|max:255',
+            'utmInfo.utmMedium' => 'nullable|string|max:255',
+            'utmInfo.utmCampaign' => 'nullable|string|max:255',
+            'utmInfo.utmTerm' => 'nullable|string|max:255',
+            'utmInfo.utmContent' => 'nullable|string|max:255',
             'facebook_click_id' => 'nullable|string|max:255',
             'facebook_lead_id' => 'nullable|string|max:255',
             'facebook_browser_id' => 'nullable|string|max:255',
@@ -263,19 +275,22 @@ class CreateDealRequest extends CoreRequest
     }
 
     /**
-     * @return list<string|\Illuminate\Validation\Rules\Exists>
+     * Bad referral ids must not 422 the request — drop them and create the lead without a referrer.
      */
-    private function referralAgentRules(?int $companyId): array
+    private function dropInvalidReferralAgentId(): void
     {
-        $rules = ['nullable', 'integer'];
-        $exists = Rule::exists('lead_agents', 'id');
-        if ($companyId) {
-            $exists = $exists->where(fn ($query) => $query->where('company_id', $companyId));
+        if (! $this->has('referral_agent_id')) {
+            return;
         }
 
-        $rules[] = $exists;
+        $raw = $this->input('referral_agent_id');
+        if ($raw === null || $raw === '' || ! is_numeric($raw) || (int) $raw < 1) {
+            $this->offsetUnset('referral_agent_id');
 
-        return $rules;
+            return;
+        }
+
+        $this->merge(['referral_agent_id' => (int) $raw]);
     }
 
     /**

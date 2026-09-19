@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use App\Scopes\CompanyScope;
 use App\Traits\HasCompany;
 use App\Traits\HasOffers;
 use App\Traits\HasTagPriorityAssetOrdering;
-use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 /**
  * DeveloperProject Model
- * 
+ *
  * Represents a real estate development project. This is the central entity that:
  * - Has basic info (name, description)
  * - Belongs to a Developer (Many:1)
@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
  */
 class DeveloperProject extends BaseModel
 {
-    use HasFactory, HasCompany, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
+    use HasCompany, HasFactory, HasOffers, HasTagPriorityAssetOrdering, SoftDeletes;
 
     private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
@@ -36,8 +36,11 @@ class DeveloperProject extends BaseModel
     // Construction Status Constants (project-level)
     // ================================================================
     const CONSTRUCTION_STATUS_PRE_CONSTRUCTION = 'pre_construction';
+
     const CONSTRUCTION_STATUS_ACTIVE = 'active_construction';
+
     const CONSTRUCTION_STATUS_POST = 'post_construction';
+
     const CONSTRUCTION_STATUS_COMPLETE = 'complete';
 
     const CONSTRUCTION_STATUSES = [
@@ -58,8 +61,11 @@ class DeveloperProject extends BaseModel
     // Furniture Package Constants
     // ================================================================
     const FURNITURE_UNFURNISHED = 'unfurnished';
+
     const FURNITURE_PART_FURNISHED = 'part_furnished';
+
     const FURNITURE_WHITE_GOODS = 'white_goods_only';
+
     const FURNITURE_FULLY_FURNISHED = 'fully_furnished';
 
     const FURNITURE_PACKAGES = [
@@ -202,7 +208,7 @@ class DeveloperProject extends BaseModel
     protected static function booted(): void
     {
         // HasCompany also defines booted(); class method wins — re-apply CompanyScope here.
-        static::addGlobalScope(new CompanyScope());
+        static::addGlobalScope(new CompanyScope);
 
         static::saving(function (DeveloperProject $model) {
             if (empty($model->name)) {
@@ -238,7 +244,7 @@ class DeveloperProject extends BaseModel
                     || str_contains($e->getMessage(), 'Duplicate entry')
                     || str_contains($e->getMessage(), 'unique constraint')
                     || str_contains($e->getMessage(), 'UNIQUE constraint');
-                if (!$isUniqueViolation || $attempt >= self::SLUG_SAVE_MAX_ATTEMPTS) {
+                if (! $isUniqueViolation || $attempt >= self::SLUG_SAVE_MAX_ATTEMPTS) {
                     throw $e;
                 }
                 $attempt++;
@@ -265,10 +271,10 @@ class DeveloperProject extends BaseModel
         $slug = $base;
         $attempt = 0;
         while (self::slugExists($slug, $companyId, $excludeId)) {
-            $slug = $base . '-' . Str::lower(Str::random(4));
+            $slug = $base.'-'.Str::lower(Str::random(4));
             $attempt++;
             if ($attempt > 100) {
-                $slug = $base . '-' . ($excludeId ?: Str::random(8));
+                $slug = $base.'-'.($excludeId ?: Str::random(8));
                 break;
             }
         }
@@ -293,18 +299,47 @@ class DeveloperProject extends BaseModel
     }
 
     /**
+     * Project-level starting price, or the cheapest unit-type price when unset.
+     */
+    public function resolvedStartingPrice(): ?float
+    {
+        if ($this->starting_price !== null && $this->starting_price !== '') {
+            return (float) $this->starting_price;
+        }
+
+        if (! $this->relationLoaded('unitTypes')) {
+            return null;
+        }
+
+        $lowest = $this->unitTypes
+            ->whereNotNull('starting_price')
+            ->sortBy('starting_price')
+            ->first();
+
+        if ($lowest === null || $lowest->starting_price === null || $lowest->starting_price === '') {
+            return null;
+        }
+
+        return (float) $lowest->starting_price;
+    }
+
+    /**
      * Get formatted starting price with currency symbol.
+     *
+     * Project-level only (no unit-type fallback) — used by API serialization.
      */
     public function getFormattedStartingPriceAttribute(): ?string
     {
-        if (!$this->starting_price) return null;
-        return $this->currency_symbol . number_format((float) $this->starting_price, 0);
-    }
+        if ($this->starting_price === null || $this->starting_price === '') {
+            return null;
+        }
 
+        return '£'.number_format((float) $this->starting_price, 0);
+    }
 
     /**
      * Get the developer that owns this project.
-     * 
+     *
      * A project belongs to one developer, but a developer
      * can own multiple projects.
      */
@@ -315,7 +350,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get the location associated with this project.
-     * 
+     *
      * Each project has exactly one location that defines where
      * the project is situated and provides location details for exposes.
      */
@@ -335,12 +370,12 @@ class DeveloperProject extends BaseModel
      */
     public function locationForApi(): ?array
     {
-        if (!$this->relationLoaded('location')) {
+        if (! $this->relationLoaded('location')) {
             $this->load('location');
         }
 
         $location = $this->location;
-        if (!$location) {
+        if (! $location) {
             return null;
         }
 
@@ -409,7 +444,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get the expose configuration for this project.
-     * 
+     *
      * 1:1 relationship - each project has at most one expose config
      * that stores all data needed to generate the expose PDF.
      */
@@ -420,7 +455,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get all properties belonging to this project.
-     * 
+     *
      * A project can have many properties, but each property
      * can only belong to one project at a time.
      */
@@ -431,7 +466,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get all assets (images, videos) belonging to this project.
-     * 
+     *
      * Project-level assets are stored separately from property assets
      * and are used in expose generation.
      */
@@ -457,7 +492,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get all unit types belonging to this project.
-     * 
+     *
      * Each project can have multiple unit types (e.g., 2+1 Apartment, Studio Villa)
      * with their own specifications, features, pricing, and photos.
      */
@@ -484,22 +519,20 @@ class DeveloperProject extends BaseModel
 
     /**
      * Get or create expose configuration.
-     * 
+     *
      * Ensures the project always has an expose config when needed.
      * Creates a new empty config if one doesn't exist.
-     * 
-     * @return DeveloperProjectExposeConfig
      */
     public function getOrCreateExposeConfig(): DeveloperProjectExposeConfig
     {
         $config = $this->exposeConfig;
-        
-        if (!$config) {
+
+        if (! $config) {
             $config = $this->exposeConfig()->create([
                 'developer_project_id' => $this->id,
             ]);
         }
-        
+
         return $config;
     }
 
@@ -513,7 +546,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Check if a property can be assigned to this project.
-     * 
+     *
      * Currently always returns true, but can be extended to add
      * validation logic (e.g., location matching).
      */
@@ -525,8 +558,8 @@ class DeveloperProject extends BaseModel
 
     /**
      * Assign multiple properties to this project.
-     * 
-     * @param array $propertyIds Array of property IDs to assign
+     *
+     * @param  array  $propertyIds  Array of property IDs to assign
      * @return int Number of properties updated
      */
     public function assignProperties(array $propertyIds): int
@@ -538,8 +571,8 @@ class DeveloperProject extends BaseModel
 
     /**
      * Remove properties from this project.
-     * 
-     * @param array $propertyIds Array of property IDs to remove
+     *
+     * @param  array  $propertyIds  Array of property IDs to remove
      * @return int Number of properties updated
      */
     public function removeProperties(array $propertyIds): int
@@ -551,7 +584,7 @@ class DeveloperProject extends BaseModel
 
     /**
      * Remove all properties from this project.
-     * 
+     *
      * @return int Number of properties updated
      */
     public function removeAllProperties(): int
@@ -563,8 +596,6 @@ class DeveloperProject extends BaseModel
      * Generate a reference code for this project.
      * Pattern: DEVELOPERNAME-NNN
      * e.g., AKACAN-001
-     *
-     * @return string
      */
     public function generateReferenceCode(): string
     {
@@ -585,19 +616,20 @@ class DeveloperProject extends BaseModel
             ->where('company_id', $this->company_id)
             ->where('id', '!=', $this->id ?? 0)
             ->whereNotNull('reference_code')
-            ->where('reference_code', 'like', $prefix . '-%')
+            ->where('reference_code', 'like', $prefix.'-%')
             ->pluck('reference_code')
             ->map(function ($code) use ($prefix) {
                 // Extract numeric part after prefix (e.g., "AKACAN-002" → 2)
-                $suffix = str_replace($prefix . '-', '', $code);
+                $suffix = str_replace($prefix.'-', '', $code);
                 // Only take the first numeric segment (ignore -UTxx suffixes)
                 $parts = explode('-', $suffix);
+
                 return is_numeric($parts[0]) ? (int) $parts[0] : 0;
             })
             ->max();
 
         $number = str_pad(($maxCode ?? 0) + 1, 3, '0', STR_PAD_LEFT);
 
-        return $prefix . '-' . $number;
+        return $prefix.'-'.$number;
     }
 }

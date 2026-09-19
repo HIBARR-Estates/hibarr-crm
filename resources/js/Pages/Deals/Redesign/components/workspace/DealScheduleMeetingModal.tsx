@@ -53,6 +53,7 @@ export default function DealScheduleMeetingModal({
                 hostId: form.hostId,
                 remark: form.remark,
                 reminders: form.reminders,
+                timezone: form.timezone,
             },
             handleClose,
         );

@@ -35,6 +35,7 @@ use App\Services\PermissionService;
 use App\Services\MeetingVisibilityService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
+use App\Services\Dashboard\DashboardMetricsService;
 use App\Support\FeatureFlags;
 use App\Support\TaskPresenter;
 
@@ -60,12 +61,22 @@ class DashboardController extends AccountBaseController
     /**
      * @return array|\Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\Response|mixed|void
      */
-    public function index()
-    {
+    public function index(
+        Request $request,
+        DashboardV2Controller $dashboardV2,
+        DashboardMetricsService $metrics
+    ) {
 
         $this->isCheckScript();
         session()->forget(['qr_clock_in']);
-        
+
+        // Behind the flag, the account home page is the task-oriented personal
+        // dashboard rather than the legacy widget dashboard — same page
+        // dashboard-v2 already serves at ?view=personal (or no ?view= at all).
+        if (FeatureFlags::enabled('crm.personal-dashboard')) {
+            return $dashboardV2->index($request, $metrics);
+        }
+
         // Check if the request wants the new dashboard overview
         // if (request()->header('X-Inertia') || request()->wantsJson()) {
         // if (true) {

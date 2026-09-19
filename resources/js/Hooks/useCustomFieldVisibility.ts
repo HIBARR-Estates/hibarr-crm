@@ -1,12 +1,22 @@
 import { useMemo } from 'react';
 import { Form } from 'antd';
 import { CustomField } from '@/Types';
-import { evaluateAllFieldsVisibility } from '@/lib/customFieldVisibility';
+import { evaluateAllFieldsVisibility, VisibilityEvaluationContext } from '@/lib/customFieldVisibility';
+import { buildFieldValueMap, FieldValueMapContext } from '@/lib/customFieldValueMap';
 
 interface UseCustomFieldVisibilityOptions {
     fields: CustomField[];
     form: any;
     namePrefix?: string;
+    /**
+     * Record context a rule can read beyond the form's own field values —
+     * pipeline / pipeline_stage / package / record. Without it those sources
+     * evaluate as unset here while resolving correctly elsewhere on the page,
+     * so the same rule can disagree between two views of the same record.
+     */
+    context?: FieldValueMapContext;
+    /** Stage list for ordering (`>=`, `<=`) `pipeline_stage` criteria. */
+    evaluationContext?: VisibilityEvaluationContext;
 }
 
 /**
@@ -17,6 +27,8 @@ export function useCustomFieldVisibility({
     fields,
     form,
     namePrefix = 'custom_fields_data',
+    context,
+    evaluationContext,
 }: UseCustomFieldVisibilityOptions) {
     // Always call Form.useWatch unconditionally at the top level to comply with Rules of Hooks
     // If form is null/undefined, the hook will return undefined, which we handle below
@@ -30,8 +42,12 @@ export function useCustomFieldVisibility({
         if (!form) {
             return {};
         }
-        return evaluateAllFieldsVisibility(fields, allFieldValues);
-    }, [fields, allFieldValues, form]);
+        return evaluateAllFieldsVisibility(
+            fields,
+            buildFieldValueMap({ customFieldsData: allFieldValues, context }),
+            evaluationContext,
+        );
+    }, [fields, allFieldValues, form, context, evaluationContext]);
 
     /**
      * Check if a field is visible

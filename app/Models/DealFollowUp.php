@@ -60,9 +60,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $attendance_outcome_logged_by
  * @property \Illuminate\Support\Carbon|null $attendance_confirmation_snoozed_until
  * @property int|null $host_id
+ * @property string|null $timezone
+ * @property string|null $zoho_calendar_sync_error
  *
  * Set by attachParticipantUsers(), not columns — the meeting modals read both.
- *
  * @property int $effective_duration
  * @property array $participant_users
  *
@@ -83,6 +84,7 @@ class DealFollowUp extends BaseModel
         'remark',
         'meeting_type',
         'next_follow_up_date',
+        'timezone',  // IANA zone the meeting was booked in; next_follow_up_date stays UTC
         'duration',
         'added_by',
         'last_updated_by',
@@ -92,6 +94,7 @@ class DealFollowUp extends BaseModel
         'zoho_calendar_job_id',
         'zoho_calendar_sync_status',
         'zoho_calendar_event_uid',
+        'zoho_calendar_sync_error',  // OL's reason for the last failed sync; null once synced
         'send_reminder',
         'remind_time',
         'remind_type',
@@ -187,7 +190,7 @@ class DealFollowUp extends BaseModel
      */
     public function getEndTime(): ?\Carbon\CarbonInterface
     {
-        if (!$this->next_follow_up_date) {
+        if (! $this->next_follow_up_date) {
             return null;
         }
 
@@ -266,10 +269,10 @@ class DealFollowUp extends BaseModel
      *
      * One query for the whole collection rather than one per follow-up.
      *
-     * ponytail: four inline copies of this already exist (DealController:1057
-     * and :2431, LeadContactController:364, MeetingsController:153). Collapse
-     * them onto this the next time one of those files is touched for another
-     * reason — a four-controller diff does not belong in a dashboard change.
+     * ponytail: MeetingsController's own inline copies have been collapsed
+     * onto this one. DealController (:1057, :2431) and LeadContactController
+     * (:364) still have theirs — collapse those too the next time either file
+     * is touched for another reason.
      *
      * @param  \Illuminate\Support\Collection<int, self>  $followUps
      */

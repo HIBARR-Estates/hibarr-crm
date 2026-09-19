@@ -79,7 +79,7 @@
                                     <x-forms.label class="my-3" fieldId="description-text"
                                         :fieldLabel="__('modules.notices.noticeDetails')">
                                     </x-forms.label>
-                                    <div id="description"> {!! $notice->description !!} </div>
+                                    <div id="description"> {!! clean_html($notice->description) !!} </div>
                                     <textarea name="description" id="description-text" class="d-none"></textarea>
                                 </div>
                             </div>

@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { Input, message, Select } from "antd";
 import { usePage } from "@inertiajs/react";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import { DetailField } from "@/Components/DetailSection";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
@@ -176,6 +177,11 @@ export default function LeadInfoSectionPanel({
         Record<string, { value: unknown; type?: "custom_field" }>
     >({});
     const [isSavingAll, setIsSavingAll] = useState(false);
+
+    const leadCallEntity = useMemo(
+        () => ({ type: "lead" as const, id: lead.id }),
+        [lead.id],
+    );
 
     const editing = isEditing && canEdit;
     const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
@@ -513,6 +519,13 @@ export default function LeadInfoSectionPanel({
                             lead.mobile_with_phonecode,
                         ) || undefined
                     }
+                    callPhone={
+                        resolveLeadPhoneDisplay(
+                            lead.mobile,
+                            lead.mobile_with_phonecode,
+                        ) || undefined
+                    }
+                    callEntity={leadCallEntity}
                 >
                     <DealEditableField
                         value={resolveLeadPhoneDisplay(
@@ -537,6 +550,13 @@ export default function LeadInfoSectionPanel({
                             lead.office_phone_formatted,
                         ) || undefined
                     }
+                    callPhone={
+                        resolveLeadPhoneDisplay(
+                            lead.office,
+                            lead.office_phone_formatted,
+                        ) || undefined
+                    }
+                    callEntity={leadCallEntity}
                 >
                     <DealEditableField
                         value={resolveLeadPhoneDisplay(
@@ -555,7 +575,18 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("WhatsApp", { source: "en" })}>
+                <DetailField
+                    label={td("WhatsApp", { source: "en" })}
+                    copyValue={
+                        resolveLeadPhoneDisplay(lead.client_whatsapp) ||
+                        undefined
+                    }
+                    callPhone={
+                        resolveLeadPhoneDisplay(lead.client_whatsapp) ||
+                        undefined
+                    }
+                    callEntity={leadCallEntity}
+                >
                     <DealEditableField
                         value={resolveLeadPhoneDisplay(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
@@ -617,11 +648,24 @@ export default function LeadInfoSectionPanel({
                             ?.filter((method) => !method.is_main)
                             .map((method) => (
                                 <Badge key={method.id} variant="gray">
-                                    {method.type === "phone"
-                                        ? resolveLeadPhoneDisplay(
-                                              method.identifier,
-                                          ) || method.identifier
-                                        : method.identifier}
+                                    <span className="inline-flex items-center gap-1">
+                                        {method.type === "phone"
+                                            ? resolveLeadPhoneDisplay(
+                                                  method.identifier,
+                                              ) || method.identifier
+                                            : method.identifier}
+                                        {method.type === "phone" && (
+                                            <ClickToCallButton
+                                                phone={
+                                                    resolveLeadPhoneDisplay(
+                                                        method.identifier,
+                                                    ) || method.identifier
+                                                }
+                                                entity={leadCallEntity}
+                                                className="!opacity-100"
+                                            />
+                                        )}
+                                    </span>
                                     {canEdit && (
                                         <button
                                             type="button"
@@ -807,6 +851,7 @@ export default function LeadInfoSectionPanel({
                 fields={fields}
                 customFieldsData={lead.custom_fields_data ?? {}}
                 categoryId={categoryId}
+                recordId={lead.id}
                 useContainerQuery
                 bare
                 column={2}

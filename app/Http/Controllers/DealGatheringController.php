@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\DealUpdateType;
 use App\Enums\Salutation;
 use App\Helper\Files;
+use App\Models\CustomField;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadSource;
@@ -239,7 +240,7 @@ class DealGatheringController extends AccountBaseController
 
             // Write gate: agent/participant only, matching DealController::patch().
             // Watchers stay view-only — see Deal::hasTeamMemberAccess().
-            if (!$this->canEditDeal($deal)) {
+            if (! $this->canEditDeal($deal)) {
                 return response()->json([
                     'status' => 'error',
                     'message' => __('messages.permissionDenied'),
@@ -337,6 +338,17 @@ class DealGatheringController extends AccountBaseController
                 ], 403);
             }
 
+            if (
+                $deal->isCommissionLocked()
+                && Deal::touchesAgentField($data)
+                && $deal->agentWouldChange($data['agent_id'] ?? null)
+            ) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.dealAgentLockedByCommission'),
+                ], 403);
+            }
+
             $updatedDeal = $this->service->updateDealInline(
                 $deal,
                 DealUpdateType::from($request->type),
@@ -374,6 +386,8 @@ class DealGatheringController extends AccountBaseController
                 $freshDeal,
                 user()
             ));
+
+            $this->mergeLeadOwnedFileValues($freshDeal, array_keys($data));
 
             return response()->json([
                 'status' => 'success',
@@ -430,7 +444,7 @@ class DealGatheringController extends AccountBaseController
             ], 403);
         }
 
-        if (!$this->canEditDeal($deal)) {
+        if (! $this->canEditDeal($deal)) {
             return response()->json([
                 'status' => 'error',
                 'message' => __('messages.permissionDenied'),
@@ -456,7 +470,7 @@ class DealGatheringController extends AccountBaseController
             ], 422);
         }
 
-        if (!empty($leadData) && !$deal->contact) {
+        if (! empty($leadData) && ! $deal->contact) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'This deal has no linked lead to update.',
@@ -465,11 +479,11 @@ class DealGatheringController extends AccountBaseController
 
         try {
             DB::transaction(function () use ($deal, $dealData, $leadData) {
-                if (!empty($dealData)) {
+                if (! empty($dealData)) {
                     $this->service->updateDealInline($deal, DealUpdateType::CUSTOM_FIELD, $dealData);
                 }
 
-                if (!empty($leadData)) {
+                if (! empty($leadData)) {
                     $this->service->updateDealInline($deal, DealUpdateType::LEAD_CUSTOM_FIELD, $leadData);
                 }
             });
@@ -527,6 +541,11 @@ class DealGatheringController extends AccountBaseController
             $freshDeal->contact->withCustomFields();
         }
 
+        // Same lead-owned FILE field merge updateInline() does, so a lead file
+        // written through this endpoint comes back in the deal's top-level
+        // custom_fields_data too — both write paths return the same shape.
+        $this->mergeLeadOwnedFileValues($freshDeal, array_keys($leadData));
+
         $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
 
         return response()->json([
@@ -554,7 +573,7 @@ class DealGatheringController extends AccountBaseController
             return response()->json(['status' => 'error', 'message' => __('messages.dealLocked')], 403);
         }
 
-        if (!$this->canEditDeal($deal)) {
+        if (! $this->canEditDeal($deal)) {
             return response()->json(['status' => 'error', 'message' => __('messages.permissionDenied')], 403);
         }
 
@@ -584,6 +603,49 @@ class DealGatheringController extends AccountBaseController
     private function returnBytes($val)
     {
         return Files::returnBytes($val);
+    }
+
+    /**
+     * A lead-owned FILE field written through a deal endpoint (see
+     * DealUpdateType::LEAD_CUSTOM_FIELD) is stored on the lead, not the deal —
+     * withCustomFields() only loads the Deal's own group and never picks it
+     * up. Patch it into the deal's top-level custom_fields_data so the caller
+     * (e.g. the deal's "Personal files" section) sees the value it just wrote
+     * without a second round trip. Shared by updateInline() and
+     * updateCustomFieldsBulk() so both return the same shape.
+     *
+     * @param  array<int, string>  $writtenKeys  The data keys just written ("field_12", ...).
+     */
+    private function mergeLeadOwnedFileValues(Deal $freshDeal, array $writtenKeys): void
+    {
+        $writtenFieldIds = collect($writtenKeys)
+            ->map(function ($key) {
+                return preg_match('/^field_(\d+)$/', (string) $key, $m) ? (int) $m[1] : null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($writtenFieldIds) || ! $freshDeal->contact) {
+            return;
+        }
+
+        $leadOwnedFileFieldIds = CustomField::whereIn('id', $writtenFieldIds)
+            ->where('type', 'file')
+            ->whereHas('fieldGroup', fn ($q) => $q->where('model', Lead::CUSTOM_FIELD_MODEL))
+            ->pluck('id')
+            ->all();
+
+        if (empty($leadOwnedFileFieldIds)) {
+            return;
+        }
+
+        $freshDeal->contact->withCustomFields();
+        $leadKeys = collect($leadOwnedFileFieldIds)->map(fn ($id) => 'field_'.$id)->all();
+        $leadValues = $freshDeal->contact->getCustomFieldsData()->only($leadKeys);
+        $merged = $freshDeal->custom_fields_data->merge($leadValues);
+        $freshDeal->custom_fields_data = $merged;
+        $freshDeal->attributes['custom_fields_data'] = $merged;
     }
 
     /**

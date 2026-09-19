@@ -12,6 +12,8 @@ interface DashboardPanelProps {
     footer?: ReactNode;
     /** Drops the header/body padding so tables can run edge to edge. */
     flush?: boolean;
+    /** `data-tour` selector target for the ProductTour engine. */
+    dataTour?: string;
     style?: CSSProperties;
     children: ReactNode;
 }
@@ -29,6 +31,7 @@ export default function DashboardPanel({
     extra,
     footer,
     flush = false,
+    dataTour,
     style,
     children,
 }: DashboardPanelProps) {
@@ -36,6 +39,7 @@ export default function DashboardPanel({
 
     return (
         <section
+            {...(dataTour ? { "data-tour": dataTour } : {})}
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,

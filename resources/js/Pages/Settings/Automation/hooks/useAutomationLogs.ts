@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { RunLogEntry } from "../types";
+import { RunHistoryEntry } from "../types";
 
 export interface AutomationLogFilters {
     automationId?: number;
@@ -23,9 +23,12 @@ const emptyMeta: LogsMeta = { currentPage: 1, lastPage: 1, total: 0 };
 
 /** Paginated/filtered fetch against deal-automations.logs — fired on-demand
  * (mount / filter change), never blocking the page's own first paint since
- * it isn't part of the Inertia deferred-prop bundle. */
+ * it isn't part of the Inertia deferred-prop bundle.
+ *
+ * Pages over *runs*, not the individual action rows: one execution comes back
+ * as one entry with its steps nested inside. */
 export default function useAutomationLogs(filters: AutomationLogFilters) {
-    const [logs, setLogs] = useState<RunLogEntry[]>([]);
+    const [runs, setRuns] = useState<RunHistoryEntry[]>([]);
     const [meta, setMeta] = useState<LogsMeta | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
             .then((res) => {
                 if (cancelled) return;
                 const paginated = res.data?.data;
-                setLogs(paginated?.data ?? []);
+                setRuns(paginated?.data ?? []);
                 setMeta(
                     paginated
                         ? {
@@ -63,7 +66,7 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
             })
             .catch(() => {
                 if (cancelled) return;
-                setLogs([]);
+                setRuns([]);
                 setMeta(emptyMeta);
                 setError("failed");
             })
@@ -84,5 +87,5 @@ export default function useAutomationLogs(filters: AutomationLogFilters) {
         filters.refreshKey,
     ]);
 
-    return { logs, meta, loading, error };
+    return { runs, meta, loading, error };
 }

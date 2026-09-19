@@ -10,16 +10,19 @@ use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
+use App\Models\EmailDeliveryLog;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Services\Notifications\MailDeliveryRecorder;
 use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class DealAutomationService
 {
@@ -29,12 +32,25 @@ class DealAutomationService
 
     protected ConditionEvaluatorService $conditionEvaluator;
 
+    protected MailDeliveryRecorder $mailDeliveryRecorder;
+
+    /**
+     * The execution currently running, stamped on every log row it writes so
+     * a multi-action automation reads as one run with N steps instead of N
+     * runs. Set by executeActions() and never read outside it — actions run
+     * synchronously to completion within a single call, so there is never
+     * more than one live execution per service instance.
+     */
+    protected ?string $currentRunId = null;
+
     public function __construct(
         FieldResolverService $fieldResolver,
-        ConditionEvaluatorService $conditionEvaluator
+        ConditionEvaluatorService $conditionEvaluator,
+        MailDeliveryRecorder $mailDeliveryRecorder
     ) {
         $this->fieldResolver = $fieldResolver;
         $this->conditionEvaluator = $conditionEvaluator;
+        $this->mailDeliveryRecorder = $mailDeliveryRecorder;
     }
 
     /**
@@ -44,7 +60,9 @@ class DealAutomationService
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
-        // Skip automation for locked deals
+        // Skip automation only for fully locked deals — a commission-locked
+        // deal (commission already paid/distributed) still allows automations
+        // to run; only the general edit lock freezes them.
         if ($deal->is_locked) {
             Log::info("Skipping automations for locked Deal ID: {$deal->id}");
 
@@ -106,6 +124,12 @@ class DealAutomationService
     public function runDateBased(Deal|Lead $subject, DealAutomation $automation): void
     {
         if (! AutomationV2Feature::enabled()) {
+            return;
+        }
+
+        if ($subject instanceof Deal && $subject->is_locked) {
+            Log::info("Skipping date-based automation for locked Deal ID: {$subject->id}");
+
             return;
         }
 
@@ -256,7 +280,9 @@ class DealAutomationService
 
         Log::info("Waited automation executing: {$automation->name} (ID: {$automation->id})");
 
-        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id);
+        // run_id is only set when a mid-sequence wait step queued this row —
+        // a pre-actions wait starts a fresh execution, so null is correct there.
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id);
     }
 
     /**
@@ -333,20 +359,48 @@ class DealAutomationService
             return true; // No conditions means it always runs if triggered
         }
 
+        $isAny = $automation->condition_logic === DealAutomation::CONDITION_LOGIC_ANY;
+
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($subject, $condition->field);
 
             $passed = $this->conditionEvaluator->evaluate(
                 $fieldValue,
-                $condition
+                $condition,
+                $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
             );
 
-            if (! $passed) {
-                return false; // All conditions must pass (AND logic)
+            if ($isAny && $passed) {
+                return true; // OR logic: one pass is enough
+            }
+
+            if (! $isAny && ! $passed) {
+                return false; // AND logic: one failure is enough
             }
         }
 
-        return true;
+        return ! $isAny; // AND: every condition passed. OR: none did.
+    }
+
+    /**
+     * Whether $field changed on $subject during the save that led to this
+     * evaluation. Only answerable for a native column on $subject itself
+     * (see FieldResolverService::nativeColumn()) and only within the same
+     * in-memory instance that was just saved — a freshly reloaded subject
+     * (a waited/date-based run resuming later) has no unsaved changes to
+     * report, so this correctly comes back false there rather than guessing.
+     * A brand-new record (wasRecentlyCreated) also reads false: nothing
+     * "changed" on creation, it was simply set.
+     */
+    protected function fieldChanged(Deal|Lead $subject, string $field): bool
+    {
+        if ($subject->wasRecentlyCreated) {
+            return false;
+        }
+
+        $column = $this->fieldResolver->nativeColumn($subject, $field);
+
+        return $column !== null && (bool) $subject->wasChanged($column);
     }
 
     /**
@@ -360,11 +414,18 @@ class DealAutomationService
      * deal-automations:process-pending-runs, same mechanism the automation's
      * own pre-actions wait already uses.
      *
+     * @param  string|null  $runId  Continues an execution a wait step paused;
+     *                              null starts a new one.
      * @return bool True when the full action list finished; false when a wait
      *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null): bool
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null): bool
     {
+        // One id for this whole execution — every step's log row carries it,
+        // and a wait step hands it to the pending row so the steps that resume
+        // afterwards land in the same run rather than looking like a new one.
+        $this->currentRunId = $runId ?: (string) Str::uuid();
+
         $actions = $automation->actions->sortBy('id')->values();
 
         $startIndex = 0;
@@ -409,7 +470,7 @@ class DealAutomationService
                 $nextAction = $actions->get($i + 1);
 
                 if ($waitSeconds > 0 && $nextAction) {
-                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds);
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId);
                     $this->logAction(
                         $subject,
                         $automation,
@@ -448,8 +509,11 @@ class DealAutomationService
      * Queue a pending run resuming at $resumeActionId — used when a "wait"
      * action step is hit mid-sequence. updateOrCreate refreshes run_at and
      * resume_action_id when the same subject is already waiting.
+     *
+     * $runId carries the paused execution across the wait so its remaining
+     * steps log under the same run as the ones that already ran.
      */
-    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds): void
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null): void
     {
         try {
             DealAutomationPendingRun::updateOrCreate([
@@ -459,6 +523,7 @@ class DealAutomationService
             ], [
                 'company_id' => $subject->company_id,
                 'resume_action_id' => $resumeActionId,
+                'run_id' => $runId,
                 'run_at' => now()->addSeconds($waitSeconds),
             ]);
         } catch (\Exception $e) {
@@ -763,13 +828,34 @@ class DealAutomationService
 
         $sent = [];
         $failed = [];
+        // One entry per recipient describing which mail system actually
+        // delivered it (UNS/Plunk or the PHP SMTP mailer) and what that
+        // system answered — stored on the log row so a failure can be
+        // diagnosed from Run History without server log access.
+        $deliveries = [];
 
         foreach ($recipients as $recipient) {
+            $correlationId = (string) Str::uuid();
+
+            $deliveryContext = [
+                'source' => 'deal_automation',
+                'correlation_id' => $correlationId,
+                'company_id' => $subject->company_id,
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+                'deal_id' => $subject instanceof Deal ? $subject->id : null,
+                'lead_id' => $subject instanceof Lead ? $subject->id : null,
+                'template_id' => $template->id,
+                'template_name' => $template->name,
+            ];
+
             try {
-                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables));
+                Mail::to($recipient)->send(new DealAutomationTemplateEmail($subjectLine, $body, $preheaderText, $plunkTemplateId, $plunkVariables, $deliveryContext));
                 $sent[] = $recipient;
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, null);
             } catch (\Exception $e) {
                 $failed[$recipient] = $e->getMessage();
+                $deliveries[] = $this->describeDelivery($recipient, $correlationId, $e->getMessage());
                 Log::error("Failed to send automation email to {$recipient} for {$label}", [
                     'exception' => $e->getMessage(),
                 ]);
@@ -786,7 +872,13 @@ class DealAutomationService
         $description = "Email using template \"{$template->name}\" — ".implode('; ', $descriptionParts);
 
         Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email');
+        $this->logAction($subject, $automation, $description, empty($failed) ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'email', [
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'plunk_template_id' => $plunkTemplateId,
+            'subject' => $subjectLine,
+            'deliveries' => $deliveries,
+        ]);
 
         $this->recordAutomationOutcomeEvent($subject, $automation, ! empty($sent), [
             'action' => empty($failed) ? 'automation_email_sent' : 'automation_email_partial_failure',
@@ -796,6 +888,39 @@ class DealAutomationService
             'sent_to' => $sent,
             'failed_for' => array_keys($failed),
         ]);
+    }
+
+    /**
+     * Turn one recipient's send into the diagnostic record kept on the
+     * automation log: which system delivered it, whether UNS was tried first,
+     * and whatever that system (or the thrown exception) said about it.
+     *
+     * The outcome comes from MailDeliveryRecorder, which UnsRoutingTransport
+     * fills in during the synchronous Mail::send() above. If it's missing —
+     * e.g. a mail driver that never reaches the transport, like the array
+     * driver in tests — the record degrades to 'unknown'/'unconfirmed' rather
+     * than claiming a delivery nothing actually confirmed.
+     *
+     * @return array<string, mixed>
+     */
+    protected function describeDelivery(string $recipient, string $correlationId, ?string $exceptionMessage): array
+    {
+        $outcome = $this->mailDeliveryRecorder->pull($correlationId);
+
+        return [
+            'recipient' => $recipient,
+            // Ties this line to its email_delivery_logs row.
+            'correlation_id' => $correlationId,
+            'status' => $exceptionMessage !== null
+                ? EmailDeliveryLog::STATUS_FAILED
+                : ($outcome['status'] ?? EmailDeliveryLog::STATUS_UNCONFIRMED),
+            'system' => $outcome['system'] ?? 'unknown',
+            'uns_attempted' => (bool) ($outcome['uns_attempted'] ?? false),
+            'response_status' => $outcome['response_status'] ?? null,
+            'response_body' => $outcome['response_body'] ?? null,
+            'fallback_reason' => $outcome['fallback_reason'] ?? null,
+            'error' => $exceptionMessage ?? ($outcome['error'] ?? null),
+        ];
     }
 
     /**
@@ -1070,12 +1195,15 @@ class DealAutomationService
     }
 
     /**
-     * Perform a meta_conversion action: queue a Meta (Facebook) Conversions
+     * Perform a meta_conversion action: send a Meta (Facebook) Conversions
      * API event for the deal/lead. Event name supports merge tags (e.g. a
-     * lead field), value is optional and defaults to 0. Actually sending is
-     * backgrounded via SendMetaConversionEventJob — MetaConversionsService
-     * fails soft (returns false, never throws) so a misconfigured/rejected
-     * Meta account can't break the rest of the automation's actions.
+     * lead field), value is optional and defaults to 0. Sending happens
+     * inline (synchronously, no queue) but deferred via DB::afterCommit() so
+     * it never fires while an enclosing transaction could still roll back;
+     * the outcome is logged from Meta's *actual* response rather than
+     * recorded as success the moment it's dispatched — MetaConversionsService
+     * still fails soft (returns false, never throws) so a misconfigured/
+     * rejected Meta account can't break the rest of the automation's actions.
      */
     protected function performMetaConversion(Deal|Lead $subject, $action, ?DealAutomation $automation = null): void
     {
@@ -1092,27 +1220,31 @@ class DealAutomationService
 
         $value = (float) ($action->meta_event_value ?? 0);
 
-        // The job's own ->afterCommit() only defers via the queue connection's
-        // enqueueUsing() — QUEUE_CONNECTION=sync bypasses that entirely and
-        // fires immediately (see SyncQueue::push()), so it would still run
-        // inside an open DB::transaction(). DB::afterCommit() defers at the
-        // connection/transaction-manager level instead, which works under
-        // every queue driver including sync, and fires immediately here if no
-        // transaction is open.
-        DB::afterCommit(function () use ($subject, $eventName, $value) {
-            \App\Jobs\SendMetaConversionEventJob::dispatch($subject, $eventName, $value);
+        DB::afterCommit(function () use ($subject, $eventName, $value, $automation, $label) {
+            $result = app(MetaConversionsService::class)->send($eventName, $value, $subject);
+            $success = (bool) ($result['success'] ?? false);
+
+            $description = $success
+                ? "Meta Conversion event \"{$eventName}\" accepted by Meta".(isset($result['status_code']) ? " (HTTP {$result['status_code']})" : '')
+                : "Meta Conversion event \"{$eventName}\" failed: ".($result['error'] ?? 'unknown error');
+
+            Log::info("Action executed for {$label}. {$description}");
+            $this->logAction($subject, $automation, $description, $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED, 'meta', [
+                'stage' => 'delivery',
+                'event_name' => $eventName,
+                'value' => $value,
+                'meta' => $result,
+            ]);
+
+            $this->recordAutomationOutcomeEvent($subject, $automation, $success, [
+                'action' => $success ? 'automation_meta_conversion_sent' : 'automation_meta_conversion_failed',
+                'comment' => $success
+                    ? "Meta Conversion event sent by automation: {$eventName}"
+                    : "Meta Conversion event failed: {$eventName} (".($result['error'] ?? 'unknown error').')',
+                'meta_event_name' => $eventName,
+                'meta_event_value' => $value,
+            ]);
         });
-
-        $description = "Meta Conversion event queued: \"{$eventName}\"".($value > 0 ? " (value: {$value})" : '');
-        Log::info("Action executed for {$label}. {$description}");
-        $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'meta');
-
-        $this->recordAutomationOutcomeEvent($subject, $automation, true, [
-            'action' => 'automation_meta_conversion_queued',
-            'comment' => "Meta Conversion event queued by automation: {$eventName}",
-            'meta_event_name' => $eventName,
-            'meta_event_value' => $value,
-        ]);
     }
 
     /**
@@ -1326,6 +1458,7 @@ class DealAutomationService
         string $description,
         string $status = DealAutomationLog::STATUS_SUCCESS,
         ?string $channel = null,
+        ?array $details = null,
     ): void {
         if (! $automation) {
             return;
@@ -1337,9 +1470,11 @@ class DealAutomationService
                 'deal_id' => $subject instanceof Deal ? $subject->id : null,
                 'lead_id' => $subject instanceof Lead ? $subject->id : null,
                 'automation_id' => $automation->id,
+                'run_id' => $this->currentRunId,
                 'action' => $description,
                 'status' => $status,
                 'channel' => $channel,
+                'details' => $details,
                 'executed_at' => now(),
             ]);
         } catch (\Exception $e) {

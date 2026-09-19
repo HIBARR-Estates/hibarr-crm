@@ -30,8 +30,8 @@ class RegisterController extends Controller
             return redirect(route('dashboard'));
         }
 
-        $this->invite = UserInvitation::where('invitation_code', $code)
-            ->where('status', 'active')
+        $this->invite = UserInvitation::usable()
+            ->where('invitation_code', $code)
             ->firstOrFail();
 
         $this->globalSetting = GlobalSetting::first();
@@ -41,15 +41,17 @@ class RegisterController extends Controller
 
     public function acceptInvite(AcceptInviteRequest $request)
     {
-        $invite = UserInvitation::where('invitation_code', $request->invite)
-            ->where('status', 'active')
+        $invite = UserInvitation::usable()
+            ->where('invitation_code', $request->invite)
             ->first();
 
-        $this->company = $invite->company;
-
-        if (is_null($invite) || ($invite->invitation_type == 'email' && $request->email != $invite->email)) {
-            return Reply::error('messages.acceptInviteError');
+        if (is_null($invite)
+            || ($invite->invitation_type == 'email' && $request->email != $invite->email)
+            || !$invite->allowsEmail((string) $request->email)) {
+            return Reply::error(__('messages.acceptInviteError'));
         }
+
+        $this->company = $invite->company;
 
         DB::beginTransaction();
         try {
@@ -94,10 +96,9 @@ class RegisterController extends Controller
             $logSearch = new AccountBaseController();
             $logSearch->logSearchEntry($user->id, $user->name, 'employees.show', 'employee');
 
-            if ($invite->invitation_type == 'email') {
-                $invite->status = 'inactive';
-                $invite->save();
-            }
+            // Every invitation is single-use, shared links included.
+            $invite->status = 'inactive';
+            $invite->save();
 
             // Commit Transaction
             DB::commit();
@@ -135,6 +136,8 @@ class RegisterController extends Controller
      */
     public function setupAccount(AccountSetupRequest $request)
     {
+        abort_if(User::exists(), 403, 'Account setup has already been completed.');
+
         // Update company name
         $setting = Company::firstOrCreate();
         $setting->company_name = $request->company_name;

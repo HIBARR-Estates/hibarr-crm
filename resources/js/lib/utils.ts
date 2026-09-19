@@ -342,7 +342,12 @@ export const filterProperties = (
  * Both Property and DeveloperProjectUnitType satisfy this.
  */
 export interface SubtitleableRecord {
-    bedrooms?: number | null | { min: number | null; max: number | null };
+    /** `properties.bedrooms` is a string column, which the helper coerces. */
+    bedrooms?:
+        | number
+        | string
+        | null
+        | { min: number | null; max: number | null };
     area?: string | null | { min: number | null; max: number | null };
     unit_style?: string[] | null;
     property_type?: string | null;

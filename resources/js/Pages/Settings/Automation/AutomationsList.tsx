@@ -11,6 +11,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Automation } from "./types";
 import { actionTypeIcon, actionTypeLabel, triggerIcon, triggerLabel } from "./shared";
+import { describeConditionCount } from "./adapters/automationSummary";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
 
@@ -169,6 +170,8 @@ export default function AutomationsList({ onOpenDetail, onEdit, onNewAutomation 
                                     style={{ fontSize: 12, color: T.TEXT_HINT }}
                                 >
                                     {a.subject_type === "lead" ? t("app.automation.leadAutomation") : t("app.automation.dealAutomation")}
+                                    {" · "}
+                                    {td(describeConditionCount(a))}
                                 </div>
                             </button>
                             <span>

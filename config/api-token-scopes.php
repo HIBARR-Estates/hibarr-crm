@@ -56,6 +56,12 @@ return [
                 'api.qualification-actions.index' => 'List qualification action catalog',
             ],
         ],
+        'custom_fields' => [
+            'label' => 'Custom Fields',
+            'scopes' => [
+                'api.custom-fields.index' => 'List custom field definitions',
+            ],
+        ],
         'communication' => [
             'label' => 'Communication',
             'scopes' => [

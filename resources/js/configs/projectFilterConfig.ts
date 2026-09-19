@@ -175,6 +175,22 @@ export const createProjectFilterConfig = (props: ProjectFilterProps): FilterConf
             sentence: "total units",
             section: "Unit Mix",
         },
+        {
+            key: "bedrooms",
+            label: "Bedrooms",
+            type: "numberrange",
+            control: "scoreRange",
+            sentence: "bedrooms",
+            section: "Unit Mix",
+        },
+        {
+            key: "bathrooms",
+            label: "Bathrooms",
+            type: "numberrange",
+            control: "scoreRange",
+            sentence: "bathrooms",
+            section: "Unit Mix",
+        },
 
         // ── Pricing & Payment Plan ───────────────────────────────
         {

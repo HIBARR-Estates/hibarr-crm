@@ -1,8 +1,10 @@
 import type { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import timezonePlugin from "dayjs/plugin/timezone";
 
 dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
 
 export const MEETING_DURATION_OPTIONS = [
     { value: 15, label: "15 min" },
@@ -111,6 +113,31 @@ export function usesAutoMeetingLink(
     return platform === "zoho" || platform === "zoho_meet";
 }
 
+/** Platforms whose recordings the summary pipeline can reach. */
+const SUMMARISABLE_PLATFORMS = ["zoho", "zoho_meet", "zoom"];
+
+/**
+ * Whether this meeting can ever produce an AI summary.
+ *
+ * The summary is built from a call's recording and transcript, which the CRM
+ * can only obtain for the platforms above. Anything else — Teams, a phone
+ * call, a meeting in the office — shows neither a summary link nor a
+ * "generating" pill, because neither would ever resolve.
+ *
+ * The link requirement stands in for "the call actually exists": Zoho's link
+ * is generated server-side after scheduling, so its absence means there is
+ * nothing to record.
+ */
+export function producesMeetingSummary(
+    location: MeetingPlatform | string,
+    meetingLink?: string | null,
+): boolean {
+    return (
+        SUMMARISABLE_PLATFORMS.includes(location) &&
+        Boolean(meetingLink?.trim())
+    );
+}
+
 /** Non-Zoho video: user must paste a link from their provider. */
 export function requiresManualMeetingLink(
     platform: MeetingPlatform | string,
@@ -144,7 +171,9 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 /** Local date+time → UTC `YYYYMMDDTHHMMSSZ` for Google Calendar TEMPLATE links. */
 const toGoogleUtcStamp = (isoDate: string, time: string): string | null => {
     if (!isoDate || !time) return null;
-    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    const local = new Date(
+        `${isoDate}T${time.length === 5 ? `${time}:00` : time}`,
+    );
     if (Number.isNaN(local.getTime())) return null;
     return (
         `${local.getUTCFullYear()}${pad2(local.getUTCMonth() + 1)}${pad2(local.getUTCDate())}` +
@@ -155,7 +184,9 @@ const toGoogleUtcStamp = (isoDate: string, time: string): string | null => {
 /** Local date+time → UTC ISO `YYYY-MM-DDTHH:mm:ssZ` for Outlook deeplinks. */
 const toOutlookUtcIso = (isoDate: string, time: string): string | null => {
     if (!isoDate || !time) return null;
-    const local = new Date(`${isoDate}T${time.length === 5 ? `${time}:00` : time}`);
+    const local = new Date(
+        `${isoDate}T${time.length === 5 ? `${time}:00` : time}`,
+    );
     if (Number.isNaN(local.getTime())) return null;
     return local.toISOString().replace(/\.\d{3}Z$/, "Z");
 };
@@ -304,9 +335,7 @@ export function defaultPlatformForMode(
     return defaultVideoProvider(emailOrCanUseZoho);
 }
 
-export function videoProviderLabel(
-    platform: MeetingPlatform | string,
-): string {
+export function videoProviderLabel(platform: MeetingPlatform | string): string {
     const match = VIDEO_PROVIDER_OPTIONS.find(
         (option) =>
             option.value === platform ||
@@ -329,6 +358,12 @@ export interface MeetingFormState {
     participants: number[];
     /** User "in charge of" the meeting. Immutable after the meeting is saved. */
     hostId: number | null;
+    /**
+     * IANA zone the date/time are entered in. Empty until MeetingTimezoneField
+     * seeds it with the current user's zone; empty on submit lets the server
+     * fall back to that same zone.
+     */
+    timezone: string;
     remark: string;
     reminders: Reminder[];
 }
@@ -393,16 +428,29 @@ export function diffMinutesBetweenTimes(
     return diff > 0 ? diff : null;
 }
 
+/**
+ * At least 5 minutes from now. The date/time are read as `timezone`'s wall
+ * clock when given (the meeting form's picked zone), else the browser's.
+ */
 export function isMeetingStartInFuture(
     isoDate: string,
     startTime: string,
+    timezone?: string | null,
 ): boolean {
     if (!isoDate || !startTime) return false;
 
-    const selected = new Date(`${isoDate}T${startTime}:00`);
-    const minimum = new Date(Date.now() + 5 * 60 * 1000);
+    const wallClock = `${isoDate}T${startTime.length === 5 ? `${startTime}:00` : startTime}`;
+    let selectedMs = new Date(wallClock).getTime();
+    if (timezone) {
+        try {
+            selectedMs = dayjs.tz(wallClock, timezone).valueOf();
+        } catch {
+            // Unknown zone — keep the browser-local reading.
+        }
+    }
+    const minimum = Date.now() + 5 * 60 * 1000;
 
-    return selected.getTime() >= minimum.getTime();
+    return selectedMs >= minimum;
 }
 
 function collectIds(
@@ -441,7 +489,8 @@ export function getDefaultMeetingParticipants(
 export function getMeetingOwner(
     source: MeetingParticipantSource | null | undefined,
 ): { id: number; name: string } | null {
-    const agentUserId = source?.lead_agent?.user_id ?? source?.lead_agent?.user?.id;
+    const agentUserId =
+        source?.lead_agent?.user_id ?? source?.lead_agent?.user?.id;
     const agentName = source?.lead_agent?.user?.name;
     if (agentUserId && agentName) {
         return { id: agentUserId, name: agentName };
@@ -495,6 +544,7 @@ export function buildEmptyMeetingForm(
         meetingLink: "",
         participants: getDefaultMeetingParticipants(source, currentUserId),
         hostId: getDefaultMeetingHost(source, currentUserId),
+        timezone: "",
         remark: "",
         reminders: [],
     };
@@ -569,12 +619,29 @@ function toTimeValue(value: dayjs.Dayjs): string {
     return value.format("HH:mm");
 }
 
+/**
+ * A stored instant as wall clock in the zone the meeting was booked in, so an
+ * edit round-trips through follow_up_update (which reads it in that same
+ * zone). Legacy rows without a zone keep the browser-local reading.
+ */
+function followupWallClock(followup: DealFollowup): dayjs.Dayjs {
+    const instant = dayjs.utc(followup.next_follow_up_date);
+    if (followup.timezone) {
+        try {
+            return instant.tz(followup.timezone);
+        } catch {
+            // Unknown zone — fall back to browser-local below.
+        }
+    }
+    return instant.local();
+}
+
 export function buildMeetingFormFromFollowup(
     followup: DealFollowup,
     source: MeetingParticipantSource | null | undefined,
     currentUserId?: number,
 ): MeetingFormState {
-    const localDate = dayjs.utc(followup.next_follow_up_date).local();
+    const localDate = followupWallClock(followup);
     const duration = followup.duration ?? followup.effective_duration ?? 30;
     const startTime = toTimeValue(localDate);
     const customReminders =
@@ -597,6 +664,7 @@ export function buildMeetingFormFromFollowup(
             followup.host_id ??
             followup.host?.id ??
             getDefaultMeetingHost(source, currentUserId),
+        timezone: followup.timezone ?? "",
         remark: followup.remark || "",
         reminders: customReminders,
     };

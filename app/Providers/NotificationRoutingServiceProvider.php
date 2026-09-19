@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Notifications\MailDeliveryRecorder;
 use App\Services\Notifications\UnsClient;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Services\Notifications\UnsRoutingTransport;
@@ -11,6 +12,13 @@ use Illuminate\Support\ServiceProvider;
 
 class NotificationRoutingServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        // Shared instance so the transport and the code that triggered a
+        // synchronous send are looking at the same set of outcomes.
+        $this->app->singleton(MailDeliveryRecorder::class);
+    }
+
     public function boot(): void
     {
         $legacyMailer = (string) config('mail.default', 'smtp');
@@ -30,6 +38,7 @@ class NotificationRoutingServiceProvider extends ServiceProvider
                 app(UnsClient::class),
                 app(UnsEmailPayloadMapper::class),
                 $fallbackTransport,
+                app(MailDeliveryRecorder::class),
             );
         });
 

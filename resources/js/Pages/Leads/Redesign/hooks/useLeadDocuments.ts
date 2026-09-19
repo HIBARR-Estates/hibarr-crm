@@ -1,5 +1,13 @@
 import { useMemo } from "react";
 import type { Lead } from "@/Types/api/leads";
+import type { CustomField } from "@/Types";
+import {
+    hasUploadedValue,
+    normalizeLabel,
+    readCustomFieldValue,
+    resolveFileUrl,
+} from "@/lib/documentFieldValue";
+import { isPerDealFileField } from "../adapters/leadFileFieldPartition";
 
 export interface LeadDocumentItem {
     id: string;
@@ -9,6 +17,16 @@ export interface LeadDocumentItem {
     fieldName: string;
     updateType: "custom_field";
     fileUrl?: string;
+    /**
+     * Set only for a cross-deal field resolved to a single slot here (see
+     * useLeadCrossDealDocuments) — the specific deal an upload/replace must
+     * target, since the value actually lives on that deal's own
+     * custom_fields_data, not the lead's. Absent for a genuine lead-owned
+     * field, which uploads via useLeadDocumentUpload instead.
+     */
+    dealId?: number;
+    /** That deal's name, for the "from <deal>" label next to the slot — set whenever dealId is. */
+    dealName?: string;
 }
 
 interface CustomFieldDefinition {
@@ -16,74 +34,16 @@ interface CustomFieldDefinition {
     label?: string;
     name?: string;
     type?: string;
-}
-
-const NON_FILE_STRINGS = new Set([
-    "no",
-    "false",
-    "n/a",
-    "na",
-    "none",
-    "pending",
-    "yes",
-]);
-
-function hasUploadedValue(value: unknown): boolean {
-    if (value === null || value === undefined) return false;
-    if (typeof value === "boolean") return value;
-    if (Array.isArray(value)) return value.length > 0;
-    if (typeof value === "object") return Object.keys(value as object).length > 0;
-
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (!trimmed) return false;
-        if (NON_FILE_STRINGS.has(trimmed.toLowerCase())) return false;
-        return true;
-    }
-
-    return Boolean(value);
-}
-
-function readCustomFieldValue(lead: Lead, fieldId: number): unknown {
-    const data = lead.custom_fields_data ?? {};
-    return data[`field_${fieldId}`] ?? data[fieldId];
-}
-
-function normalizeLabel(field: CustomFieldDefinition): string {
-    return field.label?.trim() || field.name?.trim() || `Field ${field.id}`;
-}
-
-const IS_URL = /^(https?:\/\/|\/)/i;
-
-function resolveFileUrl(value: unknown, dir: string): string | undefined {
-    let filename: string | undefined;
-
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (!trimmed) return undefined;
-        if (IS_URL.test(trimmed)) return trimmed;
-        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                const first = Array.isArray(parsed) ? parsed[0] : parsed;
-                filename = typeof first === "string" ? first : undefined;
-            } catch {
-                filename = trimmed;
-            }
-        } else {
-            filename = trimmed;
-        }
-    } else if (Array.isArray(value) && value.length > 0) {
-        filename = typeof value[0] === "string" ? value[0] : undefined;
-    }
-
-    if (!filename) return undefined;
-    return IS_URL.test(filename) ? filename : `/user-uploads/${dir}/${filename}`;
+    show_rule_set?: CustomField["show_rule_set"];
 }
 
 /**
- * Document slots for the lead Files tab — every lead custom field with
- * type === "file". No HIBARR fixed docs (those are deal-only).
+ * Document slots for the lead Files tab — lead custom fields with
+ * type === "file" whose visibility rules have no deal context (no
+ * 'pipeline' / 'pipeline_stage' criterion). No HIBARR fixed docs (those are
+ * deal-only). A field gated by pipeline/stage still resolves to exactly one
+ * slot too, just sourced from a specific deal instead of the lead directly
+ * — see useLeadCrossDealDocuments.
  */
 export default function useLeadDocuments(
     lead: Lead,
@@ -94,7 +54,11 @@ export default function useLeadDocuments(
 
         for (const field of customFields) {
             if (field.type !== "file") continue;
-            const value = readCustomFieldValue(lead, field.id);
+            // A Lead field's own page is implicit/always-on — show_in_lead
+            // is only meaningful on a *Deal* field (FieldModal's "Show in
+            // Lead" cross-population toggle), never gates a Lead field here.
+            if (isPerDealFileField(field)) continue;
+            const value = readCustomFieldValue(lead.custom_fields_data, field.id);
             slots.push({
                 id: `custom-${field.id}`,
                 label: normalizeLabel(field),

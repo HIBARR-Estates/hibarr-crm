@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { EmptyState, Icon } from "@/Components/Redesign";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
@@ -16,13 +17,7 @@ interface MarketingSection {
     fields: MarketingField[];
 }
 
-function FieldRow({
-    label,
-    children,
-}: {
-    label: string;
-    children: ReactNode;
-}) {
+function FieldRow({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="v2-mkt-row">
             <span className="v2-mkt-label">{label}</span>
@@ -31,7 +26,15 @@ function FieldRow({
     );
 }
 
-function BoolPill({ value, yes, no }: { value: boolean; yes: string; no: string }) {
+function BoolPill({
+    value,
+    yes,
+    no,
+}: {
+    value: boolean;
+    yes: string;
+    no: string;
+}) {
     return (
         <span className={`v2-pill ${value ? "v2-pill-green" : "v2-pill-gray"}`}>
             {value ? yes : no}
@@ -46,11 +49,21 @@ function displayText(value: string | null | undefined): string {
 
 export default function MarketingTab() {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { lead } = useLeadWorkspace();
     const marketing = lead.marketing;
 
     if (!marketing) {
-        return <EmptyState title={t("pages.leads.marketing.empty")} />;
+        return (
+            <EmptyState
+                icon="target"
+                title={t("pages.leads.marketing.empty")}
+                description={td(
+                    "Campaign and UTM details appear here once this lead arrives from a tracked source.",
+                    { source: "en" },
+                )}
+            />
+        );
     }
 
     const yes = t("pages.leads.marketing.yes");
@@ -190,7 +203,10 @@ export default function MarketingTab() {
                             const label = t(field.labelKey);
                             if (field.kind === "bool") {
                                 return (
-                                    <FieldRow key={field.labelKey} label={label}>
+                                    <FieldRow
+                                        key={field.labelKey}
+                                        label={label}
+                                    >
                                         <BoolPill
                                             value={field.value}
                                             yes={yes}
@@ -201,7 +217,10 @@ export default function MarketingTab() {
                             }
                             if (field.kind === "score") {
                                 return (
-                                    <FieldRow key={field.labelKey} label={label}>
+                                    <FieldRow
+                                        key={field.labelKey}
+                                        label={label}
+                                    >
                                         <span className="v2-pill v2-pill-blue">
                                             {field.value ?? 0}
                                         </span>
@@ -210,7 +229,10 @@ export default function MarketingTab() {
                             }
                             if (field.kind === "date") {
                                 return (
-                                    <FieldRow key={field.labelKey} label={label}>
+                                    <FieldRow
+                                        key={field.labelKey}
+                                        label={label}
+                                    >
                                         {field.value
                                             ? formatCompanyDate(field.value)
                                             : "—"}
@@ -221,7 +243,9 @@ export default function MarketingTab() {
                                 <FieldRow key={field.labelKey} label={label}>
                                     <span
                                         className={
-                                            field.labelKey.includes("user_agent")
+                                            field.labelKey.includes(
+                                                "user_agent",
+                                            )
                                                 ? "break-all text-[12px]"
                                                 : undefined
                                         }

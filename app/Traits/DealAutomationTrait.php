@@ -3,12 +3,13 @@
 namespace App\Traits;
 
 use App\Models\Deal;
-use App\Models\Lead;
 use App\Models\DealFollowUp;
-use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
+use App\Models\Lead;
 use App\Models\User;
+use App\Support\UserTimezone;
+use GuzzleHttp\Client;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 trait DealAutomationTrait
 {
@@ -16,23 +17,11 @@ trait DealAutomationTrait
     {
         try {
             // Ensure the deal is loaded
-            if ($followUp->deal_id && !$followUp->deal) {
+            if ($followUp->deal_id && ! $followUp->deal) {
                 $followUp->load('deal');
             }
 
-            // Get browser timezone from the request (required - same timezone used when saving)
-            // This should be the browser timezone that was used to convert to UTC when saving
-            $browserTimezone = request()->input('timezone');
-            
-            if (!$browserTimezone) {
-                // If timezone not in request, log warning but continue with UTC
-                // This might happen if automation is triggered outside of a request context
-                Log::warning('Browser timezone not found in request for follow-up automation', [
-                    'follow_up_id' => $followUp->id,
-                    'deal_id' => $followUp->deal_id,
-                ]);
-                $browserTimezone = 'UTC'; // Fallback only if absolutely necessary
-            }
+            $timezone = UserTimezone::resolve(user(), company());
 
             $agentInfo = $this->getAgentInformation($followUp->deal)
                 ?? $this->getLeadOwnerAgentInformation($followUp->lead_id);
@@ -52,7 +41,7 @@ trait DealAutomationTrait
                     'platform' => $followUp->location,
                     'meeting_link' => $followUp->meeting_link,
                     'next_follow_up_date' => $followUp->next_follow_up_date,
-                    'next_follow_up_date_timezone' => $browserTimezone,
+                    'next_follow_up_date_timezone' => $timezone,
                     'duration' => $followUp->duration,
                     'remark' => $followUp->remark,
                     'status' => $followUp->status,
@@ -68,7 +57,7 @@ trait DealAutomationTrait
             return $result;
 
         } catch (\Exception $e) {
-            Log::error("Failed to trigger follow-up automation", [
+            Log::error('Failed to trigger follow-up automation', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
                 'error' => $e->getMessage(),
@@ -81,9 +70,9 @@ trait DealAutomationTrait
 
     private function sendFollowUpAutomationWebhook(string $type, array $payload): array
     {
-        $url = config("app.automations.followups.followup_webhook_url");
-        
-        if (!$url) {
+        $url = config('app.automations.followups.followup_webhook_url');
+
+        if (! $url) {
             Log::error('Webhook URL not configured', ['type' => $type]);
             throw new \Exception("Follow-up automation webhook URL not configured for type: {$type}");
         }
@@ -106,11 +95,11 @@ trait DealAutomationTrait
 
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getBody()->getContents();
-            
+
             if ($statusCode < 200 || $statusCode >= 300) {
                 Log::error('Webhook returned error status', [
                     'status_code' => $statusCode,
-                    'response_body' => $responseBody
+                    'response_body' => $responseBody,
                 ]);
                 throw new \Exception("Webhook returned non-success status code: {$statusCode}. Response: {$responseBody}");
             }
@@ -121,46 +110,46 @@ trait DealAutomationTrait
             } else {
                 $result = json_decode($responseBody, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception("Invalid JSON response from webhook: " . json_last_error_msg() . ". Raw response: {$responseBody}");
+                    throw new \Exception('Invalid JSON response from webhook: '.json_last_error_msg().". Raw response: {$responseBody}");
                 }
 
                 // Validate that we got a proper response
-                if (!isset($result['status']) || $result['status'] !== 'success') {
-                    throw new \Exception("Webhook did not return success status. Response: " . json_encode($result));
+                if (! isset($result['status']) || $result['status'] !== 'success') {
+                    throw new \Exception('Webhook did not return success status. Response: '.json_encode($result));
                 }
             }
 
             // For online meetings, require meeting_link in response
             // Office, phone, and physical meetings don't require meeting links
             $nonVideoMeetingLocations = ['office', 'phone', 'physical'];
-            if (isset($payload['followUpInformation']['location']) && 
-                !in_array($payload['followUpInformation']['location'], $nonVideoMeetingLocations) && 
-                (!isset($result['meeting_link']) || empty($result['meeting_link']))) {
-                throw new \Exception("Meeting link is required for online meetings but was not provided in webhook response");
+            if (isset($payload['followUpInformation']['location']) &&
+                ! in_array($payload['followUpInformation']['location'], $nonVideoMeetingLocations) &&
+                (! isset($result['meeting_link']) || empty($result['meeting_link']))) {
+                throw new \Exception('Meeting link is required for online meetings but was not provided in webhook response');
             }
 
             // Handle meeting link and meeting ID from webhook response
-            if (isset($result['meeting_link']) && !empty($result['meeting_link'])) {
+            if (isset($result['meeting_link']) && ! empty($result['meeting_link'])) {
                 $this->updateFollowUpMeetingLink($payload['followUpInformation']['id'], $result['meeting_link']);
             }
-            
+
             // Handle meeting ID from webhook response
-            if (isset($result['meeting_id']) && !empty($result['meeting_id'])) {
+            if (isset($result['meeting_id']) && ! empty($result['meeting_id'])) {
                 $this->updateFollowUpMeetingId($payload['followUpInformation']['id'], $result['meeting_id']);
             }
 
             return $result;
 
         } catch (\GuzzleHttp\Exception\ConnectException $e) {
-            $error = "Failed to connect to webhook URL: " . $e->getMessage();
+            $error = 'Failed to connect to webhook URL: '.$e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
             throw new \Exception($error, 0, $e);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $error = "Webhook request failed: " . $e->getMessage();
+            $error = 'Webhook request failed: '.$e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
             throw new \Exception($error, 0, $e);
         } catch (\Throwable $e) {
-            $error = "Unexpected error sending follow-up automation webhook: " . $e->getMessage();
+            $error = 'Unexpected error sending follow-up automation webhook: '.$e->getMessage();
             Log::error($error, ['exception' => $e, 'url' => $url]);
             throw new \Exception($error, 0, $e);
         }
@@ -168,18 +157,18 @@ trait DealAutomationTrait
 
     private function getAgentInformation(?Deal $deal): ?array
     {
-        if (!$deal || !$deal->agent_id) {
+        if (! $deal || ! $deal->agent_id) {
             return null;
         }
 
         try {
             $leadAgent = \App\Models\LeadAgent::find($deal->agent_id);
-            if (!$leadAgent) {
+            if (! $leadAgent) {
                 return null;
             }
 
             $user = \App\Models\User::find($leadAgent->user_id);
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -196,24 +185,25 @@ trait DealAutomationTrait
             ];
         } catch (\Throwable $e) {
             Log::error("Failed to get agent information for deal ID: {$deal->id}", ['exception' => $e, 'agent_id' => $deal->agent_id]);
+
             return null;
         }
     }
 
     private function getLeadOwnerAgentInformation(?int $leadId): ?array
     {
-        if (!$leadId) {
+        if (! $leadId) {
             return null;
         }
 
         try {
             $lead = Lead::find($leadId);
-            if (!$lead || !$lead->lead_owner) {
+            if (! $lead || ! $lead->lead_owner) {
                 return null;
             }
 
             $user = User::find($lead->lead_owner);
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -229,7 +219,7 @@ trait DealAutomationTrait
                 'category_name' => null,
             ];
         } catch (\Throwable $e) {
-            Log::error("Failed to get lead owner agent information", [
+            Log::error('Failed to get lead owner agent information', [
                 'exception' => $e,
                 'lead_id' => $leadId,
             ]);
@@ -240,13 +230,13 @@ trait DealAutomationTrait
 
     private function getWatcherInformation(?Deal $deal): ?array
     {
-        if (!$deal || !$deal->deal_watcher) {
+        if (! $deal || ! $deal->deal_watcher) {
             return null;
         }
 
         try {
             $user = \App\Models\User::find($deal->deal_watcher);
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -260,6 +250,7 @@ trait DealAutomationTrait
             ];
         } catch (\Throwable $e) {
             Log::error("Failed to get watcher information for deal ID: {$deal->id}", ['exception' => $e, 'deal_watcher' => $deal->deal_watcher]);
+
             return null;
         }
     }
@@ -268,20 +259,20 @@ trait DealAutomationTrait
     {
         try {
             $participants = $followUp->participants ?? [];
-            
-            if (empty($participants) || !is_array($participants)) {
+
+            if (empty($participants) || ! is_array($participants)) {
                 return [];
             }
 
             $participantsInfo = [];
-            
+
             foreach ($participants as $userId) {
-                if (!is_numeric($userId)) {
+                if (! is_numeric($userId)) {
                     continue;
                 }
-                
+
                 $user = User::find($userId);
-                if (!$user) {
+                if (! $user) {
                     continue;
                 }
 
@@ -301,6 +292,7 @@ trait DealAutomationTrait
                 'exception' => $e,
                 'participants' => $followUp->participants ?? null,
             ]);
+
             return [];
         }
     }
@@ -328,7 +320,7 @@ trait DealAutomationTrait
 
         return $this->sendAutomationWebhook('create', [
             'contactInformation' => $this->getCustomerInfo($validatedData['lead_contact'] ?? null),
-            'dealCustomFields'     => $validatedData,
+            'dealCustomFields' => $validatedData,
             'agentInformation' => $deal ? $this->getAgentInformation($deal) : null,
             'watcherInformation' => $deal ? $this->getWatcherInformation($deal) : null,
         ]);
@@ -338,7 +330,7 @@ trait DealAutomationTrait
     {
         return [
             'f_email',
-            'f_slack_username', 
+            'f_slack_username',
             'redirect_url',
             '_token',
             '_method',
@@ -352,7 +344,7 @@ trait DealAutomationTrait
             'deal_watcher',
         ];
     }
-  
+
     protected function triggerDealUpdateAutomation(Request $request, Deal $deal, bool $async = true): ?array
     {
         // if ($async) {
@@ -360,7 +352,7 @@ trait DealAutomationTrait
         //     return null;
         // }
 
-            $filteredRequest = collect($request->all())->except(self::getExcludedDealUpdateFields())->toArray();
+        $filteredRequest = collect($request->all())->except(self::getExcludedDealUpdateFields())->toArray();
 
         return $this->sendAutomationWebhook('update', [
             'contactInformation' => $this->getCustomerInfo($deal->lead_id),
@@ -369,7 +361,7 @@ trait DealAutomationTrait
         ]);
     }
 
-    protected function triggerDealMoveAutomation( Deal $deal, bool $async = true): ?array
+    protected function triggerDealMoveAutomation(Deal $deal, bool $async = true): ?array
     {
         return $this->sendAutomationWebhook('update', [
             'contactInformation' => $this->getCustomerInfo($deal->lead_id),
@@ -378,14 +370,14 @@ trait DealAutomationTrait
         ]);
     }
 
-  
     private function sendAutomationWebhook(string $type, array $payload): ?array
     {
         try {
             $url = config("app.automations.deals.{$type}_webhook_url");
-            
-            if (!$url) {
+
+            if (! $url) {
                 Log::warning("Automation webhook URL not configured for type: {$type}");
+
                 return null;
             }
 
@@ -403,8 +395,8 @@ trait DealAutomationTrait
             ]);
 
             $result = json_decode($response->getBody(), true);
-            
-            Log::info("Automation webhook sent successfully", [
+
+            Log::info('Automation webhook sent successfully', [
                 'type' => $type,
                 'url' => $url,
                 'status_code' => $response->getStatusCode(),
@@ -423,21 +415,18 @@ trait DealAutomationTrait
         }
     }
 
-
-   
     private function dispatchDealAutomationJob(string $type, int $dealId, array $requestData): void
     {
         try {
             \App\Jobs\DealAutomationJob::dispatch($type, $dealId, $requestData);
         } catch (\Throwable $e) {
-            Log::error("Failed to dispatch deal automation job", [
+            Log::error('Failed to dispatch deal automation job', [
                 'type' => $type,
                 'deal_id' => $dealId,
                 'exception' => $e,
             ]);
         }
     }
-
 
     private function updateFollowUpMeetingLink(int $followUpId, string $meetingLink): void
     {
@@ -450,7 +439,7 @@ trait DealAutomationTrait
                 // meeting write path — avoid a second sync from the webhook link update.
             }
         } catch (\Exception $e) {
-            Log::error("Failed to update meeting link from webhook response", [
+            Log::error('Failed to update meeting link from webhook response', [
                 'follow_up_id' => $followUpId,
                 'meeting_link' => $meetingLink,
                 'error' => $e->getMessage(),
@@ -467,7 +456,7 @@ trait DealAutomationTrait
                 $followUp->save();
             }
         } catch (\Exception $e) {
-            Log::error("Failed to update meeting ID from webhook response", [
+            Log::error('Failed to update meeting ID from webhook response', [
                 'follow_up_id' => $followUpId,
                 'meeting_id' => $meetingId,
                 'error' => $e->getMessage(),
@@ -477,7 +466,7 @@ trait DealAutomationTrait
 
     private function getCustomerInfo(?int $leadId): array
     {
-        if (!$leadId) {
+        if (! $leadId) {
             return [
                 'leadContact' => null,
                 'leadContactCustomFields' => [],
@@ -486,7 +475,7 @@ trait DealAutomationTrait
 
         try {
             $leadContact = Lead::findOrFail($leadId)->withCustomFields();
-            
+
             $customFieldsData = $this->extractCustomFieldsData($leadContact);
 
             return [
@@ -537,7 +526,7 @@ trait DealAutomationTrait
         try {
             $customFieldsData = [];
             $getCustomFieldGroupsWithFields = $model->getCustomFieldGroupsWithFields();
-            
+
             if ($getCustomFieldGroupsWithFields && isset($getCustomFieldGroupsWithFields->fields)) {
                 foreach ($getCustomFieldGroupsWithFields->fields as $field) {
                     if (isset($field['name'])) {
@@ -567,4 +556,4 @@ trait DealAutomationTrait
     {
         return $this->extractCustomFieldsFromModel($deal, 'deal');
     }
-}               
+}

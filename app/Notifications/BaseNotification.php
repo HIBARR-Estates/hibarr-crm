@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Services\Notifications\MailDeliveryContext;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Support\FeatureFlags;
 use Illuminate\Bus\Queueable;
@@ -35,6 +36,26 @@ class BaseNotification extends Notification implements ShouldQueue
 
     /** Stable for the lifetime of this queued notification instance (retries reuse it). */
     protected ?string $unsIdempotencyKey = null;
+
+    /**
+     * Origin of this email (automation/deal/lead ids + a correlation id),
+     * carried to UnsRoutingTransport so the EmailDeliveryLog row it writes
+     * can be attributed back to whatever asked for the email. Survives
+     * queueing because it travels on the serialized notification.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $deliveryContext = [];
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    public function withDeliveryContext(array $context): static
+    {
+        $this->deliveryContext = $context;
+
+        return $this;
+    }
 
     protected function initUnsRouting(): void
     {
@@ -443,6 +464,13 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Initialize a mail message instance
         $build = (new MailMessage);
+
+        if ($this->deliveryContext !== []) {
+            $deliveryContext = $this->deliveryContext;
+            $build->withSymfonyMessage(static function (Email $message) use ($deliveryContext): void {
+                MailDeliveryContext::attach($message, $deliveryContext);
+            });
+        }
 
         if ($this->unsRoutingEnabled) {
             $idempotencyKey = $this->resolveUnsIdempotencyKey();

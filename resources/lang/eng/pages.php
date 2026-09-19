@@ -17,6 +17,14 @@
 
 return [
 
+    'telephony' => [
+        'call' => 'Call',
+        'success' => 'Your line is ringing. Answer to connect the call.',
+        'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
+        'permission_denied' => 'You do not have permission to place calls.',
+        'generic_error' => 'Unable to initiate the call. Please try again.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'AI Summary',
         'title_lead' => 'AI Lead Summary',
@@ -92,6 +100,39 @@ return [
             'overdue_tasks' => 'Overdue Tasks',
             'total_deals' => 'Total Deals',
             'weekly_activities' => 'Weekly Activities',
+        ],
+        'tour' => [
+            'next' => 'Next',
+            'back' => 'Back',
+            'done' => 'Done',
+            'skip' => 'Skip tour',
+            'replay_menu_item' => 'Replay guide',
+            'steps' => [
+                'status_line' => [
+                    'title' => 'Your day at a glance',
+                    'body' => 'A quick summary of what needs you today, plus what is open across your deals and what is coming up next on your calendar.',
+                ],
+                'stat_strip' => [
+                    'title' => 'Leads, deals, meetings, commission',
+                    'body' => 'Four numbers this page is built around. A red chip means something needs a look — click it to jump straight to the filtered list.',
+                ],
+                'queue_panel' => [
+                    'title' => 'Needs your attention',
+                    'body' => 'Your open tasks, grouped into Overdue, Due today, and Later. Complete or reschedule a task right from its row — the list updates instantly.',
+                ],
+                'pipeline_panel' => [
+                    'title' => 'Open deals by pipeline',
+                    'body' => 'How your open deals are spread across pipelines, with their combined value. Select a bar to see those deals.',
+                ],
+                'agenda' => [
+                    'title' => 'Your agenda',
+                    'body' => 'Meetings ahead of you today and beyond, with the live one and the next one called out. Nothing booked yet? Schedule one straight from here.',
+                ],
+                'closing' => [
+                    'title' => "You're ready",
+                    'body' => 'Replay this guide anytime from Replay guide at the top of this page.',
+                ],
+            ],
         ],
     ],
 
@@ -586,6 +627,7 @@ return [
             'select_all' => 'Select all',
             'deselect_all' => 'Deselect all',
             'delete' => 'Delete',
+            'save' => 'Save',
             'save_changes' => 'Save changes',
             'edit' => 'Edit',
             'add' => 'Add',
@@ -1038,8 +1080,10 @@ return [
                 'cancel_meeting_confirm_title' => 'Cancel meeting?',
                 'cancel_meeting_confirm_message' => 'Attendees will no longer be reminded and the calendar event will be removed.',
                 'upcoming_label' => 'upcoming',
+                'live_label' => 'live',
                 'past_label' => 'past',
                 'section_upcoming' => 'Upcoming',
+                'section_live' => 'Happening now',
                 'section_past' => 'Past',
                 'cancel_meetings' => 'Cancel meetings',
                 'empty' => 'No meetings yet',
@@ -1072,6 +1116,8 @@ return [
             'documents' => [
                 'section_title' => 'Document slots',
                 'section_hint' => 'Required documents for this deal — click to upload or replace.',
+                'personal_section_title' => 'Personal files',
+                'personal_section_hint' => 'These files belong to the lead. Click one to upload or replace it.',
                 'uploaded' => 'Uploaded',
                 'missing' => 'Missing',
                 'upload' => 'Upload',
@@ -1090,11 +1136,14 @@ return [
                 'uploading' => 'Uploading',
                 'cancel_upload' => 'Cancel upload',
                 'drop_hint' => 'Drop files here or click to upload',
-                'size_hint' => 'PDF, images, ZIP — max 200 MB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'empty' => 'No files uploaded',
                 'uploaded_label' => 'Uploaded',
                 'download' => 'Download',
                 'delete_confirm_message' => 'Are you sure you want to delete this file?',
+                'rename' => 'Rename',
+                'rename_placeholder' => 'File label',
+                'replace' => 'Replace',
                 'messages' => [
                     'uploaded' => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
@@ -1102,6 +1151,10 @@ return [
                     'save_failed' => 'Failed to save uploaded files',
                     'deleted' => 'File deleted',
                     'delete_failed' => 'Could not delete file',
+                    'renamed' => 'File renamed',
+                    'rename_failed' => 'Could not rename file',
+                    'replaced' => 'File replaced',
+                    'replace_failed' => 'Could not replace file',
                 ],
             ],
             'offers' => [
@@ -1154,7 +1207,7 @@ return [
                 'field_title' => 'Title',
                 'field_amount' => 'Amount',
                 'field_document' => 'Document',
-                'size_hint' => 'Any file type — max 1 GB',
+                'size_hint' => 'Any file type — max 20 GB',
                 'validation' => [
                     'expose_required' => 'Select an expose to link',
                     'title_required' => 'A title is required',
@@ -1514,6 +1567,7 @@ return [
                 'view' => 'View',
                 'edit' => 'Edit',
                 'join_meeting' => 'Join Meeting',
+                'report' => 'Follow-up report',
                 'delete' => 'Delete',
             ],
         ],

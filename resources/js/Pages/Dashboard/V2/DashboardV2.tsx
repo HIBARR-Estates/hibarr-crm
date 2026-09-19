@@ -41,6 +41,7 @@ type DashboardV2Props = {
     activeView: ViewKey;
     period: number;
     now: string;
+    personalDashboardEnabled?: boolean;
 } & AgentViewProps &
     ManagerViewProps &
     LeadershipViewProps &
@@ -56,7 +57,7 @@ type DashboardV2Props = {
  * compute panels nobody is looking at.
  */
 export default function DashboardV2(props: DashboardV2Props) {
-    const { availableViews, activeView, period, now } = props;
+    const { availableViews, activeView, period, now, personalDashboardEnabled } = props;
     const { td } = useTd();
     const { auth } = usePage<PageProps>().props;
     const [addLeadOpen, setAddLeadOpen] = useState(false);
@@ -86,8 +87,17 @@ export default function DashboardV2(props: DashboardV2Props) {
                             marginBottom: 18,
                         }}
                     >
-                        {availableViews.length > 1 ? (
+                        {personalDashboardEnabled || availableViews.length > 1 ? (
                             <nav className="dv2-tabs" aria-label={td("Dashboard")}>
+                                {personalDashboardEnabled && (
+                                    <button
+                                        type="button"
+                                        className="dv2-tab"
+                                        onClick={() => go({ view: "personal" })}
+                                    >
+                                        {td("My work")}
+                                    </button>
+                                )}
                                 {availableViews.map((view) => (
                                     <button
                                         key={view}

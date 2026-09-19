@@ -13,9 +13,9 @@
                         alt="{{ $note->user->name }}">
                     <div class="media-body bg-white">
                         <div class="form-group">
-                            <div id="task-edit-note">{!! $note->note !!}</div>
+                            <div id="task-edit-note">{!! clean_html($note->note) !!}</div>
                             <textarea name="note" class="form-control invisible d-none"
-                                id="task-edit-note-text">{!!  $note->note !!}</textarea>
+                                id="task-edit-note-text">{!! clean_html($note->note) !!}</textarea>
                         </div>
                     </div>
                 </div>

@@ -5,9 +5,8 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import {
-    getMeetingStatusTone,
+    getMeetingStatusDisplay,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/DealBulkActionBar";
@@ -15,12 +14,19 @@ import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton"
 import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
 import DealDateBlock from "@/Pages/Deals/Redesign/components/primitives/DealDateBlock";
 import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import { MeetingsEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
 import DealSelectCheckbox from "@/Pages/Deals/Redesign/components/primitives/DealSelectCheckbox";
 import { ScheduleMeetingModal } from "@/Components/Redesign";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/meeting/meetingFormUtils";
+import {
+    buildEmptyMeetingForm,
+    getMeetingOwner,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { getUserDateTimeContextVersion } from "@/lib/userDateTime";
+import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTick";
 import useLeadMeetingCreate from "../../../hooks/useLeadMeetingCreate";
 import LeadMeetingDetailModal from "../LeadMeetingDetailModal";
 
@@ -49,9 +55,12 @@ export default function MeetingsTab({
 }: MeetingsTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    useUserDateTime();
+    const dateTimeVersion = getUserDateTimeContextVersion();
     const { props } = usePage();
     const { lead, leadFollowUps, setLeadFollowUps, addLeadFollowUp, deals } =
         useLeadWorkspace();
+    const meetingClockTick = useMeetingClockTick(leadFollowUps);
     const [scheduleOpen, setScheduleOpen] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -59,8 +68,8 @@ export default function MeetingsTab({
     const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
         null,
     );
-    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
-        null,
+    const [detailInitialPanel, setDetailInitialPanel] = useState<"info" | "summary">(
+        "info",
     );
 
     const {
@@ -73,12 +82,6 @@ export default function MeetingsTab({
     const detailFollowup =
         leadFollowUps.find((followup) => followup.id === detailFollowupId) ??
         null;
-    const summaryFollowup =
-        leadFollowUps.find((followup) => followup.id === summaryFollowupId) ??
-        null;
-    const summaryDeal = summaryFollowup?.deal_id
-        ? deals.find((deal) => deal.id === summaryFollowup.deal_id) ?? null
-        : null;
 
     const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
         { row_ids: string; action_type: string; status: string },
@@ -89,9 +92,13 @@ export default function MeetingsTab({
 
     const meetings = useMemo(
         () => leadFollowUps.map((followup) => toWorkspaceMeetingListItem(followup)),
-        [leadFollowUps],
+        [leadFollowUps, dateTimeVersion, meetingClockTick],
     );
 
+    const live = useMemo(
+        () => meetings.filter((meeting) => meeting.isLive),
+        [meetings],
+    );
     const upcoming = useMemo(
         () => meetings.filter((meeting) => meeting.isUpcoming),
         [meetings],
@@ -157,7 +164,9 @@ export default function MeetingsTab({
         );
     };
 
-    const handleCreateSuccess = (payload?: Parameters<typeof addLeadFollowUp>[0]) => {
+    const handleCreateSuccess = (
+        payload?: Parameters<typeof addLeadFollowUp>[0],
+    ) => {
         if (payload) {
             addLeadFollowUp(payload);
         } else {
@@ -166,39 +175,55 @@ export default function MeetingsTab({
         setScheduleOpen(false);
     };
 
+    const hasMeetings = meetings.length > 0;
+
     return (
         <>
-            <div className="mb-3.5 flex items-center justify-between gap-3">
-                <span className="text-xs text-[#5b6472]">
-                    {upcoming.length} {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                    {past.length} {t("pages.deals.workspace.meetings.past_label")}
-                </span>
-                <div className="flex gap-1.5">
-                    {meetings.length > 0 && showSelectMode && (
-                        <DealButton
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                                selectMode ? exitSelect() : setSelectMode(true)
-                            }
-                        >
-                            {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
-                        </DealButton>
-                    )}
-                    {showSchedule && (
-                        <DealButton
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                                clearCreateErrors();
-                                setScheduleOpen(true);
-                            }}
-                        >
-                            + {t("pages.deals.workspace.meetings.schedule")}
-                        </DealButton>
-                    )}
+            {hasMeetings && (
+                <div className="mb-3.5 flex items-center justify-between gap-3">
+                    <span className="text-xs text-[#5b6472]">
+                        {[
+                            live.length > 0
+                                ? `${live.length} ${t("pages.deals.workspace.meetings.live_label")}`
+                                : null,
+                            `${upcoming.length} ${t("pages.deals.workspace.meetings.upcoming_label")}`,
+                            `${past.length} ${t("pages.deals.workspace.meetings.past_label")}`,
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </span>
+                    <div className="flex gap-1.5">
+                        {showSelectMode && (
+                            <DealButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                    selectMode
+                                        ? exitSelect()
+                                        : setSelectMode(true)
+                                }
+                            >
+                                {selectMode
+                                    ? t("pages.deals.common.cancel")
+                                    : t("pages.deals.common.select")}
+                            </DealButton>
+                        )}
+                        {showSchedule && (
+                            <DealButton
+                                variant="primary"
+                                size="sm"
+                                icon={<DealIcon name="plus" size={14} />}
+                                onClick={() => {
+                                    clearCreateErrors();
+                                    setScheduleOpen(true);
+                                }}
+                            >
+                                {t("pages.deals.workspace.meetings.schedule")}
+                            </DealButton>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {selectMode && (
                 <DealBulkActionBar
@@ -228,44 +253,44 @@ export default function MeetingsTab({
                 </DealBulkActionBar>
             )}
 
-            {meetings.length === 0 ? (
-                <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
-                    <DealIcon
-                        name="calendar"
-                        size={28}
-                        color={T.TEXT_HINT}
-                        className="mx-auto mb-2 opacity-50"
-                    />
-                    <p className="mb-3 text-[13px] text-[#9ca3af]">
-                        {t("pages.deals.workspace.meetings.empty")}
-                    </p>
-                    {showSchedule && (
-                        <DealButton
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                                clearCreateErrors();
-                                setScheduleOpen(true);
-                            }}
-                        >
-                            + {t("pages.deals.workspace.meetings.schedule")}
-                        </DealButton>
-                    )}
-                </div>
+            {!hasMeetings ? (
+                <MeetingsEmptyState
+                    onSchedule={
+                        showSchedule
+                            ? () => {
+                                  clearCreateErrors();
+                                  setScheduleOpen(true);
+                              }
+                            : undefined
+                    }
+                />
             ) : (
-                ([
-                    { label: "Upcoming" as const, items: upcoming },
-                    { label: "Past" as const, items: past },
-                ] as const)
+                (
+                    [
+                        { label: "Live" as const, items: live },
+                        { label: "Upcoming" as const, items: upcoming },
+                        { label: "Past" as const, items: past },
+                    ] as const
+                )
                     .filter((section) => section.items.length > 0)
                     .map((section) => {
                         const isPastSection = section.label === "Past";
+                        const sectionTitle =
+                            section.label === "Live"
+                                ? t(
+                                      "pages.deals.workspace.meetings.section_live",
+                                  )
+                                : section.label === "Upcoming"
+                                  ? t(
+                                        "pages.deals.workspace.meetings.section_upcoming",
+                                    )
+                                  : t(
+                                        "pages.deals.workspace.meetings.section_past",
+                                    );
                         return (
                             <section key={section.label} className="mb-2">
                                 <div className="dr-label mb-2">
-                                    {section.label === "Upcoming"
-                                        ? t("pages.deals.workspace.meetings.section_upcoming")
-                                        : t("pages.deals.workspace.meetings.section_past")}
+                                    {sectionTitle}
                                 </div>
                                 {section.items.map((meeting) => (
                                     <div
@@ -290,13 +315,14 @@ export default function MeetingsTab({
                                         )}
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                selectMode
-                                                    ? toggleSelect(meeting.id)
-                                                    : setDetailFollowupId(
-                                                          meeting.id,
-                                                      )
-                                            }
+                                            onClick={() => {
+                                                if (selectMode) {
+                                                    toggleSelect(meeting.id);
+                                                    return;
+                                                }
+                                                setDetailInitialPanel("info");
+                                                setDetailFollowupId(meeting.id);
+                                            }}
                                             aria-label={
                                                 selectMode
                                                     ? `Select meeting ${meeting.title}`
@@ -335,14 +361,24 @@ export default function MeetingsTab({
                                                             ] ?? "dr-pill-gray"
                                                         }`}
                                                     >
-                                                        {td(meeting.platformLabel, { source: "en" })}
+                                                        {td(
+                                                            meeting.platformLabel,
+                                                            { source: "en" },
+                                                        )}
                                                     </span>
                                                     <span
-                                                        className={`dr-pill ${getMeetingStatusTone(
-                                                            meeting.statusLabel,
-                                                        )}`}
+                                                        className={`dr-pill ${
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).tone
+                                                        }`}
                                                     >
-                                                        {td(meeting.statusLabel, { source: "en" })}
+                                                        {td(
+                                                            getMeetingStatusDisplay(
+                                                                meeting,
+                                                            ).label,
+                                                            { source: "en" },
+                                                        )}
                                                     </span>
                                                     {meeting.isConcluded &&
                                                         meeting.summaryStatus !==
@@ -357,9 +393,8 @@ export default function MeetingsTab({
                                                                     event,
                                                                 ) => {
                                                                     event.stopPropagation();
-                                                                    setSummaryFollowupId(
-                                                                        meeting.id,
-                                                                    );
+                                                                    setDetailInitialPanel("summary");
+                                                                    setDetailFollowupId(meeting.id);
                                                                 }}
                                                                 onKeyDown={(
                                                                     event,
@@ -369,9 +404,8 @@ export default function MeetingsTab({
                                                                         "Enter"
                                                                     ) {
                                                                         event.stopPropagation();
-                                                                        setSummaryFollowupId(
-                                                                            meeting.id,
-                                                                        );
+                                                                        setDetailInitialPanel("summary");
+                                                                        setDetailFollowupId(meeting.id);
                                                                     }
                                                                 }}
                                                             >
@@ -395,8 +429,13 @@ export default function MeetingsTab({
                                                 >
                                                     {meeting.timeRangeLabel} ·{" "}
                                                     {meeting.durationMinutes}{" "}
-                                                    {t("pages.deals.workspace.meetings.min_label")} ·{" "}
-                                                    {td(meeting.locationDisplay)}
+                                                    {t(
+                                                        "pages.deals.workspace.meetings.min_label",
+                                                    )}{" "}
+                                                    ·{" "}
+                                                    {td(
+                                                        meeting.locationDisplay,
+                                                    )}
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span
@@ -447,6 +486,7 @@ export default function MeetingsTab({
                             hostId: form.hostId,
                             remark: form.remark,
                             reminders: form.reminders,
+                            timezone: form.timezone,
                         },
                         () => handleCreateSuccess(),
                     )
@@ -463,17 +503,12 @@ export default function MeetingsTab({
                 meeting={detailFollowup}
                 meetingTypes={meetingTypes}
                 permissions={permissions}
-                onClose={() => setDetailFollowupId(null)}
+                initialPanel={detailInitialPanel}
+                onClose={() => {
+                    setDetailFollowupId(null);
+                    setDetailInitialPanel("info");
+                }}
             />
-
-            {summaryFollowup && summaryDeal && (
-                <ViewFollowup
-                    open={!!summaryFollowup}
-                    onClose={() => setSummaryFollowupId(null)}
-                    followup={summaryFollowup}
-                    deal={summaryDeal}
-                />
-            )}
 
             <DealConfirmDialog
                 open={confirmBulkCancel}
@@ -485,7 +520,9 @@ export default function MeetingsTab({
                 message={t(
                     "pages.deals.workspace.meetings.cancel_meetings_confirm_message",
                 )}
-                confirmLabel={t("pages.deals.workspace.meetings.cancel_meetings")}
+                confirmLabel={t(
+                    "pages.deals.workspace.meetings.cancel_meetings",
+                )}
                 danger
                 confirmLoading={isBulkUpdating}
                 onConfirm={() =>

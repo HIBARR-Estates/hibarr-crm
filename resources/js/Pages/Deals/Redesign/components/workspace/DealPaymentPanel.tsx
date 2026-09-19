@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { message } from "antd";
+import { App } from "antd";
 import type { Deal } from "@/Types/api/deals";
-import type { DealPaymentCreateInput } from "@/Types/api/deal-payment";
 import { copyToClipboard } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealPayment from "../../hooks/useDealPayment";
@@ -35,6 +34,7 @@ export default function DealPaymentPanel({
     canConfirmPaymentTransfer,
 }: DealPaymentPanelProps) {
     const { td } = useTd();
+    const { message } = App.useApp();
     const {
         paymentRequest,
         paymentRequestLoading,
@@ -46,12 +46,15 @@ export default function DealPaymentPanel({
         refreshing,
     } = useDealPayment(deal.id);
 
+    const currencyCode =
+        deal.currency?.currency_code
+        ?? paymentRequest?.currency
+        ?? "EUR";
+
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [amount, setAmount] = useState(String(deal.value ?? ""));
-    const [currency, setCurrency] = useState(deal.currency?.currency_code ?? "EUR");
-    const [providerKey, setProviderKey] =
-        useState<DealPaymentCreateInput["provider_key"]>("manual-bank-transfer");
+    const [createError, setCreateError] = useState<string | null>(null);
 
     const mapped = useMemo(
         () => mapDealPaymentUiState(paymentRequest),
@@ -67,22 +70,34 @@ export default function DealPaymentPanel({
             ? formatTimestamp(paymentRequest.verified_at)
             : formatTimestamp(paymentRequest?.updated_at ?? paymentRequest?.created_at);
 
+    const openCreateModal = () => {
+        setAmount(String(deal.value ?? ""));
+        setCreateError(null);
+        setCreateOpen(true);
+    };
+
     const handleCreate = async () => {
         const parsedAmount = Number.parseFloat(amount);
         if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-            message.error(td("Enter a valid amount."));
+            const msg = td("Enter a valid amount.");
+            setCreateError(msg);
+            message.error(msg);
             return;
         }
 
-        const created = await createPaymentRequest({
+        setCreateError(null);
+        const result = await createPaymentRequest({
             amount: parsedAmount,
-            currency,
-            provider_key: providerKey,
+            currency: currencyCode,
         });
 
-        if (created) {
+        if (result.ok) {
             setCreateOpen(false);
+            setCreateError(null);
+            return;
         }
+
+        setCreateError(result.message);
     };
 
     const handleCopyCheckoutUrl = async () => {
@@ -114,7 +129,7 @@ export default function DealPaymentPanel({
                         <DealButton
                             variant="primary"
                             size="sm"
-                            onClick={() => setCreateOpen(true)}
+                            onClick={openCreateModal}
                         >
                             {td("Create Payment Request")}
                         </DealButton>
@@ -158,9 +173,15 @@ export default function DealPaymentPanel({
                             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#5b6472]">
                                 {td("Checkout link")}
                             </p>
-                            <p className="break-all text-xs text-[#1a1f2e]">
+                            <a
+                                href={paymentRequest.checkout_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={paymentRequest.checkout_url}
+                                className="block truncate text-xs text-[#1a6bb5]"
+                            >
                                 {paymentRequest.checkout_url}
-                            </p>
+                            </a>
                             <button
                                 type="button"
                                 onClick={() => void handleCopyCheckoutUrl()}
@@ -170,6 +191,12 @@ export default function DealPaymentPanel({
                                 {td("Copy link")}
                             </button>
                         </div>
+                    )}
+
+                    {mapped.showCheckoutUrl && !paymentRequest?.checkout_url && (
+                        <p className="text-xs text-[#b45309]">
+                            {td("Checkout link is not available yet. Refresh status or try again.")}
+                        </p>
                     )}
 
                     {paymentRequest?.proof_url && (
@@ -199,48 +226,49 @@ export default function DealPaymentPanel({
             <DealModal
                 open={createOpen}
                 title={td("Create Payment Request")}
-                onClose={() => setCreateOpen(false)}
+                onClose={() => {
+                    setCreateOpen(false);
+                    setCreateError(null);
+                }}
             >
                 <div className="space-y-3">
+                    <p className="text-xs text-[#5b6472]">
+                        {td("The customer will choose how to pay on the checkout page.")}
+                    </p>
                     <DealModalField label={td("Amount")}>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full rounded-md border border-[#d7dbe3] px-3 py-2 text-sm"
-                        />
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={amount}
+                                onChange={(e) => {
+                                    setAmount(e.target.value);
+                                    if (createError) setCreateError(null);
+                                }}
+                                className="w-full rounded-md border border-[#d7dbe3] px-3 py-2 text-sm"
+                            />
+                            <span className="shrink-0 rounded-md bg-[#f3f4f6] px-2.5 py-2 text-sm font-semibold text-[#1a1f2e]">
+                                {currencyCode}
+                            </span>
+                        </div>
                     </DealModalField>
-                    <DealModalField label={td("Currency")}>
-                        <input
-                            type="text"
-                            value={currency}
-                            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                            className="w-full rounded-md border border-[#d7dbe3] px-3 py-2 text-sm"
-                        />
-                    </DealModalField>
-                    <DealModalField label={td("Payment method")}>
-                        <select
-                            value={providerKey}
-                            onChange={(e) =>
-                                setProviderKey(
-                                    e.target.value as DealPaymentCreateInput["provider_key"],
-                                )
-                            }
-                            className="w-full rounded-md border border-[#d7dbe3] px-3 py-2 text-sm"
+                    {createError && (
+                        <p
+                            role="alert"
+                            className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#b91c1c]"
                         >
-                            <option value="manual-bank-transfer">
-                                {td("Bank transfer")}
-                            </option>
-                            <option value="nowpayments">{td("Crypto (NOWPayments)")}</option>
-                        </select>
-                    </DealModalField>
+                            {createError}
+                        </p>
+                    )}
                     <div className="flex justify-end gap-2 pt-2">
                         <DealButton
                             variant="ghost"
                             size="sm"
-                            onClick={() => setCreateOpen(false)}
+                            onClick={() => {
+                                setCreateOpen(false);
+                                setCreateError(null);
+                            }}
                         >
                             {td("Cancel")}
                         </DealButton>
@@ -267,7 +295,7 @@ export default function DealPaymentPanel({
                 confirmLoading={confirming}
                 onConfirm={() => {
                     void confirmTransfer().then((result) => {
-                        if (result) setConfirmOpen(false);
+                        if (result.ok) setConfirmOpen(false);
                     });
                 }}
                 onCancel={() => setConfirmOpen(false)}

@@ -41,8 +41,13 @@ return [
         'crm.meeting-host',
         'crm.notification-bypass',
         'crm.user-timezone',
-        'crm.mobile-responsive-layout',
+        'crm.personal-dashboard',
         'packages.online-payment',
+        'crm.deal-files-grouping',
+        'crm.meetings-page-redesign',
+        'crm.deal-value-commission',
+        'shared.3cx-calling',
+        'crm.mobile-responsive-layout',
     ],
 
     /*

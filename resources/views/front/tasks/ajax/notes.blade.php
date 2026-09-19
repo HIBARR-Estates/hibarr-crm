@@ -14,7 +14,7 @@
                                 {{ $note->created_at->diffForHumans() }}
                             </p>
                         </div>
-                        <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! $note->note !!}
+                        <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! clean_html($note->note) !!}
                         </div>
                     </div>
                 </div>

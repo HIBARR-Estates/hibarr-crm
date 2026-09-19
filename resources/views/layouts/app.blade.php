@@ -726,6 +726,8 @@
     </script>
 @endif
 
+@include('components.stale-build-banner')
+
 </body>
 
 </html>

@@ -39,10 +39,6 @@ const ConstructionProjectPricingSection: React.FC<
     );
     const availabilityLink = Form.useWatch("availability_link", form);
 
-    const handlePaymentPlanToggle = (enabled: boolean) => {
-        form.setFieldValue(["payment_plan", "enabled"], enabled);
-    };
-
     return (
         <Row gutter={[16, 0]}>
             {/* Starting Price */}
@@ -53,16 +49,23 @@ const ConstructionProjectPricingSection: React.FC<
                         placeholder="e.g. 85000"
                         style={{ width: "100%" }}
                         formatter={(value) =>
-                            value
+                            value != null
                                 ? `£ ${value}`.replace(
                                       /\B(?=(\d{3})+(?!\d))/g,
                                       ",",
                                   )
                                 : ""
                         }
-                        parser={(value) =>
-                            value ? Number(value.replace(/[£,\s]/g, "")) : 0
-                        }
+                        parser={(value) => {
+                            const raw = value?.replace(/[£,\s]/g, "") ?? "";
+                            if (raw === "") {
+                                return undefined as unknown as number;
+                            }
+                            const parsed = Number(raw);
+                            return Number.isFinite(parsed)
+                                ? parsed
+                                : (undefined as unknown as number);
+                        }}
                     />
                 </Form.Item>
             </Col>
@@ -120,34 +123,35 @@ const ConstructionProjectPricingSection: React.FC<
                 </Form.Item>
             </Col>
 
-            {/* Payment Plan Toggle */}
-            <Form.Item
-                name={["payment_plan", "enabled"]}
-                hidden
-                valuePropName="checked"
-            >
-                <Switch />
-            </Form.Item>
+            {/* Payment Plan Toggle — single Form.Item so nested sibling
+                updates cannot wipe `enabled` by replacing payment_plan. */}
             <Col span={24}>
                 <div className="flex items-center gap-3 mb-4 mt-2">
                     <Text strong>Payment Plan</Text>
-                    <Switch
-                        checked={paymentPlanEnabled}
-                        onChange={handlePaymentPlanToggle}
-                        checkedChildren="Yes"
-                        unCheckedChildren="No"
-                    />
+                    <Form.Item
+                        name={["payment_plan", "enabled"]}
+                        valuePropName="checked"
+                        initialValue={false}
+                        getValueFromEvent={(checked: boolean) => checked}
+                        className="!mb-0"
+                    >
+                        <Switch
+                            checkedChildren="Yes"
+                            unCheckedChildren="No"
+                        />
+                    </Form.Item>
                 </div>
             </Col>
 
-            {/* Payment Plan Sub-fields */}
-            {paymentPlanEnabled && (
-                <>
-                    {/* Downpayment Type */}
+            {/* Keep nested fields mounted so typing a value merges into
+                payment_plan instead of replacing it and dropping `enabled`. */}
+            <Col span={24} hidden={!paymentPlanEnabled}>
+                <Row gutter={[16, 0]}>
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "downpayment_type"]}
                             label="Downpayment Type"
+                            preserve
                         >
                             <Select
                                 placeholder="Select type"
@@ -159,7 +163,6 @@ const ConstructionProjectPricingSection: React.FC<
                         </Form.Item>
                     </Col>
 
-                    {/* Downpayment Value */}
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "downpayment_value"]}
@@ -168,6 +171,7 @@ const ConstructionProjectPricingSection: React.FC<
                                     ? "Downpayment (%)"
                                     : "Downpayment Amount"
                             }
+                            preserve
                         >
                             <InputNumber
                                 min={0}
@@ -189,11 +193,11 @@ const ConstructionProjectPricingSection: React.FC<
                         </Form.Item>
                     </Col>
 
-                    {/* Period in Months */}
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "period_months"]}
                             label="Period (Months)"
+                            preserve
                         >
                             <InputNumber
                                 min={1}
@@ -205,11 +209,11 @@ const ConstructionProjectPricingSection: React.FC<
                         </Form.Item>
                     </Col>
 
-                    {/* Interest Rate */}
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "interest_rate"]}
                             label="Interest Rate"
+                            preserve
                         >
                             <InputNumber
                                 min={0}
@@ -221,8 +225,8 @@ const ConstructionProjectPricingSection: React.FC<
                             />
                         </Form.Item>
                     </Col>
-                </>
-            )}
+                </Row>
+            </Col>
         </Row>
     );
 };

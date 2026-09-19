@@ -32,6 +32,8 @@ function buildPayload(draft: FieldDraft, original?: SettingsField | null) {
         ...(isRepeatable && original
             ? { value: original.values, linked_field_id: original.linked_field_id }
             : {}),
+        show_in_lead: draft.show_in_lead,
+        show_in_deal: draft.show_in_deal,
     };
 }
 

@@ -16,17 +16,17 @@ import {
     PlusOutlined,
     EyeOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
-import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import type { TableColumnsType } from "antd";
 import { Link, usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { getStatusColor } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 
 interface Props {
     lead: Lead;
@@ -45,6 +45,7 @@ export default function LeadFollowUpTab({
 }: Props) {
     const { props } = usePage();
     const { t } = useTranslation();
+    const { formatDate, formatTime } = useUserDateTime();
     const user = props.auth.user;
     const {
         action,
@@ -110,10 +111,10 @@ export default function LeadFollowUpTab({
                     onClick={() => handleAction("view", record)}
                 >
                     <div className="font-medium whitespace-nowrap">
-                        {formatCompanyDate(record.next_follow_up_date)}
+                        {formatDate(record.next_follow_up_date)}
                     </div>
                     <div className="text-sm text-gray-500 whitespace-nowrap">
-                        {formatCompanyTime(record.next_follow_up_date)}
+                        {formatTime(record.next_follow_up_date)}
                     </div>
                 </div>
             ),
@@ -320,13 +321,22 @@ export default function LeadFollowUpTab({
                 followup={followUp}
             />
 
-            {followUp && (
-                <ViewFollowup
-                    open={action === "view"}
+            {followUp && action === "view" && (
+                <MeetingViewModal
+                    meeting={followUp}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => handleClose()}
-                    followup={followUp}
-                    deal={viewDeal}
-                    lead={lead}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open
+                            onClose={() => handleClose()}
+                            followup={followUp}
+                            deal={viewDeal}
+                            lead={lead}
+                        />
+                    }
                 />
             )}
         </>

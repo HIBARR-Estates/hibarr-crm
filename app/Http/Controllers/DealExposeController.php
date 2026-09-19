@@ -33,8 +33,8 @@ class DealExposeController extends AccountBaseController
 {
     public const FEATURE_FLAG = 'crm.deal-exposes-tab';
 
-    /** Laravel `max` rule for uploads — kilobytes (1 GB). */
-    private const MAX_UPLOAD_KB = 1048576;
+    /** Laravel `max` rule for uploads — kilobytes (20 GiB). Redesign sends JSON metadata, not the body. */
+    private const MAX_UPLOAD_KB = 20971520;
 
     protected FileStorageService $fileStorageService;
 

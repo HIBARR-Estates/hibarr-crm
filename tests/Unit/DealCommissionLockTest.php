@@ -61,4 +61,22 @@ class DealCommissionLockTest extends TestCase
             'manual_value' => 1000,
         ]));
     }
+
+    public function test_touches_agent_field_is_independent_of_value_keys(): void
+    {
+        $this->assertTrue(Deal::touchesAgentField(['agent_id' => 7]));
+        $this->assertFalse(Deal::touchesAgentField(['pipeline_stage_id' => 5]));
+        $this->assertFalse(Deal::touchesValueFields(['agent_id' => 7]));
+    }
+
+    public function test_agent_would_change_ignores_the_same_id(): void
+    {
+        $deal = new Deal;
+        $deal->agent_id = 4;
+
+        $this->assertFalse($deal->agentWouldChange(4));
+        $this->assertFalse($deal->agentWouldChange('4'));
+        $this->assertTrue($deal->agentWouldChange(9));
+        $this->assertTrue($deal->agentWouldChange(null));
+    }
 }

@@ -22,12 +22,24 @@ class UnsClient
     }
 
     /**
+     * Outcome of the most recent send() call on this instance — status code,
+     * response body and/or transport error. Read by UnsRoutingTransport so the
+     * delivery log can show what UNS actually answered, not just that it failed.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $lastResult = null;
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function send(array $payload): bool
     {
+        $this->lastResult = null;
+
         if ($this->baseUrl === '') {
             Log::error('UNS email routing failed: Notification service base URL is not configured.');
+            $this->lastResult = ['error' => 'Notification service base URL is not configured.'];
 
             return false;
         }
@@ -46,9 +58,17 @@ class UnsClient
             Log::error('UNS email routing failed: request exception.', [
                 'error' => $exception->getMessage(),
             ]);
+            $this->lastResult = ['error' => $exception->getMessage()];
 
             return false;
         }
+
+        $this->lastResult = [
+            'status' => $response->status(),
+            'body' => $response->body(),
+            'notification_id' => $response->json('notificationId'),
+            'uns_status' => $response->json('status'),
+        ];
 
         if (in_array($response->status(), [200, 202, 409], true)) {
             Log::info('UNS email routing accepted.', [
@@ -68,6 +88,14 @@ class UnsClient
         ]);
 
         return false;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function lastResult(): ?array
+    {
+        return $this->lastResult;
     }
 
     /**

@@ -201,6 +201,7 @@ export default function DealInfoSectionPanel({
                         fields={fields}
                         customFieldsData={deal.custom_fields_data || {}}
                         categoryId={id}
+                        recordId={deal.id}
                         visibleFieldKeys={visibleFieldKeys}
                         useContainerQuery
                         bare
@@ -554,6 +555,7 @@ export default function DealInfoSectionPanel({
                 fields={fields}
                 customFieldsData={deal.custom_fields_data || {}}
                 categoryId={categoryId}
+                recordId={deal.id}
                 visibleFieldKeys={visibleFieldKeys}
                 useContainerQuery
                 bare

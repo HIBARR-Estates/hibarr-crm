@@ -36,6 +36,16 @@ interface AssigneeFieldProps {
     removeLabel?: string;
     addLabel?: string;
     doneLabel?: string;
+    /**
+     * Names for ids that are already on `value` but might not appear in the
+     * "employees" directory this field searches (a different role, a person
+     * outside that list's scope, or simply not loaded yet before the user
+     * opens the picker) — without these, an already-picked id with no match
+     * falls back to rendering as "User #<id>". Callers that already have the
+     * record's resolved people (e.g. a follow-up's `participant_users`)
+     * should pass them here.
+     */
+    knownPeople?: PersonOption[];
 }
 
 const LOCKED_REMOVAL_ERROR_TIMEOUT_MS = 5000;
@@ -62,6 +72,7 @@ export default function AssigneeField({
     removeLabel = "Remove",
     addLabel = "+ Add",
     doneLabel = "Done",
+    knownPeople = [],
 }: AssigneeFieldProps) {
     const { td } = useTd();
     const { props } = usePage<
@@ -111,13 +122,17 @@ export default function AssigneeField({
         remotePeople.length > 0 || !loading ? remotePeople : seedPeople;
 
     const byId = useMemo(() => {
-        const map = new Map(people.map((person) => [person.id, person]));
+        // `knownPeople` fills chips the directory hasn't surfaced yet or never
+        // will; the directory's own results (fresher, more complete) win
+        // whenever they cover the same id.
+        const map = new Map(knownPeople.map((person) => [person.id, person]));
+        for (const person of people) map.set(person.id, person);
         // Also resolve chips from seed so already-picked people always label.
         for (const person of seedPeople) {
             if (!map.has(person.id)) map.set(person.id, person);
         }
         return map;
-    }, [people, seedPeople]);
+    }, [people, seedPeople, knownPeople]);
 
     const blocked = !loading && Boolean(error) && people.length === 0;
 

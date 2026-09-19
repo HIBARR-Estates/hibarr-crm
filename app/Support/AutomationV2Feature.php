@@ -23,6 +23,10 @@ class AutomationV2Feature
         'lead_updated',
         DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
         DealAutomation::TRIGGER_DATE_BASED,
+        DealAutomation::TRIGGER_LEAD_CREATED_API,
+        DealAutomation::TRIGGER_LEAD_UPDATED_API,
+        DealAutomation::TRIGGER_DEAL_CREATED_API,
+        DealAutomation::TRIGGER_DEAL_UPDATED_API,
     ];
 
     public static function enabled(): bool

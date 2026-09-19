@@ -8,8 +8,8 @@ import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect"
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { Automation, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
-import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, TRIGGER_SUBJECT } from "./shared";
+import { Automation, ConditionLogic, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
+import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, triggerExplanation, TRIGGER_SUBJECT } from "./shared";
 import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType } from "./config/builderFields";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
@@ -84,6 +84,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const [waitUnit, setWaitUnit] = useState<string>(automation?.wait_duration_unit ?? "minutes");
     const [active, setActive] = useState(automation?.active ?? true);
     const [priority, setPriority] = useState<string>(String(automation?.priority ?? 0));
+    const [conditionLogic, setConditionLogic] = useState<ConditionLogic>(automation?.condition_logic ?? "all");
     const [conditions, setConditions] = useState<DealAutomationCondition[]>(automation?.conditions ?? []);
     const [actions, setActions] = useState<DealAutomationAction[]>(
         automation?.actions?.length ? automation.actions : [newAction(subjectType)],
@@ -164,6 +165,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
             wait_duration_unit: waitMode === "wait" && waitValue ? waitUnit : null,
             priority: Number(priority) || 0,
             active: active ? 1 : 0,
+            condition_logic: conditionLogic,
             conditions: conditions.filter((c) => c.field).map((c) => ({ field: c.field, operator: c.operator, value: c.value })),
             actions: actions.map((a) => ({ ...a })),
         };
@@ -277,6 +279,24 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             className="w-full"
                         />
 
+                        {!trigger && (
+                            <div
+                                className="rounded-lg flex items-start gap-2 mt-2.5"
+                                style={{ background: T.AMBER_SOFT, border: `1px solid ${T.AMBER_MID}`, padding: "10px 12px", fontSize: 12, color: T.AMBER }}
+                            >
+                                <span style={{ marginTop: 1 }}>
+                                    <Icon name="info" size={13} />
+                                </span>
+                                <span>{t("app.automation.noTriggerWarning")}</span>
+                            </div>
+                        )}
+
+                        {trigger && (
+                            <p className="mt-2 mb-0" style={{ fontSize: 12, color: T.TEXT_MUTED, lineHeight: 1.5 }}>
+                                {td(triggerExplanation(trigger))}
+                            </p>
+                        )}
+
                         {trigger === "date_based" && catalog && (
                             <div className="grid grid-cols-2 gap-3 mt-3">
                                 <div>
@@ -382,6 +402,17 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                     · {t("app.automation.optional")}
                                 </span>
                             </div>
+                            {conditions.length > 1 && (
+                                <SearchableSelect
+                                    value={conditionLogic}
+                                    onChange={(value) => setConditionLogic((value as ConditionLogic) ?? "all")}
+                                    options={[
+                                        { value: "all", label: td("Match all conditions (AND)") },
+                                        { value: "any", label: td("Match any condition (OR)") },
+                                    ]}
+                                    style={{ width: 220 }}
+                                />
+                            )}
                         </div>
                         {conditions.map((cond, i) => {
                             const valueType = fieldValueType(cond.field, catalog);

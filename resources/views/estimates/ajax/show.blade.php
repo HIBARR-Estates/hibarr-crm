@@ -149,7 +149,7 @@
                     @lang('modules.invoices.description')
                 </span><br>
                 <div class="col-sm-12 ql-editor2">
-                    {!! $invoice->description !!}
+                    {!! clean_html($invoice->description) !!}
                 </div>
             </div>
             <table width="100%" class="inv-desc d-none d-lg-table d-md-table mt-3">
@@ -357,7 +357,7 @@
                         <table>
                             <tr>@lang('app.note')</tr>
                             <tr>
-                                <p class="text-dark-grey">{!! !empty($invoice->note) ? nl2br($invoice->note) : '--' !!}</p>
+                                <p class="text-dark-grey">{!! clean_html(!empty($invoice->note) ? nl2br($invoice->note) : '--') !!}</p>
                             </tr>
                         </table>
                     </td>

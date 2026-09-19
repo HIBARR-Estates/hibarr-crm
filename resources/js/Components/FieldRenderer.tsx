@@ -30,6 +30,8 @@ interface FieldRendererProps {
     disabled?: boolean;
     /** Restrict to a specific category id */
     categoryId?: string | number;
+    /** The record (Deal/Lead/...) these fields belong to — backs a `record`-source visibility rule ("restrict to specific record(s)"). */
+    recordId?: number | string | null;
 }
 
 export default function FieldRenderer({
@@ -42,6 +44,7 @@ export default function FieldRenderer({
     globalLoading,
     disabled,
     categoryId,
+    recordId,
 }: FieldRendererProps) {
     // Convert typed CustomField[] to the shape CustomFieldDisplay expects for `fields`
     const adaptedFields = fields.map((f) => ({
@@ -68,6 +71,7 @@ export default function FieldRenderer({
             loadingField={loadingField ?? null}
             globalLoading={globalLoading}
             disabled={disabled}
+            recordId={recordId}
         />
     );
 }

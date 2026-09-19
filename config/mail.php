@@ -102,6 +102,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Delivery Log Retention
+    |--------------------------------------------------------------------------
+    |
+    | How many days of email_delivery_logs rows to keep. Every outgoing email
+    | writes one row (which system delivered it and what that system said), so
+    | the table is pruned by the scheduled `model:prune` command.
+    |
+    */
+
+    'delivery_log_retention_days' => env('MAIL_DELIVERY_LOG_RETENTION_DAYS', 90),
+
     'markdown' => [
         'theme' => 'default',
 

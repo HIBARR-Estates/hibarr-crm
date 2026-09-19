@@ -179,7 +179,7 @@
                 <div class="form-group">
                     <x-forms.label fieldId="description" :fieldLabel="__('app.description')">
                     </x-forms.label>
-                    <div id="description">{!! isset($estimate) ? $estimate->description : ($estimateTemplate ? $estimateTemplate->description : '') !!}</div>
+                    <div id="description">{!! clean_html(isset($estimate) ? $estimate->description : ($estimateTemplate ? $estimateTemplate->description : '')) !!}</div>
                     <textarea name="description" id="description-text" class="d-none"></textarea>
                 </div>
             </div>

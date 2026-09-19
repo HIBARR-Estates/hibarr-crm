@@ -3,7 +3,8 @@ import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import useTranslation from "@/Hooks/useTranslation";
-import { copyToClipboard, formatPhoneNumber } from "@/lib/utils";
+import useClickToCall from "@/Hooks/useClickToCall";
+import { copyToClipboard, resolveLeadPhoneDisplay } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
@@ -29,6 +30,8 @@ interface WorkspaceContextRailProps {
     }>;
     /** Pipeline-linked categories — scopes which custom file fields show. */
     categoryIds?: number[];
+    /** Field visibility (deal-context-aware) — see useDealDocuments. */
+    visibilityMap?: Record<number, boolean>;
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
@@ -54,6 +57,7 @@ export default function WorkspaceContextRail({
     files,
     fields = [],
     categoryIds,
+    visibilityMap,
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
@@ -66,12 +70,19 @@ export default function WorkspaceContextRail({
         () => new Set(["Lead", "Deal details"]),
     );
     const [emailCopied, setEmailCopied] = useState(false);
-    const documents = useDealDocuments(deal, files ?? [], fields, categoryIds);
-    // Dossier only shows the three HIBARR-linked document slots — custom
-    // file-type fields and loose attachments stay in the Files tab.
-    const hibarrDocuments = useMemo(
-        () => documents.documents.filter((doc) => doc.source === "hibarr"),
-        [documents],
+    const { slots } = useDealDocuments(
+        deal,
+        files ?? [],
+        fields,
+        categoryIds,
+        visibilityMap,
+    );
+    // Dossier only shows this deal's own file-type custom fields — lead-owned
+    // fields cross-populated here (source: "lead") stay in the Files tab's
+    // "Personal files" section, not the dossier.
+    const documentSlots = useMemo(
+        () => slots.filter((doc) => doc.source !== "lead"),
+        [slots],
     );
     const { td } = useTd();
     const {
@@ -96,7 +107,16 @@ export default function WorkspaceContextRail({
         contact?.client_name ||
         t("pages.deals.dossier.unknown_lead");
     const email = contact?.client_email || null;
-    const phone = formatPhoneNumber(contact?.mobile || contact?.cell || null);
+    const phone =
+        resolveLeadPhoneDisplay(
+            contact?.mobile,
+            contact?.mobile_with_phonecode,
+        ) ||
+        resolveLeadPhoneDisplay(contact?.cell) ||
+        "";
+    const { isEnabled: clickToCallEnabled, initiateCall, isCalling } =
+        useClickToCall();
+    const dealCallEntity = { type: "deal" as const, id: deal.id };
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
     const leadSource = contact?.lead_source?.type || null;
     // Match Lead header: only show a custom uploaded avatar (not Gravatar).
@@ -173,19 +193,34 @@ export default function WorkspaceContextRail({
                             </button>
                         )}
                         {phone && (
-                            <a
-                                href={`tel:${phone}`}
-                                className="flex items-center gap-1.5 rounded px-0 py-2 text-xs text-[#5b6472] no-underline hover:bg-[#f5f6f8]"
-                            >
-                                <DealIcon name="phone" size={12} />
-                                <span className="min-w-0 flex-1 truncate">{phone}</span>
-                                <span
-                                    className="ml-auto text-[12px] font-semibold"
-                                    style={{ color: T.BLUE }}
+                            clickToCallEnabled ? (
+                                <button
+                                    type="button"
+                                    disabled={isCalling(phone, dealCallEntity)}
+                                    onClick={() =>
+                                        void initiateCall(phone, dealCallEntity)
+                                    }
+                                    className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {t("pages.deals.dossier.call")}
-                                </span>
-                            </a>
+                                    <DealIcon name="phone" size={12} />
+                                    <span className="min-w-0 flex-1 truncate">
+                                        {phone}
+                                    </span>
+                                    <span
+                                        className="ml-auto text-[12px] font-semibold"
+                                        style={{ color: T.BLUE }}
+                                    >
+                                        {t("pages.deals.dossier.call")}
+                                    </span>
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-1.5 rounded px-0 py-2 text-xs text-[#5b6472]">
+                                    <DealIcon name="phone" size={12} />
+                                    <span className="min-w-0 flex-1 truncate">
+                                        {phone}
+                                    </span>
+                                </div>
+                            )
                         )}
                         {leadSource && (
                             <div className="flex items-center gap-1.5 px-0 py-2 text-xs text-[#5b6472]">
@@ -236,15 +271,15 @@ export default function WorkspaceContextRail({
                 : []),
             {
                 title: "Documents",
-                summary: `${hibarrDocuments.filter((doc) => doc.uploaded).length}/${hibarrDocuments.length}`,
+                summary: `${documentSlots.filter((doc) => doc.uploaded).length}/${documentSlots.length}`,
                 body: (
                     <div>
-                        {hibarrDocuments.length === 0 ? (
+                        {documentSlots.length === 0 ? (
                             <p className="py-2 text-xs italic text-[#9ca3af]">
                                 {t("pages.deals.dossier.no_document_slots")}
                             </p>
                         ) : (
-                            hibarrDocuments.map((doc) => (
+                            documentSlots.map((doc) => (
                                 <DealDocumentSlotRow
                                     key={doc.id}
                                     doc={doc}
@@ -264,7 +299,7 @@ export default function WorkspaceContextRail({
         [
             canEdit,
             deal,
-            hibarrDocuments,
+            documentSlots,
             email,
             emailCopied,
             // Drives the per-slot "Uploading…" state.
@@ -274,6 +309,9 @@ export default function WorkspaceContextRail({
             leadUrl,
             packageSummary,
             phone,
+            clickToCallEnabled,
+            initiateCall,
+            isCalling,
             restrictPackageOrProperty,
             showOnlinePayment,
             canCreatePaymentRequest,

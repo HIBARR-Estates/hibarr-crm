@@ -19,8 +19,7 @@ class MeetingAttendanceConfirmationService
 {
     public function __construct(
         private readonly DealActivityEventService $dealActivityEventService,
-    ) {
-    }
+    ) {}
 
     /**
      * Every meeting assigned to $user that's still awaiting an attendance
@@ -37,17 +36,17 @@ class MeetingAttendanceConfirmationService
     public function pendingListForUser(User $user, int $limit = 20): Collection
     {
         $companyId = $user->company_id ? (int) $user->company_id : null;
-        if (!$companyId) {
+        if (! $companyId) {
             return collect();
         }
 
         $company = Company::find($companyId);
-        if (!$company || !MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
+        if (! $company || ! MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
             return collect();
         }
 
         $activatedAt = $company->meeting_attendance_confirmation_enabled_at;
-        if (!$activatedAt) {
+        if (! $activatedAt) {
             return collect();
         }
 
@@ -187,18 +186,18 @@ class MeetingAttendanceConfirmationService
             return false;
         }
 
-        if (!$followUp->next_follow_up_date) {
+        if (! $followUp->next_follow_up_date) {
             return false;
         }
 
         $company = $this->resolveCompanyForFollowUp($followUp);
 
-        if (!$company || !MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
+        if (! $company || ! MeetingAttendanceConfirmationFeature::enabledForCompany($company)) {
             return false;
         }
 
         $activatedAt = $company->meeting_attendance_confirmation_enabled_at;
-        if (!$activatedAt || $followUp->next_follow_up_date->lt($activatedAt)) {
+        if (! $activatedAt || $followUp->next_follow_up_date->lt($activatedAt)) {
             return false;
         }
 
@@ -229,7 +228,7 @@ class MeetingAttendanceConfirmationService
      */
     public function snooze(DealFollowUp $followUp, ?int $minutes = null): DealFollowUp
     {
-        if (!$this->isEligibleForOutcomeAction($followUp)) {
+        if (! $this->isEligibleForOutcomeAction($followUp)) {
             return $followUp;
         }
 
@@ -253,7 +252,7 @@ class MeetingAttendanceConfirmationService
         MeetingAttendanceOutcome $outcome,
         ?string $note
     ): DealFollowUp {
-        if (!$this->isEligibleForOutcomeAction($followUp)) {
+        if (! $this->isEligibleForOutcomeAction($followUp)) {
             return $followUp;
         }
 
@@ -277,31 +276,73 @@ class MeetingAttendanceConfirmationService
             }
 
             $followUp->refresh();
-            $followUp->loadMissing(['deal.contact', 'lead', 'meetingType']);
-
-            $timezone = $user->timezone
-                ?: Company::find($user->company_id)?->timezone
-                ?: config('app.timezone');
-            $deal = $followUp->deal;
-
-            if ($deal) {
-                $createdNote = $trimmedNote !== '' ? $this->createDealNote($deal, $followUp, $trimmedNote, $timezone) : null;
-
-                $this->dealActivityEventService->recordMeetingOutcomeLogged(
-                    $deal,
-                    $followUp,
-                    $outcome,
-                    $createdNote?->id
-                );
-            } elseif ($followUp->lead_id && $trimmedNote !== '') {
-                // No deal linked — the remark goes on the lead instead. There's no
-                // lead-side equivalent of DealActivityEventService's CrmEvent
-                // timeline to record the outcome-change itself against.
-                $this->createLeadNote($followUp, $trimmedNote, $timezone);
-            }
+            $this->recordOutcomeNoteAndEvent($followUp, $user, $outcome, $trimmedNote);
 
             return $followUp;
         });
+    }
+
+    /**
+     * Changes an already-logged outcome — from the meeting's own edit form,
+     * not the confirmation prompt, so it isn't gated by `confirm()`'s
+     * claim-once `whereNull` (that guard exists to stop the prompt firing
+     * twice, not to make a recorded outcome permanent) or by
+     * `confirmationAssigneeUserId()` — the controller authorizes this one on
+     * ordinary edit permission instead, same as any other field on the form.
+     *
+     * Every call writes a fresh note (when one is given) and timeline event,
+     * same as `confirm()` — there is no way to tell "this outcome was wrong"
+     * from "nothing happened" other than the note explaining the change.
+     */
+    public function update(
+        DealFollowUp $followUp,
+        User $user,
+        MeetingAttendanceOutcome $outcome,
+        ?string $note
+    ): DealFollowUp {
+        $trimmedNote = $note !== null ? trim($note) : '';
+
+        return DB::transaction(function () use ($followUp, $user, $outcome, $trimmedNote) {
+            $followUp->attendance_outcome = $outcome->value;
+            $followUp->attendance_outcome_logged_at = now();
+            $followUp->attendance_outcome_logged_by = $user->id;
+            $followUp->status = $outcome->followUpStatus();
+            $followUp->save();
+
+            $this->recordOutcomeNoteAndEvent($followUp, $user, $outcome, $trimmedNote);
+
+            return $followUp;
+        });
+    }
+
+    private function recordOutcomeNoteAndEvent(
+        DealFollowUp $followUp,
+        User $user,
+        MeetingAttendanceOutcome $outcome,
+        string $trimmedNote
+    ): void {
+        $followUp->loadMissing(['deal.contact', 'lead', 'meetingType']);
+
+        $timezone = $user->timezone
+            ?: Company::find($user->company_id)?->timezone
+            ?: config('app.timezone');
+        $deal = $followUp->deal;
+
+        if ($deal) {
+            $createdNote = $trimmedNote !== '' ? $this->createDealNote($deal, $followUp, $trimmedNote, $timezone) : null;
+
+            $this->dealActivityEventService->recordMeetingOutcomeLogged(
+                $deal,
+                $followUp,
+                $outcome,
+                $createdNote?->id
+            );
+        } elseif ($followUp->lead_id && $trimmedNote !== '') {
+            // No deal linked — the remark goes on the lead instead. There's no
+            // lead-side equivalent of DealActivityEventService's CrmEvent
+            // timeline to record the outcome-change itself against.
+            $this->createLeadNote($followUp, $trimmedNote, $timezone);
+        }
     }
 
     /**
@@ -348,7 +389,7 @@ class MeetingAttendanceConfirmationService
         };
 
         $suffix = $followUp->next_follow_up_date
-            ? ' — ' . $followUp->next_follow_up_date->copy()->setTimezone($timezone)->format('M j, Y')
+            ? ' — '.$followUp->next_follow_up_date->copy()->setTimezone($timezone)->format('M j, Y')
             : '';
 
         return $contactName

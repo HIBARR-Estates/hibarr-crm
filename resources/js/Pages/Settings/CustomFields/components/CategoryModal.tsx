@@ -18,7 +18,7 @@ interface Props {
 }
 
 function emptyDraft(moduleId: number | null): CategoryDraft {
-    return { name: "", custom_field_group_id: moduleId ?? "", order: 0 };
+    return { name: "", custom_field_group_id: moduleId ?? "", order: "" };
 }
 
 function draftFromCategory(category: SettingsCategory): CategoryDraft {
@@ -106,7 +106,10 @@ export default function CategoryModal({
                         className="dr-input"
                         style={{ padding: "11px 12px", fontSize: 14 }}
                         value={draft.order}
-                        onChange={(e) => patch({ order: Number(e.target.value) || 0 })}
+                        onChange={(e) => {
+                            const raw = e.target.value;
+                            patch({ order: raw === "" ? "" : Number(raw) || 0 });
+                        }}
                     />
                 </ModalField>
             </div>

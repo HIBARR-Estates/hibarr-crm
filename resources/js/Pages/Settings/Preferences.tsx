@@ -1,15 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { App } from "antd";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, {
     ProductTourHandle,
 } from "@/Components/ProductTour/ProductTour";
-import SearchableSelect, {
-    type SearchableSelectGroup,
-} from "@/Components/Redesign/primitives/SearchableSelect";
+import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
+import { buildTimezoneGroups } from "@/lib/timezoneOptions";
 import Switch from "@/Components/Redesign/primitives/Switch";
 import {
     REDESIGN_FONT_STACK,
@@ -53,46 +52,6 @@ type PreferencesProps = {
     bypassTypes: BypassType[];
     bypassedKeys: string[];
 };
-
-function buildTimezoneGroups(): SearchableSelectGroup[] {
-    let zones: string[] = [];
-    try {
-        if (typeof Intl !== "undefined" && "supportedValuesOf" in Intl) {
-            zones = (
-                Intl as unknown as {
-                    supportedValuesOf: (key: string) => string[];
-                }
-            ).supportedValuesOf("timeZone");
-        }
-    } catch {
-        zones = [];
-    }
-    if (zones.length === 0) {
-        zones = [
-            "UTC",
-            "Europe/Berlin",
-            "Europe/London",
-            "America/New_York",
-            "America/Los_Angeles",
-            "Asia/Dubai",
-            "Asia/Tokyo",
-            "Australia/Sydney",
-        ];
-    }
-
-    const grouped = new Map<string, { value: string; label: string }[]>();
-    for (const zone of zones) {
-        const region = zone.split("/")[0] ?? "Other";
-        const list = grouped.get(region) ?? [];
-        list.push({ value: zone, label: zone.replace(/_/g, " ") });
-        grouped.set(region, list);
-    }
-
-    return Array.from(grouped.entries()).map(([label, options]) => ({
-        label,
-        options,
-    }));
-}
 
 function Section({
     title,
@@ -222,6 +181,24 @@ export default function Preferences({
             setUserDateTimeContext({
                 enabled: isUserDateTimeEnabled(),
                 timezone: savedTimezone,
+            });
+            router.replace({
+                preserveScroll: true,
+                preserveState: true,
+                props: (current) => ({
+                    ...current,
+                    viewerTimezone: savedTimezone,
+                    auth: current.auth
+                        ? {
+                              ...current.auth,
+                              user: {
+                                  ...current.auth.user,
+                                  timezone: savedTimezone,
+                                  timezone_locked: savedLocked,
+                              },
+                          }
+                        : current.auth,
+                }),
             });
         } catch (error) {
             setSelectedTimezone(previousTimezone);

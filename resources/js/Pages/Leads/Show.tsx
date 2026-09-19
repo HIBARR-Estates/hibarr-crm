@@ -33,6 +33,12 @@ export interface LeadShowProps {
     deleteLeadPermission: string;
     deals: Deal[];
     dealPermissions: Record<string, string>;
+    /**
+     * Whether any expose is attached to one of this lead's deals. The lead's
+     * Exposes tab is a read-only rollup, so it is hidden when there is nothing
+     * to roll up (LeadContactController@show).
+     */
+    hasLeadExposes?: boolean;
     notePermissions: Record<string, string>;
     /** Task permissions (also mirrored as `permissions` for TasksTab). */
     taskPermissions?: Record<string, string>;

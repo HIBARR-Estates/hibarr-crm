@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use App\Models\DealFollowUp;
-use App\Support\MeetingAttendeeResolver;
+use App\Models\User;
+use App\Scopes\ActiveScope;
 use App\Scopes\CompanyScope;
+use App\Support\MeetingAttendeeResolver;
+use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -14,8 +17,25 @@ class CalendarSyncService
 {
     public const PLATFORM_ZOHO = 'zoho';
 
+    /**
+     * Why the last enqueue/retry returned null — OL's own message when it
+     * answered, so callers can show and persist the real reason.
+     *
+     * @var array{code: string, message: string}|null
+     */
+    private ?array $lastError = null;
+
+    /**
+     * @return array{code: string, message: string}|null
+     */
+    public function lastError(): ?array
+    {
+        return $this->lastError;
+    }
+
     public function enqueueEvent(DealFollowUp $followUp, string $platform = self::PLATFORM_ZOHO): ?string
     {
+        $this->lastError = null;
         $payload = $this->buildPayload($followUp);
 
         $attendeeEmails = $payload['attendeeEmails'] ?? [];
@@ -27,7 +47,7 @@ class CalendarSyncService
         ]);
 
         $response = $this->olRequest('POST', "/crm/events/{$platform}", $payload);
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
@@ -36,13 +56,14 @@ class CalendarSyncService
 
     public function retryEvent(string $jobId): ?string
     {
+        $this->lastError = null;
         $response = $this->olRequest(
             'POST',
             "/crm/events/jobs/{$jobId}/retry",
             []
         );
 
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
@@ -60,11 +81,11 @@ class CalendarSyncService
             []
         );
 
-        if (!$response) {
+        if (! $response) {
             return null;
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('CalendarSyncService: OL status returned non-2xx', [
                 'jobId' => $jobId,
                 'status' => $response->status(),
@@ -91,7 +112,7 @@ class CalendarSyncService
             ['creatorUserId' => $creatorUserId]
         );
 
-        if (!$response) {
+        if (! $response) {
             return false;
         }
 
@@ -111,7 +132,49 @@ class CalendarSyncService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * A user's own Zoho Calendar events for a window.
+     *
+     * `GET {ol}/zoho/calendar` per the OL contract. The listing endpoint does
+     * not document a user parameter the way the single-event ones do, so
+     * `creatorUserId` is sent alongside the documented window/paging params:
+     * if OL scopes by it, the caller gets their own calendar; if it ignores
+     * it, nothing breaks. Worth confirming with OL before this is relied on
+     * for anything but display.
+     *
+     * Returns the raw `data.result` rows, or null when the call fails — the
+     * caller treats that as "no overlay", never as an error worth surfacing.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function listUserEvents(
+        int $creatorUserId,
+        Carbon $start,
+        Carbon $end,
+        int $limit = 100
+    ): ?array {
+        $response = $this->olRequest('GET', '/zoho/calendar', [
+            'start' => $start->toIso8601String(),
+            'end' => $end->toIso8601String(),
+            'limit' => max(1, min(100, $limit)),
+            'creatorUserId' => $creatorUserId,
+        ]);
+
+        if (! $response || ! $response->successful()) {
+            Log::warning('CalendarSyncService: Zoho calendar listing unavailable', [
+                'creatorUserId' => $creatorUserId,
+                'status' => $response?->status(),
+            ]);
+
+            return null;
+        }
+
+        $result = $response->json('data.result');
+
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
      */
     private function olRequest(string $method, string $path, array $payload): ?Response
     {
@@ -125,10 +188,12 @@ class CalendarSyncService
                 'api_key_set' => $apiKey !== '',
             ]);
 
+            $this->lastError = ['code' => 'config', 'message' => 'Calendar sync is not configured.'];
+
             return null;
         }
 
-        $url = rtrim($baseUrl, '/') . $path;
+        $url = rtrim($baseUrl, '/').$path;
         $method = strtoupper($method);
 
         try {
@@ -153,33 +218,79 @@ class CalendarSyncService
                 'error' => $e->getMessage(),
             ]);
 
+            $this->lastError = ['code' => 'network', 'message' => 'Could not reach the calendar service.'];
+
             return null;
         }
     }
 
     private function extractJobIdFromCreateLikeResponse(Response $response, string|int $context): ?string
     {
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::error('CalendarSyncService: OL returned non-2xx', [
                 'context' => $context,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
+
+            $this->lastError = [
+                'code' => (string) $response->status(),
+                'message' => $this->olErrorMessage($response),
+            ];
+
             return null;
         }
 
         $data = $response->json('data');
         $jobId = $data['jobId'] ?? null;
 
-        if (!is_string($jobId) || trim($jobId) === '') {
+        if (! is_string($jobId) || trim($jobId) === '') {
             Log::warning('CalendarSyncService: OL response missing jobId', [
                 'context' => $context,
                 'data' => $data,
             ]);
+
+            $this->lastError = [
+                'code' => 'missing_job_id',
+                'message' => 'The calendar service did not accept the event.',
+            ];
+
             return null;
         }
 
         return $jobId;
+    }
+
+    /**
+     * OL's message plus any per-field details, e.g.
+     * `{"message":"Validation error.","data":{"error":[{"field":"timezone","message":"\"timezone\" is required"}]}}`
+     * → `Validation error: "timezone" is required`.
+     */
+    private function olErrorMessage(Response $response): string
+    {
+        $message = $response->json('message');
+        $message = is_string($message) && $message !== ''
+            ? $message
+            : "Calendar sync request failed ({$response->status()}).";
+
+        $error = $response->json('data.error');
+        $details = [];
+
+        if (is_string($error) && $error !== '') {
+            $details[] = $error;
+        } elseif (is_array($error)) {
+            foreach (array_is_list($error) ? $error : [$error] as $item) {
+                if (is_array($item) && isset($item['message']) && is_string($item['message'])) {
+                    $details[] = $item['message'];
+                } elseif (is_string($item) && $item !== '') {
+                    $details[] = $item;
+                }
+            }
+        }
+
+        return $details === []
+            ? $message
+            : rtrim($message, '.').': '.implode('; ', $details);
     }
 
     /**
@@ -234,7 +345,41 @@ class CalendarSyncService
             'meetingLink' => (string) ($followUp->meeting_link ?? ''),
             'crmMeetingUrl' => $crmMeetingUrl,
             'attendeeEmails' => $attendeeEmails,
+            'timezone' => $this->resolveMeetingTimezone($followUp),
             'createZohoMeeting' => false,
         ];
+    }
+
+    /**
+     * IANA timezone the event should be rendered in. scheduledAt stays UTC —
+     * this only tells OL/Zoho which wall-clock zone to attach to it.
+     *
+     * The zone picked in the meeting form (stored on the row) wins. Rows
+     * booked before that existed fall back to organizer → their company →
+     * the meeting's deal/lead company → UTC, via {@see UserTimezone::resolve()}.
+     */
+    private function resolveMeetingTimezone(DealFollowUp $followUp): string
+    {
+        if (
+            is_string($followUp->timezone)
+            && in_array($followUp->timezone, \DateTimeZone::listIdentifiers(), true)
+        ) {
+            return $followUp->timezone;
+        }
+
+        $organizerId = MeetingAttendeeResolver::organizerUserId($followUp);
+
+        $organizer = $organizerId
+            ? User::query()
+                ->withoutGlobalScope(ActiveScope::class)
+                ->with('company')
+                ->find($organizerId)
+            : null;
+
+        $company = $organizer?->company
+            ?? $followUp->deal?->company
+            ?? $followUp->lead?->company;
+
+        return UserTimezone::resolve($organizer, $company);
     }
 }

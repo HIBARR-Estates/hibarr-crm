@@ -1,5 +1,5 @@
-import dayjs from "dayjs";
-import { formatDate, formatDateTime } from "../adapters/dateFormat";
+import { formatDate } from "../adapters/dateFormat";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { Deal } from "@/Types/api/deals";
 
 function formatCurrencyValue(deal: Deal): string {
@@ -9,6 +9,7 @@ function formatCurrencyValue(deal: Deal): string {
 }
 
 export default function useDealHeaderData(deal: Deal) {
+    const { formatDateTime } = useUserDateTime();
     return {
         title: deal.name,
         pipelineName: deal.pipeline?.name ?? "--",

@@ -227,7 +227,12 @@ export default function useDealInfoFieldUpdate() {
             await Promise.all(
                 groups.map((group) => {
                     if (bulkWriteEnabled && group.type === "custom_field") {
-                        return saveCustomFieldsBulk({ deal: group.data });
+                        // lean: true — this concurrent path always does its own
+                        // single refresh below once every write settles; a
+                        // per-response setDeal here (the non-lean default)
+                        // would race against the other group's write and could
+                        // clobber it with a stale snapshot.
+                        return saveCustomFieldsBulk({ deal: group.data }, { lean: true });
                     }
                     return axios.patch(
                         route("deals.gathering.inline_update", { id: deal.id }),
