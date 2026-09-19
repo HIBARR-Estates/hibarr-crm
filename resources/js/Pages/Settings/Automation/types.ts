@@ -39,6 +39,10 @@ export type ActionType =
  * automation — only supported for a native column on the subject itself. */
 export type ConditionOperator = "=" | ">" | "<" | "contains" | "exists" | "changed";
 
+/** Whole-automation condition combination mode: "all" (AND, default) or
+ * "any" (OR) — matches DealAutomationService::evaluateConditions(). */
+export type ConditionLogic = "all" | "any";
+
 export type LogStatus = "success" | "failed" | "skipped";
 
 export type LogChannel = "stage" | "field" | "lock" | "email" | "task" | "note" | "meta" | "wait";
@@ -91,6 +95,7 @@ export interface Automation {
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     active: boolean;
     priority: number;
+    condition_logic: ConditionLogic;
     conditions: DealAutomationCondition[];
     actions: DealAutomationAction[];
 }

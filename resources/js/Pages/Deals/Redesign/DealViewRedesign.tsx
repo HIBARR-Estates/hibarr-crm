@@ -61,6 +61,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
     DealWorkspaceProvider,
     useDealWorkspace,
@@ -117,6 +118,7 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -472,8 +474,11 @@ function DealViewRedesignInner(
                 steps={dealTourSteps}
                 labels={DEAL_TOUR_LABELS}
             />
-
-            <div className="deal-redesign min-h-screen bg-dr-gray">
+            <div
+                className={`deal-redesign min-h-screen bg-dr-gray ${
+                    isMobileResponsive ? "dr-mobile-responsive" : ""
+                }`}
+            >
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <DealStickyHeader
                         deal={deal}
@@ -488,11 +493,16 @@ function DealViewRedesignInner(
                             showAnalysis ? analysis.open : undefined
                         }
                         onReplayGuide={() => tourRef.current?.restart()}
+                        isMobileResponsive={isMobileResponsive}
                     />
 
                     <div className="">
                         <div
-                            className="mb-[14px] flex items-stretch gap-4"
+                            className={`mb-[14px] flex items-stretch gap-4 ${
+                                isMobileResponsive
+                                    ? "flex-col lg:flex-row"
+                                    : ""
+                            }`}
                             data-tour="deal-pipeline-stepper"
                         >
                             <div className="min-w-0 flex-1">
@@ -573,6 +583,7 @@ function DealViewRedesignInner(
                                     analysis={analysis}
                                     totalFilled={analysisProgress.totalFilled}
                                     totalFields={analysisProgress.totalFields}
+                                    isMobileResponsive={isMobileResponsive}
                                 />
                             )}
                         </div>
