@@ -33,18 +33,22 @@ export default function TaskDetailChecklist({
     const commitDraft = async (focus: boolean) => {
         const title = draft.trim();
         if (!title) {
-            if (focus) inputRef.current?.focus();
+            if (focus) focusDraftInput();
             return;
         }
         const added = await onAdd(title);
         if (added === true) {
             setDraft("");
-            if (focus) inputRef.current?.focus();
+            if (focus) focusDraftInput();
         }
     };
 
     const submitDraft = () => {
         void commitDraft(false);
+    };
+
+    const focusDraftInput = () => {
+        inputRef.current?.focus();
     };
 
     const handleAddClick = () => {
@@ -66,7 +70,7 @@ export default function TaskDetailChecklist({
                 <span
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_MUTED,
                         background: T.NAVY_SOFT,
                         borderRadius: 999,
@@ -155,6 +159,7 @@ export default function TaskDetailChecklist({
                     <button
                         type="button"
                         aria-label={td("Add checklist item")}
+                        onMouseDown={(event) => event.preventDefault()}
                         onClick={handleAddClick}
                         disabled={saving}
                         className="flex flex-shrink-0 items-center justify-center"

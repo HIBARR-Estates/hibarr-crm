@@ -6,7 +6,7 @@ import { TASK_ICON, statusToken } from "../../config/taskDesignTokens";
 import { BOARD_EMPTY_STATE_HEIGHT } from "../../config/boardEmptyCopy";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 import { TaskGlyph } from "../primitives/TaskGlyphs";
-import type { TaskRowAction } from "../primitives/TaskRowMenu";
+import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import TaskBoardCard from "./TaskBoardCard";
 import TaskBoardEmptyState from "./TaskBoardEmptyState";
 
@@ -66,7 +66,7 @@ export interface TaskBoardColumnProps {
     onRevealMore: () => void;
     canMove: (vm: TaskViewModel) => boolean;
     onOpen: (vm: TaskViewModel) => void;
-    rowActions: (vm: TaskViewModel) => TaskRowAction[];
+    rowActions: (vm: TaskViewModel) => RowAction[];
     draggingId: number | null;
     isDragTarget: boolean;
     onCardDragStart: (vm: TaskViewModel) => void;
@@ -118,7 +118,7 @@ export default function TaskBoardColumn({
             }}
             className="flex min-w-0 flex-1 flex-col self-start"
             style={{
-                background: isDragTarget ? "#f8fbff" : T.SURFACE,
+                background: isDragTarget ? T.BLUE_WASH_SOFT : T.SURFACE,
                 border: `1px solid ${isDragTarget ? T.BLUE_MID : T.BORDER}`,
                 borderRadius: 10,
                 transition: "background 120ms ease, border-color 120ms ease",
@@ -148,7 +148,7 @@ export default function TaskBoardColumn({
                 <span
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_MUTED,
                         background: T.BG,
                         border: `1px solid ${T.BORDER}`,
@@ -241,7 +241,7 @@ export default function TaskBoardColumn({
                         style={{
                             border: `1px dashed ${T.BLUE_MID}`,
                             borderRadius: 10,
-                            background: "#f4f9ff",
+                            background: T.BLUE_WASH,
                             padding: 14,
                             // In an otherwise empty lane the drop hint
                             // stands in for the empty state, so it takes

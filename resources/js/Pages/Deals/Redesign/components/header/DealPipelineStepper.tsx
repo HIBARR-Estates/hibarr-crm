@@ -17,16 +17,16 @@ import {
     DEAL_INFO_CATEGORY_SECTION_MAP,
     toCategorySectionId,
 } from "../../config/dealInfoSections";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import DealIcon from "../primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { DealModal } from "../primitives/DealModal";
-import DealScrollArrow from "../primitives/DealScrollArrow";
+import ScrollArrow from "@/Components/Redesign/primitives/ScrollArrow";
 import {
-    DEAL_REDESIGN_RADIUS as R,
-    DEAL_REDESIGN_TOKENS as T,
-    DEAL_REDESIGN_TYPE as TYPE,
-} from "../../tokens";
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+    REDESIGN_TYPE as TYPE,
+} from "@/Components/Redesign/tokens";
 
 interface DealPipelineStepperProps {
     deal: Deal;
@@ -221,7 +221,7 @@ function RequirementConditionRows({
                                             justifyContent: "center",
                                         }}
                                     >
-                                        <DealIcon
+                                        <Icon
                                             name="check"
                                             size={10}
                                             color="currentColor"
@@ -455,7 +455,7 @@ export default function DealPipelineStepper({
                     style={{
                         fontSize: TYPE.HEADING,
                         fontWeight: 700,
-                        color: "#000000",
+                        color: T.TEXT,
                         lineHeight: 1.25,
                     }}
                 >
@@ -470,11 +470,11 @@ export default function DealPipelineStepper({
                         style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
                     />
                 )}
-                <DealButton
+                <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setProgressionOpen(true)}
-                    icon={<DealIcon name="info" size={12} color="currentColor" />}
+                    icon={<Icon name="info" size={12} color="currentColor" />}
                     style={{ marginLeft: "auto", color: T.TEXT_MUTED }}
                     aria-label={t(
                         "pages.deals.header.pipeline.progression_open",
@@ -482,11 +482,11 @@ export default function DealPipelineStepper({
                     data-tour="deal-stage-progression"
                 >
                     {t("pages.deals.header.pipeline.progression_button")}
-                </DealButton>
+                </Button>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
                 {hasOverflow && (
-                    <DealScrollArrow
+                    <ScrollArrow
                         dir="left"
                         enabled={scroll.overflow.left}
                         onClick={() => scroll.nudge(-1)}
@@ -525,7 +525,7 @@ export default function DealPipelineStepper({
                         // Past stages stay grey (not stage accent) so the
                         // active step is the only colored pill.
                         const pillColor = isActive
-                            ? "#ffffff"
+                            ? T.WHITE
                             : isDone
                               ? T.TEXT_HINT
                               : T.TEXT_MUTED;
@@ -601,7 +601,7 @@ export default function DealPipelineStepper({
                                                 display: "inline-block",
                                                 flexShrink: 0,
                                                 background: isActive
-                                                    ? "#ffffff"
+                                                    ? T.WHITE
                                                     : isDone
                                                       ? T.TEXT_HINT
                                                       : T.BORDER,
@@ -695,7 +695,7 @@ export default function DealPipelineStepper({
                                                     }`,
                                                 }}
                                             >
-                                                <DealIcon
+                                                <Icon
                                                     name={
                                                         requirementsMet
                                                             ? "check"
@@ -724,7 +724,7 @@ export default function DealPipelineStepper({
                     })}
                 </div>
                 {hasOverflow && (
-                    <DealScrollArrow
+                    <ScrollArrow
                         dir="right"
                         enabled={scroll.overflow.right}
                         onClick={() => scroll.nudge(1)}
@@ -733,7 +733,7 @@ export default function DealPipelineStepper({
                 )}
             </div>
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={pendingStage != null}
                 title={t("pages.deals.stage_jump_confirm_title")}
                 message={t("pages.deals.stage_jump_confirm_message", {

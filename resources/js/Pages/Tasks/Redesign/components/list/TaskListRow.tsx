@@ -10,7 +10,7 @@ import {
     TaskPriorityPill,
     TaskPriorityStripe,
 } from "../primitives/TaskGlyphs";
-import TaskRowMenu, { type TaskRowAction } from "../primitives/TaskRowMenu";
+import RowActionMenu, { type RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import TaskRecordIcon from "../primitives/TaskRecordIcon";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 
@@ -34,7 +34,7 @@ interface TaskListRowProps {
     showRowCategory: boolean;
     selected: boolean;
     statusPending: boolean;
-    actions: TaskRowAction[];
+    actions: RowAction[];
     onOpen: () => void;
     onToggleSelect: () => void;
     onStatusChange: (slug: string, columnId: number) => void;
@@ -181,7 +181,11 @@ export default function TaskListRow({
                     className="truncate"
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight:
+                            vm.dueColor === T.TEXT_MUTED ||
+                            vm.dueColor === T.TEXT_HINT
+                                ? 500
+                                : 600,
                         fontVariantNumeric: "tabular-nums",
                         color: vm.dueColor,
                     }}
@@ -219,7 +223,7 @@ export default function TaskListRow({
                 />
             </div>
 
-            <TaskRowMenu
+            <RowActionMenu
                 actions={actions}
                 ariaLabel={`${td("Actions for")} ${vm.title}`}
             />

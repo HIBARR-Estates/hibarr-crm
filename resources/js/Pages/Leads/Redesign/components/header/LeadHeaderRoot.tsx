@@ -152,7 +152,7 @@ export default function LeadHeaderRoot({
                     <div
                         style={{
                             fontSize: 12,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                             marginTop: 3,
                         }}
                     >

@@ -6,10 +6,10 @@ import type { Deal } from "@/Types/api/deals";
 import { toWorkspaceRecommendationListItem } from "../../adapters/recommendationAdapter";
 import useDealRecommendationAdd from "../../hooks/useDealRecommendationAdd";
 import useDealRecommendations from "../../hooks/useDealRecommendations";
-import DealBadge from "../primitives/DealBadge";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface WorkspaceRecommendationsTabProps {
     deal: Deal;
@@ -20,16 +20,16 @@ interface WorkspaceRecommendationsTabProps {
 
 function RecommendationSkeleton() {
     return (
-        <div className="mb-2.5 animate-pulse rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3.5 last:mb-0">
+        <div className="mb-2.5 animate-pulse rounded-lg border border-dr-border bg-white px-3.5 py-3.5 last:mb-0">
             <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-2">
-                    <div className="h-4 w-2/3 rounded bg-[#eef1f5]" />
-                    <div className="h-5 w-1/3 rounded bg-[#eef1f5]" />
+                    <div className="h-4 w-2/3 rounded bg-dr-skeleton" />
+                    <div className="h-5 w-1/3 rounded bg-dr-skeleton" />
                 </div>
-                <div className="h-6 w-16 rounded-full bg-[#eef1f5]" />
+                <div className="h-6 w-16 rounded-full bg-dr-skeleton" />
             </div>
-            <div className="mb-2 h-3 w-full rounded bg-[#eef1f5]" />
-            <div className="h-8 w-32 rounded bg-[#eef1f5]" />
+            <div className="mb-2 h-3 w-full rounded bg-dr-skeleton" />
+            <div className="h-8 w-32 rounded bg-dr-skeleton" />
         </div>
     );
 }
@@ -103,16 +103,16 @@ export default function WorkspaceRecommendationsTab({
 
     if (apiError && recommendationItems.length === 0) {
         return (
-            <div className="rounded-lg border border-[#fde68a] bg-[#fffbeb] px-3.5 py-3.5">
-                <p className="mb-1 text-sm font-medium text-[#92400e]">
+            <div className="rounded-lg border border-dr-amber-border bg-dr-amber-bg px-3.5 py-3.5">
+                <p className="mb-1 text-sm font-medium text-dr-amber">
                     {t("pages.deals.workspace.recommendations.incomplete_hint")}
                 </p>
                 {apiError && (
-                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError)}</p>
+                    <p className="mb-2 text-xs text-dr-amber-text">{td(apiError)}</p>
                 )}
-                <DealButton variant="ghost" size="sm" onClick={() => refetch()}>
+                <Button variant="ghost" size="sm" onClick={() => refetch()}>
                     {t("pages.deals.workspace.recommendations.try_again")}
-                </DealButton>
+                </Button>
             </div>
         );
     }
@@ -127,61 +127,61 @@ export default function WorkspaceRecommendationsTab({
                             className="flex"
                             style={{ color: T.BLUE }}
                         >
-                            <DealIcon name="spark" size={14} />
+                            <Icon name="spark" size={14} />
                         </span>
-                        <span className="text-sm font-semibold text-[#1a1f2e]">
+                        <span className="text-sm font-semibold text-dr-text">
                             {t("pages.deals.workspace.recommendations.title")}
                         </span>
-                        <DealBadge variant="blue">
+                        <Badge variant="blue">
                             {recommendationItems.length}
-                        </DealBadge>
+                        </Badge>
                         {cached && (
-                            <DealBadge variant="gray">
+                            <Badge variant="gray">
                                 {t("pages.deals.workspace.recommendations.cached_tag")}
-                            </DealBadge>
+                            </Badge>
                         )}
                     </div>
                     <div className="text-xs" style={{ color: T.TEXT_MUTED }}>
                         {t("pages.deals.workspace.recommendations.hint")}
                     </div>
                 </div>
-                <DealButton
+                <Button
                     variant="ghost"
                     size="sm"
-                    icon={<DealIcon name="spark" size={12} />}
+                    icon={<Icon name="spark" size={12} />}
                     onClick={refreshRecommendations}
                     loading={loading}
                 >
                     {t("pages.deals.common.refresh")}
-                </DealButton>
+                </Button>
             </div>
 
             {apiError && (
-                <div className="mb-3 rounded-lg border border-[#fde68a] bg-[#fffbeb] px-3 py-2.5 text-xs text-[#b45309]">
+                <div className="mb-3 rounded-lg border border-dr-amber-border bg-dr-amber-bg px-3 py-2.5 text-xs text-dr-amber-text">
                     {apiError}
                 </div>
             )}
 
             {recommendationItems.length === 0 ? (
                 <div className="px-1 py-2 text-center">
-                    <div className="mb-2 flex justify-center text-[#9ca3af]">
-                        <DealIcon name="building" size={28} />
+                    <div className="mb-2 flex justify-center text-dr-text-hint">
+                        <Icon name="building" size={28} />
                     </div>
-                    <p className="mb-1 text-[13px] font-medium text-[#5b6472]">
+                    <p className="mb-1 text-[13px] font-medium text-dr-text-muted">
                         {t("pages.deals.workspace.recommendations.empty")}
                     </p>
-                    <p className="mb-3 text-xs text-[#9ca3af]">
+                    <p className="mb-3 text-xs text-dr-text-hint">
                         {t("pages.deals.workspace.recommendations.empty_hint")}
                     </p>
-                    <DealButton
+                    <Button
                         variant="primary"
                         size="sm"
-                        icon={<DealIcon name="refresh" size={12} />}
+                        icon={<Icon name="refresh" size={12} />}
                         onClick={refreshRecommendations}
                         loading={loading}
                     >
                         {t("pages.deals.workspace.recommendations.generate")}
-                    </DealButton>
+                    </Button>
                 </div>
             ) : (
                 recommendationItems.map((item) => {
@@ -205,15 +205,15 @@ export default function WorkspaceRecommendationsTab({
                                         >
                                             #{item.rank}
                                         </span>
-                                        <span className="text-sm font-semibold text-[#1a1f2e]">
+                                        <span className="text-sm font-semibold text-dr-text">
                                             {item.propertyTitle}
                                         </span>
                                         {item.statusLabel && (
-                                            <DealBadge
+                                            <Badge
                                                 variant={item.statusBadgeVariant}
                                             >
                                                 {td(item.statusLabel, { source: "en" })}
-                                            </DealBadge>
+                                            </Badge>
                                         )}
                                     </div>
                                     <div
@@ -227,13 +227,13 @@ export default function WorkspaceRecommendationsTab({
                                 </div>
 
                                 {item.matchPercentage !== null && (
-                                    <DealBadge
+                                    <Badge
                                         className="shrink-0"
                                         variant={item.matchBadgeVariant}
                                     >
                                         {item.matchPercentage}%{" "}
                                         {t("pages.deals.workspace.recommendations.match_suffix")}
-                                    </DealBadge>
+                                    </Badge>
                                 )}
                             </div>
 
@@ -262,19 +262,19 @@ export default function WorkspaceRecommendationsTab({
                                 </div>
                             )}
 
-                            <div className="flex flex-wrap gap-1.5 border-t border-[#e2e5ea] pt-2">
+                            <div className="flex flex-wrap gap-1.5 border-t border-dr-border pt-2">
                                 {item.isInDeal ? (
-                                    <DealBadge variant="green">
+                                    <Badge variant="green">
                                         <span className="inline-flex items-center gap-1">
-                                            <DealIcon
+                                            <Icon
                                                 name="check"
                                                 size={11}
                                             />
                                             {t("pages.deals.workspace.recommendations.added_to_deal")}
                                         </span>
-                                    </DealBadge>
+                                    </Badge>
                                 ) : addBlocked ? (
-                                    <DealButton
+                                    <Button
                                         variant="ghost"
                                         size="sm"
                                         disabled
@@ -283,9 +283,9 @@ export default function WorkspaceRecommendationsTab({
                                         )}
                                     >
                                         {t("pages.deals.workspace.recommendations.add_to_deal")}
-                                    </DealButton>
+                                    </Button>
                                 ) : (
-                                    <DealButton
+                                    <Button
                                         variant="primary"
                                         size="sm"
                                         onClick={() =>
@@ -300,15 +300,15 @@ export default function WorkspaceRecommendationsTab({
                                         }
                                     >
                                         {t("pages.deals.workspace.recommendations.add_to_deal")}
-                                    </DealButton>
+                                    </Button>
                                 )}
 
                                 {item.propertyHref && (
-                                    <DealButton
+                                    <Button
                                         variant="ghost"
                                         size="sm"
                                         icon={
-                                            <DealIcon
+                                            <Icon
                                                 name="external-link"
                                                 size={12}
                                             />
@@ -321,7 +321,7 @@ export default function WorkspaceRecommendationsTab({
                                         }
                                     >
                                         {t("pages.deals.workspace.recommendations.view_listing")}
-                                    </DealButton>
+                                    </Button>
                                 )}
                             </div>
                         </article>

@@ -25,12 +25,12 @@ import {
     isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
-import EmptyState from "../primitives/DealEmptyState";
-import DealMenuSelect from "../primitives/DealMenuSelect";
-import DealEditableField from "../primitives/DealEditableField";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import EditableField from "@/Components/Redesign/primitives/EditableField";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export interface ExposeUpdatePatch {
     title?: string;
@@ -182,7 +182,7 @@ export default function ExposesPanel({
                         onAdd("linked");
                     }}
                 >
-                    <DealIcon name="external-link" size={18} color={T.BLUE} />
+                    <Icon name="external-link" size={18} color={T.BLUE} />
                     <span className="block">
                         <span
                             className="block text-sm font-semibold"
@@ -207,7 +207,7 @@ export default function ExposesPanel({
                         onAdd("manual");
                     }}
                 >
-                    <DealIcon name="paperclip" size={18} color={T.NAVY} />
+                    <Icon name="paperclip" size={18} color={T.NAVY} />
                     <span className="block">
                         <span
                             className="block text-sm font-semibold"
@@ -254,7 +254,7 @@ export default function ExposesPanel({
                                 aria-expanded={addOpen}
                                 onClick={() => setAddOpen((open) => !open)}
                             >
-                                <DealIcon name="plus" size={14} />
+                                <Icon name="plus" size={14} />
                                 {t("pages.deals.workspace.exposes.add")}
                             </button>
                         </div>
@@ -308,7 +308,7 @@ export default function ExposesPanel({
                     action={{
                         label: t("pages.deals.workspace.exposes.retry"),
                         onClick: onRetry,
-                        icon: <DealIcon name="refresh" size={15} />,
+                        icon: <Icon name="refresh" size={15} />,
                     }}
                 />
             ) : exposes.length === 0 ? (
@@ -361,7 +361,7 @@ export default function ExposesPanel({
                         <div key={group.id}>
                             {group.showHeader && (
                                 <div className="mb-2.5 flex items-center gap-2.5 px-0.5">
-                                    <DealIcon
+                                    <Icon
                                         name="briefcase"
                                         size={16}
                                         color={T.TEXT_MUTED}
@@ -414,7 +414,7 @@ export default function ExposesPanel({
                                                         : T.NAVY_SOFT,
                                                 }}
                                             >
-                                                <DealIcon
+                                                <Icon
                                                     name={
                                                         linked
                                                             ? "external-link"
@@ -429,7 +429,7 @@ export default function ExposesPanel({
                                             <div className="min-w-0 flex-1">
                                                 <div className="group min-w-0">
                                                     {onUpdate && rowEditable ? (
-                                                        <DealEditableField
+                                                        <EditableField
                                                             value={expose.title}
                                                             fieldName="title"
                                                             fieldType="text"
@@ -502,7 +502,7 @@ export default function ExposesPanel({
                                                     <div className="group inline-block min-w-[88px]">
                                                         {onUpdate &&
                                                         rowEditable ? (
-                                                            <DealEditableField
+                                                            <EditableField
                                                                 value={
                                                                     expose.amount ??
                                                                     ""
@@ -589,7 +589,7 @@ export default function ExposesPanel({
                                                 </div>
                                             </div>
                                             <div className="flex-none">
-                                                <DealMenuSelect
+                                                <MenuSelect
                                                     value={expose.status}
                                                     options={statusOptions}
                                                     align="right"
@@ -617,7 +617,7 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             {isHttpUrl(expose.download_url) && (
-                                                <DealButton
+                                                <Button
                                                     iconOnly
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                                                     title={
@@ -650,7 +650,7 @@ export default function ExposesPanel({
                                                         )
                                                     }
                                                 >
-                                                    <DealIcon
+                                                    <Icon
                                                         name={
                                                             linked
                                                                 ? "external-link"
@@ -659,7 +659,7 @@ export default function ExposesPanel({
                                                         size={16}
                                                         color={T.TEXT_MUTED}
                                                     />
-                                                </DealButton>
+                                                </Button>
                                             )}
                                             {onRemove && rowEditable && (
                                                 <button
@@ -675,7 +675,7 @@ export default function ExposesPanel({
                                                         onRemove(expose.id)
                                                     }
                                                 >
-                                                    <DealIcon
+                                                    <Icon
                                                         name="trash"
                                                         size={16}
                                                         color={T.TEXT_MUTED}

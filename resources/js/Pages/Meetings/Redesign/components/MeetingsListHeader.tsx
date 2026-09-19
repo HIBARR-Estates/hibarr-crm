@@ -13,7 +13,7 @@ const LABEL_STYLE = {
     fontSize: 11,
     fontWeight: 700 as const,
     letterSpacing: "0.06em",
-    color: T.TEXT_HINT,
+    color: T.TEXT,
 };
 
 /**

@@ -32,6 +32,29 @@ Frontend (JS/TS) — **two asset pipelines coexist, pick the one matching the la
 - **Two-tier translation** — `useTranslation()` (`t()`) only resolves keys that exist in `resources/lang/*/*.php`; `useDynamicTranslation()` (`td()`) translates arbitrary inline English strings on the fly (async, batched — first render shows source text, re-renders translated). Static config objects (e.g. `config/dealInfoSections.ts`) can't call hooks, so they store English source strings and get wrapped in `td()` at the render site. Toasts/validation strings follow the same rule: keep English as the source-of-truth string in code, translate at the point of display.
 - **Custom fields / pipeline categories** are the generic extensibility mechanism for deal data — categories are scoped server-side per pipeline (`DealController@show`) before reaching the page, so don't re-filter them client-side.
 
+## Design system — one token set per design version
+
+Each design version owns one token set, and its screens read only from that set. Button colours are named tokens inside each set — change a version's buttons there, never inline.
+
+- **Redesign** — v2 reference is the Tasks workspace (`Pages/Tasks/Redesign`) and Meetings (`Pages/Meetings/Redesign`); the Deal/Lead redesign uses the same set. Token file: `resources/js/Components/Redesign/design-tokens.json`.
+  - `colors` + `fontSans` → `REDESIGN_TOKENS` / `REDESIGN_FONT_STACK` (`tokens.ts`), Tailwind `dr-*` utilities and `--dr-*` CSS variables (`tailwind.config.js`; additive only — Tailwind defaults such as `font-sans` stay untouched for legacy screens).
+  - `buttons` → button colour tokens, each naming a palette colour (`PRIMARY_BG → BLUE`, `PRIMARY_HOVER_BG → BLUE_PRESSED`, `NAVY_*`, `GHOST_*`, `DANGER_*`). Use `REDESIGN_BUTTON_TOKENS` in TS, `--dr-button-*` in CSS (`.dr-btn-*`, Lead `.v2-btn-*`) or `bg-dr-button-primary-bg` in Tailwind — prefer the shared `Button` primitive. Don't style buttons with raw palette keys.
+  - `meetingPlatformColors` → `meetingPlatformColor()` for platform icons/chips.
+  - Primitives: `primitives/` (`Button`, `Modal`, `ModalShell`, `Badge`, pickers, …) and `redesign.css` (`.dr-*` classes, the one `.redesign-modal-overlay` at z-index 1300). Import them directly — no page-prefixed re-exports (`DealButton`, `TaskSegmented`) or restated CSS.
+- **Legacy** — Blade/Bootstrap screens and non-redesign React/antd pages keep their existing look. Blade button colours are the `$btn-*` tokens in `resources/scss/variables.scss` (read by `btn.scss` and `.btn-active`). Don't point legacy screens at redesign tokens or redesign screens at legacy ones.
+
+### Component layers (each design version)
+
+Every design version has **one shared library** plus **page-local components**. Do not copy UI between pages when it belongs in the shared layer.
+
+| Layer | Redesign (v2) | Legacy |
+| --- | --- | --- |
+| **Shared** | `resources/js/Components/Redesign/` — `design-tokens.json`, `primitives/`, `workspace/` (e.g. `EmptyState`, `OverviewColumn`, `WorkspaceEmptyStates`), cross-page modals under `modals/` and `meeting/` | `resources/scss/variables.scss`, Bootstrap patterns, shared Blade partials |
+| **Page-specific** | `resources/js/Pages/{Deals,Leads,Tasks,Meetings,...}/Redesign/components/` — composition for that screen only (`header/`, `tabs/`, `workspace/`, …) | Blade views + page-scoped JS under `resources/js/Pages/**` (non-Redesign) |
+| **Page primitives** | `Pages/.../Redesign/components/primitives/` — **only** when the widget is tied to that entity or page data (e.g. `DealMoneyInput`, `TaskStatusSelect`). Thin i18n wrappers over shared primitives (`DealModal` → `Modal`) live here too | N/A |
+
+**Rules:** If Deal and Lead (or two tabs) need the same UI, add or extend `Components/Redesign/` first. Page files wire data, permissions, and navigation; they should not restate dashed empty states, column chrome, or button/modal markup. Import shared pieces from `@/Components/Redesign` (or a direct path under that tree), not from another page’s folder — except temporary bridges called out in code review.
+
 ## Product tours
 
 Spotlight walkthroughs use the shared engine in `resources/js/Components/ProductTour/` (`ProductTour` + `useProductTour` + `product-tours.seen`). Do not add a second tour library.
@@ -42,7 +65,7 @@ Spotlight walkthroughs use the shared engine in `resources/js/Components/Product
 ## Working in `Deals/Redesign/`
 
 Layout of the area:
-- `components/primitives/` — the shared UI vocabulary (buttons, modals, badges, editable fields, pickers, switches). **Check here first** before writing a new button/modal/input variant.
+- `components/primitives/` — deal-specific composites only (money input, value block/editor) and thin i18n wrappers over shared primitives (`DealModal`, `DealPanelHeader`, `DealPeoplePicker`, …). The shared UI vocabulary (buttons, modals, badges, editable fields, pickers, switches) is `resources/js/Components/Redesign/` — **check there first** before writing a new button/modal/input variant.
 - `components/{header,tabs,workspace,deal-info,timeline}/` — feature composition, built from primitives.
 - `hooks/useDeal*.ts` — one hook per mutation/data-shape (`useDealPackages`, `useDealTaskUpdate`, `useDealNoteMutations`, ...). Each wraps an axios call + patches `DealWorkspaceContext` state. New deal mutations should follow this same shape (hook returns action(s) + `saving`/`loading` state; no direct axios calls from components).
 - `adapters/` — pure functions with no hook access (e.g. `dateFormat.ts`) for formatting/shaping data outside the render path.
@@ -50,7 +73,7 @@ Layout of the area:
 - `context/DealWorkspaceContext.tsx` — the one source of truth for `deal`/`notes`/`tasks`/`dealFollowUps`/`files` on this page.
 
 Rules for changes here (apply repo-wide as other pages get touched):
-1. **Reuse before creating.** Search `components/primitives/` and existing `hooks/useDeal*.ts` for something close before adding a new component or a new fetch path. Extend an existing primitive/hook rather than forking it, unless the behavior genuinely diverges.
+1. **Reuse before creating.** Search `Components/Redesign/`, `components/primitives/` and existing `hooks/useDeal*.ts` for something close before adding a new component or a new fetch path. Extend an existing primitive/hook rather than forking it, unless the behavior genuinely diverges.
 2. **Never block first paint on non-essential data.** New tab/section data goes through `Inertia::defer` + `<Deferred>` with a skeleton fallback, matching the existing tabs in `DealViewRedesign.tsx`.
 3. **Mutations update local state, not the page.** Patch `DealWorkspaceContext` (or the relevant local state) from the mutation response instead of reloading/re-visiting via Inertia — that's what makes edits feel instant.
 4. **Navigation stays client-side.** Tab/section switches go through `useDealViewNavigation` (URL query sync via `history.replaceState`), never a server round-trip.

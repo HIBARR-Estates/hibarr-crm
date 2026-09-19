@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 
 interface DateInputProps {
@@ -88,7 +88,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
         <button
             type="button"
             onClick={onClick}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-dr-gray transition-colors"
             style={{ color: T.TEXT_MUTED }}
         >
             {children}
@@ -102,7 +102,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                 type="button"
                 onClick={() => setOpen((o) => !o)}
                 className="w-full flex items-center gap-2.5 bg-white border rounded-xl px-3 py-2.5 text-sm transition-colors text-left"
-                style={open ? { borderColor: "#38bdf8", boxShadow: "0 0 0 2px #e0f2fe" } : { borderColor: T.BORDER }}
+                style={open ? { borderColor: "var(--dr-sky)", boxShadow: "0 0 0 2px var(--dr-sky-soft)" } : { borderColor: T.BORDER }}
             >
                 <svg
                     className="w-4 h-4 shrink-0"
@@ -132,9 +132,9 @@ export default function DateInput({ value, onChange }: DateInputProps) {
             </button>
 
             <FloatingDropdown anchorRef={triggerRef} open={open} minWidth={288}>
-                <div className="bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden w-72">
+                <div className="bg-white border border-dr-border rounded-xl shadow-xl overflow-hidden w-72">
                     {/* Header — arrows + clickable month/year label */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-dr-border-soft">
                         <NavButton onClick={mode === "year" ? () => setYearRangeStart((s) => s - 12) : prevMonth}>
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -144,7 +144,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                         <button
                             type="button"
                             onClick={toggleYearMode}
-                            className="flex items-center gap-1 rounded-md px-2 py-0.5 hover:bg-slate-100 transition-colors"
+                            className="flex items-center gap-1 rounded-md px-2 py-0.5 hover:bg-dr-gray transition-colors"
                         >
                             <span className="text-sm font-semibold" style={{ color: T.TEXT }}>
                                 {mode === "year"
@@ -182,7 +182,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                                             key={y}
                                             type="button"
                                             onClick={() => { setViewYear(y); setMode("month"); }}
-                                            className="h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-all hover:bg-slate-100"
+                                            className="h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-all hover:bg-dr-gray"
                                             style={
                                                 isSelected
                                                     ? { backgroundColor: T.NAVY, color: "#fff" }
@@ -229,7 +229,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                                             key={day}
                                             type="button"
                                             onClick={() => selectDay(day)}
-                                            className="h-8 w-full flex items-center justify-center rounded-lg text-sm font-medium transition-all hover:bg-slate-100"
+                                            className="h-8 w-full flex items-center justify-center rounded-lg text-sm font-medium transition-all hover:bg-dr-gray"
                                             style={
                                                 isSel
                                                     ? { backgroundColor: T.NAVY, color: "#fff" }
@@ -246,7 +246,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                         </div>
                     )}
 
-                    <div className="px-3 py-2 border-t border-slate-100">
+                    <div className="px-3 py-2 border-t border-dr-border-soft">
                         <button
                             type="button"
                             onClick={() => {

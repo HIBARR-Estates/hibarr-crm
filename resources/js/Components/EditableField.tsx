@@ -40,7 +40,7 @@ import {
 } from "@/lib/utils";
 import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
+import DealBadge from "@/Components/Redesign/primitives/Badge";
 
 const { Text } = Typography;
 

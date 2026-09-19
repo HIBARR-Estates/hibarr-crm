@@ -19,7 +19,7 @@ interface BadgeProps {
 
 /**
  * Inline-styled pill badge so it renders identically without page-scoped CSS.
- * Keep values in sync with `.dr-pill` in redesign.css.
+ * Same tokens as `.dr-pill-*` in redesign.css (both read design-tokens.json).
  */
 export default function Badge({
     children,

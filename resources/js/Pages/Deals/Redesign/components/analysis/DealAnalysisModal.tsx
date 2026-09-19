@@ -4,7 +4,7 @@ import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useAnalysisFieldSave from "../../hooks/useAnalysisFieldSave";
 import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
@@ -411,13 +411,13 @@ export default function DealAnalysisModal({
                     <span id={titleId} className="sr-only">
                         Deal Analysis {leadName}
                     </span>
-                    <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
+                    <div className="flex flex-1 min-h-0 items-center justify-center bg-dr-surface-2">
                         <div className="text-center px-6">
                             <div
                                 className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
                                 aria-hidden
                             />
-                            <p className="m-0 text-sm text-slate-600">Loading analysis script…</p>
+                            <p className="m-0 text-sm text-dr-text-muted">Loading analysis script…</p>
                         </div>
                     </div>
                 </div>
@@ -550,11 +550,11 @@ export default function DealAnalysisModal({
                         <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-sm text-slate-700 flex-1">
+                        <span className="text-sm text-dr-gray-darker flex-1">
                             {failedKeys.length} {failedKeys.length === 1 ? "field" : "fields"} {"couldn't save"} —{" "}
                             <button
                                 type="button"
-                                className="underline font-medium text-slate-800"
+                                className="underline font-medium text-dr-text"
                                 onClick={() => failedKeys.forEach((f) => retry(f.key))}
                             >
                                 {"Retry"}
@@ -562,7 +562,7 @@ export default function DealAnalysisModal({
                         </span>
                         <button
                             type="button"
-                            className="text-slate-400 hover:text-slate-600"
+                            className="text-dr-text-hint hover:text-dr-text-muted"
                             onClick={() => failedKeys.forEach((f) => dismissError(f.key))}
                             aria-label={t("pages.deals.common.dismiss")}
                         >

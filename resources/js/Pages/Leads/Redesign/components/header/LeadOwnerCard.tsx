@@ -5,7 +5,7 @@ import { Icon, initialsFromName } from "@/Components/Redesign";
 import AgentPicker from "@/Components/Redesign/primitives/AgentPicker";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import useLeadOwnerReassign from "../../hooks/useLeadOwnerReassign";
 
 interface LeadOwnerCardProps {
@@ -89,8 +89,8 @@ export default function LeadOwnerCard({
                         width: 34,
                         height: 34,
                         borderRadius: "50%",
-                        background: "var(--lr-navy)",
-                        color: "var(--lr-white)",
+                        background: "var(--dr-navy)",
+                        color: "var(--dr-white)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -107,12 +107,12 @@ export default function LeadOwnerCard({
                         width: 34,
                         height: 34,
                         borderRadius: "50%",
-                        background: "var(--lr-bg)",
-                        border: "1px dashed var(--lr-border)",
+                        background: "var(--dr-bg)",
+                        border: "1px dashed var(--dr-border)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--lr-text-muted)",
+                        color: "var(--dr-text-muted)",
                         flexShrink: 0,
                     }}
                 >
@@ -127,7 +127,7 @@ export default function LeadOwnerCard({
                         fontWeight: 700,
                         letterSpacing: "0.06em",
                         textTransform: "uppercase",
-                        color: "var(--lr-text-dim)",
+                        color: "var(--dr-text-hint)",
                     }}
                 >
                     {td("Lead owner", { source: "en" })}
@@ -137,7 +137,7 @@ export default function LeadOwnerCard({
                         display: "block",
                         fontSize: 13,
                         fontWeight: 600,
-                        color: owner ? "var(--lr-text)" : "var(--lr-blue)",
+                        color: owner ? "var(--dr-text)" : "var(--dr-blue)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -157,8 +157,8 @@ export default function LeadOwnerCard({
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 10,
-                    background: "var(--lr-surface)",
-                    border: "1px solid var(--lr-border)",
+                    background: "var(--dr-surface)",
+                    border: "1px solid var(--dr-border)",
                     borderRadius: 10,
                     padding: "8px 12px",
                 }}
@@ -201,8 +201,8 @@ export default function LeadOwnerCard({
                     justifyContent: "space-between",
                     width: "100%",
                     gap: 10,
-                    background: "var(--lr-surface)",
-                    border: "1px solid var(--lr-border)",
+                    background: "var(--dr-surface)",
+                    border: "1px solid var(--dr-border)",
                     borderRadius: 10,
                     padding: "8px 12px",
                     cursor: saving ? "default" : "pointer",
@@ -214,7 +214,7 @@ export default function LeadOwnerCard({
                 {chip}
                 <span
                     style={{
-                        color: "var(--lr-text-muted)",
+                        color: "var(--dr-text-muted)",
                         display: "flex",
                         marginLeft: 2,
                     }}
@@ -277,7 +277,7 @@ export default function LeadOwnerCard({
                     document.body,
                 )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={pending != null}
                 title={confirmTitle}
                 message={confirmMessage}
