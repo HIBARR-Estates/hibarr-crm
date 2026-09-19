@@ -420,6 +420,25 @@
     }
 }
 
+/*
+ * HIB-1404 — widen the stacking breakpoint from 960px to the app's 1024px
+ * (lg) convention so tablets in the 961-1023px range also get the
+ * single-column layout instead of a cramped 300px sidebar. Scoped to
+ * .dr-mobile-responsive (only added when crm.mobile-responsive-layout is on)
+ * so the existing 960px behavior above is untouched while this is staged.
+ */
+@media (max-width: 1023px) {
+    .dr-mobile-responsive.dr-grid,
+    .dr-mobile-responsive .dr-grid {
+        grid-template-columns: 1fr;
+    }
+    .dr-mobile-responsive.dr-dossier,
+    .dr-mobile-responsive .dr-dossier {
+        position: static;
+        max-height: none;
+    }
+}
+
 .dr-tabs {
     display: flex;
     align-items: center;
