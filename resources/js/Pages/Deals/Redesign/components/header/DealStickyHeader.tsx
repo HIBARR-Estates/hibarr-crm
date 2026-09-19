@@ -39,6 +39,7 @@ interface DealStickyHeaderProps {
     onScheduleMeeting: () => void;
     onReplayGuide?: () => void;
     onOpenAnalysis?: () => void;
+    isMobileResponsive?: boolean;
 }
 
 export default function DealStickyHeader({
@@ -52,6 +53,7 @@ export default function DealStickyHeader({
     onScheduleMeeting,
     onReplayGuide,
     onOpenAnalysis,
+    isMobileResponsive = false,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -310,7 +312,11 @@ export default function DealStickyHeader({
                         </div>
                     </div>
 
-                    <div className="flex items-start gap-[18px]">
+                    <div
+                        className={`flex items-start gap-[18px] ${
+                            isMobileResponsive ? "flex-wrap" : ""
+                        }`}
+                    >
                         <div data-tour="deal-value">
                             <DealValueBlock
                                 deal={deal}

@@ -60,6 +60,19 @@ const DashboardLayoutInner: React.FC<{
         }
     }, [collapsed]);
 
+    // Ant Design's Modal/Dropdown/Drawer portal to document.body, escaping
+    // this component's own DOM subtree — mirror the class there too so
+    // body-scoped mobile-responsive CSS (see redesign.css) reaches them.
+    useEffect(() => {
+        document.body.classList.toggle(
+            "mobile-responsive-layout",
+            isMobileResponsive,
+        );
+        return () => {
+            document.body.classList.remove("mobile-responsive-layout");
+        };
+    }, [isMobileResponsive]);
+
     // Full, literal class strings (not built via string ops) so Tailwind's
     // content scanner can pick them up.
     const marginClass = isMobileResponsive
@@ -79,7 +92,11 @@ const DashboardLayoutInner: React.FC<{
             : "ml-[260px]";
 
     return (
-        <div className={`min-h-screen bg-slate-100 ${isRtl ? "rtl" : "ltr"}`}>
+        <div
+            className={`min-h-screen bg-slate-100 ${isRtl ? "rtl" : "ltr"} ${
+                isMobileResponsive ? "mobile-responsive-layout" : ""
+            }`}
+        >
             {/* Sidebar */}
             <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
 
