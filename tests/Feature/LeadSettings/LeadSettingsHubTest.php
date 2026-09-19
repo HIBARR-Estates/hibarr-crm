@@ -1,0 +1,234 @@
+<?php
+
+namespace Tests\Feature\LeadSettings;
+
+use App\Models\LeadSetting;
+use App\Models\LeadSource;
+use App\Models\User;
+use App\Services\Dashboard\DashboardMetricsService;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Mockery;
+use Tests\TestCase;
+
+class LeadSettingsHubTest extends TestCase
+{
+    private int $companyId = 1;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Config::set('database.default', 'sqlite');
+        Config::set('database.connections.sqlite.database', ':memory:');
+        Config::set('cache.default', 'array');
+
+        DB::purge('sqlite');
+        DB::reconnect('sqlite');
+
+        $this->resetSchema();
+        $this->createMinimalSchema();
+        DB::table('companies')->insert([
+            'id' => $this->companyId,
+            'company_name' => 'Test Co',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        $this->resetSchema();
+        parent::tearDown();
+    }
+
+    public function test_saving_the_sla_creates_a_company_row(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->putJson('/account/settings/leads', [
+            'first_contact_sla_hours' => 48,
+        ])->assertOk()->assertJsonPath('status', 'success');
+
+        $this->assertSame(48, (int) LeadSetting::value('first_contact_sla_hours'));
+    }
+
+    public function test_saving_the_sla_updates_an_existing_row(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        DB::table('lead_setting')->insert([
+            'company_id' => $this->companyId,
+            'user_id' => 99,
+            'status' => 0,
+            'first_contact_sla_hours' => 24,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->putJson('/account/settings/leads', [
+            'first_contact_sla_hours' => 4,
+        ])->assertOk();
+
+        $this->assertSame(4, (int) LeadSetting::value('first_contact_sla_hours'));
+        $this->assertSame(1, LeadSetting::count());
+    }
+
+    public function test_out_of_range_hours_are_rejected(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->putJson('/account/settings/leads', [
+            'first_contact_sla_hours' => DashboardMetricsService::SLA_HOURS_MAX + 1,
+        ])->assertStatus(422);
+
+        $this->putJson('/account/settings/leads', [
+            'first_contact_sla_hours' => 0,
+        ])->assertStatus(422);
+    }
+
+    public function test_creating_a_source_persists_the_row(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->postJson('/account/settings/leads/sources', [
+            'type' => 'Website',
+        ])->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('source.type', 'Website');
+
+        $this->assertSame(1, LeadSource::count());
+        $this->assertSame('Website', LeadSource::first()->type);
+    }
+
+    public function test_duplicate_source_names_are_rejected(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->insertSource('Website', 1);
+
+        $this->postJson('/account/settings/leads/sources', [
+            'type' => 'Website',
+        ])->assertStatus(422);
+    }
+
+    public function test_updating_a_source_renames_it(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertSource('Website', 1);
+
+        $this->putJson("/account/settings/leads/sources/{$id}", [
+            'type' => 'Referral',
+        ])->assertOk()->assertJsonPath('source.type', 'Referral');
+
+        $this->assertSame('Referral', LeadSource::find($id)->type);
+    }
+
+    public function test_deleting_a_source_removes_the_row(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertSource('Website', 1);
+
+        $this->deleteJson("/account/settings/leads/sources/{$id}")
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertSame(0, LeadSource::count());
+    }
+
+    public function test_sources_can_be_reordered(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $first = $this->insertSource('Website', 1);
+        $second = $this->insertSource('Referral', 2);
+        $third = $this->insertSource('Walk-in', 3);
+
+        $this->postJson('/account/settings/leads/sources/reorder', [
+            'sourceIds' => [$third, $first, $second],
+        ])->assertOk()->assertJsonPath('status', 'success');
+
+        $this->assertSame(1, (int) LeadSource::find($third)->sort_order);
+        $this->assertSame(2, (int) LeadSource::find($first)->sort_order);
+        $this->assertSame(3, (int) LeadSource::find($second)->sort_order);
+    }
+
+    private function insertSource(string $type, int $sortOrder): int
+    {
+        return (int) DB::table('lead_sources')->insertGetId([
+            'company_id' => $this->companyId,
+            'type' => $type,
+            'sort_order' => $sortOrder,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function actingAsEditor(): void
+    {
+        /** @var User&\Mockery\MockInterface $user */
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 99;
+        $user->company_id = $this->companyId;
+        $user->shouldReceive('permission')->andReturn('all');
+        $this->actingAs($user);
+        session(['user' => $user, 'company' => (object) ['id' => $this->companyId]]);
+    }
+
+    private function resetSchema(): void
+    {
+        Schema::dropIfExists('lead_sources');
+        Schema::dropIfExists('lead_setting');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('companies');
+    }
+
+    private function createMinimalSchema(): void
+    {
+        Schema::create('companies', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('company_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
+            $table->string('email')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_setting', function (Blueprint $table) {
+            $table->id();
+            $table->boolean('status')->default(false);
+            $table->unsignedInteger('user_id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedSmallInteger('first_contact_sla_hours')->default(24);
+            $table->timestamps();
+        });
+
+        Schema::create('lead_sources', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('type');
+            $table->integer('sort_order')->default(0);
+            $table->unsignedInteger('added_by')->nullable();
+            $table->unsignedInteger('last_updated_by')->nullable();
+            $table->timestamps();
+        });
+    }
+}

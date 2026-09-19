@@ -530,7 +530,7 @@ return [
     'settingsHub' => [
         'packagesDesc' => 'Create and price packages, and set how each one pays commission.',
         'automationDesc' => 'Manage email templates and automations that run on leads, deals and meetings.',
-        'leadsDesc' => 'Manage lead sources, categories and pipeline settings.',
+        'leadsDesc' => 'Company defaults for how leads are handled, including sources and first-contact timing.',
         'dealsDesc' => 'Manage deal categories, pipelines and stages.',
         'meetingsDesc' => 'Manage meeting types and scheduling defaults.',
         'tasksDesc' => 'Create and manage the categories used to tag tasks.',
