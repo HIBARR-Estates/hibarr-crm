@@ -101,7 +101,7 @@ export default function Pagination({
                             }
                             onPageSizeChange(Number(e.target.value));
                         }}
-                        className="text-sm rounded-md px-2 py-1 cursor-pointer outline-none transition-colors hover:border-[#c7d0de] focus:border-[#b8d4f0] focus:shadow-[0_0_0_2px_#e8f1fb]"
+                        className="text-sm rounded-md px-2 py-1 cursor-pointer outline-none transition-colors hover:border-dr-navy-mid focus:border-dr-blue-mid focus:shadow-[0_0_0_2px_var(--dr-blue-light)]"
                         style={{
                             border: `1px solid ${T.BORDER}`,
                             color: T.TEXT,
@@ -156,7 +156,7 @@ export default function Pagination({
                         onClick={() => hasPrev && onPageChange(safePage - 1)}
                         disabled={!hasPrev}
                         aria-label={td("Previous page")}
-                        className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                        className={`${NAV_BTN_BASE} bg-white hover:bg-dr-gray hover:border-dr-navy-mid disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
                         style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                     >
                         <LeftOutlined style={{ fontSize: 10 }} />
@@ -186,7 +186,7 @@ export default function Pagination({
                                 className={`${NAV_BTN_BASE} ${
                                     entry === safePage
                                         ? "font-semibold cursor-default"
-                                        : "cursor-pointer bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de]"
+                                        : "cursor-pointer bg-white hover:bg-dr-gray hover:border-dr-navy-mid"
                                 }`}
                                 style={
                                     entry === safePage
@@ -211,7 +211,7 @@ export default function Pagination({
                         onClick={() => hasNext && onPageChange(safePage + 1)}
                         disabled={!hasNext}
                         aria-label={td("Next page")}
-                        className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
+                        className={`${NAV_BTN_BASE} bg-white hover:bg-dr-gray hover:border-dr-navy-mid disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
                         style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                     >
                         <RightOutlined style={{ fontSize: 10 }} />

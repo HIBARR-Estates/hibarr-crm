@@ -99,6 +99,7 @@ import {
     computeWalkSegments,
     hasAnswerContent,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
@@ -629,13 +630,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onStartQualify={openTemplatePicker}
                     />
                 ) : (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    <p style={{ margin: 0, color: T.TEXT_HINT, fontSize: 13 }}>
                         {td("This tab is coming soon.", { source: "en" })}
                     </p>
                 );
             default:
                 return (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    <p style={{ margin: 0, color: T.TEXT_HINT, fontSize: 13 }}>
                         {td("This tab is coming soon.", { source: "en" })}
                     </p>
                 );

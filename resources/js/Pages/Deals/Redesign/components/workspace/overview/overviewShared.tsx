@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import DealButton from "../../primitives/DealButton";
-import DealIcon from "../../primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface OverviewColumnHeaderProps {
     icon: string;
@@ -29,21 +29,21 @@ export function OverviewColumnHeader({
     return (
         <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center">
             <span />
-            <div className="flex items-center justify-center gap-2 whitespace-nowrap text-center text-[15px] font-semibold text-[#1a1f2e]">
+            <div className="flex items-center justify-center gap-2 whitespace-nowrap text-center text-[15px] font-semibold text-dr-text">
                 <span
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                     style={{ background: iconBg }}
                 >
-                    <DealIcon name={icon} size={13} color={iconColor} />
+                    <Icon name={icon} size={13} color={iconColor} />
                 </span>
                 {title}
-                <span className="font-medium text-[#9ca3af]">· {count}</span>
+                <span className="font-medium text-dr-text-hint">· {count}</span>
             </div>
             <div className="flex justify-end">
                 {onAdd && (
-                    <DealButton variant="ghost" size="sm" onClick={onAdd}>
+                    <Button variant="ghost" size="sm" onClick={onAdd}>
                         {addActive ? t("pages.deals.common.cancel") : addLabel}
-                    </DealButton>
+                    </Button>
                 )}
             </div>
         </div>
@@ -58,8 +58,8 @@ export function OverviewEmptyMini({
     label: string;
 }) {
     return (
-        <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-[26px] text-center text-[#9ca3af]">
-            <DealIcon
+        <div className="rounded-lg border border-dr-border bg-white px-3.5 py-[26px] text-center text-dr-text-hint">
+            <Icon
                 name={icon}
                 size={26}
                 color={T.TEXT_HINT}
@@ -86,7 +86,7 @@ export function OverviewColumnShell({
     const border =
         borderSide === "right"
             ? ""
-            : "border-r border-[#e2e5ea]";
+            : "border-r border-dr-border";
 
     return (
         <div className={`${padding} ${border}`}>
@@ -105,7 +105,7 @@ export function OverviewViewLink({
     return (
         <button
             type="button"
-            className="text-[12px] text-[#1a6bb5] hover:text-[#145890]"
+            className="text-[12px] text-dr-blue hover:text-dr-blue-hover"
             onClick={(event) => {
                 event.stopPropagation();
                 onClick();
@@ -120,14 +120,14 @@ export function OverviewViewLink({
 export function OverviewColumnPendingSkeleton() {
     return (
         <div className="space-y-3">
-            <div className="mx-auto h-5 w-36 animate-pulse rounded bg-[#eef1f5]" />
+            <div className="mx-auto h-5 w-36 animate-pulse rounded bg-dr-skeleton" />
             {Array.from({ length: 3 }).map((_, index) => (
                 <div
                     key={index}
-                    className="rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3"
+                    className="rounded-lg border border-dr-border bg-white px-3.5 py-3"
                 >
-                    <div className="mb-2 h-4 w-2/3 animate-pulse rounded bg-[#eef1f5]" />
-                    <div className="h-3 w-1/2 animate-pulse rounded bg-[#eef1f5]" />
+                    <div className="mb-2 h-4 w-2/3 animate-pulse rounded bg-dr-skeleton" />
+                    <div className="h-3 w-1/2 animate-pulse rounded bg-dr-skeleton" />
                 </div>
             ))}
         </div>
@@ -159,10 +159,10 @@ export function OverviewDeferredSkeleton() {
                         {Array.from({ length: 3 }).map((_, index) => (
                             <div
                                 key={index}
-                                className="rounded-[10px] border border-[#e2e5ea] bg-white px-3 py-2.5"
+                                className="rounded-[10px] border border-dr-border bg-white px-3 py-2.5"
                             >
-                                <div className="mb-2 h-3.5 w-2/3 animate-pulse rounded bg-[#eef1f5]" />
-                                <div className="h-3 w-2/5 animate-pulse rounded bg-[#eef1f5]" />
+                                <div className="mb-2 h-3.5 w-2/3 animate-pulse rounded bg-dr-skeleton" />
+                                <div className="h-3 w-2/5 animate-pulse rounded bg-dr-skeleton" />
                             </div>
                         ))}
                     </div>
@@ -176,10 +176,10 @@ export function OverviewDeferredSkeleton() {
  * used by the Leads drawer's overviewShared barrel). */
 export function RailCardDeferredSkeleton() {
     return (
-        <div className="mb-3 animate-pulse rounded-[10px] border border-[#e2e5ea] bg-white p-3.5">
-            <div className="mb-3 h-4 w-1/2 rounded bg-[#eef1f5]" />
-            <div className="mb-2 h-3 w-full rounded bg-[#eef1f5]" />
-            <div className="h-3 w-2/3 rounded bg-[#eef1f5]" />
+        <div className="mb-3 animate-pulse rounded-[10px] border border-dr-border bg-white p-3.5">
+            <div className="mb-3 h-4 w-1/2 rounded bg-dr-skeleton" />
+            <div className="mb-2 h-3 w-full rounded bg-dr-skeleton" />
+            <div className="h-3 w-2/3 rounded bg-dr-skeleton" />
         </div>
     );
 }
@@ -191,10 +191,10 @@ export function TabDeferredSkeleton({ rows = 4 }: { rows?: number }) {
             {Array.from({ length: rows }).map((_, index) => (
                 <div
                     key={index}
-                    className="animate-pulse rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3.5"
+                    className="animate-pulse rounded-lg border border-dr-border bg-white px-3.5 py-3.5"
                 >
-                    <div className="mb-2 h-4 w-2/3 rounded bg-[#eef1f5]" />
-                    <div className="h-3 w-1/3 rounded bg-[#eef1f5]" />
+                    <div className="mb-2 h-4 w-2/3 rounded bg-dr-skeleton" />
+                    <div className="h-3 w-1/3 rounded bg-dr-skeleton" />
                 </div>
             ))}
         </div>

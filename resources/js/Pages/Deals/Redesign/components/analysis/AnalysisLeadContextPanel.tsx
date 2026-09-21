@@ -15,6 +15,7 @@ import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 import useClickToCall from "@/Hooks/useClickToCall";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,17 +51,17 @@ function formatDate(iso: string): string {
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(true);
     return (
-        <div className="border-b border-slate-200">
+        <div className="border-b border-dr-border">
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex w-full items-center justify-between px-4 py-2.5 transition-colors bg-slate-50 hover:bg-slate-100"
+                className="flex w-full items-center justify-between px-4 py-2.5 transition-colors bg-dr-surface-2 hover:bg-dr-gray"
             >
-                <span className="text-xs font-semibold uppercase tracking-widest text-slate-900">
+                <span className="text-xs font-semibold uppercase tracking-widest text-dr-text">
                     {label}
                 </span>
                 <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform text-slate-400 ${open ? "" : "-rotate-90"}`}
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform text-dr-text-hint ${open ? "" : "-rotate-90"}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -80,7 +81,7 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
 
 function FieldSkeleton() {
     return (
-        <div className="animate-pulse px-4 py-2.5 border-b border-slate-100">
+        <div className="animate-pulse px-4 py-2.5 border-b border-dr-border-soft">
             <div className="h-2.5 w-16 bg-slate-200 rounded mb-2" />
             <div className="h-3.5 w-3/4 bg-slate-200 rounded" />
         </div>
@@ -111,7 +112,7 @@ function ProfileCard({
     const [imgError, setImgError] = useState(false);
 
     return (
-        <div className="p-4 border-b border-slate-200">
+        <div className="p-4 border-b border-dr-border">
             {/* Avatar + info row */}
             <div className="flex items-center gap-3 mb-3">
                 {imageUrl && !imgError ? (
@@ -124,20 +125,20 @@ function ProfileCard({
                 ) : (
                     <div
                         className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
-                        style={{ backgroundColor: "#0A2E5D" }}
+                        style={{ backgroundColor: T.NAVY }}
                     >
                         {initials}
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-slate-900 truncate">
+                    <div className="text-sm font-semibold text-dr-text truncate">
                         {leadName || "No name"}
                     </div>
                     {email && (
-                        <div className="text-xs text-slate-500 truncate">{email}</div>
+                        <div className="text-xs text-dr-text-muted truncate">{email}</div>
                     )}
                     {primaryPhone && (
-                        <div className="text-xs text-slate-500 truncate">
+                        <div className="text-xs text-dr-text-muted truncate">
                             {primaryPhone}
                         </div>
                     )}
@@ -154,7 +155,7 @@ function ProfileCard({
                             void initiateCall(primaryPhone, dealCallEntity)
                         }
                         className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-60"
-                        style={{ backgroundColor: "#0A2E5D" }}
+                        style={{ backgroundColor: T.NAVY }}
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -165,7 +166,7 @@ function ProfileCard({
                 {email && (
                     <a
                         href={`mailto:${email}`}
-                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
                     >
                         {/* Envelope icon */}
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -179,7 +180,7 @@ function ProfileCard({
                         href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
                     >
                         {/* WhatsApp icon */}
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -198,11 +199,11 @@ function ProfileCard({
 function CoreFieldRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-start gap-3 py-2 px-4">
-            <span className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate">
+            <span className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted truncate">
                 {label}
             </span>
-            <span className="flex-1 text-sm text-slate-800 font-medium break-words">
-                {value || <span className="text-slate-300">—</span>}
+            <span className="flex-1 text-sm text-dr-text font-medium break-words">
+                {value || <span className="text-dr-text-hint">—</span>}
             </span>
         </div>
     );
@@ -415,7 +416,7 @@ export default function AnalysisLeadContextPanel({
             <div
                 role="tablist"
                 aria-label={"Lead context"}
-                className="flex shrink-0 border-b border-slate-200 px-4"
+                className="flex shrink-0 border-b border-dr-border px-4"
             >
                 {tabs.map((tab) => (
                     <button
@@ -428,19 +429,19 @@ export default function AnalysisLeadContextPanel({
                         onClick={() => setActiveTab(tab.id)}
                         className="flex items-center gap-1.5 py-3 px-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none"
                         style={{
-                            borderColor: activeTab === tab.id ? "#1e293b" : "transparent",
-                            color: activeTab === tab.id ? "#1e293b" : "#64748b",
+                            borderColor: activeTab === tab.id ? T.TEXT : "transparent",
+                            color: activeTab === tab.id ? T.TEXT : T.TEXT_MUTED,
                         }}
                         onMouseEnter={(e) => {
-                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = "#334155";
+                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = T.GRAY_DARKER;
                         }}
                         onMouseLeave={(e) => {
-                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = "#64748b";
+                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = T.TEXT_MUTED;
                         }}
                     >
                         {tab.label}
                         {tab.count != null && tab.count > 0 && (
-                            <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 font-semibold">
+                            <span className="text-xs bg-dr-gray text-dr-text-muted rounded px-1.5 py-0.5 font-semibold">
                                 {tab.count}
                             </span>
                         )}
@@ -614,13 +615,13 @@ export default function AnalysisLeadContextPanel({
                 >
                     {/* Deal files */}
                     {filesLoading ? (
-                        <div className="text-xs text-slate-400">{"Loading…"}</div>
+                        <div className="text-xs text-dr-text-hint">{"Loading…"}</div>
                     ) : (
                         <>
                             {files?.map((file: any) => (
                                 <div
                                     key={file.id}
-                                    className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors"
+                                    className="flex items-center gap-3 p-3 rounded-md bg-dr-surface-2 border border-dr-border hover:border-slate-300 transition-colors"
                                 >
                                     {/* Red document tile — no border-radius per revamp */}
                                     <div
@@ -632,10 +633,10 @@ export default function AnalysisLeadContextPanel({
                                         </svg>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-slate-700 truncate">
+                                        <div className="text-sm font-medium text-dr-gray-darker truncate">
                                             {file.filename}
                                         </div>
-                                        <div className="text-xs text-slate-400">
+                                        <div className="text-xs text-dr-text-hint">
                                             {file.size}{file.created_at ? ` · ${formatDate(file.created_at)}` : ""}
                                         </div>
                                     </div>
@@ -647,7 +648,7 @@ export default function AnalysisLeadContextPanel({
                                         }
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-slate-400 hover:text-slate-600 shrink-0"
+                                        className="text-dr-text-hint hover:text-dr-text-muted shrink-0"
                                         aria-label={"Download"}
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -658,13 +659,13 @@ export default function AnalysisLeadContextPanel({
                             ))}
 
                             {files?.length === 0 && fileCustomFields.length === 0 && (
-                                <p className="text-sm italic text-slate-400">{"No files attached yet."}</p>
+                                <p className="text-sm italic text-dr-text-hint">{"No files attached yet."}</p>
                             )}
 
                             {/* File custom fields */}
                             {fileCustomFields.length > 0 && (
                                 <div className="pt-2">
-                                    <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-dr-text-muted mb-2">
                                         {"Document fields"}
                                     </div>
                                     {fileCustomFields.map((field: any) => {
@@ -672,7 +673,7 @@ export default function AnalysisLeadContextPanel({
                                         return (
                                             <div
                                                 key={field.id}
-                                                className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200 mb-1.5"
+                                                className="flex items-center gap-3 p-3 rounded-md bg-dr-surface-2 border border-dr-border mb-1.5"
                                             >
                                                 <div
                                                     className="w-8 h-8 flex items-center justify-center shrink-0"
@@ -683,7 +684,7 @@ export default function AnalysisLeadContextPanel({
                                                     </svg>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-0.5">
+                                                    <div className="text-[10px] font-semibold uppercase tracking-widest text-dr-text-muted mb-0.5">
                                                         {field.label}
                                                     </div>
                                                     {val ? (
@@ -696,7 +697,7 @@ export default function AnalysisLeadContextPanel({
                                                             {typeof val === "string" ? val.split("/").pop() ?? val : String(val)}
                                                         </a>
                                                     ) : (
-                                                        <span className="text-sm italic text-slate-300">—</span>
+                                                        <span className="text-sm italic text-dr-text-hint">—</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -712,7 +713,7 @@ export default function AnalysisLeadContextPanel({
                         type="button"
                         disabled={isUploading}
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex w-full items-center justify-center gap-1.5 py-3 rounded-md border-2 border-dashed border-slate-300 text-sm font-medium text-slate-500 transition-colors hover:border-[#0A2E5D] hover:text-[#0A2E5D] disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-1.5 py-3 rounded-md border-2 border-dashed border-slate-300 text-sm font-medium text-dr-text-muted transition-colors hover:border-dr-navy hover:text-dr-navy disabled:opacity-50"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -732,28 +733,28 @@ export default function AnalysisLeadContextPanel({
                 >
                     <AnalysisQuickNote />
                     {notes.length === 0 && (
-                        <p className="text-xs italic text-slate-400">
+                        <p className="text-xs italic text-dr-text-hint">
                             {"Notes from this call appear here."}
                         </p>
                     )}
                     {notes.map((note: any) => (
                         <div
                             key={note.id}
-                            className="rounded-md px-3 py-2.5 bg-slate-50 border border-slate-200"
+                            className="rounded-md px-3 py-2.5 bg-dr-surface-2 border border-dr-border"
                         >
                             {note.title && (
-                                <div className="mb-0.5 text-xs font-semibold text-slate-800 dr-clamp-1">
+                                <div className="mb-0.5 text-xs font-semibold text-dr-text dr-clamp-1">
                                     {note.title}
                                 </div>
                             )}
                             <div
-                                className="dr-clamp-3 text-xs text-slate-500"
+                                className="dr-clamp-3 text-xs text-dr-text-muted"
                                 dangerouslySetInnerHTML={{
                                     __html: DOMPurify.sanitize(note.details || note.text || ""),
                                 }}
                             />
                             {note.added_by?.name && (
-                                <div className="mt-1.5 text-[11px] font-medium text-slate-400">
+                                <div className="mt-1.5 text-[11px] font-medium text-dr-text-hint">
                                     {note.added_by.name}
                                 </div>
                             )}
@@ -773,7 +774,7 @@ export default function AnalysisLeadContextPanel({
                         {itineraryItems.map((leg) => (
                             <div
                                 key={leg.id}
-                                className="rounded-md px-3 py-2.5 bg-slate-50 border border-slate-200"
+                                className="rounded-md px-3 py-2.5 bg-dr-surface-2 border border-dr-border"
                             >
                                 <div className="mb-1 flex items-center gap-2">
                                     <span
@@ -788,10 +789,10 @@ export default function AnalysisLeadContextPanel({
                                         </span>
                                     )}
                                 </div>
-                                <div className="truncate text-xs font-semibold text-slate-800">
+                                <div className="truncate text-xs font-semibold text-dr-text">
                                     {leg.airportLabel}
                                 </div>
-                                <div className="text-[11px] text-slate-500">
+                                <div className="text-[11px] text-dr-text-muted">
                                     {leg.dateLabel} · {leg.timeLabel}
                                 </div>
                             </div>

@@ -474,9 +474,8 @@ function DealViewRedesignInner(
                 steps={dealTourSteps}
                 labels={DEAL_TOUR_LABELS}
             />
-
             <div
-                className={`deal-redesign min-h-screen bg-[#f5f6f8] ${
+                className={`deal-redesign min-h-screen bg-dr-gray ${
                     isMobileResponsive ? "dr-mobile-responsive" : ""
                 }`}
             >
@@ -617,7 +616,7 @@ function DealViewRedesignInner(
                                     </div>
                                 )}
 
-                                <section className="overflow-hidden rounded-xl border border-[#e2e5ea] bg-white">
+                                <section className="overflow-hidden rounded-xl border border-dr-border bg-white">
                                     <div data-tour="deal-tabs">
                                         <DealTabBar
                                             activeTab={activeTab}

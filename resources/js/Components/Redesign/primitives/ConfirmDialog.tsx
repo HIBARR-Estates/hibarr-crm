@@ -1,6 +1,7 @@
 import { KeyboardEvent, MouseEvent, ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { REDESIGN_TOKENS as T } from "../tokens";
+import "../redesign.css";
+import { REDESIGN_FONT_STACK, REDESIGN_TOKENS as T } from "../tokens";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -69,11 +70,15 @@ export default function ConfirmDialog({
         <div
             className="redesign-modal-overlay"
             role="presentation"
-            style={zIndex !== undefined ? { zIndex } : undefined}
+            style={{
+                ...(zIndex !== undefined ? { zIndex } : undefined),
+                fontFamily: REDESIGN_FONT_STACK,
+                color: T.TEXT,
+            }}
         >
             <div
                 className="modal-panel"
-                style={{ maxWidth: 400 }}
+                style={{ maxWidth: 400, fontFamily: "inherit", color: "inherit" }}
                 ref={dialogRef}
                 onKeyDown={trapTab}
                 onMouseDown={(e) => e.stopPropagation()}

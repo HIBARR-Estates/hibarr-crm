@@ -11,11 +11,11 @@ import {
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
-import DealSwitch from "@/Pages/Deals/Redesign/components/primitives/DealSwitch";
+import Switch from "@/Components/Redesign/primitives/Switch";
 import RadioInput from "@/Pages/Deals/Redesign/components/analysis/inputs/RadioInput";
 import CheckboxInput from "@/Pages/Deals/Redesign/components/analysis/inputs/CheckboxInput";
 import SelectInput from "@/Pages/Deals/Redesign/components/analysis/inputs/SelectInput";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
@@ -44,7 +44,7 @@ function NumberBadge({
                           color: "#065f46",
                           boxShadow: "0 0 0 2px #a7f3d0",
                       }
-                    : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
+                    : { backgroundColor: T.BORDER_SOFT, color: T.TEXT_HINT }
             }
         >
             {answered ? (
@@ -138,7 +138,7 @@ export default function QualifySegmentBody({
                     />
                     <p
                         className="text-sm mt-2"
-                        style={{ color: "#b45309" }}
+                        style={{ color: T.AMBER_TEXT }}
                     >
                         {td(
                             "Don't read this to the lead — this is an instruction.",
@@ -186,7 +186,7 @@ export default function QualifySegmentBody({
                         </p>
 
                         {currentSegment.answerType === "boolean" ? (
-                            <DealSwitch
+                            <Switch
                                 checked={
                                     selectedValues[0] === "true" ||
                                     selectedValues[0] === "yes"

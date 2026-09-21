@@ -9,11 +9,11 @@ import {
     useCompanyCurrency,
     type CurrencyDisplay,
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
-import DealIcon from "./DealIcon";
-import DealButton from "./DealButton";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import Button from "@/Components/Redesign/primitives/Button";
 import DealValueEditorModal from "./DealValueEditorModal";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealValueBlockProps {
     deal: Deal;
@@ -219,13 +219,13 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                             <span
                                 style={{ color: T.TEXT_MUTED, display: "flex" }}
                             >
-                                <DealIcon name="lock" size={12} />
+                                <Icon name="lock" size={12} />
                             </span>
                         </Tooltip>
                     )}
                     {breakdown && (
                         <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
-                            <DealIcon
+                            <Icon
                                 name={open ? "chevron-up" : "chevron-down"}
                                 size={12}
                             />
@@ -446,7 +446,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                     paddingTop: 10,
                                 }}
                             >
-                                <DealButton
+                                <Button
                                     variant="navy"
                                     size="sm"
                                     style={{ width: "100%" }}
@@ -456,7 +456,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                     }}
                                 >
                                     {t("pages.deals.info.value_insight.editor.open")}
-                                </DealButton>
+                                </Button>
                             </div>
                         )}
                     </div>,

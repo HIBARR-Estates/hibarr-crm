@@ -27,7 +27,7 @@ export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
             />
             <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-center gap-2">
-                    <span className="truncate text-[13px] font-semibold text-[#1a1f2e]">
+                    <span className="truncate text-[13px] font-semibold text-dr-text">
                         {meeting.title}
                     </span>
                     <span
@@ -36,7 +36,7 @@ export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
                         {status.label}
                     </span>
                 </div>
-                <div className="text-[11px] text-[#9ca3af]">
+                <div className="text-[11px] text-dr-text-hint">
                     {meeting.timeLabel}
                     {meeting.attendeesLabel
                         ? ` · ${meeting.attendeesLabel}`

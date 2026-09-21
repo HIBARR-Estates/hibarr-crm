@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealDocumentItem } from "../../hooks/useDealDocuments";
-import DealIcon from "../primitives/DealIcon";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealDocumentSlotRowProps {
     doc: DealDocumentItem;
@@ -47,7 +47,7 @@ export default function DealDocumentSlotRow({
     const openHref = doc.uploaded ? doc.fileUrl : undefined;
 
     const confirmDialog = onDelete ? (
-        <DealConfirmDialog
+        <ConfirmDialog
             open={confirmingDelete}
             title={t("pages.deals.workspace.documents.delete_confirm_title")}
             message={t("pages.deals.workspace.documents.delete_confirm_message")}
@@ -105,7 +105,7 @@ export default function DealDocumentSlotRow({
     if (!isFull) {
         const inner = (
             <>
-                <DealIcon
+                <Icon
                     name="file-text"
                     size={13}
                     color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
@@ -133,7 +133,7 @@ export default function DealDocumentSlotRow({
             "flex min-w-0 flex-1 items-center gap-2 border-none bg-transparent px-0 py-2.5 text-left no-underline";
 
         return (
-            <div className="w-full min-w-0 border-b border-[#eef0f3] last:border-b-0">
+            <div className="w-full min-w-0 border-b border-dr-border-soft last:border-b-0">
                 {fileInput}
                 <div className="flex w-full min-w-0 items-center gap-1">
                     {openHref ? (
@@ -167,7 +167,7 @@ export default function DealDocumentSlotRow({
                             className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                             style={{ color: T.RED }}
                         >
-                            <DealIcon name="trash" size={12} />
+                            <Icon name="trash" size={12} />
                         </button>
                     )}
                 </div>
@@ -178,7 +178,7 @@ export default function DealDocumentSlotRow({
 
     return (
         <div
-            className="flex flex-col border-b border-[#eef0f3] last:border-b-0"
+            className="flex flex-col border-b border-dr-border-soft last:border-b-0"
             style={{ padding: "12px 2px" }}
         >
             <div className="flex min-w-0 items-center gap-2.5">
@@ -193,14 +193,14 @@ export default function DealDocumentSlotRow({
                         title={t("pages.deals.workspace.documents.open")}
                         className="flex min-w-0 flex-1 items-center gap-2.5 no-underline"
                     >
-                        <DealIcon name="file-text" size={17} color={T.GREEN} />
+                        <Icon name="file-text" size={17} color={T.GREEN} />
                         <span className="min-w-0 flex-1">
                             <span
                                 className="flex items-center gap-1.5 truncate"
                                 style={{ fontSize: 14, color: T.BLUE }}
                             >
                                 <span className="truncate">{td(doc.label, { source: "en" })}</span>
-                                <DealIcon name="external-link" size={13} />
+                                <Icon name="external-link" size={13} />
                             </span>
                             <span
                                 className="block truncate"
@@ -219,7 +219,7 @@ export default function DealDocumentSlotRow({
                         className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-none bg-transparent p-0 text-left"
                         style={{ cursor: canUpload ? "pointer" : "default" }}
                     >
-                        <DealIcon name="file-text" size={17} color={T.TEXT_MUTED} />
+                        <Icon name="file-text" size={17} color={T.TEXT_MUTED} />
                         <span className="min-w-0 flex-1">
                             <span
                                 className="block truncate"

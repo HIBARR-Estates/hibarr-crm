@@ -36,7 +36,7 @@ import type { Lead } from "@/Types/api/leads";
 import { LeadQualificationService } from "@/Services/LeadQualificationService";
 import { RegistrationService } from "@/Services/RegistrationService";
 import RadioInput from "@/Pages/Deals/Redesign/components/analysis/inputs/RadioInput";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
@@ -68,7 +68,7 @@ const OUTCOME_CARD_META: Record<
 > = {
     bookMeeting: {
         icon: "calendar",
-        iconBg: "#e8f1fb",
+        iconBg: T.BLUE_LIGHT,
         iconColor: T.NAVY,
         description: "Arrange a consultation with a specialist.",
     },
@@ -80,14 +80,14 @@ const OUTCOME_CARD_META: Record<
     },
     callback: {
         icon: "phone",
-        iconBg: "#fff7ed",
-        iconColor: "#c2410c",
+        iconBg: T.AMBER_SOFT,
+        iconColor: T.ORANGE,
         description: "Schedule a callback for a better time.",
     },
     noFit: {
         icon: "ban",
-        iconBg: "#fef2f2",
-        iconColor: "#b91c1c",
+        iconBg: T.RED_SOFT,
+        iconColor: T.RED,
         description: "Close out — not the right fit right now.",
     },
 };
@@ -248,7 +248,7 @@ function NumberBadge({
                           color: "#065f46",
                           boxShadow: "0 0 0 2px #a7f3d0",
                       }
-                    : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
+                    : { backgroundColor: T.BORDER_SOFT, color: T.TEXT_HINT }
             }
         >
             {answered ? (
@@ -290,23 +290,23 @@ function AnalysisTextarea({
             placeholder={placeholder}
             disabled={disabled}
             rows={3}
-            className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors disabled:opacity-50"
+            className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-dr-text-hint focus:outline-none transition-colors disabled:opacity-50"
             style={{
                 border: `1px solid ${T.BORDER}`,
                 color: T.TEXT,
                 fontFamily: "inherit",
-                background: "#f8fafc",
+                background: T.SURFACE_2,
                 minHeight: 72,
             }}
             onFocus={(e) => {
-                e.target.style.borderColor = "#38bdf8";
-                e.target.style.boxShadow = "0 0 0 2px #e0f2fe";
+                e.target.style.borderColor = "var(--dr-sky)";
+                e.target.style.boxShadow = "0 0 0 2px var(--dr-sky-soft)";
                 e.target.style.background = "#fff";
             }}
             onBlur={(e) => {
                 e.target.style.borderColor = T.BORDER;
                 e.target.style.boxShadow = "none";
-                e.target.style.background = "#f8fafc";
+                e.target.style.background = T.SURFACE_2;
             }}
         />
     );
@@ -326,11 +326,11 @@ function OutcomeFooter({
     primaryDisabled?: boolean;
 }) {
     return (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-slate-200">
+        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-dr-border">
             <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-600 cursor-pointer transition-colors hover:bg-slate-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-dr-text-muted cursor-pointer transition-colors hover:bg-dr-surface-2"
             >
                 <svg
                     className="w-3.5 h-3.5"
@@ -354,7 +354,7 @@ function OutcomeFooter({
                     onClick={onPrimary}
                     disabled={primaryDisabled}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: "#0A2E5D" }}
+                    style={{ backgroundColor: T.NAVY }}
                 >
                     {primaryLabel}
                 </button>
@@ -1239,7 +1239,7 @@ function OutcomeDetail({
                                                         style={{
                                                             borderColor:
                                                                 selected
-                                                                    ? "#1a6bb5"
+                                                                    ? T.BLUE
                                                                     : T.BORDER,
                                                             background: selected
                                                                 ? T.BLUE_LIGHT
@@ -1250,7 +1250,7 @@ function OutcomeDetail({
                                                             className="block text-[13px] font-semibold"
                                                             style={{
                                                                 color: selected
-                                                                    ? "#14538c"
+                                                                    ? T.BLUE_DARK
                                                                     : T.TEXT,
                                                             }}
                                                         >
@@ -1294,7 +1294,7 @@ function OutcomeDetail({
                                             className="rounded-lg p-3"
                                             style={{
                                                 background: T.BLUE_LIGHT,
-                                                border: "1px solid #b8d4f0",
+                                                border: "1px solid var(--dr-blue-mid)",
                                             }}
                                         >
                                             <p
@@ -1498,7 +1498,7 @@ function OutcomeDetail({
                                                 <div
                                                     className="mb-4 rounded-lg px-3 py-2.5 space-y-1.5"
                                                     style={{
-                                                        background: "#f8fafc",
+                                                        background: T.SURFACE_2,
                                                         border: `1px solid ${T.BORDER}`,
                                                     }}
                                                 >

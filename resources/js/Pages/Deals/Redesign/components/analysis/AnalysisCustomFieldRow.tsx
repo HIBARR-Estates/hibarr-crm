@@ -185,9 +185,9 @@ const TEXT_TYPES = ["text", "number", "email", "url"] as const;
 const MULTI_TYPES = ["checkbox", "multiselect"] as const;
 
 // Revamp §C.4 input class — sky ring, rounded-lg
-const INPUT_CLS = "w-full bg-white border border-sky-400 ring-2 ring-sky-100 rounded-lg px-2 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none transition-colors";
+const INPUT_CLS = "w-full bg-white border border-sky-400 ring-2 ring-sky-100 rounded-lg px-2 py-1.5 text-sm text-dr-text placeholder-dr-text-hint focus:outline-none transition-colors";
 
-const LABEL_CLS = "w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-900 truncate";
+const LABEL_CLS = "w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-dr-text truncate";
 
 function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: () => void; td: TdFn }) {
     return (
@@ -199,11 +199,11 @@ function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: ()
             >
                 {td("Save", { source: "en" })} ↵
             </button>
-            <span className="text-slate-300">·</span>
+            <span className="text-dr-text-hint">·</span>
             <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); onCancel(); }}
-                className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-[10px] font-semibold text-dr-text-hint hover:text-dr-text-muted transition-colors"
             >
                 {td("Cancel", { source: "en" })}
             </button>
@@ -297,7 +297,7 @@ export default function AnalysisCustomFieldRow({
                     type="button"
                     onClick={startEdit}
                     disabled={!canEdit}
-                    className="flex items-center gap-3 py-2 px-4 w-full text-left hover:bg-slate-50 group transition-colors disabled:hover:bg-transparent disabled:cursor-default"
+                    className="flex items-center gap-3 py-2 px-4 w-full text-left hover:bg-dr-surface-2 group transition-colors disabled:hover:bg-transparent disabled:cursor-default"
                     aria-label={
                         canEdit
                             ? `${field.label}: ${isEmpty ? "empty, click to fill" : displayValue + ", click to edit"}`
@@ -307,7 +307,7 @@ export default function AnalysisCustomFieldRow({
                     <span className={LABEL_CLS}>{field.label}</span>
                     <span
                         className={`flex-1 text-sm min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${
-                            isEmpty ? "text-slate-300" : "text-slate-800 font-medium"
+                            isEmpty ? "text-dr-text-hint" : "text-dr-text font-medium"
                         }`}
                         title={isEmpty ? undefined : displayValue}
                     >
@@ -315,7 +315,7 @@ export default function AnalysisCustomFieldRow({
                     </span>
                     {canEdit && (
                         <svg
-                            className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
+                            className="w-3 h-3 text-dr-text-hint opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -354,7 +354,7 @@ export default function AnalysisCustomFieldRow({
                     <span
                         className={
                             isPhone
-                                ? "text-[11px] font-semibold uppercase tracking-wide text-slate-900"
+                                ? "text-[11px] font-semibold uppercase tracking-wide text-dr-text"
                                 : LABEL_CLS + " pt-1.5"
                         }
                     >
@@ -492,7 +492,7 @@ export default function AnalysisCustomFieldRow({
                                 {options.map((o) => (
                                     <label
                                         key={o.value}
-                                        className="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer select-none max-w-full"
+                                        className="inline-flex items-center gap-2 text-sm text-dr-text cursor-pointer select-none max-w-full"
                                     >
                                         <input
                                             type="checkbox"

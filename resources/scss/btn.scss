@@ -1,4 +1,5 @@
 /* =====  Button ===== */
+/* Colours come from the legacy button tokens ($btn-*) in variables.scss. */
 button:focus{
     box-shadow: none !important;
 }
@@ -9,23 +10,23 @@ button.disabled, button:disabled {
 .btn-primary{
     text-transform: capitalize;
     padding: 9px 11px;
-    background-color: $blue !important;
-    color: $white !important;
-    border: 1px solid $blue !important;
+    background-color: $btn-primary-bg !important;
+    color: $btn-primary-text !important;
+    border: 1px solid $btn-primary-border !important;
     position: relative;
     &:hover{
-        background-color: darken($color: $white, $amount: 100%) !important;
-        border: 1px solid black !important;
-        color: $white !important;
+        background-color: $btn-primary-hover-bg !important;
+        border: 1px solid $btn-primary-hover-border !important;
+        color: $btn-primary-hover-text !important;
     }
 }
 
 .btn-primary.disabled, .btn-primary:disabled{
-    background-color: $blue ;
+    background-color: $btn-primary-bg ;
 
     &:hover{
-        background-color: $blue !important;
-        border: 1px solid $blue !important;
+        background-color: $btn-primary-bg !important;
+        border: 1px solid $btn-primary-border !important;
         cursor: not-allowed;
     }
 }
@@ -34,22 +35,22 @@ button.disabled, button:disabled {
 .btn-secondary{
     text-transform: capitalize;
     padding: 9px 11px;
-    border: solid 1px $dark_grey;
-    background-color: $white !important;
-    color: $dark_grey !important;
+    border: solid 1px $btn-secondary-border;
+    background-color: $btn-secondary-bg !important;
+    color: $btn-secondary-text !important;
     position: relative;
     &:hover{
-        background-color: darken($color: $white, $amount: 100%) !important;
-        border: solid 1px $black !important;
-        color: #fff !important;
+        background-color: $btn-secondary-hover-bg !important;
+        border: solid 1px $btn-secondary-hover-border !important;
+        color: $btn-secondary-hover-text !important;
     }
 }
 
 .btn-secondary.disabled, .btn-secondary:disabled{
-    &:hover{    
-        border: solid 1px $dark_grey !important;
-        background-color: $white !important;
-        color: $dark_grey !important;
+    &:hover{
+        border: solid 1px $btn-secondary-border !important;
+        background-color: $btn-secondary-bg !important;
+        color: $btn-secondary-text !important;
         cursor: not-allowed;
     }
 }
@@ -57,42 +58,42 @@ button.disabled, button:disabled {
 .btn-cancel{
     text-transform: capitalize;
     padding: 9px 11px;
-    border: 1px solid #fff;
-    background-color: $white !important;
-    color: $light_text !important;
+    border: 1px solid $btn-cancel-border;
+    background-color: $btn-cancel-bg !important;
+    color: $btn-cancel-text !important;
     position: relative;
     &:hover{
-        background-color: darken($color: $white, $amount: 100%) !important;
-        border: solid 1px $black !important;
-        color: #fff !important;
+        background-color: $btn-cancel-hover-bg !important;
+        border: solid 1px $btn-cancel-hover-border !important;
+        color: $btn-cancel-hover-text !important;
     }
 }
 
 .btn-cancel.disabled, .btn-cancel:disabled{
-    &:hover{    
-        border: 1px solid #fff !important;
-        background-color: $white !important;
-        color: $light_text !important;
+    &:hover{
+        border: 1px solid $btn-cancel-border !important;
+        background-color: $btn-cancel-bg !important;
+        color: $btn-cancel-text !important;
         cursor: not-allowed;
     }
 }
 
 .btn-danger{
     text-transform: capitalize;
-    background-color: $red;
-    color: $white;
+    background-color: $btn-danger-bg;
+    color: $btn-danger-text;
     border: 0px;
     position: relative;
     padding: 9px 11px;
     &:hover{
-        background-color: darken($color: $white, $amount: 100%);
+        background-color: $btn-danger-hover-bg;
     }
 }
 
 .btn-danger.disabled, .btn-danger:disabled{
-    &:hover{    
+    &:hover{
         border: 0px !important;
-        background-color: $red !important;
+        background-color: $btn-danger-bg !important;
         cursor: not-allowed;
     }
 }

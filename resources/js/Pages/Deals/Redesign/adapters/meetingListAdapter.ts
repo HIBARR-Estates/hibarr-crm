@@ -6,6 +6,7 @@ import {
 } from "./meetingAdapter";
 import { formatUserTime } from "@/lib/userDateTime";
 import { formatMeetingTimeRange } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export type MeetingSummaryStatus = "available" | "pending" | "none";
 
@@ -44,18 +45,18 @@ export function getMeetingStatusDisplay(
     },
 ): MeetingStatusDisplay {
     if (item.statusLabel === "completed") {
-        return { label: "Completed", tone: "dr-pill-green", dotColor: "#177a5b" };
+        return { label: "Completed", tone: "dr-pill-green", dotColor: T.GREEN };
     }
     if (item.statusLabel === "canceled" || item.statusLabel === "cancelled") {
-        return { label: "Cancelled", tone: "dr-pill-red", dotColor: "#b91c1c" };
+        return { label: "Cancelled", tone: "dr-pill-red", dotColor: T.RED };
     }
     if (item.isLive) {
         return { label: "Live", tone: "dr-pill-red", dotColor: "#dc2626" };
     }
     if (item.isPast) {
-        return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: "#9ca3af" };
+        return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: T.TEXT_HINT };
     }
-    return { label: "Upcoming", tone: "dr-pill-blue", dotColor: "#14538c" };
+    return { label: "Upcoming", tone: "dr-pill-blue", dotColor: T.BLUE_DARK };
 }
 
 export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {

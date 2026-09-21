@@ -13,6 +13,7 @@ import AnalysisStepStream from "./AnalysisStepStream";
 import { completeButtonState } from "./analysisProgress";
 import type { AnalysisFlatStep } from "./analysisProgress";
 import type { AnalysisSection } from "./types/analysisTypes";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export interface ScrollPanelHandle {
     scrollToSection: (id: string) => void;
@@ -187,7 +188,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
 
     if (stepCount === 0) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-400">
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-dr-text-hint">
                 <p className="text-sm">{"No analysis steps configured."}</p>
                 <p className="text-xs italic">{"Add steps in pipeline settings to get started."}</p>
             </div>
@@ -199,19 +200,19 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
 
     return (
         <>
-        <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
+        <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
             {/* Sticky progress bar */}
             <div
                 ref={stickyRef}
-                className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-slate-50/95 backdrop-blur-sm"
-                style={{ borderBottom: "1px solid #e2e8f0" }}
+                className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
+                style={{ borderBottom: "1px solid var(--dr-border)" }}
             >
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-dr-text-hint">
                         Analysis Progress
                     </span>
-                    <span className="text-xs tabular-nums text-slate-500">
-                        <span className="font-semibold text-slate-800">{totalFilled}</span>
+                    <span className="text-xs tabular-nums text-dr-text-muted">
+                        <span className="font-semibold text-dr-text">{totalFilled}</span>
                         {" of "}
                         {totalFields} fields
                     </span>
@@ -221,7 +222,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                         className="h-full rounded-full transition-all duration-700"
                         style={{
                             width: `${progressPct}%`,
-                            backgroundColor: progressPct === 100 ? "#10b981" : "#38bdf8",
+                            backgroundColor: progressPct === 100 ? T.EMERALD : T.SKY,
                         }}
                     />
                 </div>
@@ -250,12 +251,12 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         </div>
 
         {/* Step footer — the only way to reach a step that is not revealed yet */}
-        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-slate-200">
+        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-dr-border">
             <button
                 type="button"
                 onClick={onPrevStep}
                 disabled={isFirst}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-600 cursor-pointer transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-dr-text-muted cursor-pointer transition-colors hover:bg-dr-surface-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
             >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -263,12 +264,12 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 {"Previous"}
             </button>
 
-            <span className="min-w-0 truncate text-xs font-medium text-slate-500">
+            <span className="min-w-0 truncate text-xs font-medium text-dr-text-muted">
                 <span className="tabular-nums">
                     {"Step"} {Math.min(currentStep + 1, stepCount)} {"of"} {stepCount}
                 </span>
                 {currentSectionTitle && (
-                    <span className="text-slate-400">{` · ${currentSectionTitle}`}</span>
+                    <span className="text-dr-text-hint">{` · ${currentSectionTitle}`}</span>
                 )}
             </span>
 
@@ -280,7 +281,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:cursor-wait"
                     // Amber until every required step is settled; the gate would
                     // refuse the click anyway, so it must not look ready.
-                    style={{ backgroundColor: ready ? "#10b981" : "#d97706" }}
+                    style={{ backgroundColor: ready ? T.EMERALD : "#d97706" }}
                 >
                     {td(label, { source: "en" })}
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -292,7 +293,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                     type="button"
                     onClick={onNextStep}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: "#0A2E5D" }}
+                    style={{ backgroundColor: T.NAVY }}
                 >
                     {"Next"}
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
