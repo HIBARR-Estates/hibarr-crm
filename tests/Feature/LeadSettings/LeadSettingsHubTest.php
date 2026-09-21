@@ -52,10 +52,10 @@ class LeadSettingsHubTest extends TestCase
         $this->actingAsEditor();
 
         $this->putJson('/account/settings/leads', [
-            'first_contact_sla_hours' => 48,
+            'first_contact_sla_seconds' => 48 * 3600,
         ])->assertOk()->assertJsonPath('status', 'success');
 
-        $this->assertSame(48, (int) LeadSetting::value('first_contact_sla_hours'));
+        $this->assertSame(48 * 3600, (int) LeadSetting::value('first_contact_sla_seconds'));
     }
 
     public function test_saving_the_sla_updates_an_existing_row(): void
@@ -67,30 +67,30 @@ class LeadSettingsHubTest extends TestCase
             'company_id' => $this->companyId,
             'user_id' => 99,
             'status' => 0,
-            'first_contact_sla_hours' => 24,
+            'first_contact_sla_seconds' => 24 * 3600,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $this->putJson('/account/settings/leads', [
-            'first_contact_sla_hours' => 4,
+            'first_contact_sla_seconds' => 90,
         ])->assertOk();
 
-        $this->assertSame(4, (int) LeadSetting::value('first_contact_sla_hours'));
+        $this->assertSame(90, (int) LeadSetting::value('first_contact_sla_seconds'));
         $this->assertSame(1, LeadSetting::count());
     }
 
-    public function test_out_of_range_hours_are_rejected(): void
+    public function test_out_of_range_seconds_are_rejected(): void
     {
         $this->withoutMiddleware();
         $this->actingAsEditor();
 
         $this->putJson('/account/settings/leads', [
-            'first_contact_sla_hours' => DashboardMetricsService::SLA_HOURS_MAX + 1,
+            'first_contact_sla_seconds' => DashboardMetricsService::SLA_SECONDS_MAX + 1,
         ])->assertStatus(422);
 
         $this->putJson('/account/settings/leads', [
-            'first_contact_sla_hours' => 0,
+            'first_contact_sla_seconds' => 0,
         ])->assertStatus(422);
     }
 
@@ -274,7 +274,7 @@ class LeadSettingsHubTest extends TestCase
         $this->actingAsUser(['manage_lead_setting' => 'no']);
 
         $this->putJson('/account/settings/leads', [
-            'first_contact_sla_hours' => 48,
+            'first_contact_sla_seconds' => 48 * 3600,
         ])->assertStatus(403);
     }
 
@@ -403,7 +403,7 @@ class LeadSettingsHubTest extends TestCase
             $table->boolean('status')->default(false);
             $table->unsignedInteger('user_id');
             $table->unsignedInteger('company_id')->nullable();
-            $table->unsignedSmallInteger('first_contact_sla_hours')->default(24);
+            $table->unsignedInteger('first_contact_sla_seconds')->default(24 * 3600);
             $table->timestamps();
         });
 

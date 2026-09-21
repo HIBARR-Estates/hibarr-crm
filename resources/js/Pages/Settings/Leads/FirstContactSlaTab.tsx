@@ -8,26 +8,94 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { SlaSettings } from "./types";
 
+const HOUR = 3600;
+const MINUTE = 60;
+
+interface SlaParts {
+    hours: number;
+    minutes: number;
+    seconds: number;
+}
+
+/** Always re-derived from the total, never tracked as its own state — so a
+ *  minutes field that ends up holding "90" self-corrects to +1 hour on the
+ *  next render instead of needing its own rollover logic. */
+function splitSeconds(totalSeconds: number): SlaParts {
+    const clamped = Math.max(0, Math.floor(totalSeconds));
+
+    return {
+        hours: Math.floor(clamped / HOUR),
+        minutes: Math.floor((clamped % HOUR) / MINUTE),
+        seconds: clamped % MINUTE,
+    };
+}
+
 export default function FirstContactSlaTab({
     settings,
-    hours,
+    seconds,
     hasChanges,
     saving,
-    onHoursChange,
+    onSecondsChange,
     onSave,
 }: {
     settings: SlaSettings;
-    hours: number;
+    seconds: number;
     hasChanges: boolean;
     saving: boolean;
-    onHoursChange: (hours: number) => void;
+    onSecondsChange: (seconds: number) => void;
     onSave: () => void;
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
 
-    const clampHours = (value: number) =>
-        Math.max(settings.min_hours, Math.min(settings.max_hours, value));
+    const clampTotal = (value: number) =>
+        Math.max(settings.min_seconds, Math.min(settings.max_seconds, value));
+
+    const parts = splitSeconds(seconds);
+
+    const updatePart = (unit: keyof SlaParts, value: number) => {
+        if (!Number.isFinite(value)) return;
+
+        const next: SlaParts = { ...parts, [unit]: Math.max(0, Math.floor(value)) };
+
+        onSecondsChange(
+            clampTotal(next.hours * HOUR + next.minutes * MINUTE + next.seconds),
+        );
+    };
+
+    const unitField = (
+        id: string,
+        label: string,
+        value: number,
+        unit: keyof SlaParts,
+        max?: number,
+    ) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+                htmlFor={id}
+                style={{
+                    fontSize: REDESIGN_TYPE.CAPTION,
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: T.TEXT_MUTED,
+                }}
+            >
+                {label}
+            </label>
+            <input
+                id={id}
+                type="number"
+                className="dr-input"
+                min={0}
+                max={max}
+                value={value}
+                disabled={saving}
+                onChange={(e) => updatePart(unit, Number(e.target.value))}
+                style={{ width: 96, fontSize: REDESIGN_TYPE.BODY }}
+            />
+        </div>
+    );
 
     return (
         <div>
@@ -41,55 +109,33 @@ export default function FirstContactSlaTab({
                 }}
             >
                 {td(
-                    "How long an agent has to make first contact with a new lead. Drives the Contacted within SLA figure and the overdue-contact column on the team dashboard.",
+                    "How long an agent has to make first contact with a new lead — down to the minute or second for a team chasing hot leads. Drives the Contacted within SLA figure and the overdue-contact column on the team dashboard.",
                     { source: "en" },
                 )}
             </p>
 
-            <label
-                htmlFor="first-contact-sla-hours"
-                style={{
-                    display: "block",
-                    fontSize: REDESIGN_TYPE.CAPTION,
-                    fontWeight: 700,
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                    color: T.TEXT_MUTED,
-                    marginBottom: 8,
-                }}
-            >
-                {td("Hours to first contact", { source: "en" })}
-            </label>
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                }}
-            >
-                <input
-                    id="first-contact-sla-hours"
-                    type="number"
-                    className="dr-input"
-                    min={settings.min_hours}
-                    max={settings.max_hours}
-                    value={hours}
-                    disabled={saving}
-                    onChange={(e) => {
-                        const next = Number(e.target.value);
-                        if (!Number.isFinite(next)) return;
-                        onHoursChange(clampHours(next));
-                    }}
-                    style={{ width: 120, fontSize: REDESIGN_TYPE.BODY }}
-                />
-                <span
-                    style={{
-                        fontSize: REDESIGN_TYPE.BODY,
-                        color: T.TEXT_MUTED,
-                    }}
-                >
-                    {td("hours", { source: "en" })}
-                </span>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 14 }}>
+                {unitField(
+                    "first-contact-sla-hours",
+                    td("Hours", { source: "en" }),
+                    parts.hours,
+                    "hours",
+                    Math.floor(settings.max_seconds / HOUR),
+                )}
+                {unitField(
+                    "first-contact-sla-minutes",
+                    td("Minutes", { source: "en" }),
+                    parts.minutes,
+                    "minutes",
+                    59,
+                )}
+                {unitField(
+                    "first-contact-sla-seconds",
+                    td("Seconds", { source: "en" }),
+                    parts.seconds,
+                    "seconds",
+                    59,
+                )}
             </div>
 
             <div

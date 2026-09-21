@@ -68,18 +68,20 @@ class DashboardMetricsService
     private const FORECAST_MIN_DEALS = 3;
 
     /**
-     * Bounds on the configurable first-contact SLA, in hours. One hour is the
-     * tightest that means anything for a human callback; 720 (30 days) is well
-     * past the point the metric stops being an SLA. Anything outside falls back
-     * to the default rather than being clamped to an edge — an out-of-range
-     * value is a mistake, and silently reading it as "1 hour" would flip the
-     * whole team red.
+     * Bounds on the configurable first-contact SLA, in seconds. One minute is
+     * the tightest that means anything — the settings screen breaks this down
+     * into hours/minutes/seconds precisely so a team chasing hot leads can
+     * commit to "5 minutes" rather than being forced to round up to an hour.
+     * 720 hours (30 days) is well past the point the metric stops being an
+     * SLA. Anything outside falls back to the default rather than being
+     * clamped to an edge — an out-of-range value is a mistake, and silently
+     * reading it as "1 minute" would flip the whole team red.
      */
-    public const SLA_HOURS_MIN = 1;
+    public const SLA_SECONDS_MIN = 60;
 
-    public const SLA_HOURS_MAX = 720;
+    public const SLA_SECONDS_MAX = 720 * 3600;
 
-    public const SLA_HOURS_DEFAULT = 24;
+    public const SLA_SECONDS_DEFAULT = 24 * 3600;
 
     /** Memoised firstContactTrackingSince(); null is a real answer, hence the flag. */
     private ?Carbon $trackingSince = null;
@@ -787,14 +789,14 @@ class DashboardMetricsService
      * deliberately no revenue, quota or cost tile, because none of those exist
      * to count.
      *
-     * @return array{sla_hours: int, newLeads: array, contactedInSla: array, meetings: array, dealsCreated: array, dealsWon: array}
+     * @return array{sla_seconds: int, newLeads: array, contactedInSla: array, meetings: array, dealsCreated: array, dealsWon: array}
      */
     public function teamKpis(array $agentIds, int $days = 30): array
     {
         $ownerIds = $this->ownerIdsFor($agentIds);
         $start = now()->subDays($days)->startOfDay();
         $prevStart = now()->subDays($days * 2)->startOfDay();
-        $slaHours = $this->slaHours();
+        $slaSeconds = $this->slaSeconds();
 
         $leadsByDay = $this->countByDay(
             Lead::query()->whereIn('lead_owner', $ownerIds ?: [0]),
@@ -813,7 +815,7 @@ class DashboardMetricsService
             ->whereIn('lead_owner', $ownerIds ?: [0])
             ->when($trackingSince, fn ($query, $since) => $query->where('leads.created_at', '>=', $since));
 
-        $judgeableSlaCohort = fn () => $this->applySlaJudgeableScope($slaCohort(), $slaHours);
+        $judgeableSlaCohort = fn () => $this->applySlaJudgeableScope($slaCohort(), $slaSeconds);
 
         $slaEligibleByDay = $this->countByDay($judgeableSlaCohort(), 'leads.created_at', $prevStart);
 
@@ -823,7 +825,7 @@ class DashboardMetricsService
         $contactedByDay = $this->countByDay(
             $judgeableSlaCohort()
                 ->whereNotNull('first_contacted_at')
-                ->whereRaw("first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)"),
+                ->whereRaw("first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaSeconds} SECOND)"),
             'leads.created_at',
             $prevStart
         );
@@ -855,7 +857,7 @@ class DashboardMetricsService
         $rate = fn (float $part, float $whole) => $whole > 0 ? round($part / $whole * 100, 1) : null;
 
         return [
-            'sla_hours' => $slaHours,
+            'sla_seconds' => $slaSeconds,
             'newLeads' => $leads + ['note' => null],
             'contactedInSla' => [
                 'value' => $rate($contacted['value'], $slaEligible['value']),
@@ -866,7 +868,8 @@ class DashboardMetricsService
                     $slaEligible['spark']
                 ),
                 'unit' => '%',
-                'note' => (int) ($slaEligible['value'] - $contacted['value'])." missed the {$slaHours}h SLA",
+                'note' => (int) ($slaEligible['value'] - $contacted['value'])
+                    ." missed the {$this->formatSlaDuration($slaSeconds)} SLA",
             ],
             'meetings' => $this->series($meetingsByDay, $start, $prevStart, $days)
                 + ['note' => $this->meetingsHeldNote()],
@@ -951,8 +954,8 @@ class DashboardMetricsService
      */
     public function responseDistribution(array $agentIds, int $days = 30): array
     {
-        $slaHours = $this->slaHours();
-        $slaMinutes = $slaHours * 60;
+        $slaSeconds = $this->slaSeconds();
+        $slaMinutes = (int) round($slaSeconds / 60);
 
         $ownerIds = $this->ownerIdsFor($agentIds);
         $since = now()->subDays($days)->startOfDay();
@@ -1000,7 +1003,7 @@ class DashboardMetricsService
         );
 
         return [
-            'sla_hours' => $slaHours,
+            'sla_seconds' => $slaSeconds,
             'total' => count($minutes),
             'buckets' => $counts,
             'median_minutes' => ($median = $this->median($minutes)) === null ? null : (int) round($median),
@@ -1164,16 +1167,16 @@ class DashboardMetricsService
      * The team median contact rate rides along so the UI can mark it on each
      * bar — an agent at 75% means nothing until you know the team sits at 68%.
      *
-     * @return array{rows: array, median_contact_rate: float|null, sla_hours: int}
+     * @return array{rows: array, median_contact_rate: float|null, sla_seconds: int}
      */
     public function teamAgents(array $agentIds, int $days = 30): array
     {
         if (empty($agentIds)) {
-            return ['rows' => [], 'median_contact_rate' => null, 'sla_hours' => $this->slaHours()];
+            return ['rows' => [], 'median_contact_rate' => null, 'sla_seconds' => $this->slaSeconds()];
         }
 
         $agents = LeadAgent::with('user:id,name,image')->whereIn('id', $agentIds)->get();
-        $slaHours = $this->slaHours();
+        $slaSeconds = $this->slaSeconds();
         $since = now()->subDays($days)->startOfDay();
         $ownerIds = $agents->pluck('user_id')->filter()->all() ?: [0];
 
@@ -1183,7 +1186,7 @@ class DashboardMetricsService
         // denominator drops the leads that predate tracking and those still
         // inside an open SLA window with no contact yet.
         $trackingSince = $this->firstContactTrackingSince();
-        $judgeable = $this->slaJudgeableSql($slaHours, $trackingSince);
+        $judgeable = $this->slaJudgeableSql($slaSeconds, $trackingSince);
 
         $leadStats = Lead::query()
             ->whereIn('lead_owner', $ownerIds)
@@ -1194,7 +1197,7 @@ class DashboardMetricsService
                 'lead_owner',
                 DB::raw('COUNT(*) as total'),
                 DB::raw("SUM({$judgeable}) as sla_eligible"),
-                DB::raw("SUM({$judgeable} AND first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)) as in_sla"),
+                DB::raw("SUM({$judgeable} AND first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaSeconds} SECOND)) as in_sla"),
             ])
             ->keyBy('lead_owner');
 
@@ -1203,7 +1206,7 @@ class DashboardMetricsService
         $openBreaches = Lead::query()
             ->whereIn('lead_owner', $ownerIds)
             ->whereNull('first_contacted_at')
-            ->where('leads.created_at', '<', now()->subHours($slaHours))
+            ->where('leads.created_at', '<', now()->subSeconds($slaSeconds))
             ->when($this->firstContactTrackingSince(), fn ($q, $since) => $q->where('leads.created_at', '>=', $since))
             ->groupBy('lead_owner')
             ->toBase()
@@ -1273,7 +1276,7 @@ class DashboardMetricsService
             'median_contact_rate' => $this->median(
                 $rows->pluck('contact_rate')->filter(fn ($r) => $r !== null)->all()
             ),
-            'sla_hours' => $slaHours,
+            'sla_seconds' => $slaSeconds,
             'stalled_total' => array_sum($stalledByAgent),
         ];
     }
@@ -1754,21 +1757,22 @@ class DashboardMetricsService
     }
 
     /**
-     * Hours an agent has to make first contact. Configurable per company on the
-     * lead settings screen; 24 is the fallback when nothing is set.
+     * Seconds an agent has to make first contact. Configurable per company on
+     * the lead settings screen, down to the minute/second; 24 hours is the
+     * fallback when nothing is set.
      */
-    private function slaHours(): int
+    private function slaSeconds(): int
     {
-        return self::clampSlaHours(LeadSetting::value('first_contact_sla_hours'));
+        return self::clampSlaSeconds(LeadSetting::value('first_contact_sla_seconds'));
     }
 
     /**
      * @param  \Illuminate\Database\Eloquent\Builder<Lead>  $query
      * @return \Illuminate\Database\Eloquent\Builder<Lead>
      */
-    private function applySlaJudgeableScope($query, int $slaHours)
+    private function applySlaJudgeableScope($query, int $slaSeconds)
     {
-        $deadline = now()->subHours($slaHours);
+        $deadline = now()->subSeconds($slaSeconds);
 
         return $query->where(function ($builder) use ($deadline) {
             $builder->whereNotNull('first_contacted_at')
@@ -1776,9 +1780,9 @@ class DashboardMetricsService
         });
     }
 
-    private function slaJudgeableSql(int $slaHours, ?Carbon $trackingSince): string
+    private function slaJudgeableSql(int $slaSeconds, ?Carbon $trackingSince): string
     {
-        $deadline = now()->subHours($slaHours)->toDateTimeString();
+        $deadline = now()->subSeconds($slaSeconds)->toDateTimeString();
         $judgeable = "(first_contacted_at IS NOT NULL OR leads.created_at < '{$deadline}')";
 
         if ($trackingSince) {
@@ -1786,6 +1790,38 @@ class DashboardMetricsService
         }
 
         return $judgeable;
+    }
+
+    /**
+     * A seconds count as a compact human string: "2h 30m", "45m", "90s".
+     *
+     * Shows the two most significant non-zero units — enough to be readable
+     * in a one-line note without becoming "2h 30m 15s" noise.
+     */
+    private function formatSlaDuration(int $seconds): string
+    {
+        $seconds = max(0, $seconds);
+
+        $units = [
+            'd' => intdiv($seconds, 86400),
+            'h' => intdiv($seconds % 86400, 3600),
+            'm' => intdiv($seconds % 3600, 60),
+            's' => $seconds % 60,
+        ];
+
+        $parts = [];
+
+        foreach ($units as $suffix => $value) {
+            if ($value > 0) {
+                $parts[] = "{$value}{$suffix}";
+            }
+        }
+
+        if (empty($parts)) {
+            return '0s';
+        }
+
+        return implode(' ', array_slice($parts, 0, 2));
     }
 
     /**
@@ -1812,13 +1848,13 @@ class DashboardMetricsService
      * Kept next to the only reader so the bound and the default cannot drift
      * from what the settings form validates against.
      */
-    public static function clampSlaHours($hours): int
+    public static function clampSlaSeconds($seconds): int
     {
-        $hours = (int) $hours;
+        $seconds = (int) $seconds;
 
-        return $hours >= self::SLA_HOURS_MIN && $hours <= self::SLA_HOURS_MAX
-            ? $hours
-            : self::SLA_HOURS_DEFAULT;
+        return $seconds >= self::SLA_SECONDS_MIN && $seconds <= self::SLA_SECONDS_MAX
+            ? $seconds
+            : self::SLA_SECONDS_DEFAULT;
     }
 
     /** The user ids behind a set of lead_agent ids — leads are owned by users. */

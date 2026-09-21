@@ -4,6 +4,7 @@ import {
     initialsFromName,
 } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { duration } from "../format";
 import type { TeamAgents, TeamAgentRow } from "../types";
 
 const GRID = "minmax(170px, 1.6fr) .7fr .8fr 1.2fr .8fr .8fr .7fr minmax(150px, 1.5fr)";
@@ -63,7 +64,7 @@ export default function LeaderboardTable({
                     <div style={{ textAlign: "right" }}>{td("Leads", { source: "en" })}</div>
                     <div style={{ textAlign: "right" }}>{td("Meetings", { source: "en" })}</div>
                     <div>
-                        {td("Contacted in", { source: "en" })} {data.sla_hours}h
+                        {td("Contacted in", { source: "en" })} {duration(data.sla_seconds)}
                     </div>
                     <div style={{ textAlign: "right" }}>{td("Deals", { source: "en" })}</div>
                     <div style={{ textAlign: "right" }}>{td("Won", { source: "en" })}</div>

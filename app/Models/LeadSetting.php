@@ -17,7 +17,7 @@ class LeadSetting extends BaseModel
      * Assigned rather than mass-filled: this model declares no $fillable, so
      * it is totally guarded and fill() would throw.
      */
-    public static function persistFirstContactSlaHours(int $hours, int $userId): self
+    public static function persistFirstContactSlaSeconds(int $seconds, int $userId): self
     {
         $companyId = company()->id;
         $row = static::where('company_id', $companyId)->first();
@@ -28,7 +28,7 @@ class LeadSetting extends BaseModel
             $row->user_id = $userId;
         }
 
-        $row->first_contact_sla_hours = $hours;
+        $row->first_contact_sla_seconds = $seconds;
         $row->save();
 
         return $row;

@@ -67,16 +67,16 @@ class LeadSettingsHubController extends AccountBaseController
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'first_contact_sla_hours' => [
+            'first_contact_sla_seconds' => [
                 'required',
                 'integer',
-                'min:'.DashboardMetricsService::SLA_HOURS_MIN,
-                'max:'.DashboardMetricsService::SLA_HOURS_MAX,
+                'min:'.DashboardMetricsService::SLA_SECONDS_MIN,
+                'max:'.DashboardMetricsService::SLA_SECONDS_MAX,
             ],
         ]);
 
-        LeadSetting::persistFirstContactSlaHours(
-            (int) $validated['first_contact_sla_hours'],
+        LeadSetting::persistFirstContactSlaSeconds(
+            (int) $validated['first_contact_sla_seconds'],
             (int) user()->id,
         );
 
@@ -225,17 +225,17 @@ class LeadSettingsHubController extends AccountBaseController
     }
 
     /**
-     * @return array{first_contact_sla_hours: int, min_hours: int, max_hours: int, default_hours: int}
+     * @return array{first_contact_sla_seconds: int, min_seconds: int, max_seconds: int, default_seconds: int}
      */
     private function settingsData(): array
     {
         return [
-            'first_contact_sla_hours' => DashboardMetricsService::clampSlaHours(
-                LeadSetting::value('first_contact_sla_hours'),
+            'first_contact_sla_seconds' => DashboardMetricsService::clampSlaSeconds(
+                LeadSetting::value('first_contact_sla_seconds'),
             ),
-            'min_hours' => DashboardMetricsService::SLA_HOURS_MIN,
-            'max_hours' => DashboardMetricsService::SLA_HOURS_MAX,
-            'default_hours' => DashboardMetricsService::SLA_HOURS_DEFAULT,
+            'min_seconds' => DashboardMetricsService::SLA_SECONDS_MIN,
+            'max_seconds' => DashboardMetricsService::SLA_SECONDS_MAX,
+            'default_seconds' => DashboardMetricsService::SLA_SECONDS_DEFAULT,
         ];
     }
 

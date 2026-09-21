@@ -44,7 +44,7 @@ export default function LeadSettingsIndex({
     const { message } = App.useApp();
     const { tab, setTab } = useLeadSettingsNavigation();
 
-    const [hours, setHours] = useState(settings.first_contact_sla_hours);
+    const [seconds, setSeconds] = useState(settings.first_contact_sla_seconds);
     const [hasChanges, setHasChanges] = useState(false);
     const [sources, setSources] = useState(initialSources);
     const [statuses, setStatuses] = useState(initialStatuses);
@@ -52,8 +52,8 @@ export default function LeadSettingsIndex({
     // Read inside onSuccess below, which closes over the value at the time
     // the request was *sent* — this tracks the live value instead, so a save
     // in flight doesn't clobber hasChanges for an edit made while it waited.
-    const hoursRef = useRef(hours);
-    hoursRef.current = hours;
+    const secondsRef = useRef(seconds);
+    secondsRef.current = seconds;
 
     const updateMutation = useApiMutate<unknown, unknown, unknown>(
         route("settings-leads.update"),
@@ -61,9 +61,9 @@ export default function LeadSettingsIndex({
     );
 
     useEffect(() => {
-        setHours(settings.first_contact_sla_hours);
+        setSeconds(settings.first_contact_sla_seconds);
         setHasChanges(false);
-    }, [settings.first_contact_sla_hours]);
+    }, [settings.first_contact_sla_seconds]);
 
     useEffect(() => {
         setSources(initialSources);
@@ -74,10 +74,10 @@ export default function LeadSettingsIndex({
     }, [initialStatuses]);
 
     const handleSave = () => {
-        const submittedHours = hours;
+        const submittedSeconds = seconds;
 
         updateMutation.mutate(
-            { first_contact_sla_hours: submittedHours },
+            { first_contact_sla_seconds: submittedSeconds },
             {
                 suppressSuccessToast: true,
                 onSuccess: (response: { status?: string }) => {
@@ -86,7 +86,7 @@ export default function LeadSettingsIndex({
                         // Only clear the dirty flag if nothing changed the
                         // value while this request was in flight — otherwise
                         // the newer, unsaved value would show as saved.
-                        if (hoursRef.current === submittedHours) {
+                        if (secondsRef.current === submittedSeconds) {
                             setHasChanges(false);
                         }
                     }
@@ -276,11 +276,11 @@ export default function LeadSettingsIndex({
                         {tab === "sla" && (
                             <FirstContactSlaTab
                                 settings={settings}
-                                hours={hours}
+                                seconds={seconds}
                                 hasChanges={hasChanges}
                                 saving={updateMutation.isPending}
-                                onHoursChange={(next) => {
-                                    setHours(next);
+                                onSecondsChange={(next) => {
+                                    setSeconds(next);
                                     setHasChanges(true);
                                 }}
                                 onSave={handleSave}

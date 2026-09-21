@@ -1,8 +1,8 @@
 export interface SlaSettings {
-    first_contact_sla_hours: number;
-    min_hours: number;
-    max_hours: number;
-    default_hours: number;
+    first_contact_sla_seconds: number;
+    min_seconds: number;
+    max_seconds: number;
+    default_seconds: number;
 }
 
 export interface LeadSourceRow {

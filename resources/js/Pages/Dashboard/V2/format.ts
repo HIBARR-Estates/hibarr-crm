@@ -50,6 +50,31 @@ export function amount(value: number, currency: string | null): string {
 }
 
 /**
+ * A duration in seconds, compact: "2h 30m", "45m", "90s".
+ *
+ * The first-contact SLA is configurable down to the second, so a bare "Nh"
+ * label would silently drop the minutes/seconds on anything sub-hour. Shows
+ * the two most significant non-zero units — enough to be readable in a
+ * label without turning into "2h 30m 15s" noise.
+ */
+export function duration(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.round(totalSeconds));
+
+    const units: Array<[number, string]> = [
+        [Math.floor(seconds / 86400), "d"],
+        [Math.floor((seconds % 86400) / 3600), "h"],
+        [Math.floor((seconds % 3600) / 60), "m"],
+        [seconds % 60, "s"],
+    ];
+
+    const parts = units
+        .filter(([value]) => value > 0)
+        .map(([value, suffix]) => `${value}${suffix}`);
+
+    return parts.length ? parts.slice(0, 2).join(" ") : "0s";
+}
+
+/**
  * "Good morning" / "Good afternoon" / "Good evening", from the page's clock.
  *
  * English source string — the caller translates it through td().

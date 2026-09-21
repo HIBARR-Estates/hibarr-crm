@@ -60,7 +60,7 @@ export type TeamKpiMetrics = Record<
 
 /** Headline tiles plus the configured first-contact SLA for labels. */
 export type TeamKpis = TeamKpiMetrics & {
-    sla_hours: number;
+    sla_seconds: number;
 };
 
 export interface LifecycleFunnel {
@@ -78,7 +78,7 @@ export interface LifecycleFunnel {
 }
 
 export interface ResponseDistribution {
-    sla_hours: number;
+    sla_seconds: number;
     total: number;
     buckets: Array<{
         label: string;
@@ -118,7 +118,7 @@ export interface TeamAgentRow {
 export interface TeamAgents {
     rows: TeamAgentRow[];
     median_contact_rate: number | null;
-    sla_hours: number;
+    sla_seconds: number;
     stalled_total: number;
 }
 

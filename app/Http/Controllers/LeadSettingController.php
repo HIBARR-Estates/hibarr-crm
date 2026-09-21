@@ -42,10 +42,17 @@ class LeadSettingController extends AccountBaseController
         $this->leadStages = PipelineStage::all();
         $this->leadAgents = User::whereHas('leadAgent')->with('leadAgent', 'employeeDetail.designation:id,name')->get();
         $this->leadCategories = LeadCategory::all();
-        $this->leadSettings = LeadSetting::select('status', 'first_contact_sla_hours')->first();
-        $this->slaHoursDefault = DashboardMetricsService::SLA_HOURS_DEFAULT;
-        $this->slaHoursMin = DashboardMetricsService::SLA_HOURS_MIN;
-        $this->slaHoursMax = DashboardMetricsService::SLA_HOURS_MAX;
+        $this->leadSettings = LeadSetting::select('status', 'first_contact_sla_seconds')->first();
+        // This screen only offers whole hours — the minute/second precision
+        // added for the new lead settings hub lives on that screen's own
+        // form. A sub-hour value saved there still displays here, rounded
+        // down to the nearest whole hour rather than truncated to 0.
+        $this->slaHoursDefault = intdiv(DashboardMetricsService::SLA_SECONDS_DEFAULT, 3600);
+        $this->slaHoursMin = 1;
+        $this->slaHoursMax = intdiv(DashboardMetricsService::SLA_SECONDS_MAX, 3600);
+        $this->firstContactSlaHours = $this->leadSettings
+            ? max($this->slaHoursMin, intdiv((int) $this->leadSettings->first_contact_sla_seconds, 3600))
+            : $this->slaHoursDefault;
         $this->leadLifecycleStatuses = app(LeadLifecycleStatusService::class)
             ->listForCompany((int) company()->id);
 
@@ -119,8 +126,9 @@ class LeadSettingController extends AccountBaseController
      * How many hours an agent has to make first contact on a new lead.
      *
      * Drives the "Contacted in SLA" KPI and the per-agent breach column on the
-     * v2 manager dashboard. Bounds come from DashboardMetricsService so the form
-     * and the reader cannot disagree about what a valid value is.
+     * v2 manager dashboard. This legacy form is whole-hours only; minute/second
+     * precision is only offered on the new lead settings hub, so the value is
+     * converted to seconds here before it reaches the shared storage column.
      */
     public function updateFirstContactSla(Request $request)
     {
@@ -128,13 +136,13 @@ class LeadSettingController extends AccountBaseController
             'first_contact_sla_hours' => [
                 'required',
                 'integer',
-                'min:'.DashboardMetricsService::SLA_HOURS_MIN,
-                'max:'.DashboardMetricsService::SLA_HOURS_MAX,
+                'min:1',
+                'max:'.intdiv(DashboardMetricsService::SLA_SECONDS_MAX, 3600),
             ],
         ]);
 
-        LeadSetting::persistFirstContactSlaHours(
-            (int) $request->first_contact_sla_hours,
+        LeadSetting::persistFirstContactSlaSeconds(
+            (int) $request->first_contact_sla_hours * 3600,
             (int) user()->id,
         );
 

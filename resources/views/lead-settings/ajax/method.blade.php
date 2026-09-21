@@ -24,7 +24,7 @@
         <div class="col-lg-4 p-0">
             <x-forms.number :fieldLabel="__('modules.deal.firstContactSla')"
                 fieldName="first_contact_sla_hours" fieldId="first_contact_sla_hours"
-                :fieldValue="$leadSettings->first_contact_sla_hours ?? $slaHoursDefault"
+                :fieldValue="$firstContactSlaHours"
                 :fieldRequired="true" :minValue="$slaHoursMin" :maxValue="$slaHoursMax"
                 :fieldHelp="__('modules.deal.firstContactSlaHelp')" />
         </div>

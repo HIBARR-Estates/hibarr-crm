@@ -11,6 +11,7 @@ import ResponseDistribution from "../components/ResponseDistribution";
 import SourceBreakdown from "../components/SourceBreakdown";
 import LeaderboardTable from "../components/LeaderboardTable";
 import PartnerFlagQueue from "../components/PartnerFlagQueue";
+import { duration } from "../format";
 import type {
     LifecycleFunnel as FunnelData,
     PartnerFlagRow,
@@ -74,8 +75,8 @@ export default function ManagerView({
                     />
                     <StatTile
                         label={
-                            teamKpis?.sla_hours != null
-                                ? `Contacted within ${teamKpis.sla_hours}h SLA`
+                            teamKpis?.sla_seconds != null
+                                ? `Contacted within ${duration(teamKpis.sla_seconds)} SLA`
                                 : "Contacted within SLA"
                         }
                         unit="%"

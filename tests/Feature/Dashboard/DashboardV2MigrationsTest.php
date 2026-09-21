@@ -112,6 +112,61 @@ class DashboardV2MigrationsTest extends TestCase
         $this->assertFalse(Schema::hasColumn('lead_setting', 'first_contact_sla_hours'));
     }
 
+    // ── 2026_09_21_000001 — SLA seconds ─────────────────────────────────────
+
+    public function test_convert_sla_to_seconds_migration_backfills_existing_hours(): void
+    {
+        $this->trackingColumns()->up();
+
+        DB::table('lead_setting')->insert([
+            'company_id' => $this->companyId,
+            'user_id' => 1,
+            'first_contact_sla_hours' => 4,
+        ]);
+
+        $this->convertSlaToSeconds()->up();
+
+        $this->assertFalse(Schema::hasColumn('lead_setting', 'first_contact_sla_hours'));
+        $this->assertTrue(Schema::hasColumn('lead_setting', 'first_contact_sla_seconds'));
+        $this->assertSame(4 * 3600, (int) DB::table('lead_setting')->value('first_contact_sla_seconds'));
+    }
+
+    public function test_convert_sla_to_seconds_migration_can_be_run_twice(): void
+    {
+        $this->trackingColumns()->up();
+
+        $migration = $this->convertSlaToSeconds();
+        $migration->up();
+        $migration->up();
+
+        $this->assertTrue(Schema::hasColumn('lead_setting', 'first_contact_sla_seconds'));
+        $this->assertFalse(Schema::hasColumn('lead_setting', 'first_contact_sla_hours'));
+    }
+
+    public function test_convert_sla_to_seconds_migration_rolls_back_cleanly(): void
+    {
+        $this->trackingColumns()->up();
+
+        DB::table('lead_setting')->insert([
+            'company_id' => $this->companyId,
+            'user_id' => 1,
+            'first_contact_sla_hours' => 4,
+        ]);
+
+        $migration = $this->convertSlaToSeconds();
+        $migration->up();
+
+        // 90 minutes should round back to the nearest whole hour rather than
+        // truncate to zero, since the rolled-back column can't hold minutes.
+        DB::table('lead_setting')->update(['first_contact_sla_seconds' => 90 * 60]);
+
+        $migration->down();
+
+        $this->assertTrue(Schema::hasColumn('lead_setting', 'first_contact_sla_hours'));
+        $this->assertFalse(Schema::hasColumn('lead_setting', 'first_contact_sla_seconds'));
+        $this->assertSame(2, (int) DB::table('lead_setting')->value('first_contact_sla_hours'));
+    }
+
     // ── 2026_08_07_000002 — backfill ────────────────────────────────────────
 
     public function test_backfill_migration_is_a_no_op_on_non_mysql_drivers(): void
@@ -327,6 +382,11 @@ class DashboardV2MigrationsTest extends TestCase
     private function backfill(): Migration
     {
         return $this->migration('2026_08_07_000002_backfill_dashboard_v2_tracking_columns.php');
+    }
+
+    private function convertSlaToSeconds(): Migration
+    {
+        return $this->migration('2026_09_21_000001_convert_first_contact_sla_to_seconds.php');
     }
 
     private function revokePartnerDashboard(): Migration
