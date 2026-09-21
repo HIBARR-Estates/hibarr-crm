@@ -25,7 +25,6 @@ import {
     isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
-import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
@@ -325,7 +324,7 @@ export default function ExposesPanel({
                                     variant="primary"
                                     className="w-full"
                                     icon={
-                                        <DealIcon
+                                        <Icon
                                             name="external-link"
                                             size={15}
                                         />
@@ -340,7 +339,7 @@ export default function ExposesPanel({
                                     variant="ghost"
                                     className="w-full"
                                     icon={
-                                        <DealIcon
+                                        <Icon
                                             name="paperclip"
                                             size={15}
                                         />

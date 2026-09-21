@@ -7,6 +7,7 @@ import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDr
 import useTranslation from "@/Hooks/useTranslation";
 import useWorkspaceOverview from "@/Pages/Deals/Redesign/hooks/useWorkspaceOverview";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
 import OverviewColumn from "@/Components/Redesign/workspace/OverviewColumn";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
