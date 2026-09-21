@@ -110,7 +110,7 @@ export default function useDashboardMeetingReschedule(
                 setIsSubmitting(false);
             }
         },
-        [followupId, props.auth?.user?.timezone],
+        [followupId, props.auth?.user?.timezone, reloadKeys],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

@@ -74,6 +74,7 @@ export default function FirstContactSlaTab({
                     min={settings.min_hours}
                     max={settings.max_hours}
                     value={hours}
+                    disabled={saving}
                     onChange={(e) => {
                         const next = Number(e.target.value);
                         if (!Number.isFinite(next)) return;

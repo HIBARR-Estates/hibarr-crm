@@ -156,9 +156,20 @@ export default function LeadSourcesSection({
                         className="overflow-hidden rounded-[10px] border"
                         style={{ borderColor: T.BORDER }}
                     >
-                        {sources.map((source) => {
+                        {sources.map((source, index) => {
                             const editThis = canEdit(source);
                             const deleteThis = canDelete(source);
+                            const canReorder =
+                                permissions.reorder && !mutations.reordering;
+
+                            const moveAndPersist = (toIndex: number) => {
+                                if (toIndex < 0 || toIndex >= sources.length) {
+                                    return;
+                                }
+                                mutations.beginReorder(sourcesRef.current);
+                                moveSource(source.id, sources[toIndex].id);
+                                void mutations.persistReorder(sourcesRef.current);
+                            };
 
                             return (
                                 <div
@@ -172,21 +183,21 @@ export default function LeadSourcesSection({
                                                 : T.SURFACE,
                                         opacity: dragId === source.id ? 0.6 : 1,
                                     }}
-                                    draggable={permissions.reorder}
+                                    draggable={canReorder}
                                     onDragStart={() => {
-                                        if (!permissions.reorder) return;
+                                        if (!canReorder) return;
                                         mutations.beginReorder(sourcesRef.current);
                                         setDragId(source.id);
                                     }}
                                     onDragOver={(event) => {
-                                        if (!permissions.reorder || dragId === null) {
+                                        if (!canReorder || dragId === null) {
                                             return;
                                         }
                                         event.preventDefault();
                                         moveSource(dragId, source.id);
                                     }}
                                     onDragEnd={() => {
-                                        if (!permissions.reorder) return;
+                                        if (!canReorder) return;
                                         setDragId(null);
                                         void mutations.persistReorder(
                                             sourcesRef.current,
@@ -197,7 +208,7 @@ export default function LeadSourcesSection({
                                         aria-hidden="true"
                                         style={{
                                             color: T.TEXT_HINT,
-                                            cursor: permissions.reorder
+                                            cursor: canReorder
                                                 ? "grab"
                                                 : "default",
                                             display: "flex",
@@ -216,6 +227,49 @@ export default function LeadSourcesSection({
                                         {source.type}
                                     </span>
                                     <span className="flex items-center justify-end gap-1">
+                                        {permissions.reorder && (
+                                            <>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    icon={
+                                                        <Icon
+                                                            name="chevron-up"
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    aria-label={td("Move up", {
+                                                        source: "en",
+                                                    })}
+                                                    disabled={
+                                                        !canReorder || index === 0
+                                                    }
+                                                    onClick={() =>
+                                                        moveAndPersist(index - 1)
+                                                    }
+                                                />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    icon={
+                                                        <Icon
+                                                            name="chevron-down"
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    aria-label={td("Move down", {
+                                                        source: "en",
+                                                    })}
+                                                    disabled={
+                                                        !canReorder ||
+                                                        index === sources.length - 1
+                                                    }
+                                                    onClick={() =>
+                                                        moveAndPersist(index + 1)
+                                                    }
+                                                />
+                                            </>
+                                        )}
                                         {editThis && (
                                             <Button
                                                 variant="ghost"

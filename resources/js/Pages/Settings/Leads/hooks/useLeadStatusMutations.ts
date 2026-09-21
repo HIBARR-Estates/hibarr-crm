@@ -28,6 +28,7 @@ export default function useLeadStatusMutations(setStatuses: SetStatuses) {
     const { message } = App.useApp();
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [reordering, setReordering] = useState(false);
     const snapshotRef = useRef<LeadStatusRow[] | null>(null);
 
     const createStatus = useCallback(
@@ -135,6 +136,7 @@ export default function useLeadStatusMutations(setStatuses: SetStatuses) {
             ) {
                 return;
             }
+            setReordering(true);
             try {
                 const res = await axios.post(
                     route("settings-leads.statuses.reorder"),
@@ -155,6 +157,8 @@ export default function useLeadStatusMutations(setStatuses: SetStatuses) {
                 message.error(
                     firstErrorMessage(error, t("messages.somethingWentWrong")),
                 );
+            } finally {
+                setReordering(false);
             }
         },
         [message, setStatuses, t],
@@ -168,5 +172,6 @@ export default function useLeadStatusMutations(setStatuses: SetStatuses) {
         persistReorder,
         saving,
         deletingId,
+        reordering,
     };
 }

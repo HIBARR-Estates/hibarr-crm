@@ -263,6 +263,35 @@ class LeadSettingsHubTest extends TestCase
         $this->assertSame(3, (int) LeadLifecycleStatus::find($second)->sort_order);
     }
 
+    // ── Authorization ──────────────────────────────────────────────────────
+    //
+    // Every test above calls withoutMiddleware(), which bypasses the
+    // controller's own permission gate entirely — none of them would fail if
+    // that gate were deleted. These two run with middleware left on.
+
+    public function test_requests_are_rejected_without_the_manage_lead_setting_permission(): void
+    {
+        $this->actingAsUser(['manage_lead_setting' => 'no']);
+
+        $this->putJson('/account/settings/leads', [
+            'first_contact_sla_hours' => 48,
+        ])->assertStatus(403);
+    }
+
+    public function test_add_lead_sources_is_enforced_even_when_manage_lead_setting_is_granted(): void
+    {
+        $this->actingAsUser([
+            'manage_lead_setting' => 'all',
+            'add_lead_sources' => 'no',
+        ]);
+
+        $this->postJson('/account/settings/leads/sources', [
+            'type' => 'Referral',
+        ])->assertStatus(403);
+
+        $this->assertSame(0, DB::table('lead_sources')->count());
+    }
+
     private function insertSource(string $type, int $sortOrder): int
     {
         return (int) DB::table('lead_sources')->insertGetId([
@@ -298,12 +327,57 @@ class LeadSettingsHubTest extends TestCase
         session(['user' => $user, 'company' => (object) ['id' => $this->companyId]]);
     }
 
+    /**
+     * Like actingAsEditor(), but leaves the controller's own middleware
+     * running and lets the caller pin individual permission keys — so a test
+     * can assert on the gate itself instead of the withoutMiddleware() tests
+     * above, which bypass it entirely and would pass even if the gate were
+     * deleted.
+     *
+     * @param  array<string, string>  $permissions  permission key => value;
+     *                                              anything not listed answers 'all'.
+     */
+    private function actingAsUser(array $permissions = []): void
+    {
+        DB::table('module_settings')->insert([
+            'company_id' => $this->companyId,
+            'module_name' => 'leads',
+            'status' => 'active',
+            'type' => 'admin',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        /** @var User&\Mockery\MockInterface $user */
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 99;
+        $user->company_id = $this->companyId;
+
+        foreach ($permissions as $key => $value) {
+            $user->shouldReceive('permission')->with($key)->andReturn($value);
+        }
+        $user->shouldReceive('permission')->andReturn('all');
+
+        $this->actingAs($user);
+        session([
+            'user' => $user,
+            'company' => (object) ['id' => $this->companyId],
+            // user_roles() and user_modules() both short-circuit on a
+            // session hit before touching the user's actual role
+            // relationship or the module cache — set directly so this test
+            // only has to model the one thing it's actually about.
+            'user_roles' => ['admin'],
+        ]);
+        cache()->forget('user_modules_'.$user->id);
+    }
+
     private function resetSchema(): void
     {
         Schema::dropIfExists('leads');
         Schema::dropIfExists('lead_lifecycle_statuses');
         Schema::dropIfExists('lead_sources');
         Schema::dropIfExists('lead_setting');
+        Schema::dropIfExists('module_settings');
         Schema::dropIfExists('users');
         Schema::dropIfExists('companies');
     }
@@ -359,6 +433,15 @@ class LeadSettingsHubTest extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedBigInteger('lead_lifecycle_status_id')->nullable();
             $table->timestamp('deleted_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('module_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('module_name');
+            $table->string('status');
+            $table->string('type')->default('admin');
             $table->timestamps();
         });
     }

@@ -123,7 +123,15 @@ class DashboardDateRange
      */
     private static function parseDate(string $value): ?Carbon
     {
-        $date = Carbon::createFromFormat('Y-m-d', $value);
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', $value);
+        } catch (\InvalidArgumentException) {
+            // Carbon's strict mode throws on input it can't parse at all
+            // (e.g. "yesterday", an empty string) rather than returning a
+            // falsy value — same outcome as the round-trip check below, just
+            // reached a different way.
+            return null;
+        }
 
         if (! $date || $date->format('Y-m-d') !== $value) {
             return null;

@@ -18,6 +18,10 @@ function readTab(): LeadSettingsTab {
 function syncTab(tab: LeadSettingsTab) {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
+    // Inertia updates the URL before this page's own React cleanup runs, so
+    // the "finish" listener below can still fire after the user has already
+    // navigated elsewhere — guard against writing ?tab= onto that other page.
+    if (!url.pathname.endsWith("/settings/leads")) return;
     url.searchParams.set("tab", tab);
     window.history.replaceState({}, "", url.toString());
 }

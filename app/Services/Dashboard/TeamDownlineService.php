@@ -81,7 +81,7 @@ class TeamDownlineService
     {
         return $this->once(
             'root:'.$userId,
-            fn () => LeadAgent::where('user_id', $userId)->first()
+            fn () => LeadAgent::where('user_id', $userId)->orderBy('id')->first()
         );
     }
 
@@ -90,13 +90,44 @@ class TeamDownlineService
      *
      * The root is absent by construction — it is not part of its own team.
      *
+     * A user can hold more than one lead_agent row (one per lead category),
+     * and each row can have its own downline. Reading only $root's own
+     * subtree would make the team depend on which of that user's rows
+     * happened to be picked as "the" root — so this walks every row that
+     * user holds and unions their subtrees instead. An id shared between two
+     * of those subtrees keeps its shallowest depth; a node parented under
+     * one of the viewer's *other* rows is excluded here (it is the same
+     * person, not a subordinate) and falls through to tree()'s existing
+     * out-of-team fallback, which attaches it directly under $root.
+     *
      * @return array<int, int>
      */
     public function teamDepths(LeadAgent $root): array
     {
         return $this->once(
             'depths:'.$root->id,
-            fn () => $this->hierarchy->getSubtreeDepths($root)
+            function () use ($root) {
+                $rootIds = LeadAgent::where('user_id', $root->user_id)
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $depths = [];
+
+                foreach (LeadAgent::whereIn('id', $rootIds)->get() as $rootRow) {
+                    foreach ($this->hierarchy->getSubtreeDepths($rootRow) as $agentId => $depth) {
+                        if (in_array($agentId, $rootIds, true)) {
+                            continue;
+                        }
+
+                        $depths[$agentId] = isset($depths[$agentId])
+                            ? min($depths[$agentId], $depth)
+                            : $depth;
+                    }
+                }
+
+                return $depths;
+            }
         );
     }
 

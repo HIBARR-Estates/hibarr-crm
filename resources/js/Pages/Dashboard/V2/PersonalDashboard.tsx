@@ -93,6 +93,11 @@ export interface PersonalDashboardProps {
  * actions (Complete, Reschedule, Log activity) mutate through the existing
  * dashboard hooks and re-resolve only the keys that moved, never the page.
  */
+// Module scope, not inline: useDashboardMeetingReschedule keys its reschedule
+// callback's memoization off this array, so a fresh literal on every render
+// would defeat it.
+const MEETING_RELOAD_KEYS = ["agenda", "stats"];
+
 export default function PersonalDashboard({
     now,
     userName,
@@ -580,7 +585,7 @@ export default function PersonalDashboard({
                         markingHeld={
                             openMeeting ? isMarkingHeld(openMeeting.id) : false
                         }
-                        reloadKeys={["agenda", "stats"]}
+                        reloadKeys={MEETING_RELOAD_KEYS}
                     />
 
                     <MeetingScheduleModal

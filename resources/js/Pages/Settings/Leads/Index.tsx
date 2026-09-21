@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -49,6 +49,12 @@ export default function LeadSettingsIndex({
     const [sources, setSources] = useState(initialSources);
     const [statuses, setStatuses] = useState(initialStatuses);
 
+    // Read inside onSuccess below, which closes over the value at the time
+    // the request was *sent* — this tracks the live value instead, so a save
+    // in flight doesn't clobber hasChanges for an edit made while it waited.
+    const hoursRef = useRef(hours);
+    hoursRef.current = hours;
+
     const updateMutation = useApiMutate<unknown, unknown, unknown>(
         route("settings-leads.update"),
         "PUT",
@@ -68,14 +74,21 @@ export default function LeadSettingsIndex({
     }, [initialStatuses]);
 
     const handleSave = () => {
+        const submittedHours = hours;
+
         updateMutation.mutate(
-            { first_contact_sla_hours: hours },
+            { first_contact_sla_hours: submittedHours },
             {
                 suppressSuccessToast: true,
                 onSuccess: (response: { status?: string }) => {
                     if (response?.status === "success") {
                         message.success(td("Settings saved", { source: "en" }));
-                        setHasChanges(false);
+                        // Only clear the dirty flag if nothing changed the
+                        // value while this request was in flight — otherwise
+                        // the newer, unsaved value would show as saved.
+                        if (hoursRef.current === submittedHours) {
+                            setHasChanges(false);
+                        }
                     }
                 },
                 onError: (error: { message?: string }) => {

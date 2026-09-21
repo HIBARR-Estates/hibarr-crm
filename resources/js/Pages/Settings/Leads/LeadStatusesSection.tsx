@@ -205,8 +205,19 @@ export default function LeadStatusesSection({
                     className="overflow-hidden rounded-[10px] border"
                     style={{ borderColor: T.BORDER }}
                 >
-                    {statuses.map((row) => {
+                    {statuses.map((row, index) => {
                         const canDelete = !row.is_system && row.leads_count === 0;
+                        const canReorder = !mutations.reordering;
+
+                        const moveAndPersist = (toIndex: number) => {
+                            if (toIndex < 0 || toIndex >= statuses.length) {
+                                return;
+                            }
+                            mutations.beginReorder(statusesRef.current);
+                            moveStatus(row.id, statuses[toIndex].id);
+                            void mutations.persistReorder(statusesRef.current);
+                        };
+
                         return (
                             <div
                                 key={row.id}
@@ -219,17 +230,19 @@ export default function LeadStatusesSection({
                                             : T.SURFACE,
                                     opacity: dragId === row.id ? 0.6 : 1,
                                 }}
-                                draggable
+                                draggable={canReorder}
                                 onDragStart={() => {
+                                    if (!canReorder) return;
                                     mutations.beginReorder(statusesRef.current);
                                     setDragId(row.id);
                                 }}
                                 onDragOver={(event) => {
-                                    if (dragId === null) return;
+                                    if (!canReorder || dragId === null) return;
                                     event.preventDefault();
                                     moveStatus(dragId, row.id);
                                 }}
                                 onDragEnd={() => {
+                                    if (!canReorder) return;
                                     setDragId(null);
                                     void mutations.persistReorder(
                                         statusesRef.current,
@@ -240,7 +253,7 @@ export default function LeadStatusesSection({
                                     aria-hidden="true"
                                     style={{
                                         color: T.TEXT_HINT,
-                                        cursor: "grab",
+                                        cursor: canReorder ? "grab" : "default",
                                         display: "flex",
                                         justifyContent: "center",
                                     }}
@@ -296,6 +309,31 @@ export default function LeadStatusesSection({
                                         : null}
                                 </span>
                                 <span className="flex items-center justify-end gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Icon name="chevron-up" size={14} />}
+                                        aria-label={td("Move up", {
+                                            source: "en",
+                                        })}
+                                        disabled={!canReorder || index === 0}
+                                        onClick={() => moveAndPersist(index - 1)}
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={
+                                            <Icon name="chevron-down" size={14} />
+                                        }
+                                        aria-label={td("Move down", {
+                                            source: "en",
+                                        })}
+                                        disabled={
+                                            !canReorder ||
+                                            index === statuses.length - 1
+                                        }
+                                        onClick={() => moveAndPersist(index + 1)}
+                                    />
                                     <Button
                                         variant="ghost"
                                         size="sm"
