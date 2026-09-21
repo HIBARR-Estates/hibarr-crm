@@ -2,6 +2,7 @@ import type {
     ChartPoint,
     ChartTooltipContent,
     ChartTooltipInput,
+    ChartValue,
 } from "@tanstack/charts";
 import { tooltip } from "@tanstack/charts/tooltip";
 import { portal } from "@tanstack/charts/tooltip/portal";
@@ -14,7 +15,7 @@ export function labeledTooltip<TDatum>(
     content: (
         points: readonly ChartPoint<TDatum>[],
     ) => ChartTooltipContent,
-): ChartTooltipInput<TDatum> {
+): ChartTooltipInput<TDatum, ChartValue, ChartValue, "dom"> {
     return {
         use: tooltip,
         className: "dv2-chart-tooltip",

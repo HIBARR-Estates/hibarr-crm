@@ -11,6 +11,7 @@ import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import type { ApiResponse } from "@/lib/api/types";
 import FirstContactSlaTab from "./FirstContactSlaTab";
 import LeadSourcesSection from "./LeadSourcesSection";
 import LeadStatusesSection from "./LeadStatusesSection";
@@ -55,10 +56,11 @@ export default function LeadSettingsIndex({
     const hoursRef = useRef(hours);
     hoursRef.current = hours;
 
-    const updateMutation = useApiMutate<unknown, unknown, unknown>(
-        route("settings-leads.update"),
-        "PUT",
-    );
+    const updateMutation = useApiMutate<
+        { first_contact_sla_hours: number },
+        unknown,
+        ApiResponse<unknown>
+    >(route("settings-leads.update"), "PUT");
 
     useEffect(() => {
         setHours(settings.first_contact_sla_hours);
@@ -80,7 +82,7 @@ export default function LeadSettingsIndex({
             { first_contact_sla_hours: submittedHours },
             {
                 suppressSuccessToast: true,
-                onSuccess: (response: { status?: string }) => {
+                onSuccess: (response: ApiResponse<unknown>) => {
                     if (response?.status === "success") {
                         message.success(td("Settings saved", { source: "en" }));
                         // Only clear the dirty flag if nothing changed the
@@ -91,9 +93,11 @@ export default function LeadSettingsIndex({
                         }
                     }
                 },
-                onError: (error: { message?: string }) => {
+                onError: (error) => {
+                    const apiError = error as ApiResponse<unknown> | undefined;
+
                     message.error(
-                        error?.message ||
+                        apiError?.message ||
                             td("Failed to save settings", { source: "en" }),
                     );
                 },

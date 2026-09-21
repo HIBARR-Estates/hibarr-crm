@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import type { ResponseDistribution as Data } from "../types";
 
 const SEVERITY_FILL = {
@@ -115,10 +116,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
     );
 }
 
-function formatMinutes(
-    minutes: number | null,
-    td: (value: string) => string,
-): string {
+function formatMinutes(minutes: number | null, td: TdFn): string {
     if (minutes === null) return "—";
     if (minutes < 60) return `${minutes}${td("m", { source: "en" })}`;
     if (minutes < 1440) {

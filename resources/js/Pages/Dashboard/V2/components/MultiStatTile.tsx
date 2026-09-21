@@ -8,7 +8,10 @@ function segmentValueTitle(value: ReactNode): string | undefined {
         return String(value);
     }
 
-    if (isValidElement(value) && typeof value.props.children === "string") {
+    if (
+        isValidElement<{ children?: ReactNode }>(value) &&
+        typeof value.props.children === "string"
+    ) {
         return value.props.children;
     }
 
