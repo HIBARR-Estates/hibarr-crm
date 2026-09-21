@@ -26,6 +26,10 @@
             "@/Features/*": ["resources/js/Features/*"],
             "@/lib/*": ["resources/js/lib/*"],
             "@/Hooks/*": ["resources/js/Hooks/*"],
+            "@tanstack/charts": ["node_modules/@tanstack/charts/dist/index.d.ts"],
+            "@tanstack/charts/tooltip/portal": ["node_modules/@tanstack/charts/dist/tooltip-portal.d.ts"],
+            "@tanstack/charts/react/tooltip": ["node_modules/@tanstack/charts/dist/react/tooltip.d.ts"],
+            "@tanstack/charts/*": ["node_modules/@tanstack/charts/dist/*"],
             "@inertia-load-page": ["resources/js/inertia/loadPage.vite.ts"]
         },
         "checkJs": false,

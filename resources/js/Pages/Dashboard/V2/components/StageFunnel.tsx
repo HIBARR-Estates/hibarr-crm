@@ -47,7 +47,7 @@ export default function StageFunnel({
     if (!data.length) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_HINT }}>
-                {td(emptyMessage)}
+                {td(emptyMessage, { source: "en" })}
             </p>
         );
     }
@@ -65,7 +65,7 @@ export default function StageFunnel({
                     className="dv2-eyebrow"
                     style={{ textAlign: "right", fontSize: 11 }}
                 >
-                    {td("Time in stage")}
+                    {td("Time in stage", { source: "en" })}
                 </div>
             )}
             {data.map((row) => {
@@ -86,9 +86,9 @@ export default function StageFunnel({
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                             }}
-                            title={td(row.label)}
+                            title={td(row.label, { source: "en" })}
                         >
-                            {td(row.label)}
+                            {td(row.label, { source: "en" })}
                         </div>
 
                         <div
@@ -137,10 +137,9 @@ export default function StageFunnel({
                                 title={
                                     row.medianDays !== null &&
                                     row.medianDays !== undefined
-                                        ? `${td("Typically")} ${row.medianDays}d ${td("based on")} ${row.samples} ${td("past moves")}`
+                                        ? `${td("Typically", { source: "en" })} ${row.medianDays}d ${td("based on", { source: "en" })} ${row.samples} ${td("past moves", { source: "en" })}`
                                         : td(
-                                              "Not enough past stage moves to give a typical duration",
-                                          )
+                                              "Not enough past stage moves to give a typical duration", { source: "en" })
                                 }
                             >
                                 {row.openMedianDays === null ||

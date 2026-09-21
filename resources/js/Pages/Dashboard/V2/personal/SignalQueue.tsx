@@ -1,7 +1,7 @@
 import { ReactNode, useMemo } from "react";
 import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { QueueTask } from "../types";
 import type { PersonalQueue, Severity } from "./types";
 import { severityOf } from "./format";
@@ -9,8 +9,7 @@ import SignalRow from "./SignalRow";
 
 interface Section {
     key: Severity;
-    /** English source string. */
-    label: string;
+    labelKey: string;
     tasks: QueueTask[];
     /** True total for this window, which may exceed `tasks.length`. */
     total: number;
@@ -52,7 +51,7 @@ export default function SignalQueue({
     renderActions,
     tasksHref,
 }: SignalQueueProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     const sections = useMemo<Section[]>(() => {
         const byWindow: Record<Severity, QueueTask[]> = {
@@ -66,7 +65,7 @@ export default function SignalQueue({
         return [
             {
                 key: "now" as const,
-                label: "Overdue",
+                labelKey: "pages.dashboard.personal.queue.overdue",
                 tasks: byWindow.now,
                 total: queue.counts.overdue,
                 href: route("tasks.index", {
@@ -77,7 +76,7 @@ export default function SignalQueue({
             },
             {
                 key: "soon" as const,
-                label: "Due today",
+                labelKey: "pages.dashboard.personal.queue.due_today",
                 tasks: byWindow.soon,
                 total: queue.counts.today,
                 href: route("tasks.index", {
@@ -88,7 +87,7 @@ export default function SignalQueue({
             },
             {
                 key: "watch" as const,
-                label: "Upcoming",
+                labelKey: "pages.dashboard.personal.queue.upcoming",
                 tasks: byWindow.watch,
                 total: queue.counts.later,
                 href: route("tasks.index", {
@@ -105,15 +104,15 @@ export default function SignalQueue({
 
     const uncovered = [
         queue.uncovered.deals
-            ? `${queue.uncovered.deals} ${queue.uncovered.deals === 1 ? td("deal") : td("deals")}`
+            ? `${queue.uncovered.deals} ${queue.uncovered.deals === 1 ? t("pages.dashboard.personal.queue.deal") : t("pages.dashboard.personal.queue.deals")}`
             : null,
         queue.uncovered.leads
-            ? `${queue.uncovered.leads} ${queue.uncovered.leads === 1 ? td("lead") : td("leads")}`
+            ? `${queue.uncovered.leads} ${queue.uncovered.leads === 1 ? t("pages.dashboard.personal.queue.lead") : t("pages.dashboard.personal.queue.leads")}`
             : null,
     ].filter(Boolean);
 
     if (!sections.length) {
-        return <QueueEmptyState windowDays={windowDays} tasksHref={tasksHref} />;
+        return <QueueEmptyState tasksHref={tasksHref} />;
     }
 
     return (
@@ -162,7 +161,11 @@ export default function SignalQueue({
                         <path d="M12 8h.01M11 12h1v4h1" />
                     </svg>
                     <span style={{ fontSize: 12.5, color: T.TEXT_MUTED }}>
-                        {td("No next step on")} {uncovered.join(` ${td("or")} `)}.
+                        {t("pages.dashboard.personal.queue.no_next_step")}{" "}
+                        {uncovered.join(
+                            ` ${t("pages.dashboard.personal.queue.or")} `,
+                        )}
+                        .
                     </span>
                 </div>
             )}
@@ -171,7 +174,7 @@ export default function SignalQueue({
 }
 
 function SectionHeader({ section }: { section: Section }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     const oldest = section.tasks.reduce(
         (max, task) => Math.max(max, task.days_overdue),
@@ -179,10 +182,12 @@ function SectionHeader({ section }: { section: Section }) {
     );
 
     const meta = [
-        `${section.total} ${section.total === 1 ? td("task") : td("tasks")}`,
-        oldest > 0 ? `${td("oldest")} ${oldest} ${td("days")}` : null,
+        `${section.total} ${section.total === 1 ? t("pages.dashboard.personal.queue.task") : t("pages.dashboard.personal.queue.tasks")}`,
+        oldest > 0
+            ? `${t("pages.dashboard.personal.queue.oldest")} ${oldest} ${t("pages.dashboard.personal.queue.days")}`
+            : null,
         section.total > section.tasks.length
-            ? `${td("showing")} ${section.tasks.length}`
+            ? `${t("pages.dashboard.personal.queue.showing")} ${section.tasks.length}`
             : null,
     ]
         .filter(Boolean)
@@ -209,7 +214,7 @@ function SectionHeader({ section }: { section: Section }) {
                     color: T.NAVY,
                 }}
             >
-                {td(section.label)}
+                {t(section.labelKey)}
             </span>
             <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>{meta}</span>
             <a
@@ -221,7 +226,7 @@ function SectionHeader({ section }: { section: Section }) {
                     color: T.BLUE,
                 }}
             >
-                {td("Open task list")}
+                {t("pages.dashboard.personal.actions.open_task_list")}
             </a>
         </div>
     );
@@ -231,14 +236,8 @@ function SectionHeader({ section }: { section: Section }) {
  * Describes what will appear, not the absence — the queue filling up is a
  * normal state, not a failure to configure something.
  */
-function QueueEmptyState({
-    windowDays,
-    tasksHref,
-}: {
-    windowDays: number;
-    tasksHref: string;
-}) {
-    const { td } = useTd();
+function QueueEmptyState({ tasksHref }: { tasksHref: string }) {
+    const { t } = useTranslation();
 
     return (
         <div
@@ -287,7 +286,7 @@ function QueueEmptyState({
                     color: T.NAVY,
                 }}
             >
-                {td("Nothing is waiting on you")}
+                {t("pages.dashboard.personal.queue.empty_title")}
             </p>
             <p
                 style={{
@@ -298,10 +297,8 @@ function QueueEmptyState({
                     color: T.TEXT_MUTED,
                 }}
             >
-                {td("No task is overdue and nothing is upcoming.")}{" "}
-                {td(
-                    "Tasks appear here the moment one of those stops being true.",
-                )}
+                {t("pages.dashboard.personal.queue.empty_body_1")}{" "}
+                {t("pages.dashboard.personal.queue.empty_body_2")}
             </p>
 
             <a
@@ -309,7 +306,7 @@ function QueueEmptyState({
                 className="dr-btn dr-btn-ghost"
                 style={{ marginTop: 18 }}
             >
-                {td("Open task list")}
+                {t("pages.dashboard.personal.actions.open_task_list")}
             </a>
         </div>
     );

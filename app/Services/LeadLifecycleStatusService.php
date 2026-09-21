@@ -60,13 +60,38 @@ class LeadLifecycleStatusService
     public function delete(LeadLifecycleStatus $status): void
     {
         if ($status->isSystemKey()) {
-            throw new \InvalidArgumentException('System lifecycle statuses cannot be deleted.');
+            throw new \InvalidArgumentException('Built-in lead statuses cannot be deleted.');
         }
 
         if ($this->isInUse($status)) {
-            throw new \InvalidArgumentException('Lifecycle status is assigned to leads and cannot be deleted.');
+            throw new \InvalidArgumentException('This lead status is assigned to leads and cannot be deleted.');
         }
 
         $status->delete();
+    }
+
+    /**
+     * @param  list<int>  $ids
+     */
+    public function reorder(int $companyId, array $ids): Collection
+    {
+        $existingIds = LeadLifecycleStatus::query()
+            ->where('company_id', $companyId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (array_diff($ids, $existingIds) !== [] || array_diff($existingIds, $ids) !== []) {
+            throw new \InvalidArgumentException('Lead status order is incomplete.');
+        }
+
+        foreach ($ids as $index => $id) {
+            LeadLifecycleStatus::query()
+                ->where('company_id', $companyId)
+                ->where('id', $id)
+                ->update(['sort_order' => $index + 1]);
+        }
+
+        return $this->listForCompany($companyId);
     }
 }

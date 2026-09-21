@@ -22,7 +22,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
     if (!data.total) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("No lead in this window has a recorded first contact yet.")}
+                {td("No lead in this window has a recorded first contact yet.", { source: "en" })}
             </p>
         );
     }
@@ -59,7 +59,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                             alignItems: "center",
                             gap: 6,
                         }}
-                        title={`${bucket.count} ${td("leads")}`}
+                        title={`${bucket.count} ${td("leads", { source: "en" })}`}
                     >
                         <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
                             {bucket.count || ""}
@@ -96,7 +96,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                 {summary.map(([label, value, color]) => (
                     <div key={label}>
                         <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                            {td(label)}
+                            {td(label, { source: "en" })}
                         </div>
                         <div
                             style={{
@@ -120,14 +120,14 @@ function formatMinutes(
     td: (value: string) => string,
 ): string {
     if (minutes === null) return "—";
-    if (minutes < 60) return `${minutes}${td("m")}`;
+    if (minutes < 60) return `${minutes}${td("m", { source: "en" })}`;
     if (minutes < 1440) {
         const hours = Math.floor(minutes / 60);
 
-        return `${hours}${td("h")} ${minutes % 60}${td("m")}`;
+        return `${hours}${td("h", { source: "en" })} ${minutes % 60}${td("m", { source: "en" })}`;
     }
 
     const days = Math.floor(minutes / 1440);
 
-    return `${days}${td("d")} ${Math.round((minutes % 1440) / 60)}${td("h")}`;
+    return `${days}${td("d", { source: "en" })} ${Math.round((minutes % 1440) / 60)}${td("h", { source: "en" })}`;
 }
