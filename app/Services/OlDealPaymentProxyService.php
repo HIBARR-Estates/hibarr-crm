@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Services\OlWebhook\OlPayloadMapper;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -10,16 +11,28 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OlDealPaymentProxyService
 {
+    public function __construct(
+        private readonly OlPayloadMapper $payloadMapper,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
     public function createForDeal(Deal $deal, array $input): array
     {
+        $deal->loadMissing('leadStage', 'leadAgent.user');
+
         $payload = [
             'deal_id' => $deal->id,
             'amount' => round((float) $input['amount'], 2),
             'currency' => strtoupper((string) $input['currency']),
+            // OL's shadow copy of the deal is created by an async webhook that may not
+            // have landed yet; the snapshot (same shape as the webhook entityData) lets OL
+            // create it synchronously instead of failing with "deal not found".
+            'deal' => $this->payloadMapper->mapDealEntityData($deal) + [
+                'occurredAt' => ($deal->updated_at ?? now())->toIso8601String(),
+            ],
         ];
 
         // Omit provider_key unless explicitly set so OL checkout can let the client choose.
