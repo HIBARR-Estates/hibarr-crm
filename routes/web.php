@@ -25,7 +25,6 @@ use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealGatheringController;
 use App\Http\Controllers\DealNoteController;
 use App\Http\Controllers\DealPaymentController;
-use App\Http\Controllers\TelephonyCallController;
 use App\Http\Controllers\DealPropertyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
@@ -141,6 +140,7 @@ use App\Http\Controllers\TaskLabelController;
 use App\Http\Controllers\TaskNoteController;
 use App\Http\Controllers\TaskReportController;
 use App\Http\Controllers\TaskSavedViewController;
+use App\Http\Controllers\TelephonyCallController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketCustomFormController;
 use App\Http\Controllers\TicketFileController;
@@ -166,6 +166,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard-advanced', [DashboardController::class, 'advancedDashboard'])->name('dashboard.advanced');
     Route::get('dashboard-v2', [App\Http\Controllers\DashboardV2Controller::class, 'index'])->name('dashboard.v2');
+    Route::get('dashboard-v2/seed-team', [App\Http\Controllers\DashboardV2Controller::class, 'seedTeam'])->name('dashboard.v2.seed-team');
     // Partner flags. store() enforces the trust boundary itself — a partner may
     // only flag a lead their own agent record introduced.
     Route::post('partner-flags', [App\Http\Controllers\PartnerFlagController::class, 'store'])->name('partner-flags.store');
@@ -1179,7 +1180,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('properties/bulk-action', [App\Http\Controllers\PropertyController::class, 'bulkAction'])->name('properties.bulk_action');
     Route::get('properties/import', [App\Http\Controllers\PropertyController::class, 'importProperty'])->name('properties.import');
     Route::post('properties/import', [App\Http\Controllers\PropertyController::class, 'importStore'])->name('properties.import.store');
-    Route::post('properties/import-process', [App\Http\Controllers\PropertyController::class, 'importProcess'])->name('properties.import.process');
     Route::get('properties/sample-import', [App\Http\Controllers\PropertyController::class, 'downloadSampleImport'])->name('properties.sample_import');
     Route::post('properties/export', [App\Http\Controllers\PropertyController::class, 'exportProperties'])->name('properties.export');
     Route::get('properties/configurations', [App\Http\Controllers\PropertyController::class, 'getPropertyConfigurations'])->name('properties.configurations');

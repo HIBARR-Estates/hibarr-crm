@@ -21,6 +21,7 @@ class Kernel extends HttpKernel
     protected $middleware = [
         \App\Http\Middleware\TrustProxies::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        \App\Http\Middleware\OpenTelemetryTraceMiddleware::class,
         ValidatePostSize::class,
         TrimStrings::class,
         ConvertEmptyStringsToNull::class,
@@ -39,9 +40,13 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            // Logs out other sessions once the user's password hash changes
+            // (password reset/update, or an admin setting a new password).
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ParsePatchMultipart::class, // Parse multipart for PATCH requests
+            \App\Http\Middleware\SanitizeRichTextInput::class, // After PATCH multipart parsing, so those fields are covered too
             \App\Http\Middleware\HandleInertiaRequests::class,
         ],
 
@@ -49,6 +54,7 @@ class Kernel extends HttpKernel
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SanitizeRichTextInput::class,
         ],
     ];
 
@@ -71,6 +77,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'translation' => \App\Http\Middleware\EnsureTranslationToken::class,
         'api.token' => \App\Http\Middleware\ApiTokenAuth::class,
+        'api.token.or.session' => \App\Http\Middleware\ApiTokenOrSession::class,
         'crm.write.client' => \App\Http\Middleware\EnsureCrmWriteClientEnabled::class,
         'crm.event' => \App\Http\Middleware\CrmEventMiddleware::class,
     ];

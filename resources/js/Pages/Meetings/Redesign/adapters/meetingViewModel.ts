@@ -4,8 +4,9 @@ import timezonePlugin from "dayjs/plugin/timezone";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
     isVideoPlatform,
-    producesMeetingSummary,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { meetingPlatformColor } from "@/Components/Redesign/tokens";
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -169,16 +170,7 @@ export function platformIconName(location: string): string {
  * provider's own product does. Falls back to a neutral gray for phone/on-site.
  */
 export function platformChipColor(location: string): string {
-    const colors: Record<string, string> = {
-        zoom: "#2D8CFF",
-        teams: "#5059C9",
-        zoho: "#C8202A",
-        zoho_meet: "#C8202A",
-        meet: "#00897B",
-        google_meet: "#00897B",
-        skype: "#00AFF0",
-    };
-    return colors[location] ?? "#9CA3AF";
+    return meetingPlatformColor(location);
 }
 
 /**
@@ -223,23 +215,8 @@ export function platformLabelKey(location: string): string | null {
     return key ? `pages.meetings.platforms.${key}` : null;
 }
 
-export type MeetingSummaryState = "ready" | "generating" | "none";
-
-/**
- * Only the platforms `producesMeetingSummary` names can produce one.
- * Everything else shows neither the "View summary" link nor the "Generating…"
- * pill, because neither would ever resolve.
- */
-export function meetingSummaryState(
-    meeting: DealFollowup,
-    bucket: MeetingBucket,
-): MeetingSummaryState {
-    if (!producesMeetingSummary(meeting.location, meeting.meeting_link)) {
-        return "none";
-    }
-    if (meeting.meeting_summary) return "ready";
-    return bucket === "past" ? "generating" : "none";
-}
+export type { MeetingSummaryState } from "@/Components/Redesign/meeting/meetingSummaryState";
+export { meetingSummaryState } from "@/Components/Redesign/meeting/meetingSummaryState";
 
 export function isSafeMeetingUrl(url?: string | null): boolean {
     return !!url && /^https?:\/\//i.test(url);
@@ -257,36 +234,8 @@ export function canJoinMeeting(
     );
 }
 
-export interface MeetingRecordLink {
-    name: string;
-    href: string | null;
-    /** Which kind of record, so callers can label the link correctly. */
-    type: "deal" | "lead";
-}
-
-/** The deal or lead a meeting hangs off, and where clicking it goes. */
-export function meetingRecordLink(
-    meeting: DealFollowup,
-): MeetingRecordLink | null {
-    if (meeting.deal) {
-        return {
-            name: meeting.deal.name,
-            href: `/account/deals/${meeting.deal.id}`,
-            type: "deal",
-        };
-    }
-    if (meeting.lead) {
-        return {
-            name:
-                meeting.lead.client_name_salutation ||
-                meeting.lead.client_name ||
-                "",
-            href: route("lead-contact.show", meeting.lead.id),
-            type: "lead",
-        };
-    }
-    return null;
-}
+export type { MeetingRecordLink } from "@/Components/Redesign/meeting/meetingRecordLink";
+export { meetingRecordLink } from "@/Components/Redesign/meeting/meetingRecordLink";
 
 type PermissionScope = "all" | "added" | "none" | string;
 

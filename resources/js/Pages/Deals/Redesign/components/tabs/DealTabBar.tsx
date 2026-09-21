@@ -2,8 +2,8 @@ import { KeyboardEvent } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { DealTab, DealTabCount } from "../../types";
 import useHScroll from "../../hooks/useHScroll";
-import DealIcon from "../primitives/DealIcon";
-import DealScrollArrow from "../primitives/DealScrollArrow";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import ScrollArrow from "@/Components/Redesign/primitives/ScrollArrow";
 
 // Icons for the meta tabs only — they sit past the divider and are easy to
 // miss, so an icon makes Deal info / Timeline stand out. Record tabs stay
@@ -94,7 +94,7 @@ export default function DealTabBar({
                 className="dr-tab"
                 onClick={() => onChange(id)}
             >
-                {icon && <DealIcon name={icon} size={14} />}
+                {icon && <Icon name={icon} size={14} />}
                 {labels[id]}
                 {count != null && <span className="dr-tab-count">{count}</span>}
             </button>
@@ -104,7 +104,7 @@ export default function DealTabBar({
     return (
         <div className="dr-tabs">
             {hasOverflow && (
-                <DealScrollArrow
+                <ScrollArrow
                     dir="left"
                     enabled={scroll.overflow.left}
                     onClick={() => scroll.nudge(-1)}
@@ -122,7 +122,7 @@ export default function DealTabBar({
                 {recordTabs.map((tab) => renderTab(tab.id, tab.countKey))}
             </div>
             {hasOverflow && (
-                <DealScrollArrow
+                <ScrollArrow
                     dir="right"
                     enabled={scroll.overflow.right}
                     onClick={() => scroll.nudge(1)}

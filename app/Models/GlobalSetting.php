@@ -201,6 +201,21 @@ class GlobalSetting extends BaseModel
         'google_client_secret' => 'encrypted'
     ];
 
+    /**
+     * Secrets that must never be serialized to the frontend — GlobalSetting is
+     * shared in full on every Inertia page load (HandleInertiaRequests::share,
+     * 'company'/'appTheme' props via companyOrGlobalSetting()), so anything not
+     * hidden here ships to every authenticated browser as plaintext (encrypted
+     * casts decrypt on serialization). See security audit Phase 9, P9-01.
+     */
+    protected $hidden = [
+        'google_recaptcha_v2_secret_key',
+        'google_recaptcha_v3_secret_key',
+        'google_client_secret',
+        'google_map_key',
+        'token',
+    ];
+
     public $dates = ['last_cron_run'];
 
     const COMPANY_TABLES = [

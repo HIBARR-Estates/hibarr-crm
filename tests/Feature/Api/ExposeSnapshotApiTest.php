@@ -446,6 +446,7 @@ class ExposeSnapshotApiTest extends TestCase
                 $table->unsignedInteger('company_id')->nullable();
                 $table->string('name');
                 $table->json('permissions')->nullable();
+                $table->boolean('unrestricted')->default(false);
                 $table->boolean('revoked')->default(false);
                 $table->timestamps();
             });

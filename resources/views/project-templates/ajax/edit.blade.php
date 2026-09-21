@@ -100,8 +100,8 @@ $addProjectCategoryPermission = user()->permission('manage_project_category');
                         <div class="form-group my-3">
                             <x-forms.label class="my-3" fieldId="notes" :fieldLabel="__('modules.projects.note')">
                             </x-forms.label>
-                            <div id="notes">{!! $template->notes !!}</div>
-                            <textarea name="notes" id="notes-text" class="d-none">{!! $template->notes !!}</textarea>
+                            <div id="notes">{!! clean_html($template->notes) !!}</div>
+                            <textarea name="notes" id="notes-text" class="d-none">{!! clean_html($template->notes) !!}</textarea>
                         </div>
                     </div>
                 </div>

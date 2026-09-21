@@ -1,4 +1,4 @@
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { RailSectionGroup, RailStep } from "./analysisRailItems";
 
 interface Props {
@@ -109,7 +109,7 @@ function StepItem({
         >
             <div
                 className="absolute left-0 top-0 bottom-0 w-1 transition-all"
-                style={{ backgroundColor: isActive ? "#38bdf8" : "transparent" }}
+                style={{ backgroundColor: isActive ? "var(--dr-sky)" : "transparent" }}
             />
             {/* The question reads as context for its answer, so it stays lighter than
                 the value; the ✓ carries the answered state the old eyebrow spelled out. */}
@@ -121,7 +121,7 @@ function StepItem({
                 {step.title}
             </div>
             {step.filled && step.value ? (
-                <div className="text-[14px] font-bold leading-snug line-clamp-3 mt-0.5" style={{ color: "#ffffff" }}>
+                <div className="text-[14px] font-bold leading-snug line-clamp-3 mt-0.5" style={{ color: T.WHITE }}>
                     {step.value}
                 </div>
             ) : null}

@@ -56,6 +56,7 @@ import {
     patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import {
     buildTaskListTourSteps,
     TASKS_LIST_TOUR_ID,
@@ -433,27 +434,6 @@ export default function TasksWorkspaceRedesign({
         setSelectAllMatching(false);
     }, [pagedTableTasks.total, filterSignature]);
 
-    const filtersInitialized = useRef(false);
-
-    useEffect(() => {
-        if (!filtersInitialized.current) {
-            filtersInitialized.current = true;
-            return;
-        }
-        router.get(route("tasks.index"), mergeQueryParams({ page: 1 }), {
-            only: [
-                "tableTasks",
-                "taskQuickCounts",
-                "stats",
-                "kanbanTasks",
-                "filters",
-                "now",
-            ],
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, [filterSignature]);
-
     const handleQuickFilter = (key: QuickFilterKey) => {
         router.get(
             route("tasks.index"),
@@ -580,6 +560,7 @@ export default function TasksWorkspaceRedesign({
                     labels={TASKS_LIST_TOUR_LABELS}
                 />
             )}
+            <div style={{ fontFamily: REDESIGN_FONT_STACK }}>
             <TasksWorkspaceChrome
                 view={view}
                 onViewChange={setView}
@@ -714,6 +695,7 @@ export default function TasksWorkspaceRedesign({
                         }
                     />
                 )}
+            </div>
             </div>
 
             <TasksWorkspaceModals

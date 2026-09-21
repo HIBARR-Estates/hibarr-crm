@@ -9,8 +9,9 @@ import type {
 } from "@/Types/api/crm-event";
 import type { TimelineEventViewModel } from "../../adapters/timelineAdapter";
 import type { TimelineEventUpdateInput } from "../../hooks/useDealTimelineEventMutations";
-import DealButton from "../primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import { DealModal, DealModalField } from "../primitives/DealModal";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 dayjs.extend(utc);
 
@@ -84,26 +85,26 @@ export default function DealTimelineEventEditModal({
             onClose={onClose}
             footer={
                 <>
-                    <DealButton
+                    <Button
                         variant="ghost"
                         onClick={onClose}
                         disabled={saving}
                     >
                         {t("pages.deals.common.cancel")}
-                    </DealButton>
-                    <DealButton
+                    </Button>
+                    <Button
                         variant="primary"
                         onClick={handleSubmit}
                         loading={saving}
                         disabled={saving}
                     >
                         {t("pages.deals.common.save_changes")}
-                    </DealButton>
+                    </Button>
                 </>
             }
         >
             {event && (
-                <div className="mb-3 text-[13px] font-semibold" style={{ color: "#1a1f2e" }}>
+                <div className="mb-3 text-[13px] font-semibold" style={{ color: T.TEXT }}>
                     {td(event.title, { source: "en" })}
                 </div>
             )}

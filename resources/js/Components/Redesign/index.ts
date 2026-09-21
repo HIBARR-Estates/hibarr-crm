@@ -25,6 +25,7 @@ export { default as Avatar } from "./primitives/Avatar";
 export { default as AvatarStack } from "./primitives/AvatarStack";
 export type { AvatarStackPerson } from "./primitives/AvatarStack";
 export { Modal, ModalField } from "./primitives/Modal";
+export { default as ModalShell } from "./primitives/ModalShell";
 export { default as PanelHeader } from "./primitives/PanelHeader";
 export { default as ConfirmDialog } from "./primitives/ConfirmDialog";
 export { default as Switch } from "./primitives/Switch";
@@ -64,12 +65,29 @@ export { default as RescheduleMeetingModal } from "./modals/RescheduleMeetingMod
 export { default as TaskDetailModal } from "./modals/TaskDetailModal";
 export { default as NoteDetailModal } from "./modals/NoteDetailModal";
 export { default as WorkspaceNotesTab } from "./workspace/WorkspaceNotesTab";
+export { default as WorkspaceTabSectionHeader } from "./workspace/WorkspaceTabSectionHeader";
+export { buildWorkspaceTaskTabSections } from "./workspace/buildWorkspaceTaskTabSections";
+export type {
+    WorkspaceTaskTabFilter,
+    WorkspaceTaskTabSection,
+} from "./workspace/buildWorkspaceTaskTabSections";
+export { default as OverviewColumn } from "./workspace/OverviewColumn";
+export type {
+    OverviewColumnEmptyMeta,
+    OverviewColumnProps,
+} from "./workspace/OverviewColumn";
 export {
     toWorkspaceNotePreview,
     hasNoteScopeAccess,
 } from "./adapters/noteAdapter";
 export type { WorkspaceNotePreview } from "./adapters/noteAdapter";
+/** @deprecated Flag-off fallback only — use MeetingViewModal for viewing meetings. */
 export { default as MeetingDetailModal } from "./modals/MeetingDetailModal";
+export { default as MeetingViewModal } from "./modals/MeetingViewModal";
+export { default as MeetingScheduleModal } from "./modals/MeetingScheduleModal";
+export { default as MeetingDetailCompact } from "./modals/MeetingDetailCompact";
+/** @deprecated Prefer MeetingScheduleModal — flag-gated orphan schedule entry. */
+export { default as OrphanScheduleMeetingDialog } from "./modals/OrphanScheduleMeetingDialog";
 export { default as ItineraryModal } from "./modals/ItineraryModal";
 export type {
     ItineraryFormInput,

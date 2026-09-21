@@ -9,6 +9,7 @@ use App\Scopes\CompanyScope;
 use App\Services\ApiV2\CrmWriteService;
 use App\Services\DealPaymentService;
 use App\Services\DealPaymentUiStateMapper;
+use App\Services\OlWebhook\OlPayloadMapper;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -124,6 +125,39 @@ class DealPaymentRequestTest extends TestCase
 
         $this->assertSame('510', $result['payment_id']);
         $this->assertSame('https://checkout.test/pay/510', $result['checkout_url']);
+    }
+
+    public function test_create_sends_deal_snapshot_matching_webhook_entity_data(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '511',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/511',
+                    'amount' => 1000,
+                ],
+            ], 201),
+        ]);
+
+        $deal = $this->makeDeal();
+        $user = $this->makeUser();
+
+        app(DealPaymentService::class)->createForDeal($deal, $user, [
+            'amount' => 1000,
+            'currency' => 'EUR',
+        ]);
+
+        $expectedEntityData = app(OlPayloadMapper::class)->mapDealEntityData($deal->fresh());
+
+        Http::assertSent(function ($request) use ($deal, $expectedEntityData) {
+            $snapshot = $request->data()['deal'] ?? null;
+
+            return is_array($snapshot)
+                && $snapshot['title'] === $expectedEntityData['title']
+                && $snapshot['assignedTo'] === $expectedEntityData['assignedTo']
+                && ($snapshot['occurredAt'] ?? null) === $deal->fresh()->updated_at->toIso8601String();
+        });
     }
 
     public function test_get_merges_local_checkout_url_with_ol_pull_status(): void

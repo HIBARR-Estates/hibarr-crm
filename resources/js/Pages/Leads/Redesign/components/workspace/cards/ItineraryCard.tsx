@@ -17,13 +17,13 @@ export default function ItineraryCard({ leg, onClick }: ItineraryCardProps) {
             onClick={onClick}
         >
             <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-[13px] font-semibold capitalize text-[#1a1f2e]">
+                <span className="text-[13px] font-semibold capitalize text-dr-text">
                     {leg.direction} · {leg.flight_number || "—"}
                 </span>
                 <span className="v2-pill v2-pill-gray">{leg.status}</span>
             </div>
-            <div className="text-xs text-[#6b7280]">{leg.airport_name}</div>
-            <div className="mt-0.5 text-[11px] text-[#9ca3af]">{when}</div>
+            <div className="text-xs text-dr-text-muted">{leg.airport_name}</div>
+            <div className="mt-0.5 text-[11px] text-dr-text-hint">{when}</div>
         </button>
     );
 }

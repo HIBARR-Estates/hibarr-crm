@@ -141,7 +141,7 @@
                         @include('api-token-settings.partials.scope-picker', [
                             'inputPrefix' => 'create',
                             'selectedScopes' => [],
-                            'unrestricted' => true,
+                            'unrestricted' => false,
                         ])
                     </div>
                     <div class="modal-footer">
@@ -177,7 +177,7 @@
                         @include('api-token-settings.partials.scope-picker', [
                             'inputPrefix' => 'edit',
                             'selectedScopes' => [],
-                            'unrestricted' => true,
+                            'unrestricted' => false,
                         ])
                     </div>
                     <div class="modal-footer">
@@ -265,8 +265,8 @@
 
     $('#open-create-api-token').on('click', function () {
         $('#api-token-name').val('');
-        $('#create-api-token-unrestricted').prop('checked', true);
-        $('#create-api-token-scopes-panel').addClass('d-none');
+        $('#create-api-token-unrestricted').prop('checked', false);
+        $('#create-api-token-scopes-panel').removeClass('d-none');
         $('#create-api-token-form .api-token-scope-checkbox').prop('checked', false);
         $('#create-api-token-modal').modal('show');
     });

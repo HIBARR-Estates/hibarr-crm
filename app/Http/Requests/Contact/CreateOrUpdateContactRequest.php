@@ -26,6 +26,14 @@ class CreateOrUpdateContactRequest extends CoreRequest
             ]);
         }
 
+        if (! $this->exists('referral_agent_id') && $this->exists('referralAgentId')) {
+            $this->merge([
+                'referral_agent_id' => $this->input('referralAgentId'),
+            ]);
+        }
+
+        $this->dropInvalidReferralAgentId();
+
         if ($this->has('preferred_contact_time') && is_array($this->input('preferred_contact_time'))) {
             $this->merge([
                 'preferred_contact_times' => $this->input('preferred_contact_time'),
@@ -49,8 +57,6 @@ class CreateOrUpdateContactRequest extends CoreRequest
      */
     public function rules()
     {
-        $referralAgentRules = $this->referralAgentRules();
-
         return [
             // Required contact fields
             'name' => 'required|string|max:255',
@@ -61,8 +67,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
             'lead_owner_id' => 'nullable|integer|exists:users,id',
-            'referral_agent_id' => $referralAgentRules,
-            'referal_agent_id' => $referralAgentRules,
+            'referral_agent_id' => 'nullable|integer|min:1',
             'lead_category_id' => 'nullable|integer|exists:lead_category,id',
             'lead_category_ids' => 'sometimes|nullable|array',
             'lead_category_ids.*' => 'integer|exists:lead_category,id',
@@ -76,6 +81,11 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'utmInfo.campaign' => 'nullable|string|max:255',
             'utmInfo.term' => 'nullable|string|max:255',
             'utmInfo.content' => 'nullable|string|max:255',
+            'utmInfo.utmSource' => 'nullable|string|max:255',
+            'utmInfo.utmMedium' => 'nullable|string|max:255',
+            'utmInfo.utmCampaign' => 'nullable|string|max:255',
+            'utmInfo.utmTerm' => 'nullable|string|max:255',
+            'utmInfo.utmContent' => 'nullable|string|max:255',
             'facebook_click_id' => 'nullable|string|max:255',
             'facebook_lead_id' => 'nullable|string|max:255',
             'facebook_browser_id' => 'nullable|string|max:255',
@@ -117,33 +127,22 @@ class CreateOrUpdateContactRequest extends CoreRequest
     }
 
     /**
-     * @return list<string|\Illuminate\Validation\Rules\Exists>
+     * Bad referral ids must not 422 the request — drop them and create the lead without a referrer.
      */
-    private function referralAgentRules(): array
+    private function dropInvalidReferralAgentId(): void
     {
-        $rules = ['nullable', 'integer'];
-        $exists = Rule::exists('lead_agents', 'id');
-        $companyId = $this->resolveCompanyId();
-        if ($companyId) {
-            $exists = $exists->where(fn ($query) => $query->where('company_id', $companyId));
+        if (! $this->has('referral_agent_id')) {
+            return;
         }
 
-        $rules[] = $exists;
+        $raw = $this->input('referral_agent_id');
+        if ($raw === null || $raw === '' || ! is_numeric($raw) || (int) $raw < 1) {
+            $this->offsetUnset('referral_agent_id');
 
-        return $rules;
-    }
-
-    private function resolveCompanyId(): ?int
-    {
-        $companyId = $this->header('X-COMPANY-ID');
-        if (! $companyId && function_exists('company')) {
-            $company = company();
-            if ($company && is_object($company) && isset($company->id)) {
-                $companyId = $company->id;
-            }
+            return;
         }
 
-        return $companyId ? (int) $companyId : null;
+        $this->merge(['referral_agent_id' => (int) $raw]);
     }
 
     /**

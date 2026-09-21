@@ -15,7 +15,7 @@ import {
     canEditTask,
     type TaskPermissionSet,
 } from "../../adapters/taskPermissions";
-import type { TaskRowAction } from "../primitives/TaskRowMenu";
+import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 
 interface BuildTaskRowActionsArgs {
     vm: TaskViewModel;
@@ -37,8 +37,8 @@ export function buildTaskRowActions({
     onEdit,
     onDuplicate,
     onDelete,
-}: BuildTaskRowActionsArgs): TaskRowAction[] {
-    const actions: TaskRowAction[] = [
+}: BuildTaskRowActionsArgs): RowAction[] {
+    const actions: RowAction[] = [
         {
             key: "open",
             label: "View details",

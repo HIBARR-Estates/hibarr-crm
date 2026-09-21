@@ -42,7 +42,7 @@
                 @if(($isClient == true) && $client)
                     <div class="text-grey f-10 float-left mt-0">{{ __('(Added By : ') . $client->name . ')' }}</div><br/>
                 @endif
-                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! $note->note !!}
+                <div class="card-text f-14 text-dark-grey text-justify ql-editor">{!! clean_html($note->note) !!}
                 </div>
             </div>
         </div>

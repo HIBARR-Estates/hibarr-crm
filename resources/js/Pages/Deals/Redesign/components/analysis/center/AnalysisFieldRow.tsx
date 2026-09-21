@@ -1,4 +1,5 @@
-interface Props {
+
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";interface Props {
     number?: number;
     answered: boolean;
     label?: string;
@@ -18,7 +19,7 @@ export default function AnalysisFieldRow({ number, answered, label, isRequired, 
                 style={
                     answered
                         ? { backgroundColor: "#d1fae5", color: "#065f46", boxShadow: "0 0 0 2px #a7f3d0" }
-                        : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
+                        : { backgroundColor: T.BORDER_SOFT, color: T.TEXT_HINT }
                 }
             >
                 {answered ? (
@@ -33,7 +34,7 @@ export default function AnalysisFieldRow({ number, answered, label, isRequired, 
             {/* Label + input */}
             <div className="flex-1 min-w-0">
                 {label && (
-                    <p className="text-sm font-medium text-slate-800 leading-snug mb-2">
+                    <p className="text-sm font-medium text-dr-text leading-snug mb-2">
                         {label}
                         {isRequired && <span className="text-indigo-400 ml-0.5">*</span>}
                     </p>

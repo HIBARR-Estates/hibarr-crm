@@ -152,7 +152,7 @@
                         @endif
                         <div class="card-text f-14 text-dark-grey ">
                             <div class="card-text f-14 text-dark-grey text-justify px-0">
-                                {!! $comment->comment !!}
+                                {!! clean_html($comment->comment) !!}
 
                             </div>
                             <div id="emoji-{{$comment->id}}">

@@ -16,6 +16,7 @@ import {
     type StatusToken,
     type TaskBucketKey,
 } from "../config/taskDesignTokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export interface LinkedRecord {
     type: RecordTypeKey;
@@ -258,14 +259,14 @@ export function toTaskViewModel(
         dueText: dueDisplay(due, now),
         dueSub: dueSubLabel(due, bucket, now),
         dueColor: done
-            ? "#9ca3af"
+            ? T.TEXT_HINT
             : late
-              ? "#b91c1c"
+              ? T.RED
               : today
-                ? "#b45309"
-                : "#5b6472",
-        dueBg: late ? "#fef2f2" : today ? "#fffbeb" : "#f5f6f8",
-        dueBorder: late ? "#fecaca" : today ? "#fde68a" : "#e8eaed",
+                ? T.AMBER_TEXT
+                : T.TEXT_MUTED,
+        dueBg: late ? T.RED_SOFT : today ? T.AMBER_BG : T.GRAY,
+        dueBorder: late ? T.RED_MID : today ? T.AMBER_BORDER : T.GRAY_MID,
         people,
         peopleLabel:
             people.length === 0
@@ -276,10 +277,10 @@ export function toTaskViewModel(
         allLinks,
         links: allLinks.slice(0, 2),
         extraLinks: Math.max(0, allLinks.length - 2),
-        titleColor: done ? "#9ca3af" : "#1a1f2e",
+        titleColor: done ? T.TEXT_HINT : T.TEXT,
         titleDecoration: done ? "line-through" : "none",
-        checkBorder: done ? "#177a5b" : "#c7d0de",
-        checkBg: done ? "#177a5b" : "#ffffff",
+        checkBorder: done ? T.GREEN : T.NAVY_MID,
+        checkBg: done ? T.GREEN : T.WHITE,
     };
 }
 

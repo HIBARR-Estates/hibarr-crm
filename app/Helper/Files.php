@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\FileStorage;
 use App\Models\StorageSetting;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Froiden\RestAPI\Exceptions\ApiException;
 use Intervention\Image\ImageManagerStatic as Image;
@@ -159,6 +160,59 @@ class Files
         return $newName;
     }
 
+    /**
+     * Resolve a stored filename to an absolute path inside the given upload
+     * subfolder, rejecting traversal outside that folder.
+     *
+     * @param  bool  $strict  Also require the filename to match the shape produced by
+     *                        self::generateNewFileName() (md5 hash + optional extension).
+     *                        Only safe to use where the filename is known to be
+     *                        machine-generated (e.g. the import wizard) — deleteFile()
+     *                        has ~80 callers with filenames from many DB columns, so it
+     *                        uses the non-strict, basename+containment-only check.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function resolveSafeUploadPath(?string $filename, string $folder, bool $strict = false): string
+    {
+        if (!is_string($filename) || $filename === '') {
+            throw new \InvalidArgumentException('Filename is required.');
+        }
+
+        $base = basename($filename);
+        if ($base !== $filename || $base === '.' || $base === '..') {
+            throw new \InvalidArgumentException('Invalid filename.');
+        }
+
+        if ($strict && !preg_match('/^[a-f0-9]{32}(\.[A-Za-z0-9]{1,10})?$/', $base)) {
+            throw new \InvalidArgumentException('Invalid filename.');
+        }
+
+        $dir = trim($folder, '/\\');
+        $intendedDir = public_path(self::UPLOAD_FOLDER . ($dir !== '' ? DIRECTORY_SEPARATOR . $dir : ''));
+        $candidate = rtrim($intendedDir, '/\\') . DIRECTORY_SEPARATOR . $base;
+
+        $realIntendedDir = realpath($intendedDir);
+        $realCandidate = realpath($candidate);
+
+        if ($realCandidate !== false) {
+            if ($realIntendedDir === false
+                || !str_starts_with($realCandidate . DIRECTORY_SEPARATOR, $realIntendedDir . DIRECTORY_SEPARATOR)) {
+                throw new \InvalidArgumentException('Resolved path escapes the upload directory.');
+            }
+
+            return $realCandidate;
+        }
+
+        // File may not exist yet (import upload) or already be gone (delete) —
+        // fall back to a lexical containment check against the intended dir.
+        if ($realIntendedDir !== false && !str_starts_with($candidate, $realIntendedDir)) {
+            throw new \InvalidArgumentException('Resolved path escapes the upload directory.');
+        }
+
+        return $candidate;
+    }
+
     public static function deleteFile($filename, $folder)
     {
         $dir = trim($folder, '/');
@@ -185,7 +239,13 @@ class Files
         }
 
         // Delete from Local
-        $path = public_path(Files::UPLOAD_FOLDER . '/' . $filePath);
+        try {
+            $path = self::resolveSafeUploadPath($filename, $dir);
+        } catch (\InvalidArgumentException $e) {
+            Log::warning('Files::deleteFile rejected unsafe path: ' . $e->getMessage());
+            return true;
+        }
+
         if (!File::exists($path)) {
             return true;
         }

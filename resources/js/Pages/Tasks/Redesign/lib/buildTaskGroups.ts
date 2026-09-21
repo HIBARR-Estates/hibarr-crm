@@ -6,6 +6,7 @@ import {
     UNCATEGORISED_LABEL,
     categoryToken,
 } from "../config/taskDesignTokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 /** Groups the tasks on the current server page (client-side layout only). */
 export default function buildTaskGroups(
@@ -54,8 +55,8 @@ export default function buildTaskGroups(
         {
             key: "all",
             label: "All tasks",
-            dot: "#9ca3af",
-            fg: "#5b6472",
+            dot: T.TEXT_HINT,
+            fg: T.TEXT_MUTED,
             tasks: viewModels,
         },
     ];

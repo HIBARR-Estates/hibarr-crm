@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskViewModel } from "../adapters/taskViewModel";
-import type { TaskRowAction } from "./primitives/TaskRowMenu";
+import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import TaskBoardColumn from "./board/TaskBoardColumn";
 
 interface TasksBoardViewProps {
@@ -15,7 +15,7 @@ interface TasksBoardViewProps {
     /** Cards revealed per column before "Show more". */
     pageSize: number;
     /** Row menu ("…") actions — same set the list view uses per task. */
-    rowActions: (vm: TaskViewModel) => TaskRowAction[];
+    rowActions: (vm: TaskViewModel) => RowAction[];
     /** Column-header "+" — quick-add pre-filled into that column. Hidden when omitted. */
     onAddToColumn?: (column: TaskboardColumn) => void;
 }

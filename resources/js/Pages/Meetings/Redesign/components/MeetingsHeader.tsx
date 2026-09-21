@@ -29,6 +29,8 @@ interface MeetingsHeaderProps {
     /** Whether the "next up" cards are showing, and how to flip that. */
     stripVisible: boolean;
     onToggleStrip: () => void;
+    /** True only for the round trip the toggle kicks off. */
+    stripToggling: boolean;
     /** Badge on the Filters button. */
     filtersCount: number;
     onOpenFilters: () => void;
@@ -70,6 +72,7 @@ export default function MeetingsHeader({
     filterSentence,
     stripVisible,
     onToggleStrip,
+    stripToggling,
     filtersCount,
     onOpenFilters,
     filtersLabel,
@@ -137,6 +140,7 @@ export default function MeetingsHeader({
                             className="dr-btn dr-btn-ghost"
                             onClick={onToggleStrip}
                             aria-pressed={stripVisible}
+                            disabled={stripToggling}
                         >
                             <Icon
                                 name={stripVisible ? "eye-off" : "eye"}

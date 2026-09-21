@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -8,17 +8,18 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
-import DealAvatar from "../primitives/DealAvatar";
-import DealButton from "../primitives/DealButton";
-import DealDateBlock from "../primitives/DealDateBlock";
-import DealIcon from "../primitives/DealIcon";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
+import OverviewColumn from "@/Components/Redesign/workspace/OverviewColumn";
+import DateBlock from "@/Components/Redesign/primitives/DateBlock";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
 import useDealTaskStatus from "../../hooks/useDealTaskStatus";
 import { DealTab } from "../../types";
 import DealNoteDetailModal from "./DealNoteDetailModal";
 import DealTaskDetailModal from "./DealTaskDetailModal";
 import DealMeetingDetailModal from "./DealMeetingDetailModal";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface WorkspaceOverviewTabProps {
     deal: Deal;
@@ -32,97 +33,6 @@ interface WorkspaceOverviewTabProps {
     onAddTask: () => void;
     onAddMeeting: () => void;
     onAddNote: () => void;
-}
-
-interface EmptyMeta {
-    icon: string;
-    title: string;
-    hint: string;
-    actionLabel: string;
-}
-
-function OverviewColumn({
-    title,
-    count,
-    total,
-    onAdd,
-    onViewAll,
-    empty,
-    isEmpty,
-    canAdd = true,
-    children,
-}: {
-    title: string;
-    count: number;
-    total: number;
-    onAdd: () => void;
-    onViewAll: () => void;
-    empty: EmptyMeta;
-    isEmpty: boolean;
-    /** Hides the add affordances when the user lacks the add permission. */
-    canAdd?: boolean;
-    children: ReactNode;
-}) {
-    const { t } = useTranslation();
-    return (
-        <div className="dr-ov-col">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
-                <span className="dr-label">
-                    {title} <span style={{ fontWeight: 400 }}>· {count}</span>
-                </span>
-                {!isEmpty && canAdd && (
-                    <DealButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={onAdd}
-                        aria-label={`${t("pages.deals.workspace.overview.add")} - ${title}`}
-                    >
-                        + {t("pages.deals.workspace.overview.add")}
-                    </DealButton>
-                )}
-            </div>
-            <div className="flex-1">
-                {isEmpty ? (
-                    <div
-                        role="status"
-                        className="rounded-[10px] border border-dashed px-3.5 py-[22px] text-center"
-                        style={{ borderColor: T.BORDER, background: T.SURFACE }}
-                    >
-                        <div
-                            aria-hidden="true"
-                            className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
-                            style={{ background: T.BLUE_LIGHT }}
-                        >
-                            <DealIcon name={empty.icon} size={17} color="#14538c" />
-                        </div>
-                        <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
-                            {empty.title}
-                        </div>
-                        <div className="mb-3 text-xs leading-relaxed text-[#5b6472]">
-                            {empty.hint}
-                        </div>
-                        {canAdd && (
-                            <DealButton variant="primary" onClick={onAdd}>
-                                + {empty.actionLabel}
-                            </DealButton>
-                        )}
-                    </div>
-                ) : (
-                    children
-                )}
-            </div>
-            {total > 0 && (
-                <button
-                    type="button"
-                    onClick={onViewAll}
-                    className="mt-2 cursor-pointer border-none bg-transparent px-0 py-1.5 text-left text-xs font-semibold"
-                    style={{ color: T.BLUE }}
-                >
-                    {t("pages.deals.workspace.overview.view_all")} →
-                </button>
-            )}
-        </div>
-    );
 }
 
 export default function WorkspaceOverviewTab({
@@ -207,7 +117,7 @@ export default function WorkspaceOverviewTab({
                     >
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                             <span className="flex min-w-0 items-center gap-1.5">
-                                <DealAvatar size={20} initials={note.authorInitials} />
+                                <Avatar size={20} initials={note.authorInitials} />
                                 <span className="truncate text-xs font-semibold">
                                     {note.title || note.authorName}
                                 </span>
@@ -271,7 +181,7 @@ export default function WorkspaceOverviewTab({
                                         fontWeight: overdue ? 600 : 400,
                                     }}
                                 >
-                                    <DealIcon name="calendar" size={11} />
+                                    <Icon name="calendar" size={11} />
                                     {task.dueDateLabel || t("pages.deals.common.no_due_date")}
                                     {overdue
                                         ? ` · ${t("pages.deals.workspace.tasks.overdue")}`
@@ -328,7 +238,7 @@ export default function WorkspaceOverviewTab({
                             className="dr-card mb-2 flex gap-2.5"
                             style={{ padding: "10px 12px" }}
                         >
-                            <DealDateBlock
+                            <DateBlock
                                 monthLabel={meeting.monthLabel}
                                 dayLabel={meeting.dayLabel}
                                 onClick={() => setSelectedMeeting(raw)}
@@ -345,7 +255,10 @@ export default function WorkspaceOverviewTab({
                                             className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
                                             style={{ background: typeColor }}
                                         />
-                                        <span className="min-w-0 truncate text-xs font-semibold">
+                                        <span
+                                            className="min-w-0 truncate text-xs font-semibold"
+                                            style={{ color: T.TEXT }}
+                                        >
                                             {meeting.title}
                                         </span>
                                     </span>
@@ -360,7 +273,7 @@ export default function WorkspaceOverviewTab({
                                             className="mt-[3px] flex items-center gap-1 text-[12px]"
                                             style={{ color: T.TEXT_MUTED }}
                                         >
-                                            <DealIcon name="users" size={11} />
+                                            <Icon name="users" size={11} />
                                             {meeting.attendeesLabel}
                                         </span>
                                     )}
@@ -377,7 +290,7 @@ export default function WorkspaceOverviewTab({
                                             </span>
                                         )}
                                         {canJoin && (
-                                            <DealButton
+                                            <Button
                                                 variant="primary"
                                                 size="sm"
                                                 className="ml-auto shrink-0"
@@ -390,11 +303,11 @@ export default function WorkspaceOverviewTab({
                                                     );
                                                 }}
                                             >
-                                                <DealIcon name="video" size={12} />
+                                                <Icon name="video" size={12} />
                                                 {t(
                                                     "pages.deals.workspace.overview.join",
                                                 )}
-                                            </DealButton>
+                                            </Button>
                                         )}
                                     </div>
                                 )}

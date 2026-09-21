@@ -709,7 +709,12 @@ class DealObserver
                 'address' => $lead->address,
             ];
 
-            $user = User::create($data);
+            // $data also carries client-details columns (company_name, website, address)
+            // that don't exist on users; fill() drops them. company_id is guarded on
+            // User, so it's set explicitly rather than through forceCreate.
+            $user = new User($data);
+            $user->company_id = $company->id;
+            $user->save();
             $user->clientDetails()->create($data);
             $client_id = $user->id;
 

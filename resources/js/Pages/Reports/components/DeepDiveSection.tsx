@@ -26,6 +26,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import MeetingTypeBadge from "./MeetingTypeBadge";
+import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import ViewNote from "@/Pages/Deals/Components/Tabs/notes/ViewNote";
 import { ContentRenderer } from "@/Components/ContentRenderer";
@@ -293,11 +294,20 @@ const MeetingsTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                 }}
             />
             {selected?.deal && (
-                <ViewFollowup
-                    open={!!selected}
+                <MeetingViewModal
+                    meeting={selected}
+                    canEdit={false}
+                    canDelete={false}
                     onClose={() => setSelected(null)}
-                    deal={selected.deal}
-                    followup={selected}
+                    includeSummary
+                    fallback={
+                        <ViewFollowup
+                            open={!!selected}
+                            onClose={() => setSelected(null)}
+                            deal={selected.deal}
+                            followup={selected}
+                        />
+                    }
                 />
             )}
         </>

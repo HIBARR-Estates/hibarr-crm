@@ -92,7 +92,7 @@ export default function AttachmentFileCard({
 
     if (editing) {
         return (
-            <article className="mb-2 flex items-center gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-2.5 last:mb-0">
+            <article className="mb-2 flex items-center gap-3 rounded-lg border border-dr-border bg-white px-3.5 py-2.5 last:mb-0">
                 <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
                     style={{ background: T.GRAY }}
@@ -127,7 +127,7 @@ export default function AttachmentFileCard({
     }
 
     return (
-        <article className="mb-2 flex items-center gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-2.5 last:mb-0">
+        <article className="mb-2 flex items-center gap-3 rounded-lg border border-dr-border bg-white px-3.5 py-2.5 last:mb-0">
             <div
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
                 style={{ background: T.GRAY }}
@@ -136,10 +136,10 @@ export default function AttachmentFileCard({
             </div>
 
             <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium text-[#1a1f2e]">
+                <div className="truncate text-[13px] font-medium text-dr-text">
                     {name}
                 </div>
-                <div className="truncate text-[12px] text-[#9ca3af]">
+                <div className="truncate text-[12px] text-dr-text-hint">
                     {sizeLabel} · {uploadedPrefix} {uploadedLabel}
                 </div>
             </div>
@@ -199,7 +199,7 @@ export default function AttachmentFileCard({
                         title={deleteLabel}
                         aria-label={deleteLabel}
                     >
-                        <Icon name="trash" size={13} color="#dc2626" />
+                        <Icon name="trash" size={13} color={T.RED} />
                     </Button>
                 ) : null}
             </div>

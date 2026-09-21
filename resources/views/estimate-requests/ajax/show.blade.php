@@ -83,7 +83,7 @@
 
             <div class="col-12 px-0 pb-3 d-lg-flex d-md-flex d-block">
                 <p class="mb-0 text-lightest f-14 w-30 ">@lang('app.description')</p>
-                <div class="mb-0 text-dark-grey f-14 w-70 text-wrap ql-editor2 p-0">{!! nl2br($estimateRequest->description) !!}</div>
+                <div class="mb-0 text-dark-grey f-14 w-70 text-wrap ql-editor2 p-0">{!! clean_html(nl2br($estimateRequest->description)) !!}</div>
             </div>
         </x-cards.data>
     </div>

@@ -20,7 +20,7 @@ export default function CollapsibleGroup({
     const [open, setOpen] = useState(defaultOpen);
 
     return (
-        <div className="border-b border-[#eef0f3] last:border-b-0">
+        <div className="border-b border-dr-border-soft last:border-b-0">
             <button
                 type="button"
                 onClick={() => setOpen((prev) => !prev)}

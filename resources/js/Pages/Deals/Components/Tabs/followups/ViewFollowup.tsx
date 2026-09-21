@@ -1,3 +1,9 @@
+/**
+ * @deprecated Do not use as a meeting viewer.
+ * The only view-meeting UI is MeetingViewModal (MeetingDetailCompact),
+ * gated by crm.meetings-page-redesign. This file is the flag-off fallback
+ * and must not be imported by new callers.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";

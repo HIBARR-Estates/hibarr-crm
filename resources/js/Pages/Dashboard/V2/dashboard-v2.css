@@ -188,9 +188,10 @@
     grid-column: span 4;
 }
 
-/* 768–1279: single column — agenda first (what's coming), then the queue and
-   pipeline. The rail is second in the markup (queue actions live below the
-   fold otherwise) but reads better above the task list once stacked. */
+/* 768–1279: single column — agenda then pipeline first (the rail), then the
+   queue. The rail is second in the markup so queue actions aren't buried
+   below the fold on desktop, but reads better above the task list once
+   stacked. */
 @media (max-width: 1279px) {
     .dashboard-v2 .dv2-main,
     .dashboard-v2 .dv2-rail {
@@ -249,4 +250,307 @@
 .dv2-snooze-option:focus-visible {
     outline: 2px solid #1a6bb5;
     outline-offset: 1px;
+}
+
+/* The team network graph: React Flow HTML nodes (not SVG foreignObject). */
+.dashboard-v2 .dv2-network-flow {
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__node {
+    box-sizing: border-box;
+    /* Pills are not selectable; React Flow would otherwise set
+       pointer-events: none on the wrapper and the pane would swallow
+       "+N more". !important beats that inline style. */
+    pointer-events: all !important;
+}
+
+.dashboard-v2 .dv2-network-handle {
+    width: 6px;
+    height: 6px;
+    opacity: 0;
+    pointer-events: none;
+    border: none;
+    background: transparent;
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__controls {
+    box-shadow: 0 1px 4px rgba(22, 41, 77, 0.12);
+    border: 1px solid #e3e6ea;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__controls-button {
+    width: 28px;
+    height: 28px;
+    border-bottom-color: #eef0f3;
+    background: #fff;
+    fill: #5b6472;
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__controls-button:hover {
+    background: #f5f6f8;
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__minimap {
+    border: 1px solid #e3e6ea;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(22, 41, 77, 0.12);
+}
+
+.dashboard-v2 .dv2-network-flow .react-flow__attribution {
+    background: transparent;
+    font-size: 9px;
+    color: #b0b6c0;
+}
+
+.dashboard-v2 .dv2-tree-card {
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+}
+
+.dashboard-v2 .dv2-tree-card[data-selected],
+.dashboard-v2 .react-flow__node.selected .dv2-tree-card {
+    border-color: #1a6bb5;
+    box-shadow: 0 0 0 2px rgba(26, 107, 181, 0.18);
+}
+
+.dashboard-v2 .dv2-tree-card:hover {
+    border-color: #b8d4f0;
+    box-shadow: 0 2px 6px rgba(16, 24, 40, 0.1);
+}
+
+.dashboard-v2 .dv2-tree-card:focus-visible {
+    outline: 2px solid #1a6bb5;
+    outline-offset: 2px;
+}
+
+.dashboard-v2 .dv2-tree-card[data-you] {
+    background: #e8f1fb;
+    border-color: #b8d4f0;
+}
+
+.dashboard-v2 .dv2-tree-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.dashboard-v2 .dv2-tree-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #16294d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-tree-card-you {
+    font-weight: 400;
+    color: #1a6bb5;
+}
+
+.dashboard-v2 .dv2-tree-card-level {
+    font-size: 11px;
+    color: #9ca3af;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-v2 .dv2-tree-card-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eef0f3;
+}
+
+.dashboard-v2 .dv2-tree-card-stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1f2e;
+    font-variant-numeric: tabular-nums;
+}
+
+.dashboard-v2 .dv2-tree-card-stat-label {
+    font-size: 10px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.dashboard-v2 .dv2-tree-card-branch {
+    margin-top: 3px;
+    font-size: 10px;
+    color: #9ca3af;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The "You" card's call-to-action line, under its stats rather than beside
+   them — it reads as a sentence, not a third stat column. */
+.dashboard-v2 .dv2-tree-card-hint {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #1a6bb5;
+    font-weight: 500;
+}
+
+/* Card + optional expand/collapse under it. The source handle sits below
+   this stack, so branch edges only go to real people — never to a pill. */
+.dashboard-v2 .dv2-tree-node {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dashboard-v2 .dv2-tree-branch-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: none;
+}
+
+/* "+N more" / "Show less" on the parent — not tree siblings. */
+.dashboard-v2 .dv2-tree-pill {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 28px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0 12px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.dashboard-v2 .dv2-tree-pill-more {
+    background: #e8f1fb;
+    border: 1px dashed #b8d4f0;
+    color: #14538c;
+}
+
+.dashboard-v2 .dv2-tree-pill-more:hover {
+    background: #d8e9fa;
+}
+
+.dashboard-v2 .dv2-tree-pill-less {
+    background: #f8f9fb;
+    border: 1px solid #e3e6ea;
+    color: #5b6472;
+}
+
+.dashboard-v2 .dv2-tree-pill-less:hover {
+    background: #eef0f3;
+}
+
+/* Portaled outside .dashboard-v2 (DashboardPanel clips overflow). */
+.dv2-chart-tooltip.ts-chart-tooltip {
+    --ts-chart-tooltip-background: #ffffff;
+    --ts-chart-tooltip-color: #1a1f2e;
+    --ts-chart-tooltip-border: 1px solid #e3e6ea;
+    --ts-chart-tooltip-border-radius: 8px;
+    --ts-chart-tooltip-padding: 10px 12px;
+    --ts-chart-tooltip-shadow: 0 8px 24px rgba(22, 41, 77, 0.14);
+    --ts-chart-tooltip-font: 500 12px/1.4 "IBM Plex Sans", system-ui, sans-serif;
+    --ts-chart-tooltip-max-width: 16rem;
+    z-index: 40;
+}
+
+.dv2-chart-popover {
+    min-width: 10rem;
+}
+
+.dv2-chart-popover__title {
+    font-weight: 650;
+    color: #16294d;
+    margin-bottom: 6px;
+}
+
+.dv2-chart-popover__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.dv2-chart-popover__swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+
+.dv2-chart-popover__label {
+    flex: 1 1 auto;
+    color: #5b6472;
+}
+
+.dv2-chart-popover__value {
+    font-weight: 650;
+    color: #1a1f2e;
+    font-variant-numeric: tabular-nums;
+}
+
+.dashboard-v2 .dv2-commission-row[data-clickable] {
+    cursor: pointer;
+}
+
+.dashboard-v2 .dv2-commission-row[data-clickable]:hover {
+    background: #f8f9fb;
+}
+
+.dashboard-v2 .dv2-commission-deal:hover {
+    text-decoration: underline;
+}
+
+/* Team dashboard headline tiles — earnings needs room for three currency figures. */
+.dashboard-v2 .team-stat-tiles {
+    display: grid;
+    gap: 12px;
+    align-items: stretch;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (min-width: 960px) {
+    .dashboard-v2 .team-stat-tiles {
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            minmax(300px, 1.75fr);
+    }
 }

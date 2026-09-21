@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Cashier\Cashier;
 use Laravel\Sanctum\Sanctum;
 
@@ -72,6 +73,15 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Schema::defaultStringLength(191);
+
+        // Password policy for sign-up, invitations, account setup and Fortify
+        // resets/updates. The breach check calls haveibeenpwned (k-anonymity),
+        // so it only runs in production.
+        Password::defaults(function () {
+            $rule = Password::min(10)->letters()->numbers();
+
+            return $this->app->isProduction() ? $rule->uncompromised() : $rule;
+        });
 
         // Register mail component namespace
         // Laravel automatically resolves mail::message to html/message or text/message based on mail driver

@@ -70,8 +70,8 @@ const BAR_STYLE: Record<
     positive: {
         bg: T.NAVY,
         border: T.NAVY,
-        icon: "#ffffff",
-        title: "#ffffff",
+        icon: T.WHITE,
+        title: T.WHITE,
         sub: "rgba(255,255,255,.66)",
     },
     attention: {

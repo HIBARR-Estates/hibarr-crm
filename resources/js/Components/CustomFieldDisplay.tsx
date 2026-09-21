@@ -22,7 +22,7 @@ import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
+import DealBadge from "@/Components/Redesign/primitives/Badge";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";

@@ -100,6 +100,13 @@ return [
         'default_user_id' => (int) env('NOTIFICATION_SERVICE_DEFAULT_USER_ID', 1),
     ],
 
+    'social_auth' => [
+        // social_auth_setting() cache TTL, in seconds. Bounds how long a write
+        // to social_auth_settings made outside SocialAuthSettingController
+        // (migration, tinker, another admin path) can leave a stale row cached.
+        'settings_cache_ttl' => (int) env('SOCIAL_AUTH_SETTINGS_CACHE_TTL', 60),
+    ],
+
     'keycloak' => [
         'client_id'     => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
@@ -123,8 +130,11 @@ return [
         'api_key' => env('OL_WEBHOOK_API_KEY'),
         'api_key_header' => env('OL_WEBHOOK_API_KEY_HEADER', 'X-API-KEY'),
         'queue' => env('OL_WEBHOOK_QUEUE', 'ol_webhooks'),
-        'tries' => (int) env('OL_WEBHOOK_TRIES', 3),
-        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
+        // Short first retries so a transient failure right after a deal is created doesn't
+        // leave OL without it for minutes (payment requests read OL's copy); longer tail
+        // keeps a brief OL outage from exhausting the delivery.
+        'tries' => (int) env('OL_WEBHOOK_TRIES', 5),
+        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '5,30,120,600,1800'))),
     ],
 
     /*

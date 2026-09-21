@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import useTranslation from "@/Hooks/useTranslation";
-import DealIcon from "../primitives/DealIcon";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 
 interface DealActionsMenuProps {
@@ -150,7 +150,7 @@ export default function DealActionsMenu({
                 className="dr-btn dr-btn-sm dr-btn-ghost"
                 style={{ padding: "5px 8px" }}
             >
-                <DealIcon name="more" size={16} />
+                <Icon name="more" size={16} />
             </button>
             {open &&
                 floatStyle &&

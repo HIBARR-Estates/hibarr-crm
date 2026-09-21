@@ -29,7 +29,7 @@ export default function PartnerTrendChart({
     if (!data.some((point) => point.submitted || point.completed)) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("No referrals recorded in the last 12 months.")}
+                {td("No referrals recorded in the last 12 months.", { source: "en" })}
             </p>
         );
     }
@@ -101,7 +101,7 @@ export default function PartnerTrendChart({
                                         gap: 3,
                                         alignItems: "flex-end",
                                     }}
-                                    title={`${point.label}: ${point.submitted} ${td("submitted")}, ${point.completed} ${td("completed")}`}
+                                    title={`${point.label}: ${point.submitted} ${td("submitted", { source: "en" })}, ${point.completed} ${td("completed", { source: "en" })}`}
                                 >
                                     <Bar
                                         value={point.submitted}

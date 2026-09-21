@@ -78,7 +78,8 @@ export default function TaskStatusSelect({
                     padding: "4px 11px",
                     borderRadius: 999,
                     fontSize: 14,
-                    fontWeight: 600,
+                    fontWeight:
+                        token.fg === T.TEXT_MUTED ? 500 : 600,
                     lineHeight: 1.5,
                     background: token.bg,
                     color: token.fg,

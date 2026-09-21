@@ -29,7 +29,7 @@ export default function LeaderboardTable({
         return (
             <div style={{ padding: 18 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                    {td("No agents report to you yet")}
+                    {td("No agents report to you yet", { source: "en" })}
                 </p>
                 <p
                     style={{
@@ -39,8 +39,7 @@ export default function LeaderboardTable({
                     }}
                 >
                     {td(
-                        "Team membership comes from the parent agent set on each agent record.",
-                    )}
+                        "Team membership comes from the parent agent set on each agent record.", { source: "en" })}
                 </p>
             </div>
         );
@@ -60,16 +59,16 @@ export default function LeaderboardTable({
                         borderBottom: `1px solid ${T.BORDER_SOFT}`,
                     }}
                 >
-                    <div>{td("Agent")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Leads")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Meetings")}</div>
+                    <div>{td("Agent", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Leads", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Meetings", { source: "en" })}</div>
                     <div>
-                        {td("Contacted in")} {data.sla_hours}h
+                        {td("Contacted in", { source: "en" })} {data.sla_hours}h
                     </div>
-                    <div style={{ textAlign: "right" }}>{td("Deals")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Won")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Open")}</div>
-                    <div>{td("Needs attention")}</div>
+                    <div style={{ textAlign: "right" }}>{td("Deals", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Won", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Open", { source: "en" })}</div>
+                    <div>{td("Needs attention", { source: "en" })}</div>
                 </div>
 
                 {data.rows.map((row, index) => (
@@ -104,10 +103,10 @@ function Row({
 
     const attention = [
         row.sla_breaches
-            ? `${row.sla_breaches} ${td("leads over SLA")}`
+            ? `${row.sla_breaches} ${td("leads over SLA", { source: "en" })}`
             : null,
         row.stalled_deals
-            ? `${row.stalled_deals} ${td("deals stalled")}`
+            ? `${row.stalled_deals} ${td("deals stalled", { source: "en" })}`
             : null,
     ].filter(Boolean);
 
@@ -152,8 +151,8 @@ function Row({
                         {row.name}
                     </div>
                     <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                        {isYou ? `${td("You")} · ` : ""}
-                        {row.open_deals} {td("open deals")}
+                        {isYou ? `${td("You", { source: "en" })} · ` : ""}
+                        {row.open_deals} {td("open deals", { source: "en" })}
                     </div>
                 </div>
             </div>
@@ -182,7 +181,7 @@ function Row({
                     {median !== null && (
                         <span
                             aria-hidden
-                            title={`${td("Team median")} ${median}%`}
+                            title={`${td("Team median", { source: "en" })} ${median}%`}
                             style={{
                                 position: "absolute",
                                 left: `${median}%`,

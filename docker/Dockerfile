@@ -47,7 +47,7 @@ RUN mkdir -p \
       'APP_NAME=Hibarr' \
       'APP_ENV=production' \
       'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
-      'APP_DEBUG=true' \
+      'APP_DEBUG=false' \
       'APP_URL=http://localhost' \
       'GRPC_ENABLED=false' \
       'LOG_CHANNEL=stderr' \

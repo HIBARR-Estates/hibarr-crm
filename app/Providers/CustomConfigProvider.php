@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -58,8 +59,9 @@ class CustomConfigProvider extends ServiceProvider
 
             }
         } catch (\Exception $e) {
-            // info($e->getMessage());
-            // Handle exceptions appropriately, e.g., log the error
+            // Config falls back to .env/defaults below; log so a broken SMTP
+            // password decrypt (e.g. after an APP_KEY rotation) isn't silent.
+            Log::error('CustomConfigProvider failed to apply mail/push/session/translate settings: ' . $e->getMessage());
         }
 
         $app = App::getInstance();
@@ -84,6 +86,10 @@ class CustomConfigProvider extends ServiceProvider
             Config::set('mail.mailers.smtp.encryption', $setting->mail_encryption);
 
             Config::set('mail.verified', (bool)$setting->email_verified);
+            // NOTE: $setting->mail_connection ("sync"/"database"), surfaced to
+            // admins as an email-only setting, also switches the app-wide
+            // queue driver — every queued job (imports, reminders, webhooks,
+            // etc.), not just mail, runs synchronously when this is "sync".
             Config::set('queue.default', $setting->mail_connection);
         }
 

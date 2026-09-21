@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 import { ANALYSIS_COUNTRIES } from "../data/countries";
 
@@ -58,7 +58,7 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                     className="h-10 flex items-center gap-1.5 px-3 bg-white border border-r-0 rounded-l-xl text-sm transition-colors"
                     style={
                         open
-                            ? { borderColor: "#38bdf8", boxShadow: "0 0 0 2px #e0f2fe", zIndex: 10 }
+                            ? { borderColor: "var(--dr-sky)", boxShadow: "0 0 0 2px var(--dr-sky-soft)", zIndex: 10 }
                             : { borderColor: T.BORDER }
                     }
                 >
@@ -77,15 +77,15 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                 </button>
 
                 <FloatingDropdown anchorRef={triggerRef} open={open} minWidth={256}>
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-                        <div className="p-2 border-b border-slate-100">
+                    <div className="bg-white border border-dr-border rounded-xl shadow-lg overflow-hidden">
+                        <div className="p-2 border-b border-dr-border-soft">
                             <input
                                 autoFocus
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={td("Search country...", { source: "en" })}
-                                className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
+                                className="w-full text-sm px-2 py-1.5 bg-dr-surface-2 border border-dr-border rounded-lg outline-none focus:border-sky-400"
                             />
                         </div>
                         <div className="max-h-48 overflow-y-auto py-1">
@@ -115,7 +115,7 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
                 value={number}
                 placeholder={td("Enter number...", { source: "en" })}
                 onChange={(e) => update(dial, e.target.value.replace(/[^0-9 \-()]/g, ""))}
-                className="flex-1 min-w-0 h-10 bg-white border border-slate-200 rounded-r-xl px-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors"
+                className="flex-1 min-w-0 h-10 bg-white border border-dr-border rounded-r-xl px-3 text-sm placeholder-dr-text-hint focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors"
                 style={{ color: T.TEXT }}
             />
         </div>

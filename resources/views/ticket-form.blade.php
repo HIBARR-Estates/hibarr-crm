@@ -288,7 +288,7 @@
 
                 </div>
             </div>
-            <input type="hidden" name="company_id" value="{{ $company->id }}">
+            <input type="hidden" name="company_hash" value="{{ $company->hash }}">
             <div class="mt-4 mb-4 form-actions">
                 <button type="button" id="save-form" class="mr-3 btn btn-primary"><i class="fa fa-check"></i>
                     @lang('app.save')</button>

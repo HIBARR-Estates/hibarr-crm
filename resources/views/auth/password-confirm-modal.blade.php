@@ -23,11 +23,28 @@
         </div>
         <input type="hidden" name="locale" value="{{ session()->has('locale') ? session('locale') : global_setting()->locale }}">
     </x-form>
+
+    @if ($ssoProvider)
+        {{-- SSO-only accounts may not know their local password, so let them
+             re-authenticate with the provider they sign in with instead. --}}
+        <div class="row mt-4">
+            <div class="col-lg-12">
+                <p class="f-14 text-dark-grey mb-2">@lang('messages.confirmWithSsoInfo')</p>
+                <x-forms.link-secondary
+                    :link="route('sso_confirm_password', ['method' => $method, 'status' => $status])"
+                    class="height-50 f-14">
+                    @lang('messages.confirmWithSso', ['provider' => $ssoProviderLabel])
+                </x-forms.link-secondary>
+            </div>
+        </div>
+    @endif
 </div>
 <div class="modal-footer">
     <x-forms.button-cancel data-dismiss="modal" class="border-0 mr-3">@lang('app.cancel')</x-forms.button-cancel>
     <x-forms.button-primary id="submit-login" icon="check">@lang('app.confirmPassword')</x-forms.button-primary>
 </div>
+
+@include('auth.two-fa-actions')
 
 <script>
     $('#submit-login').click(function() {
@@ -42,57 +59,8 @@
             type: "POST",
             data: $('#reset-password-form').serialize(),
             success: function(response) {
-                changeFortifySettings();
+                window.runConfirmedTwoFaAction('{{ $method }}', '{{ $status }}', '#reset-password-form');
             }
         })
     });
-
-    function changeFortifySettings() {
-
-        let method = '{{ $method }}';
-        let status = '{{ $status }}';
-        let url = "{{ route('two-fa-settings.update', '1') }}";
-        let token = "{{ csrf_token() }}";
-
-        $.easyAjax({
-            url: url,
-            type: "POST",
-            blockUI: true,
-            container: '#reset-password-form',
-            data: {
-                '_token': token,
-                '_method': 'put',
-                'method': method,
-                'status': status
-            },
-            success: function(response) {
-                if (method == 'google_authenticator') {
-                    changeFortifyStatus(status);
-                } else {
-                    window.location.reload();
-                }
-            }
-        });
-    }
-
-    function changeFortifyStatus(type) {
-        let url = "{{ route('two-factor.enable') }}";
-        let method =  (type) == 'disable' ? 'DELETE' : 'POST';
-        let token = "{{ csrf_token() }}";
-
-        $.easyAjax({
-            url: url,
-            type: "POST",
-            blockUI: true,
-            container: '#reset-password-form',
-            data: {
-                '_token': token,
-                '_method': method
-            },
-            success: function(response) {
-                window.location.reload();
-            }
-        });
-    }
-
 </script>

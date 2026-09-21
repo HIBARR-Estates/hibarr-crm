@@ -74,7 +74,7 @@ export default function LeadershipView({
                                     <Statistic
                                         title={
                                             <Tooltip
-                                                title={`${row.deal_count} ${td("open deals")}`}
+                                                title={`${row.deal_count} ${td("open deals", { source: "en" })}`}
                                             >
                                                 <span>
                                                     {row.currency.toUpperCase()}
@@ -107,24 +107,24 @@ export default function LeadershipView({
                             dataSource={marketSegments ?? []}
                             columns={[
                                 {
-                                    title: td("Segment"),
+                                    title: td("Segment", { source: "en" }),
                                     dataIndex: "segment",
                                     render: (segment: string) =>
                                         segment === "unknown" ? (
                                             <span className="text-slate-400">
-                                                {td("Unknown")}
+                                                {td("Unknown", { source: "en" })}
                                             </span>
                                         ) : (
                                             segment.toUpperCase()
                                         ),
                                 },
                                 {
-                                    title: td("Leads"),
+                                    title: td("Leads", { source: "en" }),
                                     dataIndex: "count",
                                     width: 100,
                                 },
                                 {
-                                    title: td("Share"),
+                                    title: td("Share", { source: "en" }),
                                     dataIndex: "count",
                                     key: "share",
                                     width: 100,

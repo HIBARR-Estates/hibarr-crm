@@ -147,6 +147,14 @@ const createTaskFilterConfig = (
         fields,
         excludeFields: props.excludeFields,
         defaultValues: {},
+        only: [
+            "tableTasks",
+            "taskQuickCounts",
+            "stats",
+            "kanbanTasks",
+            "filters",
+            "now",
+        ],
     };
 };
 

@@ -18,6 +18,7 @@ import BulkActionBar from "../primitives/BulkActionBar";
 import Button from "../primitives/Button";
 import ConfirmDialog from "../primitives/ConfirmDialog";
 import { NotesEmptyState } from "./WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "./WorkspaceTabSectionHeader";
 import Icon from "../primitives/Icon";
 import IntegrationOriginBadge from "../primitives/IntegrationOriginBadge";
 import SelectCheckbox from "../primitives/SelectCheckbox";
@@ -189,7 +190,17 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
             {noteItems.length === 0 ? (
                 <NotesEmptyState onAdd={canAdd ? onAddNote : undefined} />
             ) : (
-                noteItems.map((note) => {
+                <>
+                    <WorkspaceTabSectionHeader
+                        title={td("Notes", { source: "en" })}
+                        count={noteItems.length}
+                        hint={td(
+                            "Each card is one note — scan the title, author, and preview.",
+                            { source: "en" },
+                        )}
+                        className="mb-3"
+                    />
+                    {noteItems.map((note) => {
                     const rawNote = notes.find((item) => item.id === note.id);
                     const showDelete =
                         !selectMode &&
@@ -371,7 +382,8 @@ export default function WorkspaceNotesTab<T extends Note = Note>({
                             </div>
                         </div>
                     );
-                })
+                    })}
+                </>
             )}
 
             {selectedNote
