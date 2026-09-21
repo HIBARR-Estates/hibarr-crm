@@ -311,7 +311,8 @@
 .dashboard-v2 .dv2-tree-card {
     box-sizing: border-box;
     width: 100%;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 8px 10px;
     background: #fff;
     border: 1px solid #e3e6ea;
@@ -349,7 +350,7 @@
 
 .dashboard-v2 .dv2-tree-card-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     min-width: 0;
 }
@@ -400,9 +401,12 @@
 }
 
 .dashboard-v2 .dv2-tree-card-branch {
-    margin-left: auto;
+    margin-top: 3px;
     font-size: 10px;
     color: #9ca3af;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -415,19 +419,42 @@
     font-weight: 500;
 }
 
-/* "+N more" / "Show less" pills inside the graph. */
-.dashboard-v2 .dv2-tree-pill {
+/* Card + optional expand/collapse under it. The source handle sits below
+   this stack, so branch edges only go to real people — never to a pill. */
+.dashboard-v2 .dv2-tree-node {
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dashboard-v2 .dv2-tree-branch-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: none;
+}
+
+/* "+N more" / "Show less" on the parent — not tree siblings. */
+.dashboard-v2 .dv2-tree-pill {
+    box-sizing: border-box;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    height: 28px;
     border-radius: 999px;
+    font: inherit;
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    padding: 0 10px;
+    padding: 0 12px;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .dashboard-v2 .dv2-tree-pill-more {
@@ -496,4 +523,34 @@
     font-weight: 650;
     color: #1a1f2e;
     font-variant-numeric: tabular-nums;
+}
+
+.dashboard-v2 .dv2-commission-row[data-clickable] {
+    cursor: pointer;
+}
+
+.dashboard-v2 .dv2-commission-row[data-clickable]:hover {
+    background: #f8f9fb;
+}
+
+.dashboard-v2 .dv2-commission-deal:hover {
+    text-decoration: underline;
+}
+
+/* Team dashboard headline tiles — earnings needs room for three currency figures. */
+.dashboard-v2 .team-stat-tiles {
+    display: grid;
+    gap: 12px;
+    align-items: stretch;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (min-width: 960px) {
+    .dashboard-v2 .team-stat-tiles {
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            minmax(0, 1fr)
+            minmax(300px, 1.75fr);
+    }
 }

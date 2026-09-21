@@ -28,6 +28,8 @@ use Inertia\Inertia;
  * gets a switcher into them, but holding one never hides the personal view.
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
+ * Manager is gated on view_manager_dashboard and crm.manager-dashboard so the
+ * direct-reports rollup can roll out separately from the team hierarchy view.
  * Team is gated twice as well: on view_team_dashboard, and on the
  * crm.team-dashboard flag — it is the first surface to show commission across a
  * whole hierarchy, so it rolls out per manager rather than all at once.
@@ -376,6 +378,7 @@ class DashboardV2Controller extends AccountBaseController
             // docblock. Rejecting here rather than in the switcher alone means
             // a hand-typed ?view=team with the flag off falls through to the
             // first view the user does hold, not to an ungated render.
+            ->reject(fn ($view) => $view === 'manager' && ! FeatureFlags::enabled('crm.manager-dashboard'))
             ->reject(fn ($view) => $view === 'team' && ! FeatureFlags::enabled('crm.team-dashboard'))
             ->values()
             ->all();

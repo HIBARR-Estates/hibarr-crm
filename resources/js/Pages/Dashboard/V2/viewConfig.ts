@@ -6,8 +6,9 @@
  * would let "Team" and "Downline" drift apart between the page you switch from
  * and the page you land on.
  *
- * Static and hook-free: the strings are English sources, translated with td()
- * at the render site, per the two-tier translation rule.
+ * Static and hook-free: English defaults here. Dashboard switcher labels are
+ * resolved with t("pages.dashboard.views.*") at the render site; role view
+ * subtext still uses td() until those views move to lang files.
  *
  * Named viewConfig rather than views so it can't be confused with — or shadow
  * an index of — the sibling views/ directory holding the components.
@@ -99,6 +100,18 @@ export function buildSwitcher(
                 : {}),
         })),
     ];
+}
+
+/** Resolve switcher labels from pages.dashboard.views.* via t(). */
+export function localizeSwitcherSegments(
+    segments: SwitcherSegment[],
+    t: (key: string) => string,
+): SwitcherSegment[] {
+    return segments.map((seg) => ({
+        ...seg,
+        label: t(`pages.dashboard.views.${seg.value}`),
+        ...(seg.title ? { title: t("pages.dashboard.views.coming_soon") } : {}),
+    }));
 }
 
 /**

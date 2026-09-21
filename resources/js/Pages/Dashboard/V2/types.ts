@@ -315,8 +315,11 @@ export interface TeamCommissionTrend {
 /** One row of mlm_commissions, as the team's recent-activity feed shows it. */
 export interface TeamRecentCommission {
     id: number;
+    agent_id: number;
     agent_name: string;
     agent_image: string | null;
+    /** Null when the leg is not tied to a deal, or the deal was removed. */
+    deal_id: number | null;
     /** Null when the commission predates deal-name backfill, or the deal was removed. */
     deal_name: string | null;
     type: "agent" | "upline";

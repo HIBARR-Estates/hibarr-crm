@@ -415,8 +415,10 @@ class TeamDownlineService
             ->get()
             ->map(fn (MlmCommission $commission) => [
                 'id' => $commission->id,
+                'agent_id' => (int) $commission->agent_id,
                 'agent_name' => $commission->agent?->user?->name ?? 'Unknown agent',
                 'agent_image' => $commission->agent?->user?->image_url,
+                'deal_id' => $commission->deal_id ? (int) $commission->deal_id : null,
                 'deal_name' => $commission->deal?->name,
                 'type' => $commission->type->value,
                 'amount' => (float) $commission->amount,
@@ -745,7 +747,10 @@ class TeamDownlineService
     {
         if (! $this->currencyResolved) {
             $this->currencyResolved = true;
-            $this->currency = company()?->currency?->currency_code;
+            $company = company();
+            $this->currency = is_object($company)
+                ? $company->currency?->currency_code
+                : null;
         }
 
         return $this->currency;

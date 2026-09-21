@@ -11,7 +11,7 @@ import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { Empty } from "antd";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { amount } from "../format";
 import type {
     TeamCommissionTrend,
@@ -37,8 +37,8 @@ export default function CommissionTrendChart({
     data: TeamCommissionTrend;
     height?: number;
 }) {
-    const { td } = useTd();
-    const paidLabel = td("Commission paid");
+    const { t } = useTranslation();
+    const paidLabel = t("pages.dashboard.team.charts.commission_paid");
     const currency = data.currency;
 
     const definition = useMemo(() => {
@@ -129,9 +129,7 @@ export default function CommissionTrendChart({
     if (!data.points.length || !data.points.some((point) => point.amount > 0)) {
         return (
             <Empty
-                description={td(
-                    "No commission paid to the network in this window",
-                )}
+                description={t("pages.dashboard.team.charts.commission_empty")}
             />
         );
     }
@@ -140,7 +138,7 @@ export default function CommissionTrendChart({
         <Chart
             definition={definition}
             height={height}
-            ariaLabel={td("Commission paid to the network, month by month")}
+            ariaLabel={t("pages.dashboard.team.charts.commission_aria")}
             style={{ width: "100%", color: T.TEXT }}
             renderTooltipBody={({ content }) => (
                 <ChartPopover content={content} />

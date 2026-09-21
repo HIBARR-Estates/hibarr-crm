@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { Deferred } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { CommissionSummary, PersonalStats, PipelineRow } from "./types";
 import { money } from "../format";
 import { dominantTotal, mergeCurrencyTotals } from "./format";
@@ -11,7 +12,6 @@ type Tone = "up" | "down" | "flat";
 
 interface Tile {
     key: string;
-    /** English source strings throughout — translated at the render site. */
     label: string;
     value: string;
     sub: string;
@@ -82,180 +82,192 @@ export default function StatStrip({
     pipelines,
     commission,
 }: StatStripProps) {
-    const { td } = useTd();
-    const lookBack = `${td("last")} ${windowDays} ${td("days")}`;
-    const lookAhead = `${td("next")} ${windowDays} ${td("days")}`;
+    const { t } = useTranslation();
 
-    const leadsTile: Tile | undefined = stats
-        ? (() => {
-              const { leads } = stats;
+    const lookBack = `${t("pages.dashboard.personal.stats.last")} ${windowDays} ${t("pages.dashboard.personal.stats.days")}`;
+    const lookAhead = `${t("pages.dashboard.personal.stats.next")} ${windowDays} ${t("pages.dashboard.personal.stats.days")}`;
 
-              return {
-                  key: "leads",
-                  label: "Leads",
-                  value: `${leads.new} ${td("new")}`,
-                  sub: lookBack,
-                  ratio: leads.new
-                      ? `${leads.contacted} ${td("of")} ${leads.new} ${td("contacted")}`
-                      : "New enquiries land here as they arrive",
-                  // Only when there's actually someone uncontacted to filter
-                  // to — "all contacted" is good news, not a click.
-                  ...(leads.uncontacted
-                      ? {
-                            chip: `${leads.uncontacted} ${td("uncontacted")}`,
-                            tone: "down" as const,
-                            href: route("lead-contact.index", {
-                                lead_owner_id: userId,
-                                contact_status: "uncontacted",
-                            }),
-                        }
-                      : {}),
-              };
-          })()
-        : undefined;
+    const leadsTile: Tile | undefined = useMemo(
+        () =>
+            stats
+                ? (() => {
+                      const { leads } = stats;
 
-    const dealsTile: Tile | undefined = pipelines
-        ? (() => {
-              const open = pipelines.reduce((sum, p) => sum + p.deal_count, 0);
-              const idle = pipelines.reduce((sum, p) => sum + p.idle_count, 0);
-              // Merged across pipelines — the true sum in the dominant
-              // currency, not just whichever pipeline sorts first.
-              const totals = mergeCurrencyTotals(
-                  pipelines.flatMap((p) => p.totals),
-              );
+                      return {
+                          key: "leads",
+                          label: t("pages.dashboard.personal.stats.leads"),
+                          value: `${leads.new} ${t("pages.dashboard.personal.stats.new")}`,
+                          sub: lookBack,
+                          ratio: leads.new
+                              ? `${leads.contacted} ${t("pages.dashboard.personal.stats.of")} ${leads.new} ${t("pages.dashboard.personal.stats.contacted")}`
+                              : t(
+                                    "pages.dashboard.personal.stats.leads_empty_ratio",
+                                ),
+                          ...(leads.uncontacted
+                              ? {
+                                    chip: `${leads.uncontacted} ${t("pages.dashboard.personal.stats.uncontacted")}`,
+                                    tone: "down" as const,
+                                    href: route("lead-contact.index", {
+                                        lead_owner_id: userId,
+                                        contact_status: "uncontacted",
+                                    }),
+                                }
+                              : {}),
+                      };
+                  })()
+                : undefined,
+        [stats, t, lookBack, userId],
+    );
 
-              return {
-                  key: "deals",
-                  label: "Deals",
-                  value: `${open} ${td("open")}`,
-                  // Empty when nothing carries a nameable currency — the count
-                  // is still true, and a number with no unit on it is not.
-                  sub: open && totals.length ? dominantTotal(totals).label : "",
-                  ratio: open
-                      ? `${td("across")} ${pipelines.length} ${pipelines.length === 1 ? td("pipeline") : td("pipelines")}`
-                      : "Convert a lead and the deal appears here",
-                  // Only when there's an idle deal to filter to — "none idle"
-                  // is good news, not a click.
-                  ...(idle
-                      ? {
-                            // "Idle" alone reads as a state, not a duration —
-                            // say what the threshold actually is, matching
-                            // PipelineSplit's own "no activity in 7 days"
-                            // wording below.
-                            chip: `${idle} ${td("idle for")} ${IDLE_DAYS}+ ${td("days")}`,
-                            tone: "down" as const,
-                            href: route("deals.index", {
-                                agent_id: userId,
-                                outcome_status: "open",
-                                lead_pipeline_id: "all",
-                                idle_days: IDLE_DAYS,
-                            }),
-                        }
-                      : {}),
-              };
-          })()
-        : undefined;
+    const dealsTile: Tile | undefined = useMemo(
+        () =>
+            pipelines
+                ? (() => {
+                      const open = pipelines.reduce(
+                          (sum, p) => sum + p.deal_count,
+                          0,
+                      );
+                      const idle = pipelines.reduce(
+                          (sum, p) => sum + p.idle_count,
+                          0,
+                      );
+                      const totals = mergeCurrencyTotals(
+                          pipelines.flatMap((p) => p.totals),
+                      );
 
-    const meetingsTile: Tile | undefined = stats
-        ? (() => {
-              const { meetings } = stats;
-              const logged = meetings.attended + meetings.missed;
+                      return {
+                          key: "deals",
+                          label: t("pages.dashboard.personal.stats.deals"),
+                          value: `${open} ${t("pages.dashboard.personal.stats.open")}`,
+                          sub:
+                              open && totals.length
+                                  ? dominantTotal(totals).label
+                                  : "",
+                          ratio: open
+                              ? `${t("pages.dashboard.personal.stats.across")} ${pipelines.length} ${pipelines.length === 1 ? t("pages.dashboard.personal.stats.pipeline") : t("pages.dashboard.personal.stats.pipelines")}`
+                              : t(
+                                    "pages.dashboard.personal.stats.deals_empty_ratio",
+                                ),
+                          ...(idle
+                              ? {
+                                    chip: `${idle} ${t("pages.dashboard.personal.stats.idle_for")} ${IDLE_DAYS}+ ${t("pages.dashboard.personal.stats.days")}`,
+                                    tone: "down" as const,
+                                    href: route("deals.index", {
+                                        agent_id: userId,
+                                        outcome_status: "open",
+                                        lead_pipeline_id: "all",
+                                        idle_days: IDLE_DAYS,
+                                    }),
+                                }
+                              : {}),
+                      };
+                  })()
+                : undefined,
+        [pipelines, t, userId],
+    );
 
-              return {
-                  key: "meetings",
-                  label: "Meetings",
-                  value: `${meetings.upcoming} ${td("upcoming")}`,
-                  sub: lookAhead,
-                  // Reads what already happened, not what's still ahead —
-                  // attendance is logged after the fact (see "Log attendance"
-                  // on a held meeting), so a meeting with nothing logged yet
-                  // is unknown, not missed.
-                  ratio: logged
-                      ? `${meetings.attended} ${td("attended")} · ${meetings.missed} ${td("missed")}`
-                      : "Nothing logged in this window yet",
-                  // Only when there's a miss to flag — "none missed" is good
-                  // news, not a click worth offering.
-                  ...(meetings.missed
-                      ? {
-                            chip: `${meetings.missed} ${td("missed")}`,
-                            tone: "down" as const,
-                            // Same attendance_outcome and date window
-                            // personalStats() counted missed against, so the
-                            // list this opens actually matches the number on
-                            // the chip rather than every past meeting.
-                            href: route("meetings.index", {
-                                attendance: "no_show",
-                                date_from: dayjs(now)
-                                    .subtract(windowDays, "day")
-                                    .format("YYYY-MM-DD"),
-                                date_to: dayjs(now).format("YYYY-MM-DD"),
-                            }),
-                        }
-                      : {}),
-              };
-          })()
-        : undefined;
+    const meetingsTile: Tile | undefined = useMemo(
+        () =>
+            stats
+                ? (() => {
+                      const { meetings } = stats;
+                      const logged = meetings.attended + meetings.missed;
 
-    // Agents only. A non-agent account has no lead_agent record and so no
-    // commission at all — the server sends null and the slot is dropped.
-    const commissionTile: Tile | undefined =
-        commission == null
-            ? undefined
-            : (() => {
-                  const earned = commission.earned[0];
-                  const previous = commission.previous.find(
-                      (row) => row.currency === earned?.currency,
-                  );
-                  const delta =
-                      earned && previous ? earned.total - previous.total : null;
+                      return {
+                          key: "meetings",
+                          label: t("pages.dashboard.personal.stats.meetings"),
+                          value: `${meetings.upcoming} ${t("pages.dashboard.personal.stats.upcoming")}`,
+                          sub: lookAhead,
+                          ratio: logged
+                              ? `${meetings.attended} ${t("pages.dashboard.personal.stats.attended")} · ${meetings.missed} ${t("pages.dashboard.personal.stats.missed")}`
+                              : t(
+                                    "pages.dashboard.personal.stats.meetings_empty_ratio",
+                                ),
+                          ...(meetings.missed
+                              ? {
+                                    chip: `${meetings.missed} ${t("pages.dashboard.personal.stats.missed")}`,
+                                    tone: "down" as const,
+                                    href: route("meetings.index", {
+                                        attendance: "no_show",
+                                        date_from: dayjs(now)
+                                            .subtract(windowDays, "day")
+                                            .format("YYYY-MM-DD"),
+                                        date_to: dayjs(now).format("YYYY-MM-DD"),
+                                    }),
+                                }
+                              : {}),
+                      };
+                  })()
+                : undefined,
+        [stats, t, lookAhead, now, windowDays],
+    );
 
-                  const pending = dominantTotal(commission.pending);
+    const commissionTile: Tile | undefined = useMemo(
+        () =>
+            commission == null
+                ? undefined
+                : (() => {
+                      const earned = commission.earned[0];
+                      const previous = commission.previous.find(
+                          (row) => row.currency === earned?.currency,
+                      );
+                      const delta =
+                          earned && previous
+                              ? earned.total - previous.total
+                              : null;
 
-                  return {
-                      key: "commission",
-                      label: "Commission",
-                      // The server drops totals it can't name, so `earned` is
-                      // either a real figure in a real currency or absent.
-                      value: earned ? money(earned.total, earned.currency) : "—",
-                      sub: "earned this month",
-                      // Pending is its own currency split, independent of
-                      // what (if anything) was earned this month — an agent
-                      // can have nothing paid out yet but plenty booked.
-                      ratio: commission.pending.length
-                          ? `${pending.label}${pending.rest ? ` ${pending.rest}` : ""} ${td("still pending")}`
-                          : "Nothing pending right now",
-                      // Only when there's something paid this month to look
-                      // at — with nothing earned, the destination is an
-                      // empty list, not a click worth offering.
-                      ...(earned
-                          ? {
-                                chip:
-                                    delta === null || delta === 0
-                                        ? "no change"
-                                        : `${delta > 0 ? "+" : "−"}${money(Math.abs(delta), earned.currency)} ${td("vs last")}`,
-                                tone:
-                                    delta === null || delta === 0
-                                        ? ("flat" as const)
-                                        : delta > 0
-                                          ? ("up" as const)
-                                          : ("down" as const),
-                                href: route("mlm.agent.commissions", {
-                                    status: "paid",
-                                    date_from: dayjs()
-                                        .startOf("month")
-                                        .format("YYYY-MM-DD"),
-                                    date_to: dayjs()
-                                        .endOf("month")
-                                        .format("YYYY-MM-DD"),
-                                }),
-                            }
-                          : {}),
-                  };
-              })();
+                      const pending = dominantTotal(commission.pending);
 
-    // null once resolved and inapplicable (no lead_agent record) — the only
-    // slot allowed to disappear rather than sit in its skeleton forever.
+                      return {
+                          key: "commission",
+                          label: t("pages.dashboard.personal.stats.commission"),
+                          value: earned
+                              ? money(earned.total, earned.currency)
+                              : "—",
+                          sub: t(
+                              "pages.dashboard.personal.stats.earned_this_month",
+                          ),
+                          ratio: commission.pending.length
+                              ? `${pending.label}${pending.rest ? ` ${pending.rest}` : ""} ${t("pages.dashboard.personal.stats.still_pending")}`
+                              : t(
+                                    "pages.dashboard.personal.stats.commission_empty_ratio",
+                                ),
+                          ...(earned
+                              ? {
+                                    chip:
+                                        delta === null || delta === 0
+                                            ? t(
+                                                  "pages.dashboard.personal.stats.no_change",
+                                              )
+                                            : `${delta > 0 ? "+" : "−"}${money(Math.abs(delta), earned.currency)} ${t("pages.dashboard.personal.stats.vs_last")}`,
+                                    tone:
+                                        delta === null || delta === 0
+                                            ? ("flat" as const)
+                                            : delta > 0
+                                              ? ("up" as const)
+                                              : ("down" as const),
+                                    href: route("mlm.agent.commissions", {
+                                        status: "paid",
+                                        date_from: dayjs()
+                                            .startOf("month")
+                                            .format("YYYY-MM-DD"),
+                                        date_to: dayjs()
+                                            .endOf("month")
+                                            .format("YYYY-MM-DD"),
+                                    }),
+                                }
+                              : {}),
+                      };
+                  })(),
+        [commission, t],
+    );
+
     const showCommissionSlot = commission !== null;
+
+    const leadsLabel = t("pages.dashboard.personal.stats.leads");
+    const dealsLabel = t("pages.dashboard.personal.stats.deals");
+    const meetingsLabel = t("pages.dashboard.personal.stats.meetings");
+    const commissionLabel = t("pages.dashboard.personal.stats.commission");
 
     return (
         <div
@@ -268,33 +280,34 @@ export default function StatStrip({
             {leadsTile ? (
                 <StatCard tile={leadsTile} />
             ) : (
-                <StatCardSkeleton label="Leads" />
+                <StatCardSkeleton label={leadsLabel} />
             )}
             {dealsTile ? (
                 <StatCard tile={dealsTile} />
             ) : (
-                <StatCardSkeleton label="Deals" />
+                <StatCardSkeleton label={dealsLabel} />
             )}
-            <Deferred data="stats" fallback={<StatCardSkeleton label="Meetings" />}>
+            <Deferred
+                data="stats"
+                fallback={<StatCardSkeleton label={meetingsLabel} />}
+            >
                 {meetingsTile ? (
                     <StatCard tile={meetingsTile} />
                 ) : (
-                    <StatCardSkeleton label="Meetings" />
+                    <StatCardSkeleton label={meetingsLabel} />
                 )}
             </Deferred>
             {showCommissionSlot &&
                 (commissionTile ? (
                     <StatCard tile={commissionTile} />
                 ) : (
-                    <StatCardSkeleton label="Commission" />
+                    <StatCardSkeleton label={commissionLabel} />
                 ))}
         </div>
     );
 }
 
 function StatCard({ tile }: { tile: Tile }) {
-    const { td } = useTd();
-
     return (
         <div
             style={{
@@ -312,7 +325,7 @@ function StatCard({ tile }: { tile: Tile }) {
                         whiteSpace: "nowrap",
                     }}
                 >
-                    {td(tile.label)}
+                    {tile.label}
                 </span>
                 {tile.chip && tile.href && tile.tone && (
                     <FilterBadge
@@ -320,7 +333,7 @@ function StatCard({ tile }: { tile: Tile }) {
                         variant={CHIP_VARIANT[tile.tone]}
                         style={{ marginLeft: "auto" }}
                     >
-                        {td(tile.chip)}
+                        {tile.chip}
                     </FilterBadge>
                 )}
             </div>
@@ -347,13 +360,13 @@ function StatCard({ tile }: { tile: Tile }) {
                 </span>
                 {tile.sub && (
                     <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                        {td(tile.sub)}
+                        {tile.sub}
                     </span>
                 )}
             </div>
 
             <p style={{ margin: "8px 0 0", fontSize: 12, color: T.TEXT_MUTED }}>
-                {td(tile.ratio)}
+                {tile.ratio}
             </p>
         </div>
     );
@@ -365,8 +378,6 @@ function StatCard({ tile }: { tile: Tile }) {
  * data (the chip, the value, the context line) shimmer.
  */
 function StatCardSkeleton({ label }: { label: string }) {
-    const { td } = useTd();
-
     return (
         <div
             style={{
@@ -384,7 +395,7 @@ function StatCardSkeleton({ label }: { label: string }) {
                         whiteSpace: "nowrap",
                     }}
                 >
-                    {td(label)}
+                    {label}
                 </span>
                 <div
                     aria-hidden

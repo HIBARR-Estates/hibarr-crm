@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { ScheduleEntry } from "../types";
 import type { PersonalQueue, PipelineRow } from "./types";
 import { dominantTotal, isAgendaActive, isAgendaUpcoming, mergeCurrencyTotals } from "./format";
@@ -45,7 +45,7 @@ export default function StatusLine({
     agenda,
     pipelines,
 }: StatusLineProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     const openTasks = queue
         ? queue.counts.overdue + queue.counts.today + queue.counts.later
@@ -62,11 +62,13 @@ export default function StatusLine({
 
     const taskPhrase = openTasks
         ? openTasks === 1
-            ? td("1 task that needs your attention")
-            : `${openTasks} ${td("tasks that need your attention")}`
+            ? t("pages.dashboard.personal.status.one_task")
+            : t("pages.dashboard.personal.status.n_tasks", {
+                  count: openTasks,
+              })
         : null;
     const valuePhrase = openValue
-        ? `${openValue} ${td("pending in open deals")}`
+        ? `${openValue} ${t("pages.dashboard.personal.status.pending_in_deals")}`
         : null;
 
     // "Take action below" only when there's a task-shaped reason to — an
@@ -77,14 +79,16 @@ export default function StatusLine({
     );
 
     if (parts.length > 0) {
-        const joined = parts.join(` ${td("and")} `);
+        const joined = parts.join(
+            ` ${t("pages.dashboard.personal.status.and")} `,
+        );
         summary = taskPhrase
-            ? `${td("You have")} ${joined} — ${td("take action below")}.`
-            : `${td("You have")} ${joined}.`;
+            ? `${t("pages.dashboard.personal.status.you_have")} ${joined} — ${t("pages.dashboard.personal.status.take_action")}.`
+            : `${t("pages.dashboard.personal.status.you_have")} ${joined}.`;
     } else if (queue !== undefined && pipelines !== undefined) {
         // Both confirmed loaded, both genuinely empty — a real answer, not a
         // missing one.
-        summary = td("Nothing needs you right now.");
+        summary = t("pages.dashboard.personal.status.nothing_needs_you");
     }
 
     // Client clock, not the page-load `now`: a meeting that started while
@@ -110,10 +114,10 @@ export default function StatusLine({
         // Repeating "nothing booked" here said nothing that panel doesn't.
         // When meetings exist, the panel header also keeps an "Add meeting" CTA.
         activeCount && activeCount > 0
-            ? `${activeCount} ${td("calendar items")}`
+            ? `${activeCount} ${t("pages.dashboard.personal.status.calendar_items")}`
             : null,
         next
-            ? `${td("next is")} ${next.title} ${td("at")} ${dayjs(next.at).format("HH:mm")}`
+            ? `${t("pages.dashboard.personal.status.next_is")} ${next.title} ${t("pages.dashboard.personal.status.at")} ${dayjs(next.at).format("HH:mm")}`
             : null,
     ].filter(Boolean);
 

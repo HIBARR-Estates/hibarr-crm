@@ -8,14 +8,17 @@ import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import ProductTour, {
     type ProductTourHandle,
 } from "@/Components/ProductTour/ProductTour";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import type { Task } from "@/Types/api/tasks";
 import DashboardHeader from "./components/DashboardHeader";
-import { buildSwitcher, type ViewKey } from "./viewConfig";
+import {
+    buildSwitcher,
+    localizeSwitcherSegments,
+    type ViewKey,
+} from "./viewConfig";
 import DashboardPanel, {
     PanelSkeleton,
 } from "./components/DashboardPanel";
@@ -106,7 +109,6 @@ export default function PersonalDashboard({
     userDeals,
     userLeads,
 }: PersonalDashboardProps) {
-    const { td } = useTd();
     const { t } = useTranslation();
     const { props: pageProps } = usePage<PageProps>();
     const showProductTour =
@@ -219,7 +221,14 @@ export default function PersonalDashboard({
     // This page is always the personal dashboard, so the flag that gates it is
     // on by definition — buildSwitcher's other caller is the one that has to
     // pass it through.
-    const switcher = buildSwitcher(availableViews ?? [], true);
+    const switcher = useMemo(
+        () =>
+            localizeSwitcherSegments(
+                buildSwitcher(availableViews ?? [], true),
+                t,
+            ),
+        [availableViews, t],
+    );
 
     const visitRecord = useCallback(
         (record: { type: "lead" | "deal"; id: number }) =>
@@ -342,10 +351,12 @@ export default function PersonalDashboard({
 
     return (
         <DashboardLayout>
-            <Head title={td("Dashboard")} />
+            <Head title={t("pages.dashboard.personal.title")} />
 
             <PageLayout
-                breadcrumbs={[{ name: td("Dashboard") }]}
+                breadcrumbs={[
+                    { name: t("pages.dashboard.personal.title") },
+                ]}
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
@@ -387,7 +398,10 @@ export default function PersonalDashboard({
                                 )}
                                 {switcher.length > 1 && (
                                     <SegmentedControl
-                                        label="Dashboard"
+                                        label={t(
+                                            "pages.dashboard.views.switcher_aria",
+                                        )}
+                                        localize={false}
                                         active="personal"
                                         segments={switcher}
                                         onSelect={(view) =>
@@ -417,8 +431,11 @@ export default function PersonalDashboard({
                         <div className="dv2-main">
                             <DashboardPanel
                                 flush
+                                localize={false}
                                 dataTour="dashboard-queue-panel"
-                                title="Needs your attention"
+                                title={t(
+                                    "pages.dashboard.personal.panels.queue_title",
+                                )}
                                 extra={
                                     <div
                                         style={{
@@ -434,7 +451,10 @@ export default function PersonalDashboard({
                                                     openNow ? "red" : "gray"
                                                 }
                                             >
-                                                {openNow} {td("open")}
+                                                {openNow}{" "}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.open",
+                                                )}
                                             </Badge>
                                         )}
                                         {useRedesignedTasks ? (
@@ -453,7 +473,9 @@ export default function PersonalDashboard({
                                                     cursor: "pointer",
                                                 }}
                                             >
-                                                {td("Add task")}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.add_task",
+                                                )}
                                             </button>
                                         ) : (
                                             // Every section link below is
@@ -467,7 +489,9 @@ export default function PersonalDashboard({
                                                     fontWeight: 600,
                                                 }}
                                             >
-                                                {td("All tasks")}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.all_tasks",
+                                                )}
                                             </a>
                                         )}
                                     </div>
@@ -516,8 +540,11 @@ export default function PersonalDashboard({
                             </div>
 
                             <DashboardPanel
+                                localize={false}
                                 dataTour="dashboard-pipeline-panel"
-                                title="Open deals by pipeline"
+                                title={t(
+                                    "pages.dashboard.personal.panels.pipeline_title",
+                                )}
                             >
                                 <Deferred
                                     data="openDealsByPipeline"

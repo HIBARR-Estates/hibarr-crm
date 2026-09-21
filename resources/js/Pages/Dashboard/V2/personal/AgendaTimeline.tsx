@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import dayjs from "dayjs";
 import { Badge, Icon, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { toWorkspaceMeetingListItem } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import type { ScheduleEntry } from "../types";
 import {
@@ -37,6 +38,7 @@ export default function AgendaTimeline({
     onScheduleMeeting,
 }: AgendaTimelineProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
 
     // Live + upcoming. Prefer the ticking client stamp so a meeting that
     // started (or ended) while this page was open moves buckets without reload.
@@ -95,12 +97,10 @@ export default function AgendaTimeline({
                         color: T.NAVY,
                     }}
                 >
-                    {td("Nothing booked")}
+                    {t("pages.dashboard.personal.agenda.empty_title")}
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: T.TEXT_MUTED }}>
-                    {td(
-                        "Meetings you book with a lead or deal will show up here.",
-                    )}
+                    {t("pages.dashboard.personal.agenda.empty_body")}
                 </p>
 
                 <button
@@ -110,7 +110,7 @@ export default function AgendaTimeline({
                     onClick={onScheduleMeeting}
                 >
                     <Icon name="plus" size={14} />
-                    {td("Schedule meeting")}
+                    {t("pages.dashboard.personal.agenda.schedule")}
                 </button>
             </div>
         );
@@ -142,11 +142,13 @@ export default function AgendaTimeline({
                         color: T.NAVY,
                     }}
                 >
-                    {td("Agenda")}
+                    {t("pages.dashboard.personal.agenda.title")}
                 </h2>
                 <Badge variant="gray">
                     {items.length}{" "}
-                    {items.length === 1 ? td("meeting") : td("meetings")}
+                    {items.length === 1
+                        ? t("pages.dashboard.personal.agenda.meeting")
+                        : t("pages.dashboard.personal.agenda.meetings")}
                 </Badge>
                 <button
                     type="button"
@@ -155,7 +157,7 @@ export default function AgendaTimeline({
                     onClick={onScheduleMeeting}
                 >
                     <Icon name="plus" size={13} />
-                    {td("Add meeting")}
+                    {t("pages.dashboard.personal.agenda.add")}
                 </button>
             </header>
 
@@ -168,10 +170,10 @@ export default function AgendaTimeline({
                     );
                     const isNext = !live && meeting.id === nextUpcomingId;
                     const listItem = toWorkspaceMeetingListItem(meeting);
-                    const duration = durationLabel(meeting.duration);
+                    const duration = durationLabel(meeting.duration, t);
                     const whereLabel =
                         listItem.locationType === "phone"
-                            ? td("Phone call")
+                            ? t("pages.dashboard.personal.agenda.phone_call")
                             : listItem.locationType === "video"
                               ? td(listItem.platformLabel, { source: "en" })
                               : td(listItem.locationDisplay, { source: "en" });
@@ -190,7 +192,7 @@ export default function AgendaTimeline({
                     if (meeting.deal?.name) {
                         withRows.push({
                             icon: "briefcase",
-                            label: td("Deal"),
+                            label: t("pages.dashboard.personal.record.deal"),
                             value: meeting.deal.name,
                         });
                     }
@@ -201,7 +203,7 @@ export default function AgendaTimeline({
                     if (leadName && leadName !== meeting.deal?.name) {
                         withRows.push({
                             icon: "user",
-                            label: td("Lead"),
+                            label: t("pages.dashboard.personal.record.lead"),
                             value: leadName,
                         });
                     }
@@ -237,7 +239,7 @@ export default function AgendaTimeline({
                                         color: T.TEXT_HINT,
                                     }}
                                 >
-                                    {td(agendaDay(meeting.at as string))}
+                                    {agendaDay(meeting.at as string, t)}
                                 </div>
                                 <div
                                     style={{
@@ -311,7 +313,7 @@ export default function AgendaTimeline({
                                                 padding: "4px 7px",
                                             }}
                                         >
-                                            {td("Live")}
+                                            {t("pages.dashboard.personal.agenda.live")}
                                         </Badge>
                                     )}
                                     {isNext && (
@@ -323,7 +325,7 @@ export default function AgendaTimeline({
                                                 padding: "4px 7px",
                                             }}
                                         >
-                                            {td("Next")}
+                                            {t("pages.dashboard.personal.agenda.next")}
                                         </Badge>
                                     )}
                                 </span>
@@ -340,7 +342,9 @@ export default function AgendaTimeline({
                                         meeting.type !== listItem.title && (
                                             <AgendaMetaRow
                                                 icon="tag"
-                                                label={td("Type")}
+                                                label={t(
+                                                    "pages.dashboard.personal.agenda.type",
+                                                )}
                                                 value={meeting.type}
                                             />
                                         )}
@@ -349,8 +353,12 @@ export default function AgendaTimeline({
                                         label={
                                             listItem.locationType ===
                                             "in_person"
-                                                ? td("Place")
-                                                : td("Where")
+                                                ? t(
+                                                      "pages.dashboard.personal.agenda.place",
+                                                  )
+                                                : t(
+                                                      "pages.dashboard.personal.agenda.where",
+                                                  )
                                         }
                                         value={whereLabel}
                                     />
@@ -423,13 +431,14 @@ function AgendaMetaRow({
  * the slot still reads as "your meetings", not a blank pulse.
  */
 export function AgendaTimelineSkeleton({ rows = 3 }: { rows?: number }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
+    const agendaTitle = t("pages.dashboard.personal.agenda.title");
 
     return (
         <div
             role="status"
             aria-live="polite"
-            aria-label={td("Agenda")}
+            aria-label={agendaTitle}
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,
@@ -454,7 +463,7 @@ export function AgendaTimelineSkeleton({ rows = 3 }: { rows?: number }) {
                         color: T.NAVY,
                     }}
                 >
-                    {td("Agenda")}
+                    {agendaTitle}
                 </h2>
             </header>
 

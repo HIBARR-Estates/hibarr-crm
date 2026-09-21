@@ -198,8 +198,7 @@ export default function PartnerView({
                     footer={
                         <span style={{ color: T.TEXT_MUTED, fontSize: 13 }}>
                             {td(
-                                "Totals come from recorded commissions only — nothing here is a projection.",
-                            )}
+                                "Totals come from recorded commissions only — nothing here is a projection.", { source: "en" })}
                         </span>
                     }
                 >
@@ -249,7 +248,7 @@ export default function PartnerView({
                                                     textTransform: "capitalize",
                                                 }}
                                             >
-                                                {td(status)}
+                                                {td(status, { source: "en" })}
                                             </span>
                                         </div>
                                         <span
@@ -275,7 +274,7 @@ export default function PartnerView({
                                     color: T.TEXT_MUTED,
                                 }}
                             >
-                                {td("No commissions recorded yet.")}
+                                {td("No commissions recorded yet.", { source: "en" })}
                             </p>
                         )}
                     </Deferred>
@@ -350,7 +349,7 @@ function Legend() {
                             borderRadius: 2,
                         }}
                     />
-                    {td(label)}
+                    {td(label, { source: "en" })}
                 </span>
             ))}
         </div>
@@ -364,8 +363,7 @@ function NoPartnerRecord() {
         <DashboardPanel title="No partner record linked to this account">
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
                 {td(
-                    "Referred leads are attributed through the agent record on your profile.",
-                )}
+                    "Referred leads are attributed through the agent record on your profile.", { source: "en" })}
             </p>
         </DashboardPanel>
     );

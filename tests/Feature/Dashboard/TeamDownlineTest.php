@@ -64,6 +64,11 @@ class TeamDownlineTest extends TestCase
         $this->assertContains('crm.team-dashboard', config('features.known_flags'));
     }
 
+    public function test_the_manager_dashboard_flag_is_known(): void
+    {
+        $this->assertContains('crm.manager-dashboard', config('features.known_flags'));
+    }
+
     public function test_the_permission_is_registered_on_the_dashboards_module(): void
     {
         $dashboards = collect(Module::MODULE_LIST)
@@ -608,7 +613,9 @@ class TeamDownlineTest extends TestCase
 
         $row = $this->service()->recentCommissions($root)[0];
 
+        $this->assertSame(2, $row['agent_id']);
         $this->assertSame('Bo Direct', $row['agent_name']);
+        $this->assertSame(1, $row['deal_id']);
         $this->assertSame('Dubai Marina A-1204', $row['deal_name']);
     }
 
@@ -783,7 +790,8 @@ class TeamDownlineTest extends TestCase
     {
         foreach ([
             'mlm_commissions', 'deals', 'leads', 'lead_lifecycle_statuses',
-            'agent_hierarchy', 'lead_agents', 'users', 'companies',
+            'agent_level_history', 'mlm_levels', 'agent_hierarchy', 'lead_agents',
+            'users', 'companies',
         ] as $table) {
             Schema::dropIfExists($table);
         }
@@ -812,6 +820,21 @@ class TeamDownlineTest extends TestCase
             $table->unsignedInteger('user_id')->nullable();
             $table->unsignedInteger('parent_agent_id')->nullable();
             $table->timestamps();
+        });
+
+        // tree() eager-loads currentLevelHistory.level; empty tables are enough.
+        Schema::create('mlm_levels', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('agent_level_history', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('agent_id')->nullable();
+            $table->unsignedInteger('level_id')->nullable();
+            $table->dateTime('assigned_at')->nullable();
         });
 
         Schema::create('agent_hierarchy', function (Blueprint $table) {

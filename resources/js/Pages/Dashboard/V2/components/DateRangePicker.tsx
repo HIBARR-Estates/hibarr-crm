@@ -34,7 +34,7 @@ export default function DateRangePicker({
     const { td } = useTd();
 
     const presets = PERIODS.map((option) => ({
-        label: td(option.label),
+        label: td(option.label, { source: "en" }),
         value: [
             dayjs().subtract(option.days, "day").startOf("day"),
             dayjs().endOf("day"),
@@ -66,7 +66,7 @@ export default function DateRangePicker({
             maxDate={dayjs().endOf("day")}
             value={[dayjs(value.from), dayjs(value.to)]}
             presets={presets}
-            aria-label={td("Period")}
+            aria-label={td("Period", { source: "en" })}
             onChange={(dates) => {
                 const [from, to] = dates ?? [];
 

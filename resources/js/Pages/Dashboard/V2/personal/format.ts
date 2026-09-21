@@ -13,6 +13,12 @@ import { money } from "../format";
 import type { QueueTask } from "../types";
 import type { CurrencyTotal, Severity } from "./types";
 
+/** Lang-file resolver passed from components (useTranslation's `t`). */
+export type PersonalTranslate = (
+    key: string,
+    params?: Record<string, string | number>,
+) => string;
+
 /**
  * Folds same-currency rows together, ordered alphabetically by currency.
  *
@@ -75,40 +81,53 @@ export function severityOf(task: QueueTask): Severity {
     return dayjs(task.due_date).isSame(dayjs(), "day") ? "soon" : "watch";
 }
 
-/**
- * The pill on a queue row: how late, or how soon.
- *
- * English source strings — the caller wraps them in td() at the render site,
- * per the two-tier translation rule.
- */
-export function dueLabel(task: QueueTask): string {
-    if (task.days_overdue === 1) return "1 day overdue";
-    if (task.days_overdue > 1) return `${task.days_overdue} days overdue`;
+/** The pill on a queue row: how late, or how soon. */
+export function dueLabel(task: QueueTask, t: PersonalTranslate): string {
+    if (task.days_overdue === 1) {
+        return t("pages.dashboard.personal.due.one_day_overdue");
+    }
+    if (task.days_overdue > 1) {
+        return t("pages.dashboard.personal.due.days_overdue", {
+            count: task.days_overdue,
+        });
+    }
 
     const due = dayjs(task.due_date);
 
     if (due.isSame(dayjs(), "day")) {
         return due.hour() || due.minute()
-            ? `Due ${due.format("HH:mm")}`
-            : "Due today";
+            ? t("pages.dashboard.personal.due.due_at", {
+                  time: due.format("HH:mm"),
+              })
+            : t("pages.dashboard.personal.due.due_today");
     }
 
-    return `Due ${due.format("dddd")}`;
+    return t("pages.dashboard.personal.due.due_weekday", {
+        day: due.format("dddd"),
+    });
 }
 
 /**
- * The elapsed clause of the metadata line: "due 26 Aug", "due today",
- * "in 3 days". The record half is rendered separately, because it is a link.
+ * The elapsed clause of the metadata line. The record half is rendered
+ * separately, because it is a link.
  */
-export function dueWhen(task: QueueTask): string {
+export function dueWhen(task: QueueTask, t: PersonalTranslate): string {
     const due = dayjs(task.due_date);
 
-    if (task.days_overdue > 0) return `due ${due.format("D MMM")}`;
-    if (due.isSame(dayjs(), "day")) return "due today";
+    if (task.days_overdue > 0) {
+        return t("pages.dashboard.personal.due.due_date", {
+            date: due.format("D MMM"),
+        });
+    }
+    if (due.isSame(dayjs(), "day")) {
+        return t("pages.dashboard.personal.due.due_today_lower");
+    }
 
     const days = due.startOf("day").diff(dayjs().startOf("day"), "day");
 
-    return days === 1 ? "tomorrow" : `in ${days} days`;
+    return days === 1
+        ? t("pages.dashboard.personal.due.tomorrow")
+        : t("pages.dashboard.personal.due.in_days", { count: days });
 }
 
 /**
@@ -141,15 +160,22 @@ export function reasonOf(task: QueueTask): string {
  * like a real answer. Returns null when the duration is missing or zero, so
  * the caller renders nothing rather than "0 min".
  */
-export function durationLabel(minutes: number | null | undefined): string | null {
+export function durationLabel(
+    minutes: number | null | undefined,
+    t: PersonalTranslate,
+): string | null {
     if (!minutes || minutes <= 0) return null;
 
-    if (minutes < 59) return `${Math.round(minutes)} min`;
+    if (minutes < 59) {
+        return t("pages.dashboard.personal.agenda.duration_min", {
+            count: Math.round(minutes),
+        });
+    }
 
     const hours = minutes / 60;
+    const count = Number.isInteger(hours) ? hours : hours.toFixed(1);
 
-    // One decimal only when it earns one: 1.5 hr, but 1 hr and 2 hr.
-    return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr`;
+    return t("pages.dashboard.personal.agenda.duration_hr", { count });
 }
 
 /**
@@ -197,11 +223,15 @@ export function isAgendaActive(
  * The agenda can span the rest of the week, so a bare time is ambiguous the
  * moment anything past today is on it.
  */
-export function agendaDay(at: string): string {
+export function agendaDay(at: string, t: PersonalTranslate): string {
     const day = dayjs(at);
 
-    if (day.isSame(dayjs(), "day")) return "Today";
-    if (day.isSame(dayjs().add(1, "day"), "day")) return "Tomorrow";
+    if (day.isSame(dayjs(), "day")) {
+        return t("pages.dashboard.personal.agenda.today");
+    }
+    if (day.isSame(dayjs().add(1, "day"), "day")) {
+        return t("pages.dashboard.personal.agenda.tomorrow");
+    }
 
     return day.format("ddd D MMM");
 }

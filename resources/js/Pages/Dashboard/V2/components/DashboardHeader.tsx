@@ -59,7 +59,7 @@ export default function DashboardHeader({
                         color: T.NAVY,
                     }}
                 >
-                    {td(greetingFor(now))}, {userName}.
+                    {td(greetingFor(now), { source: "en" })}, {userName}.
                 </h1>
 
                 {subtext}
@@ -99,7 +99,7 @@ export function HeaderSubtext({ children }: { children: string }) {
                 color: T.TEXT,
             }}
         >
-            {td(children)}
+            {td(children, { source: "en" })}
         </p>
     );
 }

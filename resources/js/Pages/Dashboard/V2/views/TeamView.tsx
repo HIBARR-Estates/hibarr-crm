@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Deferred } from "@inertiajs/react";
+import { useMemo, useState } from "react";
+import { Deferred, Link } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
@@ -50,6 +50,9 @@ export interface TeamViewProps {
  * that same service's preview() for the forecast. The page does no commission
  * arithmetic of its own, so it can never disagree with an agent's own
  * commission screen.
+ *
+ * Copy is resolved from pages.dashboard.team.* lang keys via t() — not
+ * dynamic translation — so German / Turkish / Russian ship from the locale files.
  */
 export default function TeamView({
     teamSummary,
@@ -60,60 +63,102 @@ export default function TeamView({
     teamRecentCommissions,
     period = 30,
 }: TeamViewProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [selected, setSelected] = useState<GraphSelection | null>(null);
+
+    const earningsHint = useMemo(() => {
+        const forecastTail = teamForecast?.truncated
+            ? t("pages.dashboard.team.tiles.earnings_forecast_sampled")
+            : teamForecast?.deal_count
+              ? t("pages.dashboard.team.tiles.earnings_forecast_deals", {
+                    count: teamForecast.deal_count,
+                })
+              : "";
+
+        return t("pages.dashboard.team.tiles.earnings_hint", {
+            period,
+            forecast: forecastTail,
+        });
+    }, [period, t, teamForecast]);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <Deferred
                 data="teamSummary"
                 fallback={
-                    <div style={tileGrid}>
+                    <div className="team-stat-tiles">
                         {Array.from({ length: 4 }).map((_, index) => (
-                            <CardSkeleton key={index} height={116} />
+                            <CardSkeleton key={index} height={100} />
                         ))}
                     </div>
                 }
             >
                 {teamSummary ? (
-                    <div style={tileGrid}>
+                    <div className="team-stat-tiles" data-tour="team-stat-tiles">
                         <StatTile
-                            label="People in your network"
+                            localize={false}
+                            variant="team"
+                            label={t("pages.dashboard.team.tiles.agents")}
                             value={teamSummary.agents}
-                            note={`${teamSummary.direct_reports} direct reports · ${teamSummary.generations} levels deep · you are not counted`}
+                            hint={t("pages.dashboard.team.tiles.agents_hint", {
+                                direct: teamSummary.direct_reports,
+                                levels: teamSummary.generations,
+                            })}
                         />
 
                         <MultiStatTile
-                            label="Deals"
+                            localize={false}
+                            variant="team"
+                            label={t("pages.dashboard.team.tiles.deals")}
                             segments={[
                                 {
-                                    label: "Active",
+                                    label: t("pages.dashboard.team.tiles.active"),
                                     value: teamSummary.active_deals,
                                 },
                                 {
-                                    label: "Won",
+                                    label: t("pages.dashboard.team.tiles.won"),
                                     value: teamSummary.deals_won,
                                     tone: "green",
                                 },
                             ]}
-                            note={`Active counts every open deal in the network right now, regardless of when it started. Won is limited to the last ${period} days.`}
-                        />
-
-                        <StatTile
-                            label="Leads in play"
-                            value={teamSummary.leads_active}
-                            note={
-                                teamSummary.leads_untouched
-                                    ? `Contacted and still open. ${teamSummary.leads_untouched} more have had no first contact at all.`
-                                    : "Contacted and still open — nobody in the network has an untouched lead right now."
-                            }
+                            hint={t("pages.dashboard.team.tiles.deals_hint", {
+                                period,
+                            })}
                         />
 
                         <MultiStatTile
-                            label="Network earnings"
+                            localize={false}
+                            variant="team"
+                            label={t("pages.dashboard.team.tiles.leads")}
+                            hint={t("pages.dashboard.team.tiles.leads_hint")}
                             segments={[
                                 {
-                                    label: "Paid",
+                                    label: t(
+                                        "pages.dashboard.team.tiles.untouched",
+                                    ),
+                                    value: teamSummary.leads_untouched,
+                                    tone:
+                                        teamSummary.leads_untouched > 0
+                                            ? "amber"
+                                            : undefined,
+                                },
+                                {
+                                    label: t(
+                                        "pages.dashboard.team.tiles.contacted",
+                                    ),
+                                    value: teamSummary.leads_active,
+                                },
+                            ]}
+                        />
+
+                        <MultiStatTile
+                            localize={false}
+                            variant="team"
+                            label={t("pages.dashboard.team.tiles.earnings")}
+                            hint={earningsHint}
+                            segments={[
+                                {
+                                    label: t("pages.dashboard.team.tiles.paid"),
                                     value: amount(
                                         teamSummary.paid,
                                         teamSummary.currency,
@@ -121,7 +166,9 @@ export default function TeamView({
                                     tone: "green",
                                 },
                                 {
-                                    label: "Pending",
+                                    label: t(
+                                        "pages.dashboard.team.tiles.pending",
+                                    ),
                                     value: amount(
                                         teamSummary.pending,
                                         teamSummary.currency,
@@ -129,7 +176,9 @@ export default function TeamView({
                                     tone: "amber",
                                 },
                                 {
-                                    label: "Forecast",
+                                    label: t(
+                                        "pages.dashboard.team.tiles.forecast",
+                                    ),
                                     value: (
                                         <Deferred
                                             data="teamForecast"
@@ -147,7 +196,6 @@ export default function TeamView({
                                     ),
                                 },
                             ]}
-                            note={`Paid is what the network actually received in the last ${period} days. Pending is the standing balance still owed, as of now. Forecast prices deals that are still open${teamForecast?.deal_count ? ` (from ${teamForecast.deal_count} open deal${teamForecast.deal_count === 1 ? "" : "s"}${teamForecast.truncated ? ", the network has more" : ""})` : ""} and hasn't been earned yet.`}
                         />
                     </div>
                 ) : (
@@ -161,9 +209,12 @@ export default function TeamView({
             {teamSummary !== null && (
                 <>
                     <DashboardPanel
+                        localize={false}
                         flush
-                        title="Your network"
-                            note="Every person below you, connected to who recruited them — drag the canvas to pan, scroll to zoom, click anyone to see their own numbers"
+                        dataTour="team-network"
+                        title={t("pages.dashboard.team.panels.network_title")}
+                        note={t("pages.dashboard.team.panels.network_note")}
+                        footerTone={selected ? "raised" : "sunken"}
                         footer={
                             <NodeDetail
                                 selection={selected}
@@ -198,6 +249,7 @@ export default function TeamView({
                         over the same window, read the same way, so they
                         belong next to each other rather than stacked. */}
                     <div
+                        data-tour="team-charts"
                         style={{
                             display: "grid",
                             gridTemplateColumns:
@@ -207,8 +259,14 @@ export default function TeamView({
                         }}
                     >
                         <DashboardPanel
-                            title="Commission trend"
-                            note={`What the network was actually paid, month by month, over the last ${period} days`}
+                            localize={false}
+                            title={t(
+                                "pages.dashboard.team.panels.commission_trend_title",
+                            )}
+                            note={t(
+                                "pages.dashboard.team.panels.commission_trend_note",
+                                { period },
+                            )}
                         >
                             <Deferred
                                 data="teamCommissionTrend"
@@ -225,8 +283,13 @@ export default function TeamView({
                         </DashboardPanel>
 
                         <DashboardPanel
-                            title="Network growth"
-                            note="New agents each month (bars) against the running network size they add up to (line)"
+                            localize={false}
+                            title={t(
+                                "pages.dashboard.team.panels.network_growth_title",
+                            )}
+                            note={t(
+                                "pages.dashboard.team.panels.network_growth_note",
+                            )}
                         >
                             <Deferred
                                 data="teamGrowth"
@@ -242,9 +305,15 @@ export default function TeamView({
                     </div>
 
                     <DashboardPanel
+                        localize={false}
                         flush
-                        title="Recent commissions"
-                        note="The network's latest commission activity, newest first — including reverted legs, so a clawback never goes unnoticed"
+                        dataTour="team-recent-commissions"
+                        title={t(
+                            "pages.dashboard.team.panels.recent_commissions_title",
+                        )}
+                        note={t(
+                            "pages.dashboard.team.panels.recent_commissions_note",
+                        )}
                     >
                         <Deferred
                             data="teamRecentCommissions"
@@ -270,12 +339,6 @@ export default function TeamView({
     );
 }
 
-const tileGrid = {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 12,
-} as const;
-
 /**
  * The graph's footer: nobody's numbers until somebody is clicked.
  *
@@ -298,14 +361,12 @@ function NodeDetail({
     networkSummary?: TeamSummary | null;
     networkForecast?: TeamForecast | null;
 }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     if (!selection) {
         return (
             <span style={{ color: T.TEXT_MUTED }}>
-                {td(
-                    "Click anyone in the network above — including yourself at the top — to see their numbers.",
-                )}
+                {t("pages.dashboard.team.detail.click_anyone")}
             </span>
         );
     }
@@ -314,7 +375,7 @@ function NodeDetail({
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
                 <div style={{ fontWeight: 700, color: T.NAVY }}>
-                    {td("Your whole network")}
+                    {t("pages.dashboard.team.detail.your_whole_network")}
                 </div>
                 {networkSummary ? (
                     <>
@@ -328,25 +389,29 @@ function NodeDetail({
                         >
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Active deals")}:{" "}
+                                    {t("pages.dashboard.team.detail.active_deals")}
+                                    :{" "}
                                 </span>
                                 <strong>{networkSummary.active_deals}</strong>
                             </span>
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Won")}:{" "}
+                                    {t("pages.dashboard.team.detail.won")}:{" "}
                                 </span>
                                 <strong>{networkSummary.deals_won}</strong>
                             </span>
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Leads in play")}:{" "}
+                                    {t(
+                                        "pages.dashboard.team.detail.contacted_leads",
+                                    )}
+                                    :{" "}
                                 </span>
                                 <strong>{networkSummary.leads_active}</strong>
                             </span>
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Paid")}:{" "}
+                                    {t("pages.dashboard.team.detail.paid")}:{" "}
                                 </span>
                                 <strong>
                                     {amount(networkSummary.paid, currency)}
@@ -354,7 +419,7 @@ function NodeDetail({
                             </span>
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Pending")}:{" "}
+                                    {t("pages.dashboard.team.detail.pending")}:{" "}
                                 </span>
                                 <strong>
                                     {amount(networkSummary.pending, currency)}
@@ -362,7 +427,7 @@ function NodeDetail({
                             </span>
                             <span>
                                 <span style={{ color: T.TEXT_HINT }}>
-                                    {td("Forecast")}:{" "}
+                                    {t("pages.dashboard.team.detail.forecast")}:{" "}
                                 </span>
                                 <strong>
                                     <Deferred
@@ -382,16 +447,15 @@ function NodeDetail({
                             </span>
                         </div>
                         <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
-                            {td(
-                                "The same totals as the tile row above — everyone below you, none of your own activity.",
-                            )}{" "}
-                            {td("Won and paid cover the last")} {period}{" "}
-                            {td("days")}.
+                            {t("pages.dashboard.team.detail.same_totals")}{" "}
+                            {t("pages.dashboard.team.detail.won_paid_cover", {
+                                period,
+                            })}
                         </div>
                     </>
                 ) : (
                     <span style={{ color: T.TEXT_MUTED }}>
-                        {td("Loading your network's totals…")}
+                        {t("pages.dashboard.team.detail.loading_totals")}
                     </span>
                 )}
             </div>
@@ -401,30 +465,82 @@ function NodeDetail({
     const { node } = selection;
 
     const rows: Array<[string, number | string, number | string]> = [
-        [td("Active deals"), node.own.active_deals, node.network.active_deals],
-        [td("Won"), node.own.deals_won, node.network.deals_won],
-        [td("Leads in play"), node.own.leads_active, node.network.leads_active],
         [
-            td("Paid"),
+            t("pages.dashboard.team.detail.active_deals"),
+            node.own.active_deals,
+            node.network.active_deals,
+        ],
+        [
+            t("pages.dashboard.team.detail.won"),
+            node.own.deals_won,
+            node.network.deals_won,
+        ],
+        [
+            t("pages.dashboard.team.detail.contacted_leads"),
+            node.own.leads_active,
+            node.network.leads_active,
+        ],
+        [
+            t("pages.dashboard.team.detail.paid"),
             amount(node.own.paid, currency),
             amount(node.network.paid, currency),
         ],
         [
-            td("Pending"),
+            t("pages.dashboard.team.detail.pending"),
             amount(node.own.pending, currency),
             amount(node.network.pending, currency),
         ],
     ];
 
+    const listFilters =
+        node.user_id != null
+            ? {
+                  leads: route("lead-contact.index", {
+                      lead_owner_id: node.user_id,
+                  }),
+                  deals: route("deals.index", {
+                      agent_id: node.user_id,
+                      outcome_status: "open",
+                      lead_pipeline_id: "all",
+                  }),
+              }
+            : null;
+
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-            <div style={{ fontWeight: 700, color: T.NAVY }}>
-                {node.name}
-                {node.level && (
-                    <span style={{ fontWeight: 400, color: T.TEXT_MUTED }}>
-                        {" · "}
-                        {node.level}
-                    </span>
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                }}
+            >
+                <div style={{ fontWeight: 700, color: T.NAVY }}>
+                    {node.name}
+                    {node.level && (
+                        <span style={{ fontWeight: 400, color: T.TEXT_MUTED }}>
+                            {" · "}
+                            {node.level}
+                        </span>
+                    )}
+                </div>
+                {listFilters && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        <Link
+                            href={listFilters.leads}
+                            className="dr-btn dr-btn-ghost dr-btn-sm"
+                        >
+                            {t("pages.dashboard.team.detail.view_leads")}
+                        </Link>
+                        <Link
+                            href={listFilters.deals}
+                            className="dr-btn dr-btn-ghost dr-btn-sm"
+                        >
+                            {t("pages.dashboard.team.detail.view_deals")}
+                        </Link>
+                    </div>
                 )}
             </div>
             <div
@@ -442,17 +558,19 @@ function NodeDetail({
                         {String(own) !== String(branch) && (
                             <span style={{ color: T.TEXT_HINT }}>
                                 {" "}
-                                ({td("their whole branch")}: {branch})
+                                (
+                                {t(
+                                    "pages.dashboard.team.detail.their_whole_branch",
+                                )}
+                                : {branch})
                             </span>
                         )}
                     </span>
                 ))}
             </div>
             <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
-                {td("Won and paid cover the last")} {period} {td("days")}.{" "}
-                {td(
-                    "Active deals, leads in play, pending and forecast are all as of right now.",
-                )}
+                {t("pages.dashboard.team.detail.won_paid_cover", { period })}{" "}
+                {t("pages.dashboard.team.detail.as_of_now")}
             </div>
         </div>
     );
@@ -465,17 +583,15 @@ function NodeDetail({
  * widening the query to everyone.
  */
 function NoAgentRecord() {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     return (
         <DashboardPanel>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                {td("You have no agent record")}
+                {t("pages.dashboard.team.no_agent.title")}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: T.TEXT_MUTED }}>
-                {td(
-                    "A network is read from your own agent record. Ask an administrator to create one and set the agents who report to you.",
-                )}
+                {t("pages.dashboard.team.no_agent.body")}
             </p>
         </DashboardPanel>
     );

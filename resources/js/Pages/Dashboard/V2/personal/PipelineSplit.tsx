@@ -1,5 +1,5 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { PipelineRow } from "./types";
 import { dominantTotal } from "./format";
 
@@ -35,7 +35,7 @@ export default function PipelineSplit({
     pipelines,
     dealsHref,
 }: PipelineSplitProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     if (!pipelines.length) {
         return (
@@ -84,12 +84,10 @@ export default function PipelineSplit({
                         color: T.NAVY,
                     }}
                 >
-                    {td("No open deals")}
+                    {t("pages.dashboard.personal.pipeline.empty_title")}
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: T.TEXT_MUTED }}>
-                    {td(
-                        "Deals appear here per pipeline as soon as you convert a lead. Won and lost deals are never counted.",
-                    )}
+                    {t("pages.dashboard.personal.pipeline.empty_body")}
                 </p>
             </div>
         );
@@ -137,8 +135,8 @@ export default function PipelineSplit({
                                 >
                                     {pipeline.deal_count}{" "}
                                     {pipeline.deal_count === 1
-                                        ? td("deal")
-                                        : td("deals")}
+                                        ? t("pages.dashboard.personal.pipeline.deal")
+                                        : t("pages.dashboard.personal.pipeline.deals")}
                                 </span>
                                 {hasValue && (
                                     <>
@@ -182,8 +180,8 @@ export default function PipelineSplit({
                                 }}
                             >
                                 {pipeline.idle_count
-                                    ? `${pipeline.idle_count} ${td("with no activity in 7 days")}`
-                                    : td("all touched in the last 7 days")}
+                                    ? `${pipeline.idle_count} ${t("pages.dashboard.personal.pipeline.idle")}`
+                                    : t("pages.dashboard.personal.pipeline.all_touched")}
                                 {rest ? ` · ${rest}` : ""}
                             </div>
                         </div>
@@ -201,11 +199,9 @@ export default function PipelineSplit({
                     color: T.TEXT_MUTED,
                 }}
             >
-                {td(
-                    "Ranked by deal count, highest first. Currencies are never converted or combined.",
-                )}{" "}
+                {t("pages.dashboard.personal.pipeline.ranked_note")}{" "}
                 <a href={dealsHref} style={{ fontWeight: 600 }}>
-                    {td("Open the deal list")}
+                    {t("pages.dashboard.personal.actions.open_deal_list")}
                 </a>
             </p>
         </div>

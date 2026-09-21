@@ -18,7 +18,7 @@ import {
     REDESIGN_TOKENS as T,
     initialsFromName,
 } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { amount } from "../format";
 import type {
     TeamSummary,
@@ -26,15 +26,31 @@ import type {
     TeamTreeNode,
 } from "../types";
 
-/** Children shown before a branch collapses into a "+N more" pill. */
+/** Children shown before a branch offers "+N more" on the parent card. */
 const INITIAL_VISIBLE = 6;
 const PAGE_SIZE = 10;
 
 const CARD_WIDTH = 220;
+/** Person cards with a branch line under the level need a touch more room. */
 const PERSON_HEIGHT = 124;
+const PERSON_HEIGHT_WITH_BRANCH = 136;
 const YOU_HEIGHT = 148;
-const PILL_WIDTH = 168;
-const PILL_HEIGHT = 44;
+/** Extra height when the parent card carries expand / collapse controls. */
+const BRANCH_FOOTER_HEIGHT = 36;
+
+/**
+ * Expand / collapse for a parent's direct reports.
+ *
+ * Lives on the parent card — not as a sibling node in the tree — so there is
+ * never an edge fanning out to a "+N more" pill across the other children.
+ */
+interface BranchControls {
+    key: string;
+    /** How many direct reports are still hidden. 0 when the branch is fully open. */
+    hiddenCount: number;
+    /** True once the viewer has paged past the initial slice. */
+    canCollapse: boolean;
+}
 
 interface RawPerson {
     kind: "you" | "person";
@@ -42,20 +58,10 @@ interface RawPerson {
     name: string;
     image?: string | null;
     level?: string | null;
+    branch?: BranchControls;
 }
 
-interface RawShowMore {
-    kind: "show-more";
-    parentKey: string;
-    hiddenCount: number;
-}
-
-interface RawShowLess {
-    kind: "show-less";
-    parentKey: string;
-}
-
-type RawDatum = RawPerson | RawShowMore | RawShowLess;
+type RawDatum = RawPerson;
 
 interface TreeDatum {
     id: string;
@@ -78,7 +84,7 @@ export type GraphSelection =
     | { kind: "person"; node: TeamTreeNode };
 
 const GraphUi = createContext<{
-    td: (source: string) => string;
+    t: (key: string, options?: Record<string, unknown>) => string;
     currency: string | null;
     networkSummary?: TeamSummary | null;
     onSelect?: (selection: GraphSelection) => void;
@@ -91,12 +97,12 @@ const GraphUi = createContext<{
  *
  * React Flow (`@xyflow/react`) rather than react-d3-tree: each card is a
  * normal React node, not HTML stuffed into an SVG foreignObject, so the
- * avatar / figures / "+N more" pills stay contained, clickable and sharp
- * while pan, zoom, fit-to-view and a minimap come with the canvas. Dagre
- * only places the tree (top-down); it does not draw anything.
+ * avatar / figures stay contained, clickable and sharp while pan, zoom,
+ * fit-to-view and a minimap come with the canvas. Dagre only places the
+ * tree (top-down); it does not draw anything.
  *
- * Wide branches still collapse behind a "+N more" pill — the same control
- * the previous renderer offered — reimplemented as extra nodes in the flow.
+ * Wide branches collapse behind a "+N more" control on the *parent* card —
+ * never as a sibling in the child row, which put an edge across the others.
  */
 export default function TeamNetworkGraph({
     data,
@@ -109,7 +115,7 @@ export default function TeamNetworkGraph({
     height?: number;
     networkSummary?: TeamSummary | null;
 }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState<Map<string, number>>(new Map());
 
     const toggle = useCallback((parentKey: string, expand: boolean) => {
@@ -132,36 +138,12 @@ export default function TeamNetworkGraph({
     const toTreeDatum = useCallback(
         (node: TeamTreeNode, parentKey: string): TreeDatum => {
             const key = `${parentKey}.${node.agent_id}`;
-            const visible = expanded.get(key) ?? INITIAL_VISIBLE;
-            const kids = node.children;
-            const children: TreeDatum[] = [];
-
-            if (kids.length <= visible) {
-                children.push(
-                    ...kids.map((child) => toTreeDatum(child, key)),
-                );
-            } else {
-                children.push(
-                    ...kids
-                        .slice(0, visible)
-                        .map((child) => toTreeDatum(child, key)),
-                    {
-                        id: `more-${key}`,
-                        __raw: {
-                            kind: "show-more",
-                            parentKey: key,
-                            hiddenCount: kids.length - visible,
-                        },
-                    },
-                );
-            }
-
-            if (visible > INITIAL_VISIBLE && kids.length > INITIAL_VISIBLE) {
-                children.push({
-                    id: `less-${key}`,
-                    __raw: { kind: "show-less", parentKey: key },
-                });
-            }
+            const { children, branch } = sliceDirectReports(
+                node.children,
+                key,
+                expanded,
+                (child) => toTreeDatum(child, key),
+            );
 
             return {
                 id: `p-${node.agent_id}`,
@@ -171,6 +153,7 @@ export default function TeamNetworkGraph({
                     name: node.name,
                     image: node.image,
                     level: node.level,
+                    branch,
                 },
                 children,
             };
@@ -180,35 +163,12 @@ export default function TeamNetworkGraph({
 
     const treeData = useMemo((): TreeDatum => {
         const key = "root";
-        const visible = expanded.get(key) ?? INITIAL_VISIBLE;
-        const children: TreeDatum[] = [];
-
-        if (data.nodes.length <= visible) {
-            children.push(
-                ...data.nodes.map((node) => toTreeDatum(node, key)),
-            );
-        } else {
-            children.push(
-                ...data.nodes
-                    .slice(0, visible)
-                    .map((node) => toTreeDatum(node, key)),
-                {
-                    id: "more-root",
-                    __raw: {
-                        kind: "show-more",
-                        parentKey: key,
-                        hiddenCount: data.nodes.length - visible,
-                    },
-                },
-            );
-        }
-
-        if (visible > INITIAL_VISIBLE && data.nodes.length > INITIAL_VISIBLE) {
-            children.push({
-                id: "less-root",
-                __raw: { kind: "show-less", parentKey: key },
-            });
-        }
+        const { children, branch } = sliceDirectReports(
+            data.nodes,
+            key,
+            expanded,
+            (node) => toTreeDatum(node, key),
+        );
 
         return {
             id: "you",
@@ -217,6 +177,7 @@ export default function TeamNetworkGraph({
                 name: data.your_name ?? "You",
                 image: data.your_image,
                 level: data.your_level,
+                branch,
             },
             children,
         };
@@ -229,16 +190,6 @@ export default function TeamNetworkGraph({
 
     const activate = useCallback(
         (raw: RawDatum) => {
-            if (raw.kind === "show-more") {
-                toggle(raw.parentKey, true);
-                return;
-            }
-
-            if (raw.kind === "show-less") {
-                toggle(raw.parentKey, false);
-                return;
-            }
-
             if (raw.kind === "you") {
                 onSelect?.({ kind: "you" });
                 return;
@@ -248,26 +199,26 @@ export default function TeamNetworkGraph({
                 onSelect?.({ kind: "person", node: raw.node });
             }
         },
-        [onSelect, toggle],
+        [onSelect],
     );
 
     const ui = useMemo(
         () => ({
-            td,
+            t,
             currency: data.currency,
             networkSummary,
             onSelect,
             toggle,
             activate,
         }),
-        [td, data.currency, networkSummary, onSelect, toggle, activate],
+        [t, data.currency, networkSummary, onSelect, toggle, activate],
     );
 
     if (!data.nodes.length) {
         return (
             <div style={{ padding: 18 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                    {td("Nobody reports to you yet")}
+                    {t("pages.dashboard.team.graph.empty_title")}
                 </p>
                 <p
                     style={{
@@ -276,9 +227,7 @@ export default function TeamNetworkGraph({
                         color: T.TEXT_MUTED,
                     }}
                 >
-                    {td(
-                        "An agent joins your network when your agent record is set as their parent agent.",
-                    )}
+                    {t("pages.dashboard.team.graph.empty_body")}
                 </p>
             </div>
         );
@@ -334,6 +283,46 @@ export default function TeamNetworkGraph({
     );
 }
 
+/**
+ * Visible direct reports plus the expand/collapse payload for the parent.
+ *
+ * Only person nodes become tree children — the "+N more" / "Show less"
+ * actions ride on the parent card so the graph never draws an edge to them.
+ */
+function branchMetricsDiffer(
+    own: TeamTreeNode["own"] | undefined,
+    network: TeamTreeNode["network"] | undefined,
+): boolean {
+    return Boolean(
+        own &&
+            network &&
+            (own.paid !== network.paid ||
+                own.active_deals !== network.active_deals),
+    );
+}
+
+function sliceDirectReports(
+    reports: TeamTreeNode[],
+    parentKey: string,
+    expanded: Map<string, number>,
+    mapChild: (node: TeamTreeNode) => TreeDatum,
+): { children: TreeDatum[]; branch?: BranchControls } {
+    const visible = expanded.get(parentKey) ?? INITIAL_VISIBLE;
+    const children = reports.slice(0, visible).map(mapChild);
+    const hiddenCount = Math.max(0, reports.length - visible);
+    const canCollapse =
+        visible > INITIAL_VISIBLE && reports.length > INITIAL_VISIBLE;
+
+    if (hiddenCount === 0 && !canCollapse) {
+        return { children };
+    }
+
+    return {
+        children,
+        branch: { key: parentKey, hiddenCount, canCollapse },
+    };
+}
+
 function NetworkCard({ data, selected }: NodeProps<NetworkNode>) {
     const ui = useContext(GraphUi);
     const raw = data.raw;
@@ -342,53 +331,12 @@ function NetworkCard({ data, selected }: NodeProps<NetworkNode>) {
         return null;
     }
 
-    if (raw.kind === "show-more") {
-        return (
-            <>
-                <Handle type="target" position={Position.Top} className="dv2-network-handle" />
-                <button
-                    type="button"
-                    className="dv2-tree-pill dv2-tree-pill-more nodrag nopan"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        ui.activate(raw);
-                    }}
-                >
-                    +{raw.hiddenCount} {ui.td("more")}
-                </button>
-                <Handle type="source" position={Position.Bottom} className="dv2-network-handle" />
-            </>
-        );
-    }
-
-    if (raw.kind === "show-less") {
-        return (
-            <>
-                <Handle type="target" position={Position.Top} className="dv2-network-handle" />
-                <button
-                    type="button"
-                    className="dv2-tree-pill dv2-tree-pill-less nodrag nopan"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        ui.activate(raw);
-                    }}
-                >
-                    {ui.td("Show less")}
-                </button>
-            </>
-        );
-    }
-
     const isYou = raw.kind === "you";
     const node = raw.kind === "person" ? raw.node : undefined;
     const own = node?.own;
     const network = node?.network;
-    const branchDiffers =
-        own &&
-        network &&
-        (own.paid !== network.paid || own.active_deals !== network.active_deals);
+    const branch = raw.branch;
+    const branchDiffers = branchMetricsDiffer(own, network);
 
     const yourPaid =
         ui.networkSummary === undefined
@@ -405,103 +353,150 @@ function NetworkCard({ data, selected }: NodeProps<NetworkNode>) {
     return (
         <>
             <Handle type="target" position={Position.Top} className="dv2-network-handle" />
-            <button
-                type="button"
-                className="dv2-tree-card nodrag nopan"
-                data-you={isYou || undefined}
-                data-selected={selected || undefined}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    ui.activate(raw);
-                }}
-            >
-                <div className="dv2-tree-card-head">
-                    <Avatar
-                        size={28}
-                        initials={initialsFromName(raw.name)}
-                        type={isYou ? "watcher" : "agent"}
-                        src={raw.image}
-                    />
-                    <div style={{ minWidth: 0 }}>
-                        <div className="dv2-tree-card-name">
-                            {raw.name}
-                            {isYou && (
-                                <span className="dv2-tree-card-you">
-                                    {" "}
-                                    · {ui.td("You")}
-                                </span>
-                            )}
-                        </div>
-                        <div className="dv2-tree-card-level">
-                            {raw.level ?? ui.td("No level")}
-                        </div>
-                    </div>
-                </div>
-
-                {isYou ? (
-                    <>
-                        <div className="dv2-tree-card-stats">
-                            <div>
-                                <div className="dv2-tree-card-stat-value">
-                                    {yourPaid ?? "—"}
-                                </div>
-                                <div className="dv2-tree-card-stat-label">
-                                    {ui.td("Network paid")}
-                                </div>
+            <div className="dv2-tree-node">
+                <button
+                    type="button"
+                    className="dv2-tree-card nodrag nopan"
+                    data-you={isYou || undefined}
+                    data-selected={selected || undefined}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        ui.activate(raw);
+                    }}
+                >
+                    <div className="dv2-tree-card-head">
+                        <Avatar
+                            size={28}
+                            initials={initialsFromName(raw.name)}
+                            type={isYou ? "watcher" : "agent"}
+                            src={raw.image}
+                        />
+                        <div style={{ minWidth: 0 }}>
+                            <div className="dv2-tree-card-name">
+                                {raw.name}
+                                {isYou && (
+                                    <span className="dv2-tree-card-you">
+                                        {" "}
+                                        · {ui.t("pages.dashboard.team.graph.you")}
+                                    </span>
+                                )}
                             </div>
-                            <div>
-                                <div className="dv2-tree-card-stat-value">
-                                    {yourActiveDeals ?? "—"}
-                                </div>
-                                <div className="dv2-tree-card-stat-label">
-                                    {ui.td("Active deals")}
-                                </div>
+                            <div className="dv2-tree-card-level">
+                                {raw.level ??
+                                    ui.t("pages.dashboard.team.graph.no_level")}
                             </div>
-                        </div>
-                        <div
-                            className="dv2-tree-card-hint"
-                            title={ui.td(
-                                "The same totals as the tile row above, for the whole network below you.",
-                            )}
-                        >
-                            {ui.td("Click for the full breakdown")}
-                        </div>
-                    </>
-                ) : (
-                    own && (
-                        <div className="dv2-tree-card-stats">
-                            <div>
-                                <div className="dv2-tree-card-stat-value">
-                                    {amount(own.paid, ui.currency)}
-                                </div>
-                                <div className="dv2-tree-card-stat-label">
-                                    {ui.td("Paid")}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="dv2-tree-card-stat-value">
-                                    {own.active_deals}
-                                </div>
-                                <div className="dv2-tree-card-stat-label">
-                                    {ui.td("Active deals")}
-                                </div>
-                            </div>
-                            {branchDiffers && (
+                            {!isYou && branchDiffers && network && (
                                 <div
                                     className="dv2-tree-card-branch"
-                                    title={ui.td(
-                                        "This person's own figures are above. This line adds everyone below them in the network.",
+                                    title={ui.t(
+                                        "pages.dashboard.team.graph.branch_hint_title",
                                     )}
                                 >
-                                    {ui.td("Branch")}: {network.active_deals}{" "}
-                                    {ui.td("active deals")}
+                                    {ui.t(
+                                        "pages.dashboard.team.graph.branch_active_deals",
+                                        { count: network.active_deals },
+                                    )}
                                 </div>
                             )}
                         </div>
-                    )
+                    </div>
+
+                    {isYou ? (
+                        <>
+                            <div className="dv2-tree-card-stats">
+                                <div>
+                                    <div className="dv2-tree-card-stat-value">
+                                        {yourPaid ?? "—"}
+                                    </div>
+                                    <div className="dv2-tree-card-stat-label">
+                                        {ui.t(
+                                            "pages.dashboard.team.graph.network_paid",
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="dv2-tree-card-stat-value">
+                                        {yourActiveDeals ?? "—"}
+                                    </div>
+                                    <div className="dv2-tree-card-stat-label">
+                                        {ui.t(
+                                            "pages.dashboard.team.graph.active_deals",
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                className="dv2-tree-card-hint"
+                                title={ui.t(
+                                    "pages.dashboard.team.graph.you_hint_title",
+                                )}
+                            >
+                                {ui.t(
+                                    "pages.dashboard.team.graph.click_breakdown",
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        own && (
+                            <div className="dv2-tree-card-stats">
+                                <div>
+                                    <div className="dv2-tree-card-stat-value">
+                                        {amount(own.paid, ui.currency)}
+                                    </div>
+                                    <div className="dv2-tree-card-stat-label">
+                                        {ui.t(
+                                            "pages.dashboard.team.graph.paid",
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="dv2-tree-card-stat-value">
+                                        {own.active_deals}
+                                    </div>
+                                    <div className="dv2-tree-card-stat-label">
+                                        {ui.t(
+                                            "pages.dashboard.team.graph.active_deals",
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    )}
+                </button>
+
+                {branch && (
+                    <div className="dv2-tree-branch-actions">
+                        {branch.hiddenCount > 0 && (
+                            <button
+                                type="button"
+                                className="dv2-tree-pill dv2-tree-pill-more nodrag nopan"
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    ui.toggle(branch.key, true);
+                                }}
+                            >
+                                +{branch.hiddenCount}{" "}
+                                {ui.t("pages.dashboard.team.graph.more")}
+                            </button>
+                        )}
+                        {branch.canCollapse && (
+                            <button
+                                type="button"
+                                className="dv2-tree-pill dv2-tree-pill-less nodrag nopan"
+                                onPointerDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    ui.toggle(branch.key, false);
+                                }}
+                            >
+                                {ui.t("pages.dashboard.team.graph.show_less")}
+                            </button>
+                        )}
+                    </div>
                 )}
-            </button>
+            </div>
             <Handle type="source" position={Position.Bottom} className="dv2-network-handle" />
         </>
     );
@@ -509,14 +504,22 @@ function NetworkCard({ data, selected }: NodeProps<NetworkNode>) {
 
 const nodeTypes: NodeTypes = { network: NetworkCard };
 
+function personCardHeight(raw: RawPerson): number {
+    return branchMetricsDiffer(raw.node?.own, raw.node?.network)
+        ? PERSON_HEIGHT_WITH_BRANCH
+        : PERSON_HEIGHT;
+}
+
 function nodeSize(raw: RawDatum): { width: number; height: number } {
-    if (raw.kind === "show-more" || raw.kind === "show-less") {
-        return { width: PILL_WIDTH, height: PILL_HEIGHT };
-    }
+    const base =
+        raw.kind === "you"
+            ? YOU_HEIGHT
+            : personCardHeight(raw);
+    const footer = raw.branch ? BRANCH_FOOTER_HEIGHT : 0;
 
     return {
         width: CARD_WIDTH,
-        height: raw.kind === "you" ? YOU_HEIGHT : PERSON_HEIGHT,
+        height: base + footer,
     };
 }
 
@@ -526,8 +529,6 @@ function layoutTree(root: TreeDatum): { nodes: NetworkNode[]; edges: Edge[] } {
 
     const walk = (datum: TreeDatum, parentId: string | null) => {
         const size = nodeSize(datum.__raw);
-        const isPerson =
-            datum.__raw.kind === "you" || datum.__raw.kind === "person";
 
         nodes.push({
             id: datum.id,
@@ -537,12 +538,7 @@ function layoutTree(root: TreeDatum): { nodes: NetworkNode[]; edges: Edge[] } {
             className: "nopan nodrag",
             draggable: false,
             connectable: false,
-            // Pills stay unselected so they don't draw a ring, but they must
-            // still receive pointer events — React Flow sets pointer-events:
-            // none on a node that is neither selectable, draggable, nor given
-            // an onNodeClick. onNodeClick covers that; this keeps inspect
-            // highlight on people only.
-            selectable: isPerson,
+            selectable: true,
             style: { width: size.width, height: size.height },
             width: size.width,
             height: size.height,
@@ -607,10 +603,6 @@ function miniMapColor(node: Node): string {
 
     if (raw?.kind === "you") {
         return "#c5ddf4";
-    }
-
-    if (raw?.kind === "show-more" || raw?.kind === "show-less") {
-        return "#e8eaf0";
     }
 
     return "#ffffff";

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Severity } from "./types";
 import SnoozeModal from "./SnoozeModal";
 
@@ -45,9 +45,10 @@ export default function SignalActions({
     snoozing = false,
     done = false,
 }: SignalActionsProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [snoozeOpen, setSnoozeOpen] = useState(false);
     const busy = completing || snoozing;
+    const snoozeLabel = t("pages.dashboard.personal.actions.snooze");
 
     return (
         <>
@@ -58,14 +59,14 @@ export default function SignalActions({
                     disabled={busy}
                     onClick={onComplete}
                 >
-                    {td("Complete")}
+                    {t("pages.dashboard.personal.actions.complete")}
                 </Button>
             )}
 
             <Button
                 variant="ghost"
-                title={td("Snooze")}
-                aria-label={td("Snooze")}
+                title={snoozeLabel}
+                aria-label={snoozeLabel}
                 loading={snoozing}
                 disabled={busy}
                 onClick={() => setSnoozeOpen(true)}

@@ -231,7 +231,7 @@ function FunnelReading({ data }: { data: FunnelData }) {
     if (!measured.length || data.steps[0].count === 0) {
         return (
             <span style={{ color: T.TEXT_MUTED }}>
-                {td("Not enough leads in this window to read a funnel.")}
+                {td("Not enough leads in this window to read a funnel.", { source: "en" })}
             </span>
         );
     }
@@ -250,19 +250,20 @@ function FunnelReading({ data }: { data: FunnelData }) {
     return (
         <span style={{ color: T.TEXT }}>
             <strong>
-                {td(worst.label)} → {td(next?.label ?? "")}
+                {td(worst.label, { source: "en" })} → {td(next?.label ?? "", { source: "en" })}
             </strong>{" "}
-            {td("is the narrowest step at")} {worst.to_next}%
+            {td("is the narrowest step at", { source: "en" })} {worst.to_next}%
             {worst.median_days !== null && (
                 <>
-                    , {td("taking a median of")} {worst.median_days}
-                    {td("d")}
+                    , {td("taking a median of", { source: "en" })} {worst.median_days}
+                    {td("d", { source: "en" })}
                 </>
             )}
             .{" "}
             {unnested &&
                 td(
                     "Steps are not strictly nested — a deal can be created without a meeting ever being logged.",
+                    { source: "en" },
                 )}
         </span>
     );

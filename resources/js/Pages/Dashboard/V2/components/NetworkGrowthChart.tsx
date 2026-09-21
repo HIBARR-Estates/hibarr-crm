@@ -11,7 +11,7 @@ import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { Empty } from "antd";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { TeamGrowth, TeamGrowthPoint } from "../types";
 import ChartPopover from "./ChartPopover";
 import { labeledTooltip } from "./chartTooltip";
@@ -31,9 +31,9 @@ export default function NetworkGrowthChart({
     data: TeamGrowth;
     height?: number;
 }) {
-    const { td } = useTd();
-    const joinedLabel = td("New agents");
-    const totalLabel = td("Network size");
+    const { t } = useTranslation();
+    const joinedLabel = t("pages.dashboard.team.charts.new_agents");
+    const totalLabel = t("pages.dashboard.team.charts.network_size");
 
     const definition = useMemo(() => {
         const rows = data.points;
@@ -127,16 +127,16 @@ export default function NetworkGrowthChart({
     }, [data.points, joinedLabel, totalLabel]);
 
     if (!data.points.length) {
-        return <Empty description={td("No months in this window to plot")} />;
+        return (
+            <Empty description={t("pages.dashboard.team.charts.growth_empty")} />
+        );
     }
 
     return (
         <Chart
             definition={definition}
             height={height}
-            ariaLabel={td(
-                "New agents each month against the running network size",
-            )}
+            ariaLabel={t("pages.dashboard.team.charts.growth_aria")}
             style={{ width: "100%", color: T.TEXT }}
             renderTooltipBody={({ content }) => (
                 <ChartPopover content={content} />
