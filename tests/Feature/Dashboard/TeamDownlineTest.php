@@ -444,12 +444,10 @@ class TeamDownlineTest extends TestCase
             ['agent_id' => 2, 'amount' => 200, 'type' => 'upline'],
         ]);
 
-        $tree = $service->tree($root, $this->range());
-
-        $this->assertSame(800.0, $this->nodeFor($tree, 4)['own']['forecast']);
-        $this->assertSame(200.0, $this->nodeFor($tree, 2)['own']['forecast']);
-
         $forecast = $service->teamForecast($root);
+
+        $this->assertSame(800.0, $forecast['by_agent'][4]);
+        $this->assertSame(200.0, $forecast['by_agent'][2]);
         $this->assertSame(1000.0, $forecast['amount']);
     }
 
@@ -504,10 +502,15 @@ class TeamDownlineTest extends TestCase
 
         $bo = $this->nodeFor($service->tree($root, $this->range()), 2);
 
-        // Bo (2) has no forecast of their own, but Di (4) and Eli (5) sit in
-        // their branch, so the branch total has to carry both.
+        // The graph must not wait on preview(), so node forecast stays empty
+        // even when the tile has a priced total.
         $this->assertSame(0.0, $bo['own']['forecast']);
-        $this->assertSame(60.0, $bo['network']['forecast']);
+        $this->assertSame(0.0, $bo['network']['forecast']);
+
+        $forecast = $service->teamForecast($root);
+        $this->assertSame(50.0, $forecast['by_agent'][5]);
+        $this->assertSame(10.0, $forecast['by_agent'][4]);
+        $this->assertSame(60.0, $forecast['amount']);
     }
 
     // ── Commission trend ─────────────────────────────────────────────────────

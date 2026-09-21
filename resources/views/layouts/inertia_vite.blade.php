@@ -12,7 +12,8 @@
     @viteReactRefresh
 
     {{-- ✅ Then load your Vite entrypoints --}}
-    @vite(['resources/js/inertia.tsx', 'resources/css/tailwind.css'])
+    {{-- Tailwind ships via Mix below; only inertia.tsx is a Vite entry (vite.config.mjs). --}}
+    @vite(['resources/js/inertia.tsx'])
 
     {{-- Optional Mix assets for legacy --}}
     <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">

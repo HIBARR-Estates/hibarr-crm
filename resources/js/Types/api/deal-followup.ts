@@ -53,7 +53,15 @@ export interface DealFollowup {
                   slug?: string;
                   label_color?: string | null;
               } | null;
-              contact?: { id: number; client_name: string } | null;
+              contact?: {
+                  id: number;
+                  client_name: string;
+                  mobile?: string | null;
+                  cell?: string | null;
+                  office?: string | null;
+                  mobile_with_phonecode?: string | null;
+                  office_phone_formatted?: string | null;
+              } | null;
           })
         | Deal;
     zoho_calendar_job_id?: string | null;
@@ -69,7 +77,15 @@ export interface DealFollowup {
     attendance_outcome_logged_by?: number | null;
     lead?: Pick<
         Lead,
-        "id" | "client_name" | "client_name_salutation" | "company_name"
+        | "id"
+        | "client_name"
+        | "client_name_salutation"
+        | "company_name"
+        | "mobile"
+        | "cell"
+        | "office"
+        | "mobile_with_phonecode"
+        | "office_phone_formatted"
     >;
     effective_duration?: number; // Computed: duration ?? 30
     participant_users?: {

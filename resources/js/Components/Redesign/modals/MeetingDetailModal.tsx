@@ -11,7 +11,6 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
     getMeetingStatusDisplay,
-    locationAddsDetail,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
@@ -27,7 +26,7 @@ import {
 } from "@/Components/Redesign/tokens";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
-
+import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
     rescheduleOpen: boolean;
@@ -505,83 +504,10 @@ export default function MeetingDetailModal({
                         />
 
                         <div className="mb-4">
-                            {item.meetingLink ? (
-                                <div
-                                    className="flex items-center gap-3 rounded-lg"
-                                    style={{
-                                        background: T.BLUE_LIGHT,
-                                        border: `1px solid ${T.BLUE_MID}`,
-                                        padding: "12px 14px",
-                                    }}
-                                >
-                                    <span
-                                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
-                                        style={{ background: T.WHITE }}
-                                    >
-                                        <Icon
-                                            name="video"
-                                            size={17}
-                                            color={T.BLUE}
-                                        />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <div
-                                            className="mb-0.5 font-semibold uppercase"
-                                            style={{
-                                                fontSize: 12,
-                                                letterSpacing: "0.05em",
-                                                color: T.BLUE,
-                                            }}
-                                        >
-                                            {t(
-                                                "pages.deals.workspace.meetings.meeting_link",
-                                            )}
-                                        </div>
-                                        <a
-                                            href={item.meetingLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            title={item.meetingLink}
-                                            className="block truncate font-medium underline"
-                                            style={{
-                                                fontSize: 13,
-                                                color: T.NAVY,
-                                            }}
-                                        >
-                                            {item.meetingLink}
-                                        </a>
-                                    </div>
-                                    {isActionable && (
-                                        <a
-                                            href={item.meetingLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="dr-btn dr-btn-primary no-underline"
-                                            style={{ flexShrink: 0 }}
-                                        >
-                                            <Icon name="video" size={14} />
-                                            {t(
-                                                "pages.deals.workspace.meetings.join_meeting",
-                                            )}
-                                        </a>
-                                    )}
-                                </div>
-                            ) : (
-                                // Only when it isn't just the platform pill
-                                // restated — see locationAddsDetail.
-                                locationAddsDetail(item) && (
-                                    <div
-                                        className="flex items-center gap-2"
-                                        style={{
-                                            fontSize: 14,
-                                            color: T.TEXT_MUTED,
-                                        }}
-                                    >
-                                        <Icon name="map-pin" size={14} />
-                                        {td(item.locationDisplay)}
-                                    </div>
-                                )
-                            )}
+                            <MeetingLocationPanel
+                                meeting={meeting}
+                                actionable={isActionable}
+                            />
                         </div>
 
                         {meeting.remark && (

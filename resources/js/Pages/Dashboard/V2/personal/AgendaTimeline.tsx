@@ -1,9 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import dayjs from "dayjs";
-import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Badge, Icon, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { toWorkspaceMeetingListItem } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import type { ScheduleEntry } from "../types";
-import { agendaDay, durationLabel, isAgendaActive, isAgendaLive, isAgendaUpcoming } from "./format";
+import {
+    agendaDay,
+    durationLabel,
+    isAgendaActive,
+    isAgendaLive,
+    isAgendaUpcoming,
+} from "./format";
 
 interface AgendaTimelineProps {
     meetings: ScheduleEntry[];
@@ -11,7 +18,7 @@ interface AgendaTimelineProps {
     /** Ticking client clock; when omitted, `now` is used. */
     clock?: string;
     onOpenMeeting: (meeting: ScheduleEntry) => void;
-    /** Opens the Schedule Meeting drawer — the empty state's own CTA. */
+    /** Opens the Schedule Meeting drawer. */
     onScheduleMeeting: () => void;
 }
 
@@ -77,20 +84,7 @@ export default function AgendaTimeline({
                         justifyContent: "center",
                     }}
                 >
-                    <svg
-                        width={18}
-                        height={18}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke={T.TEXT_HINT}
-                        strokeWidth={1.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                        style={{ display: "block" }}
-                    >
-                        <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
-                    </svg>
+                    <Icon name="calendar" size={18} color={T.TEXT_HINT} />
                 </div>
 
                 <p
@@ -115,6 +109,7 @@ export default function AgendaTimeline({
                     style={{ marginTop: 4 }}
                     onClick={onScheduleMeeting}
                 >
+                    <Icon name="plus" size={14} />
                     {td("Schedule meeting")}
                 </button>
             </div>
@@ -150,8 +145,18 @@ export default function AgendaTimeline({
                     {td("Agenda")}
                 </h2>
                 <Badge variant="gray">
-                    {items.length} {items.length === 1 ? td("meeting") : td("meetings")}
+                    {items.length}{" "}
+                    {items.length === 1 ? td("meeting") : td("meetings")}
                 </Badge>
+                <button
+                    type="button"
+                    className="dr-btn dr-btn-primary dr-btn-sm"
+                    style={{ marginLeft: "auto" }}
+                    onClick={onScheduleMeeting}
+                >
+                    <Icon name="plus" size={13} />
+                    {td("Add meeting")}
+                </button>
             </header>
 
             <div>
@@ -162,14 +167,44 @@ export default function AgendaTimeline({
                         clockStamp,
                     );
                     const isNext = !live && meeting.id === nextUpcomingId;
-                    const meta = [
-                        meeting.type,
-                        meeting.location_label,
-                        meeting.subtitle,
-                    ]
-                        .filter(Boolean)
-                        .join(" · ");
+                    const listItem = toWorkspaceMeetingListItem(meeting);
                     const duration = durationLabel(meeting.duration);
+                    const whereLabel =
+                        listItem.locationType === "phone"
+                            ? td("Phone call")
+                            : listItem.locationType === "video"
+                              ? td(listItem.platformLabel, { source: "en" })
+                              : td(listItem.locationDisplay, { source: "en" });
+                    const whereIcon =
+                        listItem.locationType === "video"
+                            ? "video"
+                            : listItem.locationType === "phone"
+                              ? "phone"
+                              : "map-pin";
+
+                    const withRows: Array<{
+                        icon: string;
+                        label: string;
+                        value: string;
+                    }> = [];
+                    if (meeting.deal?.name) {
+                        withRows.push({
+                            icon: "briefcase",
+                            label: td("Deal"),
+                            value: meeting.deal.name,
+                        });
+                    }
+                    const leadName =
+                        meeting.lead?.client_name ||
+                        meeting.deal?.contact?.client_name ||
+                        null;
+                    if (leadName && leadName !== meeting.deal?.name) {
+                        withRows.push({
+                            icon: "user",
+                            label: td("Lead"),
+                            value: leadName,
+                        });
+                    }
 
                     return (
                         <div
@@ -178,7 +213,7 @@ export default function AgendaTimeline({
                             style={{
                                 display: "flex",
                                 gap: 12,
-                                padding: "11px 16px",
+                                padding: "12px 16px",
                                 alignItems: "flex-start",
                                 borderTop: index
                                     ? `1px solid ${T.BORDER_SOFT}`
@@ -265,7 +300,7 @@ export default function AgendaTimeline({
                                             color: T.NAVY,
                                         }}
                                     >
-                                        {meeting.title}
+                                        {listItem.title}
                                     </span>
                                     {live && (
                                         <Badge
@@ -292,22 +327,218 @@ export default function AgendaTimeline({
                                         </Badge>
                                     )}
                                 </span>
-                                {meta && (
-                                    <span
-                                        style={{
-                                            display: "block",
-                                            fontSize: 12.5,
-                                            color: T.TEXT_MUTED,
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        {meta}
-                                    </span>
-                                )}
+
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 4,
+                                        marginTop: 6,
+                                    }}
+                                >
+                                    {meeting.type &&
+                                        meeting.type !== listItem.title && (
+                                            <AgendaMetaRow
+                                                icon="tag"
+                                                label={td("Type")}
+                                                value={meeting.type}
+                                            />
+                                        )}
+                                    <AgendaMetaRow
+                                        icon={whereIcon}
+                                        label={
+                                            listItem.locationType ===
+                                            "in_person"
+                                                ? td("Place")
+                                                : td("Where")
+                                        }
+                                        value={whereLabel}
+                                    />
+                                    {withRows.map((row) => (
+                                        <AgendaMetaRow
+                                            key={`${row.label}-${row.value}`}
+                                            icon={row.icon}
+                                            label={row.label}
+                                            value={row.value}
+                                        />
+                                    ))}
+                                </span>
                             </button>
                         </div>
                     );
                 })}
+            </div>
+        </div>
+    );
+}
+
+function AgendaMetaRow({
+    icon,
+    label,
+    value,
+}: {
+    icon: string;
+    label: string;
+    value: ReactNode;
+}) {
+    return (
+        <span
+            style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                minWidth: 0,
+                fontSize: 12.5,
+                color: T.TEXT_MUTED,
+                lineHeight: 1.35,
+            }}
+        >
+            <Icon name={icon} size={12} color={T.TEXT_HINT} />
+            <span
+                style={{
+                    flex: "none",
+                    fontWeight: 600,
+                    color: T.TEXT_HINT,
+                }}
+            >
+                {label}
+            </span>
+            <span
+                style={{
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color: T.TEXT,
+                }}
+            >
+                {value}
+            </span>
+        </span>
+    );
+}
+
+/**
+ * Fallback while meetings are in flight — same card as the loaded agenda so
+ * the slot still reads as "your meetings", not a blank pulse.
+ */
+export function AgendaTimelineSkeleton({ rows = 3 }: { rows?: number }) {
+    const { td } = useTd();
+
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            aria-label={td("Agenda")}
+            style={{
+                background: T.SURFACE,
+                border: `1px solid ${T.BORDER}`,
+                borderRadius: 10,
+                overflow: "hidden",
+            }}
+        >
+            <header
+                style={{
+                    padding: "13px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    borderBottom: `1px solid ${T.BORDER}`,
+                }}
+            >
+                <h2
+                    style={{
+                        margin: 0,
+                        fontSize: 16,
+                        fontWeight: 600,
+                        color: T.NAVY,
+                    }}
+                >
+                    {td("Agenda")}
+                </h2>
+            </header>
+
+            <div aria-hidden>
+                {Array.from({ length: rows }).map((_, index) => (
+                    <div
+                        key={index}
+                        style={{
+                            display: "flex",
+                            gap: 12,
+                            padding: "11px 16px",
+                            alignItems: "flex-start",
+                            borderTop: index
+                                ? `1px solid ${T.BORDER_SOFT}`
+                                : undefined,
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: 66,
+                                flex: "none",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-end",
+                                gap: 6,
+                                paddingTop: 1,
+                            }}
+                        >
+                            <div
+                                className="dr-skeleton"
+                                style={{
+                                    width: 40,
+                                    height: 10,
+                                    borderRadius: 4,
+                                }}
+                            />
+                            <div
+                                className="dr-skeleton"
+                                style={{
+                                    width: 48,
+                                    height: 14,
+                                    borderRadius: 4,
+                                }}
+                            />
+                        </div>
+                        <div
+                            style={{
+                                width: 2,
+                                alignSelf: "stretch",
+                                minHeight: 36,
+                                borderRadius: 2,
+                                background: T.BORDER_SOFT,
+                                flex: "none",
+                            }}
+                        />
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                                paddingTop: 2,
+                            }}
+                        >
+                            <div
+                                className="dr-skeleton"
+                                style={{
+                                    height: 14,
+                                    width: `${62 - index * 8}%`,
+                                    borderRadius: 6,
+                                }}
+                            />
+                            <div
+                                className="dr-skeleton"
+                                style={{
+                                    height: 11,
+                                    width: `${48 - index * 6}%`,
+                                    borderRadius: 6,
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

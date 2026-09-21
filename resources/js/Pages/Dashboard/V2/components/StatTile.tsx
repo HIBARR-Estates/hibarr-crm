@@ -45,8 +45,8 @@ export default function StatTile({
         numeric !== null && previous !== null && previous !== undefined;
     const delta = hasDelta ? numeric - previous : null;
 
-    // A move from nothing isn't a percentage, so absolute movement is shown
-    // whenever the previous window was empty.
+    // Relative % vs the prior window when that window had a real baseline;
+    // otherwise absolute movement (counts plain, rates suffixed with %).
     const deltaLabel = (() => {
         if (delta === null) return null;
         if (Math.abs(delta) < 0.05) return td("flat");
@@ -54,10 +54,11 @@ export default function StatTile({
         const sign = delta > 0 ? "+" : "−";
         const size = Math.abs(delta);
 
-        if (unit === "%") return `${sign}${Math.round(size)}pt`;
-        if (previous) return `${sign}${Math.round((size / previous) * 100)}%`;
+        if (previous && Math.abs(previous) >= 0.05) {
+            return `${sign}${Math.round((size / previous) * 100)}%`;
+        }
 
-        return `${sign}${Math.round(size)}`;
+        return `${sign}${Math.round(size)}${unit === "%" ? "%" : ""}`;
     })();
 
     const improving = delta === null ? null : lowerIsBetter ? delta < 0 : delta > 0;

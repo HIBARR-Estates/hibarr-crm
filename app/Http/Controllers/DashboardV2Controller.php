@@ -9,6 +9,7 @@ use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\CrmEventService;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\Dashboard\TeamDashboardDemoDataService;
 use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
@@ -48,6 +49,30 @@ class DashboardV2Controller extends AccountBaseController
     {
         parent::__construct();
         $this->pageTitle = 'app.menu.dashboard';
+    }
+
+    /**
+     * Fill the signed-in user's network so the team dashboard has something to
+     * show: three generations of agents plus deals, leads and commissions.
+     *
+     * Non-production only — a 404 in production so it cannot be used as a
+     * public write. Visiting twice is a no-op (demo emails are the lock).
+     *
+     * This project's local Herd box runs as APP_ENV=codecanyon, not `local`,
+     * so the gate is "not production" rather than an allow-list of names.
+     */
+    public function seedTeam(TeamDashboardDemoDataService $seeder)
+    {
+        abort_if(app()->isProduction(), 404);
+
+        set_time_limit(120);
+
+        $seeder->seedFor(user());
+
+        return redirect()->route('dashboard.v2', [
+            'view' => 'team',
+            'days' => 365,
+        ]);
     }
 
     public function index(Request $request, DashboardMetricsService $metrics)
@@ -148,7 +173,14 @@ class DashboardV2Controller extends AccountBaseController
             // nothing".
             'commission' => Inertia::defer(fn () => $metrics->commissionSummary($userId), 'stats'),
             'agenda' => Inertia::defer(fn () => $metrics->upcomingMeetings($userId), 'agenda'),
-            'pipelines' => Inertia::defer(fn () => $metrics->openDealsByPipeline($userId), 'pipelines'),
+            // Named openDealsByPipeline, not pipelines: shared Inertia
+            // `pipelines` is the sidebar nav list (visibility-config gated).
+            // Reusing that key here overwrote the nav with this user's open
+            // deals the moment the dashboard deferred payload landed.
+            'openDealsByPipeline' => Inertia::defer(
+                fn () => $metrics->openDealsByPipeline($userId),
+                'openDealsByPipeline'
+            ),
             // Feeds the agenda's "book a meeting" empty-state action — same
             // permission-scoped queries and shape MeetingsController's own
             // Schedule Meeting drawer already uses.
@@ -270,10 +302,9 @@ class DashboardV2Controller extends AccountBaseController
      * Five groups so each piece paints as soon as its own cost is paid, rather
      * than the slowest panel holding up the rest:
      *  - 'summary': the tile row minus forecast — cheap aggregates only.
-     *  - 'network': the graph and the forecast tile together. Both run
-     *    MlmCommissionService::preview() over every open deal in the team, and
-     *    TeamDownlineService memoises that within one request — split across
-     *    groups (separate requests, separate instances) it would be paid twice.
+     *  - 'network': the graph. Paid/deals/leads only — not preview().
+     *  - 'forecast': the tile that does run preview(). Isolated so a slow
+     *    commission engine cannot 500 the graph with it.
      *  - 'trend' / 'growth' / 'recent': independent aggregates, each its own
      *    query, none needing what the others compute.
      *
@@ -294,8 +325,12 @@ class DashboardV2Controller extends AccountBaseController
                 'summary'
             ),
             'teamForecast' => Inertia::defer(
-                fn () => ($agent = $root()) ? $team->teamForecast($agent) : null,
-                'network'
+                function () use ($root, $team) {
+                    set_time_limit(60);
+
+                    return ($agent = $root()) ? $team->teamForecast($agent) : null;
+                },
+                'forecast'
             ),
             'teamTree' => Inertia::defer(
                 fn () => ($agent = $root()) ? $team->tree($agent, $range) : null,

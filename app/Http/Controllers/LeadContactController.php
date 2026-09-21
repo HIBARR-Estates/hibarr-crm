@@ -443,7 +443,9 @@ class LeadContactController extends AccountBaseController
                     'host:id,name,image',
                     'meetingType',
                     'meetingSummary',
-                    'deal:id,name',
+                    'deal:id,name,lead_id',
+                    'deal.contact:id,client_name,mobile,cell,office',
+                    'lead:id,client_name,mobile,cell,office',
                 ])
                     ->where('lead_id', $leadId)
                     ->orderBy('next_follow_up_date', 'desc');

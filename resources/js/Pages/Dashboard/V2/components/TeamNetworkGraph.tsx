@@ -1,5 +1,18 @@
-import { useCallback, useMemo, useState } from "react";
-import Tree from "react-d3-tree";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+    Background,
+    Controls,
+    Handle,
+    MiniMap,
+    Position,
+    ReactFlow,
+    type Edge,
+    type Node,
+    type NodeProps,
+    type NodeTypes,
+} from "@xyflow/react";
+import { Graph, layout as dagreLayout } from "@dagrejs/dagre";
+import "@xyflow/react/dist/style.css";
 import {
     Avatar,
     REDESIGN_TOKENS as T,
@@ -16,6 +29,12 @@ import type {
 /** Children shown before a branch collapses into a "+N more" pill. */
 const INITIAL_VISIBLE = 6;
 const PAGE_SIZE = 10;
+
+const CARD_WIDTH = 220;
+const PERSON_HEIGHT = 124;
+const YOU_HEIGHT = 148;
+const PILL_WIDTH = 168;
+const PILL_HEIGHT = 44;
 
 interface RawPerson {
     kind: "you" | "person";
@@ -38,6 +57,14 @@ interface RawShowLess {
 
 type RawDatum = RawPerson | RawShowMore | RawShowLess;
 
+interface TreeDatum {
+    id: string;
+    __raw: RawDatum;
+    children?: TreeDatum[];
+}
+
+type NetworkNode = Node<{ raw: RawDatum }, "network">;
+
 /**
  * What clicking the graph hands back to the page.
  *
@@ -46,37 +73,30 @@ type RawDatum = RawPerson | RawShowMore | RawShowLess;
  * holds the viewer's totals (teamSummary / teamForecast, the same numbers the
  * tile row shows) and reads those directly when this kind comes back.
  */
-export type GraphSelection = { kind: "you" } | { kind: "person"; node: TeamTreeNode };
+export type GraphSelection =
+    | { kind: "you" }
+    | { kind: "person"; node: TeamTreeNode };
+
+const GraphUi = createContext<{
+    td: (source: string) => string;
+    currency: string | null;
+    networkSummary?: TeamSummary | null;
+    onSelect?: (selection: GraphSelection) => void;
+    toggle: (parentKey: string, expand: boolean) => void;
+    activate: (raw: RawDatum) => void;
+} | null>(null);
 
 /**
- * Our own node shape, with react-d3-tree's `name` kept only because the
- * library requires the field to exist — everything this component reads
- * comes from `__raw`. Untyped against the library's own RawNodeDatum, same as
- * AgentTreeView: react-d3-tree's shipped types don't resolve cleanly through
- * this project's module resolution, and the render prop is cast at the call
- * site regardless.
- */
-interface TreeDatum {
-    name: string;
-    __raw: RawDatum;
-    children?: TreeDatum[];
-}
-
-/**
- * The network as a real hierarchy — nodes and the lines between them, not a
- * table pretending to be one.
+ * The network as a real hierarchy — nodes and the lines between them.
  *
- * Built on react-d3-tree, the same library the MLM module already uses for
- * this exact job in AgentTreeView (My Network). This is a separate renderer
- * rather than a reuse of that one: AgentTreeView's cards are shaped around
- * NSA/NSD/VSA/VSD cycle metrics and an upline node, neither of which exists on
- * this page — here every card carries this dashboard's own figures, and the
- * root of the graph is the viewer, drawn above the team whose numbers are the
- * ones that count.
+ * React Flow (`@xyflow/react`) rather than react-d3-tree: each card is a
+ * normal React node, not HTML stuffed into an SVG foreignObject, so the
+ * avatar / figures / "+N more" pills stay contained, clickable and sharp
+ * while pan, zoom, fit-to-view and a minimap come with the canvas. Dagre
+ * only places the tree (top-down); it does not draw anything.
  *
- * Wide branches collapse behind a "+N more" pill rather than rendering every
- * node at once — the same shape of control AgentTreeView offers, reimplemented
- * against TeamTreeNode instead of AgentHierarchyNode.
+ * Wide branches still collapse behind a "+N more" pill — the same control
+ * the previous renderer offered — reimplemented as extra nodes in the flow.
  */
 export default function TeamNetworkGraph({
     data,
@@ -85,57 +105,22 @@ export default function TeamNetworkGraph({
     networkSummary,
 }: {
     data: TeamTreeData;
-    /** Fired with whatever was clicked — a person, or the viewer's own "You" card. */
     onSelect?: (selection: GraphSelection) => void;
     height?: number;
-    /**
-     * The same totals the tile row shows, so the "You" card can carry real
-     * numbers instead of sitting empty. This is teamSummary, which resolves on
-     * its own defer group — it can still be undefined after the graph itself
-     * has mounted, so the card shows a placeholder until it lands. The fuller
-     * breakdown (including forecast) is read straight from the page's own
-     * props once "You" is clicked, not threaded through here.
-     */
     networkSummary?: TeamSummary | null;
 }) {
     const { td } = useTd();
     const [expanded, setExpanded] = useState<Map<string, number>>(new Map());
-
-    // A plain useRef never triggers a re-render when it's attached, so the
-    // very first paint — before anything else changes state — would centre
-    // the tree on the 900 fallback rather than the container's real width.
-    // A callback ref measures the instant the DOM node exists and again on
-    // every resize (a sidebar toggling, the window resizing), each time
-    // through the same setState so the graph re-centres with it.
-    const [containerWidth, setContainerWidth] = useState(900);
-
-    const measureContainer = useCallback((node: HTMLDivElement | null) => {
-        if (!node) {
-            return;
-        }
-
-        setContainerWidth(node.clientWidth);
-
-        const observer = new ResizeObserver(([entry]) => {
-            if (entry) {
-                setContainerWidth(entry.contentRect.width);
-            }
-        });
-
-        observer.observe(node);
-
-        // React 19 calls a ref callback's own return value as its cleanup
-        // when the node unmounts or the ref changes — no separate effect
-        // needed to disconnect the observer.
-        return () => observer.disconnect();
-    }, []);
 
     const toggle = useCallback((parentKey: string, expand: boolean) => {
         setExpanded((prev) => {
             const next = new Map(prev);
 
             if (expand) {
-                next.set(parentKey, (prev.get(parentKey) ?? INITIAL_VISIBLE) + PAGE_SIZE);
+                next.set(
+                    parentKey,
+                    (prev.get(parentKey) ?? INITIAL_VISIBLE) + PAGE_SIZE,
+                );
             } else {
                 next.delete(parentKey);
             }
@@ -149,35 +134,44 @@ export default function TeamNetworkGraph({
             const key = `${parentKey}.${node.agent_id}`;
             const visible = expanded.get(key) ?? INITIAL_VISIBLE;
             const kids = node.children;
-
-            let children: TreeDatum[];
+            const children: TreeDatum[] = [];
 
             if (kids.length <= visible) {
-                children = kids.map((child) => toTreeDatum(child, key));
+                children.push(
+                    ...kids.map((child) => toTreeDatum(child, key)),
+                );
             } else {
-                children = kids
-                    .slice(0, visible)
-                    .map((child) => toTreeDatum(child, key));
-                children.push({
-                    name: "",
-                    __raw: {
-                        kind: "show-more",
-                        parentKey: key,
-                        hiddenCount: kids.length - visible,
+                children.push(
+                    ...kids
+                        .slice(0, visible)
+                        .map((child) => toTreeDatum(child, key)),
+                    {
+                        id: `more-${key}`,
+                        __raw: {
+                            kind: "show-more",
+                            parentKey: key,
+                            hiddenCount: kids.length - visible,
+                        },
                     },
-                });
+                );
             }
 
             if (visible > INITIAL_VISIBLE && kids.length > INITIAL_VISIBLE) {
                 children.push({
-                    name: "",
+                    id: `less-${key}`,
                     __raw: { kind: "show-less", parentKey: key },
                 });
             }
 
             return {
-                name: node.name,
-                __raw: { kind: "person", node, name: node.name, image: node.image, level: node.level },
+                id: `p-${node.agent_id}`,
+                __raw: {
+                    kind: "person",
+                    node,
+                    name: node.name,
+                    image: node.image,
+                    level: node.level,
+                },
                 children,
             };
         },
@@ -187,27 +181,37 @@ export default function TeamNetworkGraph({
     const treeData = useMemo((): TreeDatum => {
         const key = "root";
         const visible = expanded.get(key) ?? INITIAL_VISIBLE;
-
-        let children: TreeDatum[];
+        const children: TreeDatum[] = [];
 
         if (data.nodes.length <= visible) {
-            children = data.nodes.map((node) => toTreeDatum(node, key));
+            children.push(
+                ...data.nodes.map((node) => toTreeDatum(node, key)),
+            );
         } else {
-            children = data.nodes
-                .slice(0, visible)
-                .map((node) => toTreeDatum(node, key));
-            children.push({
-                name: "",
-                __raw: {
-                    kind: "show-more",
-                    parentKey: key,
-                    hiddenCount: data.nodes.length - visible,
+            children.push(
+                ...data.nodes
+                    .slice(0, visible)
+                    .map((node) => toTreeDatum(node, key)),
+                {
+                    id: "more-root",
+                    __raw: {
+                        kind: "show-more",
+                        parentKey: key,
+                        hiddenCount: data.nodes.length - visible,
+                    },
                 },
+            );
+        }
+
+        if (visible > INITIAL_VISIBLE && data.nodes.length > INITIAL_VISIBLE) {
+            children.push({
+                id: "less-root",
+                __raw: { kind: "show-less", parentKey: key },
             });
         }
 
         return {
-            name: data.your_name ?? "You",
+            id: "you",
             __raw: {
                 kind: "you",
                 name: data.your_name ?? "You",
@@ -218,178 +222,45 @@ export default function TeamNetworkGraph({
         };
     }, [data, expanded, toTreeDatum]);
 
-    const renderNode = useCallback(
-        ({ nodeDatum }: { nodeDatum: TreeDatum }) => {
-            const raw = nodeDatum.__raw;
+    const { nodes, edges } = useMemo(
+        () => layoutTree(treeData),
+        [treeData],
+    );
 
+    const activate = useCallback(
+        (raw: RawDatum) => {
             if (raw.kind === "show-more") {
-                return (
-                    <g>
-                        <foreignObject width={170} height={52} x={-85} y={-26} style={{ overflow: "visible" }}>
-                            <button
-                                type="button"
-                                className="dv2-tree-pill dv2-tree-pill-more"
-                                onClick={() => toggle(raw.parentKey, true)}
-                            >
-                                +{raw.hiddenCount} {td("more")}
-                            </button>
-                        </foreignObject>
-                    </g>
-                );
+                toggle(raw.parentKey, true);
+                return;
             }
 
             if (raw.kind === "show-less") {
-                return (
-                    <g>
-                        <foreignObject width={150} height={48} x={-75} y={-24} style={{ overflow: "visible" }}>
-                            <button
-                                type="button"
-                                className="dv2-tree-pill dv2-tree-pill-less"
-                                onClick={() => toggle(raw.parentKey, false)}
-                            >
-                                {td("Show less")}
-                            </button>
-                        </foreignObject>
-                    </g>
-                );
+                toggle(raw.parentKey, false);
+                return;
             }
 
-            const isYou = raw.kind === "you";
-            const node = raw.kind === "person" ? raw.node : undefined;
-            const own = node?.own;
-            const network = node?.network;
-            const branchDiffers =
-                own && network && (own.paid !== network.paid || own.active_deals !== network.active_deals);
+            if (raw.kind === "you") {
+                onSelect?.({ kind: "you" });
+                return;
+            }
 
-            // "You" has no own/branch split — every figure on this card
-            // already is the whole network, the same totals the tile row
-            // shows. Each half can still be mid-flight on its own defer
-            // group, so a dash stands in until it lands.
-            const yourPaid =
-                networkSummary === undefined
-                    ? null
-                    : amount(networkSummary?.paid ?? 0, networkSummary?.currency ?? null);
-            const yourActiveDeals =
-                networkSummary === undefined ? null : (networkSummary?.active_deals ?? 0);
-
-            const handleClick = () => {
-                if (isYou) {
-                    onSelect?.({ kind: "you" });
-                } else if (node) {
-                    onSelect?.({ kind: "person", node });
-                }
-            };
-
-            // The "You" card carries an extra hint line the others don't, so it
-            // gets a little more room rather than crowding or clipping it.
-            const cardHeight = isYou ? 148 : 124;
-
-            return (
-                <g>
-                    <foreignObject
-                        width={210}
-                        height={cardHeight}
-                        x={-105}
-                        y={-(cardHeight / 2)}
-                        style={{ overflow: "visible" }}
-                    >
-                        <button
-                            type="button"
-                            className="dv2-tree-card"
-                            data-you={isYou || undefined}
-                            onClick={handleClick}
-                        >
-                            <div className="dv2-tree-card-head">
-                                <Avatar
-                                    size={28}
-                                    initials={initialsFromName(raw.name)}
-                                    type={isYou ? "watcher" : "agent"}
-                                    src={raw.image}
-                                />
-                                <div style={{ minWidth: 0 }}>
-                                    <div className="dv2-tree-card-name">
-                                        {raw.name}
-                                        {isYou && (
-                                            <span className="dv2-tree-card-you">
-                                                {" "}
-                                                · {td("You")}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="dv2-tree-card-level">
-                                        {raw.level ?? td("No level")}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {isYou ? (
-                                <>
-                                    <div className="dv2-tree-card-stats">
-                                        <div>
-                                            <div className="dv2-tree-card-stat-value">
-                                                {yourPaid ?? "—"}
-                                            </div>
-                                            <div className="dv2-tree-card-stat-label">
-                                                {td("Network paid")}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="dv2-tree-card-stat-value">
-                                                {yourActiveDeals ?? "—"}
-                                            </div>
-                                            <div className="dv2-tree-card-stat-label">
-                                                {td("Active deals")}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div
-                                        className="dv2-tree-card-hint"
-                                        title={td(
-                                            "The same totals as the tile row above, for the whole network below you.",
-                                        )}
-                                    >
-                                        {td("Click for the full breakdown")}
-                                    </div>
-                                </>
-                            ) : (
-                                own && (
-                                    <div className="dv2-tree-card-stats">
-                                        <div>
-                                            <div className="dv2-tree-card-stat-value">
-                                                {amount(own.paid, data.currency)}
-                                            </div>
-                                            <div className="dv2-tree-card-stat-label">
-                                                {td("Paid")}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="dv2-tree-card-stat-value">
-                                                {own.active_deals}
-                                            </div>
-                                            <div className="dv2-tree-card-stat-label">
-                                                {td("Active deals")}
-                                            </div>
-                                        </div>
-                                        {branchDiffers && (
-                                            <div
-                                                className="dv2-tree-card-branch"
-                                                title={td(
-                                                    "This person's own figures are above. This line adds everyone below them in the network.",
-                                                )}
-                                            >
-                                                {td("Branch")}: {network.active_deals}{" "}
-                                                {td("active deals")}
-                                            </div>
-                                        )}
-                                    </div>
-                                )
-                            )}
-                        </button>
-                    </foreignObject>
-                </g>
-            );
+            if (raw.kind === "person" && raw.node) {
+                onSelect?.({ kind: "person", node: raw.node });
+            }
         },
-        [onSelect, toggle, td, networkSummary],
+        [onSelect, toggle],
+    );
+
+    const ui = useMemo(
+        () => ({
+            td,
+            currency: data.currency,
+            networkSummary,
+            onSelect,
+            toggle,
+            activate,
+        }),
+        [td, data.currency, networkSummary, onSelect, toggle, activate],
     );
 
     if (!data.nodes.length) {
@@ -398,7 +269,13 @@ export default function TeamNetworkGraph({
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
                     {td("Nobody reports to you yet")}
                 </p>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: T.TEXT_MUTED }}>
+                <p
+                    style={{
+                        margin: "4px 0 0",
+                        fontSize: 13,
+                        color: T.TEXT_MUTED,
+                    }}
+                >
                     {td(
                         "An agent joins your network when your agent record is set as their parent agent.",
                     )}
@@ -408,29 +285,333 @@ export default function TeamNetworkGraph({
     }
 
     return (
-        <div
-            ref={measureContainer}
-            style={{
-                height,
-                background: T.SURFACE_2,
-                borderRadius: 8,
-            }}
-        >
-            <Tree
-                data={treeData as never}
-                orientation="vertical"
-                pathFunc="step"
-                translate={{ x: containerWidth / 2, y: 80 }}
-                separation={{ siblings: 1.1, nonSiblings: 1.3 }}
-                nodeSize={{ x: 230, y: 160 }}
-                scaleExtent={{ min: 0.15, max: 2 }}
-                renderCustomNodeElement={renderNode as never}
-                zoom={0.75}
-                zoomable
-                draggable
-                enableLegacyTransitions
-                transitionDuration={300}
-            />
-        </div>
+        <GraphUi.Provider value={ui}>
+            <div
+                className="dv2-network-flow"
+                style={{ height, background: T.SURFACE_2 }}
+            >
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    nodeTypes={nodeTypes}
+                    nodesDraggable={false}
+                    nodesConnectable={false}
+                    edgesFocusable={false}
+                    elementsSelectable
+                    panOnDrag
+                    zoomOnScroll
+                    minZoom={0.15}
+                    maxZoom={2}
+                    fitView
+                    fitViewOptions={{ padding: 0.18, maxZoom: 0.95 }}
+                    onNodeClick={(_, node) => activate(node.data.raw)}
+                    proOptions={{ hideAttribution: false }}
+                    defaultEdgeOptions={{
+                        type: "smoothstep",
+                        selectable: false,
+                        style: { stroke: "#c5cdd8", strokeWidth: 1.5 },
+                    }}
+                >
+                    <Background
+                        gap={18}
+                        size={1}
+                        color="#e7eaf0"
+                    />
+                    <Controls
+                        showInteractive={false}
+                        position="bottom-left"
+                    />
+                    <MiniMap
+                        pannable
+                        zoomable
+                        position="bottom-right"
+                        nodeColor={miniMapColor}
+                        maskColor="rgba(22, 41, 77, 0.08)"
+                    />
+                </ReactFlow>
+            </div>
+        </GraphUi.Provider>
     );
+}
+
+function NetworkCard({ data, selected }: NodeProps<NetworkNode>) {
+    const ui = useContext(GraphUi);
+    const raw = data.raw;
+
+    if (!ui) {
+        return null;
+    }
+
+    if (raw.kind === "show-more") {
+        return (
+            <>
+                <Handle type="target" position={Position.Top} className="dv2-network-handle" />
+                <button
+                    type="button"
+                    className="dv2-tree-pill dv2-tree-pill-more nodrag nopan"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        ui.activate(raw);
+                    }}
+                >
+                    +{raw.hiddenCount} {ui.td("more")}
+                </button>
+                <Handle type="source" position={Position.Bottom} className="dv2-network-handle" />
+            </>
+        );
+    }
+
+    if (raw.kind === "show-less") {
+        return (
+            <>
+                <Handle type="target" position={Position.Top} className="dv2-network-handle" />
+                <button
+                    type="button"
+                    className="dv2-tree-pill dv2-tree-pill-less nodrag nopan"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        ui.activate(raw);
+                    }}
+                >
+                    {ui.td("Show less")}
+                </button>
+            </>
+        );
+    }
+
+    const isYou = raw.kind === "you";
+    const node = raw.kind === "person" ? raw.node : undefined;
+    const own = node?.own;
+    const network = node?.network;
+    const branchDiffers =
+        own &&
+        network &&
+        (own.paid !== network.paid || own.active_deals !== network.active_deals);
+
+    const yourPaid =
+        ui.networkSummary === undefined
+            ? null
+            : amount(
+                  ui.networkSummary?.paid ?? 0,
+                  ui.networkSummary?.currency ?? null,
+              );
+    const yourActiveDeals =
+        ui.networkSummary === undefined
+            ? null
+            : (ui.networkSummary?.active_deals ?? 0);
+
+    return (
+        <>
+            <Handle type="target" position={Position.Top} className="dv2-network-handle" />
+            <button
+                type="button"
+                className="dv2-tree-card nodrag nopan"
+                data-you={isYou || undefined}
+                data-selected={selected || undefined}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    ui.activate(raw);
+                }}
+            >
+                <div className="dv2-tree-card-head">
+                    <Avatar
+                        size={28}
+                        initials={initialsFromName(raw.name)}
+                        type={isYou ? "watcher" : "agent"}
+                        src={raw.image}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                        <div className="dv2-tree-card-name">
+                            {raw.name}
+                            {isYou && (
+                                <span className="dv2-tree-card-you">
+                                    {" "}
+                                    · {ui.td("You")}
+                                </span>
+                            )}
+                        </div>
+                        <div className="dv2-tree-card-level">
+                            {raw.level ?? ui.td("No level")}
+                        </div>
+                    </div>
+                </div>
+
+                {isYou ? (
+                    <>
+                        <div className="dv2-tree-card-stats">
+                            <div>
+                                <div className="dv2-tree-card-stat-value">
+                                    {yourPaid ?? "—"}
+                                </div>
+                                <div className="dv2-tree-card-stat-label">
+                                    {ui.td("Network paid")}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="dv2-tree-card-stat-value">
+                                    {yourActiveDeals ?? "—"}
+                                </div>
+                                <div className="dv2-tree-card-stat-label">
+                                    {ui.td("Active deals")}
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            className="dv2-tree-card-hint"
+                            title={ui.td(
+                                "The same totals as the tile row above, for the whole network below you.",
+                            )}
+                        >
+                            {ui.td("Click for the full breakdown")}
+                        </div>
+                    </>
+                ) : (
+                    own && (
+                        <div className="dv2-tree-card-stats">
+                            <div>
+                                <div className="dv2-tree-card-stat-value">
+                                    {amount(own.paid, ui.currency)}
+                                </div>
+                                <div className="dv2-tree-card-stat-label">
+                                    {ui.td("Paid")}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="dv2-tree-card-stat-value">
+                                    {own.active_deals}
+                                </div>
+                                <div className="dv2-tree-card-stat-label">
+                                    {ui.td("Active deals")}
+                                </div>
+                            </div>
+                            {branchDiffers && (
+                                <div
+                                    className="dv2-tree-card-branch"
+                                    title={ui.td(
+                                        "This person's own figures are above. This line adds everyone below them in the network.",
+                                    )}
+                                >
+                                    {ui.td("Branch")}: {network.active_deals}{" "}
+                                    {ui.td("active deals")}
+                                </div>
+                            )}
+                        </div>
+                    )
+                )}
+            </button>
+            <Handle type="source" position={Position.Bottom} className="dv2-network-handle" />
+        </>
+    );
+}
+
+const nodeTypes: NodeTypes = { network: NetworkCard };
+
+function nodeSize(raw: RawDatum): { width: number; height: number } {
+    if (raw.kind === "show-more" || raw.kind === "show-less") {
+        return { width: PILL_WIDTH, height: PILL_HEIGHT };
+    }
+
+    return {
+        width: CARD_WIDTH,
+        height: raw.kind === "you" ? YOU_HEIGHT : PERSON_HEIGHT,
+    };
+}
+
+function layoutTree(root: TreeDatum): { nodes: NetworkNode[]; edges: Edge[] } {
+    const nodes: NetworkNode[] = [];
+    const edges: Edge[] = [];
+
+    const walk = (datum: TreeDatum, parentId: string | null) => {
+        const size = nodeSize(datum.__raw);
+        const isPerson =
+            datum.__raw.kind === "you" || datum.__raw.kind === "person";
+
+        nodes.push({
+            id: datum.id,
+            type: "network",
+            position: { x: 0, y: 0 },
+            data: { raw: datum.__raw },
+            className: "nopan nodrag",
+            draggable: false,
+            connectable: false,
+            // Pills stay unselected so they don't draw a ring, but they must
+            // still receive pointer events — React Flow sets pointer-events:
+            // none on a node that is neither selectable, draggable, nor given
+            // an onNodeClick. onNodeClick covers that; this keeps inspect
+            // highlight on people only.
+            selectable: isPerson,
+            style: { width: size.width, height: size.height },
+            width: size.width,
+            height: size.height,
+        });
+
+        if (parentId) {
+            edges.push({
+                id: `${parentId}->${datum.id}`,
+                source: parentId,
+                target: datum.id,
+                selectable: false,
+            });
+        }
+
+        datum.children?.forEach((child) => walk(child, datum.id));
+    };
+
+    walk(root, null);
+
+    const g = new Graph({ directed: true });
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({
+        rankdir: "TB",
+        nodesep: 28,
+        ranksep: 52,
+        marginx: 16,
+        marginy: 16,
+    });
+
+    for (const node of nodes) {
+        g.setNode(node.id, {
+            width: node.width ?? CARD_WIDTH,
+            height: node.height ?? PERSON_HEIGHT,
+        });
+    }
+
+    for (const edge of edges) {
+        g.setEdge(edge.source, edge.target);
+    }
+
+    dagreLayout(g);
+
+    const laidOut = nodes.map((node) => {
+        const placed = g.node(node.id);
+        const width = node.width ?? CARD_WIDTH;
+        const height = node.height ?? PERSON_HEIGHT;
+
+        return {
+            ...node,
+            position: {
+                x: placed.x - width / 2,
+                y: placed.y - height / 2,
+            },
+        };
+    });
+
+    return { nodes: laidOut, edges };
+}
+
+function miniMapColor(node: Node): string {
+    const raw = (node.data as { raw?: RawDatum } | undefined)?.raw;
+
+    if (raw?.kind === "you") {
+        return "#c5ddf4";
+    }
+
+    if (raw?.kind === "show-more" || raw?.kind === "show-less") {
+        return "#e8eaf0";
+    }
+
+    return "#ffffff";
 }

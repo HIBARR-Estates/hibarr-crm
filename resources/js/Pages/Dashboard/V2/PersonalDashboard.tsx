@@ -17,7 +17,6 @@ import type { Task } from "@/Types/api/tasks";
 import DashboardHeader from "./components/DashboardHeader";
 import { buildSwitcher, type ViewKey } from "./viewConfig";
 import DashboardPanel, {
-    CardSkeleton,
     PanelSkeleton,
 } from "./components/DashboardPanel";
 import PersonalTaskModal from "./personal/PersonalTaskModal";
@@ -33,7 +32,7 @@ import StatStrip from "./personal/StatStrip";
 import SignalQueue, { SignalQueueSkeleton } from "./personal/SignalQueue";
 import SignalActions from "./personal/SignalActions";
 import PipelineSplit from "./personal/PipelineSplit";
-import AgendaTimeline from "./personal/AgendaTimeline";
+import AgendaTimeline, { AgendaTimelineSkeleton } from "./personal/AgendaTimeline";
 import type { ActivityEvent } from "./personal/ActivityFeed";
 import { severityOf } from "./personal/format";
 import type {
@@ -71,10 +70,11 @@ export interface PersonalDashboardProps {
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
     agenda?: ScheduleEntry[];
-    pipelines?: PipelineRow[];
+    /** Open-deal metrics for this user — not the shared nav `pipelines` list. */
+    openDealsByPipeline?: PipelineRow[];
     recentActivity?: ActivityEvent[];
     taskBoardColumns?: TaskboardColumn[];
-    /** Feeds the agenda's empty-state "Schedule meeting" action. */
+    /** Feeds the agenda's "Schedule meeting" / "Add meeting" action. */
     userDeals?: Array<{ id: number; name: string }>;
     userLeads?: Array<{ id: number; name: string }>;
 }
@@ -100,7 +100,7 @@ export default function PersonalDashboard({
     stats,
     commission,
     agenda,
-    pipelines,
+    openDealsByPipeline,
     recentActivity,
     taskBoardColumns,
     userDeals,
@@ -358,71 +358,46 @@ export default function PersonalDashboard({
                         />
                     )}
 
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 18,
-                            flexWrap: "wrap",
-                            marginBottom: 16,
-                        }}
-                    >
-                        <div data-tour="dashboard-status-line">
-                            <StatusLine
-                                now={now}
-                                clock={agendaClock}
-                                queue={visibleQueue}
-                                agenda={agenda}
-                                pipelines={pipelines}
-                            />
-                        </div>
-
-                        <div
-                            style={{
-                                marginLeft: "auto",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {showProductTour && (
-                                <button
-                                    type="button"
-                                    className="dr-btn dr-btn-ghost"
-                                    onClick={() =>
-                                        tourRef.current?.restart()
-                                    }
-                                >
-                                    {t("pages.dashboard.tour.replay_menu_item")}
-                                </button>
-                            )}
-                            {availableViews && availableViews.length > 0 && (
-                                <>
+                    <DashboardHeader
+                        userName={userName}
+                        now={now}
+                        subtext={
+                            <div data-tour="dashboard-status-line">
+                                <StatusLine
+                                    now={now}
+                                    clock={agendaClock}
+                                    queue={visibleQueue}
+                                    agenda={agenda}
+                                    pipelines={openDealsByPipeline}
+                                />
+                            </div>
+                        }
+                        actions={
+                            <>
+                                {showProductTour && (
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-ghost"
+                                        onClick={() =>
+                                            tourRef.current?.restart()
+                                        }
+                                    >
+                                        {t("pages.dashboard.tour.replay_menu_item")}
+                                    </button>
+                                )}
+                                {switcher.length > 1 && (
                                     <SegmentedControl
                                         label="Dashboard"
                                         active="personal"
-                                        segments={[
-                                            {
-                                                value: "personal",
-                                                label: "My work",
-                                            },
-                                            {
-                                                value: "manager",
-                                                label: "Team",
-                                                // Deactivated for now.
-                                                disabled: true,
-                                            },
-                                        ]}
+                                        segments={switcher}
                                         onSelect={(view) =>
-                                            view !== "personal" &&
-                                            go({ view })
+                                            view !== "personal" && go({ view })
                                         }
                                     />
-                                </>
-                            )}
-                        </div>
-                    </header>
+                                )}
+                            </>
+                        }
+                    />
 
                     <div
                         data-tour="dashboard-stat-strip"
@@ -433,7 +408,7 @@ export default function PersonalDashboard({
                             windowDays={windowDays}
                             now={now}
                             stats={stats}
-                            pipelines={pipelines}
+                            pipelines={openDealsByPipeline}
                             commission={commission}
                         />
                     </div>
@@ -520,43 +495,40 @@ export default function PersonalDashboard({
                                     )}
                                 </Deferred>
                             </DashboardPanel>
+                        </div>
 
-                            {/* "Activity on your records" is hidden for now —
-                                not useful in its current state. Data plumbing
-                                (recentActivity prop, ActivityFeed, the
-                                deferred backend query) is left in place to
-                                re-enable later; Pipeline takes the full row
-                                until then instead of leaving an empty cell
-                                beside it. */}
+                        <div className="dv2-rail">
+                            <div data-tour="dashboard-agenda">
+                                <Deferred
+                                    data="agenda"
+                                    fallback={<AgendaTimelineSkeleton />}
+                                >
+                                    <AgendaTimeline
+                                        meetings={agenda ?? []}
+                                        now={now}
+                                        clock={agendaClock}
+                                        onOpenMeeting={setOpenMeeting}
+                                        onScheduleMeeting={() =>
+                                            setScheduleOpen(true)
+                                        }
+                                    />
+                                </Deferred>
+                            </div>
+
                             <DashboardPanel
                                 dataTour="dashboard-pipeline-panel"
                                 title="Open deals by pipeline"
                             >
                                 <Deferred
-                                    data="pipelines"
+                                    data="openDealsByPipeline"
                                     fallback={<PanelSkeleton rows={4} />}
                                 >
                                     <PipelineSplit
-                                        pipelines={pipelines ?? []}
+                                        pipelines={openDealsByPipeline ?? []}
                                         dealsHref={dealsHref}
                                     />
                                 </Deferred>
                             </DashboardPanel>
-                        </div>
-
-                        <div className="dv2-rail" data-tour="dashboard-agenda">
-                            <Deferred
-                                data="agenda"
-                                fallback={<CardSkeleton height={220} />}
-                            >
-                                <AgendaTimeline
-                                    meetings={agenda ?? []}
-                                    now={now}
-                                    clock={agendaClock}
-                                    onOpenMeeting={setOpenMeeting}
-                                    onScheduleMeeting={() => setScheduleOpen(true)}
-                                />
-                            </Deferred>
                         </div>
                     </div>
 

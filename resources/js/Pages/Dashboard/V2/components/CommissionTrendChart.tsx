@@ -1,29 +1,34 @@
+import { useMemo } from "react";
 import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    Legend,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from "recharts";
+    areaY,
+    colorLegend,
+    colorLegendItems,
+    defineChart,
+    lineY,
+} from "@tanstack/charts";
+import { Chart } from "@tanstack/charts/react/tooltip";
+import { scaleBand } from "@tanstack/charts/scales/band";
+import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { Empty } from "antd";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { amount } from "../format";
-import type { TeamCommissionTrend } from "../types";
+import type {
+    TeamCommissionTrend,
+    TeamCommissionTrendPoint,
+} from "../types";
+import ChartPopover from "./ChartPopover";
+import { labeledTooltip } from "./chartTooltip";
 
 /**
- * The network's paid commission, month by month — a gradient area rather than
+ * The network's paid commission, month by month — a filled area rather than
  * a bare line.
  *
- * Deliberately its own chart rather than the shared TrendLine: TrendLine draws
- * flat multi-series lines for the leadership view's company-wide movement,
- * where several series are compared against each other. This is one series
- * read for its shape — is the network's earning accelerating or stalling —
- * which is what a filled area communicates at a glance and a bare line
- * doesn't. Same visual language as the agent-facing MLM dashboard's own
- * commission trend, recharts throughout.
+ * Deliberately its own chart rather than the shared TrendLine: TrendLine
+ * draws flat multi-series lines for the leadership view's company-wide
+ * movement, where several series are compared against each other. This is
+ * one series read for its shape — is the network's earning accelerating or
+ * stalling — which is what a filled area communicates at a glance.
  */
 export default function CommissionTrendChart({
     data,
@@ -33,48 +38,113 @@ export default function CommissionTrendChart({
     height?: number;
 }) {
     const { td } = useTd();
+    const paidLabel = td("Commission paid");
+    const currency = data.currency;
+
+    const definition = useMemo(() => {
+        const rows = data.points;
+
+        return defineChart({
+            marks: [
+                areaY(rows, {
+                    x: "label",
+                    y: "amount",
+                    color: () => paidLabel,
+                    fill: T.GREEN,
+                    fillOpacity: 0.32,
+                }),
+                lineY(rows, {
+                    x: "label",
+                    y: "amount",
+                    color: () => paidLabel,
+                    stroke: T.GREEN,
+                    strokeWidth: 2.5,
+                    points: true,
+                }),
+            ],
+            scales: {
+                x: {
+                    scale: () => scaleBand<string>().padding(0.28),
+                    axis: { tickLabels: { fontSize: 11 } },
+                },
+                y: {
+                    scale: scaleLinear,
+                    nice: true,
+                    grid: { stroke: T.BORDER_SOFT, strokeDasharray: "3 3" },
+                    axis: {
+                        ticks: {
+                            format: (value: number) =>
+                                amount(value, currency),
+                        },
+                        tickLabels: { fontSize: 11 },
+                    },
+                },
+            },
+            color: {
+                domain: [paidLabel],
+                range: [T.GREEN],
+                legend: colorLegend({
+                    placement: "bottom",
+                    items: colorLegendItems({
+                        justify: "center",
+                        gap: 18,
+                        indicator: {
+                            width: 18,
+                            height: 12,
+                            shape: "line-dot",
+                        },
+                        label: { fontSize: 12, fill: T.TEXT_MUTED },
+                    }),
+                }),
+            },
+            theme: {
+                foreground: T.TEXT,
+                muted: T.TEXT_HINT,
+                grid: T.BORDER_SOFT,
+                background: "transparent",
+            },
+            focus: "nearest-x",
+            maxFocusDistance: Number.POSITIVE_INFINITY,
+            tooltip: labeledTooltip<TeamCommissionTrendPoint>((points) => {
+                const row = points[0]?.datum;
+
+                if (!row) {
+                    return { rows: [] };
+                }
+
+                return {
+                    title: row.label,
+                    rows: [
+                        {
+                            label: paidLabel,
+                            value: amount(row.amount, currency),
+                            color: T.GREEN,
+                        },
+                    ],
+                };
+            }),
+        });
+    }, [currency, data.points, paidLabel]);
 
     if (!data.points.length || !data.points.some((point) => point.amount > 0)) {
         return (
             <Empty
-                description={td("No commission paid to the network in this window")}
+                description={td(
+                    "No commission paid to the network in this window",
+                )}
             />
         );
     }
 
     return (
-        <ResponsiveContainer width="100%" height={height}>
-            <AreaChart data={data.points} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-                <defs>
-                    <linearGradient id="teamCommissionTrend" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#177a5b" stopOpacity={0.32} />
-                        <stop offset="95%" stopColor="#177a5b" stopOpacity={0} />
-                    </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} width={56} />
-                <Tooltip
-                    formatter={(value) => [
-                        amount(Number(value ?? 0), data.currency),
-                        td("Commission paid"),
-                    ]}
-                />
-                <Legend
-                    formatter={() => td("Commission paid")}
-                    wrapperStyle={{ fontSize: 12 }}
-                />
-                <Area
-                    type="monotone"
-                    dataKey="amount"
-                    name="amount"
-                    stroke="#177a5b"
-                    strokeWidth={2.5}
-                    fill="url(#teamCommissionTrend)"
-                    dot={{ r: 3, fill: "#177a5b", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                />
-            </AreaChart>
-        </ResponsiveContainer>
+        <Chart
+            definition={definition}
+            height={height}
+            ariaLabel={td("Commission paid to the network, month by month")}
+            style={{ width: "100%", color: T.TEXT }}
+            renderTooltipBody={({ content }) => (
+                <ChartPopover content={content} />
+            )}
+        />
     );
 }

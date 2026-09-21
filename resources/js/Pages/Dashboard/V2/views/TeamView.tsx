@@ -163,7 +163,7 @@ export default function TeamView({
                     <DashboardPanel
                         flush
                         title="Your network"
-                        note="Every person below you, connected to who recruited them — drag to pan, scroll to zoom, click anyone to see their own numbers"
+                            note="Every person below you, connected to who recruited them — drag the canvas to pan, scroll to zoom, click anyone to see their own numbers"
                         footer={
                             <NodeDetail
                                 selection={selected}
@@ -226,7 +226,7 @@ export default function TeamView({
 
                         <DashboardPanel
                             title="Network growth"
-                            note="New agents each month (bars, left axis) against the running network size they add up to (line, right axis)"
+                            note="New agents each month (bars) against the running network size they add up to (line)"
                         >
                             <Deferred
                                 data="teamGrowth"
@@ -413,11 +413,6 @@ function NodeDetail({
             td("Pending"),
             amount(node.own.pending, currency),
             amount(node.network.pending, currency),
-        ],
-        [
-            td("Forecast"),
-            amount(node.own.forecast, currency),
-            amount(node.network.forecast, currency),
         ],
     ];
 

@@ -73,7 +73,11 @@ export default function ManagerView({
                         note={`${teamKpis?.newLeads.previous ?? 0} in the previous window`}
                     />
                     <StatTile
-                        label="Contacted within SLA"
+                        label={
+                            teamKpis?.sla_hours != null
+                                ? `Contacted within ${teamKpis.sla_hours}h SLA`
+                                : "Contacted within SLA"
+                        }
                         unit="%"
                         value={teamKpis?.contactedInSla.value ?? null}
                         previous={teamKpis?.contactedInSla.previous}

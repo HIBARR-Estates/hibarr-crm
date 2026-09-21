@@ -108,6 +108,7 @@ export default function StatusLine({
         // Empty agenda already has its own real estate below — the empty
         // state on the Agenda panel itself, with a "Schedule meeting" action.
         // Repeating "nothing booked" here said nothing that panel doesn't.
+        // When meetings exist, the panel header also keeps an "Add meeting" CTA.
         activeCount && activeCount > 0
             ? `${activeCount} ${td("calendar items")}`
             : null,

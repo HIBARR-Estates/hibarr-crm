@@ -250,8 +250,11 @@ class DashboardMetricsService
             ->visibleToUser($userId)
             ->where('status', '<>', 'cancelled')
             ->with([
-                'deal:id,name',
-                'lead:id,client_name',
+                // lead_id is the FK for deal.contact (Lead) — phone fields feed
+                // the meeting modal's Call / Copy CTAs for phone meetings.
+                'deal:id,name,lead_id',
+                'deal.contact:id,client_name,mobile,cell,office',
+                'lead:id,client_name,mobile,cell,office',
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
@@ -784,7 +787,7 @@ class DashboardMetricsService
      * deliberately no revenue, quota or cost tile, because none of those exist
      * to count.
      *
-     * @return array<string, array{value: float|int, previous: float|int, spark: array, note: string|null}>
+     * @return array{sla_hours: int, newLeads: array, contactedInSla: array, meetings: array, dealsCreated: array, dealsWon: array}
      */
     public function teamKpis(array $agentIds, int $days = 30): array
     {
@@ -810,13 +813,15 @@ class DashboardMetricsService
             ->whereIn('lead_owner', $ownerIds ?: [0])
             ->when($trackingSince, fn ($query, $since) => $query->where('leads.created_at', '>=', $since));
 
-        $slaEligibleByDay = $this->countByDay($slaCohort(), 'leads.created_at', $prevStart);
+        $judgeableSlaCohort = fn () => $this->applySlaJudgeableScope($slaCohort(), $slaHours);
+
+        $slaEligibleByDay = $this->countByDay($judgeableSlaCohort(), 'leads.created_at', $prevStart);
 
         // Contacted-within-SLA is measured on the lead's own creation day, so a
         // lead created on day 1 and answered on day 3 counts as a day-1 miss —
         // that is what makes the rate comparable between windows.
         $contactedByDay = $this->countByDay(
-            $slaCohort()
+            $judgeableSlaCohort()
                 ->whereNotNull('first_contacted_at')
                 ->whereRaw("first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)"),
             'leads.created_at',
@@ -850,6 +855,7 @@ class DashboardMetricsService
         $rate = fn (float $part, float $whole) => $whole > 0 ? round($part / $whole * 100, 1) : null;
 
         return [
+            'sla_hours' => $slaHours,
             'newLeads' => $leads + ['note' => null],
             'contactedInSla' => [
                 'value' => $rate($contacted['value'], $slaEligible['value']),
@@ -945,6 +951,9 @@ class DashboardMetricsService
      */
     public function responseDistribution(array $agentIds, int $days = 30): array
     {
+        $slaHours = $this->slaHours();
+        $slaMinutes = $slaHours * 60;
+
         $ownerIds = $this->ownerIdsFor($agentIds);
         $since = now()->subDays($days)->startOfDay();
 
@@ -980,19 +989,18 @@ class DashboardMetricsService
 
                     return $m > $floor && ($bucket['max'] === null || $m <= $bucket['max']);
                 })),
-                // The last two buckets are already an SLA miss at the 24h default.
-                'severity' => match ($bucket['label']) {
-                    '<1h' => 'good',
-                    '1-4h', '4-24h' => 'ok',
-                    '1-3d' => 'warn',
-                    default => 'bad',
-                },
+                'severity' => $this->responseBucketSeverity(
+                    $index === 0 ? 0 : (int) $buckets[$index - 1]['max'],
+                    $bucket['max'] === null ? null : (int) $bucket['max'],
+                    $slaMinutes
+                ),
             ],
             $buckets,
             array_keys($buckets)
         );
 
         return [
+            'sla_hours' => $slaHours,
             'total' => count($minutes),
             'buckets' => $counts,
             'median_minutes' => ($median = $this->median($minutes)) === null ? null : (int) round($median),
@@ -1172,11 +1180,10 @@ class DashboardMetricsService
         // Same exclusion as teamKpis, but as a second counter rather than a
         // filter: `total` is displayed as the agent's lead count, so narrowing
         // the query would quietly under-report their workload. Only the rate's
-        // denominator drops the leads that predate tracking.
+        // denominator drops the leads that predate tracking and those still
+        // inside an open SLA window with no contact yet.
         $trackingSince = $this->firstContactTrackingSince();
-        $eligible = $trackingSince
-            ? "leads.created_at >= '{$trackingSince->toDateTimeString()}'"
-            : '1';
+        $judgeable = $this->slaJudgeableSql($slaHours, $trackingSince);
 
         $leadStats = Lead::query()
             ->whereIn('lead_owner', $ownerIds)
@@ -1186,8 +1193,8 @@ class DashboardMetricsService
             ->get([
                 'lead_owner',
                 DB::raw('COUNT(*) as total'),
-                DB::raw("SUM({$eligible}) as sla_eligible"),
-                DB::raw("SUM({$eligible} AND first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)) as in_sla"),
+                DB::raw("SUM({$judgeable}) as sla_eligible"),
+                DB::raw("SUM({$judgeable} AND first_contacted_at IS NOT NULL AND first_contacted_at <= DATE_ADD(leads.created_at, INTERVAL {$slaHours} HOUR)) as in_sla"),
             ])
             ->keyBy('lead_owner');
 
@@ -1753,6 +1760,52 @@ class DashboardMetricsService
     private function slaHours(): int
     {
         return self::clampSlaHours(LeadSetting::value('first_contact_sla_hours'));
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Lead>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<Lead>
+     */
+    private function applySlaJudgeableScope($query, int $slaHours)
+    {
+        $deadline = now()->subHours($slaHours);
+
+        return $query->where(function ($builder) use ($deadline) {
+            $builder->whereNotNull('first_contacted_at')
+                ->orWhere('leads.created_at', '<', $deadline);
+        });
+    }
+
+    private function slaJudgeableSql(int $slaHours, ?Carbon $trackingSince): string
+    {
+        $deadline = now()->subHours($slaHours)->toDateTimeString();
+        $judgeable = "(first_contacted_at IS NOT NULL OR leads.created_at < '{$deadline}')";
+
+        if ($trackingSince) {
+            $judgeable = "({$judgeable} AND leads.created_at >= '{$trackingSince->toDateTimeString()}')";
+        }
+
+        return $judgeable;
+    }
+
+    /**
+     * @return 'good'|'ok'|'warn'|'bad'
+     */
+    private function responseBucketSeverity(int $floorMinutes, ?int $maxMinutes, int $slaMinutes): string
+    {
+        if ($floorMinutes >= $slaMinutes) {
+            return 'bad';
+        }
+
+        if ($maxMinutes !== null && $maxMinutes <= $slaMinutes) {
+            return match (true) {
+                $maxMinutes <= 60 => 'good',
+                $maxMinutes <= 240 => 'ok',
+                default => 'ok',
+            };
+        }
+
+        return 'warn';
     }
 
     /**

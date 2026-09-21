@@ -57,12 +57,12 @@ class TeamDownlineService
      * Open deals the forecast will price, most recently touched first.
      *
      * preview() resolves levels, cycle snapshots and the full ancestor chain
-     * per deal — a handful of queries each — so a large network would turn one
-     * panel into thousands of round trips. Past this many the panel says so
-     * (`forecast_truncated`) rather than quietly reporting a partial number as
-     * the whole picture.
+     * per deal — close to a second each on a seeded network — so a large book
+     * would blow PHP's 30s limit before the tile could paint. Past this many
+     * the panel says so (`truncated`) rather than quietly reporting a partial
+     * number as the whole picture.
      */
-    private const FORECAST_MAX_DEALS = 150;
+    private const FORECAST_MAX_DEALS = 12;
 
     public function __construct(
         private HierarchyService $hierarchy,
@@ -236,7 +236,6 @@ class TeamDownlineService
         $commissions = $this->commissionTotals($agentIds, $range);
         $deals = $this->dealTotals($agentIds, $range);
         $leads = $this->leadTotals($agentIds);
-        $forecast = $this->forecast($agentIds);
 
         // Children keyed by parent. An agent whose parent is outside the team —
         // possible when the walk stopped at MAX_SUBTREE_DEPTH — is attached to
@@ -251,7 +250,7 @@ class TeamDownlineService
         }
 
         $build = function (int $id) use (
-            &$build, $agents, $depths, $childrenOf, $commissions, $deals, $leads, $forecast
+            &$build, $agents, $depths, $childrenOf, $commissions, $deals, $leads
         ): array {
             $agent = $agents->get($id);
 
@@ -262,7 +261,9 @@ class TeamDownlineService
                 'leads_untouched' => $leads[$id]['untouched'] ?? 0,
                 'paid' => round($commissions[$id]['paid'] ?? 0.0, 2),
                 'pending' => round($commissions[$id]['pending'] ?? 0.0, 2),
-                'forecast' => round($forecast['byAgent'][$id] ?? 0.0, 2),
+                // Priced on teamForecast(), not here — preview() per open deal
+                // is what was blowing the graph's 30s request.
+                'forecast' => 0.0,
             ];
 
             $children = array_map($build, $childrenOf[$id] ?? []);
@@ -309,30 +310,32 @@ class TeamDownlineService
             // Still belongs on the page: it sets the differential the viewer
             // earns on everything below.
             'your_level' => $this->levels->getCurrentLevel($root)?->name,
-            'forecast_truncated' => $forecast['truncated'],
-            'forecast_deals' => $forecast['deal_count'],
+            'forecast_truncated' => false,
+            'forecast_deals' => 0,
         ];
     }
 
     /**
      * The team's priced-but-unrealised commission, as one number for the tile
-     * row — the per-agent breakdown lives on tree()'s nodes instead.
-     *
-     * Split from tree() into its own entry point (both memoise through the
-     * same forecast() call when resolved in the same request) so the tile can
-     * be deferred independently of the full graph payload while still sharing
-     * the one expensive computation when the two land together.
+     * row. Kept off tree() so the graph can paint without waiting on preview().
      */
     public function teamForecast(LeadAgent $root): array
     {
         $agentIds = array_keys($this->teamDepths($root));
         $forecast = $this->forecast($agentIds);
 
+        $byAgent = [];
+
+        foreach ($forecast['byAgent'] as $agentId => $amount) {
+            $byAgent[(int) $agentId] = round($amount, 2);
+        }
+
         return [
-            'amount' => round(array_sum($forecast['byAgent']), 2),
+            'amount' => round(array_sum($byAgent), 2),
             'deal_count' => $forecast['deal_count'],
             'truncated' => $forecast['truncated'],
             'currency' => $this->currencyCode(),
+            'by_agent' => $byAgent,
         ];
     }
 

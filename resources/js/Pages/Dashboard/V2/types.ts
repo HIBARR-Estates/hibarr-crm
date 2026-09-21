@@ -53,10 +53,15 @@ export interface Kpi {
     note: string | null;
 }
 
-export type TeamKpis = Record<
+export type TeamKpiMetrics = Record<
     "newLeads" | "contactedInSla" | "meetings" | "dealsCreated" | "dealsWon",
     Kpi
 >;
+
+/** Headline tiles plus the configured first-contact SLA for labels. */
+export type TeamKpis = TeamKpiMetrics & {
+    sla_hours: number;
+};
 
 export interface LifecycleFunnel {
     days: number;
@@ -73,6 +78,7 @@ export interface LifecycleFunnel {
 }
 
 export interface ResponseDistribution {
+    sla_hours: number;
     total: number;
     buckets: Array<{
         label: string;
@@ -272,16 +278,17 @@ export interface TeamTree {
     your_image: string | null;
     /** The viewer's own level — it sets the differential they earn below. */
     your_level: string | null;
-    /** True when more open deals exist than the forecast priced. */
+    /**
+     * Kept on the payload so older clients still type-check; the graph no
+     * longer prices forecast (that lives on teamForecast). Always false / 0.
+     */
     forecast_truncated: boolean;
-    /** How many open deals the forecast actually covers. */
     forecast_deals: number;
 }
 
 /**
- * The forecast tile: split from TeamTree so it can resolve — and skeleton —
- * on its own, even though both are computed from the same commission-engine
- * pass when the server lands them together.
+ * The forecast tile: priced independently of the graph so preview() cannot
+ * take the network request down with it.
  */
 export interface TeamForecast {
     amount: number;
