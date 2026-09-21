@@ -1,4 +1,4 @@
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealMoneyInputProps {
     /** Raw digits, no separators — "1500", not "1,500". */
@@ -55,7 +55,7 @@ export default function DealMoneyInput({
                     // One optional decimal point, digits either side.
                     onChange(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))
                 }
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-sm transition-colors placeholder-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:opacity-40"
+                className="h-10 w-full rounded-xl border border-dr-border bg-white pl-8 pr-3 text-sm transition-colors placeholder-dr-text-hint focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:opacity-40"
                 style={{ color: T.TEXT }}
             />
         </div>

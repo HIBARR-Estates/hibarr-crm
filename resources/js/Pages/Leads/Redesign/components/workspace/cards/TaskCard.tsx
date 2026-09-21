@@ -20,14 +20,14 @@ export default function TaskCard({ task, onClick, statusControl }: TaskCardProps
                 >
                     <div className="mb-1 flex items-start justify-between gap-2">
                         <span
-                            className={`text-[13px] font-medium text-[#1a1f2e]${!task.isOpen ? " line-through opacity-60" : ""}`}
+                            className={`text-[13px] font-medium text-dr-text${!task.isOpen ? " line-through opacity-60" : ""}`}
                         >
                             {task.title}
                         </span>
                         <PriorityBadge priority={task.priority} />
                     </div>
                     {task.dueDateLabel && (
-                        <div className="text-[11px] text-[#9ca3af]">
+                        <div className="text-[11px] text-dr-text-hint">
                             Due {task.dueDateLabel}
                         </div>
                     )}

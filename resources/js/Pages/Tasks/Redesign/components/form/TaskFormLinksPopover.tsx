@@ -133,7 +133,7 @@ export default function TaskFormLinksPopover({
                                     style={{
                                         padding: "9px 12px",
                                         border: "none",
-                                        borderBottom: "1px solid #f2f4f7",
+                                        borderBottom: "1px solid var(--dr-surface-hover)",
                                         background: picked
                                             ? T.BLUE_LIGHT
                                             : T.WHITE,

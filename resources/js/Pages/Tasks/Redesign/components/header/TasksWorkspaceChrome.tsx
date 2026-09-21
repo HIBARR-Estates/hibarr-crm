@@ -56,8 +56,8 @@ export default function TasksWorkspaceChrome({
     return (
         <div
             style={{
-                background: "#ffffff",
-                borderBottom: "1px solid #e2e5ea",
+                background: T.WHITE,
+                borderBottom: "1px solid var(--dr-border)",
                 position: "sticky",
                 top: 0,
                 zIndex: 15,

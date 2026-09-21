@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SendOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import PeoplePicker from "@/Components/Redesign/primitives/PeoplePicker";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import type { TaskCommentDeleteScope } from "../adapters/taskPermissions";
 import type { TaskCommentRecord } from "../hooks/useTaskComments";
 import type { TaskActivityRecord } from "../hooks/useTaskActivity";
@@ -207,7 +210,7 @@ export default function TaskCommentsPanel({
                     <span
                         style={{
                             fontSize: 14,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             color: T.TEXT_MUTED,
                             background: T.NAVY_SOFT,
                             borderRadius: 999,
@@ -270,7 +273,7 @@ export default function TaskCommentsPanel({
                             borderRadius: 999,
                             background: T.WHITE,
                             fontSize: 13.5,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             color: T.TEXT_MUTED,
                             cursor: loadingMore ? "default" : "pointer",
                             opacity: loadingMore ? 0.6 : 1,
@@ -454,8 +457,8 @@ export default function TaskCommentsPanel({
                                     width: 30,
                                     height: 30,
                                     borderRadius: 999,
-                                    background: T.BLUE,
-                                    color: T.WHITE,
+                                    background: B.PRIMARY_BG,
+                                    color: B.PRIMARY_TEXT,
                                     border: "none",
                                     cursor: "pointer",
                                     opacity:

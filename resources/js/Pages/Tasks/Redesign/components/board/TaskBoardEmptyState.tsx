@@ -25,7 +25,7 @@ export default function TaskBoardEmptyState({ slug }: TaskBoardEmptyStateProps) 
                 padding: "16px 14px",
                 border: `1px dashed ${T.BORDER}`,
                 borderRadius: 10,
-                background: "#fbfcfd",
+                background: T.SURFACE_SUBTLE,
             }}
         >
             <TaskGlyph
@@ -37,7 +37,7 @@ export default function TaskBoardEmptyState({ slug }: TaskBoardEmptyStateProps) 
             <span
                 style={{
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: 500,
                     color: T.TEXT_MUTED,
                     textAlign: "center",
                 }}

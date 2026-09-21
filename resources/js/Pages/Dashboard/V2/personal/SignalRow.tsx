@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { QueueTask } from "../types";
 import type { Severity } from "./types";
 import { dueLabel, dueWhen, reasonOf, severityOf } from "./format";
@@ -12,10 +12,17 @@ import { dueLabel, dueWhen, reasonOf, severityOf } from "./format";
  */
 const SEVERITY: Record<
     Severity,
-    { label: string; color: string; rail: string; railWidth: number; tint: string; paths: [string, string] }
+    {
+        labelKey: string;
+        color: string;
+        rail: string;
+        railWidth: number;
+        tint: string;
+        paths: [string, string];
+    }
 > = {
     now: {
-        label: "Now",
+        labelKey: "pages.dashboard.personal.severity.now",
         color: T.RED,
         rail: T.RED,
         railWidth: 3,
@@ -26,7 +33,7 @@ const SEVERITY: Record<
         ],
     },
     soon: {
-        label: "Soon",
+        labelKey: "pages.dashboard.personal.severity.soon",
         color: T.AMBER,
         rail: T.AMBER,
         railWidth: 3,
@@ -34,7 +41,7 @@ const SEVERITY: Record<
         paths: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 7v5l3 2"],
     },
     watch: {
-        label: "Watch",
+        labelKey: "pages.dashboard.personal.severity.watch",
         color: T.TEXT_MUTED,
         rail: T.NAVY_MID,
         railWidth: 2,
@@ -73,7 +80,7 @@ export default function SignalRow({
     onOpenRecord,
     actions,
 }: SignalRowProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const severity = severityOf(task);
     const config = SEVERITY[severity];
     const reason = reasonOf(task);
@@ -130,7 +137,7 @@ export default function SignalRow({
                                 color: config.color,
                             }}
                         >
-                            {td(config.label)}
+                            {t(config.labelKey)}
                         </span>
                     </div>
                 )}
@@ -157,7 +164,9 @@ export default function SignalRow({
                         >
                             {task.heading}
                         </button>
-                        <Badge variant="gray">{td(dueLabel(task))}</Badge>
+                        <Badge variant="gray">
+                            {dueLabel(task, t)}
+                        </Badge>
                     </div>
 
                     {reason && (
@@ -189,7 +198,7 @@ export default function SignalRow({
                                     severity === "now" ? T.RED : T.TEXT_MUTED,
                             }}
                         >
-                            {td(dueWhen(task))}
+                            {dueWhen(task, t)}
                         </span>
                         {task.related && (
                             <>
@@ -204,19 +213,19 @@ export default function SignalRow({
                                             color: T.TEXT_MUTED,
                                         }}
                                     >
-                                        {td(
+                                        {t(
                                             task.related.type === "lead"
-                                                ? "Lead"
-                                                : "Deal",
+                                                ? "pages.dashboard.personal.record.lead"
+                                                : "pages.dashboard.personal.record.deal",
                                         )}
                                         : {task.related.name}
                                     </button>
                                 ) : (
                                     <span>
-                                        {td(
+                                        {t(
                                             task.related.type === "lead"
-                                                ? "Lead"
-                                                : "Deal",
+                                                ? "pages.dashboard.personal.record.lead"
+                                                : "pages.dashboard.personal.record.deal",
                                         )}
                                         : {task.related.name}
                                     </span>

@@ -6,7 +6,7 @@ import { TASK_ICON } from "../../config/taskDesignTokens";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 import { TaskGlyph, TaskPriorityInline } from "../primitives/TaskGlyphs";
 import TaskRecordIcon from "../primitives/TaskRecordIcon";
-import TaskRowMenu, { type TaskRowAction } from "../primitives/TaskRowMenu";
+import RowActionMenu, { type RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 
 export interface TaskBoardCardProps {
     vm: TaskViewModel;
@@ -18,7 +18,7 @@ export interface TaskBoardCardProps {
     onDragStart: (event: DragEvent<HTMLDivElement>) => void;
     onDragEnd: () => void;
     /** Row menu ("…") actions — same set the list view uses for this task. */
-    actions: TaskRowAction[];
+    actions: RowAction[];
 }
 
 /**
@@ -100,7 +100,7 @@ export default function TaskBoardCard({
                 >
                     {vm.people.length === 0 ? td("Unassigned") : vm.peopleLabel}
                 </button>
-                <TaskRowMenu actions={actions} ariaLabel={td("Task actions")} />
+                <RowActionMenu actions={actions} ariaLabel={td("Task actions")} />
             </div>
 
             <button

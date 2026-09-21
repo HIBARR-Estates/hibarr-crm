@@ -24,7 +24,7 @@ export default function WorkspaceCard({
             className="v2-workspace"
             style={{
                 background: "#fff",
-                border: "1px solid #e2e5ea",
+                border: "1px solid var(--dr-border)",
                 borderRadius: 12,
                 overflow: "hidden",
             }}

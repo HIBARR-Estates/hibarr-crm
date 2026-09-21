@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { AttachmentFileCard, FileDropzone } from "@/Components/Redesign";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useDealFilesGroupingFlag from "@/Hooks/useDealFilesGroupingFlag";
@@ -18,10 +19,10 @@ import useDealFileUpload from "../../hooks/useDealFileUpload";
 import useDealDocuments, { type DealDocumentItem } from "../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
 import useDealFileMutations from "../../hooks/useDealFileMutations";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
 import { FilesEmptyState } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface DocumentSlotSectionProps {
@@ -50,11 +51,13 @@ function DocumentSlotSection({
 
     return (
         <section className="mb-5">
-            <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">{title}</div>
-            <div className="mb-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
-                {hint}
-            </div>
-            <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+            <WorkspaceTabSectionHeader
+                title={title}
+                count={slots.length}
+                hint={hint}
+                className="mb-2.5"
+            />
+            <div className="rounded-lg border border-dr-border bg-white px-3.5">
                 {slots.map((doc) => (
                     <DealDocumentSlotRow
                         key={doc.id}
@@ -149,6 +152,7 @@ export default function WorkspaceFilesTab({
     leadFileFields = [],
     leadFileFieldsData = {},
 }: WorkspaceFilesTabProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
@@ -290,10 +294,16 @@ export default function WorkspaceFilesTab({
                 disabled={!canEditFields}
             />
 
-            {slots.length > 0 && (
-                <div className="mb-2 text-[14px] font-bold text-[#1a1f2e]">
-                    {t("pages.deals.workspace.files.other_files")}
-                </div>
+            {visibleFiles.length > 0 && (
+                <WorkspaceTabSectionHeader
+                    title={t("pages.deals.workspace.files.other_files")}
+                    count={visibleFiles.length}
+                    hint={td(
+                        "Loose attachments for this deal — download, rename, or replace from each row.",
+                        { source: "en" },
+                    )}
+                    className="mb-2.5"
+                />
             )}
 
             {!filesGroupingEnabled && dropzone}
@@ -349,7 +359,7 @@ export default function WorkspaceFilesTab({
                 ))
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={Boolean(deleteFile)}
                 title={t("pages.deals.common.delete")}
                 message={

@@ -34,11 +34,11 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                         borderBottom: `1px solid ${T.BORDER_SOFT}`,
                     }}
                 >
-                    <div>{td("Stage")}</div>
-                    <div>{td("Volume")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Count")}</div>
-                    <div style={{ textAlign: "right" }}>{td("To next")}</div>
-                    <div style={{ textAlign: "right" }}>{td("Median")}</div>
+                    <div>{td("Stage", { source: "en" })}</div>
+                    <div>{td("Volume", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Count", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("To next", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>{td("Median", { source: "en" })}</div>
                 </div>
 
                 {data.steps.map((step, index) => {
@@ -58,7 +58,7 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                                     fontSize: 14,
                                 }}
                             >
-                                <div>{td(step.label)}</div>
+                                <div>{td(step.label, { source: "en" })}</div>
 
                                 <div
                                     style={{
@@ -142,7 +142,7 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                                                     : T.TEXT_HINT,
                                             }}
                                         >
-                                            {step.dropped} {td(step.drop_label)}
+                                            {step.dropped} {td(step.drop_label, { source: "en" })}
                                         </span>
                                     </div>
                                 </div>
