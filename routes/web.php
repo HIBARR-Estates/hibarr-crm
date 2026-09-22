@@ -1294,6 +1294,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::delete('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'destroy'])
         ->name('crm-events.destroy');
 
+    // Session-authenticated JSON for the in-app communication timeline
+    // (same reason as crm-events.feed: /api/v1 does not see the web session).
+    Route::get('deals/{dealId}/communication-activities', [\App\Http\Controllers\CommunicationActivityController::class, 'getDealActivities'])
+        ->name('deals.communication-activities');
+    Route::post('communication-activities', [\App\Http\Controllers\CommunicationActivityController::class, 'store'])
+        ->name('communication-activities.store');
+
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');
