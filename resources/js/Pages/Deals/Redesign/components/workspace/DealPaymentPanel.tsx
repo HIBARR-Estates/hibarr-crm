@@ -7,8 +7,8 @@ import useDealPayment from "../../hooks/useDealPayment";
 import {
     isTerminalPaymentState,
     mapDealPaymentUiState,
-    paymentUiStateLabel,
 } from "../../adapters/mapDealPaymentUiState";
+import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
 import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
