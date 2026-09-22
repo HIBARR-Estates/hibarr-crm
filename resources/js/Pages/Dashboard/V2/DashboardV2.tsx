@@ -198,6 +198,8 @@ export default function DashboardV2(props: DashboardV2Props) {
                         <ManagerView
                             {...props}
                             period={range.days}
+                            from={range.from}
+                            to={range.to}
                             currentUserId={auth?.user?.id}
                         />
                     )}

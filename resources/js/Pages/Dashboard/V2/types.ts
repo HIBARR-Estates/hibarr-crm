@@ -65,6 +65,9 @@ export type TeamKpis = TeamKpiMetrics & {
 
 export interface LifecycleFunnel {
     days: number;
+    /** Inclusive created-at window the steps were counted over (Y-m-d). */
+    from: string;
+    to: string;
     steps: Array<{
         key: string;
         label: string;

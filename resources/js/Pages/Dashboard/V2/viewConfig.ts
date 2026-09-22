@@ -22,8 +22,8 @@ export type SwitcherKey = ViewKey | "personal";
 
 export const VIEW_LABELS: Record<SwitcherKey, string> = {
     personal: "My work",
-    // One flat level of direct reports, and closer to a manager's view of
-    // the business than a team lead's. Being reworked under its own ticket.
+    // Every enabled lead agent with an active account — a manager of agents,
+    // not a team lead looking down their tree. Team is the downline surface.
     manager: "Manager",
     // The whole sub-agent network below you — what the business means by
     // "your team".
@@ -39,7 +39,7 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
  * live counts (StatusLine), not written copy.
  */
 export const VIEW_SUBTEXT: Record<ViewKey, string> = {
-    manager: "How the agents reporting to you are doing.",
+    manager: "How every active agent is doing — not just people under you.",
     team: "Commissions, deals and leads across everyone below you — not your own activity.",
     leadership: "Company-wide movement across every team.",
     partner: "Your referrals only — no deal values.",

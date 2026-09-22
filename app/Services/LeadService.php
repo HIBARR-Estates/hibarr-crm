@@ -252,7 +252,6 @@ class LeadService
         return [$sql, $bindings];
     }
 
-    /** Urgency bucket filter — same boundaries the table cell colours by. */
     /** Whether `first_contacted_at` has been stamped yet. */
     private function applyContactStatusFilter(Builder $query, mixed $status): void
     {
@@ -261,6 +260,19 @@ class LeadService
             'uncontacted' => $query->whereNull('first_contacted_at'),
             default => null,
         };
+    }
+
+    /**
+     * A date-only bound is a closed calendar day. Datetimes from the dashboard
+     * already carry a time and are left alone.
+     */
+    private function dateBound(mixed $value, string $time): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1
+            ? "{$value} {$time}"
+            : $value;
     }
 
     private function applyNextActionFilter(Builder $query, mixed $bucket): void
@@ -594,8 +606,8 @@ class LeadService
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
-                $request->get('start_date'),
-                $request->get('end_date'),
+                $this->dateBound($request->get('start_date'), '00:00:00'),
+                $this->dateBound($request->get('end_date'), '23:59:59'),
             ]);
         }
 

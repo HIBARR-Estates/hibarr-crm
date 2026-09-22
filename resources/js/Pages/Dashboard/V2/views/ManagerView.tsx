@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Deferred } from "@inertiajs/react";
+import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DashboardPanel, {
@@ -20,6 +22,9 @@ import type {
     TeamKpis,
 } from "../types";
 
+/** Matches DashboardV2Controller: source quality never looks at less than 90 days. */
+const SOURCE_QUALITY_MIN_DAYS = 90;
+
 export interface ManagerViewProps {
     teamKpis?: TeamKpis;
     lifecycleFunnel?: FunnelData;
@@ -28,11 +33,14 @@ export interface ManagerViewProps {
     teamAgents?: TeamAgents;
     openPartnerFlags?: PartnerFlagRow[];
     period?: number;
+    from?: string;
+    to?: string;
     currentUserId?: number;
 }
 
 /**
- * Statistics a manager can act on.
+ * Statistics a manager of agents can act on — every enabled lead agent in the
+ * company, not the viewer's downline. Team is the hierarchy surface.
  *
  * The old exception panels (SLA breach list, stalled-deal list) are gone as
  * separate cards — they now live as the per-agent "needs attention" column,
@@ -47,9 +55,26 @@ export default function ManagerView({
     teamAgents,
     openPartnerFlags,
     period = 30,
+    from,
+    to,
     currentUserId,
 }: ManagerViewProps) {
     const { td } = useTd();
+
+    // sourceQuality / lifecycleFunnel floor at 90 days server-side — keep the
+    // deep links on the same window so the list matches the panel.
+    const sourceWindow = useMemo(() => {
+        const days = Math.max(period, SOURCE_QUALITY_MIN_DAYS);
+        const end = to ?? dayjs().format("YYYY-MM-DD");
+        const start =
+            period >= SOURCE_QUALITY_MIN_DAYS && from
+                ? from
+                : dayjs(end)
+                      .subtract(days - 1, "day")
+                      .format("YYYY-MM-DD");
+
+        return { from: start, to: end, days };
+    }, [period, from, to]);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -118,7 +143,7 @@ export default function ManagerView({
             >
                 <DashboardPanel
                     title="Funnel and stage conversion"
-                    note={`Leads created in the last ${lifecycleFunnel?.days ?? 90} days, followed forward`}
+                    note={`Leads created in the last ${lifecycleFunnel?.days ?? 90} days, followed forward. Click a drop to open that list.`}
                     footer={
                         lifecycleFunnel ? (
                             <FunnelReading data={lifecycleFunnel} />
@@ -160,7 +185,7 @@ export default function ManagerView({
 
                     <DashboardPanel
                         title="Source quality"
-                        note="Volume against what it converts to — no cost data reaches the CRM"
+                        note={`Last ${sourceWindow.days} days · volume against what it converts to — no cost data reaches the CRM`}
                     >
                         <Deferred
                             data="sourceQuality"
@@ -169,6 +194,8 @@ export default function ManagerView({
                             <SourceBreakdown
                                 showWon
                                 rows={sourceQuality ?? []}
+                                from={sourceWindow.from}
+                                to={sourceWindow.to}
                             />
                         </Deferred>
                     </DashboardPanel>
@@ -189,7 +216,7 @@ export default function ManagerView({
             <DashboardPanel
                 flush
                 title="Agents"
-                note={`Last ${period} days · the marker on each bar is the team median`}
+                note={`Every active agent · last ${period} days · click a count to open that list · the marker on each bar is the median`}
             >
                 <Deferred
                     data="teamAgents"
@@ -203,6 +230,8 @@ export default function ManagerView({
                         <LeaderboardTable
                             data={teamAgents}
                             currentUserId={currentUserId}
+                            from={from}
+                            to={to}
                         />
                     ) : (
                         <span />
