@@ -113,14 +113,15 @@ class HeldMeetingsTest extends TestCase
         $this->assertSame(0, $this->heldCount());
     }
 
-    public function test_the_note_names_the_cutover_date(): void
+    public function test_the_note_explains_held_without_naming_the_cutover(): void
     {
         $note = app(DashboardMetricsService::class)->meetingsHeldNote();
 
-        $this->assertStringContainsString(
+        $this->assertStringContainsString('Marked held', $note);
+        $this->assertStringNotContainsString(
             Carbon::parse($this->cutover)->format('j M Y'),
             $note,
-            'The panel note must say which side of the line it reads',
+            'The panel note must not surface the cutover date',
         );
     }
 

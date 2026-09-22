@@ -1862,12 +1862,10 @@ class DashboardMetricsService
                     ->where('lead_follow_up.status', 'completed')));
     }
 
-    /** Human-readable form of the cutover, for panel notes. */
+    /** Explains how "held" is counted, without naming the cutover date. */
     public function meetingsHeldNote(): string
     {
-        return 'Marked held; before '
-            .Carbon::parse(self::STATUS_TRUSTED_FROM)->format('j M Y')
-            .', past and not cancelled';
+        return 'Marked held; older meetings count if past and not cancelled';
     }
 
     /**
