@@ -1278,9 +1278,17 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     // CRM Events (Admin viewer)
     Route::get('crm-events', [App\Http\Controllers\CrmEventAdminController::class, 'index'])->name('crm-events.index');
-    // Session-authenticated mutations used by the deal/lead timeline UI.
-    // Prefer these over /api/v1 so delete/update share the same web session
-    // (and company context) as the rest of the Inertia app.
+    // Session-authenticated JSON used by the deal/lead timeline UI.
+    // Prefer these over /api/v1 so the requests share the same web session
+    // (and company context) as the rest of the Inertia app. /api/v1 stays
+    // for token consumers; Sanctum often does not hydrate $request->user()
+    // on those routes, which 401s the in-app timeline.
+    Route::get('crm-events/feed', [\App\Http\Controllers\CrmEventController::class, 'index'])
+        ->name('crm-events.feed');
+    Route::get('crm-events/types', [\App\Http\Controllers\CrmEventTypeController::class, 'index'])
+        ->name('crm-events.types');
+    Route::post('crm-events', [\App\Http\Controllers\CrmEventController::class, 'store'])
+        ->name('crm-events.store');
     Route::patch('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'update'])
         ->name('crm-events.update');
     Route::delete('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'destroy'])
