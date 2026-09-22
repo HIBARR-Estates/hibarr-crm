@@ -49,7 +49,7 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
             total: number;
         };
     }>({
-        path: `/api/v1/internal/deals/${deal.id}/communication-activities`,
+        path: route("deals.communication-activities", deal.id),
     });
 
     const activities = activitiesResponse?.data?.data || [];
