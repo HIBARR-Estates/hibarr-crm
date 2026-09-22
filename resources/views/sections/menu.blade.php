@@ -170,6 +170,9 @@
                 @if (in_array('payments', user_modules()) && $sidebarUserPermissions['view_payments'] != 5 && $sidebarUserPermissions['view_payments'] != 'none')
                     <x-sub-menu-item :link="route('payments.index')" :text="__('app.menu.payments')" />
                 @endif
+                @if (\App\Support\FeatureFlags::enabled('packages.online-payment') && user()->permission('edit_payments') == 'all')
+                    <x-sub-menu-item :link="route('payment-requests.index')" :text="__('app.menu.payment_requests')" />
+                @endif
                 @if (in_array('invoices', user_modules()) && $sidebarUserPermissions['view_invoices'] != 5 && $sidebarUserPermissions['view_invoices'] != 'none')
                     <x-sub-menu-item :link="route('creditnotes.index')"
                                      :text="__('app.menu.credit-note')" />

@@ -267,6 +267,7 @@ return [
         'notes' => 'Notes',
         'notices' => 'Notices',
         'payments' => 'Payments',
+        'payment_requests' => 'Payment Requests',
         'rolesPermission' => 'Roles & Permissions',
         'stickyNotes' => 'Sticky Notes',
         'teams' => 'Department',
