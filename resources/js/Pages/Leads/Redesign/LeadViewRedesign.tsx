@@ -724,7 +724,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
 
                     <div className="v2-grid">
-                        <div>
+                        <div className="min-w-0">
                             {isMobileResponsive && (
                                 <div className="mb-4">
                                     <DossierQuickActions
