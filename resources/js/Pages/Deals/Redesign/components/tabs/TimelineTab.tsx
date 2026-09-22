@@ -11,7 +11,7 @@ interface TimelineTabProps {
     dealName?: string;
     userId?: number;
     /**
-     * Eloquent type for /api/v1/crm-events (fetch + Log Action).
+     * Eloquent type for the session crm-events feed (fetch + Log Action).
      * Defaults to Deal; Leads pass LEAD_TIMELINE_MODEL_TYPE. Same value is
      * used for GET and POST so store/index stay aligned.
      */
