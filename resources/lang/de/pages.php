@@ -386,6 +386,7 @@ return [
             'qualification' => 'Qualifizierung',
             'tasks' => 'Aufgaben',
             'events' => 'Ereignisse',
+            'meetings' => 'Meetings',
         ],
         'contacts_table' => [
             'columns' => [
@@ -680,7 +681,7 @@ return [
             'header' => 'Details',
             'notes' => 'Notizen',
             'tasks' => 'Aufgaben',
-            'meeting' => 'Termine',
+            'meetings' => 'Termine',
             'files' => 'Dateien',
             'recommendations' => 'Empfehlungen',
             'offers' => 'Angebote',

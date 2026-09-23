@@ -129,7 +129,7 @@ export default function DealTabs({
         if (permissions.view_lead_follow_up !== "none") {
             items.push({
                 key: "follow-up",
-                label: t("pages.deals.tabs.meeting"),
+                label: t("pages.deals.tabs.meetings"),
                 children: (
                     <FollowUpTab
                         deal={deal}

@@ -367,6 +367,7 @@ return [
             'qualification' => 'Nitelendirme',
             'tasks' => 'Görevler',
             'events' => 'Etkinlikler',
+            'meetings' => 'Toplantılar',
         ],
         'contacts_table' => [
             'columns' => [
@@ -662,7 +663,7 @@ return [
             'header' => 'Detaylar',
             'notes' => 'Notlar',
             'tasks' => 'Görevler',
-            'meeting' => 'Toplantı',
+            'meetings' => 'Toplantılar',
             'files' => 'Dosyalar',
             'recommendations' => 'Öneriler',
             'offers' => 'Teklifler',
