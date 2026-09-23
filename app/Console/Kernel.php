@@ -152,6 +152,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();
+        $schedule->command('ol-webhook:reconcile')->everyFifteenMinutes()->withoutOverlapping();
         // Retry queue process every 5 minutes
         // $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 

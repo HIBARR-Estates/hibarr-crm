@@ -9,22 +9,30 @@ use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\CrmEventService;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\Dashboard\TeamDashboardDemoDataService;
+use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
+use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * The v2 dashboards: a personal landing page plus four role-scoped views.
+ * The v2 dashboards: a personal landing page plus the role-scoped views.
  *
  * Behind crm.personal-dashboard, the personal dashboard (?view=personal, or no
- * ?view= at all) is the default for everyone. The four role-scoped views are
+ * ?view= at all) is the default for everyone. The role-scoped views are
  * additional, unlocked independently by their own view_*_dashboard permission
- * — a user may hold several (leadership commonly holds agent + leadership) and
+ * — a user may hold several (a manager commonly holds team + downline) and
  * gets a switcher into them, but holding one never hides the personal view.
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
+ * Manager is gated on view_manager_dashboard and crm.manager-dashboard so the
+ * direct-reports rollup can roll out separately from the team hierarchy view.
+ * Team is gated twice as well: on view_team_dashboard, and on the
+ * crm.team-dashboard flag — it is the first surface to show commission across a
+ * whole hierarchy, so it rolls out per manager rather than all at once.
  *
  * Every panel is deferred. The synchronous payload is just enough to draw the
  * shell and the switcher, matching the pattern in DealController@show.
@@ -33,19 +41,40 @@ class DashboardV2Controller extends AccountBaseController
 {
     /** Permission name => view key. Order defines switcher order and the default. */
     private const VIEWS = [
-        'view_agent_dashboard' => 'agent',
         'view_manager_dashboard' => 'manager',
+        'view_team_dashboard' => 'team',
         'view_leadership_dashboard' => 'leadership',
         'view_partner_dashboard' => 'partner',
     ];
-
-    /** Selectable windows, in days. */
-    private const PERIODS = [30, 90, 365];
 
     public function __construct()
     {
         parent::__construct();
         $this->pageTitle = 'app.menu.dashboard';
+    }
+
+    /**
+     * Fill the signed-in user's network so the team dashboard has something to
+     * show: three generations of agents plus deals, leads and commissions.
+     *
+     * Non-production only — a 404 in production so it cannot be used as a
+     * public write. Visiting twice is a no-op (demo emails are the lock).
+     *
+     * This project's local Herd box runs as APP_ENV=codecanyon, not `local`,
+     * so the gate is "not production" rather than an allow-list of names.
+     */
+    public function seedTeam(TeamDashboardDemoDataService $seeder)
+    {
+        abort_if(app()->isProduction(), 404);
+
+        set_time_limit(120);
+
+        $seeder->seedFor(user());
+
+        return redirect()->route('dashboard.v2', [
+            'view' => 'team',
+            'days' => 365,
+        ]);
     }
 
     public function index(Request $request, DashboardMetricsService $metrics)
@@ -76,15 +105,21 @@ class DashboardV2Controller extends AccountBaseController
             : $availableViews[0];
 
         $pipelineId = $request->integer('pipeline') ?: null;
-        $days = $this->period($request);
+        $range = DashboardDateRange::fromRequest($request);
 
         return Inertia::render('Dashboard/V2/DashboardV2', [
             'availableViews' => $availableViews,
             'activeView' => $activeView,
             'personalDashboardEnabled' => $personalDashboardEnabled,
-            'period' => $days,
+            // The resolved window, not the raw query string: a custom range
+            // the picker sends back has already been validated by the time the
+            // page renders it, so the two can never disagree.
+            'range' => $range->toArray(),
             'now' => now()->toIso8601String(),
-            ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $days),
+            // Every view wears the same greeting header as the personal
+            // dashboard, so the name travels with the role views too.
+            'userName' => $user->name,
+            ...$this->deferredFor($activeView, $userId, $metrics, $pipelineId, $range),
         ]);
     }
 
@@ -92,8 +127,8 @@ class DashboardV2Controller extends AccountBaseController
      * The default landing page behind the flag: what one person owes now.
      *
      * Everyone gets it first; anyone who also holds a view_*_dashboard
-     * permission gets a switcher into those role-scoped views via
-     * ?view=agent|manager|leadership|partner.
+     * permission gets the same switcher the role views carry, into
+     * ?view=manager|team|leadership|partner.
      *
      * Deliberately not one of VIEWS: it is scoped to a person rather than a
      * team or company, and takes no window parameter at all — one fixed
@@ -112,11 +147,13 @@ class DashboardV2Controller extends AccountBaseController
 
         return Inertia::render('Dashboard/V2/PersonalDashboard', [
             'now' => now()->toIso8601String(),
-            // Only the team view is offered alongside My work. Company and
-            // Partner answer questions this page isn't asking, and a four-way
-            // switcher on a personal landing page buries the one view a
-            // manager actually crosses to.
-            'availableViews' => array_values(array_intersect($availableViews, ['manager'])),
+            // The full permission- and flag-gated list, same as the role views
+            // get. Which of them become tabs — and which are shown greyed as
+            // not-yet-offered — is buildSwitcher's call on the frontend, so
+            // both pages render the same switcher. Narrowing it here instead
+            // would make the personal dashboard's switcher disagree with the
+            // one on the view it switches to.
+            'availableViews' => $availableViews,
             // Ships so the page's copy and the queries can't drift apart.
             'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
             'userName' => $user->name,
@@ -138,7 +175,14 @@ class DashboardV2Controller extends AccountBaseController
             // nothing".
             'commission' => Inertia::defer(fn () => $metrics->commissionSummary($userId), 'stats'),
             'agenda' => Inertia::defer(fn () => $metrics->upcomingMeetings($userId), 'agenda'),
-            'pipelines' => Inertia::defer(fn () => $metrics->openDealsByPipeline($userId), 'pipelines'),
+            // Named openDealsByPipeline, not pipelines: shared Inertia
+            // `pipelines` is the sidebar nav list (visibility-config gated).
+            // Reusing that key here overwrote the nav with this user's open
+            // deals the moment the dashboard deferred payload landed.
+            'openDealsByPipeline' => Inertia::defer(
+                fn () => $metrics->openDealsByPipeline($userId),
+                'openDealsByPipeline'
+            ),
             // Feeds the agenda's "book a meeting" empty-state action — same
             // permission-scoped queries and shape MeetingsController's own
             // Schedule Meeting drawer already uses.
@@ -172,17 +216,6 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
-     * Window for the team and partner views. Whitelisted rather than clamped —
-     * the value reaches raw date arithmetic in the metrics service.
-     */
-    private function period(Request $request): int
-    {
-        $days = $request->integer('days');
-
-        return in_array($days, self::PERIODS, true) ? $days : 30;
-    }
-
-    /**
      * Only the active view's data is deferred — switching views is a fresh visit
      * with ?view=, so we never pay for panels nobody is looking at.
      */
@@ -191,27 +224,19 @@ class DashboardV2Controller extends AccountBaseController
         int $userId,
         DashboardMetricsService $metrics,
         ?int $pipelineId = null,
-        int $days = 30
+        ?DashboardDateRange $range = null
     ): array {
+        $range ??= DashboardDateRange::preset(DashboardDateRange::DEFAULT_DAYS);
+
+        // The manager view's panels still take a day count. Handing them the
+        // resolved range's length keeps one picker driving both views without
+        // rewriting metrics this change isn't touching.
+        $days = $range->days();
         // Resolved once per request rather than inside every closure: each view
         // fans out to several panels that all need the same scope.
         $team = fn () => $metrics->teamAgentIds($userId);
 
         return match ($view) {
-            'agent' => [
-                'actionQueue' => Inertia::defer(fn () => $metrics->actionQueue($userId), 'queue'),
-                'agentWeek' => Inertia::defer(fn () => $metrics->agentWeek($userId), 'stats'),
-                'todaySchedule' => Inertia::defer(fn () => $metrics->todaySchedule($userId), 'schedule'),
-                'agentPipeline' => Inertia::defer(fn () => $metrics->agentPipeline($userId), 'pipeline'),
-                // Same group as actionQueue: TaskDetailModal cannot render its
-                // status control without these, so they must land together.
-                'taskBoardColumns' => Inertia::defer(
-                    fn () => TaskboardColumn::orderBy('priority')
-                        ->get(['id', 'slug', 'column_name', 'label_color', 'priority']),
-                    'queue'
-                ),
-            ],
-
             'manager' => [
                 'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($team(), $days), 'kpis'),
                 'lifecycleFunnel' => Inertia::defer(
@@ -232,6 +257,8 @@ class DashboardV2Controller extends AccountBaseController
                     'team'
                 ),
             ],
+
+            'team' => $this->teamPanels($userId, $range),
 
             'leadership' => [
                 'trend' => Inertia::defer(fn () => $metrics->trend(), 'trend'),
@@ -271,6 +298,62 @@ class DashboardV2Controller extends AccountBaseController
     }
 
     /**
+     * The team view's panels: the headline row, the graph, the charts, recent
+     * activity.
+     *
+     * Five groups so each piece paints as soon as its own cost is paid, rather
+     * than the slowest panel holding up the rest:
+     *  - 'summary': the tile row minus forecast — cheap aggregates only.
+     *  - 'network': the graph. Paid/deals/leads only — not preview().
+     *  - 'forecast': the tile that does run preview(). Isolated so a slow
+     *    commission engine cannot 500 the graph with it.
+     *  - 'trend' / 'growth' / 'recent': independent aggregates, each its own
+     *    query, none needing what the others compute.
+     *
+     * @return array<string, mixed>
+     */
+    private function teamPanels(int $userId, DashboardDateRange $range): array
+    {
+        $team = app(TeamDownlineService::class);
+
+        // Deferred rather than resolved here: an account with no lead_agent row
+        // has no team, and the lookup belongs behind the same skeleton as the
+        // data it anchors.
+        $root = fn () => $team->rootAgent($userId);
+
+        return [
+            'teamSummary' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->summary($agent, $range) : null,
+                'summary'
+            ),
+            'teamForecast' => Inertia::defer(
+                function () use ($root, $team) {
+                    set_time_limit(60);
+
+                    return ($agent = $root()) ? $team->teamForecast($agent) : null;
+                },
+                'forecast'
+            ),
+            'teamTree' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->tree($agent, $range) : null,
+                'network'
+            ),
+            'teamCommissionTrend' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->commissionTrend($agent, $range) : null,
+                'trend'
+            ),
+            'teamGrowth' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->growth($agent, $range) : null,
+                'growth'
+            ),
+            'teamRecentCommissions' => Inertia::defer(
+                fn () => ($agent = $root()) ? $team->recentCommissions($agent) : null,
+                'recent'
+            ),
+        ];
+    }
+
+    /**
      * No agent record means nothing was ever attributed to this account. Return
      * null rather than falling back to a wider scope — this view sits outside
      * the trust boundary, so an unscoped query is the one thing it must not do.
@@ -291,6 +374,12 @@ class DashboardV2Controller extends AccountBaseController
             ->filter(fn ($view, $permission) => $user->permission($permission) === 'all')
             // Permission says "may see the partner view"; this says "has one".
             ->reject(fn ($view) => $view === 'partner' && ! $this->hasPartnerData((int) $user->id))
+            // The flag is the second gate on the team view — see the class
+            // docblock. Rejecting here rather than in the switcher alone means
+            // a hand-typed ?view=team with the flag off falls through to the
+            // first view the user does hold, not to an ungated render.
+            ->reject(fn ($view) => $view === 'manager' && ! FeatureFlags::enabled('crm.manager-dashboard'))
+            ->reject(fn ($view) => $view === 'team' && ! FeatureFlags::enabled('crm.team-dashboard'))
             ->values()
             ->all();
     }

@@ -7,8 +7,9 @@ import useDealPayment from "../../hooks/useDealPayment";
 import {
     isTerminalPaymentState,
     mapDealPaymentUiState,
-    paymentUiStateLabel,
 } from "../../adapters/mapDealPaymentUiState";
+import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
@@ -46,9 +47,16 @@ export default function DealPaymentPanel({
         refreshing,
     } = useDealPayment(deal.id);
 
+    // deals.currency_id is null on most rows (see DealValueBlock), so
+    // deal.currency is routinely absent — resolve through the same
+    // breakdown/company-currency fallback used there instead of guessing EUR.
+    const companyCurrency = useCompanyCurrency();
     const currencyCode =
-        deal.currency?.currency_code
+        deal.value_breakdown?.currency.deal_code
+        ?? deal.value_breakdown?.currency.company_code
+        ?? deal.currency?.currency_code
         ?? paymentRequest?.currency
+        ?? companyCurrency.code
         ?? "EUR";
 
     const [createOpen, setCreateOpen] = useState(false);

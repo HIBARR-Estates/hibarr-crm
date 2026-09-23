@@ -31,7 +31,7 @@ export default function SourceBreakdown({
     if (!visible.length) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("No leads attributed to a source in this window.")}
+                {td("No leads attributed to a source in this window.", { source: "en" })}
             </p>
         );
     }
@@ -50,10 +50,10 @@ export default function SourceBreakdown({
                     borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
-                <div>{td("Source")}</div>
-                <div style={{ textAlign: "right" }}>{td("Leads")}</div>
-                <div style={{ textAlign: "right" }}>{td("Contacted")}</div>
-                {showWon && <div style={{ textAlign: "right" }}>{td("Won")}</div>}
+                <div>{td("Source", { source: "en" })}</div>
+                <div style={{ textAlign: "right" }}>{td("Leads", { source: "en" })}</div>
+                <div style={{ textAlign: "right" }}>{td("Contacted", { source: "en" })}</div>
+                {showWon && <div style={{ textAlign: "right" }}>{td("Won", { source: "en" })}</div>}
             </div>
 
             {visible.map((row, index) => {
@@ -80,7 +80,7 @@ export default function SourceBreakdown({
                                 whiteSpace: "nowrap",
                             }}
                         >
-                            {td(row.name)}
+                            {td(row.name, { source: "en" })}
                         </div>
                         <div style={{ textAlign: "right" }}>{row.count}</div>
                         <div style={{ textAlign: "right", color: T.TEXT_MUTED }}>

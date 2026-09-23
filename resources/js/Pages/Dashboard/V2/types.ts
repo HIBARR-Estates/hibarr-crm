@@ -9,6 +9,7 @@
 
 import type { Task } from "@/Types/api/tasks";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { DashboardRange } from "./viewConfig";
 
 export interface RelatedRecord {
     type: "lead" | "deal";
@@ -21,50 +22,6 @@ export type QueueTask = Task & {
     days_overdue: number;
     related: RelatedRecord | null;
 };
-
-export interface ActionQueueData {
-    overdueTasks: QueueTask[];
-    hotLeads: Array<{
-        id: number;
-        client_name: string;
-        temperature: string | null;
-        waiting_hours: number;
-    }>;
-    stalledDeals: Array<{
-        id: number;
-        name: string;
-        stage_name: string;
-        days_in_stage: number;
-        target_days: number;
-    }>;
-    /** Open records with no next-step task nominated. */
-    noNextStep: Array<{
-        type: "lead" | "deal";
-        id: number;
-        name: string;
-        days_open: number;
-    }>;
-    /**
-     * True totals. The row arrays above are capped, so anything showing "how
-     * many" must read these — an agent with 85 overdue tasks must not be told
-     * 25 because that is how many rows we chose to ship.
-     */
-    counts: {
-        overdueTasks: number;
-        hotLeads: number;
-        stalledDeals: number;
-        noNextStep: number;
-    };
-}
-
-export interface AgentWeek {
-    weekStart: string;
-    meetings: number;
-    dealsCreated: number;
-    leadsContacted: number;
-    /** null when no lead of theirs was both assigned and contacted this week. */
-    medianResponseMinutes: number | null;
-}
 
 /**
  * A full follow-up, so the row can open MeetingViewModal in place.
@@ -88,24 +45,6 @@ export interface CurrencyTotal {
     deal_count: number;
 }
 
-export interface AgentPipeline {
-    funnel: {
-        pipelines: Array<{ id: number; name: string; deal_count: number }>;
-        pipeline_id: number | null;
-        stages: Array<{
-            id: number;
-            name: string;
-            count: number;
-            /** Days the deals currently in this stage have been here. */
-            open_median_days: number | null;
-            /** Historic transit time; null under three samples. */
-            median_days: number | null;
-            samples: number;
-        }>;
-    };
-    value: CurrencyTotal[];
-}
-
 export interface Kpi {
     value: number | null;
     previous: number | null;
@@ -114,10 +53,15 @@ export interface Kpi {
     note: string | null;
 }
 
-export type TeamKpis = Record<
+export type TeamKpiMetrics = Record<
     "newLeads" | "contactedInSla" | "meetings" | "dealsCreated" | "dealsWon",
     Kpi
 >;
+
+/** Headline tiles plus the configured first-contact SLA for labels. */
+export type TeamKpis = TeamKpiMetrics & {
+    sla_hours: number;
+};
 
 export interface LifecycleFunnel {
     days: number;
@@ -134,6 +78,7 @@ export interface LifecycleFunnel {
 }
 
 export interface ResponseDistribution {
+    sla_hours: number;
     total: number;
     buckets: Array<{
         label: string;
@@ -222,4 +167,164 @@ export interface PartnerFlagRow {
     message: string | null;
     status: string;
     days_open: number;
+}
+
+// ── Team view ────────────────────────────────────────────────────
+
+/**
+ * Every figure on the team view covers the network *below* the viewer and
+ * excludes them. A manager's own book would otherwise hide an idle team.
+ *
+ * Commission is a plain number in the company's own currency, not the
+ * CurrencyTotal[] split deal value uses: MlmCommissionService converts a deal
+ * through its snapshotted exchange rate before writing a leg, so a commission
+ * is never split across currencies. `currency` is null when the company has no
+ * default currency configured — the panels then render bare numbers rather
+ * than stamping the wrong symbol on them.
+ */
+export interface TeamActivityMetrics {
+    /** Open deals. Not windowed — a running deal is running today. */
+    active_deals: number;
+    /** Won inside the selected window. */
+    deals_won: number;
+    /** Contacted and not yet at a terminal lifecycle status. */
+    leads_active: number;
+    /** Open, but nobody has made first contact. */
+    leads_untouched: number;
+    /** Paid inside the window, by paid_at. */
+    paid: number;
+    /** Standing balance — deliberately not windowed. */
+    pending: number;
+}
+
+/**
+ * The per-node shape on the tree — TeamActivityMetrics plus a forecast.
+ *
+ * Not part of TeamSummary: the summary tile row and the forecast tile are
+ * separate deferred props (teamSummary resolves fast; the forecast shares its
+ * cost with the graph and lands later), so the two shapes have to stay
+ * distinct rather than one extending the other.
+ */
+export interface TeamMetrics extends TeamActivityMetrics {
+    /**
+     * Priced from open deals as they stand now, via the same commission
+     * engine that writes a real leg once a deal closes. Not windowed — a
+     * forecast has no date, only a current state.
+     */
+    forecast: number;
+}
+
+export interface TeamSummary extends TeamActivityMetrics {
+    /** People below the viewer, at any depth. Excludes the viewer. */
+    agents: number;
+    direct_reports: number;
+    /** Deepest generation reached, 0 when nobody reports to them. */
+    generations: number;
+    /** Agents who joined the network inside the window. */
+    joined: number;
+    currency: string | null;
+    range: DashboardRange;
+}
+
+/**
+ * A type alias, not an interface: TrendLine takes
+ * `Record<string, string | number>[]`, and only aliases get the implicit index
+ * signature that makes them assignable to it.
+ */
+export type TeamGrowthPoint = {
+    period: string;
+    label: string;
+    /** Agents who joined in this month. */
+    joined: number;
+    /** Running network size at the end of it. */
+    total: number;
+};
+
+export interface TeamGrowth {
+    points: TeamGrowthPoint[];
+    joined: number;
+    /** Network size before the window opened — where the curve starts. */
+    before: number;
+}
+
+/**
+ * One person in the network.
+ *
+ * `own` is what this person did; `network` is that plus everyone under them,
+ * which is how you tell a strong closer from someone who has built a team that
+ * closes without them.
+ */
+export interface TeamTreeNode {
+    agent_id: number;
+    user_id: number | null;
+    name: string;
+    image: string | null;
+    /** MLM level name, null for an agent never assigned one. */
+    level: string | null;
+    /** 1 is a direct report of the viewer. */
+    depth: number;
+    own: TeamMetrics;
+    network: TeamMetrics & { agents: number };
+    children: TeamTreeNode[];
+}
+
+export interface TeamTree {
+    /** The viewer's direct reports; everyone else hangs off them. */
+    nodes: TeamTreeNode[];
+    currency: string | null;
+    range: DashboardRange;
+    /** The graph draws the viewer as its own root, above the team it anchors. */
+    your_name: string | null;
+    your_image: string | null;
+    /** The viewer's own level — it sets the differential they earn below. */
+    your_level: string | null;
+    /**
+     * Kept on the payload so older clients still type-check; the graph no
+     * longer prices forecast (that lives on teamForecast). Always false / 0.
+     */
+    forecast_truncated: boolean;
+    forecast_deals: number;
+}
+
+/**
+ * The forecast tile: priced independently of the graph so preview() cannot
+ * take the network request down with it.
+ */
+export interface TeamForecast {
+    amount: number;
+    deal_count: number;
+    truncated: boolean;
+    currency: string | null;
+}
+
+/**
+ * A type alias for the same reason as TeamGrowthPoint: assignable to
+ * TrendLine's `Record<string, string | number>[]` prop shape.
+ */
+export type TeamCommissionTrendPoint = {
+    period: string;
+    label: string;
+    amount: number;
+};
+
+export interface TeamCommissionTrend {
+    points: TeamCommissionTrendPoint[];
+    currency: string | null;
+}
+
+/** One row of mlm_commissions, as the team's recent-activity feed shows it. */
+export interface TeamRecentCommission {
+    id: number;
+    agent_id: number;
+    agent_name: string;
+    agent_image: string | null;
+    /** Null when the leg is not tied to a deal, or the deal was removed. */
+    deal_id: number | null;
+    /** Null when the commission predates deal-name backfill, or the deal was removed. */
+    deal_name: string | null;
+    type: "agent" | "upline";
+    amount: number;
+    status: "paid" | "pending" | "reverted";
+    /** paid_at when paid, else created_at — an ISO timestamp. */
+    at: string;
 }

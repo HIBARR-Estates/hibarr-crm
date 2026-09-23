@@ -31,22 +31,3 @@ export function mapDealPaymentUiState(
 export function isTerminalPaymentState(uiState: DealPaymentUiState | null): boolean {
     return uiState === "confirmed" || uiState === "paid_online" || uiState === "failed";
 }
-
-export function paymentUiStateLabel(uiState: DealPaymentUiState): string {
-    switch (uiState) {
-        case "pending_payment":
-            return "Pending payment";
-        case "bank_transfer_pending":
-            return "Bank transfer pending review";
-        case "processing_online":
-            return "Processing online payment";
-        case "paid_online":
-            return "Paid online";
-        case "confirmed":
-            return "Confirmed";
-        case "failed":
-            return "Failed";
-        default:
-            return "Unknown";
-    }
-}

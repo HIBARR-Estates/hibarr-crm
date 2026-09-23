@@ -24,6 +24,7 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
 import { getDealPermissions } from "@/Hooks/useDealPermissions";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import { dealApi } from "@/lib/api/deals";
 import {
@@ -155,6 +156,7 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const companyCurrency = useCompanyCurrency();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const showProductTour =
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
@@ -539,6 +541,7 @@ const Index = ({
             canEdit: canEditDeal,
             t,
             td,
+            companyCurrency,
         }),
         ["created_at", "lead_source", "updated_at"],
         isMobileResponsive,

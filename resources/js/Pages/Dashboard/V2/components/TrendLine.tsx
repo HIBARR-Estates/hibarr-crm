@@ -40,7 +40,7 @@ export default function TrendLine({
     const { td } = useTd();
 
     if (!data.length || !series.length) {
-        return <Empty description={td("Not enough history to plot a trend")} />;
+        return <Empty description={td("Not enough history to plot a trend", { source: "en" })} />;
     }
 
     return (
@@ -59,7 +59,7 @@ export default function TrendLine({
                         key={line.dataKey}
                         type="monotone"
                         dataKey={line.dataKey}
-                        name={td(line.label)}
+                        name={td(line.label, { source: "en" })}
                         stroke={line.color}
                         strokeWidth={2}
                         dot={false}

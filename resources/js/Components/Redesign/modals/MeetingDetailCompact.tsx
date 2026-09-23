@@ -1,6 +1,5 @@
 import { type ReactNode, useState } from "react";
 import { router } from "@inertiajs/react";
-import { message } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
@@ -17,7 +16,6 @@ import {
 } from "@/Components/Redesign/tokens";
 import {
     getMeetingStatusDisplay,
-    locationAddsDetail,
     toWorkspaceMeetingListItem,
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import { resolveMeetingDisplayTimezone } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
@@ -25,6 +23,7 @@ import { meetingRecordLink } from "@/Components/Redesign/meeting/meetingRecordLi
 import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import MeetingConfirmationPanel from "@/Components/Redesign/meeting/MeetingConfirmationPanel";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
+import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 
 type Panel = "info" | "summary" | "confirmation";
@@ -170,14 +169,6 @@ export default function MeetingDetailCompact({
         (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable && !!onReschedule;
     const showCancel = (canCancel ?? canEdit) && isActionable && !!onCancelMeeting;
-
-    const copyLink = () => {
-        if (!item.meetingLink) return;
-        navigator.clipboard
-            ?.writeText(item.meetingLink)
-            .then(() => message.success(td("Link copied")))
-            .catch(() => message.error(td("Could not copy the link")));
-    };
 
     return (
         <>
@@ -368,63 +359,12 @@ export default function MeetingDetailCompact({
                                 )} · ${resolveMeetingDisplayTimezone(meeting.timezone)}`}
                             />
 
-                            <InfoRow
-                                icon={
-                                    item.locationType === "video"
-                                        ? "video"
-                                        : item.locationType === "phone"
-                                          ? "phone"
-                                          : "map-pin"
-                                }
-                                primary={td(item.platformLabel, {
-                                    source: "en",
-                                })}
-                                secondary={
-                                    locationAddsDetail(item)
-                                        ? td(item.locationDisplay)
-                                        : undefined
-                                }
-                                action={
-                                    item.meetingLink ? (
-                                        <div className="flex items-center gap-2">
-                                            {(item.isUpcoming || item.isLive) && (
-                                                <a
-                                                    href={item.meetingLink}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="dr-btn dr-btn-primary no-underline"
-                                                    style={{
-                                                        fontSize: 12.5,
-                                                        padding: "6px 12px",
-                                                    }}
-                                                >
-                                                    {t(
-                                                        "pages.meetings.card.actions.join_meeting",
-                                                    )}
-                                                </a>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={copyLink}
-                                                aria-label={td("Copy link")}
-                                                className="flex h-[30px] w-[30px] shrink-0 items-center justify-center"
-                                                style={{
-                                                    border: `1px solid ${T.BORDER}`,
-                                                    borderRadius: R.MD,
-                                                    background: T.WHITE,
-                                                    cursor: "pointer",
-                                                }}
-                                            >
-                                                <Icon
-                                                    name="copy"
-                                                    size={14}
-                                                    color={T.TEXT_MUTED}
-                                                />
-                                            </button>
-                                        </div>
-                                    ) : undefined
-                                }
-                            />
+                            <div className="py-2.5" style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}>
+                                <MeetingLocationPanel
+                                    meeting={meeting}
+                                    actionable={isActionable}
+                                />
+                            </div>
 
                             <MeetingCalendarSyncRow
                                 meeting={meeting}

@@ -3,13 +3,28 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DashboardPanelProps {
-    /** English source string — translated at render via td(). */
+    /**
+     * Panel title. When `localize` is true (default), treated as an English
+     * source string and run through td(). Pass false when the caller already
+     * resolved a lang-file key via t().
+     */
     title?: string;
     /** Optional caveat shown under the title, e.g. a known data limitation. */
     note?: string;
+    /**
+     * When false, title/note are rendered as-is (already translated via t()).
+     * Defaults to true so other dashboards keep dynamic translation.
+     */
+    localize?: boolean;
     extra?: ReactNode;
-    /** Summary line pinned to the panel's foot, on the sunken background. */
+    /** Summary line pinned to the panel's foot. */
     footer?: ReactNode;
+    /**
+     * Foot background. `sunken` (default) is the quiet strip; `raised` is
+     * white so a filled detail block (e.g. network numbers) reads against
+     * the body above it.
+     */
+    footerTone?: "sunken" | "raised";
     /** Drops the header/body padding so tables can run edge to edge. */
     flush?: boolean;
     /** `data-tour` selector target for the ProductTour engine. */
@@ -28,14 +43,26 @@ interface DashboardPanelProps {
 export default function DashboardPanel({
     title,
     note,
+    localize = true,
     extra,
     footer,
+    footerTone = "sunken",
     flush = false,
     dataTour,
     style,
     children,
 }: DashboardPanelProps) {
     const { td } = useTd();
+    const titleText = title
+        ? localize
+            ? td(title, { source: "en" })
+            : title
+        : null;
+    const noteText = note
+        ? localize
+            ? td(note, { source: "en" })
+            : note
+        : null;
 
     return (
         <section
@@ -63,7 +90,7 @@ export default function DashboardPanel({
                     }}
                 >
                     <div>
-                        {title && (
+                        {titleText && (
                             <h2
                                 style={{
                                     margin: 0,
@@ -72,10 +99,10 @@ export default function DashboardPanel({
                                     color: T.NAVY,
                                 }}
                             >
-                                {td(title)}
+                                {titleText}
                             </h2>
                         )}
-                        {note && (
+                        {noteText && (
                             <p
                                 style={{
                                     margin: "3px 0 0",
@@ -83,7 +110,7 @@ export default function DashboardPanel({
                                     color: T.TEXT_HINT,
                                 }}
                             >
-                                {td(note)}
+                                {noteText}
                             </p>
                         )}
                     </div>
@@ -102,8 +129,11 @@ export default function DashboardPanel({
                         alignItems: "center",
                         gap: 12,
                         padding: "12px 18px",
-                        background: T.SURFACE_2,
-                        borderTop: `1px solid ${T.BORDER_SOFT}`,
+                        background:
+                            footerTone === "raised" ? T.SURFACE : T.SURFACE_2,
+                        borderTop: `1px solid ${
+                            footerTone === "raised" ? T.BORDER : T.BORDER_SOFT
+                        }`,
                         fontSize: 14,
                         lineHeight: 1.5,
                     }}

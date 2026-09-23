@@ -56,7 +56,7 @@ export default function useDealTimeline(
         hasNextPage,
         isFetchingNextPage,
     } = useApiInfiniteQuery<CrmEventsIndexResponse>({
-        path: "/api/v1/crm-events",
+        path: route("crm-events.feed"),
         params: queryParams,
         getNextPageParam: (lastPage) =>
             lastPage.meta.has_more ? lastPage.meta.current_page + 1 : undefined,

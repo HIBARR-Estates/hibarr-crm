@@ -352,27 +352,25 @@ class NotificationService
             $id = $this->resolveNotificationEntityId($typeSlug, $data, $routes);
         }
 
-        if (! $id && ! in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
+        $indexOnlySlugs = ['task_deleted', 'lead_deleted', 'deal_deleted', 'lead_imported'];
+
+        if (! $id && ! in_array($typeSlug, $indexOnlySlugs, true)) {
             return null;
         }
 
         if (isset($routes[$typeSlug])) {
             try {
-                if (in_array($typeSlug, ['task_deleted', 'lead_deleted', 'deal_deleted'], true)) {
+                if (in_array($typeSlug, $indexOnlySlugs, true)) {
                     return route($routes[$typeSlug]);
                 }
 
-                $url = route($routes[$typeSlug], $id);
+                $url = $this->buildRoutedNotificationUrl($typeSlug, $data, $id);
 
                 if (in_array($typeSlug, ['deal_activity_notification', 'lead_activity_notification'], true)) {
                     $url = EntityActivityNotificationUrl::appendTabIfMissing(
                         $url,
                         is_string($data['activity_type'] ?? null) ? $data['activity_type'] : null,
                     );
-                }
-
-                if ($typeSlug === 'lead_follow_up_overdue' && ! str_contains($url, 'tab=')) {
-                    $url .= (str_contains($url, '?') ? '&' : '?').'tab=meetings';
                 }
 
                 return $url;
@@ -382,6 +380,52 @@ class NotificationService
         }
 
         return null;
+    }
+
+    /**
+     * Build a show URL for notifications that may target either a deal or a lead.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function buildRoutedNotificationUrl(string $typeSlug, array $data, mixed $id): string
+    {
+        if (in_array($typeSlug, ['lead_follow_up_overdue', 'auto_follow_up_reminder'], true)) {
+            return $this->resolveFollowUpNotificationShowUrl($data, $id);
+        }
+
+        $routes = $this->notificationLinkRoutes();
+        $routeName = $routes[$typeSlug] ?? null;
+
+        if ($routeName === null) {
+            throw new \InvalidArgumentException("Missing route for notification type {$typeSlug}");
+        }
+
+        return route($routeName, $id);
+    }
+
+    /**
+     * Meeting follow-up alerts: deal when linked, otherwise the lead contact page.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function resolveFollowUpNotificationShowUrl(array $data, mixed $fallbackId): string
+    {
+        if (! empty($data['deal_id'])) {
+            $url = route('deals.show', $data['deal_id']);
+        } elseif (! empty($data['lead_id'])) {
+            $url = route('lead-contact.show', $data['lead_id']);
+        } elseif (! empty($fallbackId)) {
+            // Legacy rows stored only `id` (lead or deal pk) without explicit keys.
+            $url = route('lead-contact.show', $fallbackId);
+        } else {
+            return url('/');
+        }
+
+        if (! str_contains($url, 'tab=')) {
+            $url .= (str_contains($url, '?') ? '&' : '?').'tab=meetings';
+        }
+
+        return $url;
     }
 
     /**
@@ -462,14 +506,14 @@ class NotificationService
             'new_ticket_note' => 'tickets.show',
             'ticket_agent' => 'tickets.show',
             'mention_ticket_agent' => 'tickets.show',
-            'new_lead_created' => 'deals.show',
+            'new_lead_created' => 'lead-contact.show',
             'lead_owner_assigned' => 'lead-contact.show',
             'lead_agent_assigned' => 'deals.show',
             'deal_stage_updated' => 'deals.show',
             'deal_activity_notification' => 'deals.show',
             'auto_follow_up_reminder' => 'deals.show',
             'new_communication_activity' => 'deals.show',
-            'lead_imported' => 'deals.show',
+            'lead_imported' => 'lead-contact.index',
             'lead_deleted' => 'lead-contact.index',
             'lead_activity_notification' => 'lead-contact.show',
             'lead_follow_up_overdue' => 'deals.show',
@@ -604,6 +648,7 @@ class NotificationService
             'new_communication_activity' => 'deal',
             'lead_imported' => 'lead',
             'lead_deleted' => 'lead',
+            'lead_activity_notification' => 'lead',
             'lead_follow_up_overdue' => 'event',
             'deal_deleted' => 'deal',
             'deal_close_date_approaching' => 'deal',

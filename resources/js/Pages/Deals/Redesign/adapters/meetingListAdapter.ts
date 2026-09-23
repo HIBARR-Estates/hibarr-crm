@@ -162,9 +162,10 @@ function getLocationDisplay(
         case "office":
             return "HIBARR HQ";
         case "phone":
-            return "Phone meeting";
+            return "Phone call";
         case "physical":
-            return "Physical meeting";
+            // Slug alone — the form fell back when no place was typed.
+            return "Place not specified";
         case "zoho":
         case "zoho_meet":
             return "Zoho Meeting (link pending)";
@@ -176,7 +177,8 @@ function getLocationDisplay(
         case "teams":
             return "Microsoft Teams";
         default:
-            return meeting.location || "No location set";
+            // Free-text physical place name stored in `location`.
+            return meeting.location?.trim() || "No location set";
     }
 }
 
@@ -185,8 +187,8 @@ function getLocationDisplay(
  *
  * The pill answers "what kind of meeting" and the line answers "where
  * exactly", but for every known location without a link the two collapse onto
- * the same words — a Phone meeting showed a "Phone" pill above a "Phone
- * meeting" line, and an office one said "HIBARR HQ" twice. The line is worth
+ * the same words — a Phone call showed a "Phone" pill above a "Phone call"
+ * line, and an office one said "HIBARR HQ" twice. The line is worth
  * rendering only when it carries something extra: a typed place name, or a
  * qualifier like "(link pending)".
  */
@@ -198,8 +200,8 @@ export function locationAddsDetail(item: {
         value
             .trim()
             .toLowerCase()
-            // "Phone meeting" and "Phone" are the same answer.
-            .replace(/\s+meeting$/, "");
+            // "Phone call" / "Phone meeting" and "Phone" are the same answer.
+            .replace(/\s+(meeting|call)$/, "");
 
     return normalise(item.locationDisplay) !== normalise(item.platformLabel);
 }

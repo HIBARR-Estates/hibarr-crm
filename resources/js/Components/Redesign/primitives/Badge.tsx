@@ -1,7 +1,7 @@
 import { CSSProperties, ReactNode } from "react";
 import { REDESIGN_TOKENS as T } from "../tokens";
 
-type BadgeVariant =
+export type BadgeVariant =
     | "blue"
     | "green"
     | "gray"

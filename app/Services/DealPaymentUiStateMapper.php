@@ -66,4 +66,38 @@ class DealPaymentUiStateMapper
             'show_checkout_url' => false,
         ];
     }
+
+    /**
+     * SQL-shaped mirror of map()'s branches, keyed by the same ui_state
+     * vocabulary, for server-side filtering (PaymentRequestController).
+     * Every branch here must stay in 1:1 correspondence with map() above —
+     * see DealPaymentUiStateMapperQueryScopesTest, which walks the same
+     * fixtures map()'s own test uses and asserts they land in the matching
+     * bucket here and no other.
+     *
+     * @return array<string, callable(\Illuminate\Database\Eloquent\Builder): void>
+     */
+    public static function queryScopes(): array
+    {
+        return [
+            'failed' => fn ($q) => $q->whereIn('ol_status', ['failed', 'expired', 'cancelled']),
+            'pending_payment' => fn ($q) => $q->where(function ($q2) {
+                $q2->where('ol_status', 'pending')
+                    ->orWhereNull('ol_status')
+                    ->orWhereNotIn('ol_status', ['failed', 'expired', 'cancelled', 'pending', 'confirming', 'completed']);
+            }),
+            'bank_transfer_pending' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', 'manual'),
+            'processing_online' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', '!=', 'manual'),
+            'confirmed' => fn ($q) => $q->where('ol_status', 'completed')
+                ->where('ol_payment_type', 'manual')
+                ->whereNotNull('verified_by_user_id')
+                ->whereNotNull('verified_at'),
+            'paid_online' => fn ($q) => $q->where('ol_status', 'completed')
+                ->where(function ($q2) {
+                    $q2->where('ol_payment_type', '!=', 'manual')
+                        ->orWhereNull('verified_by_user_id')
+                        ->orWhereNull('verified_at');
+                }),
+        ];
+    }
 }
