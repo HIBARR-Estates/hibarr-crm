@@ -402,6 +402,7 @@ return [
             'qualification' => 'Qualification',
             'tasks' => 'Tasks',
             'events' => 'Events',
+            'meetings' => 'Meetings',
         ],
         'contacts_table' => [
             'columns' => [
@@ -701,7 +702,7 @@ return [
             'header' => 'Details',
             'notes' => 'Notes',
             'tasks' => 'Tasks',
-            'meeting' => 'Meeting',
+            'meetings' => 'Meetings',
             'files' => 'Files',
             'recommendations' => 'Recommendations',
             'offers' => 'Offers',

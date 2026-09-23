@@ -48,7 +48,7 @@ export default function DealTabBar({
         overview: t("pages.deals.header.tabs.overview"),
         notes: t("pages.deals.tabs.notes"),
         tasks: t("pages.deals.header.tabs.tasks"),
-        meetings: t("pages.deals.tabs.meeting"),
+        meetings: t("pages.deals.tabs.meetings"),
         files: t("pages.deals.tabs.files"),
         offers: t("pages.deals.tabs.offers"),
         exposes: t("pages.deals.workspace.exposes.title"),
