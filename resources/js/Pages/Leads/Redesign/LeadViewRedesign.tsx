@@ -17,6 +17,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useIsDesktopViewport } from "@/Hooks/useMediaQuery";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -122,6 +123,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const isDesktopViewport = useIsDesktopViewport();
+    /** Pin quick actions above the workspace when the dossier rail stacks (HIB-1404). */
+    const quickActionsInMainColumn = isMobileResponsive && !isDesktopViewport;
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -725,6 +729,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div className="min-w-0">
+                            {quickActionsInMainColumn && (
+                                <div className="mb-4">
+                                    <DossierQuickActions
+                                        onLogAction={() =>
+                                            setLogActionOpen(true)
+                                        }
+                                        onAddNote={() =>
+                                            setAddNoteOpen(true)
+                                        }
+                                        onScheduleMeeting={() =>
+                                            setAddMeetingOpen(true)
+                                        }
+                                    />
+                                </div>
+                            )}
+
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
                                     leadId={lead.id}
@@ -790,13 +810,17 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
-                            <DossierQuickActions
-                                onLogAction={() => setLogActionOpen(true)}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onScheduleMeeting={() =>
-                                    setAddMeetingOpen(true)
-                                }
-                            />
+                            {!quickActionsInMainColumn && (
+                                <DossierQuickActions
+                                    onLogAction={() =>
+                                        setLogActionOpen(true)
+                                    }
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            )}
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(
