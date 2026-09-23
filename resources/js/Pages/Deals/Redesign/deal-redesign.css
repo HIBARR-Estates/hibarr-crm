@@ -444,10 +444,40 @@
     word-break: break-word;
 }
 
+/* Workspace card + tab body: grow with overview so columns can use viewport height. */
+.deal-redesign .dr-workspace-main,
+.lead-redesign .dr-workspace-main {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+}
+
+.deal-redesign .dr-workspace-card:has(.dr-overview),
+.lead-redesign .dr-workspace-card:has(.dr-overview) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.deal-redesign .dr-workspace-tab-body:has(.dr-overview),
+.lead-redesign .dr-workspace-tab-body:has(.dr-overview) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
 .dr-overview {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 12px;
+    flex: 1 1 auto;
+    min-height: calc(100dvh - 14rem);
+    align-items: stretch;
 }
 @media (max-width: 1440px) {
     .dr-overview {
@@ -457,8 +487,17 @@
 @media (max-width: 1280px) {
     .dr-overview {
         grid-template-columns: 1fr;
+        min-height: 0;
+        align-items: start;
     }
 }
+
+@media (min-width: 1281px) {
+    .dr-overview {
+        grid-template-rows: minmax(0, 1fr);
+    }
+}
+
 .dr-ov-col {
     background: var(--dr-surface-2);
     border: 1px solid var(--dr-border);
@@ -467,5 +506,15 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    min-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.dr-ov-col-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.dr-ov-col-empty {
+    flex: 0 0 auto;
 }
