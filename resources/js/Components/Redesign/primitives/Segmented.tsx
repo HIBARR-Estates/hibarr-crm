@@ -77,7 +77,7 @@ export default function Segmented<V extends string | number>({
                             borderRadius: R.SM,
                             border: "none",
                             fontSize: 14,
-                            fontWeight: 600,
+                            fontWeight: active ? 600 : 500,
                             lineHeight: 1.5,
                             cursor: "pointer",
                             background: active ? activeBg : "transparent",
@@ -95,7 +95,7 @@ export default function Segmented<V extends string | number>({
                             <span
                                 style={{
                                     fontSize: 14,
-                                    fontWeight: 600,
+                                    fontWeight: active ? 600 : 500,
                                     fontVariantNumeric: "tabular-nums",
                                     // "raised" fills the active segment with
                                     // white, not the solid variant's blue —

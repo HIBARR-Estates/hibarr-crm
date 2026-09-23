@@ -1,7 +1,7 @@
 import { FilterOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import TaskSegmented from "./primitives/TaskSegmented";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 
 export type QuickFilterKey =
     "all" | "mine" | "byme" | "open" | "today" | "overdue" | "mentioned";
@@ -67,7 +67,7 @@ export default function TasksFilterBar({
         <div>
             <div className="flex flex-wrap items-center gap-2.5 pb-[18px]">
                 <div data-tour="tasks-list-quick-filters">
-                    <TaskSegmented
+                    <Segmented
                         value={quickFilter}
                         ariaLabel={td("Task view")}
                         onChange={onQuickFilter}
@@ -89,14 +89,14 @@ export default function TasksFilterBar({
                                 className="uppercase"
                                 style={{
                                     fontSize: 14,
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     letterSpacing: "0.05em",
-                                    color: T.TEXT_HINT,
+                                    color: T.TEXT,
                                 }}
                             >
                                 {td("Group by")}
                             </span>
-                            <TaskSegmented
+                            <Segmented
                                 value={groupMode}
                                 ariaLabel={td("Group by")}
                                 onChange={onGroupMode}
@@ -121,7 +121,7 @@ export default function TasksFilterBar({
                             padding: "7px 12px",
                             borderRadius: 8,
                             fontSize: 14,
-                            fontWeight: 600,
+                            fontWeight: hasFilters ? 600 : 500,
                             cursor: "pointer",
                             background: hasFilters ? T.BLUE_LIGHT : T.WHITE,
                             color: hasFilters ? T.BLUE_DARK : T.TEXT_MUTED,

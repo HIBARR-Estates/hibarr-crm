@@ -9,11 +9,11 @@ import {
     propertyDisplayLocation,
     propertyDisplayName,
 } from "../../adapters/propertyDisplay";
-import DealBadge from "../primitives/DealBadge";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
-import DealMenuSelect from "../primitives/DealMenuSelect";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import usePipelineHasPackages from "../../hooks/usePipelineHasPackages";
 import useSinglePackageMode from "../../hooks/useSinglePackageMode";
 
@@ -153,7 +153,7 @@ export default function DealPackagePropertyManager({
                 flexShrink: 0,
             }}
         >
-            <DealIcon name={name} size={16} color={T.TEXT_MUTED} />
+            <Icon name={name} size={16} color={T.TEXT_MUTED} />
         </div>
     );
 
@@ -172,7 +172,7 @@ export default function DealPackagePropertyManager({
             {valueLocked && (
                 <Tooltip title={t("pages.deals.value_locked_tooltip")}>
                     <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
-                        <DealIcon name="lock" size={12} />
+                        <Icon name="lock" size={12} />
                     </span>
                 </Tooltip>
             )}
@@ -211,7 +211,7 @@ export default function DealPackagePropertyManager({
                     }}
                 >
                     <span style={{ marginTop: 1, flexShrink: 0 }}>
-                        <DealIcon name="info" size={13} color={T.AMBER} />
+                        <Icon name="info" size={13} color={T.AMBER} />
                     </span>
                     <span>
                         {overLimit
@@ -293,7 +293,7 @@ export default function DealPackagePropertyManager({
                                         flexShrink: 0,
                                     }}
                                 >
-                                    <DealMenuSelect
+                                    <MenuSelect
                                         value=""
                                         placeholder={t(
                                             "pages.deals.info.pkgprop.replace",
@@ -312,7 +312,7 @@ export default function DealPackagePropertyManager({
                                             replacePackage(pkg.id, Number(id))
                                         }
                                     />
-                                    <DealButton
+                                    <Button
                                         variant="ghost"
                                         size="sm"
                                         style={{ color: T.RED }}
@@ -321,14 +321,14 @@ export default function DealPackagePropertyManager({
                                         onClick={() => removePackage(pkg.id)}
                                     >
                                         {t("pages.deals.info.pkgprop.remove")}
-                                    </DealButton>
+                                    </Button>
                                 </div>
                             )}
                         </div>
                     ))}
                     {showPackageAdd && (
                         <div style={{ marginBottom: 18 }}>
-                            <DealMenuSelect
+                            <MenuSelect
                                 value=""
                                 placeholder={t(
                                     "pages.deals.info.pkgprop.add_package",
@@ -415,7 +415,7 @@ export default function DealPackagePropertyManager({
                                             border: `1px solid ${T.BORDER}`,
                                         }}
                                     >
-                                        <DealIcon
+                                        <Icon
                                             name="building"
                                             size={18}
                                             color={T.TEXT_HINT}
@@ -440,7 +440,7 @@ export default function DealPackagePropertyManager({
                                             {title}
                                         </span>
                                         {prop?.status && (
-                                            <DealBadge
+                                            <Badge
                                                 variant={
                                                     PROPERTY_STATUS_VARIANT[
                                                         statusKey
@@ -448,7 +448,7 @@ export default function DealPackagePropertyManager({
                                                 }
                                             >
                                                 {prop.status.replace(/_/g, " ")}
-                                            </DealBadge>
+                                            </Badge>
                                         )}
                                     </div>
 
@@ -462,7 +462,7 @@ export default function DealPackagePropertyManager({
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >
-                                            <DealIcon
+                                            <Icon
                                                 name="map-pin"
                                                 size={12}
                                                 color={T.TEXT_HINT}
@@ -526,7 +526,7 @@ export default function DealPackagePropertyManager({
                                     </a>
                                 )}
                                 {!isLocked && (
-                                    <DealButton
+                                    <Button
                                         variant="ghost"
                                         size="sm"
                                         style={{ color: T.RED, flexShrink: 0 }}
@@ -536,20 +536,20 @@ export default function DealPackagePropertyManager({
                                         }
                                     >
                                         {t("pages.deals.info.pkgprop.remove")}
-                                    </DealButton>
+                                    </Button>
                                 )}
                             </div>
                         );
                     })}
                     {showPropertyAdd && (
                         <div style={{ marginBottom: 18 }}>
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={onManageProperties}
                             >
                                 {t("pages.deals.info.pkgprop.add_property")}
-                            </DealButton>
+                            </Button>
                         </div>
                     )}
                 </>

@@ -9,6 +9,7 @@ use App\Models\TicketEmailSetting;
 use App\Models\TicketReply;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Helper\Files;
 use App\Models\TicketFile;
 
@@ -33,37 +34,43 @@ class TicketReplyObserver
             return true;
         }
 
-        if ($ticketEmailSetting->status == 1) {
-            if (!is_null($ticketReply->ticket->agent_id)) {
-                if ($ticketReply->ticket->agent_id == user()->id) {
+        if (!is_null($ticketEmailSetting) && $ticketEmailSetting->status == 1) {
+            try {
+                if (!is_null($ticketReply->ticket->agent_id)) {
+                    if ($ticketReply->ticket->agent_id == user()->id) {
+                        $toEmail = $ticketReply->ticket->client->email;
+
+                    }
+                    else {
+                        $toEmail = $ticketReply->ticket->agent->email;
+                    }
+
+                    if (smtp_setting()->mail_connection == 'database') {
+                        Mail::to($toEmail)->queue(new MailTicketReply($ticketReply, $ticketEmailSetting));
+
+                    }
+                    else {
+                        Mail::to($toEmail)->send(new MailTicketReply($ticketReply, $ticketEmailSetting));
+                    }
+
+                }
+                else if (!in_array('client', user_roles())) {
                     $toEmail = $ticketReply->ticket->client->email;
 
-                }
-                else {
-                    $toEmail = $ticketReply->ticket->agent->email;
-                }
+                    if (smtp_setting()->mail_connection == 'database') {
+                        Mail::to($toEmail)->queue(new MailTicketReply($ticketReply, $ticketEmailSetting));
 
-                if (smtp_setting()->mail_connection == 'database') {
-                    Mail::to($toEmail)->queue(new MailTicketReply($ticketReply, $ticketEmailSetting));
-
+                    }
+                    else {
+                        Mail::to($toEmail)->send(new MailTicketReply($ticketReply, $ticketEmailSetting));
+                    }
                 }
-                else {
-                    Mail::to($toEmail)->send(new MailTicketReply($ticketReply, $ticketEmailSetting));
-                }
-
+            } catch (\Exception $e) {
+                // The ticket reply is already persisted at this point; a mail
+                // failure (bad SMTP creds, connection error) must not 500 the
+                // request that just successfully saved the reply.
+                Log::error('TicketReplyObserver failed to send reply notification email for ticket reply #' . $ticketReply->id . ': ' . $e->getMessage());
             }
-            else if (!in_array('client', user_roles())) {
-                $toEmail = $ticketReply->ticket->client->email;
-
-                if (smtp_setting()->mail_connection == 'database') {
-                    Mail::to($toEmail)->queue(new MailTicketReply($ticketReply, $ticketEmailSetting));
-
-                }
-                else {
-                    Mail::to($toEmail)->send(new MailTicketReply($ticketReply, $ticketEmailSetting));
-                }
-            }
-
         }
 
         if ($ticketReply->type == 'note') {

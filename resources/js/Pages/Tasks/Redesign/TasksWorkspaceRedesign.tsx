@@ -56,6 +56,7 @@ import {
     patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import {
     buildTaskListTourSteps,
     TASKS_LIST_TOUR_ID,
@@ -416,9 +417,12 @@ export default function TasksWorkspaceRedesign({
         setBoardTasks(kanbanTasks);
     }, [kanbanTasks]);
 
+    // Mirror board resync (`[kanbanTasks]`): sync from server/optimistic page
+    // payload fields — not the hook return object, which was a new reference
+    // every render and clobbered optimistic completes (incl. notification deep links).
     useEffect(() => {
         setListTasks(pagedTableTasks.data);
-    }, [pagedTableTasks]);
+    }, [pagedTableTasks.data, pagedTableTasks.current_page]);
 
     const filterSignature = useMemo(
         () => JSON.stringify(filters ?? {}),
@@ -432,27 +436,6 @@ export default function TasksWorkspaceRedesign({
     useEffect(() => {
         setSelectAllMatching(false);
     }, [pagedTableTasks.total, filterSignature]);
-
-    const filtersInitialized = useRef(false);
-
-    useEffect(() => {
-        if (!filtersInitialized.current) {
-            filtersInitialized.current = true;
-            return;
-        }
-        router.get(route("tasks.index"), mergeQueryParams({ page: 1 }), {
-            only: [
-                "tableTasks",
-                "taskQuickCounts",
-                "stats",
-                "kanbanTasks",
-                "filters",
-                "now",
-            ],
-            preserveState: true,
-            preserveScroll: true,
-        });
-    }, [filterSignature]);
 
     const handleQuickFilter = (key: QuickFilterKey) => {
         router.get(
@@ -580,6 +563,7 @@ export default function TasksWorkspaceRedesign({
                     labels={TASKS_LIST_TOUR_LABELS}
                 />
             )}
+            <div style={{ fontFamily: REDESIGN_FONT_STACK }}>
             <TasksWorkspaceChrome
                 view={view}
                 onViewChange={setView}
@@ -714,6 +698,7 @@ export default function TasksWorkspaceRedesign({
                         }
                     />
                 )}
+            </div>
             </div>
 
             <TasksWorkspaceModals

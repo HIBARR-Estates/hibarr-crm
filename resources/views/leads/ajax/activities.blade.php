@@ -265,7 +265,7 @@
         showLoadingState(true);
 
         try {
-            const response = await fetch(`/api/v1/internal/deals/${dealId}/communication-activities`, {
+            const response = await fetch(@json(route('deals.communication-activities', $deal->id)), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -601,11 +601,12 @@
                 }
 
                 try {
-                    const response = await fetch('/api/v1/internal/communication-activities', {
+                    const response = await fetch(@json(route('communication-activities.store')), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-COMPANY-ID': @json(company()->id)
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                         },
                         body: JSON.stringify(payload)
                     });

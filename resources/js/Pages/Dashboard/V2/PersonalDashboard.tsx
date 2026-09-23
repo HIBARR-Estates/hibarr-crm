@@ -1,17 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Deferred, Head, router } from "@inertiajs/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Deferred, Head, router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { message } from "antd";
-import DashboardLayout from "@/Components/DashboardLayout";
+import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Badge, REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import ProductTour, {
+    type ProductTourHandle,
+} from "@/Components/ProductTour/ProductTour";
+import useTranslation from "@/Hooks/useTranslation";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import useTaskStatus from "@/Hooks/useTaskStatus";
 import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
 import type { Task } from "@/Types/api/tasks";
+import DashboardHeader from "./components/DashboardHeader";
+import {
+    buildSwitcher,
+    localizeSwitcherSegments,
+    type ViewKey,
+} from "./viewConfig";
 import DashboardPanel, {
-    CardSkeleton,
     PanelSkeleton,
 } from "./components/DashboardPanel";
 import PersonalTaskModal from "./personal/PersonalTaskModal";
@@ -27,7 +35,7 @@ import StatStrip from "./personal/StatStrip";
 import SignalQueue, { SignalQueueSkeleton } from "./personal/SignalQueue";
 import SignalActions from "./personal/SignalActions";
 import PipelineSplit from "./personal/PipelineSplit";
-import AgendaTimeline from "./personal/AgendaTimeline";
+import AgendaTimeline, { AgendaTimelineSkeleton } from "./personal/AgendaTimeline";
 import type { ActivityEvent } from "./personal/ActivityFeed";
 import { severityOf } from "./personal/format";
 import type {
@@ -37,11 +45,15 @@ import type {
     PipelineRow,
     Severity,
 } from "./personal/types";
+import {
+    buildPersonalDashboardTourSteps,
+    PERSONAL_DASHBOARD_TOUR_ID,
+    PERSONAL_DASHBOARD_TOUR_LABELS,
+} from "./config/personalDashboardTourSteps";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
 
-/** Only Team is offered next to My work — see the controller's own note. */
-type RoleView = "manager";
+
 
 export interface PersonalDashboardProps {
     now: string;
@@ -50,16 +62,22 @@ export interface PersonalDashboardProps {
     userId: number;
     /** DashboardMetricsService::PERSONAL_WINDOW_DAYS — how far ahead we look. */
     windowDays: number;
-    /** ["manager"] for a manager, empty for everyone else. */
-    availableViews?: RoleView[];
+    /**
+     * Every role view this account holds, permission- and flag-gated by the
+     * controller. buildSwitcher decides which become tabs — this page does not
+     * narrow the list itself, or its switcher would differ from the one on the
+     * view you land on.
+     */
+    availableViews?: ViewKey[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
     agenda?: ScheduleEntry[];
-    pipelines?: PipelineRow[];
+    /** Open-deal metrics for this user — not the shared nav `pipelines` list. */
+    openDealsByPipeline?: PipelineRow[];
     recentActivity?: ActivityEvent[];
     taskBoardColumns?: TaskboardColumn[];
-    /** Feeds the agenda's empty-state "Schedule meeting" action. */
+    /** Feeds the agenda's "Schedule meeting" / "Add meeting" action. */
     userDeals?: Array<{ id: number; name: string }>;
     userLeads?: Array<{ id: number; name: string }>;
 }
@@ -75,6 +93,11 @@ export interface PersonalDashboardProps {
  * actions (Complete, Reschedule, Log activity) mutate through the existing
  * dashboard hooks and re-resolve only the keys that moved, never the page.
  */
+// Module scope, not inline: useDashboardMeetingReschedule keys its reschedule
+// callback's memoization off this array, so a fresh literal on every render
+// would defeat it.
+const MEETING_RELOAD_KEYS = ["agenda", "stats"];
+
 export default function PersonalDashboard({
     now,
     userName,
@@ -85,13 +108,21 @@ export default function PersonalDashboard({
     stats,
     commission,
     agenda,
-    pipelines,
+    openDealsByPipeline,
     recentActivity,
     taskBoardColumns,
     userDeals,
     userLeads,
 }: PersonalDashboardProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
+    const { props: pageProps } = usePage<PageProps>();
+    const showProductTour =
+        pageProps.featureFlags?.["crm.personal-dashboard"] === true;
+    const tourRef = useRef<ProductTourHandle>(null);
+    const personalDashboardTourSteps = useMemo(
+        () => buildPersonalDashboardTourSteps(),
+        [],
+    );
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [openMeeting, setOpenMeeting] = useState<ScheduleEntry | null>(null);
@@ -181,7 +212,7 @@ export default function PersonalDashboard({
         },
     );
     const { reschedule, isPending: isSnoozing } = useDashboardTaskReschedule(
-        () => {},
+        () => { },
         (taskId) => clearOverride(taskId),
     );
     const { markHeld, isPending: isMarkingHeld } = useDashboardMeetingStatus(
@@ -191,6 +222,18 @@ export default function PersonalDashboard({
 
     const go = (next: Record<string, string>) =>
         router.visit(route("dashboard.v2", next), { preserveScroll: true });
+
+    // This page is always the personal dashboard, so the flag that gates it is
+    // on by definition — buildSwitcher's other caller is the one that has to
+    // pass it through.
+    const switcher = useMemo(
+        () =>
+            localizeSwitcherSegments(
+                buildSwitcher(availableViews ?? [], true),
+                t,
+            ),
+        [availableViews, t],
+    );
 
     const visitRecord = useCallback(
         (record: { type: "lead" | "deal"; id: number }) =>
@@ -305,82 +348,86 @@ export default function PersonalDashboard({
         () =>
             visibleQueue
                 ? visibleQueue.counts.overdue +
-                  visibleQueue.counts.today +
-                  visibleQueue.counts.later
+                visibleQueue.counts.today +
+                visibleQueue.counts.later
                 : 0,
         [visibleQueue],
     );
 
     return (
         <DashboardLayout>
-            <Head title={td("Dashboard")} />
+            <Head title={t("pages.dashboard.personal.title")} />
 
             <PageLayout
-                breadcrumbs={[{ name: td("Dashboard") }]}
+                breadcrumbs={[
+                    { name: t("pages.dashboard.personal.title") },
+                ]}
                 mainContentClassName=""
             >
                 <div className="dashboard-v2">
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 18,
-                            flexWrap: "wrap",
-                            marginBottom: 16,
-                        }}
-                    >
-                        <StatusLine
-                            name={userName}
-                            now={now}
-                            clock={agendaClock}
-                            queue={visibleQueue}
-                            agenda={agenda}
-                            pipelines={pipelines}
+                    {showProductTour && (
+                        <ProductTour
+                            ref={tourRef}
+                            tourId={PERSONAL_DASHBOARD_TOUR_ID}
+                            steps={personalDashboardTourSteps}
+                            labels={PERSONAL_DASHBOARD_TOUR_LABELS}
                         />
+                    )}
 
-                        <div
-                            style={{
-                                marginLeft: "auto",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {availableViews && availableViews.length > 0 && (
-                                <>
+                    <DashboardHeader
+                        userName={userName}
+                        now={now}
+                        subtext={
+                            <div data-tour="dashboard-status-line">
+                                <StatusLine
+                                    now={now}
+                                    clock={agendaClock}
+                                    queue={visibleQueue}
+                                    agenda={agenda}
+                                    pipelines={openDealsByPipeline}
+                                />
+                            </div>
+                        }
+                        actions={
+                            <>
+                                {showProductTour && (
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-ghost"
+                                        onClick={() =>
+                                            tourRef.current?.restart()
+                                        }
+                                    >
+                                        {t("pages.dashboard.tour.replay_menu_item")}
+                                    </button>
+                                )}
+                                {switcher.length > 1 && (
                                     <SegmentedControl
-                                        label="Dashboard"
+                                        label={t(
+                                            "pages.dashboard.views.switcher_aria",
+                                        )}
+                                        localize={false}
                                         active="personal"
-                                        segments={[
-                                            {
-                                                value: "personal",
-                                                label: "My work",
-                                            },
-                                            {
-                                                value: "manager",
-                                                label: "Team",
-                                                // Deactivated for now.
-                                                disabled: true,
-                                            },
-                                        ]}
+                                        segments={switcher}
                                         onSelect={(view) =>
-                                            view !== "personal" &&
-                                            go({ view })
+                                            view !== "personal" && go({ view })
                                         }
                                     />
-                                </>
-                            )}
-                        </div>
-                    </header>
+                                )}
+                            </>
+                        }
+                    />
 
-                    <div style={{ marginBottom: 20 }}>
+                    <div
+                        data-tour="dashboard-stat-strip"
+                        style={{ marginBottom: 20 }}
+                    >
                         <StatStrip
                             userId={userId}
                             windowDays={windowDays}
                             now={now}
                             stats={stats}
-                            pipelines={pipelines}
+                            pipelines={openDealsByPipeline}
                             commission={commission}
                         />
                     </div>
@@ -389,7 +436,11 @@ export default function PersonalDashboard({
                         <div className="dv2-main">
                             <DashboardPanel
                                 flush
-                                title="Needs your attention"
+                                localize={false}
+                                dataTour="dashboard-queue-panel"
+                                title={t(
+                                    "pages.dashboard.personal.panels.queue_title",
+                                )}
                                 extra={
                                     <div
                                         style={{
@@ -405,7 +456,10 @@ export default function PersonalDashboard({
                                                     openNow ? "red" : "gray"
                                                 }
                                             >
-                                                {openNow} {td("open")}
+                                                {openNow}{" "}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.open",
+                                                )}
                                             </Badge>
                                         )}
                                         {useRedesignedTasks ? (
@@ -424,7 +478,9 @@ export default function PersonalDashboard({
                                                     cursor: "pointer",
                                                 }}
                                             >
-                                                {td("Add task")}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.add_task",
+                                                )}
                                             </button>
                                         ) : (
                                             // Every section link below is
@@ -438,7 +494,9 @@ export default function PersonalDashboard({
                                                     fontWeight: 600,
                                                 }}
                                             >
-                                                {td("All tasks")}
+                                                {t(
+                                                    "pages.dashboard.personal.actions.all_tasks",
+                                                )}
                                             </a>
                                         )}
                                     </div>
@@ -466,40 +524,43 @@ export default function PersonalDashboard({
                                     )}
                                 </Deferred>
                             </DashboardPanel>
+                        </div>
 
-                            {/* "Activity on your records" is hidden for now —
-                                not useful in its current state. Data plumbing
-                                (recentActivity prop, ActivityFeed, the
-                                deferred backend query) is left in place to
-                                re-enable later; Pipeline takes the full row
-                                until then instead of leaving an empty cell
-                                beside it. */}
-                            <DashboardPanel title="Open deals by pipeline">
+                        <div className="dv2-rail">
+                            <div data-tour="dashboard-agenda">
                                 <Deferred
-                                    data="pipelines"
+                                    data="agenda"
+                                    fallback={<AgendaTimelineSkeleton />}
+                                >
+                                    <AgendaTimeline
+                                        meetings={agenda ?? []}
+                                        now={now}
+                                        clock={agendaClock}
+                                        onOpenMeeting={setOpenMeeting}
+                                        onScheduleMeeting={() =>
+                                            setScheduleOpen(true)
+                                        }
+                                    />
+                                </Deferred>
+                            </div>
+
+                            <DashboardPanel
+                                localize={false}
+                                dataTour="dashboard-pipeline-panel"
+                                title={t(
+                                    "pages.dashboard.personal.panels.pipeline_title",
+                                )}
+                            >
+                                <Deferred
+                                    data="openDealsByPipeline"
                                     fallback={<PanelSkeleton rows={4} />}
                                 >
                                     <PipelineSplit
-                                        pipelines={pipelines ?? []}
+                                        pipelines={openDealsByPipeline ?? []}
                                         dealsHref={dealsHref}
                                     />
                                 </Deferred>
                             </DashboardPanel>
-                        </div>
-
-                        <div className="dv2-rail">
-                            <Deferred
-                                data="agenda"
-                                fallback={<CardSkeleton height={220} />}
-                            >
-                                <AgendaTimeline
-                                    meetings={agenda ?? []}
-                                    now={now}
-                                    clock={agendaClock}
-                                    onOpenMeeting={setOpenMeeting}
-                                    onScheduleMeeting={() => setScheduleOpen(true)}
-                                />
-                            </Deferred>
                         </div>
                     </div>
 
@@ -524,6 +585,7 @@ export default function PersonalDashboard({
                         markingHeld={
                             openMeeting ? isMarkingHeld(openMeeting.id) : false
                         }
+                        reloadKeys={MEETING_RELOAD_KEYS}
                     />
 
                     <MeetingScheduleModal

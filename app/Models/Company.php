@@ -246,6 +246,19 @@ class Company extends BaseModel
 
     protected $table = 'companies';
 
+    /**
+     * Secrets that must never be serialized to the frontend — Company is
+     * shared in full on every Inertia page load (HandleInertiaRequests::share,
+     * 'company'/'appTheme' props), so anything not hidden here ships to every
+     * authenticated browser. See security audit Phase 9, P9-01.
+     */
+    protected $hidden = [
+        'google_recaptcha_v2_secret_key',
+        'google_recaptcha_v3_secret_key',
+        'google_client_secret',
+        'token',
+    ];
+
     public $dates = ['last_login'];
 
     protected $casts = [

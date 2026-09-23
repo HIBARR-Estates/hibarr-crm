@@ -16,6 +16,8 @@ import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useIsDesktopViewport } from "@/Hooks/useMediaQuery";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -98,6 +100,7 @@ import {
     computeWalkSegments,
     hasAnswerContent,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
@@ -119,6 +122,11 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const isDesktopViewport = useIsDesktopViewport();
+    /** Pin quick actions above the workspace when the dossier rail stacks (HIB-1404). */
+    const quickActionsInMainColumn =
+        isMobileResponsive && !isDesktopViewport;
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -627,13 +635,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onStartQualify={openTemplatePicker}
                     />
                 ) : (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    <p style={{ margin: 0, color: T.TEXT_HINT, fontSize: 13 }}>
                         {td("This tab is coming soon.", { source: "en" })}
                     </p>
                 );
             default:
                 return (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                    <p style={{ margin: 0, color: T.TEXT_HINT, fontSize: 13 }}>
                         {td("This tab is coming soon.", { source: "en" })}
                     </p>
                 );
@@ -653,7 +661,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 { name: pageTitle },
             ]}
         >
-            <div className="lead-redesign">
+            <div
+                className={`lead-redesign ${
+                    isMobileResponsive ? "lr-mobile-responsive" : ""
+                }`}
+            >
                 {showProductTour && (
                     <ProductTour
                         ref={tourRef}
@@ -718,6 +730,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
+                            {quickActionsInMainColumn && (
+                                <div className="mb-4">
+                                    <DossierQuickActions
+                                        onLogAction={() =>
+                                            setLogActionOpen(true)
+                                        }
+                                        onAddNote={() =>
+                                            setAddNoteOpen(true)
+                                        }
+                                        onScheduleMeeting={() =>
+                                            setAddMeetingOpen(true)
+                                        }
+                                    />
+                                </div>
+                            )}
+
                             {duplicates.visible && (
                                 <DuplicateLeadsCard
                                     leadId={lead.id}
@@ -783,11 +811,17 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         </div>
 
                         <div className="v2-dossier-column">
-                            <DossierQuickActions
-                                onLogAction={() => setLogActionOpen(true)}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onScheduleMeeting={() => setAddMeetingOpen(true)}
-                            />
+                            {!quickActionsInMainColumn && (
+                                <DossierQuickActions
+                                    onLogAction={() =>
+                                        setLogActionOpen(true)
+                                    }
+                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
+                            )}
                             <LeadDossier
                                 lead={lead}
                                 canEdit={canEditLead(

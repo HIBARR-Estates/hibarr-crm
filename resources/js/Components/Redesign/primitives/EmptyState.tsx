@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Button from "./Button";
 import Icon from "./Icon";
 import { REDESIGN_TOKENS as T } from "../tokens";
@@ -19,6 +19,8 @@ interface EmptyStateAction {
 interface EmptyStateProps {
     title?: string;
     description?: string;
+    /** Extra controls inside the dashed card (e.g. two add paths on Exposés). */
+    footer?: ReactNode;
     /**
      * Glyph for the circular badge — any name the Icon primitive knows.
      * Give each tab its own so the states stay distinguishable at a glance.
@@ -36,6 +38,13 @@ interface EmptyStateProps {
      * failure, which screen readers announce more assertively.
      */
     role?: "status" | "alert";
+    className?: string;
+    style?: CSSProperties;
+    /**
+     * Overview columns only: reserve ~two lines so notes/tasks/meetings empty
+     * hints align. Tab-level empty states should leave this false.
+     */
+    balancedDescription?: boolean;
 }
 
 /**
@@ -53,13 +62,21 @@ export default function EmptyState({
     description,
     icon = "file-text",
     action,
+    footer,
     role = "status",
+    className,
+    style,
+    balancedDescription = false,
 }: EmptyStateProps) {
     return (
         <div
             role={role}
-            className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
-            style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
+            className={`rounded-[10px] border border-dashed px-3.5 py-6 text-center${className ? ` ${className}` : ""}`}
+            style={{
+                borderColor: T.BORDER,
+                background: T.SURFACE_2,
+                ...style,
+            }}
         >
             <div
                 aria-hidden="true"
@@ -78,7 +95,11 @@ export default function EmptyState({
             )}
             {description && (
                 <div
-                    className={`text-xs leading-relaxed${title ? "" : " text-[13px] font-semibold"}`}
+                    className={`text-xs leading-relaxed${
+                        title
+                            ? `${balancedDescription ? " min-h-[2.75rem]" : ""}${action ? " mb-3" : ""}`
+                            : " text-[13px] font-semibold"
+                    }`}
                     style={{ color: title ? T.TEXT_MUTED : T.TEXT }}
                 >
                     {description}
@@ -87,7 +108,6 @@ export default function EmptyState({
             {action && (
                 <Button
                     variant="primary"
-                    className="mt-3.5"
                     onClick={action.onClick}
                     disabled={action.disabled}
                     loading={action.loading}
@@ -102,6 +122,7 @@ export default function EmptyState({
                     {action.label}
                 </Button>
             )}
+            {footer ? <div className="mt-3.5">{footer}</div> : null}
         </div>
     );
 }

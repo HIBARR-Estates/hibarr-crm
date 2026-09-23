@@ -3,9 +3,9 @@ import LogActionModal from "@/Components/CrmEvents/LogActionModal";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealTimelineDateRange } from "../../hooks/useDealTimeline";
 import { TimelineFilter } from "../../adapters/timelineAdapter";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { DealTimelineDateRangeControl } from "./DealTimelineDateRange";
 
 const FILTERS: TimelineFilter[] = ["all", "agent", "system", "external"];
@@ -84,21 +84,21 @@ export default function DealTimelineFilters({
                         gap: 6,
                     }}
                 >
-                    <DealButton
+                    <Button
                         variant="ghost"
-                        icon={<DealIcon name="plus" size={12} />}
+                        icon={<Icon name="plus" size={12} />}
                         onClick={() => setLogModalOpen(true)}
                     >
                         {t("pages.deals.timeline.log_action")}
-                    </DealButton>
-                    <DealButton
+                    </Button>
+                    <Button
                         variant="ghost"
-                        icon={<DealIcon name="refresh" size={12} />}
+                        icon={<Icon name="refresh" size={12} />}
                         onClick={onRefresh}
                         loading={isRefetching}
                     >
                         {t("pages.deals.common.refresh")}
-                    </DealButton>
+                    </Button>
                     <DealTimelineDateRangeControl
                         value={dateRange}
                         onChange={onDateRangeChange}

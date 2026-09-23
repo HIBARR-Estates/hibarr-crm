@@ -28,6 +28,7 @@ use App\Http\Controllers\LeadAgentSettingController;
 use App\Http\Controllers\LeadLifecycleStatusSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
 use App\Http\Controllers\LeadSettingController;
+use App\Http\Controllers\LeadSettingsHubController;
 use App\Http\Controllers\LeadSourceSettingController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
@@ -51,7 +52,6 @@ use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecuritySettingController;
-use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
@@ -59,6 +59,7 @@ use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\SlackSettingController;
 use App\Http\Controllers\SmtpSettingController;
 use App\Http\Controllers\SocialAuthSettingController;
+use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\StorageSettingController;
 use App\Http\Controllers\TaskSettingController;
 use App\Http\Controllers\TaxSettingController;
@@ -87,6 +88,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
+
+    /* Leads settings hub — sources, statuses, first-contact SLA, and related defaults */
+    Route::get('leads', [LeadSettingsHubController::class, 'page'])->name('settings-leads.index');
+    Route::put('leads', [LeadSettingsHubController::class, 'update'])->name('settings-leads.update');
+    Route::post('leads/sources/reorder', [LeadSettingsHubController::class, 'reorderSources'])->name('settings-leads.sources.reorder');
+    Route::post('leads/sources', [LeadSettingsHubController::class, 'storeSource'])->name('settings-leads.sources.store');
+    Route::put('leads/sources/{source}', [LeadSettingsHubController::class, 'updateSource'])->name('settings-leads.sources.update');
+    Route::delete('leads/sources/{source}', [LeadSettingsHubController::class, 'destroySource'])->name('settings-leads.sources.destroy');
+    Route::post('leads/statuses/reorder', [LeadSettingsHubController::class, 'reorderStatuses'])->name('settings-leads.statuses.reorder');
+    Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
+    Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
+    Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');

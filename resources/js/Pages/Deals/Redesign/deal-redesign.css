@@ -2,12 +2,7 @@
    @/Components/Redesign/redesign.css — imported from DealViewRedesign.tsx. */
 
 .deal-redesign {
-    font-family:
-        "IBM Plex Sans",
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
+    font-family: var(--dr-font-sans);
 }
 
 .deal-redesign ::-webkit-scrollbar {
@@ -20,7 +15,7 @@
 }
 
 .deal-redesign ::-webkit-scrollbar-thumb {
-    background: #e8eaed;
+    background: var(--dr-gray-mid);
     border-radius: 2px;
 }
 
@@ -30,7 +25,7 @@
 }
 
 .deal-redesign .mtab:hover {
-    color: #1a1f2e !important;
+    color: var(--dr-text) !important;
 }
 
 .deal-redesign .pipeline-step {
@@ -42,62 +37,9 @@
     transform: scale(1.2);
 }
 
-.deal-redesign .modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    background: rgba(22, 41, 77, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-
-.deal-redesign .modal-panel {
-    background: #ffffff;
-    border-radius: 14px;
-    border: 1px solid #e2e5ea;
-    box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
-    width: 100%;
-    max-width: 520px;
-    max-height: calc(100vh - 48px);
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.deal-redesign .modal-field label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    color: #5b6472;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 7px;
-}
-
-.deal-redesign .modal-field input,
-.deal-redesign .modal-field select,
-.deal-redesign .modal-field textarea {
-    width: 100%;
-    border: 1px solid #e2e5ea;
-    border-radius: 8px;
-    padding: 11px 12px;
-    font-size: 14px;
-    color: #1a1f2e;
-    outline: none;
-}
-
-.deal-redesign .modal-field input:focus,
-.deal-redesign .modal-field select:focus,
-.deal-redesign .modal-field textarea:focus {
-    border-color: #b8d4f0;
-    box-shadow: 0 0 0 2px #e8f1fb;
-}
-
 /* Flash target when jumping from stage requirements → deal info field */
 .deal-field-flash {
-    outline: 2px solid #1a6bb5;
+    outline: 2px solid var(--dr-blue);
     outline-offset: 4px;
     border-radius: 8px;
     animation: deal-field-flash-pulse 1.6s ease-out;
@@ -109,63 +51,6 @@
     100% {
         background: transparent;
     }
-}
-
-/* Portaled redesign modals (rendered on document.body) */
-.redesign-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1300;
-    background: rgba(22, 41, 77, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-
-.redesign-modal-overlay .modal-panel {
-    background: #ffffff;
-    border-radius: 14px;
-    border: 1px solid #e2e5ea;
-    box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
-    width: 100%;
-    max-width: min(520px, 100%);
-    /* Flex children default min-width:auto; long content can force past max-width. */
-    min-width: 0;
-    max-height: calc(100vh - 48px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.redesign-modal-overlay .modal-field label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    color: #5b6472;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 7px;
-}
-
-.redesign-modal-overlay .modal-field input,
-.redesign-modal-overlay .modal-field select,
-.redesign-modal-overlay .modal-field textarea {
-    width: 100%;
-    border: 1px solid #e2e5ea;
-    border-radius: 8px;
-    padding: 11px 12px;
-    font-size: 14px;
-    color: #1a1f2e;
-    outline: none;
-}
-
-.redesign-modal-overlay .modal-field input:focus,
-.redesign-modal-overlay .modal-field select:focus,
-.redesign-modal-overlay .modal-field textarea:focus {
-    border-color: #b8d4f0;
-    box-shadow: 0 0 0 2px #e8f1fb;
 }
 
 /* Analysis modal — 3-column scroll layout */
@@ -180,7 +65,7 @@
     width: 300px;
     transition: width 200ms ease;
     flex-shrink: 0;
-    border-right: 1px solid #e2e5ea;
+    border-right: 1px solid var(--dr-border);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -202,7 +87,7 @@
     width: 280px;
     transition: width 200ms ease;
     flex-shrink: 0;
-    border-left: 1px solid #e2e5ea;
+    border-left: 1px solid var(--dr-border);
     position: relative;
     overflow: hidden;
 }
@@ -245,11 +130,11 @@
     align-items: center;
     justify-content: center;
     padding: 2.5vh 2.5vw;
-    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--dr-font-sans);
 }
 
 .analysis-modal-panel {
-    background: #ffffff;
+    background: var(--dr-white);
     border-radius: 14px;
     box-shadow: 0 20px 60px rgba(22, 41, 77, 0.22);
     width: 90vw;
@@ -259,7 +144,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--dr-font-sans);
 }
 
 /* Translation gate — covers the qualify modal panel while script
@@ -283,7 +168,7 @@
     align-items: center;
     gap: 14px;
     padding: 30px 44px;
-    background: #ffffff;
+    background: var(--dr-white);
     border-radius: 12px;
     box-shadow: 0 20px 50px rgba(22, 41, 77, 0.28);
     text-align: center;
@@ -312,7 +197,7 @@
 }
 
 .analysis-step--current {
-    background: #ffffff;
+    background: var(--dr-white);
     border-color: #7dd3fc;
     box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18), 0 8px 22px rgba(15, 23, 42, 0.06);
 }
@@ -331,19 +216,19 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #9ca3af;
+    color: var(--dr-text-hint);
     padding: 16px 16px 8px;
 }
 
 .analysis-guide-text {
-    background: #e8f1fb;
-    border-left: 3px solid #1a6bb5;
+    background: var(--dr-blue-light);
+    border-left: 3px solid var(--dr-blue);
     border-radius: 8px;
     padding: 12px 14px;
     margin-bottom: 20px;
     font-size: 14px;
     font-style: italic;
-    color: #16294d;
+    color: var(--dr-navy);
     line-height: 1.55;
     white-space: pre-wrap;
 }
@@ -404,8 +289,8 @@
     /* overflow-y:auto alone makes the x axis compute to auto too, so any
        overflowing child gives the rail a sideways scrollbar. Pin it shut. */
     overflow-x: hidden;
-    background: #ffffff;
-    border: 1px solid #e2e5ea;
+    background: var(--dr-white);
+    border: 1px solid var(--dr-border);
     border-radius: 12px;
     padding: 14px 16px;
 }
@@ -420,10 +305,29 @@
     }
 }
 
+/*
+ * HIB-1404 — widen the stacking breakpoint from 960px to the app's 1024px
+ * (lg) convention so tablets in the 961-1023px range also get the
+ * single-column layout instead of a cramped 300px sidebar. Scoped to
+ * .dr-mobile-responsive (only added when crm.mobile-responsive-layout is on)
+ * so the existing 960px behavior above is untouched while this is staged.
+ */
+@media (max-width: 1023px) {
+    .dr-mobile-responsive.dr-grid,
+    .dr-mobile-responsive .dr-grid {
+        grid-template-columns: 1fr;
+    }
+    .dr-mobile-responsive.dr-dossier,
+    .dr-mobile-responsive .dr-dossier {
+        position: static;
+        max-height: none;
+    }
+}
+
 .dr-tabs {
     display: flex;
     align-items: center;
-    border-bottom: 1px solid #e2e5ea;
+    border-bottom: 1px solid var(--dr-border);
     padding: 0 8px;
 }
 .dr-tabs-scroll {
@@ -460,7 +364,7 @@
 .dr-tabs-divider {
     width: 1px;
     height: 20px;
-    background: #e2e5ea;
+    background: var(--dr-border);
     margin: 0 6px;
     flex-shrink: 0;
 }
@@ -468,7 +372,7 @@
     font-family: inherit;
     background: transparent;
     border: none;
-    color: #5b6472;
+    color: var(--dr-text-muted);
     font-size: 13px;
     font-weight: 500;
     padding: 12px 11px;
@@ -482,11 +386,11 @@
     transition: all 0.15s;
 }
 .dr-tab:hover {
-    color: #1a1f2e;
+    color: var(--dr-text);
 }
 .dr-tab[aria-selected="true"] {
-    color: #1a6bb5;
-    border-bottom-color: #1a6bb5;
+    color: var(--dr-blue);
+    border-bottom-color: var(--dr-blue);
     font-weight: 600;
 }
 .dr-tab-count {
@@ -499,15 +403,15 @@
     border-radius: 999px;
     font-size: 11px;
     font-weight: 700;
-    background: #f5f6f8;
-    color: #5b6472;
-    border: 1px solid #e2e5ea;
+    background: var(--dr-gray);
+    color: var(--dr-text-muted);
+    border: 1px solid var(--dr-border);
     line-height: 1;
 }
 .dr-tab[aria-selected="true"] .dr-tab-count {
-    background: #e8f1fb;
-    color: #14538c;
-    border-color: #b8d4f0;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    border-color: var(--dr-blue-mid);
 }
 
 .dr-table {
@@ -521,13 +425,13 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #5b6472;
+    color: var(--dr-text-muted);
     padding: 8px 10px;
-    border-bottom: 1px solid #e2e5ea;
+    border-bottom: 1px solid var(--dr-border);
 }
 .dr-table td {
     padding: 10px;
-    border-bottom: 1px solid #eef0f3;
+    border-bottom: 1px solid var(--dr-border-soft);
     vertical-align: top;
 }
 
@@ -556,11 +460,12 @@
     }
 }
 .dr-ov-col {
-    background: #f8f9fb;
-    border: 1px solid #e2e5ea;
+    background: var(--dr-surface-2);
+    border: 1px solid var(--dr-border);
     border-radius: 10px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 100%;
 }

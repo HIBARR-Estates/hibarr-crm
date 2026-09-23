@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
+import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
+import Button from "@/Components/Redesign/primitives/Button";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type {
@@ -16,12 +25,11 @@ import {
     isHttpUrl,
     parseExposeAmount,
 } from "../../adapters/dealExposeAdapter";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
-import EmptyState from "../primitives/DealEmptyState";
-import DealMenuSelect from "../primitives/DealMenuSelect";
-import DealEditableField from "../primitives/DealEditableField";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import EditableField from "@/Components/Redesign/primitives/EditableField";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export interface ExposeUpdatePatch {
     title?: string;
@@ -93,11 +101,14 @@ export default function ExposesPanel({
     const { td } = useTd();
     const [addOpen, setAddOpen] = useState(false);
     const addRef = useRef<HTMLDivElement>(null);
+    const addMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!addOpen) return undefined;
         const onDocClick = (event: MouseEvent) => {
-            if (addRef.current?.contains(event.target as Node)) return;
+            const target = event.target as Node;
+            if (addRef.current?.contains(target)) return;
+            if (addMenuRef.current?.contains(target)) return;
             setAddOpen(false);
         };
         const onKey = (event: KeyboardEvent) => {
@@ -147,14 +158,18 @@ export default function ExposesPanel({
     const hasExposes = exposes.length > 0;
     const showAdd = onAdd && canEdit;
 
-    const renderAddMenu = (align: "header" | "empty") =>
+    const headerAddPos = useFloatingMenuPosition(
+        addOpen && hasExposes,
+        addRef,
+        { align: "right", maxHeight: 320 },
+    );
+
+    const renderAddMenu = (style?: CSSProperties) =>
         addOpen && onAdd ? (
             <div
-                className={`dr-menu absolute z-30 w-[264px] ${
-                    align === "header"
-                        ? "right-0 top-[calc(100%+6px)]"
-                        : "left-1/2 top-full mt-1.5 -translate-x-1/2"
-                }`}
+                ref={addMenuRef}
+                className="dr-menu w-[264px]"
+                style={style}
                 role="menu"
             >
                 <button
@@ -166,7 +181,7 @@ export default function ExposesPanel({
                         onAdd("linked");
                     }}
                 >
-                    <DealIcon name="external-link" size={18} color={T.BLUE} />
+                    <Icon name="external-link" size={18} color={T.BLUE} />
                     <span className="block">
                         <span
                             className="block text-sm font-semibold"
@@ -191,7 +206,7 @@ export default function ExposesPanel({
                         onAdd("manual");
                     }}
                 >
-                    <DealIcon name="paperclip" size={18} color={T.NAVY} />
+                    <Icon name="paperclip" size={18} color={T.NAVY} />
                     <span className="block">
                         <span
                             className="block text-sm font-semibold"
@@ -238,14 +253,21 @@ export default function ExposesPanel({
                                 aria-expanded={addOpen}
                                 onClick={() => setAddOpen((open) => !open)}
                             >
-                                <DealIcon name="plus" size={14} />
+                                <Icon name="plus" size={14} />
                                 {t("pages.deals.workspace.exposes.add")}
                             </button>
-                            {renderAddMenu("header")}
                         </div>
                     )}
                 </div>
             )}
+            {hasExposes &&
+                addOpen &&
+                headerAddPos &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    renderAddMenu(headerAddPos),
+                    document.body,
+                )}
 
             {exposes.length > 0 && (
                 <div
@@ -285,38 +307,60 @@ export default function ExposesPanel({
                     action={{
                         label: t("pages.deals.workspace.exposes.retry"),
                         onClick: onRetry,
-                        icon: <DealIcon name="refresh" size={15} />,
+                        icon: <Icon name="refresh" size={15} />,
                     }}
                 />
             ) : exposes.length === 0 ? (
-                <div ref={addRef} className="relative">
-                    <EmptyState
-                        icon="layers"
-                        title={t("pages.deals.workspace.exposes.empty")}
-                        description={t(
-                            "pages.deals.workspace.exposes.empty_hint",
-                        )}
-                        action={
-                            showAdd
-                                ? {
-                                      label: t(
-                                          "pages.deals.workspace.exposes.add",
-                                      ),
-                                      onClick: () =>
-                                          setAddOpen((open) => !open),
-                                  }
-                                : undefined
-                        }
-                    />
-                    {renderAddMenu("empty")}
-                </div>
+                <EmptyState
+                    icon="layers"
+                    title={t("pages.deals.workspace.exposes.empty")}
+                    description={t(
+                        "pages.deals.workspace.exposes.empty_hint",
+                    )}
+                    footer={
+                        showAdd ? (
+                            <div className="mx-auto flex max-w-sm flex-col gap-2">
+                                <Button
+                                    variant="primary"
+                                    className="w-full"
+                                    icon={
+                                        <Icon
+                                            name="external-link"
+                                            size={15}
+                                        />
+                                    }
+                                    onClick={() => onAdd("linked")}
+                                >
+                                    {t(
+                                        "pages.deals.workspace.exposes.add_linked",
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full"
+                                    icon={
+                                        <Icon
+                                            name="paperclip"
+                                            size={15}
+                                        />
+                                    }
+                                    onClick={() => onAdd("manual")}
+                                >
+                                    {t(
+                                        "pages.deals.workspace.exposes.add_manual",
+                                    )}
+                                </Button>
+                            </div>
+                        ) : undefined
+                    }
+                />
             ) : (
                 <div className="flex flex-col gap-[18px]">
                     {groups.map((group) => (
                         <div key={group.id}>
                             {group.showHeader && (
                                 <div className="mb-2.5 flex items-center gap-2.5 px-0.5">
-                                    <DealIcon
+                                    <Icon
                                         name="briefcase"
                                         size={16}
                                         color={T.TEXT_MUTED}
@@ -369,7 +413,7 @@ export default function ExposesPanel({
                                                         : T.NAVY_SOFT,
                                                 }}
                                             >
-                                                <DealIcon
+                                                <Icon
                                                     name={
                                                         linked
                                                             ? "external-link"
@@ -384,7 +428,7 @@ export default function ExposesPanel({
                                             <div className="min-w-0 flex-1">
                                                 <div className="group min-w-0">
                                                     {onUpdate && rowEditable ? (
-                                                        <DealEditableField
+                                                        <EditableField
                                                             value={expose.title}
                                                             fieldName="title"
                                                             fieldType="text"
@@ -457,7 +501,7 @@ export default function ExposesPanel({
                                                     <div className="group inline-block min-w-[88px]">
                                                         {onUpdate &&
                                                         rowEditable ? (
-                                                            <DealEditableField
+                                                            <EditableField
                                                                 value={
                                                                     expose.amount ??
                                                                     ""
@@ -544,7 +588,7 @@ export default function ExposesPanel({
                                                 </div>
                                             </div>
                                             <div className="flex-none">
-                                                <DealMenuSelect
+                                                <MenuSelect
                                                     value={expose.status}
                                                     options={statusOptions}
                                                     align="right"
@@ -572,7 +616,7 @@ export default function ExposesPanel({
                                                 />
                                             </div>
                                             {isHttpUrl(expose.download_url) && (
-                                                <DealButton
+                                                <Button
                                                     iconOnly
                                                     className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
                                                     title={
@@ -605,7 +649,7 @@ export default function ExposesPanel({
                                                         )
                                                     }
                                                 >
-                                                    <DealIcon
+                                                    <Icon
                                                         name={
                                                             linked
                                                                 ? "external-link"
@@ -614,7 +658,7 @@ export default function ExposesPanel({
                                                         size={16}
                                                         color={T.TEXT_MUTED}
                                                     />
-                                                </DealButton>
+                                                </Button>
                                             )}
                                             {onRemove && rowEditable && (
                                                 <button
@@ -630,7 +674,7 @@ export default function ExposesPanel({
                                                         onRemove(expose.id)
                                                     }
                                                 >
-                                                    <DealIcon
+                                                    <Icon
                                                         name="trash"
                                                         size={16}
                                                         color={T.TEXT_MUTED}

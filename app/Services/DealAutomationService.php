@@ -359,6 +359,8 @@ class DealAutomationService
             return true; // No conditions means it always runs if triggered
         }
 
+        $isAny = $automation->condition_logic === DealAutomation::CONDITION_LOGIC_ANY;
+
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($subject, $condition->field);
 
@@ -368,12 +370,16 @@ class DealAutomationService
                 $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
             );
 
-            if (! $passed) {
-                return false; // All conditions must pass (AND logic)
+            if ($isAny && $passed) {
+                return true; // OR logic: one pass is enough
+            }
+
+            if (! $isAny && ! $passed) {
+                return false; // AND logic: one failure is enough
             }
         }
 
-        return true;
+        return ! $isAny; // AND: every condition passed. OR: none did.
     }
 
     /**

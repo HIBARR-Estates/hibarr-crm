@@ -85,6 +85,9 @@ class DealAutomationController extends AccountBaseController
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
+                'condition_logic' => $request->condition_logic === DealAutomation::CONDITION_LOGIC_ANY
+                    ? DealAutomation::CONDITION_LOGIC_ANY
+                    : DealAutomation::CONDITION_LOGIC_ALL,
             ]);
 
             $this->syncConditions($automation, $request);
@@ -141,6 +144,9 @@ class DealAutomationController extends AccountBaseController
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
                 'priority' => $request->priority,
+                'condition_logic' => $request->condition_logic === DealAutomation::CONDITION_LOGIC_ANY
+                    ? DealAutomation::CONDITION_LOGIC_ANY
+                    : DealAutomation::CONDITION_LOGIC_ALL,
             ]);
 
             $automation->conditions()->delete();
@@ -593,6 +599,7 @@ class DealAutomationController extends AccountBaseController
             'wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',
+            'condition_logic' => ['nullable', Rule::in([DealAutomation::CONDITION_LOGIC_ALL, DealAutomation::CONDITION_LOGIC_ANY])],
             'conditions' => 'array',
             'conditions.*.field' => 'required|string|max:255',
             'conditions.*.operator' => ['required', Rule::in(['=', '>', '<', 'contains', 'exists', 'changed'])],

@@ -6,7 +6,7 @@ import {
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface QualifyAnswersPanelProps {
     segments: Segment[];
@@ -117,7 +117,7 @@ function AnswerCard({
             className="w-full text-left px-4 py-3.5 transition-colors relative border-b"
             style={{
                 borderColor: T.BORDER,
-                backgroundColor: isActive ? T.BLUE_LIGHT : "#ffffff",
+                backgroundColor: isActive ? T.BLUE_LIGHT : T.WHITE,
             }}
             onMouseEnter={(e) => {
                 if (!isActive) {
@@ -128,14 +128,14 @@ function AnswerCard({
             onMouseLeave={(e) => {
                 if (!isActive) {
                     (e.currentTarget as HTMLElement).style.backgroundColor =
-                        "#ffffff";
+                        T.WHITE;
                 }
             }}
         >
             <div
                 className="absolute left-0 top-0 bottom-0 w-1"
                 style={{
-                    backgroundColor: isActive ? "#38bdf8" : "transparent",
+                    backgroundColor: isActive ? "var(--dr-sky)" : "transparent",
                 }}
             />
             <p
@@ -147,7 +147,7 @@ function AnswerCard({
             <div
                 className="rounded-md px-3 py-2"
                 style={{
-                    background: isActive ? "#dbeafe" : "#f1f5f9",
+                    background: isActive ? T.BLUE_LIGHT : T.BORDER_SOFT,
                     border: `1px solid ${isActive ? "#7dd3fc" : T.BORDER}`,
                 }}
             >

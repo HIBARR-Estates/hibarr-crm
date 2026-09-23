@@ -1,5 +1,6 @@
 import type { FieldOption } from "./fieldValueCodecs";
 import { handleOptionGroupArrows } from "./optionGroupNav";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface CheckboxInputProps {
     value: string[];
@@ -33,8 +34,8 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
                         // without focus-within a keyboard user gets no focus indicator at all.
                         className="inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full focus-within:ring-2 focus-within:ring-sky-400 focus-within:ring-offset-1"
                         style={{
-                            backgroundColor: checked ? "#f0f9ff" : "#fff",
-                            borderColor: checked ? "#38bdf8" : "#e2e8f0",
+                            backgroundColor: checked ? T.SKY_SOFT : "#fff",
+                            borderColor: checked ? T.SKY : T.BORDER,
                             cursor: disabled ? "not-allowed" : "pointer",
                             opacity: disabled ? 0.5 : 1,
                         }}
@@ -42,7 +43,7 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
                         <div
                             className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all"
                             style={{
-                                backgroundColor: checked ? "#0A2E5D" : "#fff",
+                                backgroundColor: checked ? T.NAVY : "#fff",
                                 border: checked ? "none" : "1.5px solid #cbd5e1",
                             }}
                         >
@@ -59,7 +60,7 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
                             onChange={() => toggle(o.value)}
                             className="sr-only"
                         />
-                        <span className="text-sm text-slate-800">{o.label}</span>
+                        <span className="text-sm text-dr-text">{o.label}</span>
                     </label>
                 );
             })}

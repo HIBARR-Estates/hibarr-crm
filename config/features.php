@@ -42,10 +42,26 @@ return [
         'crm.notification-bypass',
         'crm.user-timezone',
         'crm.personal-dashboard',
+        'crm.manager-dashboard',
+        'crm.team-dashboard',
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
         'shared.3cx-calling',
+        'crm.mobile-responsive-layout',
+    ],
+
+    /*
+    | Local-only fallback when the remote flags API can't be reached (e.g. no
+    | network access from a Herd/local dev box). Only ever applied in
+    | local/development/codecanyon environments AND only when the API call
+    | itself failed — staging and production always defer to the real remote
+    | service, even on an outage, so a flag being "on" here never leaks into
+    | a real environment. Flags not listed still default to off, same as before.
+    */
+    'local_defaults' => [
+        'crm.meeting-attendance-confirmation' => true,
+        'crm.mobile-responsive-layout' => true,
     ],
 ];

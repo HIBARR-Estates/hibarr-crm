@@ -32,9 +32,7 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('api_tokens', function (Blueprint $table) {
-            $table->unsignedInteger('company_id')->nullable(false)->change();
-        });
+        $this->changeCompanyIdNullable(false);
     }
 
     public function down(): void
@@ -43,8 +41,26 @@ return new class extends Migration
             return;
         }
 
+        $this->changeCompanyIdNullable(true);
+    }
+
+    /**
+     * MySQL 8 refuses CHANGE on a column that still has an FK (error 1832).
+     * Doctrine also emits CHANGE before DROP when both are in one Blueprint,
+     * so the drop must be its own Schema::table call.
+     */
+    private function changeCompanyIdNullable(bool $nullable): void
+    {
         Schema::table('api_tokens', function (Blueprint $table) {
-            $table->unsignedInteger('company_id')->nullable()->change();
+            $table->dropForeign('api_tokens_company_id_foreign');
+        });
+
+        Schema::table('api_tokens', function (Blueprint $table) use ($nullable) {
+            $table->unsignedInteger('company_id')->nullable($nullable)->change();
+        });
+
+        Schema::table('api_tokens', function (Blueprint $table) {
+            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
         });
     }
 };

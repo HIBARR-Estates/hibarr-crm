@@ -6,6 +6,7 @@ import {
 } from "./meetingAdapter";
 import { formatUserTime } from "@/lib/userDateTime";
 import { formatMeetingTimeRange } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export type MeetingSummaryStatus = "available" | "pending" | "none";
 
@@ -44,18 +45,18 @@ export function getMeetingStatusDisplay(
     },
 ): MeetingStatusDisplay {
     if (item.statusLabel === "completed") {
-        return { label: "Completed", tone: "dr-pill-green", dotColor: "#177a5b" };
+        return { label: "Completed", tone: "dr-pill-green", dotColor: T.GREEN };
     }
     if (item.statusLabel === "canceled" || item.statusLabel === "cancelled") {
-        return { label: "Cancelled", tone: "dr-pill-red", dotColor: "#b91c1c" };
+        return { label: "Cancelled", tone: "dr-pill-red", dotColor: T.RED };
     }
     if (item.isLive) {
         return { label: "Live", tone: "dr-pill-red", dotColor: "#dc2626" };
     }
     if (item.isPast) {
-        return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: "#9ca3af" };
+        return { label: "Awaiting outcome", tone: "dr-pill-gray", dotColor: T.TEXT_HINT };
     }
-    return { label: "Upcoming", tone: "dr-pill-blue", dotColor: "#14538c" };
+    return { label: "Upcoming", tone: "dr-pill-blue", dotColor: T.BLUE_DARK };
 }
 
 export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
@@ -161,9 +162,10 @@ function getLocationDisplay(
         case "office":
             return "HIBARR HQ";
         case "phone":
-            return "Phone meeting";
+            return "Phone call";
         case "physical":
-            return "Physical meeting";
+            // Slug alone — the form fell back when no place was typed.
+            return "Place not specified";
         case "zoho":
         case "zoho_meet":
             return "Zoho Meeting (link pending)";
@@ -175,7 +177,8 @@ function getLocationDisplay(
         case "teams":
             return "Microsoft Teams";
         default:
-            return meeting.location || "No location set";
+            // Free-text physical place name stored in `location`.
+            return meeting.location?.trim() || "No location set";
     }
 }
 
@@ -184,8 +187,8 @@ function getLocationDisplay(
  *
  * The pill answers "what kind of meeting" and the line answers "where
  * exactly", but for every known location without a link the two collapse onto
- * the same words — a Phone meeting showed a "Phone" pill above a "Phone
- * meeting" line, and an office one said "HIBARR HQ" twice. The line is worth
+ * the same words — a Phone call showed a "Phone" pill above a "Phone call"
+ * line, and an office one said "HIBARR HQ" twice. The line is worth
  * rendering only when it carries something extra: a typed place name, or a
  * qualifier like "(link pending)".
  */
@@ -197,8 +200,8 @@ export function locationAddsDetail(item: {
         value
             .trim()
             .toLowerCase()
-            // "Phone meeting" and "Phone" are the same answer.
-            .replace(/\s+meeting$/, "");
+            // "Phone call" / "Phone meeting" and "Phone" are the same answer.
+            .replace(/\s+(meeting|call)$/, "");
 
     return normalise(item.locationDisplay) !== normalise(item.platformLabel);
 }

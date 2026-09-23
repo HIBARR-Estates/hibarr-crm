@@ -26,7 +26,7 @@ export default function DossierSection({
     return (
         <div
             style={{
-                borderBottom: isLast ? "none" : "1px solid var(--lr-border-soft)",
+                borderBottom: isLast ? "none" : "1px solid var(--dr-border-soft)",
             }}
         >
             <button
@@ -44,14 +44,14 @@ export default function DossierSection({
                     cursor: "pointer",
                     fontFamily: "inherit",
                     textAlign: "left",
-                    color: "var(--lr-text)",
+                    color: "var(--dr-text)",
                 }}
             >
                 <span
                     style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "var(--lr-text-dim)",
+                        color: "var(--dr-text-hint)",
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
                         flex: 1,
@@ -63,14 +63,14 @@ export default function DossierSection({
                     <span
                         style={{
                             fontSize: 11,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                             fontWeight: 500,
                         }}
                     >
                         {filled}/{total}
                     </span>
                 )}
-                <span style={{ color: "var(--lr-text-muted)", display: "flex" }}>
+                <span style={{ color: "var(--dr-text-muted)", display: "flex" }}>
                     <Icon
                         name={open ? "chevron-up" : "chevron-down"}
                         size={14}

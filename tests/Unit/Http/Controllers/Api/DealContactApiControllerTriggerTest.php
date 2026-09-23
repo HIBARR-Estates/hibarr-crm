@@ -86,6 +86,30 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function test_apply_referral_agent_sets_referrer_on_new_lead(): void
+    {
+        $agentId = $this->insertLeadAgent();
+        $lead = $this->newUnsavedLead();
+
+        $changed = $this->invokeApplyReferralAgentToLead($lead, new Request([
+            'referral_agent_id' => self::REFERRING_USER_ID,
+        ]));
+
+        $this->assertTrue($changed);
+        $this->assertSame($agentId, (int) $lead->referred_by_agent_id);
+    }
+
+    public function test_apply_referral_agent_is_write_once_in_memory(): void
+    {
+        $this->insertLeadAgent();
+        $lead = $this->newUnsavedLead(['referred_by_agent_id' => 99]);
+
+        $this->assertFalse($this->invokeApplyReferralAgentToLead($lead, new Request([
+            'referral_agent_id' => self::REFERRING_USER_ID,
+        ])));
+        $this->assertSame(99, (int) $lead->referred_by_agent_id);
+    }
+
     public function test_it_reloads_the_lead_so_marketing_written_after_save_is_visible(): void
     {
         $leadId = $this->insertLead();
@@ -189,6 +213,56 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->assertFalse($result['should_fire']);
     }
 
+    public function test_resolve_contact_still_creates_lead_when_referral_agent_cannot_be_resolved(): void
+    {
+        $result = $this->invokeResolveContact(new Request([
+            'name' => 'Jane Doe',
+            'email' => 'unknown-referrer@example.com',
+            'referral_agent_id' => 999_999,
+        ]), $this->companyId);
+
+        $this->assertTrue($result['was_created']);
+        $this->assertGreaterThan(0, $result['id']);
+        $this->assertNull(Lead::withoutGlobalScopes()->findOrFail($result['id'])->referred_by_agent_id);
+    }
+
+    public function test_resolve_contact_applies_referral_agent_on_new_lead(): void
+    {
+        $agentId = $this->insertLeadAgent();
+
+        $result = $this->invokeResolveContact(new Request([
+            'name' => 'Referred Lead',
+            'email' => 'referred-new@example.com',
+            'referral_agent_id' => self::REFERRING_USER_ID,
+        ]), $this->companyId);
+
+        $this->assertTrue($result['was_created']);
+        $this->assertSame($agentId, (int) Lead::withoutGlobalScopes()->findOrFail($result['id'])->referred_by_agent_id);
+    }
+
+    private function newUnsavedLead(array $overrides = []): Lead
+    {
+        $lead = new Lead;
+        $lead->company_id = $this->companyId;
+        $lead->client_name = 'Test Lead';
+        $lead->client_email = 'unsaved@example.com';
+
+        foreach ($overrides as $key => $value) {
+            $lead->{$key} = $value;
+        }
+
+        return $lead;
+    }
+
+    private function invokeApplyReferralAgentToLead(Lead $lead, Request $request): bool
+    {
+        $controller = new DealContactApiController;
+        $method = new ReflectionMethod($controller, 'applyReferralAgentToLead');
+        $method->setAccessible(true);
+
+        return (bool) $method->invoke($controller, $lead, $request);
+    }
+
     private function invokeFireLeadApiTrigger(int $leadId, bool $wasCreated): void
     {
         $controller = new DealContactApiController;
@@ -220,6 +294,19 @@ class DealContactApiControllerTriggerTest extends TestCase
     /**
      * @param  array<string, mixed>  $overrides
      */
+    private function insertLeadAgent(array $overrides = []): int
+    {
+        return (int) DB::table('lead_agents')->insertGetId(array_merge([
+            'company_id' => $this->companyId,
+            'user_id' => 42,
+            'status' => 'enabled',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
+    }
+
+    private const REFERRING_USER_ID = 42;
+
     private function insertLead(array $overrides = []): int
     {
         return (int) DB::table('leads')->insertGetId(array_merge([
@@ -249,6 +336,7 @@ class DealContactApiControllerTriggerTest extends TestCase
     {
         Schema::dropIfExists('lead_marketing');
         Schema::dropIfExists('leads');
+        Schema::dropIfExists('lead_agents');
         Schema::dropIfExists('companies');
     }
 
@@ -257,6 +345,14 @@ class DealContactApiControllerTriggerTest extends TestCase
         Schema::create('companies', function (Blueprint $table) {
             $table->increments('id');
             $table->string('company_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_agents', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('user_id')->nullable();
+            $table->string('status')->nullable();
             $table->timestamps();
         });
 

@@ -15,6 +15,7 @@ import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
 import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
+import type { CurrencyDisplay } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 
 interface DealColumnOptions {
     actionItems?: (item: Deal) => MenuProps["items"];
@@ -22,6 +23,8 @@ interface DealColumnOptions {
     canEdit?: (deal: Deal) => boolean;
     t?: (key: string) => string;
     td?: TdFn;
+    /** Fallback for rows whose deals.currency_id is null (routinely the case). */
+    companyCurrency?: CurrencyDisplay;
 }
 
 export const DEAL_TABLE_COLUMNS = (
@@ -33,6 +36,7 @@ export const DEAL_TABLE_COLUMNS = (
         canEdit,
         t = (key) => key,
         td = identityTd,
+        companyCurrency,
     } = options;
 
     return [
@@ -229,7 +233,11 @@ export const DEAL_TABLE_COLUMNS = (
                 if (record.value === null || record.value === undefined)
                     return <span className="text-gray-400">--</span>;
 
-                const symbol = record.currency?.currency_symbol || "£";
+                const symbol =
+                    record.currency?.currency_symbol ||
+                    companyCurrency?.symbol ||
+                    companyCurrency?.code ||
+                    "";
 
                 return (
                     <span className="text-gray-900 font-medium">

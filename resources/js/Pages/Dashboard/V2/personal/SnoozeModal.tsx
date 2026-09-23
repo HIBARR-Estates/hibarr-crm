@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { Button, Modal, REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface SnoozeOption {
     key: string;
-    /** English source string — translated at render. */
-    label: string;
+    labelKey: string;
     /** Short badge text — "1D", "3D", "7D". Not translated; it's a count, not prose. */
     badge: string;
     bg: string;
@@ -17,7 +16,7 @@ interface SnoozeOption {
 const OPTIONS: SnoozeOption[] = [
     {
         key: "tomorrow",
-        label: "Tomorrow",
+        labelKey: "pages.dashboard.personal.snooze.tomorrow",
         badge: "1D",
         bg: T.AMBER_SOFT,
         color: T.AMBER,
@@ -25,7 +24,7 @@ const OPTIONS: SnoozeOption[] = [
     },
     {
         key: "3days",
-        label: "In 3 days",
+        labelKey: "pages.dashboard.personal.snooze.in_3_days",
         badge: "3D",
         bg: T.BLUE_LIGHT,
         color: T.BLUE_DARK,
@@ -33,7 +32,7 @@ const OPTIONS: SnoozeOption[] = [
     },
     {
         key: "week",
-        label: "Next week",
+        labelKey: "pages.dashboard.personal.snooze.next_week",
         badge: "7D",
         bg: T.NAVY_SOFT,
         color: T.NAVY,
@@ -99,10 +98,11 @@ export default function SnoozeModal({
     onClose,
     onSelect,
 }: SnoozeModalProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const today = dayjs().format("YYYY-MM-DD");
     const [pendingDate, setPendingDate] = useState<string | null>(null);
     const [pendingKey, setPendingKey] = useState<string | null>(null);
+    const pickDateLabel = t("pages.dashboard.personal.snooze.pick_date");
 
     useEffect(() => {
         if (!open) {
@@ -128,7 +128,7 @@ export default function SnoozeModal({
     return (
         <Modal
             open={open}
-            title={td("Snooze")}
+            title={t("pages.dashboard.personal.snooze.title")}
             subtitle={taskName}
             onClose={onClose}
             maxWidth={400}
@@ -177,7 +177,7 @@ export default function SnoozeModal({
                                         color: T.TEXT,
                                     }}
                                 >
-                                    {td(option.label)}
+                                    {t(option.labelKey)}
                                 </span>
                                 <span
                                     style={{
@@ -246,7 +246,7 @@ export default function SnoozeModal({
                                     color: T.NAVY,
                                 }}
                             >
-                                {td("Snooze to")}{" "}
+                                {t("pages.dashboard.personal.snooze.snooze_to")}{" "}
                                 {dayjs(pendingDate).format("ddd, D MMM")}?
                             </span>
                             <Button
@@ -259,7 +259,7 @@ export default function SnoozeModal({
                                 }
                                 onClick={() => choose(CUSTOM_KEY, pendingDate)}
                             >
-                                {td("Confirm")}
+                                {t("pages.dashboard.personal.snooze.confirm")}
                             </Button>
                             <Button
                                 variant="ghost"
@@ -267,7 +267,7 @@ export default function SnoozeModal({
                                 disabled={pendingKey !== null}
                                 onClick={() => setPendingDate(null)}
                             >
-                                {td("Cancel")}
+                                {t("pages.dashboard.personal.snooze.cancel")}
                             </Button>
                         </>
                     ) : (
@@ -281,7 +281,7 @@ export default function SnoozeModal({
                                         color: T.TEXT,
                                     }}
                                 >
-                                    {td("Pick a date")}
+                                    {pickDateLabel}
                                 </span>
                                 <span
                                     style={{
@@ -291,7 +291,9 @@ export default function SnoozeModal({
                                         marginTop: 1,
                                     }}
                                 >
-                                    {td("Choose any day")}
+                                    {t(
+                                        "pages.dashboard.personal.snooze.choose_any_day",
+                                    )}
                                 </span>
                             </span>
                             <input
@@ -299,7 +301,7 @@ export default function SnoozeModal({
                                 className="dr-input"
                                 min={today}
                                 disabled={pendingKey !== null}
-                                aria-label={td("Pick a date")}
+                                aria-label={pickDateLabel}
                                 style={{ width: 118, minHeight: 32, flex: "none" }}
                                 onChange={(event) => {
                                     if (event.target.value) {
