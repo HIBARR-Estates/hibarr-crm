@@ -588,7 +588,7 @@ function DealViewRedesignInner(
                             )}
                         </div>
                         <div className="dr-grid">
-                            <div className="dr-workspace-main">
+                            <div className="flex min-w-0 flex-col gap-[14px]">
                                 {showAiSummary && (
                                     <div data-tour="deal-ai-summary">
                                         <EntityAiSummaryCard
@@ -616,7 +616,7 @@ function DealViewRedesignInner(
                                     </div>
                                 )}
 
-                                <section className="dr-workspace-card overflow-hidden rounded-xl border border-dr-border bg-white">
+                                <section className="overflow-hidden rounded-xl border border-dr-border bg-white">
                                     <div data-tour="deal-tabs">
                                         <DealTabBar
                                             activeTab={activeTab}
@@ -625,7 +625,7 @@ function DealViewRedesignInner(
                                             onChange={nav.setTab}
                                         />
                                     </div>
-                                    <div className="dr-workspace-tab-body p-4">
+                                    <div className="p-4">
                                         {activeTab === "overview" &&
                                             ((notesLoading &&
                                                 notes.length === 0) ||
