@@ -21,9 +21,12 @@
             <x-slot name="buttons">
                 <div class="row">
                     <div class="col-md-12 mb-2">
-                        <x-forms.button-primary icon="users-cog" id="add-role" class="mb-2">
+                        <x-forms.button-primary icon="users-cog" id="add-role" class="mb-2 mr-2">
                             @lang('modules.roles.addRole')
                         </x-forms.button-primary>
+                        <x-forms.button-secondary icon="sync" id="resync-all-user-permissions" class="mb-2">
+                            @lang('modules.permission.resyncAllUserPermissions')
+                        </x-forms.button-secondary>
                     </div>
                 </div>
             </x-slot>
@@ -202,6 +205,39 @@
             var url = "{{ route('role-permissions.create') }}";
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('body').on('click', '#resync-all-user-permissions', function() {
+            Swal.fire({
+                title: "@lang('messages.sweetAlertTitle')",
+                text: "@lang('messages.confirmResyncAllUserPermissions')",
+                icon: 'warning',
+                showCancelButton: true,
+                focusConfirm: false,
+                confirmButtonText: "@lang('app.yes')",
+                cancelButtonText: "@lang('app.cancel')",
+                customClass: {
+                    confirmButton: 'btn btn-primary mr-3',
+                    cancelButton: 'btn btn-secondary'
+                },
+                showClass: {
+                    popup: 'swal2-noanimation',
+                    backdrop: 'swal2-noanimation'
+                },
+                buttonsStyling: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.easyAjax({
+                        url: "{{ route('role-permissions.resync_all_users') }}",
+                        blockUI: true,
+                        container: '.settings-box',
+                        type: "POST",
+                        data: {
+                            '_token': '{{ csrf_token() }}'
+                        }
+                    });
+                }
+            });
         });
     </script>
 @endpush
