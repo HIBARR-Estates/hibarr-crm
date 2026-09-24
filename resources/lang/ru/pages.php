@@ -367,6 +367,7 @@ return [
             'qualification' => 'Квалификация',
             'tasks' => 'Задачи',
             'events' => 'События',
+            'meetings' => 'Встречи',
         ],
         'contacts_table' => [
             'columns' => [
@@ -661,7 +662,7 @@ return [
             'header' => 'Детали',
             'notes' => 'Заметки',
             'tasks' => 'Задачи',
-            'meeting' => 'Встречи',
+            'meetings' => 'Встречи',
             'files' => 'Файлы',
             'recommendations' => 'Рекомендации',
             'offers' => 'Предложения',
