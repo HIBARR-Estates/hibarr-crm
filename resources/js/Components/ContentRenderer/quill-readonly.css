@@ -1,0 +1,133 @@
+/**
+ * Read-only Quill HTML (notes, descriptions). The legacy app reset removes
+ * list markers from all `li`; Quill alignment/indent rely on `.ql-*` classes
+ * from the Snow theme, which only loaded on the editor before.
+ */
+
+.html-content ol {
+    list-style-type: decimal;
+}
+
+.html-content ul {
+    list-style-type: disc;
+}
+
+.html-content ol > li,
+.html-content ul > li {
+    display: list-item;
+}
+
+.html-content ol > li {
+    list-style-type: decimal;
+}
+
+.html-content ul > li {
+    list-style-type: disc;
+}
+
+/* Quill 2.x may tag items inside a single list container */
+.html-content li[data-list="ordered"] {
+    list-style-type: decimal;
+}
+
+.html-content li[data-list="bullet"] {
+    list-style-type: disc;
+}
+
+.html-content ul ul > li {
+    list-style-type: circle;
+}
+
+.html-content ul ul ul > li {
+    list-style-type: square;
+}
+
+.html-content ol ol > li {
+    list-style-type: lower-alpha;
+}
+
+.html-content .ql-ui {
+    display: none;
+}
+
+.html-content .ql-align-center {
+    text-align: center;
+}
+
+.html-content .ql-align-right {
+    text-align: right;
+}
+
+.html-content .ql-align-justify {
+    text-align: justify;
+}
+
+.html-content .ql-direction-rtl {
+    direction: rtl;
+    text-align: inherit;
+}
+
+.html-content .ql-indent-1:not(.ql-direction-rtl) {
+    padding-left: 3em;
+}
+.html-content .ql-indent-2:not(.ql-direction-rtl) {
+    padding-left: 6em;
+}
+.html-content .ql-indent-3:not(.ql-direction-rtl) {
+    padding-left: 9em;
+}
+.html-content .ql-indent-4:not(.ql-direction-rtl) {
+    padding-left: 12em;
+}
+.html-content .ql-indent-5:not(.ql-direction-rtl) {
+    padding-left: 15em;
+}
+.html-content .ql-indent-6:not(.ql-direction-rtl) {
+    padding-left: 18em;
+}
+.html-content .ql-indent-7:not(.ql-direction-rtl) {
+    padding-left: 21em;
+}
+.html-content .ql-indent-8:not(.ql-direction-rtl) {
+    padding-left: 24em;
+}
+.html-content .ql-indent-9:not(.ql-direction-rtl) {
+    padding-left: 27em;
+}
+
+.html-content .ql-indent-1.ql-direction-rtl {
+    padding-right: 3em;
+    padding-left: 0;
+}
+.html-content .ql-indent-2.ql-direction-rtl {
+    padding-right: 6em;
+    padding-left: 0;
+}
+.html-content .ql-indent-3.ql-direction-rtl {
+    padding-right: 9em;
+    padding-left: 0;
+}
+
+.html-content u {
+    text-decoration: underline;
+}
+
+.html-content s {
+    text-decoration: line-through;
+}
+
+.html-content strong,
+.html-content b {
+    font-weight: 600;
+}
+
+.html-content em,
+.html-content i {
+    font-style: italic;
+}
+
+.html-content pre.ql-syntax,
+.html-content pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TaskWallClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
@@ -20,8 +21,8 @@ class TaskFilterCountsService
     public function quickFilterCounts(Builder $baseQuery, int $userId): array
     {
         $query = $this->prepareAggregateQuery($baseQuery);
-        $today = now()->toDateString();
-        $now = now()->toDateTimeString();
+        $today = TaskWallClock::todayDateString();
+        $now = TaskWallClock::nowDateTimeString();
         $hasParticipantsTable = Schema::hasTable('task_participants');
 
         $query->selectRaw('COUNT(DISTINCT tasks.id) as count_all')
@@ -95,8 +96,8 @@ class TaskFilterCountsService
     public function workspaceStats(Builder $baseQuery): array
     {
         $query = $this->prepareAggregateQuery($baseQuery);
-        $today = now()->toDateString();
-        $now = now()->toDateTimeString();
+        $today = TaskWallClock::todayDateString();
+        $now = TaskWallClock::nowDateTimeString();
 
         $row = $query
             ->selectRaw('COUNT(DISTINCT tasks.id) as count_total')

@@ -23,7 +23,9 @@ import TasksBoardView from "./components/TasksBoardView";
 import TasksWorkspaceChrome from "./components/header/TasksWorkspaceChrome";
 import TasksWorkspaceModals from "./components/workspace/TasksWorkspaceModals";
 import { buildTaskRowActions } from "./components/list/buildTaskRowActions";
-import useTasksFilters from "./hooks/useTasksFilters";
+import useTasksFilters, {
+    type TasksFilterState,
+} from "./hooks/useTasksFilters";
 import useTasksViewNavigation from "./hooks/useTasksViewNavigation";
 import useTasksUrlSync from "./hooks/useTasksUrlSync";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
@@ -268,17 +270,9 @@ export default function TasksWorkspaceRedesign({
         [deals, leads, properties, developerProjects],
     );
 
-    const { activeCount } = useTasksFilters({
-        status: filters?.status ?? undefined,
-        priority: filters?.priority ?? undefined,
-        assigned_to: filters?.assigned_to ?? undefined,
-        assigned_by: (filters as Record<string, never> | undefined)
-            ?.assigned_by,
-        category_id: filters?.category_id ?? undefined,
-        due_date_range: filters?.due_date_range as
-            string | string[] | undefined,
-        search: filters?.search ?? undefined,
-    });
+    const { activeCount } = useTasksFilters(
+        (filters ?? {}) as TasksFilterState,
+    );
 
     const filterConfig = useMemo(
         () =>

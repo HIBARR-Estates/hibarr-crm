@@ -41,6 +41,31 @@ function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
+/** True when Quill/HTML note body has visible text (not just empty `<p><br></p>`). */
+export function hasNoteBodyHtml(html: string): boolean {
+    return stripHtml(html).length > 0;
+}
+
+/**
+ * Store responses occasionally omit `details` or arrive before the notes index
+ * refetch; keep the HTML the user just submitted so list/detail renderers don't
+ * fall back to plain-text previews.
+ */
+export function normalizeNoteDetailsFromSave<T extends { details?: string; created_at?: string; updated_at?: string }>(
+    note: T,
+    submittedHtml: string,
+): T {
+    const submitted = submittedHtml.trim();
+    const fromApi = note.details?.trim() ?? "";
+    const now = new Date().toISOString();
+    return {
+        ...note,
+        details: fromApi || submitted,
+        created_at: note.created_at || now,
+        updated_at: note.updated_at || note.created_at || now,
+    };
+}
+
 /** dayjs().fromNow() alone drifts between "a day ago" and "2 days ago" with
  * no clear rule a reader can predict. Special-casing yesterday and falling
  * back to the shared absolute date past a week keeps the transitions
