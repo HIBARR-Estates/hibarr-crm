@@ -1655,6 +1655,7 @@ return [
         'deselectAll' => 'Deselect All',
         'permissions' => 'Permissions',
         'importFromRole' => 'Import from Role',
+        'resyncAllUserPermissions' => 'Resync all user permissions',
     ],
     'leaves' => [
         'assignLeave' => 'Assign Leave',

@@ -345,6 +345,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('role-permissions/permissions', [RolePermissionController::class, 'permissions'])->name('role-permissions.permissions');
     Route::post('role-permissions/customPermissions', [RolePermissionController::class, 'customPermissions'])->name('role-permissions.custom_permissions');
     Route::post('role-permissions/reset-permissions', [RolePermissionController::class, 'resetPermissions'])->name('role-permissions.reset_permissions');
+    Route::post('role-permissions/resync-all-users', [RolePermissionController::class, 'resyncAllUserPermissions'])->name('role-permissions.resync_all_users');
     Route::resource('role-permissions', RolePermissionController::class);
 
     // Theme settings
