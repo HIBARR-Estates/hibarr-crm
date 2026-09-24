@@ -95,8 +95,11 @@ class ActivityReadTenantScopeTest extends TestCase
 
     private function requestForCompany(int $companyId): Request
     {
+        // Deliberately wrong header: reads must use TOKEN_COMPANY_ATTRIBUTE, not X-COMPANY-ID.
+        $wrongHeaderCompanyId = $companyId === 1 ? 2 : 1;
+
         $request = Request::create('/', 'GET', [], [], [], [
-            'HTTP_X_COMPANY_ID' => (string) $companyId,
+            'HTTP_X_COMPANY_ID' => (string) $wrongHeaderCompanyId,
         ]);
         $request->attributes->set(RequestCompany::TOKEN_COMPANY_ATTRIBUTE, $companyId);
 
