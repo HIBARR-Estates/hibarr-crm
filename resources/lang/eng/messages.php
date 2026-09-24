@@ -687,4 +687,6 @@ return [
     'eventRetrieved' => 'External event retrieved successfully.',
     'eventNotFound' => 'External event not found.',
     'missingCompanyId' => 'Missing Company ID in header.',
-];
+    'leadDuplicateEmail' => 'Another lead already uses this email address.',
+    'leadDuplicateContact' => 'Another lead already uses this :attribute.',
+);
