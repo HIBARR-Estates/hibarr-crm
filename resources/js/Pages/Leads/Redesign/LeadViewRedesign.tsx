@@ -125,8 +125,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const isDesktopViewport = useIsDesktopViewport();
     /** Pin quick actions above the workspace when the dossier rail stacks (HIB-1404). */
-    const quickActionsInMainColumn =
-        isMobileResponsive && !isDesktopViewport;
+    const quickActionsInMainColumn = isMobileResponsive && !isDesktopViewport;
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -729,7 +728,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
 
                     <div className="v2-grid">
-                        <div>
+                        <div className="min-w-0">
                             {quickActionsInMainColumn && (
                                 <div className="mb-4">
                                     <DossierQuickActions
