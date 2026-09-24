@@ -1907,4 +1907,16 @@ return [
         'reminder_defaults' => 'Reminder Defaults',
         'reminder_ledger' => 'Reminders',
     ],
+
+    'access_inspector' => [
+        'title' => 'Access',
+        'flags' => 'Flags',
+        'permissions' => 'Permissions',
+        'search_flags' => 'Search flags',
+        'search_permissions' => 'Search permissions',
+        'empty' => 'No matches',
+        'on' => 'On',
+        'off' => 'Off',
+        'read_only' => 'Read only',
+    ],
 ];
