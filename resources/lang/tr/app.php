@@ -609,4 +609,16 @@ return [
     'recommendations' => [
         'cache_notice' => 'Sonuçlar performans için önbelleğe alınıyor',
     ],
+
+    'access_inspector' => [
+        'title' => 'Erişim',
+        'flags' => 'Bayraklar',
+        'permissions' => 'İzinler',
+        'search_flags' => 'Bayrak ara',
+        'search_permissions' => 'İzin ara',
+        'empty' => 'Eşleşme yok',
+        'on' => 'Açık',
+        'off' => 'Kapalı',
+        'read_only' => 'Salt okunur',
+    ],
 ];

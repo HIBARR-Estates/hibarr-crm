@@ -611,4 +611,16 @@ return [
     'recommendations' => [
         'cache_notice' => 'Ergebnisse werden zur Leistungsoptimierung zwischengespeichert',
     ],
+
+    'access_inspector' => [
+        'title' => 'Zugriff',
+        'flags' => 'Flags',
+        'permissions' => 'Berechtigungen',
+        'search_flags' => 'Flags suchen',
+        'search_permissions' => 'Berechtigungen suchen',
+        'empty' => 'Keine Treffer',
+        'on' => 'An',
+        'off' => 'Aus',
+        'read_only' => 'Nur Lesen',
+    ],
 ];
