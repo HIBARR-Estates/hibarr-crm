@@ -3,6 +3,7 @@
 namespace Tests\Feature\CommunicationActivity;
 
 use App\Http\Controllers\CommunicationActivityController;
+use App\Support\RequestCompany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,11 @@ class ActivityReadTenantScopeTest extends TestCase
 
     private function requestForCompany(int $companyId): Request
     {
-        return Request::create('/', 'GET', [], [], [], ['HTTP_X_COMPANY_ID' => (string) $companyId]);
+        $request = Request::create('/', 'GET', [], [], [], [
+            'HTTP_X_COMPANY_ID' => (string) $companyId,
+        ]);
+        $request->attributes->set(RequestCompany::TOKEN_COMPANY_ATTRIBUTE, $companyId);
+
+        return $request;
     }
 }
