@@ -20,6 +20,7 @@ use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\LeadLifecycleStatusService;
+use App\Support\DemoSeeding;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -62,7 +63,7 @@ class TeamDashboardDemoDataService
         }
 
         // bcrypt once — hashing per agent was a large part of the 30s timeout.
-        $this->passwordHash = Hash::make('123456');
+        $this->passwordHash = Hash::make(DemoSeeding::password());
 
         $pipeline = LeadPipeline::query()
             ->where('company_id', $companyId)

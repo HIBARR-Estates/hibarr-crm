@@ -10,6 +10,7 @@ use App\Models\UniversalSearch;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Support\DemoSeeding;
 
 class UsersTableSeeder extends Seeder
 {
@@ -32,13 +33,19 @@ class UsersTableSeeder extends Seeder
 
         $faker = \Faker\Factory::create();
 
+        $password = DemoSeeding::password();
+
+        if (DemoSeeding::passwordWasGenerated() && $this->command) {
+            $this->command->warn('Demo accounts seeded with the password: ' . $password);
+        }
+
         $user = new User();
         $user->name = $faker->name;
         $user->company_id = $companyId;
 
         if ($companyId === 1) {
             $user->email = 'admin@example.com';
-            $user->password = Hash::make('123456');
+            $user->password = Hash::make($password);
             $user->gender = 'male';
             $user->save();
 
@@ -49,7 +56,7 @@ class UsersTableSeeder extends Seeder
             $user->name = $faker->name;
             $user->company_id = $companyId;
             $user->email = 'employee@example.com';
-            $user->password = Hash::make('123456');
+            $user->password = Hash::make($password);
             $user->gender = 'male';
             $user->save();
 
@@ -63,7 +70,7 @@ class UsersTableSeeder extends Seeder
         }
         else {
             $user->email = 'admin' . $companyId . '@example.com';
-            $user->password = Hash::make('123456');
+            $user->password = Hash::make($password);
             $user->gender = 'male';
             $user->save();
 
@@ -74,7 +81,7 @@ class UsersTableSeeder extends Seeder
             $user->name = $faker->name;
             $user->company_id = $companyId;
             $user->email = 'employee' . $companyId . '@example.com';
-            $user->password = Hash::make('123456');
+            $user->password = Hash::make($password);
             $user->gender = 'male';
             $user->save();
 
@@ -88,7 +95,7 @@ class UsersTableSeeder extends Seeder
 
         }
 
-        $user->password = Hash::make('123456');
+        $user->password = Hash::make($password);
         $user->save();
         $this->addClientDetails($user, $clientRole, $companyId);
 
