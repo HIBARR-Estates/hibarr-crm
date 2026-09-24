@@ -689,4 +689,4 @@ return [
     'missingCompanyId' => 'Missing Company ID in header.',
     'leadDuplicateEmail' => 'Another lead already uses this email address.',
     'leadDuplicateContact' => 'Another lead already uses this :attribute.',
-);
+];
