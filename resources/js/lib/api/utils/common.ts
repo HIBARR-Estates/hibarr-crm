@@ -125,6 +125,39 @@ export const getErrorMessage = (error: unknown): string => {
 };
 
 /**
+ * First human-readable message from a failed request: the first Laravel field
+ * error (422 `errors`), else the response `message`, else `Error.message`.
+ * Accepts a raw axios error or the bare response body `useApiMutate` throws.
+ * Unlike `errorFormatter`, axios errors are unwrapped before `Error.message`,
+ * so callers never surface "Request failed with status code 422".
+ */
+export const getFirstValidationMessage = (
+    error: unknown,
+    fallback: string,
+): string => {
+    const data =
+        (error as { response?: { data?: unknown } })?.response?.data ?? error;
+
+    if (data && typeof data === "object") {
+        const body = data as {
+            errors?: Record<string, string[] | string>;
+            message?: unknown;
+        };
+        if (body.errors && typeof body.errors === "object") {
+            const first = Object.values(body.errors).flat()[0];
+            if (typeof first === "string" && first.length > 0) {
+                return first;
+            }
+        }
+        if (typeof body.message === "string" && body.message.length > 0) {
+            return body.message;
+        }
+    }
+
+    return fallback;
+};
+
+/**
  * Helper function to check if error has validation errors
  * @param error - Unknown error
  * @returns boolean - True if error has field validation errors
