@@ -4,6 +4,7 @@ namespace App\Services\Reminders;
 
 use App\Jobs\Reminders\SendReminderJob;
 use App\Models\EntityReminderDefault;
+use App\Models\RecipientReminderDefault;
 use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserReminderPreference;
@@ -18,9 +19,10 @@ class ReminderCreator
      *
      * Cadence precedence (minutes before $eventAt):
      * 1. Explicit $cadenceMinutes — per-event custom offsets (meetings' reminders JSON, etc.)
-     * 2. Recipient user preferences (UserReminderPreference)
-     * 3. Company EntityReminderDefault for the entity type / "all"
-     * 4. config('reminders.default')
+     * 2. Recipient user preferences (UserReminderPreference) for RECIPIENT_USER
+     * 3. Recipient lead override (RecipientReminderDefault) for RECIPIENT_LEAD
+     * 4. Company EntityReminderDefault for the entity type / "all"
+     * 5. config('reminders.default')
      *
      * @param  array<int, array{type: string, id?: int|null, email?: string|null}>  $recipients
      * @param  array<int, int>|null  $cadenceMinutes  minutes before eventAt
@@ -36,7 +38,7 @@ class ReminderCreator
         ?array $cadenceMinutes = null,
         array $meta = []
     ): array {
-        if (!ReminderFeature::enabledForCompany($companyId)) {
+        if (! ReminderFeature::enabledForCompany($companyId)) {
             return [];
         }
 
@@ -55,7 +57,7 @@ class ReminderCreator
                 }
                 $recipientId = null;
             } elseif ($recipientType === Reminder::RECIPIENT_USER || $recipientType === Reminder::RECIPIENT_LEAD) {
-                if (!$recipientId) {
+                if (! $recipientId) {
                     continue;
                 }
                 if ($recipientEmail === null || $recipientEmail === '') {
@@ -136,7 +138,7 @@ class ReminderCreator
         ?array $cadenceMinutes = null,
         array $meta = []
     ): array {
-        if (!ReminderFeature::enabledForCompany($companyId)) {
+        if (! ReminderFeature::enabledForCompany($companyId)) {
             return [];
         }
 
@@ -170,6 +172,17 @@ class ReminderCreator
             $fromPrefs = $this->offsetsToMinutes($prefs);
             if ($fromPrefs !== []) {
                 return $fromPrefs;
+            }
+        }
+
+        if ($recipientType === Reminder::RECIPIENT_LEAD) {
+            $fromLead = RecipientReminderDefault::forCompanyEntityAndRecipient(
+                $companyId,
+                $this->cadencePreferenceType($entityType),
+                Reminder::RECIPIENT_LEAD
+            );
+            if ($fromLead !== null && $fromLead !== []) {
+                return $fromLead;
             }
         }
 
@@ -241,7 +254,7 @@ class ReminderCreator
 
         if ($recipientType === Reminder::RECIPIENT_LEAD) {
             $lead = \App\Models\Lead::query()->find($recipientId);
-            if (!$lead) {
+            if (! $lead) {
                 return null;
             }
 
