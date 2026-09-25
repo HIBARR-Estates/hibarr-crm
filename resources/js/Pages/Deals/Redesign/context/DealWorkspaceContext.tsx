@@ -151,7 +151,17 @@ export function DealWorkspaceProvider({
 
     useEffect(() => {
         if (!seeded.current.notes && notesQuery.data?.data) {
-            setNotes(notesQuery.data.data);
+            const serverNotes = notesQuery.data.data;
+            setNotes((prev) => {
+                if (prev.length === 0) return serverNotes;
+                const serverIds = new Set(serverNotes.map((note) => note.id));
+                const localOnly = prev.filter((note) => !serverIds.has(note.id));
+                return [...localOnly, ...serverNotes].sort((left, right) => {
+                    const leftTs = Date.parse(left.created_at ?? "") || 0;
+                    const rightTs = Date.parse(right.created_at ?? "") || 0;
+                    return rightTs - leftTs;
+                });
+            });
             seeded.current.notes = true;
         }
     }, [notesQuery.data]);

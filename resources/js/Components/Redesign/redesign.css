@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+@import "../ContentRenderer/quill-readonly.css";
 
 /* Colours, button colours and font come from design-tokens.json via the
    --dr-* variables (tailwind.config.js puts them on :root). */

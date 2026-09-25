@@ -40,6 +40,15 @@ export function getUserDateTimeTimezone(): string {
     return viewerTimezone;
 }
 
+/** "Today" in {@see getUserDateTimeTimezone} — matches TaskWallClock / filter presets. */
+export function viewerTodayDateString(): string {
+    return dayjs().tz(viewerTimezone).format("YYYY-MM-DD");
+}
+
+export function viewerDayjsNow(): Dayjs {
+    return dayjs().tz(viewerTimezone);
+}
+
 export function isUserDateTimeEnabled(): boolean {
     return enabled;
 }

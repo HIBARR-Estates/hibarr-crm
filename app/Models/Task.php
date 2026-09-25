@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Helper\UserService;
+use App\Support\FeatureFlags;
+use App\Support\UserTimezone;
 use DateTimeInterface;
 
 /**
@@ -174,13 +176,36 @@ class Task extends BaseModel
     const CUSTOM_FIELD_MODEL = 'App\Models\Task';
 
     /**
-     * Task start/due/completed are wall-clock values (company date+time parsed
-     * under app TZ). Eloquent's default ISO-Z serialization shifts display in
-     * non-UTC browsers; keep a naive Y-m-d H:i:s for frontend APIs instead.
+     * Naive Y-m-d H:i:s for frontend APIs (never ISO-Z — that shifts in browsers).
+     *
+     * With {@see UserTimezone::FLAG}, values are stored as UTC instants from
+     * {@see UserTimezone::interpretWallClock()} and must be formatted in the
+     * viewer timezone so 17:00 saved does not reload as 14:00 UTC digits.
+     * Legacy rows (flag off) keep the stored clock face in app timezone.
      */
-    public static function wallClockString(?DateTimeInterface $date): ?string
-    {
-        return $date ? Carbon::instance($date)->format('Y-m-d H:i:s') : null;
+    public static function wallClockString(
+        ?DateTimeInterface $date,
+        ?User $user = null,
+        ?Company $company = null,
+    ): ?string {
+        if (! $date) {
+            return null;
+        }
+
+        $carbon = Carbon::instance($date);
+
+        if (FeatureFlags::enabled(UserTimezone::FLAG)) {
+            $user ??= function_exists('user') ? user() : null;
+            $company ??= function_exists('company') ? company() : null;
+            $company = is_object($company) ? $company : null;
+
+            return $carbon
+                ->copy()
+                ->timezone(UserTimezone::forViewer($user, $company))
+                ->format('Y-m-d H:i:s');
+        }
+
+        return $carbon->format('Y-m-d H:i:s');
     }
 
     /**

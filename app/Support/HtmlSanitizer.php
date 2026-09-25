@@ -18,7 +18,7 @@ use HTMLPurifier_Config;
 class HtmlSanitizer
 {
     /** Bump when the allow-list below changes, so cached HTML definitions are rebuilt. */
-    private const DEFINITION_REVISION = 1;
+    private const DEFINITION_REVISION = 2;
 
     private static ?HTMLPurifier $purifier = null;
 
@@ -79,6 +79,8 @@ class HtmlSanitizer
             }
 
             $definition->addAttribute('span', 'contenteditable', 'Enum#false');
+            // Quill 2 list items (ordered vs bullet within one container)
+            $definition->addAttribute('li', 'data-list', 'Enum#ordered,bullet');
             // Quill video embeds
             $definition->addAttribute('iframe', 'allowfullscreen', 'Bool#allowfullscreen');
         }

@@ -6,6 +6,10 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Note } from "@/Types/api/note";
+import {
+    hasNoteBodyHtml,
+    normalizeNoteDetailsFromSave,
+} from "@/Components/Redesign/adapters/noteAdapter";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealNoteCreateInput {
@@ -32,10 +36,7 @@ export default function useDealNoteCreate(dealId: number) {
 
     const createNote = useCallback(
         (input: DealNoteCreateInput, onSuccess?: () => void) => {
-            const hasText =
-                input.text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
-                    .length > 0;
-            if (!hasText) {
+            if (!hasNoteBodyHtml(input.text)) {
                 setErrors([t("pages.deals.workspace.notes.validation.details_required")]);
                 return;
             }
@@ -58,7 +59,11 @@ export default function useDealNoteCreate(dealId: number) {
                             setErrors([]);
                             message.success(t("pages.deals.workspace.notes.messages.saved"));
                             if (response.data) {
-                                setNotes((prev) => [response.data as Note, ...prev]);
+                                const saved = normalizeNoteDetailsFromSave(
+                                    response.data as Note,
+                                    input.text,
+                                );
+                                setNotes((prev) => [saved, ...prev]);
                             }
                             onSuccess?.();
                             return;
