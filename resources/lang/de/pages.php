@@ -1466,6 +1466,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => ':filled von :total Angebotsfeldern ausgefüllt',
+            'aria' => ':filled von :total Angebotsfeldern ausgefüllt',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Titel',
