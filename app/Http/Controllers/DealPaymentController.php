@@ -37,9 +37,10 @@ class DealPaymentController extends AccountBaseController
         $this->assertCanViewDeal($deal);
         $this->assertCanCreatePaymentRequest($deal);
 
+        // No amount: the service converts the deal's value into the chosen
+        // currency itself, so the figure sent to OL can't drift from the deal.
         $validated = $request->validate([
-            'amount' => 'nullable|numeric|min:0',
-            'currency' => 'nullable|string|max:10',
+            'currency' => 'required|string|size:3|alpha',
             'provider_key' => 'nullable|string|in:manual-bank-transfer,nowpayments',
         ]);
 
@@ -127,6 +128,6 @@ class DealPaymentController extends AccountBaseController
 
     private function assertCanConfirmPaymentTransfer(): void
     {
-        abort_403(user()->permission('edit_payments') != 'all');
+        abort_403(! DealPaymentService::canConfirmTransfer(user()));
     }
 }

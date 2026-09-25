@@ -57,6 +57,23 @@ class OlDealPaymentProxyService
     }
 
     /**
+     * Cancels a still-pending payment request so its checkout link stops
+     * accepting payment. OL answers 409 once the client has already started
+     * paying (proof uploaded / crypto in flight) — that surfaces as an
+     * HttpException with the same status.
+     *
+     * @param  array<string, mixed>  $meta  reason / cancelled_by
+     * @return array<string, mixed>
+     */
+    public function cancel(string $paymentId, array $meta): array
+    {
+        $path = rtrim($this->dealPaymentRequestPath(), '/') . '/' . rawurlencode($paymentId) . '/cancel';
+        $response = $this->request('POST', $path, $meta);
+
+        return $this->decodeSuccessfulResponse($response, 'cancel deal payment request');
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function request(string $method, string $path, array $payload): Response
