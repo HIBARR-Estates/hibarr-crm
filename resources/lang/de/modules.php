@@ -1,7 +1,7 @@
 <?php
 
-return array(
-    'dashboard' => array(
+return [
+    'dashboard' => [
         'totalClients' => 'Kunden gesamt',
         'newClients' => 'Neue Kunden',
         'totalEmployees' => 'Mitarbeiter gesamt',
@@ -48,8 +48,8 @@ return array(
         'invoicePaid' => 'Bezahlt',
         'invoiceOverdue' => 'Überfällig',
         'estimateOverview' => 'Angebotsübersicht',
-    ),
-    'lead' => array(
+    ],
+    'lead' => [
         'leadAdded' => 'Lead hinzugefügt',
         'leadUpdated' => 'Lead aktualisiert',
         'leadDeleted' => 'Lead gelöscht',
@@ -57,42 +57,49 @@ return array(
         'editLead' => 'Lead bearbeiten',
         'noLeadFound' => 'Kein Lead gefunden',
         'followUp' => 'Meetings',
-    ),
-    'deal' => array(
+    ],
+    'deal' => [
         'title' => 'Angebot',
         'addDeal' => 'Angebot hinzufügen',
         'editDeal' => 'Angebot bearbeiten',
         'noDealFound' => 'Kein Angebot gefunden',
         'dealPipeline' => 'Angebots-Pipeline',
         'dealSource' => 'Angebots-Quelle',
-    ),
-    'property' => array(
+    ],
+    'property' => [
         'addProperty' => 'Immobilie hinzufügen',
         'editProperty' => 'Immobilie bearbeiten',
         'noPropertyFound' => 'Keine Immobilie gefunden',
         'propertyType' => 'Immobilientyp',
-    ),
-    'task' => array(
+    ],
+    'task' => [
         'addTask' => 'Aufgabe hinzufügen',
         'editTask' => 'Aufgabe bearbeiten',
         'noTaskFound' => 'Keine Aufgabe gefunden',
         'taskStatus' => 'Aufgabenstatus',
-    ),
-    'messages' => array(
+    ],
+    'messages' => [
         'addedSuccessfully' => 'Erfolgreich hinzugefügt',
         'updatedSuccessfully' => 'Erfolgreich aktualisiert',
         'deletedSuccessfully' => 'Erfolgreich gelöscht',
         'notFound' => 'Nicht gefunden',
-    ),
-    'meeting' => array(
+    ],
+    'meeting' => [
         'title' => 'Besprechung',
         'addMeeting' => 'Besprechung hinzufügen',
         'editMeeting' => 'Besprechung bearbeiten',
         'noMeetingFound' => 'Keine Besprechung gefunden',
-    ),
-    'notification' => array(
+    ],
+    'notification' => [
         'title' => 'Benachrichtigung',
         'noNotificationFound' => 'Keine Benachrichtigung gefunden',
         'markAllRead' => 'Alle als gelesen markieren',
-    ),
-);
+    ],
+    'settings' => [
+        'leadMeetingCadence' => 'Lead-Besprechungserinnerungen',
+        'leadMeetingCadenceDescription' => 'Überschreibt, wann kundenbezogene (Lead-)Besprechungserinnerungen gesendet werden. Teilnehmer-/Benutzererinnerungen nutzen weiterhin persönliche Einstellungen und den Firmenstandard für Besprechungen oben.',
+        'leadMeetingCadenceDeleteHint' => 'Das Entfernen dieser Überschreibung stellt den Firmenstandard für Besprechungen für Lead-Empfänger wieder her.',
+        'leadMeetingCadenceDeleteConfirm' => 'Lead-Besprechungskadenz überschreiben entfernen und auf den Firmenstandard für Besprechungen zurückfallen?',
+        'clearLeadMeetingCadence' => 'Überschreibung löschen',
+    ],
+];
