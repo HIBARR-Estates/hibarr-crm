@@ -276,6 +276,12 @@ export interface Property {
     _sold_count?: number;
     _sold_property_ids?: number[];
     is_sold_out?: boolean;
+    /** crm.property-completeness-score — listing-facing filled/total. */
+    completeness?: {
+        filled: number;
+        total: number;
+        percent: number;
+    };
 }
 
 // Project Location (simplified reference)
