@@ -118,6 +118,52 @@ class PaymentRequestListTest extends TestCase
         $paidOnline->assertJsonPath('props.paymentRequests.data.0.payment_id', '621');
     }
 
+    public function test_index_rows_carry_the_deal_value_and_filter_invalidated_requests(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->insertPayment(['external_reference' => '640', 'ol_status' => 'cancelled', 'status' => 'failed']);
+        $this->insertPayment(['external_reference' => '641', 'ol_status' => 'expired', 'status' => 'failed']);
+
+        $response = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?ui_state=invalidated');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'props.paymentRequests.data');
+        $response->assertJsonPath('props.paymentRequests.data.0.payment_id', '640');
+        $response->assertJsonPath('props.paymentRequests.data.0.ui_state', 'invalidated');
+        $this->assertEquals(
+            (float) DB::table('deals')->where('id', 10)->value('value'),
+            $response->json('props.paymentRequests.data.0.deal_value'),
+        );
+    }
+
+    public function test_status_counts_are_deferred_and_cover_every_tab(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->insertPayment(['external_reference' => '650', 'ol_status' => 'pending']);
+        $this->insertPayment(['external_reference' => '651', 'ol_status' => 'pending']);
+        $this->insertPayment(['external_reference' => '652', 'ol_status' => 'cancelled']);
+
+        $firstPaint = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests');
+        $firstPaint->assertJsonMissingPath('props.counts');
+
+        $counts = $this->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Partial-Component' => 'PaymentRequests/Index',
+            'X-Inertia-Partial-Data' => 'counts',
+        ])->get('/account/payment-requests');
+
+        $counts->assertJsonPath('props.counts.all', 3);
+        $counts->assertJsonPath('props.counts.pending_payment', 2);
+        $counts->assertJsonPath('props.counts.invalidated', 1);
+        $counts->assertJsonPath('props.counts.confirmed', 0);
+    }
+
     public function test_index_only_returns_rows_scoped_to_the_current_company(): void
     {
         $this->withoutMiddleware();

@@ -323,7 +323,7 @@ class OfferController extends AccountBaseController
     /**
      * Remove all applied offers from a deal (manual override).
      */
-    public function removeFromDeal(int $dealId)
+    public function removeFromDeal(\Illuminate\Http\Request $request, int $dealId)
     {
         $deal = \App\Models\Deal::findOrFail($dealId);
 
@@ -336,6 +336,20 @@ class OfferController extends AccountBaseController
         // this deal's value.
         if ($deal->isCommissionLocked()) {
             return Reply::error(__('messages.dealValueLockedByCommission'));
+        }
+
+        $paymentBlock = app(\App\Services\Deal\DealPaymentValueGuard::class)->check(
+            $deal,
+            true,
+            $request->boolean(\App\Services\Deal\DealPaymentValueGuard::CONFIRM_FLAG),
+            user()
+        );
+        if ($paymentBlock !== null) {
+            return response()->json([
+                'status' => 'fail',
+                'code' => $paymentBlock['code'],
+                'message' => $paymentBlock['message'],
+            ], $paymentBlock['status']);
         }
 
         $this->dealOfferService->removeOffersFromDeal($deal);

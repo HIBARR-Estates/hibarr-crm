@@ -43,6 +43,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { getFirstValidationMessage } from "@/lib/api/utils/common";
 import { formatMobileForDisplay, resolveLeadPhoneDisplay } from "@/lib/utils";
 import {
     computeAgeFieldsFromDateOfBirth,
@@ -545,7 +546,12 @@ const ageRangeOptions = useMemo(
             setPendingChanges({});
             onEditModeChange(false);
         } catch (error: any) {
-            message.error(error?.message || t("pages.leads.info.save_all_error"));
+            message.error(
+                getFirstValidationMessage(
+                    error,
+                    t("pages.leads.info.save_all_error"),
+                ),
+            );
         } finally {
             setIsSavingAll(false);
         }

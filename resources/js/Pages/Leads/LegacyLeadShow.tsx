@@ -25,6 +25,7 @@ import type { LeadShowProps } from "./Show";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 export default function LegacyLeadShow({
     lead,
@@ -101,7 +102,7 @@ export default function LegacyLeadShow({
         setActiveTab(key);
         const url = new URL(window.location.href);
         url.searchParams.set("tab", key);
-        window.history.replaceState({}, "", url.toString());
+        replaceUrlKeepingHistoryState(url);
     };
 
     const tabItems = [

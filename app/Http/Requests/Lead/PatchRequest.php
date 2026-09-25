@@ -57,13 +57,16 @@ class PatchRequest extends CoreRequest
             // stays non-nullable — clearing it should surface a friendly
             // validation error rather than a DB constraint failure.
             'client_name' => 'sometimes|required|string|min:1|max:191',
-            'client_email' => 'nullable|email:rfc,strict|max:255',
+            // These four columns carry global unique indexes on `leads`, so the
+            // rule is intentionally not company-scoped — it must match what the
+            // DB enforces, otherwise a duplicate slips through to save().
+            'client_email' => ['nullable', 'email:rfc,strict', 'max:255', Rule::unique('leads', 'client_email')->ignore($leadId)],
             'mobile' => 'nullable|string|max:100',
             'cell' => 'sometimes|nullable|string|max:100',
             'office' => 'sometimes|nullable|string|max:100',
-            'client_whatsapp' => 'sometimes|nullable|string|max:100',
-            'client_telegram' => 'sometimes|nullable|string|max:100',
-            'client_instagram' => 'sometimes|nullable|string|max:100',
+            'client_whatsapp' => ['sometimes', 'nullable', 'string', 'max:100', Rule::unique('leads', 'client_whatsapp')->ignore($leadId)],
+            'client_telegram' => ['sometimes', 'nullable', 'string', 'max:100', Rule::unique('leads', 'client_telegram')->ignore($leadId)],
+            'client_instagram' => ['sometimes', 'nullable', 'string', 'max:100', Rule::unique('leads', 'client_instagram')->ignore($leadId)],
             'company_name' => 'sometimes|nullable|string|max:255',
             'website' => 'sometimes|nullable|url|max:255',
             'address' => 'sometimes|nullable|string|max:500',
@@ -131,6 +134,10 @@ class PatchRequest extends CoreRequest
     {
         return [
             'client_email.email' => 'Please enter a valid email address.',
+            'client_email.unique' => __('messages.leadDuplicateEmail'),
+            'client_whatsapp.unique' => __('messages.leadDuplicateContact'),
+            'client_telegram.unique' => __('messages.leadDuplicateContact'),
+            'client_instagram.unique' => __('messages.leadDuplicateContact'),
             'website.url' => 'Please enter a valid website URL.',
             'value.numeric' => 'Lead value must be a valid number.',
             'value.min' => 'Lead value cannot be negative.',
@@ -167,6 +174,9 @@ class PatchRequest extends CoreRequest
             'mobile' => 'mobile number',
             'cell' => 'cell phone',
             'office' => 'office phone',
+            'client_whatsapp' => 'WhatsApp',
+            'client_telegram' => 'Telegram',
+            'client_instagram' => 'Instagram',
             'company_name' => 'company name',
             'postal_code' => 'postal code',
             'next_follow_up' => 'next follow-up date',
