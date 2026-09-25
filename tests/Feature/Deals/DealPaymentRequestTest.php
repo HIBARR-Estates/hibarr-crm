@@ -245,6 +245,54 @@ class DealPaymentRequestTest extends TestCase
         $this->assertNull($payment->invalidated_at);
     }
 
+    public function test_invalidate_treats_an_already_cancelled_request_at_ol_as_success(): void
+    {
+        // Our first cancel committed at OL but the response was lost; the
+        // retry hits a 409 (older OL) and OL now reports the payment cancelled.
+        $paymentId = $this->insertPayment(['external_reference' => '543', 'ol_status' => 'pending']);
+
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests/543/cancel' => Http::response(['message' => 'no longer pending'], 409),
+            'https://ol.test/v1/internal/payments/deal-requests/543' => Http::response([
+                'data' => ['paymentId' => '543', 'status' => 'cancelled'],
+            ], 200),
+        ]);
+
+        $user = $this->makeUser();
+        $result = app(DealPaymentService::class)->invalidatePending($this->makeDeal(), $user, 'Deal value changed');
+
+        $this->assertSame('invalidated', $result['ui_state']);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->find($paymentId);
+        $this->assertSame('cancelled', $payment->ol_status);
+        $this->assertNotNull($payment->invalidated_at);
+        $this->assertSame('Deal value changed', $payment->invalidation_reason);
+        $this->assertNull(app(DealPaymentService::class)->findActiveRequest($this->makeDeal()));
+    }
+
+    public function test_invalidate_stays_locked_when_ol_refuses_because_the_client_started_paying(): void
+    {
+        $paymentId = $this->insertPayment(['external_reference' => '544', 'ol_status' => 'pending', 'ol_payment_type' => 'manual']);
+
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests/544/cancel' => Http::response(['message' => 'no longer pending'], 409),
+            'https://ol.test/v1/internal/payments/deal-requests/544' => Http::response([
+                'data' => ['paymentId' => '544', 'status' => 'confirming', 'paymentType' => 'manual'],
+            ], 200),
+        ]);
+
+        try {
+            app(DealPaymentService::class)->invalidatePending($this->makeDeal(), $this->makeUser(), 'Deal value changed');
+            $this->fail('Expected the value to stay locked.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->find($paymentId);
+        $this->assertSame('confirming', $payment->ol_status);
+        $this->assertNull($payment->invalidated_at);
+    }
+
     public function test_invalidate_refuses_once_the_client_has_started_paying(): void
     {
         $this->insertPayment(['external_reference' => '542', 'ol_status' => 'confirming', 'ol_payment_type' => 'manual']);
