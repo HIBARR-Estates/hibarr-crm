@@ -15,6 +15,8 @@ export function paymentUiStateLabel(uiState: DealPaymentUiState): string {
             return "Confirmed";
         case "failed":
             return "Failed";
+        case "invalidated":
+            return "Invalidated";
         default:
             return "Unknown";
     }
@@ -34,6 +36,8 @@ export function paymentUiStateBadgeVariant(uiState: DealPaymentUiState): BadgeVa
             return "green";
         case "failed":
             return "red";
+        case "invalidated":
+            return "gray";
         default:
             return "gray";
     }

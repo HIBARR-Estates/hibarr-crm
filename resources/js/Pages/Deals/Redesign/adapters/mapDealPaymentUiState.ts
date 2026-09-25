@@ -29,5 +29,10 @@ export function mapDealPaymentUiState(
 }
 
 export function isTerminalPaymentState(uiState: DealPaymentUiState | null): boolean {
-    return uiState === "confirmed" || uiState === "paid_online" || uiState === "failed";
+    return (
+        uiState === "confirmed"
+        || uiState === "paid_online"
+        || uiState === "failed"
+        || uiState === "invalidated"
+    );
 }

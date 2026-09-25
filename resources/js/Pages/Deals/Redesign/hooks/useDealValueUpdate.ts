@@ -3,7 +3,10 @@ import { message } from "antd";
 import { useCallback, useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import useTranslation from "@/Hooks/useTranslation";
-import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../context/DealWorkspaceContext";
 
 export interface DealValuePayload {
     value_source?: "manual" | "calculated";
@@ -19,7 +22,7 @@ export interface DealValuePayload {
 export default function useDealValueUpdate(deal: Deal, canEdit: boolean) {
     const { t } = useTranslation();
     const [isUpdating, setIsUpdating] = useState(false);
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, withPaymentInvalidation } = useDealWorkspace();
 
     /** Resolves true when the deal was saved, so callers can close on success only. */
     const update = useCallback(
@@ -28,25 +31,34 @@ export default function useDealValueUpdate(deal: Deal, canEdit: boolean) {
             setIsUpdating(true);
             try {
                 // deals.patch accepts the value fields (PatchRequest),
-                // unlike deals.update.
-                const response = await axios.patch(
-                    route("deals.patch", deal.id),
-                    payload,
-                    { headers: { Accept: "application/json" } },
+                // unlike deals.update. An unpaid payment request is warned
+                // about (and invalidated on confirm) before the save.
+                const response = await withPaymentInvalidation((flags) =>
+                    axios.patch(
+                        route("deals.patch", deal.id),
+                        { ...payload, ...flags },
+                        { headers: { Accept: "application/json" } },
+                    ),
                 );
                 if (response.data?.success && response.data?.data) {
                     setDeal(response.data.data);
                     return true;
                 }
                 return false;
-            } catch {
-                message.error(t("pages.deals.info.value_insight.messages.update_failed"));
+            } catch (error) {
+                // Backing out of the warning keeps the editor open, unchanged.
+                if (error instanceof PaymentInvalidationCancelled) return false;
+                const serverMessage = (error as { response?: { data?: { message?: string } } })
+                    ?.response?.data?.message;
+                message.error(
+                    serverMessage || t("pages.deals.info.value_insight.messages.update_failed"),
+                );
                 return false;
             } finally {
                 setIsUpdating(false);
             }
         },
-        [canEdit, deal.id, isUpdating, setDeal, t],
+        [canEdit, deal.id, isUpdating, setDeal, t, withPaymentInvalidation],
     );
 
     return { isUpdating, update };
