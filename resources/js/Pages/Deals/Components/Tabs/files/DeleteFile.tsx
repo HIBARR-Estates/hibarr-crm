@@ -26,9 +26,7 @@ const DeleteFile: React.FC<Props> = ({
         onClose();
     };
 
-    const deletePath = file?.id
-        ? route("deal-files.destroy", file.id)
-        : "/api/v1/deal-files/0";
+    const deletePath = file?.id ? route("deal-files.destroy", file.id) : "";
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
         deletePath,

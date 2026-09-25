@@ -3,6 +3,7 @@
 namespace Tests\Feature\CommunicationActivity;
 
 use App\Http\Controllers\CommunicationActivityController;
+use App\Support\RequestCompany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,14 @@ class ActivityReadTenantScopeTest extends TestCase
 
     private function requestForCompany(int $companyId): Request
     {
-        return Request::create('/', 'GET', [], [], [], ['HTTP_X_COMPANY_ID' => (string) $companyId]);
+        // Deliberately wrong header: reads must use TOKEN_COMPANY_ATTRIBUTE, not X-COMPANY-ID.
+        $wrongHeaderCompanyId = $companyId === 1 ? 2 : 1;
+
+        $request = Request::create('/', 'GET', [], [], [], [
+            'HTTP_X_COMPANY_ID' => (string) $wrongHeaderCompanyId,
+        ]);
+        $request->attributes->set(RequestCompany::TOKEN_COMPANY_ATTRIBUTE, $companyId);
+
+        return $request;
     }
 }
