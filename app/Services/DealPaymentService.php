@@ -258,21 +258,42 @@ class DealPaymentService
                 ] : null,
             ], static fn ($value) => $value !== null));
         } catch (HttpException $e) {
-            if ($e->getStatusCode() === 409) {
-                // The client started paying between the page load and this
-                // save — pick up OL's state so the UI shows why.
-                try {
-                    $this->syncFromOlPayload($payment, $this->olProxy->getFromOl((string) $payment->external_reference));
-                } catch (HttpException) {
-                    // The 409 below is the answer either way.
-                }
-
-                throw new HttpException(409, __('messages.dealValueLockedByPaymentRequest'));
+            if ($e->getStatusCode() !== 409) {
+                throw $e;
             }
 
-            throw $e;
+            // OL refused: re-read it to find out why.
+            try {
+                $olPayload = $this->olProxy->getFromOl((string) $payment->external_reference);
+            } catch (HttpException) {
+                $olPayload = null;
+            }
+
+            // Already cancelled — our earlier cancel committed at OL but its
+            // response was lost (or an OL build without idempotent cancels).
+            // That's the outcome we wanted, so record it and carry on instead
+            // of telling the user the client is paying.
+            if (strtolower((string) ($olPayload['status'] ?? '')) === 'cancelled') {
+                return $this->markInvalidated($payment, $user, $reason);
+            }
+
+            // Otherwise the client started paying between the page load and
+            // this save — pick up OL's state so the UI shows why.
+            if ($olPayload !== null) {
+                $this->syncFromOlPayload($payment, $olPayload);
+            }
+
+            throw new HttpException(409, __('messages.dealValueLockedByPaymentRequest'));
         }
 
+        return $this->markInvalidated($payment, $user, $reason);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function markInvalidated(Payment $payment, ?User $user, string $reason): array
+    {
         $payment->ol_status = 'cancelled';
         $payment->status = 'failed';
         $payment->invalidated_at = now();
