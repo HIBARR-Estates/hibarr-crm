@@ -13,6 +13,7 @@ import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, BlockOutlined } from "@ant-design/icons";
 import PageDataSorter from "@/Components/PageDataSorter";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
+import CompletionDot from "@/Components/Redesign/primitives/CompletionDot";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 
 /** Helper: is this row a virtual unit type (not a real property)? */
@@ -24,6 +25,7 @@ export const PROPERTY_TABLE_COLUMNS = (
     defaultCurrencyCode: string | null | undefined = "TRY",
     defaultCurrencySymbol: string | null | undefined = "",
     t: (key: string) => string = (key) => key,
+    showCompleteness: boolean = false,
 ): ColumnsType<Property> => [
     {
         title: (
@@ -46,9 +48,37 @@ export const PROPERTY_TABLE_COLUMNS = (
                 ? route("properties.unit-type.show", record._unit_type_id!)
                 : route("properties.show", record.id);
 
+            const completeness = record.completeness;
+            const showDot =
+                showCompleteness &&
+                completeness != null &&
+                completeness.total > 0;
+
             return (
                 <div className="flex flex-col items-start gap-1.5">
-                    <div>
+                    <div className="flex items-start gap-2">
+                        {showDot && (
+                            <Tooltip
+                                title={t(
+                                    "pages.properties.completeness.tooltip",
+                                )
+                                    .replace(
+                                        ":filled",
+                                        String(completeness!.filled),
+                                    )
+                                    .replace(
+                                        ":total",
+                                        String(completeness!.total),
+                                    )}
+                            >
+                                <span className="mt-1.5 inline-flex shrink-0">
+                                    <CompletionDot
+                                        filled={completeness!.filled}
+                                        total={completeness!.total}
+                                    />
+                                </span>
+                            </Tooltip>
+                        )}
                         <Link href={href} className="hover:text-blue-800">
                             {title && (
                                 <div className="font-semibold text-sm text-gray-900 leading-tight capitalize">

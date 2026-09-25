@@ -1,5 +1,5 @@
 import { Link, router } from "@inertiajs/react";
-import { Dropdown, Popconfirm, Tag } from "antd";
+import { Dropdown, Popconfirm, Tag, Tooltip } from "antd";
 import {
     Eye,
     Pencil,
@@ -15,6 +15,9 @@ import type { MenuProps } from "antd";
 import type { Property } from "@/Types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import CompletionDot from "@/Components/Redesign/primitives/CompletionDot";
+import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface PropertyCardProps {
     property: Property;
@@ -101,6 +104,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
+    const showCompleteness = usePropertyCompletenessFlag();
+    const completeness = property.completeness;
+    const showDot =
+        showCompleteness &&
+        completeness != null &&
+        completeness.total > 0;
+
     const firstPhoto =
         property.assets?.[0]?.url ??
         resolveImageSrc(property.photos?.[0] as PropertyPhotoValue) ??
@@ -217,8 +228,30 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
             {/* ── Card body ── */}
             <div className="px-4 pt-3 pb-4">
-                <p className="font-bold text-sm text-slate-900 truncate mb-0.5">
-                    {generatePropertySubtitle(property) || property.title}
+                <p className="font-bold text-sm text-slate-900 truncate mb-0.5 flex items-center gap-2">
+                    {showDot && (
+                        <Tooltip
+                            title={t("pages.properties.completeness.tooltip")
+                                .replace(
+                                    ":filled",
+                                    String(completeness!.filled),
+                                )
+                                .replace(
+                                    ":total",
+                                    String(completeness!.total),
+                                )}
+                        >
+                            <span className="inline-flex shrink-0">
+                                <CompletionDot
+                                    filled={completeness!.filled}
+                                    total={completeness!.total}
+                                />
+                            </span>
+                        </Tooltip>
+                    )}
+                    <span className="truncate">
+                        {generatePropertySubtitle(property) || property.title}
+                    </span>
                 </p>
 
                 <p className="flex items-center gap-1 text-xs text-gray-400 mb-3">
