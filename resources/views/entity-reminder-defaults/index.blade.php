@@ -79,6 +79,13 @@
                         </div>
                     </div>
 
+                    <div class="col-lg-12 mt-4" id="lead-cadence-wrap">
+                        @include('entity-reminder-defaults.partials.lead-cadence-card', [
+                            'leadCadence' => $leadCadence,
+                            'reminderTypes' => $reminderTypes,
+                        ])
+                    </div>
+
                     <div class="col-lg-12 mt-4">
                         <div class="bg-white rounded p-3 border" id="email-templates-card">
                             <h5 class="f-14 font-weight-bold text-dark-grey mb-1">
@@ -140,6 +147,9 @@
         const UPDATE_URL = "{{ route('entity-reminder-defaults.update') }}";
         const DESTROY_URL = "{{ url('account/settings/entity-reminder-defaults') }}";
         const EMAIL_TEMPLATES_URL = "{{ route('entity-reminder-defaults.email-templates') }}";
+        const LEAD_CADENCE_URL = "{{ route('entity-reminder-defaults.lead-cadence') }}";
+        const LEAD_CADENCE_DESTROY_URL = "{{ route('entity-reminder-defaults.lead-cadence.destroy') }}";
+        const LEAD_FALLBACK_REMINDERS = @json($leadCadence['reminders'] ?? $fallbackOffsets);
 
         if ($.fn.selectpicker) {
             $('#new_entity_type').selectpicker('refresh');
@@ -363,6 +373,154 @@
                         });
                     }
                 }
+            });
+        });
+
+        function leadCadenceReminderRowHtml(reminder, index) {
+            let typeOptions = '';
+            Object.keys(REMINDER_TYPES).forEach(function (key) {
+                const selected = reminder.type === key ? 'selected' : '';
+                typeOptions += `<option value="${key}" ${selected}>${REMINDER_TYPES[key]}</option>`;
+            });
+
+            return `
+                <tr data-index="${index}">
+                    <td class="pl-20">
+                        <input type="number" min="0" class="form-control height-35 lead-cadence-time" value="${reminder.time}">
+                    </td>
+                    <td>
+                        <select class="form-control height-35 lead-cadence-type">${typeOptions}</select>
+                    </td>
+                    <td class="text-right pr-20">
+                        <button type="button" class="btn btn-sm btn-outline-danger lead-cadence-remove-reminder">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function renderLeadCadenceReminders(reminders) {
+            const $tbody = $('.lead-cadence-card .lead-cadence-reminders-body');
+            $tbody.empty();
+            (reminders.length ? reminders : LEAD_FALLBACK_REMINDERS).forEach(function (reminder, index) {
+                $tbody.append(leadCadenceReminderRowHtml(reminder, index));
+            });
+        }
+
+        function collectLeadCadenceReminders() {
+            const reminders = [];
+            $('.lead-cadence-card .lead-cadence-reminders-body tr').each(function () {
+                reminders.push({
+                    time: parseInt($(this).find('.lead-cadence-time').val(), 10) || 0,
+                    type: $(this).find('.lead-cadence-type').val()
+                });
+            });
+            return reminders;
+        }
+
+        (function initLeadCadenceCard() {
+            const $card = $('.lead-cadence-card');
+            if (!$card.length) {
+                return;
+            }
+            const reminders = $card.data('reminders');
+            renderLeadCadenceReminders(Array.isArray(reminders) ? reminders : LEAD_FALLBACK_REMINDERS);
+        })();
+
+        $('#lead-cadence-add-reminder').on('click', function () {
+            const reminders = collectLeadCadenceReminders();
+            if (reminders.length >= 20) {
+                Swal.fire({
+                    icon: 'warning',
+                    text: "@lang('modules.settings.maxRemindersReached')"
+                });
+                return;
+            }
+            reminders.push({ time: 15, type: 'minute' });
+            renderLeadCadenceReminders(reminders);
+        });
+
+        $(document).on('click', '.lead-cadence-remove-reminder', function () {
+            const reminders = collectLeadCadenceReminders();
+            const index = $(this).closest('tr').index();
+            if (reminders.length <= 1) {
+                return;
+            }
+            reminders.splice(index, 1);
+            renderLeadCadenceReminders(reminders);
+        });
+
+        $('#lead-cadence-save').on('click', function () {
+            const $card = $('.lead-cadence-card');
+            const reminders = collectLeadCadenceReminders();
+            const isActive = $card.find('.lead-cadence-active').is(':checked');
+
+            $.easyAjax({
+                url: LEAD_CADENCE_URL,
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    entity_type: 'meeting',
+                    recipient_type: 'lead',
+                    reminders: reminders,
+                    is_active: isActive ? 1 : 0
+                },
+                success: function (response) {
+                    if (response.status === 'success') {
+                        $card.data('reminders', response.default.reminders);
+                        $card.attr('data-configured', '1');
+                        $('#lead-cadence-delete').show();
+                        Swal.fire({
+                            icon: 'success',
+                            text: response.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    }
+                }
+            });
+        });
+
+        $('#lead-cadence-delete').on('click', function () {
+            Swal.fire({
+                title: "@lang('messages.sweetAlertTitle')",
+                text: "@lang('modules.settings.leadMeetingCadenceDeleteConfirm')",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: "@lang('app.delete')",
+                cancelButtonText: "@lang('app.cancel')",
+                customClass: {
+                    confirmButton: 'btn btn-danger mr-3',
+                    cancelButton: 'btn btn-secondary'
+                },
+                buttonsStyling: false
+            }).then(function (result) {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.easyAjax({
+                    url: LEAD_CADENCE_DESTROY_URL,
+                    type: 'DELETE',
+                    data: { _token: '{{ csrf_token() }}' },
+                    success: function (response) {
+                        if (response.status === 'success') {
+                            const $card = $('.lead-cadence-card');
+                            $card.attr('data-configured', '0');
+                            $card.data('reminders', LEAD_FALLBACK_REMINDERS);
+                            $card.find('.lead-cadence-active').prop('checked', true);
+                            renderLeadCadenceReminders(LEAD_FALLBACK_REMINDERS);
+                            $('#lead-cadence-delete').hide();
+                            Swal.fire({
+                                icon: 'success',
+                                text: response.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                        }
+                    }
+                });
             });
         });
     });

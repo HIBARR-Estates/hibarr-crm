@@ -949,6 +949,11 @@ return [
         'defaultRemindersDescription' => 'If no custom reminders are set, you will receive reminders at',
         'maxRemindersReached' => 'You can add up to 20 reminders.',
         'resetRemindersConfirm' => 'This will reset your reminder preferences to the default values. Continue?',
+        'leadMeetingCadence' => 'Lead meeting reminders',
+        'leadMeetingCadenceDescription' => 'Override when customer-facing (lead) meeting reminder emails are sent. Attendee/user reminders keep using personal preferences and the company meeting default above.',
+        'leadMeetingCadenceDeleteHint' => 'Clearing this override restores the company meeting default for lead recipients.',
+        'leadMeetingCadenceDeleteConfirm' => 'Clear the lead meeting cadence override and fall back to the company meeting default?',
+        'clearLeadMeetingCadence' => 'Clear override',
     ],
     'profile' => [
         'updateTitle' => 'Update Profile Info',
