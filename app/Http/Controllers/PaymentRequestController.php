@@ -18,7 +18,7 @@ class PaymentRequestController extends AccountBaseController
 
         $this->middleware(function ($request, $next) {
             abort_unless(FeatureFlags::enabled('packages.online-payment'), 404);
-            abort_403(user()->permission('edit_payments') != 'all');
+            abort_403(! DealPaymentService::canConfirmTransfer(user()));
 
             return $next($request);
         });
@@ -26,11 +26,8 @@ class PaymentRequestController extends AccountBaseController
 
     public function index(Request $request)
     {
-        $query = Payment::query()
-            ->without('order')
-            ->whereNotNull('external_reference')
-            ->where('external_reference', '!=', '')
-            ->with(['deal:id,name,agent_id', 'deal.leadAgent.user:id,name']);
+        $query = $this->baseQuery()
+            ->with(['deal:id,name,agent_id,value', 'deal.leadAgent.user:id,name']);
 
         $this->applyUiStateFilter($query, $request->get('ui_state'));
 
@@ -51,7 +48,34 @@ class PaymentRequestController extends AccountBaseController
                 'to' => $paginated->lastItem(),
             ],
             'filters' => $request->only(['ui_state']),
+            // One count per status tab — a query each, so it never holds up
+            // the list's first paint.
+            'counts' => Inertia::defer(fn () => $this->stateCounts()),
         ]);
+    }
+
+    private function baseQuery()
+    {
+        return Payment::query()
+            ->without('order')
+            ->whereNotNull('external_reference')
+            ->where('external_reference', '!=', '');
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function stateCounts(): array
+    {
+        $counts = ['all' => $this->baseQuery()->count()];
+
+        foreach (DealPaymentUiStateMapper::queryScopes() as $uiState => $scope) {
+            $query = $this->baseQuery();
+            $scope($query);
+            $counts[$uiState] = $query->count();
+        }
+
+        return $counts;
     }
 
     private function applyUiStateFilter($query, ?string $uiState): void
@@ -79,8 +103,11 @@ class PaymentRequestController extends AccountBaseController
                 'name' => $payment->deal->name,
                 'url' => route('deals.show', $payment->deal->id),
             ] : null,
+            // The deal's value now, in company currency — it can differ from
+            // base_amount (what this request was converted from) once the
+            // value changes and the request is invalidated.
+            'deal_value' => $payment->deal?->value !== null ? (float) $payment->deal->value : null,
             'agent_name' => $payment->deal?->leadAgent?->user?->name,
-            'currency_symbol' => $payment->currency?->currency_symbol,
         ]);
     }
 }

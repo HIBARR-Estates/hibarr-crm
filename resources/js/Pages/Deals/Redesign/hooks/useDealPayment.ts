@@ -27,16 +27,31 @@ export default function useDealPayment(dealId: number) {
     const { message } = App.useApp();
     const {
         paymentRequest,
-        setPaymentRequest,
+        paymentRequests,
+        upsertPaymentRequest,
         refreshPaymentRequest,
         paymentRequestLoading,
+        setDeal,
     } = useDealWorkspace();
     const [creating, setCreating] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+    // A confirmed payment wins the deal server-side (outcome, and commission
+    // lock once the job runs) — pull the fresh deal so the header reflects it.
+    const refreshDeal = useCallback(async () => {
+        try {
+            const refreshed = await axios.get(route("deals.refresh", dealId));
+            if (refreshed.data?.status === "success" && refreshed.data?.data) {
+                setDeal(refreshed.data.data);
+            }
+        } catch {
+            // Non-critical: the payment itself is already confirmed.
+        }
+    }, [dealId, setDeal]);
+
     const createPaymentRequest = useCallback(
-        async (input: DealPaymentCreateInput = {}): Promise<DealPaymentActionResult> => {
+        async (input: DealPaymentCreateInput): Promise<DealPaymentActionResult> => {
             setCreating(true);
             try {
                 const response = await axios.post<DealPaymentResponse>(
@@ -44,7 +59,7 @@ export default function useDealPayment(dealId: number) {
                     input,
                 );
                 if (response.data?.status === "success" && response.data.data) {
-                    setPaymentRequest(response.data.data);
+                    upsertPaymentRequest(response.data.data);
                     message.success("Payment request created.");
                     return { ok: true, data: response.data.data };
                 }
@@ -64,7 +79,7 @@ export default function useDealPayment(dealId: number) {
                 setCreating(false);
             }
         },
-        [dealId, message, setPaymentRequest],
+        [dealId, message, upsertPaymentRequest],
     );
 
     const confirmTransfer = useCallback(async (): Promise<DealPaymentActionResult> => {
@@ -74,8 +89,9 @@ export default function useDealPayment(dealId: number) {
                 route("deals.payment-request.confirm", dealId),
             );
             if (response.data?.status === "success" && response.data.data) {
-                setPaymentRequest(response.data.data);
+                upsertPaymentRequest(response.data.data);
                 message.success("Bank transfer confirmed.");
+                void refreshDeal();
                 return { ok: true, data: response.data.data };
             }
             const failMessage =
@@ -93,19 +109,23 @@ export default function useDealPayment(dealId: number) {
         } finally {
             setConfirming(false);
         }
-    }, [dealId, message, setPaymentRequest]);
+    }, [dealId, message, refreshDeal, upsertPaymentRequest]);
 
     const refreshStatus = useCallback(async () => {
         setRefreshing(true);
         try {
             await refreshPaymentRequest();
+            // An online payment may have completed since the last look,
+            // which wins the deal the same way a confirm does.
+            await refreshDeal();
         } finally {
             setRefreshing(false);
         }
-    }, [refreshPaymentRequest]);
+    }, [refreshDeal, refreshPaymentRequest]);
 
     return {
         paymentRequest,
+        paymentRequests,
         paymentRequestLoading,
         createPaymentRequest,
         confirmTransfer,

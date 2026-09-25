@@ -12,7 +12,18 @@ class DealPaymentUiStateMapper
         $status = strtolower(trim((string) $olStatus));
         $type = strtolower(trim((string) $olPaymentType));
 
-        if (in_array($status, ['failed', 'expired', 'cancelled'], true)) {
+        // Only the CRM cancels a deal payment request — when the deal's value
+        // changed before the client paid — so an OL "cancelled" is always an
+        // invalidation, distinct from the payment itself failing or expiring.
+        if ($status === 'cancelled') {
+            return [
+                'ui_state' => 'invalidated',
+                'can_confirm' => false,
+                'show_checkout_url' => false,
+            ];
+        }
+
+        if (in_array($status, ['failed', 'expired'], true)) {
             return [
                 'ui_state' => 'failed',
                 'can_confirm' => false,
@@ -80,7 +91,8 @@ class DealPaymentUiStateMapper
     public static function queryScopes(): array
     {
         return [
-            'failed' => fn ($q) => $q->whereIn('ol_status', ['failed', 'expired', 'cancelled']),
+            'failed' => fn ($q) => $q->whereIn('ol_status', ['failed', 'expired']),
+            'invalidated' => fn ($q) => $q->where('ol_status', 'cancelled'),
             'pending_payment' => fn ($q) => $q->where(function ($q2) {
                 $q2->where('ol_status', 'pending')
                     ->orWhereNull('ol_status')

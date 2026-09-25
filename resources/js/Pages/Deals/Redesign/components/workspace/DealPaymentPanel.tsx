@@ -2,24 +2,41 @@ import { useMemo, useState } from "react";
 import { App } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import { copyToClipboard } from "@/lib/utils";
+import { useApiQuery } from "@/lib/api/client";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import useExchangeRate from "@/Hooks/useExchangeRate";
 import useDealPayment from "../../hooks/useDealPayment";
 import {
     isTerminalPaymentState,
     mapDealPaymentUiState,
 } from "../../adapters/mapDealPaymentUiState";
-import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
-import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import {
+    paymentUiStateBadgeVariant,
+    paymentUiStateLabel,
+} from "@/Components/Redesign/adapters/dealPaymentUiState";
+import {
+    formatMoneyAmount,
+    useCompanyCurrency,
+    type CurrencyDisplay,
+} from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 
 interface DealPaymentPanelProps {
     deal: Deal;
     canCreatePaymentRequest: boolean;
     canConfirmPaymentTransfer: boolean;
+}
+
+interface CurrencyOption {
+    id: number;
+    currency_code: string;
+    currency_symbol: string | null;
 }
 
 function formatTimestamp(value: string | null | undefined): string | null {
@@ -29,15 +46,25 @@ function formatTimestamp(value: string | null | undefined): string | null {
     return date.toLocaleString();
 }
 
+/** A request's amount in the currency it was issued in. */
+function requestMoney(request: DealPaymentRequest): string {
+    return formatMoneyAmount(request.amount, {
+        code: request.currency ?? "",
+        symbol: request.currency_symbol || request.currency || "",
+    });
+}
+
 export default function DealPaymentPanel({
     deal,
     canCreatePaymentRequest,
     canConfirmPaymentTransfer,
 }: DealPaymentPanelProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { message } = App.useApp();
     const {
         paymentRequest,
+        paymentRequests,
         paymentRequestLoading,
         createPaymentRequest,
         confirmTransfer,
@@ -47,31 +74,56 @@ export default function DealPaymentPanel({
         refreshing,
     } = useDealPayment(deal.id);
 
-    // deals.currency_id is null on most rows (see DealValueBlock), so
-    // deal.currency is routinely absent — resolve through the same
-    // breakdown/company-currency fallback used there instead of guessing EUR.
-    const companyCurrency = useCompanyCurrency();
-    const currencyCode =
-        deal.value_breakdown?.currency.deal_code
-        ?? deal.value_breakdown?.currency.company_code
-        ?? deal.currency?.currency_code
-        ?? paymentRequest?.currency
-        ?? companyCurrency.code
-        ?? "EUR";
+    // Payment requests are always issued from the deal value in company
+    // currency (the same currency the deal page presents it in).
+    const companyFallback = useCompanyCurrency();
+    const companyCurrency: CurrencyDisplay = {
+        code: deal.value_breakdown?.currency.company_code || companyFallback.code || "EUR",
+        symbol:
+            deal.value_breakdown?.currency.company_symbol
+            || companyFallback.symbol
+            || companyFallback.code
+            || "",
+    };
+    const dealValue = Number(deal.value ?? 0);
 
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [amount, setAmount] = useState(String(deal.value ?? ""));
+    const [currencyCode, setCurrencyCode] = useState(companyCurrency.code);
     const [createError, setCreateError] = useState<string | null>(null);
+
+    const { data: currencyData } = useApiQuery<{ data: CurrencyOption[] }>({
+        path: route("form-data.index", "currencies"),
+        options: { enabled: createOpen },
+    });
+    const currencies = currencyData?.data ?? [];
+    const selectedCurrency: CurrencyDisplay = useMemo(() => {
+        const match = currencies.find((c) => c.currency_code === currencyCode);
+        return match
+            ? { code: match.currency_code, symbol: match.currency_symbol || match.currency_code }
+            : currencyCode === companyCurrency.code
+              ? companyCurrency
+              : { code: currencyCode, symbol: currencyCode };
+    }, [companyCurrency, currencies, currencyCode]);
+
+    const { rate, loading: rateLoading, unavailable: rateUnavailable } = useExchangeRate(
+        companyCurrency.code,
+        currencyCode,
+        createOpen,
+    );
+    // Preview only — the server recomputes this from the deal value at the
+    // same cached rate, so what the client is asked to pay can't be edited.
+    const convertedAmount = rate !== null ? Math.round(dealValue * rate * 100) / 100 : null;
 
     const mapped = useMemo(
         () => mapDealPaymentUiState(paymentRequest),
         [paymentRequest],
     );
 
-    const statusLabel = paymentRequest
-        ? td(paymentUiStateLabel(paymentRequest.ui_state))
-        : td("No payment request");
+    const history = useMemo(
+        () => paymentRequests.filter((r) => r.id !== paymentRequest?.id),
+        [paymentRequest?.id, paymentRequests],
+    );
 
     const statusTimestamp =
         paymentRequest?.ui_state === "confirmed"
@@ -79,29 +131,22 @@ export default function DealPaymentPanel({
             : formatTimestamp(paymentRequest?.updated_at ?? paymentRequest?.created_at);
 
     const openCreateModal = () => {
-        setAmount(String(deal.value ?? ""));
+        setCurrencyCode(companyCurrency.code);
         setCreateError(null);
         setCreateOpen(true);
     };
 
-    const handleCreate = async () => {
-        const parsedAmount = Number.parseFloat(amount);
-        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-            const msg = td("Enter a valid amount.");
-            setCreateError(msg);
-            message.error(msg);
-            return;
-        }
-
+    const closeCreateModal = () => {
+        setCreateOpen(false);
         setCreateError(null);
-        const result = await createPaymentRequest({
-            amount: parsedAmount,
-            currency: currencyCode,
-        });
+    };
+
+    const handleCreate = async () => {
+        setCreateError(null);
+        const result = await createPaymentRequest({ currency: currencyCode });
 
         if (result.ok) {
-            setCreateOpen(false);
-            setCreateError(null);
+            closeCreateModal();
             return;
         }
 
@@ -126,6 +171,8 @@ export default function DealPaymentPanel({
         );
     }
 
+    const canSubmit = dealValue > 0 && rate !== null && !rateLoading && !creating;
+
     return (
         <div className="space-y-3">
             {!mapped.hasPaymentRequest ? (
@@ -146,8 +193,8 @@ export default function DealPaymentPanel({
             ) : (
                 <>
                     <div className="flex items-start justify-between gap-2">
-                        <Badge variant={mapped.uiState === "failed" ? "red" : "gray"}>
-                            {statusLabel}
+                        <Badge variant={paymentUiStateBadgeVariant(mapped.uiState!)}>
+                            {td(paymentUiStateLabel(mapped.uiState!))}
                         </Badge>
                         {!isTerminalPaymentState(mapped.uiState) && (
                             <button
@@ -160,6 +207,24 @@ export default function DealPaymentPanel({
                             </button>
                         )}
                     </div>
+
+                    {paymentRequest && (
+                        <p className="text-sm font-semibold text-dr-text">
+                            {requestMoney(paymentRequest)}
+                            {paymentRequest.base_amount !== null
+                                && paymentRequest.base_currency
+                                && paymentRequest.base_currency !== paymentRequest.currency && (
+                                    <span className="ml-1.5 text-xs font-normal text-dr-text-muted">
+                                        {`≈ ${formatMoneyAmount(paymentRequest.base_amount, {
+                                            code: paymentRequest.base_currency,
+                                            symbol:
+                                                paymentRequest.base_currency_symbol
+                                                || paymentRequest.base_currency,
+                                        })}`}
+                                    </span>
+                                )}
+                        </p>
+                    )}
 
                     {statusTimestamp && (
                         <p className="text-xs text-dr-text-muted">
@@ -231,36 +296,117 @@ export default function DealPaymentPanel({
                 </>
             )}
 
+            {history.length > 0 && (
+                <div className="border-t border-dr-border-soft pt-2.5">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
+                        {t("pages.deals.payment_request.history_title")}
+                    </p>
+                    <ul className="m-0 list-none space-y-1.5 p-0">
+                        {history.map((request) => (
+                            <li
+                                key={request.id}
+                                className="flex items-center justify-between gap-2 text-xs text-dr-text-muted"
+                            >
+                                <span className="min-w-0">
+                                    <span className="font-medium text-dr-text line-through decoration-dr-text-hint">
+                                        {requestMoney(request)}
+                                    </span>
+                                    {request.invalidated_at && (
+                                        <span className="block text-[11px] text-dr-text-hint">
+                                            {t("pages.deals.payment_request.invalidated_on", {
+                                                date: formatTimestamp(request.invalidated_at) ?? "",
+                                            })}
+                                        </span>
+                                    )}
+                                </span>
+                                <Badge variant={paymentUiStateBadgeVariant(request.ui_state)}>
+                                    {td(paymentUiStateLabel(request.ui_state))}
+                                </Badge>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <DealModal
                 open={createOpen}
                 title={td("Create Payment Request")}
-                onClose={() => {
-                    setCreateOpen(false);
-                    setCreateError(null);
-                }}
+                onClose={closeCreateModal}
             >
                 <div className="space-y-3">
                     <p className="text-xs text-[#5b6472]">
                         {td("The customer will choose how to pay on the checkout page.")}
                     </p>
-                    <DealModalField label={td("Amount")}>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={amount}
-                                onChange={(e) => {
-                                    setAmount(e.target.value);
-                                    if (createError) setCreateError(null);
-                                }}
-                                className="w-full rounded-md border border-[#d7dbe3] px-3 py-2 text-sm"
-                            />
-                            <span className="shrink-0 rounded-md bg-[#f3f4f6] px-2.5 py-2 text-sm font-semibold text-[#1a1f2e]">
-                                {currencyCode}
+                    <DealModalField label={t("pages.deals.payment_request.currency")}>
+                        <select
+                            className="dr-input"
+                            value={currencyCode}
+                            onChange={(e) => {
+                                setCurrencyCode(e.target.value);
+                                if (createError) setCreateError(null);
+                            }}
+                            aria-label={t("pages.deals.payment_request.currency")}
+                        >
+                            {/* The company currency is always offered, even
+                                before the list loads. */}
+                            {!currencies.some((c) => c.currency_code === companyCurrency.code) && (
+                                <option value={companyCurrency.code}>{companyCurrency.code}</option>
+                            )}
+                            {currencies.map((currency) => (
+                                <option key={currency.id} value={currency.currency_code}>
+                                    {currency.currency_code}
+                                </option>
+                            ))}
+                        </select>
+                    </DealModalField>
+
+                    <div className="space-y-1.5 rounded-md border border-dr-border-soft bg-[#fafbfc] p-3 text-xs">
+                        <div className="flex justify-between gap-3 text-dr-text-muted">
+                            <span>{t("pages.deals.payment_request.deal_value")}</span>
+                            <span className="font-medium text-dr-text tabular-nums">
+                                {formatMoneyAmount(dealValue, companyCurrency)}
                             </span>
                         </div>
-                    </DealModalField>
+                        {currencyCode !== companyCurrency.code && (
+                            <div className="flex justify-between gap-3 text-dr-text-muted">
+                                <span>{t("pages.deals.payment_request.exchange_rate")}</span>
+                                <span className="font-medium text-dr-text tabular-nums">
+                                    {rateLoading
+                                        ? t("pages.deals.payment_request.rate_loading")
+                                        : rate !== null
+                                          ? `1 ${companyCurrency.code} = ${rate} ${currencyCode}`
+                                          : "—"}
+                                </span>
+                            </div>
+                        )}
+                        <div className="flex justify-between gap-3 border-t border-dr-border-soft pt-1.5 text-sm">
+                            <span className="font-semibold text-dr-text">
+                                {t("pages.deals.payment_request.amount_to_request")}
+                            </span>
+                            <span className="font-bold text-dr-text tabular-nums">
+                                {convertedAmount !== null
+                                    ? formatMoneyAmount(convertedAmount, selectedCurrency)
+                                    : "—"}
+                            </span>
+                        </div>
+                    </div>
+
+                    {dealValue <= 0 ? (
+                        <p className="text-xs text-[#b45309]">
+                            {t("pages.deals.payment_request.no_deal_value")}
+                        </p>
+                    ) : rateUnavailable ? (
+                        <p className="text-xs text-[#b45309]">
+                            {t("pages.deals.payment_request.rate_unavailable")}
+                        </p>
+                    ) : (
+                        <p className="text-[11px] text-dr-text-hint">
+                            {t("pages.deals.payment_request.conversion_hint", {
+                                currency: currencyCode,
+                            })}
+                        </p>
+                    )}
+
                     {createError && (
                         <p
                             role="alert"
@@ -270,21 +416,14 @@ export default function DealPaymentPanel({
                         </p>
                     )}
                     <div className="flex justify-end gap-2 pt-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                setCreateOpen(false);
-                                setCreateError(null);
-                            }}
-                        >
+                        <Button variant="ghost" size="sm" onClick={closeCreateModal}>
                             {td("Cancel")}
                         </Button>
                         <Button
                             variant="primary"
                             size="sm"
                             onClick={() => void handleCreate()}
-                            disabled={creating}
+                            disabled={!canSubmit}
                         >
                             {creating ? td("Creating...") : td("Create")}
                         </Button>
