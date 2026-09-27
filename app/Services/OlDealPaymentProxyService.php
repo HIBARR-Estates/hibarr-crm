@@ -79,11 +79,11 @@ class OlDealPaymentProxyService
     private function request(string $method, string $path, array $payload): Response
     {
         $baseUrl = (string) config('services.ol.base_url', '');
-        $apiKey = (string) config('services.ol.crm_webhook_api_key', '');
+        $apiKey = (string) config('services.ol.api_key', '');
         $timeout = (int) config('services.ol.timeout', 15);
 
         if ($baseUrl === '' || $apiKey === '') {
-            Log::error('OlDealPaymentProxyService: OL webhook config missing', [
+            Log::error('OlDealPaymentProxyService: OL config missing', [
                 'base_url_set' => $baseUrl !== '',
                 'api_key_set' => $apiKey !== '',
             ]);

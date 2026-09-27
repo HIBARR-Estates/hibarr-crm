@@ -49,7 +49,6 @@ class DealPaymentRequestTest extends TestCase
         Payment::flushEventListeners();
 
         config()->set('services.ol.base_url', 'https://ol.test/v1');
-        config()->set('services.ol.crm_webhook_api_key', 'crm-webhook-key');
         config()->set('services.ol.api_key', 'ol-test-key');
         config()->set('services.ol.timeout', 5);
         config()->set('services.ol.deal_payment_request_path', '/internal/payments/deal-requests');
