@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\EntityReminderDefault;
+use App\Models\RecipientReminderDefault;
+use App\Models\Reminder;
 use App\Models\ReminderEmailTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -58,6 +60,27 @@ class EntityReminderDefaultController extends AccountBaseController
         $this->fallbackOffsets = EntityReminderDefault::minutesListToOffsets(
             EntityReminderDefault::configDefaultsAsMinutes()
         );
+
+        $leadCadence = RecipientReminderDefault::query()
+            ->where('company_id', $companyId)
+            ->where('entity_type', EntityReminderDefault::ENTITY_MEETING)
+            ->where('recipient_type', Reminder::RECIPIENT_LEAD)
+            ->first();
+
+        $meetingFallbackMinutes = EntityReminderDefault::forCompanyAndType(
+            $companyId,
+            EntityReminderDefault::ENTITY_MEETING
+        ) ?? EntityReminderDefault::configDefaultsAsMinutes();
+
+        $this->leadCadence = [
+            'configured' => $leadCadence !== null,
+            'is_active' => $leadCadence ? (bool) $leadCadence->is_active : true,
+            'reminders' => EntityReminderDefault::minutesListToOffsets(
+                $leadCadence
+                    ? array_map('intval', $leadCadence->reminders ?? [])
+                    : $meetingFallbackMinutes
+            ),
+        ];
 
         ReminderEmailTemplate::seedDefaultsForCompany($companyId);
         $this->emailTemplates = ReminderEmailTemplate::mapForCompany($companyId);
@@ -138,16 +161,78 @@ class EntityReminderDefaultController extends AccountBaseController
         ]);
     }
 
+    public function updateLeadCadence(Request $request)
+    {
+        $validated = $request->validate([
+            'entity_type' => ['required', 'string', Rule::in([EntityReminderDefault::ENTITY_MEETING])],
+            'recipient_type' => ['required', 'string', Rule::in([Reminder::RECIPIENT_LEAD])],
+            'reminders' => 'required|array|min:1|max:20',
+            'reminders.*.time' => 'required|integer|min:0',
+            'reminders.*.type' => 'required|in:minute,hour,day',
+            'is_active' => 'boolean',
+        ]);
+
+        $minutes = array_values(array_filter(
+            array_map(
+                static fn ($item) => EntityReminderDefault::offsetToMinutes($item),
+                $validated['reminders']
+            ),
+            static fn ($value) => $value !== null
+        ));
+
+        if ($minutes === []) {
+            return Reply::error(__('messages.reminderDefaultsInvalid'));
+        }
+
+        $row = RecipientReminderDefault::query()->updateOrCreate(
+            [
+                'company_id' => (int) company()->id,
+                'entity_type' => EntityReminderDefault::ENTITY_MEETING,
+                'recipient_type' => Reminder::RECIPIENT_LEAD,
+            ],
+            [
+                'reminders' => $minutes,
+                'is_active' => $request->boolean('is_active', true),
+            ]
+        );
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'default' => [
+                'id' => $row->id,
+                'entity_type' => $row->entity_type,
+                'recipient_type' => $row->recipient_type,
+                'reminders' => EntityReminderDefault::minutesListToOffsets($row->reminders ?? []),
+                'is_active' => (bool) $row->is_active,
+                'configured' => true,
+            ],
+        ]);
+    }
+
+    public function destroyLeadCadence()
+    {
+        $deleted = RecipientReminderDefault::query()
+            ->where('company_id', (int) company()->id)
+            ->where('entity_type', EntityReminderDefault::ENTITY_MEETING)
+            ->where('recipient_type', Reminder::RECIPIENT_LEAD)
+            ->delete();
+
+        if (! $deleted) {
+            return Reply::error(__('messages.noRecordFound'));
+        }
+
+        return Reply::success(__('messages.deleteSuccess'));
+    }
+
     public function destroy(string $entityType)
     {
-        abort_403(!EntityReminderDefault::isAllowedEntityType($entityType));
+        abort_403(! EntityReminderDefault::isAllowedEntityType($entityType));
 
         $deleted = EntityReminderDefault::query()
             ->where('company_id', (int) company()->id)
             ->where('entity_type', $entityType)
             ->delete();
 
-        if (!$deleted) {
+        if (! $deleted) {
             return Reply::error(__('messages.noRecordFound'));
         }
 

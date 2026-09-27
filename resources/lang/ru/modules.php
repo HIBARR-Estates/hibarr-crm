@@ -1,7 +1,7 @@
 <?php
 
-return array(
-    'dashboard' => array(
+return [
+    'dashboard' => [
         'totalClients' => 'Всего клиентов',
         'newClients' => 'Новые клиенты',
         'totalEmployees' => 'Всего сотрудников',
@@ -48,8 +48,8 @@ return array(
         'invoicePaid' => 'Оплачен',
         'invoiceOverdue' => 'Просрочен',
         'estimateOverview' => 'Обзор смет',
-    ),
-    'lead' => array(
+    ],
+    'lead' => [
         'leadAdded' => 'Лид добавлен',
         'leadUpdated' => 'Лид обновлён',
         'leadDeleted' => 'Лид удалён',
@@ -57,42 +57,49 @@ return array(
         'editLead' => 'Редактировать лид',
         'noLeadFound' => 'Лид не найден',
         'followUp' => 'Встречи',
-    ),
-    'deal' => array(
+    ],
+    'deal' => [
         'title' => 'Сделка',
         'addDeal' => 'Добавить сделку',
         'editDeal' => 'Редактировать сделку',
         'noDealFound' => 'Сделка не найдена',
         'dealPipeline' => 'Воронка сделок',
         'dealSource' => 'Источник сделки',
-    ),
-    'property' => array(
+    ],
+    'property' => [
         'addProperty' => 'Добавить недвижимость',
         'editProperty' => 'Редактировать недвижимость',
         'noPropertyFound' => 'Недвижимость не найдена',
         'propertyType' => 'Тип недвижимости',
-    ),
-    'task' => array(
+    ],
+    'task' => [
         'addTask' => 'Добавить задачу',
         'editTask' => 'Редактировать задачу',
         'noTaskFound' => 'Задача не найдена',
         'taskStatus' => 'Статус задачи',
-    ),
-    'messages' => array(
+    ],
+    'messages' => [
         'addedSuccessfully' => 'Успешно добавлено',
         'updatedSuccessfully' => 'Успешно обновлено',
         'deletedSuccessfully' => 'Успешно удалено',
         'notFound' => 'Не найдено',
-    ),
-    'meeting' => array(
+    ],
+    'meeting' => [
         'title' => 'Встреча',
         'addMeeting' => 'Добавить встречу',
         'editMeeting' => 'Редактировать встречу',
         'noMeetingFound' => 'Встреча не найдена',
-    ),
-    'notification' => array(
+    ],
+    'notification' => [
         'title' => 'Уведомление',
         'noNotificationFound' => 'Уведомление не найдено',
         'markAllRead' => 'Отметить все как прочитанные',
-    ),
-);
+    ],
+    'settings' => [
+        'leadMeetingCadence' => 'Напоминания о встречах для лидов',
+        'leadMeetingCadenceDescription' => 'Переопределяет, когда отправляются клиентские (для лида) напоминания о встречах. Напоминания участникам/пользователям по-прежнему используют личные настройки и корпоративный стандарт встреч выше.',
+        'leadMeetingCadenceDeleteHint' => 'Удаление этого переопределения возвращает корпоративный стандарт встреч для получателей-лидов.',
+        'leadMeetingCadenceDeleteConfirm' => 'Удалить переопределение каденции напоминаний для лидов и вернуться к корпоративному стандарту встреч?',
+        'clearLeadMeetingCadence' => 'Сбросить переопределение',
+    ],
+];

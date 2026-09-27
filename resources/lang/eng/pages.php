@@ -1542,6 +1542,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => ':filled of :total listing fields filled',
+            'aria' => ':filled of :total listing fields filled',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Title',

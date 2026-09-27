@@ -71,6 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManageOffers = isPermissionAll(
         props.auth?.permissions?.manage_offers,
     );
+    const canViewPaymentRequests =
+        props.featureFlags?.["packages.online-payment"] === true &&
+        isPermissionAll(props.auth?.permissions?.edit_payments);
     const canManagePartnerNetwork = isPermissionAll(
         props.auth?.permissions?.manage_partner_network,
     );
@@ -229,6 +232,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <GiftOutlined />,
             href: "/account/offers",
             hidden: !canManageOffers,
+        },
+        {
+            key: "payment-requests",
+            label: t("app.menu.payment_requests"),
+            icon: <BankOutlined />,
+            href: "/account/payment-requests",
+            hidden: !canViewPaymentRequests,
         },
         {
             key: "meetings",

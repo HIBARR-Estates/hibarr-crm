@@ -1444,6 +1444,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => ':filled / :total ilan alanı dolduruldu',
+            'aria' => ':filled / :total ilan alanı dolduruldu',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Başlık',
