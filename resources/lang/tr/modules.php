@@ -1,7 +1,7 @@
 <?php
 
-return array(
-    'dashboard' => array(
+return [
+    'dashboard' => [
         'totalClients' => 'Toplam Müşteriler',
         'newClients' => 'Yeni Müşteriler',
         'totalEmployees' => 'Toplam Çalışanlar',
@@ -48,8 +48,8 @@ return array(
         'invoicePaid' => 'Ödendi',
         'invoiceOverdue' => 'Gecikmiş',
         'estimateOverview' => 'Tahmin Genel Bakışı',
-    ),
-    'lead' => array(
+    ],
+    'lead' => [
         'leadAdded' => 'Potansiyel müşteri eklendi',
         'leadUpdated' => 'Potansiyel müşteri güncellendi',
         'leadDeleted' => 'Potansiyel müşteri silindi',
@@ -57,42 +57,49 @@ return array(
         'editLead' => 'Potansiyel Müşteri Düzenle',
         'noLeadFound' => 'Potansiyel müşteri bulunamadı',
         'followUp' => 'Toplantılar',
-    ),
-    'deal' => array(
+    ],
+    'deal' => [
         'title' => 'Anlaşma',
         'addDeal' => 'Anlaşma Ekle',
         'editDeal' => 'Anlaşma Düzenle',
         'noDealFound' => 'Anlaşma bulunamadı',
         'dealPipeline' => 'Anlaşma Pipeline\'ı',
         'dealSource' => 'Anlaşma Kaynağı',
-    ),
-    'property' => array(
+    ],
+    'property' => [
         'addProperty' => 'Mülk Ekle',
         'editProperty' => 'Mülk Düzenle',
         'noPropertyFound' => 'Mülk bulunamadı',
         'propertyType' => 'Mülk Türü',
-    ),
-    'task' => array(
+    ],
+    'task' => [
         'addTask' => 'Görev Ekle',
         'editTask' => 'Görevi Düzenle',
         'noTaskFound' => 'Görev bulunamadı',
         'taskStatus' => 'Görev Durumu',
-    ),
-    'messages' => array(
+    ],
+    'messages' => [
         'addedSuccessfully' => 'Başarıyla eklendi',
         'updatedSuccessfully' => 'Başarıyla güncellendi',
         'deletedSuccessfully' => 'Başarıyla silindi',
         'notFound' => 'Bulunamadı',
-    ),
-    'meeting' => array(
+    ],
+    'meeting' => [
         'title' => 'Toplantı',
         'addMeeting' => 'Toplantı Ekle',
         'editMeeting' => 'Toplantıyı Düzenle',
         'noMeetingFound' => 'Toplantı bulunamadı',
-    ),
-    'notification' => array(
+    ],
+    'notification' => [
         'title' => 'Bildirim',
         'noNotificationFound' => 'Bildirim bulunamadı',
         'markAllRead' => 'Tümünü Okundu İşaretle',
-    ),
-);
+    ],
+    'settings' => [
+        'leadMeetingCadence' => 'Lead toplantı hatırlatıcıları',
+        'leadMeetingCadenceDescription' => 'Müşteriye giden (lead) toplantı hatırlatma e-postalarının ne zaman gönderileceğini geçersiz kılar. Katılımcı/kullanıcı hatırlatıcıları kişisel tercihler ve yukarıdaki şirket toplantı varsayılanını kullanmaya devam eder.',
+        'leadMeetingCadenceDeleteHint' => 'Bu geçersiz kılmayı temizlemek, lead alıcıları için şirket toplantı varsayılanını geri yükler.',
+        'leadMeetingCadenceDeleteConfirm' => 'Lead toplantı kadans geçersiz kılmasını temizleyip şirket toplantı varsayılanına dönülsün mü?',
+        'clearLeadMeetingCadence' => 'Geçersiz kılmayı temizle',
+    ],
+];
