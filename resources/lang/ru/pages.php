@@ -1439,6 +1439,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => 'Заполнено :filled из :total полей объявления',
+            'aria' => 'Заполнено :filled из :total полей объявления',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Название',
