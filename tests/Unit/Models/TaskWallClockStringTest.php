@@ -65,4 +65,57 @@ class TaskWallClockStringTest extends TestCase
     {
         $this->assertNull(Task::wallClockString(null));
     }
+
+    /**
+     * `completed_on` is stamped as a bare calendar date, so unlike due_date it
+     * is not an instant to convert out of UTC. Converting it into the viewer
+     * zone rolls it back a day for anyone west of UTC.
+     */
+    public function test_completion_date_string_keeps_its_calendar_date_for_a_western_viewer(): void
+    {
+        app(FeatureFlagService::class)->setTestingOverrides([
+            UserTimezone::FLAG => true,
+        ]);
+
+        $company = new Company(['timezone' => 'Europe/Istanbul']);
+        $user = new User(['timezone' => 'America/New_York']);
+
+        // Stamped as `now()->format('Y-m-d')`, i.e. midnight UTC on the 24th.
+        $stored = Carbon::parse('2026-09-24 00:00:00', 'UTC');
+
+        $this->assertSame(
+            '2026-09-24 00:00:00',
+            Task::completionDateString($stored, $user, $company),
+        );
+
+        // The same instant as a due_date still converts: 00:00 UTC is 20:00
+        // the previous day in New York.
+        $this->assertSame(
+            '2026-09-23 20:00:00',
+            Task::wallClockString($stored, $user, $company),
+        );
+    }
+
+    public function test_completion_date_string_converts_a_value_that_carries_a_time(): void
+    {
+        app(FeatureFlagService::class)->setTestingOverrides([
+            UserTimezone::FLAG => true,
+        ]);
+
+        $company = new Company(['timezone' => 'Europe/Istanbul']);
+        $user = new User(['timezone' => 'America/New_York']);
+
+        // Not midnight, so it is a real instant and converts like due_date.
+        $stored = Carbon::parse('2026-09-24 14:00:00', 'UTC');
+
+        $this->assertSame(
+            '2026-09-24 10:00:00',
+            Task::completionDateString($stored, $user, $company),
+        );
+    }
+
+    public function test_completion_date_string_returns_null_for_missing_date(): void
+    {
+        $this->assertNull(Task::completionDateString(null));
+    }
 }

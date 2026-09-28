@@ -178,11 +178,10 @@ class Task extends BaseModel
      * Naive Y-m-d H:i:s in the viewer's wall clock, for frontend APIs
      * (never ISO-Z — that shifts in browsers).
      *
-     * `due_date` / `start_date` / `completed_on` are true UTC instants: every
-     * live write path runs through {@see UserTimezone::interpretWallClock()},
-     * which is not feature-flagged. The read side must therefore *always*
-     * convert back out of UTC, or a 17:00 save reloads as 14:00 for anyone
-     * west of UTC.
+     * `due_date` / `start_date` are true UTC instants: every live write path
+     * runs through {@see UserTimezone::interpretWallClock()}, which is not
+     * feature-flagged. The read side must therefore *always* convert back out
+     * of UTC, or a 17:00 save reloads as 14:00 for anyone west of UTC.
      *
      * {@see UserTimezone::FLAG} only decides *which* zone to render in — the
      * user's own versus the company default, see
@@ -209,6 +208,36 @@ class Task extends BaseModel
     }
 
     /**
+     * `completed_on` for frontend APIs, same `Y-m-d H:i:s` shape as
+     * {@see wallClockString()}.
+     *
+     * Unlike `due_date`, this column is *not* an instant: every path that sets
+     * it stamps a bare calendar date (`now()->format('Y-m-d')`), so there is
+     * nothing to convert out of UTC. Converting one anyway rolls the date back
+     * a day for anyone west of UTC — a task completed on the 24th would read
+     * as the 23rd. Values that do carry a real time are converted as before.
+     */
+    public static function completionDateString(
+        ?DateTimeInterface $date,
+        ?User $user = null,
+        ?Company $company = null,
+    ): ?string {
+        if (! $date) {
+            return null;
+        }
+
+        $completedOn = Carbon::instance($date);
+
+        // Midnight in the storage basis is what a date-only stamp looks like
+        // once the datetime cast has run on it.
+        if ($completedOn->format('H:i:s') === '00:00:00') {
+            return $completedOn->format('Y-m-d H:i:s');
+        }
+
+        return self::wallClockString($completedOn, $user, $company);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toFrontendArray(): array
@@ -216,7 +245,7 @@ class Task extends BaseModel
         $data = $this->toArray();
         $data['due_date'] = self::wallClockString($this->due_date);
         $data['start_date'] = self::wallClockString($this->start_date);
-        $data['completed_on'] = self::wallClockString($this->completed_on);
+        $data['completed_on'] = self::completionDateString($this->completed_on);
 
         return $data;
     }

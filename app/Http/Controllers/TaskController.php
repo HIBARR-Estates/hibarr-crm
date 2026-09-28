@@ -331,13 +331,15 @@ class TaskController extends AccountBaseController
                     return ($task->boardColumn->slug ?? '') === 'done';
                 })->count(),
                 'overdue' => $kanbanTasks->filter(function ($task) {
-                    // Both sides are converted to the viewer wall clock
-                    // (Task::wallClockString / TaskWallClock::nowDateTimeString),
-                    // so the string compare orders instants correctly. Comparing
-                    // the raw UTC column against a local "now" would flag tasks
-                    // overdue by up to a full day early.
+                    // Instants, not wall-clock digits. `due_date` is a UTC
+                    // instant, so comparing it against now() is the same answer
+                    // as the wall-clock string compare everywhere except the
+                    // repeated hour a DST fall-back produces, where one local
+                    // time stands for two instants and the digits cannot tell
+                    // them apart. Same basis as the redesign counts, which go
+                    // through TaskWallClock::utcNowDateTimeString() in SQL.
                     return $task->due_date
-                        && Task::wallClockString($task->due_date) < TaskWallClock::nowDateTimeString()
+                        && $task->due_date->lt(now())
                         && ($task->boardColumn->slug ?? '') !== 'done';
                 })->count(),
                 'dueToday' => $kanbanTasks->filter(function ($task) {
@@ -1874,11 +1876,17 @@ class TaskController extends AccountBaseController
             return Reply::error(__('messages.permissionDenied'));
         }
 
+        // The date posted here was read off a row rendered by
+        // Task::wallClockString, so it has to be interpreted in the same
+        // basis it was displayed in: the user zone when crm.user-timezone is
+        // on, the company zone when it is off. forWrite() would always use the
+        // user's own zone and store an instant shifted by the difference.
         $task->due_date = UserTimezone::interpretWallClock(
             user(),
             company(),
             $request->due_date.' '.($request->due_time ?: '17:00'),
             'Y-m-d H:i',
+            UserTimezone::forViewer(user(), company()),
         );
         $task->save();
 

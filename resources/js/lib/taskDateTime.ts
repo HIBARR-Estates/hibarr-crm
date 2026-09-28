@@ -133,12 +133,28 @@ export function toDateInputValue(value: string | null | undefined): string {
     return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
-/** `HH:mm` for `<input type="time">` from a task datetime string. */
+/**
+ * `HH:mm` for `<input type="time">` from a task datetime string.
+ *
+ * Read straight off the string: parseTaskDateTime builds a `Date` in the
+ * browser's own zone, which normalises a wall-clock time that does not exist
+ * locally (a DST spring-forward hour) to the next valid one — the form would
+ * then show, and save, an hour the task was never due at.
+ */
 export function toTimeInputValue(
     value: string | null | undefined,
     fallback = "17:00",
 ): string {
-    const date = parseTaskDateTime(value);
-    if (!date) return fallback;
-    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    if (!value) return fallback;
+    const match = String(value).trim().match(WALL_CLOCK);
+    if (!match) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+            ? fallback
+            : `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    }
+    // The regex matches two digits per group, so the defaults only stand in for
+    // a date-only value, which carries no time at all.
+    const [, , , , hour = "00", minute = "00"] = match;
+    return `${hour}:${minute}`;
 }
