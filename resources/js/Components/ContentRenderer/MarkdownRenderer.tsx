@@ -77,8 +77,27 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             "th",
             "hr",
         ],
-        ALLOWED_ATTR: ["href", "target", "src", "alt", "title", "class"],
+        ALLOWED_ATTR: ["href", "target", "src", "alt", "title", "class", "rel"],
         ALLOW_DATA_ATTR: false,
+        // target="_blank" without rel hands the new tab a window.opener
+        // reference back to this one; DOMPurify drops noopener on its own.
+        ADD_ATTR: ["target"],
+        ADD_TAGS: [],
+        FORBID_TAGS: ["style"],
+        FORBID_ATTR: ["style"],
+        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    });
+
+    // Same for the sanitize pass above: attach rel after the fact so a
+    // sanitized markdown link can't be used to reach window.opener.
+    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+        if (
+            node.tagName === "A" &&
+            node.getAttribute("target") === "_blank" &&
+            !node.getAttribute("rel")
+        ) {
+            node.setAttribute("rel", "noopener noreferrer");
+        }
     });
 
     return (

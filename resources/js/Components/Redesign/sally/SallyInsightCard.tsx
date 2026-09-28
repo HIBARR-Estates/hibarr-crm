@@ -233,22 +233,29 @@ export default function SallyInsightCard({
         setEditing(false);
     };
 
+    // Stay in edit mode until the server accepts: a failed save would
+    // otherwise discard whatever the user just typed.
+    const closeEditor = () => setEditing(false);
+
     const saveSummary = () => {
         const next = draft.trim();
-        setEditing(false);
+        const current = summaryToEditorHtml(insight.summary);
 
         if (asText(next) === "") {
-            if (asText(summaryToEditorHtml(insight.summary)) !== "") {
-                updateSummary(null);
+            if (asText(current) !== "") {
+                updateSummary(null, closeEditor);
+            } else {
+                closeEditor();
             }
             return;
         }
 
-        if (asText(next) === asText(summaryToEditorHtml(insight.summary))) {
+        if (asText(next) === asText(current)) {
+            closeEditor();
             return;
         }
 
-        updateSummary(next);
+        updateSummary(next, closeEditor);
     };
 
     return (

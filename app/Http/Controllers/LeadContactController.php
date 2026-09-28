@@ -2208,15 +2208,17 @@ class LeadContactController extends AccountBaseController
 
         if ($lead) {
             $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
-            $canEdit = PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules)['canAccess'];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
         }
 
         if (! $canEdit && $deal) {
+            // Write gate: watchers may read a deal but never write to it, so
+            // this uses hasTeamMemberAccess() rather than isVisibleToUser().
             $dealRules = [
                 'added' => 'added_by',
-                'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+                'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
             ];
-            $canEdit = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules)['canAccess'];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
         }
 
         abort_403(! $canEdit);

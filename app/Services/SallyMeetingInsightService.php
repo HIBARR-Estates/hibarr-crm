@@ -11,6 +11,18 @@ use Illuminate\Support\Collection as SupportCollection;
 
 class SallyMeetingInsightService
 {
+    private static ?\HTMLPurifier $summaryPurifier = null;
+
+    /**
+     * Tags a summary must never contain. Everything else the default
+     * definitions allow (the formatting tags) is kept.
+     */
+    private const SUMMARY_FORBIDDEN_TAGS = [
+        'img', 'iframe', 'object', 'embed', 'applet', 'audio', 'video',
+        'svg', 'math', 'style', 'script', 'form', 'input', 'button',
+        'select', 'textarea', 'table', 'h5', 'h6', 'marquee', 'frame',
+    ];
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -146,13 +158,53 @@ class SallyMeetingInsightService
      */
     public static function sanitizeSummary(string $html): string
     {
-        $clean = strip_tags($html, '<p><br><b><strong><i><em><u><s><ul><ol><li><h1><h2><h3><h4><blockquote><code><pre><a><span><div>');
+        if (trim($html) === '') {
+            return '';
+        }
 
-        // Drop event handlers and javascript: URLs that survive strip_tags.
-        $clean = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? '';
-        $clean = preg_replace('/(href|src)\s*=\s*("|\')?\s*javascript:[^"\'>\s]*("|\')?/i', '', $clean) ?? '';
+        try {
+            $clean = self::summaryPurifier()->purify($html);
+        } catch (\ErrorException) {
+            // HTMLPurifier warns when it can't write its definition cache.
+            self::$summaryPurifier = new \HTMLPurifier(self::summaryConfig(false));
+            $clean = self::$summaryPurifier->purify($html);
+        }
 
         return trim($clean);
+    }
+
+    private static function summaryPurifier(): \HTMLPurifier
+    {
+        return self::$summaryPurifier ??= new \HTMLPurifier(self::summaryConfig(true));
+    }
+
+    private static function summaryConfig(bool $useCache): \HTMLPurifier_Config
+    {
+        $config = \HTMLPurifier_Config::createDefault();
+        $cachePath = storage_path('framework/cache/htmlpurifier');
+
+        if ($useCache && (is_dir($cachePath) || @mkdir($cachePath, 0755, true)) && is_writable($cachePath)) {
+            $config->set('Cache.SerializerPath', $cachePath);
+        } else {
+            $config->set('Cache.DefinitionImpl', null);
+        }
+
+        $config->set('HTML.DefinitionID', 'sally-summary');
+        $config->set('HTML.DefinitionRev', 1);
+        $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true]);
+        $config->set('Attr.AllowedFrameTargets', ['_blank']);
+        $config->set('HTML.SafeIframe', false);
+        $config->set('AutoFormat.RemoveEmpty', false);
+
+        // Formatting only. HTML.Allowed is avoided deliberately: it strips the
+        // elements AND resets the attribute definitions, which would leave
+        // anchors without href. Forbidding the tags the summary must not
+        // contain keeps the default (complete) attribute sets intact.
+        $config->set('HTML.ForbiddenElements', implode(',', self::SUMMARY_FORBIDDEN_TAGS));
+        // The editor's toolbar can set colour, background and alignment.
+        $config->set('CSS.AllowedProperties', 'color,background-color,background,font-weight,font-style,text-align,text-decoration');
+
+        return $config;
     }
 
     public function meetingBelongsToCompany(int $companyId, int $meetingFollowUpId): ?DealFollowUp

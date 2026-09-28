@@ -34,6 +34,7 @@ use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -1801,15 +1802,51 @@ class CrmWriteService
                 return ['insight' => $existing->fresh(['meetingFollowUp']), 'created' => false];
             }
 
-            $insight = SallyMeetingInsight::create(array_merge($content, [
-                'company_id' => $companyId,
-                'meeting_follow_up_id' => $meetingFollowUpId,
-                'lead_id' => $leadId,
-                'deal_id' => $dealId,
-            ]));
+            try {
+                $insight = SallyMeetingInsight::create(array_merge($content, [
+                    'company_id' => $companyId,
+                    'meeting_follow_up_id' => $meetingFollowUpId,
+                    'lead_id' => $leadId,
+                    'deal_id' => $dealId,
+                ]));
+            } catch (QueryException $e) {
+                // Two concurrent first writes for the same meeting both miss
+                // the lookup above; the loser hits the unique key. Re-read and
+                // apply as an update so the caller gets 200, not a 500.
+                if (! $this->isUniqueConstraintViolation($e)) {
+                    throw $e;
+                }
+
+                $winner = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+                    ->where('company_id', $companyId)
+                    ->where('meeting_follow_up_id', $meetingFollowUpId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $winner) {
+                    throw $e;
+                }
+
+                $winner->fill(array_merge($content, [
+                    'lead_id' => $leadId ?? $winner->lead_id,
+                    'deal_id' => $dealId ?? $winner->deal_id,
+                ]));
+                $winner->save();
+
+                return ['insight' => $winner->fresh(['meetingFollowUp']), 'created' => false];
+            }
 
             return ['insight' => $insight->load('meetingFollowUp'), 'created' => true];
         });
+    }
+
+    private function isUniqueConstraintViolation(QueryException $e): bool
+    {
+        if ($e->getCode() === '23000' || $e->getCode() === 23000) {
+            return true;
+        }
+
+        return str_contains(strtolower($e->getMessage()), 'unique constraint');
     }
 
     /**

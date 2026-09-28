@@ -32,8 +32,13 @@ export default function useSallyInsightMutations(
         ApiResponse<Partial<SallyMeetingInsight>>
     >(route("sally-insights.update", insightId), "PATCH");
 
+    /**
+     * `onSaved` fires only once the server has accepted the value, so the
+     * caller can keep the editor open (with the user's text intact) for the
+     * whole request and through any failure.
+     */
     const updateSummary = useCallback(
-        (summary: string | null) => {
+        (summary: string | null, onSaved?: () => void) => {
             if (!insightId) return;
             updateMutate(
                 { summary },
@@ -45,7 +50,17 @@ export default function useSallyInsightMutations(
                                 t("pages.deals.sally.messages.updated"),
                             );
                             patch(insightId, response.data?.summary ?? summary);
+                            onSaved?.();
+                            return;
                         }
+
+                        // A validation/permission failure comes back as a
+                        // resolved response, not a thrown error, so it has to
+                        // be handled here or the editor would close on a save
+                        // that never happened.
+                        message.error(
+                            t("pages.deals.sally.messages.update_failed"),
+                        );
                     },
                     onError: () => {
                         message.error(

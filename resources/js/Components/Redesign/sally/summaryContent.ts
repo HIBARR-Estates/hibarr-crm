@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import type { Config } from "dompurify";
 
 const HTML_TAG = /<\/?[a-z][\s\S]*>/i;
 const MARKDOWN = /(\*\*[^*]+\*\*|^\s*[-*+]\s|^\s*#{1,6}\s|^\s*>\s|\[[^\]]+\]\([^)]+\))/m;
@@ -56,40 +57,42 @@ export function summaryToEditorHtml(
         return "";
     }
 
-    if (HTML_TAG.test(normalized)) {
-        return normalized;
-    }
+    const html = HTML_TAG.test(normalized)
+        ? normalized
+        : (marked.parse(normalized, {
+              breaks: true,
+              gfm: true,
+          }) as string);
 
-    const html = marked.parse(normalized, {
-        breaks: true,
-        gfm: true,
-    }) as string;
-
-    return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: [
-            "p",
-            "br",
-            "strong",
-            "b",
-            "em",
-            "i",
-            "u",
-            "s",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "blockquote",
-            "ul",
-            "ol",
-            "li",
-            "a",
-            "span",
-            "div",
-            "code",
-            "pre",
-        ],
-        ALLOWED_ATTR: ["href", "target"],
-        ALLOW_DATA_ATTR: false,
-    });
+    // Both paths go through the same allow-list, so stored HTML can't smuggle
+    // markup into Quill that the markdown path would have stripped.
+    return DOMPurify.sanitize(html, SUMMARY_ALLOWED);
 }
+
+const SUMMARY_ALLOWED: Config = {
+    ALLOWED_TAGS: [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "blockquote",
+        "ul",
+        "ol",
+        "li",
+        "a",
+        "span",
+        "div",
+        "code",
+        "pre",
+    ],
+    ALLOWED_ATTR: ["href", "target", "rel"],
+    ALLOW_DATA_ATTR: false,
+};

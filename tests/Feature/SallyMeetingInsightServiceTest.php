@@ -98,6 +98,40 @@ class SallyMeetingInsightServiceTest extends TestCase
         $this->assertStringNotContainsString('javascript:', $clean);
     }
 
+    public function test_sanitize_summary_blocks_unsafe_uris_and_media_elements(): void
+    {
+        $clean = SallyMeetingInsightService::sanitizeSummary(
+            '<p><img src="x" onerror="alert(1)"></p>'
+            .'<a href="data:text/html,<script>alert(1)</script>">d</a>'
+            .'<iframe src="https://evil.test"></iframe>'
+            .'<a href="https://ok.test" target="_blank">ok</a>'
+            .'<a href="mailto:a@b.test">mail</a>',
+        );
+
+        $this->assertStringNotContainsString('<img', $clean);
+        $this->assertStringNotContainsString('<iframe', $clean);
+        $this->assertStringNotContainsString('data:', $clean);
+        // http/https/mailto links and target=_blank survive.
+        $this->assertStringContainsString('https://ok.test', $clean);
+        $this->assertStringContainsString('mailto:a@b.test', $clean);
+        $this->assertStringContainsString('_blank', $clean);
+    }
+
+    public function test_sanitize_summary_keeps_the_editors_formatting_attributes(): void
+    {
+        $clean = SallyMeetingInsightService::sanitizeSummary(
+            '<p class="ql-align-center">centered</p>'
+            .'<ul><li><strong>bold</strong></li><li><em>italic</em></li></ul>'
+            .'<blockquote><p>quote</p></blockquote>',
+        );
+
+        $this->assertStringContainsString('<strong>bold</strong>', $clean);
+        $this->assertStringContainsString('<em>italic</em>', $clean);
+        $this->assertStringContainsString('<li>', $clean);
+        $this->assertStringContainsString('<blockquote>', $clean);
+        $this->assertStringContainsString('ql-align-center', $clean);
+    }
+
     public function test_serializer_exposes_the_meeting_timezone(): void
     {
         $leadId = $this->makeLead();

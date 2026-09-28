@@ -1116,11 +1116,14 @@ class DealController extends AccountBaseController
     public function updateDealSallyInsight(Request $request, $dealId, $insight)
     {
         $deal = Deal::findOrFail($dealId);
+        // Write gate, same as DealController::update and DealPaymentController:
+        // agent/participant/creator scopes only — watchers can read a deal but
+        // never write to it, so isVisibleToUser() would be too permissive here.
         $dealRules = [
             'added' => 'added_by',
-            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
-        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
         abort_403(! $access['canAccess']);
 
         $data = $request->validate([
