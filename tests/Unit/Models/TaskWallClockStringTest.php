@@ -18,7 +18,7 @@ class TaskWallClockStringTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_wall_clock_string_shifts_to_viewer_timezone_when_user_timezone_flag_is_on(): void
+    public function test_wall_clock_string_shifts_to_user_timezone_when_user_timezone_flag_is_on(): void
     {
         app(FeatureFlagService::class)->setTestingOverrides([
             UserTimezone::FLAG => true,
@@ -36,14 +36,33 @@ class TaskWallClockStringTest extends TestCase
         );
     }
 
-    public function test_wall_clock_string_keeps_stored_digits_when_user_timezone_flag_is_off(): void
+    /**
+     * The write side is not flag-gated — TaskService::createTask/updateTask and
+     * TaskController@reschedule always persist UTC via interpretWallClock() —
+     * so the read side has to convert regardless of the flag or a 17:00 save
+     * reloads as 14:00 for anyone not on UTC.
+     */
+    public function test_wall_clock_string_still_converts_to_company_timezone_when_flag_is_off(): void
     {
         app(FeatureFlagService::class)->setTestingOverrides([
             UserTimezone::FLAG => false,
         ]);
 
+        $company = new Company(['timezone' => 'Europe/Istanbul']);
+        // Flag off means the user's own timezone is ignored, but the company
+        // timezone is still applied to the stored UTC instant.
+        $user = new User(['timezone' => 'America/New_York']);
+
         $stored = Carbon::parse('2026-09-24 14:00:00', 'UTC');
 
-        $this->assertSame('2026-09-24 14:00:00', Task::wallClockString($stored));
+        $this->assertSame(
+            '2026-09-24 17:00:00',
+            Task::wallClockString($stored, $user, $company),
+        );
+    }
+
+    public function test_wall_clock_string_returns_null_for_missing_date(): void
+    {
+        $this->assertNull(Task::wallClockString(null));
     }
 }

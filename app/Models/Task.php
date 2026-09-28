@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Helper\UserService;
-use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use DateTimeInterface;
 
@@ -176,12 +175,19 @@ class Task extends BaseModel
     const CUSTOM_FIELD_MODEL = 'App\Models\Task';
 
     /**
-     * Naive Y-m-d H:i:s for frontend APIs (never ISO-Z — that shifts in browsers).
+     * Naive Y-m-d H:i:s in the viewer's wall clock, for frontend APIs
+     * (never ISO-Z — that shifts in browsers).
      *
-     * With {@see UserTimezone::FLAG}, values are stored as UTC instants from
-     * {@see UserTimezone::interpretWallClock()} and must be formatted in the
-     * viewer timezone so 17:00 saved does not reload as 14:00 UTC digits.
-     * Legacy rows (flag off) keep the stored clock face in app timezone.
+     * `due_date` / `start_date` / `completed_on` are true UTC instants: every
+     * live write path runs through {@see UserTimezone::interpretWallClock()},
+     * which is not feature-flagged. The read side must therefore *always*
+     * convert back out of UTC, or a 17:00 save reloads as 14:00 for anyone
+     * west of UTC.
+     *
+     * {@see UserTimezone::FLAG} only decides *which* zone to render in — the
+     * user's own versus the company default, see
+     * {@see UserTimezone::forViewer()} — never whether to convert at all.
+     * Gating the conversion on it is what desynced reads from writes.
      */
     public static function wallClockString(
         ?DateTimeInterface $date,
@@ -192,20 +198,14 @@ class Task extends BaseModel
             return null;
         }
 
-        $carbon = Carbon::instance($date);
+        $user ??= function_exists('user') ? user() : null;
+        $company ??= function_exists('company') ? company() : null;
+        $company = is_object($company) ? $company : null;
 
-        if (FeatureFlags::enabled(UserTimezone::FLAG)) {
-            $user ??= function_exists('user') ? user() : null;
-            $company ??= function_exists('company') ? company() : null;
-            $company = is_object($company) ? $company : null;
-
-            return $carbon
-                ->copy()
-                ->timezone(UserTimezone::forViewer($user, $company))
-                ->format('Y-m-d H:i:s');
-        }
-
-        return $carbon->format('Y-m-d H:i:s');
+        return Carbon::instance($date)
+            ->copy()
+            ->timezone(UserTimezone::forViewer($user, $company))
+            ->format('Y-m-d H:i:s');
     }
 
     /**

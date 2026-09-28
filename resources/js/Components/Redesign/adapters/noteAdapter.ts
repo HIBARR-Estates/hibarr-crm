@@ -41,7 +41,12 @@ function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
-/** True when Quill/HTML note body has visible text (not just empty `<p><br></p>`). */
+/**
+ * Single source of truth for "does this note body count as non-empty?".
+ * Backs both the AddNoteModal save-button/dirty state and the create-note
+ * hooks' server-boundary check, so the two can never disagree about what
+ * counts as empty rich text. Changing that definition belongs here only.
+ */
 export function hasNoteBodyHtml(html: string): boolean {
     return stripHtml(html).length > 0;
 }

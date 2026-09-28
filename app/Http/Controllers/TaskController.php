@@ -208,10 +208,7 @@ class TaskController extends AccountBaseController
 
         $createdRange = $this->taskFilterDateRange('created_date_range', 'created_start_date', 'created_end_date');
         if ($createdRange !== null) {
-            $tasksQuery->whereBetween(
-                'created_at',
-                TaskWallClock::utcInstantDayBounds($createdRange),
-            );
+            $tasksQuery->whereBetween('created_at', TaskWallClock::dayBounds($createdRange));
         }
 
         if ($applyQuickFilter && \App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
@@ -334,6 +331,11 @@ class TaskController extends AccountBaseController
                     return ($task->boardColumn->slug ?? '') === 'done';
                 })->count(),
                 'overdue' => $kanbanTasks->filter(function ($task) {
+                    // Both sides are converted to the viewer wall clock
+                    // (Task::wallClockString / TaskWallClock::nowDateTimeString),
+                    // so the string compare orders instants correctly. Comparing
+                    // the raw UTC column against a local "now" would flag tasks
+                    // overdue by up to a full day early.
                     return $task->due_date
                         && Task::wallClockString($task->due_date) < TaskWallClock::nowDateTimeString()
                         && ($task->boardColumn->slug ?? '') !== 'done';
@@ -2578,11 +2580,13 @@ class TaskController extends AccountBaseController
                 $query->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
                 break;
             case 'today':
-                $query->whereDate('due_date', TaskWallClock::todayDateString());
+                // `due_date` is a UTC instant, so "today" has to be bounded in
+                // UTC — a viewer-day filter is not a single DATE() match.
+                $query->whereBetween('due_date', TaskWallClock::utcTodayBounds());
                 break;
             case 'overdue':
                 $query->whereNotNull('due_date')
-                    ->where('due_date', '<', TaskWallClock::nowDateTimeString())
+                    ->where('due_date', '<', TaskWallClock::utcNowDateTimeString())
                     ->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
                 break;
             case 'mentioned':
