@@ -1,44 +1,41 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { App } from "antd";
-import type { TableColumnsType } from "antd";
 import axios from "axios";
-import { Link, router } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import "@/Components/Redesign/redesign.css";
-import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
+import { REDESIGN_FONT_STACK, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import EntityListHeader from "@/Components/Redesign/primitives/EntityListHeader";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
-import Badge from "@/Components/Redesign/primitives/Badge";
-import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
-import { DataTable } from "@/Components/DataTable";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Pagination from "@/Components/Redesign/primitives/Pagination";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
-import {
-    paymentUiStateLabel,
-    paymentUiStateBadgeVariant,
-} from "@/Components/Redesign/adapters/dealPaymentUiState";
-import { formatMoneyAmount } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealPaymentRequest, DealPaymentUiState } from "@/Types/api/deal-payment";
-
-interface PaymentRequestRow extends DealPaymentRequest {
-    deal: { id: number; name: string | null; url: string } | null;
-    agent_name: string | null;
-    currency_symbol: string | null;
-}
+import PaymentRequestRow, {
+    type PaymentRequestListRow,
+} from "./components/PaymentRequestRow";
+import PaymentRequestsListHeader from "./components/PaymentRequestsListHeader";
 
 interface PaginatedPaymentRequests extends LaravelPaginationMeta {
-    data: PaymentRequestRow[];
+    data: PaymentRequestListRow[];
 }
+
+type StatusTab = "" | DealPaymentUiState;
 
 interface IndexProps extends PageProps {
     pageTitle: string;
     paymentRequests: PaginatedPaymentRequests;
     filters: { ui_state?: string };
+    /** Deferred: absent on first paint, filled in right after. */
+    counts?: Partial<Record<"all" | DealPaymentUiState, number>>;
 }
 
 const UI_STATES: DealPaymentUiState[] = [
@@ -48,6 +45,7 @@ const UI_STATES: DealPaymentUiState[] = [
     "paid_online",
     "confirmed",
     "failed",
+    "invalidated",
 ];
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -59,32 +57,51 @@ function apiErrorMessage(error: unknown, fallback: string): string {
     );
 }
 
-const Index = ({ paymentRequests, filters }: IndexProps) => {
+/**
+ * Deal payment requests across the company, styled after the Meetings
+ * workspace: the shared list header with status tabs, a bordered list with
+ * its own column heading row, and the redesign pager beneath it.
+ */
+const Index = ({ paymentRequests, filters, counts }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
+    const companyCurrency = useCompanyCurrency();
 
-    const [rows, setRows] = useState<PaymentRequestRow[]>(paymentRequests.data);
+    // Local copy so a confirm can patch its row in place, no reload.
+    const [rows, setRows] = useState<PaymentRequestListRow[]>(paymentRequests.data);
     useEffect(() => setRows(paymentRequests.data), [paymentRequests.data]);
 
-    const [confirmingRow, setConfirmingRow] = useState<PaymentRequestRow | null>(null);
+    const [confirmingRow, setConfirmingRow] = useState<PaymentRequestListRow | null>(null);
     const [confirming, setConfirming] = useState(false);
 
-    const handleFilterChange = (uiState: string) => {
+    const activeTab = (filters.ui_state ?? "") as StatusTab;
+
+    const visit = (params: Record<string, unknown>) => {
         router.get(
             route("payment-requests.index"),
-            { ui_state: uiState || undefined, page: 1 },
-            { only: ["paymentRequests", "filters"], preserveState: true, preserveScroll: true, replace: true },
+            {
+                ui_state: activeTab || undefined,
+                per_page: paymentRequests.per_page,
+                ...params,
+            },
+            {
+                only: ["paymentRequests", "filters"],
+                preserveState: true,
+                preserveScroll: true,
+            },
         );
     };
 
-    const handlePageChange = (page: number) => {
-        router.get(
-            route("payment-requests.index"),
-            { ui_state: filters.ui_state, page, per_page: paymentRequests.per_page },
-            { only: ["paymentRequests"], preserveState: true, preserveScroll: true },
-        );
-    };
+    const { refresh, isRefreshing } = usePageRefresh({
+        onRefresh: () =>
+            new Promise<void>((resolve) => {
+                router.reload({
+                    only: ["paymentRequests", "counts"],
+                    onFinish: () => resolve(),
+                });
+            }),
+    });
 
     const handleConfirm = async () => {
         if (!confirmingRow) return;
@@ -98,110 +115,31 @@ const Index = ({ paymentRequests, filters }: IndexProps) => {
                 setRows((prev) =>
                     prev.map((r) => (r.id === confirmingRow.id ? { ...r, ...updated } : r)),
                 );
-                message.success(td("Bank transfer confirmed.", { source: "en" }));
+                message.success(t("pages.payment_requests.confirmed_toast"));
                 setConfirmingRow(null);
             } else {
                 message.error(
-                    response.data?.message ?? td("Unable to confirm transfer.", { source: "en" }),
+                    response.data?.message ?? t("pages.payment_requests.confirm_failed"),
                 );
             }
         } catch (error) {
-            message.error(apiErrorMessage(error, td("Unable to confirm transfer.", { source: "en" })));
+            message.error(apiErrorMessage(error, t("pages.payment_requests.confirm_failed")));
         } finally {
             setConfirming(false);
         }
     };
 
-    const columns: TableColumnsType<PaymentRequestRow> = [
+    const tabOptions = [
         {
-            title: td("Deal", { source: "en" }),
-            key: "deal",
-            render: (_, record) =>
-                record.deal ? (
-                    <Link href={record.deal.url} className="font-medium">
-                        {record.deal.name}
-                    </Link>
-                ) : (
-                    <span className="text-gray-400">—</span>
-                ),
+            value: "" as StatusTab,
+            label: td("All", { source: "en" }),
+            count: counts?.all,
         },
-        {
-            title: td("Amount", { source: "en" }),
-            key: "amount",
-            render: (_, record) =>
-                formatMoneyAmount(record.amount, {
-                    code: record.currency ?? "",
-                    symbol: record.currency_symbol || record.currency || "",
-                }),
-        },
-        {
-            title: td("Status", { source: "en" }),
-            key: "status",
-            render: (_, record) => (
-                <Badge variant={paymentUiStateBadgeVariant(record.ui_state)}>
-                    {td(paymentUiStateLabel(record.ui_state), { source: "en" })}
-                </Badge>
-            ),
-        },
-        {
-            title: td("Method", { source: "en" }),
-            key: "gateway",
-            render: (_, record) => record.gateway ?? <span className="text-gray-400">—</span>,
-        },
-        {
-            title: td("Agent", { source: "en" }),
-            key: "agent",
-            render: (_, record) => record.agent_name ?? <span className="text-gray-400">—</span>,
-        },
-        {
-            title: td("Created", { source: "en" }),
-            key: "created_at",
-            render: (_, record) =>
-                record.created_at ? formatCompanyDateTime(record.created_at) : "—",
-        },
-        {
-            title: td("Updated", { source: "en" }),
-            key: "updated_at",
-            render: (_, record) =>
-                record.updated_at ? formatCompanyDateTime(record.updated_at) : "—",
-        },
-        {
-            title: td("Actions", { source: "en" }),
-            key: "actions",
-            render: (_, record) => (
-                <div className="flex items-center gap-2">
-                    {record.proof_url && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<Icon name="file-text" size={12} />}
-                            onClick={() => window.open(record.proof_url!, "_blank", "noreferrer")}
-                        >
-                            {td("Proof", { source: "en" })}
-                        </Button>
-                    )}
-                    {record.show_checkout_url && record.checkout_url && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<Icon name="external-link" size={12} />}
-                            onClick={() => window.open(record.checkout_url!, "_blank", "noreferrer")}
-                        >
-                            {td("Checkout", { source: "en" })}
-                        </Button>
-                    )}
-                    {record.can_confirm && (
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setConfirmingRow(record)}
-                        >
-                            {td("Confirm transfer", { source: "en" })}
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
+        ...UI_STATES.map((uiState) => ({
+            value: uiState as StatusTab,
+            label: td(paymentUiStateLabel(uiState), { source: "en" }),
+            count: counts?.[uiState],
+        })),
     ];
 
     return (
@@ -213,62 +151,107 @@ const Index = ({ paymentRequests, filters }: IndexProps) => {
             >
                 <EntityListHeader
                     title={t("app.menu.payment_requests")}
-                    subtitle={`${paymentRequests.total.toLocaleString()} ${td("payment requests", { source: "en" })}`}
+                    subtitle={t("pages.payment_requests.subtitle", {
+                        count: paymentRequests.total.toLocaleString(),
+                    })}
+                    sticky
+                    actions={
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-ghost"
+                            onClick={refresh}
+                            disabled={isRefreshing}
+                        >
+                            <Icon
+                                name="refresh"
+                                size={13}
+                                className={isRefreshing ? "animate-spin" : undefined}
+                            />
+                            {t("pages.payment_requests.refresh")}
+                        </button>
+                    }
                     toolbarLeft={
-                        <Segmented
-                            value={filters.ui_state ?? ""}
-                            onChange={handleFilterChange}
-                            options={[
-                                { value: "", label: td("All", { source: "en" }) },
-                                ...UI_STATES.map((uiState) => ({
-                                    value: uiState,
-                                    label: td(paymentUiStateLabel(uiState), { source: "en" }),
-                                })),
-                            ]}
+                        <Segmented<StatusTab>
+                            value={activeTab}
+                            onChange={(tab) => visit({ ui_state: tab || undefined, page: 1 })}
+                            ariaLabel={t("pages.payment_requests.filter_label")}
+                            options={tabOptions}
                         />
                     }
                 />
 
                 <div
-                    className="max-w-screen-2xl mx-auto space-y-4 px-6 py-6"
+                    className="mx-auto w-full max-w-screen-2xl px-6 py-6"
                     style={{ fontFamily: REDESIGN_FONT_STACK }}
                 >
-                    <DataTable<PaymentRequestRow>
-                        columns={columns}
-                        dataSource={rows}
-                        rowKey="id"
-                        containerClassName="payment-requests-table"
-                        paginationData={{
-                            current_page: paymentRequests.current_page,
-                            last_page: paymentRequests.last_page,
-                            per_page: paymentRequests.per_page,
-                            total: paymentRequests.total,
-                            from: paymentRequests.from,
-                            to: paymentRequests.to,
-                        }}
-                        onPageChange={handlePageChange}
-                        emptyState={{
-                            title: td("No payment requests", { source: "en" }),
-                            description: td(
-                                "Deal payment requests will appear here once created.",
-                                { source: "en" },
-                            ),
-                        }}
-                        scroll={{ x: "max-content", y: "calc(100vh - 280px)" }}
-                        size="small"
-                    />
+                    {rows.length === 0 ? (
+                        <>
+                            <EmptyState
+                                icon="wallet"
+                                title={t("pages.payment_requests.empty_title")}
+                                description={
+                                    activeTab
+                                        ? t("pages.payment_requests.empty_filtered")
+                                        : t("pages.payment_requests.empty_description")
+                                }
+                            />
+                            {/* An empty page past the first still needs the
+                                pager, or there's no way back. */}
+                            {paymentRequests.total > 0 && (
+                                <Pagination
+                                    page={paymentRequests.current_page}
+                                    pageSize={paymentRequests.per_page}
+                                    totalItems={paymentRequests.total}
+                                    onPageChange={(page) => visit({ page })}
+                                    onPageSizeChange={(size) => visit({ per_page: size, page: 1 })}
+                                    itemLabel="payment request"
+                                    itemLabelPlural="payment requests"
+                                />
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <div
+                                style={{
+                                    background: T.WHITE,
+                                    border: `1px solid ${T.BORDER}`,
+                                    // Square at the bottom: the pager sits
+                                    // directly beneath and the two read as one.
+                                    borderRadius: "10px 10px 0 0",
+                                    borderBottom: "none",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                <PaymentRequestsListHeader />
+                                {rows.map((row) => (
+                                    <PaymentRequestRow
+                                        key={row.id}
+                                        row={row}
+                                        companyCurrency={companyCurrency}
+                                        onConfirm={() => setConfirmingRow(row)}
+                                    />
+                                ))}
+                            </div>
+                            <Pagination
+                                page={paymentRequests.current_page}
+                                pageSize={paymentRequests.per_page}
+                                totalItems={paymentRequests.total}
+                                onPageChange={(page) => visit({ page })}
+                                onPageSizeChange={(size) => visit({ per_page: size, page: 1 })}
+                                itemLabel="payment request"
+                                itemLabelPlural="payment requests"
+                            />
+                        </>
+                    )}
                 </div>
             </PageLayout>
 
             <ConfirmDialog
                 open={!!confirmingRow}
-                title={td("Confirm bank transfer?", { source: "en" })}
-                message={td(
-                    "Confirm that the customer's bank transfer proof has been reviewed and approved.",
-                    { source: "en" },
-                )}
-                confirmLabel={td("Yes, confirm", { source: "en" })}
-                cancelLabel={td("Cancel", { source: "en" })}
+                title={t("pages.payment_requests.confirm_title")}
+                message={t("pages.payment_requests.confirm_message")}
+                confirmLabel={t("pages.payment_requests.confirm_yes")}
+                cancelLabel={t("pages.payment_requests.cancel")}
                 confirmLoading={confirming}
                 onConfirm={() => void handleConfirm()}
                 onCancel={() => setConfirmingRow(null)}

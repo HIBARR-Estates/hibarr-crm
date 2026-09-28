@@ -8,6 +8,10 @@ import {
     type WorkspaceOfferApplicationItem,
 } from "../../adapters/offerApplicationAdapter";
 import useDealOffers from "../../hooks/useDealOffers";
+import {
+    PaymentInvalidationCancelled,
+    usePaymentInvalidationGuard,
+} from "../../context/DealWorkspaceContext";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
@@ -101,14 +105,22 @@ export default function WorkspaceOffersTab({ deal }: WorkspaceOffersTabProps) {
         isLoading,
         isError,
         refetch,
-        removeAllOffers,
+        removeAllOffersAsync,
         isRemovingAllOffers: isRemoving,
     } = useDealOffers(deal.id);
+    const withPaymentInvalidation = usePaymentInvalidationGuard();
 
     const handleRemoveAll = () => {
-        removeAllOffers(undefined, {
-            onSuccess: () => setConfirmRemoveAll(false),
-        });
+        // Removing discounts changes the deal value — an unpaid payment
+        // request is warned about first. Failures already surface as a
+        // notification from the mutation helper.
+        withPaymentInvalidation((flags) => removeAllOffersAsync(flags))
+            .then(() => setConfirmRemoveAll(false))
+            .catch((error: unknown) => {
+                if (error instanceof PaymentInvalidationCancelled) {
+                    setConfirmRemoveAll(false);
+                }
+            });
     };
 
     const items = useMemo(

@@ -35,6 +35,9 @@ import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import { isDealValueLocked } from "@/lib/dealOutcome";
+// Bridge: the payment-request guard lives with the deal page's workspace
+// context; it's a pass-through when this modal renders outside that page.
+import { usePaymentInvalidationGuard } from "@/Pages/Deals/Redesign/context/DealWorkspaceContext";
 import type {
     AttachedProperty,
     AttachPropertyPayload,
@@ -260,11 +263,23 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
         onRefresh();
     }, [refetchAttached, onRefresh]);
 
-    const { mutate: attachProperty, isPending: attaching } = useApiMutate<
+    const { mutateAsync: attachPropertyAsync, isPending: attaching } = useApiMutate<
         AttachPropertyPayload,
         any,
         ApiSuccessResponse
     >(route("deals.properties.store", deal.id), "POST", handleRefresh);
+
+    // Attaching/detaching changes the calculated value: on the deal page an
+    // unpaid payment request is warned about first (no-op elsewhere).
+    const withPaymentInvalidation = usePaymentInvalidationGuard();
+
+    const attachProperty = (payload: AttachPropertyPayload) => {
+        // Failures are already shown by the mutation helper; a declined
+        // warning simply leaves the deal as it was.
+        withPaymentInvalidation((flags) =>
+            attachPropertyAsync({ ...payload, ...flags }),
+        ).catch(() => undefined);
+    };
 
     // ── Handlers ──────────────────────────────────────────────────
     const handleAttachExisting = () => {
@@ -277,9 +292,15 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     const handleDetach = async (productId: number) => {
         if (valueLocked) return;
         try {
-            const res = await fetch(
-                route("deals.properties.destroy", [deal.id, productId]),
-                {
+            await withPaymentInvalidation(async (flags) => {
+                const url = new URL(
+                    route("deals.properties.destroy", [deal.id, productId]),
+                    window.location.origin,
+                );
+                Object.entries(flags).forEach(([key, on]) => {
+                    if (on) url.searchParams.set(key, "1");
+                });
+                const res = await fetch(url.toString(), {
                     method: "DELETE",
                     headers: {
                         "Content-Type": "application/json",
@@ -290,13 +311,17 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                 ?.getAttribute("content") ?? "",
                         Accept: "application/json",
                     },
-                },
-            );
-            if (res.ok) {
-                handleRefresh();
-            }
+                });
+                if (!res.ok) {
+                    // Same shape as an axios error so the invalidation
+                    // guard can recognise its 409.
+                    const data = await res.json().catch(() => ({}));
+                    throw { response: { status: res.status, data } };
+                }
+            });
+            handleRefresh();
         } catch {
-            // error handled by notification
+            // error handled by notification / declined warning
         }
     };
 

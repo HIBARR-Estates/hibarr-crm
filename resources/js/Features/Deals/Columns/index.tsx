@@ -233,10 +233,13 @@ export const DEAL_TABLE_COLUMNS = (
                 if (record.value === null || record.value === undefined)
                     return <span className="text-gray-400">--</span>;
 
+                // Deal values are presented in the company's base currency;
+                // the deal's own currency is only a fallback (symbol only —
+                // the amount is not converted).
                 const symbol =
-                    record.currency?.currency_symbol ||
                     companyCurrency?.symbol ||
                     companyCurrency?.code ||
+                    record.currency?.currency_symbol ||
                     "";
 
                 return (
