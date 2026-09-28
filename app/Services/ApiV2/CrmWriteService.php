@@ -14,6 +14,7 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadNote;
 use App\Models\Payment;
+use App\Models\SallyMeetingInsight;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
@@ -25,6 +26,8 @@ use App\Services\DealNotificationService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\Reminders\NoteReminderSync;
 use App\Services\Reminders\TaskReminderSync;
+use App\Services\SallyMeetingInsightService;
+use App\Support\SallyTranscriptNormalizer;
 use App\Support\UserTimezone;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
@@ -1634,5 +1637,206 @@ class CrmWriteService
             'from' => $paginator->firstItem(),
             'to' => $paginator->lastItem(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{items: Collection, paginator: LengthAwarePaginator}
+     */
+    public function listSallyMeetingInsights(int $companyId, array $filters): array
+    {
+        $query = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+            ->with(['meetingFollowUp'])
+            ->where('company_id', $companyId);
+
+        if (! empty($filters['deal_id'])) {
+            $query->where('deal_id', (int) $filters['deal_id']);
+        }
+
+        if (! empty($filters['lead_id'])) {
+            $query->where('lead_id', (int) $filters['lead_id']);
+        }
+
+        if (! empty($filters['meeting_id'])) {
+            $query->where('meeting_follow_up_id', (int) $filters['meeting_id']);
+        }
+
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = min(100, max(1, (int) ($filters['per_page'] ?? 20)));
+        $paginator = $query->orderByDesc('updated_at')->paginate($perPage, ['*'], 'page', $page);
+
+        $serializer = app(SallyMeetingInsightService::class);
+        $items = collect($paginator->items())
+            ->map(fn (SallyMeetingInsight $insight) => $serializer->serialize($insight))
+            ->values();
+
+        return ['items' => $items, 'paginator' => $paginator];
+    }
+
+    public function getSallyMeetingInsight(int $companyId, int $meetingFollowUpId): SallyMeetingInsight
+    {
+        $insight = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+            ->with(['meetingFollowUp'])
+            ->where('company_id', $companyId)
+            ->where('meeting_follow_up_id', $meetingFollowUpId)
+            ->first();
+
+        if ($insight === null) {
+            throw new ModelNotFoundException;
+        }
+
+        return $insight;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{insight: SallyMeetingInsight, created: bool}
+     */
+    public function upsertSallyMeetingInsight(int $companyId, array $data): array
+    {
+        $meetingFollowUpId = (int) $data['meeting_id'];
+        $followUp = app(SallyMeetingInsightService::class)
+            ->meetingBelongsToCompany($companyId, $meetingFollowUpId);
+
+        if ($followUp === null) {
+            throw ValidationException::withMessages([
+                'meeting_id' => ['Meeting not found for this company.'],
+            ]);
+        }
+
+        $leadId = isset($data['lead_id']) ? (int) $data['lead_id'] : ($followUp->lead_id ? (int) $followUp->lead_id : null);
+        $dealId = isset($data['deal_id']) ? (int) $data['deal_id'] : ($followUp->deal_id ? (int) $followUp->deal_id : null);
+
+        if ($leadId !== null && $followUp->lead_id && (int) $followUp->lead_id !== $leadId) {
+            throw ValidationException::withMessages([
+                'lead_id' => ['Meeting does not belong to this lead.'],
+            ]);
+        }
+
+        if ($dealId !== null && $followUp->deal_id && (int) $followUp->deal_id !== $dealId) {
+            throw ValidationException::withMessages([
+                'deal_id' => ['Meeting does not belong to this deal.'],
+            ]);
+        }
+
+        // A deal-scoped meeting carries no lead_id on lead_follow_up, so the
+        // insight would be unreachable from the lead page without this.
+        if ($leadId === null && $dealId !== null) {
+            $leadId = Deal::withoutGlobalScope(CompanyScope::class)
+                ->where('id', $dealId)
+                ->where('company_id', $companyId)
+                ->value('lead_id');
+            $leadId = $leadId ? (int) $leadId : null;
+        }
+
+        if ($leadId !== null && $this->sallyLeadBelongsToCompany($leadId, $companyId) === false) {
+            throw ValidationException::withMessages([
+                'lead_id' => ['Lead does not belong to this company.'],
+            ]);
+        }
+
+        if ($dealId !== null && $this->sallyDealBelongsToCompany($dealId, $companyId) === false) {
+            throw ValidationException::withMessages([
+                'deal_id' => ['Deal does not belong to this company.'],
+            ]);
+        }
+
+        $content = [];
+        if (array_key_exists('summary', $data)) {
+            $content['summary'] = $this->decodeSallyText($data['summary']);
+        }
+        if (array_key_exists('transcript', $data) || array_key_exists('transcript_segments', $data)) {
+            $normalized = SallyTranscriptNormalizer::normalize(
+                $data['transcript'] ?? null,
+                $data['transcript_segments'] ?? null,
+            );
+            $content['transcript'] = $normalized['transcript'];
+            $content['transcript_segments'] = $normalized['transcript_segments'];
+        }
+        if (array_key_exists('bullet_points', $data)) {
+            $content['bullet_points'] = array_map(
+                fn ($point) => is_string($point) ? $this->decodeSallyText($point) : $point,
+                $data['bullet_points'],
+            );
+        }
+
+        // meeting_follow_up_id is globally unique, so the lookup has to be
+        // tenant-aware even when no user is authenticated (API-token requests
+        // skip CompanyScope entirely).
+        return DB::transaction(function () use ($companyId, $meetingFollowUpId, $content, $leadId, $dealId) {
+            // The unique key is meeting_follow_up_id alone, so a row already
+            // held by another tenant can never be written by this one.
+            $claimedByOtherCompany = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+                ->where('meeting_follow_up_id', $meetingFollowUpId)
+                ->where('company_id', '!=', $companyId)
+                ->exists();
+
+            if ($claimedByOtherCompany) {
+                throw ValidationException::withMessages([
+                    'meeting_id' => ['Meeting already synced for another company.'],
+                ]);
+            }
+
+            $existing = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+                ->where('company_id', $companyId)
+                ->where('meeting_follow_up_id', $meetingFollowUpId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $existing->fill(array_merge($content, [
+                    'lead_id' => $leadId ?? $existing->lead_id,
+                    'deal_id' => $dealId ?? $existing->deal_id,
+                ]));
+                $existing->save();
+
+                return ['insight' => $existing->fresh(['meetingFollowUp']), 'created' => false];
+            }
+
+            $insight = SallyMeetingInsight::create(array_merge($content, [
+                'company_id' => $companyId,
+                'meeting_follow_up_id' => $meetingFollowUpId,
+                'lead_id' => $leadId,
+                'deal_id' => $dealId,
+            ]));
+
+            return ['insight' => $insight->load('meetingFollowUp'), 'created' => true];
+        });
+    }
+
+    /**
+     * Sally sends summaries double-encoded: paragraph breaks arrive as the two
+     * literal characters `\n` rather than real newlines, so markdown
+     * formatting never renders. Turn those escapes back into whitespace. A
+     * genuine single backslash before an 'n' is indistinguishable from an
+     * escape here, which is acceptable — no summary relies on a literal "\n".
+     */
+    private function decodeSallyText(mixed $value): mixed
+    {
+        if (! is_string($value) || ! str_contains($value, '\\')) {
+            return $value;
+        }
+
+        return str_replace(
+            ['\\r\\n', '\\n', '\\r', '\\t'],
+            ["\n", "\n", "\n", ' '],
+            $value,
+        );
+    }
+
+    private function sallyLeadBelongsToCompany(int $leadId, int $companyId): bool
+    {
+        return Lead::withoutGlobalScope(CompanyScope::class)
+            ->where('id', $leadId)
+            ->where('company_id', $companyId)
+            ->exists();
+    }
+
+    private function sallyDealBelongsToCompany(int $dealId, int $companyId): bool
+    {
+        return Deal::withoutGlobalScope(CompanyScope::class)
+            ->where('id', $dealId)
+            ->where('company_id', $companyId)
+            ->exists();
     }
 }

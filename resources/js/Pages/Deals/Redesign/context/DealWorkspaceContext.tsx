@@ -16,6 +16,7 @@ import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import type { DealFile } from "@/Types/api/file";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Note } from "@/Types/api/note";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import type { Task } from "@/Types/api/tasks";
 
 interface EntityResponse<T> {
@@ -35,6 +36,13 @@ interface DealWorkspaceValue {
     dealFollowUps: DealFollowup[];
     setDealFollowUps: Dispatch<SetStateAction<DealFollowup[]>>;
     dealFollowUpsLoading: boolean;
+    sallyInsights: SallyMeetingInsight[];
+    setSallyInsights: Dispatch<SetStateAction<SallyMeetingInsight[]>>;
+    sallyInsightsLoading: boolean;
+    /** True once the query settles, so tab visibility isn't decided mid-flight. */
+    sallyInsightsSettled: boolean;
+    sallyInsightsError: boolean;
+    refetchSallyInsights: () => void;
     files: DealFile[];
     setFiles: Dispatch<SetStateAction<DealFile[]>>;
     filesLoading: boolean;
@@ -52,6 +60,8 @@ interface DealWorkspaceProviderProps {
     deal: Deal;
     children: ReactNode;
     paymentEnabled?: boolean;
+    /** Mirrors the crm.sally-insights-tab flag: off means no request at all. */
+    sallyInsightsEnabled?: boolean;
 }
 
 /**
@@ -69,6 +79,7 @@ export function DealWorkspaceProvider({
     deal: initialDeal,
     children,
     paymentEnabled = false,
+    sallyInsightsEnabled = false,
 }: DealWorkspaceProviderProps) {
     const [deal, setDeal] = useState<Deal>(initialDeal);
     useEffect(() => {
@@ -104,6 +115,10 @@ export function DealWorkspaceProvider({
         path: route("deals.meetings.index", deal.id),
         options: { staleTime: 30_000 },
     });
+    const sallyInsightsQuery = useApiQuery<EntityResponse<SallyMeetingInsight[]>>({
+        path: route("deals.sally-insights.index", deal.id),
+        options: { staleTime: 30_000, enabled: sallyInsightsEnabled },
+    });
     const filesQuery = useApiQuery<EntityResponse<DealFile[]>>({
         path: route("deals.files.index", deal.id),
         options: { staleTime: 30_000 },
@@ -116,6 +131,7 @@ export function DealWorkspaceProvider({
     const [notes, setNotes] = useState<Note[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [dealFollowUps, setDealFollowUps] = useState<DealFollowup[]>([]);
+    const [sallyInsights, setSallyInsights] = useState<SallyMeetingInsight[]>([]);
     const [files, setFiles] = useState<DealFile[]>([]);
     const [paymentRequest, setPaymentRequest] = useState<DealPaymentRequest | null>(null);
 
@@ -126,6 +142,7 @@ export function DealWorkspaceProvider({
         notes: false,
         tasks: false,
         dealFollowUps: false,
+        sallyInsights: false,
         files: false,
         paymentRequest: false,
         dealId: deal.id,
@@ -138,6 +155,7 @@ export function DealWorkspaceProvider({
             notes: false,
             tasks: false,
             dealFollowUps: false,
+            sallyInsights: false,
             files: false,
             paymentRequest: false,
             dealId: deal.id,
@@ -145,6 +163,7 @@ export function DealWorkspaceProvider({
         setNotes([]);
         setTasks([]);
         setDealFollowUps([]);
+        setSallyInsights([]);
         setFiles([]);
         setPaymentRequest(null);
     }, [deal.id]);
@@ -169,6 +188,13 @@ export function DealWorkspaceProvider({
             seeded.current.dealFollowUps = true;
         }
     }, [dealFollowUpsQuery.data]);
+
+    useEffect(() => {
+        if (!seeded.current.sallyInsights && sallyInsightsQuery.data?.data) {
+            setSallyInsights(sallyInsightsQuery.data.data);
+            seeded.current.sallyInsights = true;
+        }
+    }, [sallyInsightsQuery.data]);
 
     useEffect(() => {
         // Seed once per deal. Merge any files already patched in by an upload
@@ -218,6 +244,14 @@ export function DealWorkspaceProvider({
             dealFollowUps,
             setDealFollowUps,
             dealFollowUpsLoading: dealFollowUpsQuery.isLoading,
+            sallyInsights,
+            setSallyInsights,
+            sallyInsightsLoading: sallyInsightsQuery.isLoading,
+            sallyInsightsSettled: !sallyInsightsQuery.isLoading,
+            sallyInsightsError: sallyInsightsQuery.isError,
+            refetchSallyInsights: () => {
+                void sallyInsightsQuery.refetch();
+            },
             files,
             setFiles,
             filesLoading: filesQuery.isLoading,
@@ -231,12 +265,17 @@ export function DealWorkspaceProvider({
             notes,
             tasks,
             dealFollowUps,
+            sallyInsights,
             files,
             paymentRequest,
             paymentEnabled,
             notesQuery.isLoading,
             tasksQuery.isLoading,
             dealFollowUpsQuery.isLoading,
+            sallyInsightsQuery.isLoading,
+            sallyInsightsQuery.isError,
+            sallyInsightsQuery.refetch,
+            setSallyInsights,
             filesQuery.isLoading,
             paymentRequestQuery.isLoading,
             paymentRequestQuery.refetch,

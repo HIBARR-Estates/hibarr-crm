@@ -403,6 +403,7 @@ return [
             'tasks' => 'Tasks',
             'events' => 'Events',
             'meetings' => 'Meetings',
+            'sally' => 'Sally',
         ],
         'contacts_table' => [
             'columns' => [
@@ -483,6 +484,12 @@ return [
                 'address' => 'Add address',
                 'notes' => 'Add notes',
             ],
+        ],
+        'sally' => [
+            'section_title' => 'Sally meeting insights',
+            'section_hint' => 'Insights from Sally for this lead.',
+            'empty_title' => 'No Sally insights yet',
+            'empty_description' => 'When Sally processes a meeting for this lead, the summary and transcript appear here.',
         ],
         'deals' => [
             'column_name' => 'Deal Name',
@@ -706,8 +713,31 @@ return [
             'files' => 'Files',
             'recommendations' => 'Recommendations',
             'offers' => 'Offers',
+            'sally' => 'Sally',
             'history' => 'History',
             'followup_locked' => 'Meetings cannot be scheduled for deals in Won or Lost stage.',
+        ],
+        'sally' => [
+            'summary' => 'Summary',
+            'bullet_points' => 'Key points',
+            'transcript' => 'Transcript',
+            'empty_title' => 'No Sally insights yet',
+            'empty_description' => 'When Sally processes a meeting for this deal, the summary and transcript appear here.',
+            'meeting_fallback' => 'Meeting',
+            'deal_fallback' => 'Deal',
+            'view_transcript' => 'View transcript',
+            'edit' => 'Edit',
+            'cancel' => 'Cancel',
+            'save' => 'Save',
+            'no_summary' => 'No summary yet.',
+            'summary_placeholder' => 'Add or correct the meeting summary...',
+            'load_failed' => "Couldn't load Sally insights",
+            'load_failed_hint' => 'The request failed. Check your connection and try again.',
+            'retry' => 'Retry',
+            'messages' => [
+                'updated' => 'Summary updated',
+                'update_failed' => "Couldn't update the summary",
+            ],
         ],
         'info' => [
             'title' => 'Deal Information',

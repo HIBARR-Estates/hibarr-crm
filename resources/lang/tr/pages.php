@@ -368,6 +368,7 @@ return [
             'tasks' => 'Görevler',
             'events' => 'Etkinlikler',
             'meetings' => 'Toplantılar',
+            'sally' => 'Sally',
         ],
         'contacts_table' => [
             'columns' => [
@@ -443,6 +444,12 @@ return [
                 'address' => 'Adres ekle',
                 'notes' => 'Not ekle',
             ],
+        ],
+        'sally' => [
+            'section_title' => 'Sally toplantı özetleri',
+            'section_hint' => 'Bu lead için Sally verileri.',
+            'empty_title' => 'Henüz Sally özeti yok',
+            'empty_description' => 'Sally bu lead için bir toplantı işlediğinde özet ve transkript burada görünür.',
         ],
         'deals' => [
             'column_name' => 'Anlaşma Adı',
@@ -667,8 +674,31 @@ return [
             'files' => 'Dosyalar',
             'recommendations' => 'Öneriler',
             'offers' => 'Teklifler',
+            'sally' => 'Sally',
             'history' => 'Geçmiş',
             'followup_locked' => 'Kazanıldı veya Kaybedildi aşamasındaki anlaşmalar için toplantı planlanamaz.',
+        ],
+        'sally' => [
+            'summary' => 'Özet',
+            'bullet_points' => 'Önemli noktalar',
+            'transcript' => 'Transkript',
+            'empty_title' => 'Henüz Sally özeti yok',
+            'empty_description' => 'Sally bu anlaşma için bir toplantı işlediğinde özet ve transkript burada görünür.',
+            'meeting_fallback' => 'Toplantı',
+            'deal_fallback' => 'Anlaşma',
+            'view_transcript' => 'Transkripti görüntüle',
+            'edit' => 'Düzenle',
+            'cancel' => 'İptal',
+            'save' => 'Kaydet',
+            'no_summary' => 'Henüz özet yok.',
+            'summary_placeholder' => 'Toplantı özetini ekleyin veya düzeltin...',
+            'load_failed' => 'Sally özetleri yüklenemedi',
+            'load_failed_hint' => 'İstek başarısız oldu. Bağlantınızı kontrol edip tekrar deneyin.',
+            'retry' => 'Tekrar dene',
+            'messages' => [
+                'updated' => 'Özet güncellendi',
+                'update_failed' => 'Özet güncellenemedi',
+            ],
         ],
         'info' => [
             'title' => 'Anlaşma Bilgileri',

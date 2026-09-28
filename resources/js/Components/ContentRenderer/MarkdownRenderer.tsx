@@ -1,6 +1,9 @@
 import React from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+// Imported here as well as in ContentRenderer: the .markdown-content rules
+// live in this stylesheet, and callers may use this component standalone.
+import "./ContentRenderer.css";
 
 interface MarkdownRendererProps {
     content: string;
@@ -37,47 +40,46 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         }
     }
 
-    // Convert markdown to HTML
-    const htmlContent = marked(displayContent);
+    // Convert markdown to HTML, then sanitize.
+    const htmlContent = marked.parse(displayContent) as string;
 
-    // Sanitize the HTML output
-    const sanitizedHtml = async () =>
-        DOMPurify.sanitize(await htmlContent, {
+    const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
             ALLOWED_TAGS: [
-                "p",
-                "br",
-                "strong",
-                "b",
-                "em",
-                "i",
-                "u",
-                "h1",
-                "h2",
-                "h3",
-                "h4",
-                "h5",
-                "h6",
-                "ul",
-                "ol",
-                "li",
-                "blockquote",
-                "a",
-                "img",
-                "span",
-                "div",
-                "code",
-                "pre",
-                "table",
-                "thead",
-                "tbody",
-                "tr",
-                "td",
-                "th",
-                "hr",
-            ],
-            ALLOWED_ATTR: ["href", "target", "src", "alt", "title", "class"],
-            ALLOW_DATA_ATTR: false,
-        });
+            "p",
+            "br",
+            "strong",
+            "b",
+            "em",
+            "i",
+            "u",
+            "s",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "ul",
+            "ol",
+            "li",
+            "blockquote",
+            "a",
+            "img",
+            "span",
+            "div",
+            "code",
+            "pre",
+            "table",
+            "thead",
+            "tbody",
+            "tr",
+            "td",
+            "th",
+            "hr",
+        ],
+        ALLOWED_ATTR: ["href", "target", "src", "alt", "title", "class"],
+        ALLOW_DATA_ATTR: false,
+    });
 
     return (
         <div

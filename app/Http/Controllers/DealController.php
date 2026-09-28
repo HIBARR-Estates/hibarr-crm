@@ -46,6 +46,7 @@ use App\Models\Product;
 use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
+use App\Models\SallyMeetingInsight;
 use App\Models\User;
 use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
@@ -61,6 +62,7 @@ use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
+use App\Services\SallyMeetingInsightService;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
@@ -1085,6 +1087,59 @@ class DealController extends AccountBaseController
         });
 
         return response()->json(['status' => 'success', 'data' => $dealFollowUps]);
+    }
+
+    public function dealSallyInsights(Request $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(! $access['canAccess']);
+
+        $service = app(\App\Services\SallyMeetingInsightService::class);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $service->serializeMany($service->forDeal((int) $id)),
+        ]);
+    }
+
+    /**
+     * The Sally summary is a human-editable field: the bot's version is a
+     * starting point, and the team corrects it. The transcript stays
+     * read-only — it is the source recording, not CRM copy.
+     */
+    public function updateDealSallyInsight(Request $request, $dealId, $insight)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(! $access['canAccess']);
+
+        $data = $request->validate([
+            'summary' => ['present', 'nullable', 'string', 'max:50000'],
+        ]);
+
+        $model = SallyMeetingInsight::query()
+            ->where('deal_id', $deal->id)
+            ->findOrFail($insight);
+
+        $model->summary = $data['summary'] === null
+            ? null
+            : SallyMeetingInsightService::sanitizeSummary($data['summary']);
+        $model->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp'])),
+        ]);
     }
 
     private function prepareNotesTab(int $dealId): void

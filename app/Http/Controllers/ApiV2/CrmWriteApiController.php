@@ -8,11 +8,14 @@ use App\Http\Requests\ApiV2\CrmWrite\CreateMeetingV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\CreateNoteV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\CreateTaskV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\ListCrmWriteV2Request;
+use App\Http\Requests\ApiV2\CrmWrite\ListSallyMeetingV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateMeetingV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateNoteV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateTaskV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpsertPaymentV2Request;
+use App\Http\Requests\ApiV2\CrmWrite\UpsertSallyMeetingV2Request;
 use App\Services\ApiV2\CrmWriteService;
+use App\Services\SallyMeetingInsightService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -237,6 +240,84 @@ class CrmWriteApiController extends Controller
         );
     }
 
+    public function listSallyMeetings(ListSallyMeetingV2Request $request): JsonResponse
+    {
+        return $this->handle(
+            $request,
+            function (int $companyId) use ($request) {
+                $result = $this->crmWriteService->listSallyMeetingInsights(
+                    $companyId,
+                    $request->validated()
+                );
+
+                return $this->crmWriteService->serializePaginatedList(
+                    $result['items'],
+                    $result['paginator']
+                );
+            },
+            'Sally meeting insights fetched successfully'
+        );
+    }
+
+    public function getSallyMeeting(Request $request, int $meetingId): JsonResponse
+    {
+        return $this->handle(
+            $request,
+            fn (int $companyId) => app(SallyMeetingInsightService::class)->serialize(
+                $this->crmWriteService->getSallyMeetingInsight($companyId, $meetingId)
+            ),
+            'Sally meeting insight fetched successfully'
+        );
+    }
+
+    public function upsertSallyMeeting(UpsertSallyMeetingV2Request $request): JsonResponse
+    {
+        $companyId = (int) $request->header('X-COMPANY-ID');
+        if ($companyId <= 0) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 401);
+        }
+
+        try {
+            $result = $this->crmWriteService->upsertSallyMeetingInsight(
+                $companyId,
+                $request->validated()
+            );
+            $created = (bool) $result['created'];
+            $payload = app(SallyMeetingInsightService::class)->serialize($result['insight']);
+            $message = $created
+                ? 'Sally meeting insight created successfully'
+                : 'Sally meeting insight updated successfully';
+
+            return response()->json(
+                Reply::successWithData($message, ['data' => $payload]),
+                $created ? 201 : 200
+            );
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Validation failed.',
+                'errors' => $exception->errors(),
+            ], 422);
+        } catch (ModelNotFoundException) {
+            return response()->json(Reply::error('Record not found.'), 404);
+        } catch (\Throwable $exception) {
+            $referenceId = uniqid('CRM-WRITE-', true);
+
+            Log::error('CRM write API request failed', [
+                'reference_id' => $referenceId,
+                'endpoint' => $request->path(),
+                'company_id' => $companyId,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'CRM write request failed. Please contact support with reference ID: '.$referenceId,
+                'reference_id' => $referenceId,
+            ], 500);
+        }
+    }
+
     public function upsertPayment(UpsertPaymentV2Request $request): JsonResponse
     {
         $companyId = (int) $request->header('X-COMPANY-ID');
@@ -279,7 +360,7 @@ class CrmWriteApiController extends Controller
 
             return response()->json([
                 'status' => 'fail',
-                'message' => 'CRM write request failed. Please contact support with reference ID: ' . $referenceId,
+                'message' => 'CRM write request failed. Please contact support with reference ID: '.$referenceId,
                 'reference_id' => $referenceId,
             ], 500);
         }
@@ -330,7 +411,7 @@ class CrmWriteApiController extends Controller
 
             return response()->json([
                 'status' => 'fail',
-                'message' => 'CRM write request failed. Please contact support with reference ID: ' . $referenceId,
+                'message' => 'CRM write request failed. Please contact support with reference ID: '.$referenceId,
                 'reference_id' => $referenceId,
             ], 500);
         }
@@ -340,7 +421,7 @@ class CrmWriteApiController extends Controller
     {
         $type = $request->query('type');
 
-        if (!in_array($type, ['lead', 'deal'], true)) {
+        if (! in_array($type, ['lead', 'deal'], true)) {
             throw ValidationException::withMessages([
                 'type' => ['The type query parameter is required and must be lead or deal.'],
             ]);
