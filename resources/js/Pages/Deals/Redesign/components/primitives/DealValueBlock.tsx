@@ -11,6 +11,7 @@ import {
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import Button from "@/Components/Redesign/primitives/Button";
+import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 import DealValueEditorModal from "./DealValueEditorModal";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -198,41 +199,54 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
             <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
                 {t("pages.deals.info.fields.deal_value")}
             </span>
-            <button
-                ref={triggerRef}
-                type="button"
-                className="dr-editable dr-editable--lg"
-                style={{ width: "auto" }}
-                aria-haspopup="dialog"
-                aria-expanded={open}
-                onClick={() => breakdown && setOpen((v) => !v)}
+            {/* `group` reveals the copy button on hover/focus. It sits beside
+                the trigger, not inside it: the trigger is itself a button. */}
+            <div
+                className="group"
+                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
             >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <span
-                        className="dr-editable-value"
-                        style={{ fontSize: 15, fontWeight: 600 }}
-                    >
-                        {money(headlineValue, companyCurrency)}
-                    </span>
-                    {valueLocked && (
-                        <Tooltip title={t("pages.deals.value_locked_tooltip")}>
-                            <span
-                                style={{ color: T.TEXT_MUTED, display: "flex" }}
-                            >
-                                <Icon name="lock" size={12} />
-                            </span>
-                        </Tooltip>
-                    )}
-                    {breakdown && (
-                        <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
-                            <Icon
-                                name={open ? "chevron-up" : "chevron-down"}
-                                size={12}
-                            />
+                <button
+                    ref={triggerRef}
+                    type="button"
+                    className="dr-editable dr-editable--lg"
+                    style={{ width: "auto" }}
+                    aria-haspopup="dialog"
+                    aria-expanded={open}
+                    onClick={() => breakdown && setOpen((v) => !v)}
+                >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <span
+                            className="dr-editable-value"
+                            style={{ fontSize: 15, fontWeight: 600 }}
+                        >
+                            {money(headlineValue, companyCurrency)}
                         </span>
-                    )}
-                </span>
-            </button>
+                        {valueLocked && (
+                            <Tooltip title={t("pages.deals.value_locked_tooltip")}>
+                                <span
+                                    style={{ color: T.TEXT_MUTED, display: "flex" }}
+                                >
+                                    <Icon name="lock" size={12} />
+                                </span>
+                            </Tooltip>
+                        )}
+                        {breakdown && (
+                            <span style={{ color: T.TEXT_MUTED, display: "flex" }}>
+                                <Icon
+                                    name={open ? "chevron-up" : "chevron-down"}
+                                    size={12}
+                                />
+                            </span>
+                        )}
+                    </span>
+                </button>
+                {headlineValue != null && (
+                    <CopyValueButton
+                        value={money(headlineValue, companyCurrency)}
+                        label={t("pages.deals.info.fields.deal_value")}
+                    />
+                )}
+            </div>
             {breakdown && (
                 <span
                     style={{
