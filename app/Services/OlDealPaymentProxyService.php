@@ -57,16 +57,33 @@ class OlDealPaymentProxyService
     }
 
     /**
+     * Cancels a still-pending payment request so its checkout link stops
+     * accepting payment. OL answers 409 once the client has already started
+     * paying (proof uploaded / crypto in flight) — that surfaces as an
+     * HttpException with the same status.
+     *
+     * @param  array<string, mixed>  $meta  reason / cancelled_by
+     * @return array<string, mixed>
+     */
+    public function cancel(string $paymentId, array $meta): array
+    {
+        $path = rtrim($this->dealPaymentRequestPath(), '/') . '/' . rawurlencode($paymentId) . '/cancel';
+        $response = $this->request('POST', $path, $meta);
+
+        return $this->decodeSuccessfulResponse($response, 'cancel deal payment request');
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function request(string $method, string $path, array $payload): Response
     {
         $baseUrl = (string) config('services.ol.base_url', '');
-        $apiKey = (string) config('services.ol.crm_webhook_api_key', '');
+        $apiKey = (string) config('services.ol.api_key', '');
         $timeout = (int) config('services.ol.timeout', 15);
 
         if ($baseUrl === '' || $apiKey === '') {
-            Log::error('OlDealPaymentProxyService: OL webhook config missing', [
+            Log::error('OlDealPaymentProxyService: OL config missing', [
                 'base_url_set' => $baseUrl !== '',
                 'api_key_set' => $apiKey !== '',
             ]);

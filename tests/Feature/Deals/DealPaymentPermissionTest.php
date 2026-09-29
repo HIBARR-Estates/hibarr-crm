@@ -4,7 +4,9 @@ namespace Tests\Feature\Deals;
 
 use App\Models\Deal;
 use App\Models\LeadAgent;
+use App\Models\Role;
 use App\Models\User;
+use App\Services\DealPaymentService;
 use App\Services\PermissionService;
 use Mockery;
 use Tests\TestCase;
@@ -70,6 +72,27 @@ class DealPaymentPermissionTest extends TestCase
         $this->assertSame('all', $finance->permission('edit_payments'));
     }
 
+    public function test_admin_role_can_confirm_without_edit_payments_row(): void
+    {
+        $admin = $this->mockUserWithRoles(['admin'], editPayments: false);
+
+        $this->assertTrue(DealPaymentService::canConfirmTransfer($admin));
+    }
+
+    public function test_non_admin_with_edit_payments_all_can_confirm(): void
+    {
+        $finance = $this->mockUserWithRoles(['employee'], editPayments: 'all');
+
+        $this->assertTrue(DealPaymentService::canConfirmTransfer($finance));
+    }
+
+    public function test_non_admin_without_edit_payments_all_cannot_confirm(): void
+    {
+        $agent = $this->mockUserWithRoles(['employee'], editPayments: 'owned');
+
+        $this->assertFalse(DealPaymentService::canConfirmTransfer($agent));
+    }
+
     public function test_watcher_is_visible_but_not_a_team_writer(): void
     {
         $deal = $this->makeDealWithAgent(5);
@@ -82,6 +105,22 @@ class DealPaymentPermissionTest extends TestCase
         $deal = $this->makeDealWithAgent(5, isLocked: true);
 
         $this->assertTrue($deal->isLocked());
+    }
+
+    /**
+     * @param  array<int, string>  $roleNames
+     * @return User&\Mockery\MockInterface
+     */
+    private function mockUserWithRoles(array $roleNames, string|false $editPayments): User
+    {
+        /** @var User&\Mockery\MockInterface $user */
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->shouldReceive('permission')->with('edit_payments')->andReturn($editPayments);
+        $user->setRelation('roles', collect($roleNames)->map(
+            fn (string $name) => (new Role())->forceFill(['name' => $name])
+        ));
+
+        return $user;
     }
 
     private function makeDealWithAgent(int $agentUserId, bool $isLocked = false): Deal

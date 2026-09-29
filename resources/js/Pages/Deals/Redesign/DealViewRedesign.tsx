@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import ProductTour, {
     ProductTourHandle,
@@ -141,6 +142,7 @@ function DealViewRedesignInner(
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
+    const isAdminRole = useIsAdminRole();
     const fields = props.fields ?? [];
     const customFieldCategories = props.customFieldCategories ?? [];
     // NOT pipeline-filtered — this is the raw company-wide category list, kept
@@ -264,7 +266,10 @@ function DealViewRedesignInner(
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
     const canCreatePaymentRequest = dealPermissions.canEdit;
-    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
+    // Mirrors DealPaymentService::canConfirmTransfer — the admin role passes
+    // even without an edit_payments row.
+    const canConfirmPaymentTransfer =
+        isAdminRole || permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;

@@ -3,7 +3,10 @@ import axios from "axios";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import useTranslation from "@/Hooks/useTranslation";
-import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../context/DealWorkspaceContext";
 
 /**
  * Attach/detach packages on a deal via the same inline-update contract the Deal
@@ -13,7 +16,7 @@ import { useDealWorkspace } from "../context/DealWorkspaceContext";
 export default function useDealPackages(deal: Deal) {
     const { t } = useTranslation();
     const [saving, setSaving] = useState(false);
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, withPaymentInvalidation } = useDealWorkspace();
 
     const currentIds = useCallback(
         () => (deal.packages ?? []).map((pkg) => pkg.id),
@@ -24,20 +27,29 @@ export default function useDealPackages(deal: Deal) {
         async (nextIds: number[]) => {
             setSaving(true);
             try {
-                const response = await axios.patch(
-                    route("deals.gathering.inline_update", { id: deal.id }),
-                    { type: "details", data: { package_id: nextIds } },
+                // Packages feed the calculated value, so an unpaid payment
+                // request is warned about before the change.
+                const response = await withPaymentInvalidation((flags) =>
+                    axios.patch(
+                        route("deals.gathering.inline_update", { id: deal.id }),
+                        { type: "details", data: { package_id: nextIds }, ...flags },
+                    ),
                 );
                 if (response.data?.status === "success" && response.data?.data) {
                     setDeal(response.data.data);
                 }
-            } catch {
-                message.error(t("pages.deals.workspace.packages.messages.update_failed"));
+            } catch (error) {
+                if (error instanceof PaymentInvalidationCancelled) return;
+                const serverMessage = (error as { response?: { data?: { message?: string } } })
+                    ?.response?.data?.message;
+                message.error(
+                    serverMessage || t("pages.deals.workspace.packages.messages.update_failed"),
+                );
             } finally {
                 setSaving(false);
             }
         },
-        [deal.id, setDeal, t],
+        [deal.id, setDeal, t, withPaymentInvalidation],
     );
 
     const addPackage = useCallback(

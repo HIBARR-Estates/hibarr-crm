@@ -71,6 +71,8 @@ class DealPaymentUiStateMapperQueryScopesTest extends TestCase
             'completed manual verified' => ['completed', 'manual', 1, $now, 'confirmed'],
             'completed crypto' => ['completed', 'crypto', null, null, 'paid_online'],
             'expired' => ['expired', 'manual', null, null, 'failed'],
+            'failed' => ['failed', 'crypto', null, null, 'failed'],
+            'cancelled' => ['cancelled', 'manual', null, null, 'invalidated'],
         ];
     }
 

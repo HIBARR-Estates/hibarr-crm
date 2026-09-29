@@ -128,6 +128,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('entity-reminder-defaults', [EntityReminderDefaultController::class, 'index'])->name('entity-reminder-defaults.index');
     Route::post('entity-reminder-defaults', [EntityReminderDefaultController::class, 'update'])->name('entity-reminder-defaults.update');
     Route::post('entity-reminder-defaults/email-templates', [EntityReminderDefaultController::class, 'updateEmailTemplates'])->name('entity-reminder-defaults.email-templates');
+    Route::post('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'updateLeadCadence'])->name('entity-reminder-defaults.lead-cadence');
+    Route::delete('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'destroyLeadCadence'])->name('entity-reminder-defaults.lead-cadence.destroy');
     Route::delete('entity-reminder-defaults/{entityType}', [EntityReminderDefaultController::class, 'destroy'])->name('entity-reminder-defaults.destroy');
 
     /* Reminder ledger (company send queue) */

@@ -9,6 +9,7 @@ use App\Models\CustomField;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadSource;
+use App\Services\Deal\DealPaymentValueGuard;
 use App\Services\DealGatheringService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -347,6 +348,22 @@ class DealGatheringController extends AccountBaseController
                     'status' => 'error',
                     'message' => __('messages.dealAgentLockedByCommission'),
                 ], 403);
+            }
+
+            // Same rule as DealController::patch: an unpaid payment request is
+            // invalidated (once confirmed), a request being paid freezes the value.
+            $paymentBlock = app(DealPaymentValueGuard::class)->check(
+                $deal,
+                $type === DealUpdateType::RECALCULATE_VALUE->value || Deal::touchesValueFields($data),
+                $request->boolean(DealPaymentValueGuard::CONFIRM_FLAG),
+                user()
+            );
+            if ($paymentBlock !== null) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => $paymentBlock['code'],
+                    'message' => $paymentBlock['message'],
+                ], $paymentBlock['status']);
             }
 
             $updatedDeal = $this->service->updateDealInline(
