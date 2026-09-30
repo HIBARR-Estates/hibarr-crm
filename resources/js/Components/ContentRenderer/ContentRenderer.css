@@ -147,6 +147,23 @@
     font-size: 1rem;
 }
 
+/* Last paragraph in a block shouldn't leave a dangling bottom margin. */
+.markdown-content > p:last-child,
+.html-content > p:last-child {
+    margin-bottom: 0;
+}
+
+/* Bold/italic emphasis inside a summary, sized for body copy. */
+.markdown-content strong,
+.html-content strong {
+    font-weight: 600;
+}
+
+.markdown-content em,
+.html-content em {
+    font-style: italic;
+}
+
 .markdown-content p {
     margin-bottom: 1rem;
     line-height: 1.6;

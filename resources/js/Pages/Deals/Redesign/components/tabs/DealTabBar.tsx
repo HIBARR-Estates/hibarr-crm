@@ -30,6 +30,7 @@ const RECORD_TABS: Array<{ id: DealTab; countKey?: keyof DealTabCount }> = [
     { id: "exposes", countKey: "exposes" },
     { id: "recommendations", countKey: "recommendations" },
     { id: "itinerary", countKey: "itinerary" },
+    { id: "sally", countKey: "sally" },
 ];
 
 const META_TABS: DealTab[] = ["dealinfo", "timeline"];
@@ -54,6 +55,7 @@ export default function DealTabBar({
         exposes: t("pages.deals.workspace.exposes.title"),
         recommendations: t("pages.deals.tabs.recommendations"),
         itinerary: t("pages.flight_itinerary.tab"),
+        sally: t("pages.deals.tabs.sally"),
         dealinfo: t("pages.deals.header.tabs.deal_info"),
         timeline: t("pages.deals.header.tabs.timeline"),
     };

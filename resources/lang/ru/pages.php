@@ -368,6 +368,7 @@ return [
             'tasks' => 'Задачи',
             'events' => 'События',
             'meetings' => 'Встречи',
+            'sally' => 'Sally',
         ],
         'contacts_table' => [
             'columns' => [
@@ -443,6 +444,12 @@ return [
                 'address' => 'Добавить адрес',
                 'notes' => 'Добавить заметки',
             ],
+        ],
+        'sally' => [
+            'section_title' => 'Сводки встреч Sally',
+            'section_hint' => 'Данные Sally по этому лиду.',
+            'empty_title' => 'Сводок Sally пока нет',
+            'empty_description' => 'Когда Sally обработает встречу по этому лиду, сводка и транскрипт появятся здесь.',
         ],
         'deals' => [
             'column_name' => 'Название сделки',
@@ -682,8 +689,31 @@ return [
             'files' => 'Файлы',
             'recommendations' => 'Рекомендации',
             'offers' => 'Предложения',
+            'sally' => 'Sally',
             'history' => 'История',
             'followup_locked' => 'Встречи нельзя планировать для сделок на стадии «Выиграна» или «Проиграна».',
+        ],
+        'sally' => [
+            'summary' => 'Сводка',
+            'bullet_points' => 'Ключевые пункты',
+            'transcript' => 'Транскрипт',
+            'empty_title' => 'Сводок Sally пока нет',
+            'empty_description' => 'Когда Sally обработает встречу по этой сделке, сводка и транскрипт появятся здесь.',
+            'meeting_fallback' => 'Встреча',
+            'deal_fallback' => 'Сделка',
+            'view_transcript' => 'Показать транскрипт',
+            'edit' => 'Изменить',
+            'cancel' => 'Отмена',
+            'save' => 'Сохранить',
+            'no_summary' => 'Сводки пока нет.',
+            'summary_placeholder' => 'Добавьте или исправьте сводку по встрече...',
+            'load_failed' => 'Не удалось загрузить сводки Sally',
+            'load_failed_hint' => 'Запрос не выполнен. Проверьте соединение и повторите попытку.',
+            'retry' => 'Повторить',
+            'messages' => [
+                'updated' => 'Сводка обновлена',
+                'update_failed' => 'Не удалось обновить сводку',
+            ],
         ],
         'info' => [
             'title' => 'Информация о сделке',

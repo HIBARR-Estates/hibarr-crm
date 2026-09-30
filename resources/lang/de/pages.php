@@ -387,6 +387,7 @@ return [
             'tasks' => 'Aufgaben',
             'events' => 'Ereignisse',
             'meetings' => 'Meetings',
+            'sally' => 'Sally',
         ],
         'contacts_table' => [
             'columns' => [
@@ -462,6 +463,12 @@ return [
                 'address' => 'Adresse hinzufügen',
                 'notes' => 'Notizen hinzufügen',
             ],
+        ],
+        'sally' => [
+            'section_title' => 'Sally-Meeting-Einblicke',
+            'section_hint' => 'Einblicke von Sally für diesen Lead.',
+            'empty_title' => 'Noch keine Sally-Einblicke',
+            'empty_description' => 'Wenn Sally ein Meeting für diesen Lead verarbeitet, erscheinen Zusammenfassung und Transkript hier.',
         ],
         'deals' => [
             'column_name' => 'Deal-Name',
@@ -701,8 +708,31 @@ return [
             'files' => 'Dateien',
             'recommendations' => 'Empfehlungen',
             'offers' => 'Angebote',
+            'sally' => 'Sally',
             'history' => 'Verlauf',
             'followup_locked' => 'Besprechungen können für Deals in der Gewonnen- oder Verloren-Phase nicht geplant werden.',
+        ],
+        'sally' => [
+            'summary' => 'Zusammenfassung',
+            'bullet_points' => 'Wichtige Punkte',
+            'transcript' => 'Transkript',
+            'empty_title' => 'Noch keine Sally-Einblicke',
+            'empty_description' => 'Wenn Sally ein Meeting für diesen Deal verarbeitet, erscheinen Zusammenfassung und Transkript hier.',
+            'meeting_fallback' => 'Meeting',
+            'deal_fallback' => 'Deal',
+            'view_transcript' => 'Transkript ansehen',
+            'edit' => 'Bearbeiten',
+            'cancel' => 'Abbrechen',
+            'save' => 'Speichern',
+            'no_summary' => 'Noch keine Zusammenfassung.',
+            'summary_placeholder' => 'Meeting-Zusammenfassung ergänzen oder korrigieren ...',
+            'load_failed' => 'Sally-Einblicke konnten nicht geladen werden',
+            'load_failed_hint' => 'Die Anfrage ist fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen.',
+            'retry' => 'Erneut versuchen',
+            'messages' => [
+                'updated' => 'Zusammenfassung aktualisiert',
+                'update_failed' => 'Zusammenfassung konnte nicht aktualisiert werden',
+            ],
         ],
         'info' => [
             'title' => 'Deal-Informationen',

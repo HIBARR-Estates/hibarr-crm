@@ -541,6 +541,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::put('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'update'])->name('lead-contact-files.update');
     Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
+    Route::get('lead-contact/{leadId}/sally-insights', [LeadContactController::class, 'leadSallyInsights'])->name('lead-contact.sally-insights.index');
+    Route::patch('sally-insights/{insight}', [LeadContactController::class, 'updateSallyInsight'])->name('sally-insights.update');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -1424,6 +1426,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/{dealId}/notes', [DealNoteController::class, 'dealNotes'])->name('deals.notes.index');
     Route::get('deals/{dealId}/tasks', [TaskController::class, 'dealTasks'])->name('deals.tasks.index');
     Route::get('deals/{dealId}/meetings', [DealController::class, 'dealMeetings'])->name('deals.meetings.index');
+    Route::get('deals/{dealId}/sally-insights', [DealController::class, 'dealSallyInsights'])->name('deals.sally-insights.index');
+    Route::patch('deals/{dealId}/sally-insights/{insight}', [DealController::class, 'updateDealSallyInsight'])->name('deals.sally-insights.update');
     Route::get('deals/{dealId}/files', [LeadFileController::class, 'dealFiles'])->name('deals.files.index');
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');

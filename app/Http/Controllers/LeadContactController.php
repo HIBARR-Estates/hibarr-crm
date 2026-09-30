@@ -37,6 +37,7 @@ use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\PipelineStage;
 use App\Models\Product;
+use App\Models\SallyMeetingInsight;
 use App\Models\User;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
@@ -44,6 +45,7 @@ use App\Services\LeadFilterFacetsService;
 use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
+use App\Services\SallyMeetingInsightService;
 use App\Support\FeatureFlags;
 use App\Support\LeadExportFields;
 use App\Support\TaskPresenter;
@@ -2168,5 +2170,72 @@ class LeadContactController extends AccountBaseController
         }
 
         return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
+    }
+
+    public function leadSallyInsights(Request $request, $id)
+    {
+        $lead = Lead::findOrFail($id);
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules);
+        abort_403(! $access['canAccess']);
+
+        $service = app(\App\Services\SallyMeetingInsightService::class);
+        $insights = $service->visibleDealsOnly($service->forLead((int) $id), user());
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $service->serializeMany($insights),
+        ]);
+    }
+
+    /**
+     * The Sally summary is a human-editable field: the bot's version is a
+     * starting point, and the team corrects it. The transcript stays
+     * read-only — it is the source recording, not CRM copy.
+     */
+    public function updateSallyInsight(Request $request, $insight)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+        $lead = $model->lead_id ? Lead::find($model->lead_id) : null;
+        $deal = $model->deal_id ? Deal::find($model->deal_id) : null;
+
+        // An insight is reachable from both a lead and a deal, so it is only
+        // editable through whichever of those the user is allowed to see.
+        $canEdit = false;
+
+        if ($lead) {
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
+        }
+
+        if (! $canEdit && $deal) {
+            // Write gate: watchers may read a deal but never write to it, so
+            // this uses hasTeamMemberAccess() rather than isVisibleToUser().
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
+            ];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        abort_403(! $canEdit);
+
+        $data = $request->validate([
+            'summary' => ['present', 'nullable', 'string', 'max:50000'],
+        ]);
+
+        $model->summary = $data['summary'] === null
+            ? null
+            : SallyMeetingInsightService::sanitizeSummary($data['summary']);
+        $model->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp'])),
+        ]);
     }
 }

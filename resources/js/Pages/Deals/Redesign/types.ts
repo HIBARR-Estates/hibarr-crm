@@ -16,7 +16,8 @@ export type DealRecordTab =
     | "offers"
     | "exposes"
     | "recommendations"
-    | "itinerary";
+    | "itinerary"
+    | "sally";
 
 export type DealMetaTab = "dealinfo" | "timeline";
 
@@ -31,6 +32,7 @@ export interface DealTabCount {
     exposes?: number;
     recommendations?: number;
     itinerary?: number;
+    sally?: number;
 }
 export type DealInfoCoreSectionId =
     | "general"

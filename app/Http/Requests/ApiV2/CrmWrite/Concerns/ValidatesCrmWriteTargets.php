@@ -43,15 +43,29 @@ trait ValidatesCrmWriteTargets
         ];
     }
 
+    /**
+     * True when a Sally payload may omit lead_id/deal_id: the target is then
+     * resolved from the meeting itself (which may carry only a deal_id, and
+     * whose lead the service backfills from that deal).
+     */
+    protected function resolvesTargetFromMeeting(): bool
+    {
+        return $this->input('meeting_id') !== null;
+    }
+
     protected function validateCrmWriteTargets(Validator $validator): void
     {
-        if (!$this->filled('lead_id') && !$this->filled('deal_id')) {
+        if (! $this->filled('lead_id') && ! $this->filled('deal_id')) {
+            if ($this->resolvesTargetFromMeeting()) {
+                return;
+            }
+
             $message = __('messages.crmWriteTargetRequired');
             $validator->errors()->add('lead_id', $message);
             $validator->errors()->add('deal_id', $message);
         }
 
-        if (!$this->filled('lead_id') || !$this->filled('deal_id')) {
+        if (! $this->filled('lead_id') || ! $this->filled('deal_id')) {
             return;
         }
 
@@ -60,7 +74,7 @@ trait ValidatesCrmWriteTargets
             ->where('lead_id', $this->input('lead_id'))
             ->exists();
 
-        if (!$dealBelongsToLead) {
+        if (! $dealBelongsToLead) {
             $validator->errors()->add('deal_id', __('messages.invalidDealForLead'));
         }
     }
