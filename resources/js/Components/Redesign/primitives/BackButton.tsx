@@ -1,6 +1,5 @@
-import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
-import { getBackTarget } from "@/lib/inertiaHistory";
+import { visitBackTarget } from "@/lib/inertiaHistory";
 import Button from "./Button";
 import Icon from "./Icon";
 
@@ -22,10 +21,10 @@ export default function BackButton({ fallbackHref, label }: BackButtonProps) {
         <Button
             size="sm"
             icon={<Icon name="chevron-left" size={14} />}
-            onClick={() => router.visit(getBackTarget() ?? fallbackHref)}
+            onClick={() => visitBackTarget(fallbackHref)}
             data-testid="back-button"
         >
-            {label ?? t("pages.common.back")}
+            {label ?? t("pages.deals.common.back")}
         </Button>
     );
 }

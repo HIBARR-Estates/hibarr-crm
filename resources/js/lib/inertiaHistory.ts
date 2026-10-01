@@ -45,6 +45,8 @@ export function replaceHistoryOnSamePageReloads(): () => void {
 
 const BACK_KEY_PREFIX = "crm.backTo:";
 
+let skipNextBackRecord = false;
+
 function backKey(pathname: string): string {
     return `${BACK_KEY_PREFIX}${pathname}`;
 }
@@ -61,7 +63,15 @@ function backKey(pathname: string): string {
 export function trackBackTargets(): () => void {
     return router.on("before", (event) => {
         const { visit } = event.detail;
-        if (visit.method !== "get") return;
+        // A Back navigation must not rewrite the destination's own return
+        // target, or list → lead → deal → Back → Back would bounce between
+        // the two detail pages instead of reaching the list.
+        if (skipNextBackRecord) {
+            skipNextBackRecord = false;
+            return;
+        }
+        // Prefetches fire `before` too but are not navigations.
+        if (visit.method !== "get" || visit.prefetch) return;
         if (visit.url.pathname === window.location.pathname) return;
         try {
             window.sessionStorage.setItem(
@@ -85,4 +95,18 @@ export function getBackTarget(pathname: string = window.location.pathname): stri
     } catch {
         return null;
     }
+}
+
+/**
+ * Visit the recorded origin of the current page (or `fallbackHref`) without
+ * recording this visit as a new origin for the page it lands on.
+ */
+export function visitBackTarget(fallbackHref: string): void {
+    skipNextBackRecord = true;
+    router.visit(getBackTarget() ?? fallbackHref, {
+        // Reset if Inertia cancels the visit before `before` consumed it.
+        onCancel: () => {
+            skipNextBackRecord = false;
+        },
+    });
 }
