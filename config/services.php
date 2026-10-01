@@ -113,6 +113,8 @@ return [
         'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
         'base_url'      => env('KEYCLOAK_BASE_URL'),
         'realms'        => env('KEYCLOAK_REALM'),
+        // Where Keycloak sends the user after ending its session; defaults to the login route.
+        'post_logout_redirect' => env('KEYCLOAK_POST_LOGOUT_REDIRECT_URI'),
     ],
 
     'ai' => [
