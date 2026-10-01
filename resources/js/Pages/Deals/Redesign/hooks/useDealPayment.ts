@@ -8,13 +8,49 @@ import type {
 } from "@/Types/api/deal-payment";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
+function stringifyMessage(value: unknown): string | null {
+    if (typeof value === "string" && value.trim() !== "") {
+        return value.trim();
+    }
+    if (Array.isArray(value)) {
+        const parts = value
+            .map((entry) => {
+                if (typeof entry === "string") return entry.trim();
+                if (
+                    entry
+                    && typeof entry === "object"
+                    && "message" in entry
+                    && typeof (entry as { message: unknown }).message === "string"
+                ) {
+                    return (entry as { message: string }).message.trim();
+                }
+                return "";
+            })
+            .filter(Boolean);
+        return parts.length > 0 ? parts.join(" ") : null;
+    }
+    return null;
+}
+
 function apiErrorMessage(error: unknown, fallback: string): string {
     const err = error as {
-        response?: { data?: { message?: string; error?: { message?: string } } };
+        response?: {
+            data?: {
+                message?: unknown;
+                error?: { message?: unknown } | string;
+            };
+        };
     };
+    const data = err.response?.data;
     return (
-        err.response?.data?.message
-        ?? err.response?.data?.error?.message
+        stringifyMessage(data?.message)
+        ?? stringifyMessage(
+            typeof data?.error === "object" && data.error !== null
+                ? data.error.message
+                : typeof data?.error === "string"
+                  ? data.error
+                  : null,
+        )
         ?? fallback
     );
 }
