@@ -9,9 +9,9 @@ later funnel via **CRM automations**.
 |---|---|---|---|
 | `PageView` | Visitor lands on any page (not scoped) | Pixel | `hibarr-website` base pixel `components/analytics/MetaPixel.tsx` |
 | `ViewContent` | Tracked page: scrolled to the bottom **and** 30 s on the page (tab visible) | Pixel | `hibarr-website` `components/analytics/MetaViewContent.tsx` |
-| `Lead` | Form submission succeeds and the lead exists | **Backend → CAPI** | website calls `hibarr-backend` `POST /v1/meta/events` |
-| `CompleteRegistration` | Consultation registration with its qualification answers succeeds | **Backend → CAPI** | same endpoint |
-| `Schedule` | Calendly booking confirmed | **Backend → CAPI** | same endpoint, from the Calendly embed |
+| `Lead` | Contact step completed (lead created first via `POST /leads/capture`, event sent with its uuid) | **Backend → CAPI** | website calls `hibarr-backend` `POST /v1/meta/events` |
+| `CompleteRegistration` | Last qualification answer given (creates the lead first if needed) | **Backend → CAPI** | same endpoint |
+| `Schedule` | Calendly booking confirmed (creates the lead first if needed) | **Backend → CAPI** | same endpoint, from the Calendly embed; the three events are independent of each other |
 | `Contact` | Meeting logged as **Attended** (value 1500) | CRM → CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
 | `Purchase` | Payment confirmed (real value) | CRM → CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
 
