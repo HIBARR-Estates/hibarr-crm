@@ -1,26 +1,30 @@
 # Meta event funnel — what sends what
 
 How each step of the lead funnel is reported back to Meta, and where it lives.
-Browser events are sent by the **website** Meta Pixel; later-funnel events are
-sent server-side by **CRM automations** through the Conversions API (CAPI).
+Only browser-only signals use the **website** Meta Pixel. Everything tied to a real
+lead goes through the Conversions API (CAPI): the early funnel via the **backend**, the
+later funnel via **CRM automations**.
 
 | Meta event | Fires when | Channel | Where |
 |---|---|---|---|
-| `PageView` | Visitor lands on any page (not scoped) | Pixel | `hibarr-website` `components/analytics/MetaPixel.tsx` (base snippet) |
-| `ViewContent` | Landing page: scrolled to the bottom **and** 30 s on the page (tab visible) | Pixel | `hibarr-website` `components/analytics/MetaViewContent.tsx` |
-| `Lead` | Contact details filled in on a consultation form (valid email) — as filled, not on submit | Pixel | `useMetaFormTracking` + `meta-tracking.config.ts` |
-| `CompleteRegistration` | All of the form's qualification questions answered — as answered, not on submit | Pixel | `useMetaFormTracking` + `meta-tracking.config.ts` |
-| `Schedule` | Calendly booking confirmed (`calendly.event_scheduled`) | Pixel | `hibarr-website` `components/CalendlyEmbed.tsx` |
-| `Contact` | Meeting logged as **Attended** (value 1500) | CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
-| `Purchase` | Payment confirmed (real value) | CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
+| `PageView` | Visitor lands on any page (not scoped) | Pixel | `hibarr-website` base pixel `components/analytics/MetaPixel.tsx` |
+| `ViewContent` | Tracked page: scrolled to the bottom **and** 30 s on the page (tab visible) | Pixel | `hibarr-website` `components/analytics/MetaViewContent.tsx` |
+| `Lead` | Form submission succeeds and the lead exists | **Backend → CAPI** | website calls `hibarr-backend` `POST /v1/meta/events` |
+| `CompleteRegistration` | Consultation registration with its qualification answers succeeds | **Backend → CAPI** | same endpoint |
+| `Schedule` | Calendly booking confirmed | **Backend → CAPI** | same endpoint, from the Calendly embed |
+| `Contact` | Meeting logged as **Attended** (value 1500) | CRM → CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
+| `Purchase` | Payment confirmed (real value) | CRM → CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
+
+The pixel does **not** send `Lead`, `CompleteRegistration` or `Schedule`: they are tied to a real
+lead, so the backend sends them with the lead's own verified details. The CRM keeps sending
+`Contact` and `Purchase` itself (`MetaConversionsService`, Graph API `v23.0`). See
+`hibarr-website/docs/meta-pixel-events.md` and `hibarr-backend/docs/CODEBASE_BRIEF.md` (Meta row).
 
 `ViewContent`, `Lead`, `CompleteRegistration` and `Schedule` are only sent from tracked
-pages — `/consultation*` and `/lp/<slug>` — enforced in `trackMetaEvent()` and configured in
-`hibarr-website/src/lib/meta-tracking.config.ts` (see `docs/meta-pixel-events.md` there). `PageView` is unscoped.
-
-All pixel events go through `trackMetaEvent()` (`hibarr-website/src/lib/meta-pixel.ts`),
-which no-ops when the pixel isn't on the page (`?noanalytics=1`, pay routes, ad
-blockers) and attaches an `eventID` to every event.
+pages — `/consultation*` and `/lp/<slug>` — configured in
+`hibarr-website/src/lib/meta-tracking.config.ts` and enforced for both channels (pixel in
+`trackMetaEvent()`, server events in `reportMetaEvent()`). `PageView` is unscoped. Both stay
+silent in a `?noanalytics=1` session.
 
 ## Setting up the `Contact` event in the CRM
 
