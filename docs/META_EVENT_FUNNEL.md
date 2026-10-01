@@ -8,8 +8,8 @@ sent server-side by **CRM automations** through the Conversions API (CAPI).
 |---|---|---|---|
 | `PageView` | Visitor lands on any page (not scoped) | Pixel | `hibarr-website` `components/analytics/MetaPixel.tsx` (base snippet) |
 | `ViewContent` | Landing page: scrolled to the bottom **and** 30 s on the page (tab visible) | Pixel | `hibarr-website` `components/analytics/MetaViewContent.tsx` |
-| `Lead` | Consultation form contact step completed, or (at the latest) the form POST succeeds | Pixel | automatic via `makePOSTRequest` + config |
-| `CompleteRegistration` | Qualification questions answered and the consultation registration saved | Pixel | automatic via `makePOSTRequest` + config |
+| `Lead` | Contact details filled in on a consultation form (valid email) — as filled, not on submit | Pixel | `useMetaFormTracking` + `meta-tracking.config.ts` |
+| `CompleteRegistration` | All of the form's qualification questions answered — as answered, not on submit | Pixel | `useMetaFormTracking` + `meta-tracking.config.ts` |
 | `Schedule` | Calendly booking confirmed (`calendly.event_scheduled`) | Pixel | `hibarr-website` `components/CalendlyEmbed.tsx` |
 | `Contact` | Meeting logged as **Attended** (value 1500) | CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
 | `Purchase` | Payment confirmed (real value) | CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
