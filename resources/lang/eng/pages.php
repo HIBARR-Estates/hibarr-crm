@@ -737,6 +737,7 @@ return [
             'tasks' => 'Tasks',
             'meetings' => 'Meetings',
             'files' => 'Files',
+            'payments' => 'Payments',
             'recommendations' => 'Recommendations',
             'offers' => 'Offers',
             'history' => 'History',

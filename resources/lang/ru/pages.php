@@ -697,6 +697,7 @@ return [
             'tasks' => 'Задачи',
             'meetings' => 'Встречи',
             'files' => 'Файлы',
+            'payments' => 'Платежи',
             'recommendations' => 'Рекомендации',
             'offers' => 'Предложения',
             'history' => 'История',

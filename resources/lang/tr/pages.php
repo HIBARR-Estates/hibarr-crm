@@ -698,6 +698,7 @@ return [
             'tasks' => 'Görevler',
             'meetings' => 'Toplantılar',
             'files' => 'Dosyalar',
+            'payments' => 'Ödemeler',
             'recommendations' => 'Öneriler',
             'offers' => 'Teklifler',
             'history' => 'Geçmiş',

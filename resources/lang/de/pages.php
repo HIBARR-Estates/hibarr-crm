@@ -716,6 +716,7 @@ return [
             'tasks' => 'Aufgaben',
             'meetings' => 'Termine',
             'files' => 'Dateien',
+            'payments' => 'Zahlungen',
             'recommendations' => 'Empfehlungen',
             'offers' => 'Angebote',
             'history' => 'Verlauf',
