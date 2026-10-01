@@ -533,6 +533,13 @@ class LeadMergeService
             return;
         }
 
+        // Keep the duplicate's UTM history; it is logged after the primary's own touches.
+        if (Schema::hasTable('lead_utm_touches')) {
+            \App\Models\LeadUtmTouch::query()
+                ->where('lead_id', $duplicate->id)
+                ->update(['lead_id' => $primary->id, 'is_first_touch' => false]);
+        }
+
         $primaryMarketing = LeadMarketing::query()->where('lead_id', $primary->id)->first();
         $duplicateMarketing = LeadMarketing::query()->where('lead_id', $duplicate->id)->first();
 
