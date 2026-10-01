@@ -892,6 +892,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Back',
             'cancel' => 'Cancel',
             'close' => 'Close',
             'select' => 'Select',

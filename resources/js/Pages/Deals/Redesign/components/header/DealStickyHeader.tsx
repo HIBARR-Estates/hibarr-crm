@@ -1,3 +1,4 @@
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import { useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -161,6 +162,10 @@ export default function DealStickyHeader({
                     {t("pages.deals.locked_message")}
                 </div>
             )}
+
+            <div className="mb-3">
+                <BackButton fallbackHref={route("deals.index")} />
+            </div>
 
             <div className="">
                 <div className="flex flex-wrap items-start justify-between gap-6">

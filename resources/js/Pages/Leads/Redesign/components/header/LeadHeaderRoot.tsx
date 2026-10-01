@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type { Lead } from "@/Types/api/leads";
 import { initialsFromName } from "@/Components/Redesign";
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import EditableTitle from "@/Components/Redesign/primitives/EditableTitle";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
@@ -92,6 +93,9 @@ export default function LeadHeaderRoot({
 
     return (
         <>
+            <div style={{ marginBottom: 12 }}>
+                <BackButton fallbackHref={route("lead-contact.index")} />
+            </div>
             <header
                 data-tour="lead-sticky-header"
                 style={{
