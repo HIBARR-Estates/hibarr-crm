@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MeetingAttendanceOutcome;
 use App\Models\Company;
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\DealFollowUp;
 use App\Models\DealNote;
 use App\Models\LeadNote;
@@ -14,6 +15,7 @@ use App\Support\MeetingAttendanceConfirmationFeature;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MeetingAttendanceConfirmationService
 {
@@ -277,6 +279,7 @@ class MeetingAttendanceConfirmationService
 
             $followUp->refresh();
             $this->recordOutcomeNoteAndEvent($followUp, $user, $outcome, $trimmedNote);
+            $this->dispatchMeetingAttendedAutomations($followUp, $outcome, null);
 
             return $followUp;
         });
@@ -303,6 +306,8 @@ class MeetingAttendanceConfirmationService
         $trimmedNote = $note !== null ? trim($note) : '';
 
         return DB::transaction(function () use ($followUp, $user, $outcome, $trimmedNote) {
+            $previousOutcome = $followUp->attendance_outcome;
+
             $followUp->attendance_outcome = $outcome->value;
             $followUp->attendance_outcome_logged_at = now();
             $followUp->attendance_outcome_logged_by = $user->id;
@@ -310,8 +315,52 @@ class MeetingAttendanceConfirmationService
             $followUp->save();
 
             $this->recordOutcomeNoteAndEvent($followUp, $user, $outcome, $trimmedNote);
+            $this->dispatchMeetingAttendedAutomations($followUp, $outcome, $previousOutcome);
 
             return $followUp;
+        });
+    }
+
+    /**
+     * Fires the meeting_attended (deal) / lead_meeting_attended (lead-only)
+     * automation trigger when — and only when — a meeting moves *into* the
+     * Attended outcome. Re-saving an already-attended meeting (e.g. editing
+     * its remark) must not re-run the automations, otherwise a Meta "Contact"
+     * conversion action would report the same attendance twice.
+     *
+     * Deferred to after the outermost commit so an automation never acts on an
+     * outcome that could still roll back, and swallowed (logged) on failure so
+     * a misbehaving automation can never block the agent from logging the
+     * outcome itself.
+     */
+    private function dispatchMeetingAttendedAutomations(
+        DealFollowUp $followUp,
+        MeetingAttendanceOutcome $outcome,
+        ?string $previousOutcome
+    ): void {
+        if ($outcome !== MeetingAttendanceOutcome::Attended
+            || $previousOutcome === MeetingAttendanceOutcome::Attended->value) {
+            return;
+        }
+
+        DB::afterCommit(function () use ($followUp) {
+            try {
+                $followUp->loadMissing(['deal', 'lead']);
+                $automations = app(DealAutomationService::class);
+
+                if ($followUp->deal) {
+                    $automations->process($followUp->deal, DealAutomation::TRIGGER_MEETING_ATTENDED);
+                } elseif ($followUp->lead) {
+                    $automations->processLead($followUp->lead, DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED);
+                }
+            } catch (\Throwable $e) {
+                Log::error('[MeetingAttendanceConfirmationService] meeting-attended automations failed', [
+                    'followup_id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'lead_id' => $followUp->lead_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         });
     }
 

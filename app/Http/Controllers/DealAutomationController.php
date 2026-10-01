@@ -563,6 +563,7 @@ class DealAutomationController extends AccountBaseController
 
         $dealTriggers = [
             'deal_created', 'deal_updated', 'followup_created',
+            DealAutomation::TRIGGER_MEETING_ATTENDED,
             DealAutomation::TRIGGER_DEAL_CREATED_API,
             DealAutomation::TRIGGER_DEAL_UPDATED_API,
         ];
@@ -570,6 +571,7 @@ class DealAutomationController extends AccountBaseController
         $leadTriggers = [
             'lead_created', 'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
+            DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,
         ];
@@ -730,6 +732,8 @@ class DealAutomationController extends AccountBaseController
             'lead_created',
             'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
+            DealAutomation::TRIGGER_MEETING_ATTENDED,
+            DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED,
             DealAutomation::TRIGGER_DATE_BASED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,

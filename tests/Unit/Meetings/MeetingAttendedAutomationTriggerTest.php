@@ -1,0 +1,182 @@
+<?php
+
+namespace Tests\Unit\Meetings;
+
+use App\Enums\MeetingAttendanceOutcome;
+use App\Models\Deal;
+use App\Models\DealAutomation;
+use App\Models\DealFollowUp;
+use App\Models\Lead;
+use App\Services\DealActivityEventService;
+use App\Services\DealAutomationService;
+use App\Services\MeetingAttendanceConfirmationService;
+use App\Support\AutomationV2Feature;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Mockery;
+use Mockery\MockInterface;
+use ReflectionMethod;
+use Tests\Concerns\SetsFeatureFlags;
+use Tests\TestCase;
+
+/**
+ * The meeting_attended / lead_meeting_attended triggers feed the Meta "Contact"
+ * conversion, so the rules that matter are: fire only on the move *into*
+ * Attended (never for other outcomes, never again for an already-attended
+ * meeting), pick the deal or lead flavour by what the meeting is attached to,
+ * and never let a failing automation escape into the outcome-logging flow.
+ *
+ * The dispatch step is exercised directly: confirm()/update() wrap it in
+ * note/timeline writes that need the full CRM schema and are covered elsewhere.
+ */
+class MeetingAttendedAutomationTriggerTest extends TestCase
+{
+    use SetsFeatureFlags;
+
+    private MockInterface $automations;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Config::set('database.default', 'sqlite');
+        Config::set('database.connections.sqlite.database', ':memory:');
+        DB::purge('sqlite');
+        DB::reconnect('sqlite');
+
+        $this->automations = Mockery::mock(DealAutomationService::class);
+        $this->app->instance(DealAutomationService::class, $this->automations);
+    }
+
+    public function test_attended_deal_meeting_fires_the_deal_trigger(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+        $this->automations->shouldNotReceive('processLead');
+
+        $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, null);
+    }
+
+    public function test_attended_lead_only_meeting_fires_the_lead_trigger(): void
+    {
+        $lead = new Lead;
+        $lead->id = 9;
+
+        $this->automations->shouldReceive('processLead')->once()->with($lead, 'lead_meeting_attended');
+        $this->automations->shouldNotReceive('process');
+
+        $this->dispatch($this->followUp(lead: $lead), MeetingAttendanceOutcome::Attended, null);
+    }
+
+    public function test_deal_meeting_does_not_also_fire_the_lead_trigger(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+        $lead = new Lead;
+        $lead->id = 9;
+
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+        $this->automations->shouldNotReceive('processLead');
+
+        $this->dispatch($this->followUp(deal: $deal, lead: $lead), MeetingAttendanceOutcome::Attended, null);
+    }
+
+    public function test_changing_from_another_outcome_to_attended_fires(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+
+        $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, 'no_show');
+    }
+
+    public function test_re_saving_an_already_attended_meeting_does_not_fire_again(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $this->automations->shouldNotReceive('process');
+        $this->automations->shouldNotReceive('processLead');
+
+        $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, 'attended');
+    }
+
+    /**
+     * @dataProvider nonAttendedOutcomes
+     */
+    public function test_other_outcomes_never_fire(MeetingAttendanceOutcome $outcome): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $this->automations->shouldNotReceive('process');
+        $this->automations->shouldNotReceive('processLead');
+
+        $this->dispatch($this->followUp(deal: $deal), $outcome, null);
+    }
+
+    /** @return array<string, array{MeetingAttendanceOutcome}> */
+    public static function nonAttendedOutcomes(): array
+    {
+        return [
+            'no show' => [MeetingAttendanceOutcome::NoShow],
+            'rescheduled' => [MeetingAttendanceOutcome::Rescheduled],
+            'cancelled' => [MeetingAttendanceOutcome::Cancelled],
+            'partial' => [MeetingAttendanceOutcome::Partial],
+        ];
+    }
+
+    public function test_a_failing_automation_does_not_escape_into_outcome_logging(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $this->automations->shouldReceive('process')->once()->andThrow(new \RuntimeException('meta is down'));
+
+        $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, null);
+
+        $this->addToAssertionCount(1); // reaching here without an exception is the assertion
+    }
+
+    public function test_new_triggers_are_v2_only(): void
+    {
+        $this->setFeatureFlag(AutomationV2Feature::FLAG, false);
+
+        foreach ([DealAutomation::TRIGGER_MEETING_ATTENDED, DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED] as $trigger) {
+            $automation = new DealAutomation(['trigger' => $trigger, 'subject_type' => DealAutomation::SUBJECT_DEAL]);
+
+            $this->assertFalse(
+                AutomationV2Feature::supportsAutomation($automation),
+                "{$trigger} drives v2-only actions (meta_conversion) and must not run on the legacy engine."
+            );
+        }
+
+        $this->setFeatureFlag(AutomationV2Feature::FLAG, true);
+
+        $this->assertTrue(AutomationV2Feature::supportsAutomation(
+            new DealAutomation(['trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED, 'subject_type' => DealAutomation::SUBJECT_DEAL])
+        ));
+    }
+
+    private function followUp(?Deal $deal = null, ?Lead $lead = null): DealFollowUp
+    {
+        $followUp = new DealFollowUp;
+        $followUp->id = 1;
+        $followUp->setRelation('deal', $deal);
+        $followUp->setRelation('lead', $lead);
+
+        return $followUp;
+    }
+
+    private function dispatch(DealFollowUp $followUp, MeetingAttendanceOutcome $outcome, ?string $previousOutcome): void
+    {
+        $service = new MeetingAttendanceConfirmationService(Mockery::mock(DealActivityEventService::class));
+
+        $method = new ReflectionMethod($service, 'dispatchMeetingAttendedAutomations');
+        $method->setAccessible(true);
+        $method->invoke($service, $followUp, $outcome, $previousOutcome);
+    }
+}

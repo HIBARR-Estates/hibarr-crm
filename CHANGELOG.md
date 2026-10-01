@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Meeting Attended automation triggers** (`meeting_attended` for deal meetings, `lead_meeting_attended` for lead-only meetings): fire once, the first time a meeting's attendance outcome becomes *Attended* (confirmation prompt or the meeting's edit form). Intended for sending the Meta `Contact` conversion via a `meta_conversion` action. Automation v2 only. See `docs/META_EVENT_FUNNEL.md`.
 - **Meta Conversions API Integration**: Automatic tracking of deal stage changes as Meta (Facebook) conversion events
   - **MetaConversionTrigger Model**: Configurable model to map pipeline stages to Meta event names
   - **Queued Job Processing**: Background job (`SendMetaConversionEventJob`) for reliable event delivery without blocking deal updates

@@ -18,6 +18,8 @@ export type TriggerKey =
     | "lead_created"
     | "lead_updated"
     | "lead_followup_created"
+    | "meeting_attended"
+    | "lead_meeting_attended"
     | "date_based"
     | "lead_created_api"
     | "lead_updated_api"
