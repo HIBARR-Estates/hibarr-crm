@@ -6,13 +6,17 @@ sent server-side by **CRM automations** through the Conversions API (CAPI).
 
 | Meta event | Fires when | Channel | Where |
 |---|---|---|---|
-| `PageView` | Visitor lands on any page | Pixel | `hibarr-website` `components/analytics/MetaPixel.tsx` (base snippet) |
+| `PageView` | Visitor lands on any page (not scoped) | Pixel | `hibarr-website` `components/analytics/MetaPixel.tsx` (base snippet) |
 | `ViewContent` | Landing page: scrolled to the bottom **and** 30 s on the page (tab visible) | Pixel | `hibarr-website` `components/analytics/MetaViewContent.tsx` |
-| `Lead` | Contact step of the consultation form completed (email entered), or `/capture` form saved | Pixel | `ConsultationForm` (both variants), `LeadCaptureForm` |
+| `Lead` | Contact step of the consultation form completed (email entered) | Pixel | `ConsultationForm` (both variants) |
 | `CompleteRegistration` | Qualification questions answered and the consultation registration saved | Pixel | `ConsultationForm` (both variants), mutation `onSuccess` |
 | `Schedule` | Calendly booking confirmed (`calendly.event_scheduled`) | Pixel | `hibarr-website` `components/CalendlyEmbed.tsx` |
 | `Contact` | Meeting logged as **Attended** (value 1500) | CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
 | `Purchase` | Payment received (real value) | CAPI | **Not wired yet** — see "Purchase" below |
+
+`ViewContent`, `Lead`, `CompleteRegistration` and `Schedule` are only sent from tracked
+pages — `/consultation*` and `/lp/<slug>` — enforced in `trackMetaEvent()` by the
+`TRACKED_PATH_PATTERNS` allowlist. `PageView` is unscoped.
 
 All pixel events go through `trackMetaEvent()` (`hibarr-website/src/lib/meta-pixel.ts`),
 which no-ops when the pixel isn't on the page (`?noanalytics=1`, pay routes, ad
