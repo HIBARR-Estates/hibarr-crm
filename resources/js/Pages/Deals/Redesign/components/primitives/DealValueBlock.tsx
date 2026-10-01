@@ -74,8 +74,12 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
      * Always two decimals. Money columns that mix "£470,000" with "£5,428.88"
      * stop lining up on the decimal point, which is exactly where the eye
      * checks whether a column adds up.
+     *
+     * Defaults to the company currency: deal values are presented in the
+     * company's base currency everywhere outside the Payment Requests page.
+     * Symbol only for now — amounts are not converted.
      */
-    const money = (amount: number | null | undefined, currency = dealCurrency) => {
+    const money = (amount: number | null | undefined, currency = companyCurrency) => {
         if (amount == null) return "—";
         const prefix = currency.symbol || currency.code || "";
         return `${prefix}${Number(amount).toLocaleString(undefined, {
@@ -269,7 +273,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         {/* ── What the deal is worth, in its own currency ── */}
                         {section(
                             `${t("pages.deals.info.value_insight.section_value")}${
-                                dealCurrency.code ? ` (${dealCurrency.code})` : ""
+                                companyCurrency.code ? ` (${companyCurrency.code})` : ""
                             }`,
                             <>
                                 {/* A manual deal is priced from one typed figure, so

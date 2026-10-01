@@ -9,6 +9,7 @@ import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
+import { getFirstValidationMessage } from "@/lib/api/utils/common";
 import type { TdFn } from "@/lib/dynamicTranslation";
 import {
     resolveLeadAgeFields,
@@ -297,8 +298,13 @@ export default function LeadInfoSectionPanel({
             message.success(t("pages.leads.info.save_all_success"));
             setPendingChanges({});
             setIsEditing(false);
-        } catch {
-            message.error(t("pages.leads.info.save_all_error"));
+        } catch (error: unknown) {
+            message.error(
+                getFirstValidationMessage(
+                    error,
+                    t("pages.leads.info.save_all_error"),
+                ),
+            );
         } finally {
             setIsSavingAll(false);
         }

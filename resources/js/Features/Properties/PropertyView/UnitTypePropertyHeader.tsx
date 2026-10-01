@@ -19,6 +19,10 @@ import type {
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { generatePropertySubtitle, formatLocationNameForDisplay } from "@/lib/utils";
 import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
+import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
+import ProgressRing from "@/Components/Redesign/primitives/ProgressRing";
+import useTranslation from "@/Hooks/useTranslation";
+import type { PropertyCompleteness } from "@/lib/propertyCompletenessFlag";
 
 const { Title, Text } = Typography;
 
@@ -30,6 +34,7 @@ interface UnitTypePropertyHeaderProps {
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
     onGenerateExpose?: () => void;
+    completeness?: PropertyCompleteness | null;
 }
 
 export default function UnitTypePropertyHeader({
@@ -40,9 +45,18 @@ export default function UnitTypePropertyHeader({
     onCheckAvailability,
     onMarkAsSold,
     onGenerateExpose,
+    completeness: completenessProp,
 }: UnitTypePropertyHeaderProps) {
+    const { t } = useTranslation();
     const shareLinksEnabled = useExposeShareLinksFlag();
+    const showCompleteness = usePropertyCompletenessFlag();
     const [copied, setCopied] = React.useState(false);
+
+    const completeness = completenessProp ?? unitType.completeness ?? null;
+    const showRing =
+        showCompleteness &&
+        completeness != null &&
+        completeness.total > 0;
 
     const handleCopyRefCode = () => {
         if (unitType.reference_code) {
@@ -151,6 +165,25 @@ export default function UnitTypePropertyHeader({
                         <DollarOutlined />
                         From {formattedPrice}
                     </span>
+                )}
+
+                {showRing && (
+                    <Tooltip
+                        title={t("pages.properties.completeness.tooltip")
+                            .replace(":filled", String(completeness!.filled))
+                            .replace(":total", String(completeness!.total))}
+                    >
+                        <span className="inline-flex">
+                            <ProgressRing
+                                done={completeness!.filled}
+                                total={completeness!.total}
+                                size={36}
+                                stroke={3}
+                                trackColor="#e5e7eb"
+                                label={`${completeness!.percent}%`}
+                            />
+                        </span>
+                    </Tooltip>
                 )}
             </div>
 

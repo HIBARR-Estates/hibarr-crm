@@ -6,6 +6,7 @@ use App\Models\Company;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
+use App\Support\DemoSeeding;
 
 class DatabaseSeeder extends Seeder
 {
@@ -34,7 +35,7 @@ class DatabaseSeeder extends Seeder
 
         foreach ($companies as $company) {
 
-            if (!App::environment('codecanyon')) {
+            if (DemoSeeding::enabled()) {
                 $this->call(DepartmentTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(UsersTableSeeder::class, false, ['companyId' => $company->id]);
                 $this->call(BankAccountSeeder::class, false, ['companyId' => $company->id]);

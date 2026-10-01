@@ -24,7 +24,9 @@ use App\Notifications\LeadImported;
 use App\Services\CrmEventDescriptionBuilder;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
+use App\Services\DealPaymentService;
 use App\Services\DealTaskService;
+use App\Support\FeatureFlags;
 use App\Traits\DealHistoryTrait;
 use App\Traits\EmployeeActivityTrait;
 use App\Traits\HasDynamicTranslations;
@@ -222,6 +224,10 @@ class DealObserver
     public function updated(Deal $deal)
     {
         HasDynamicTranslations::dispatchDynamicTranslation($deal, true);
+
+        if ($deal->wasChanged('value')) {
+            $this->invalidateStalePaymentRequest($deal);
+        }
 
         if (! isRunningInConsoleOrSeeding()) {
 
@@ -797,6 +803,34 @@ class DealObserver
             \Log::error('Failed to fire DealWonEvent', [
                 'deal_id' => $deal->id,
                 'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Backstop for value writes that never pass DealPaymentValueGuard
+     * (automations, jobs, anything calling save() directly): an unpaid
+     * payment request priced from the old value must not stay payable. The
+     * guarded endpoints have already invalidated it before saving, so this is
+     * a no-op for them. The value is already saved here, so an OL failure can
+     * only be logged — the request stays visible as active for someone to act on.
+     */
+    private function invalidateStalePaymentRequest(Deal $deal): void
+    {
+        if (! FeatureFlags::enabled('packages.online-payment')) {
+            return;
+        }
+
+        try {
+            $payments = app(DealPaymentService::class);
+            $active = $payments->findActiveRequest($deal);
+
+            if ($active !== null && DealPaymentService::uiStateOf($active) === 'pending_payment') {
+                $payments->invalidatePending($deal, user() ?: null, 'Deal value changed outside the deal page');
+            }
+        } catch (\Throwable $e) {
+            \Log::error("DealObserver: could not invalidate payment request for deal {$deal->id} after a value change", [
+                'error' => $e->getMessage(),
             ]);
         }
     }

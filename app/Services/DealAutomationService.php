@@ -54,17 +54,32 @@ class DealAutomationService
     }
 
     /**
+     * Fully locked deals, and deals the client has already paid through a
+     * payment request, never run automations.
+     */
+    protected function isExcludedFromAutomations(Deal $deal): bool
+    {
+        if ($deal->is_locked) {
+            return true;
+        }
+
+        return \App\Support\FeatureFlags::enabled('packages.online-payment')
+            && app(DealPaymentService::class)->hasPaidRequest($deal);
+    }
+
+    /**
      * Process deal-subject automations for a deal based on its current state
      * and an optional trigger. Matches automations scoped to the deal's own
      * pipeline as well as ones with no pipeline scope (run for any pipeline).
      */
     public function process(Deal $deal, ?string $trigger = null): void
     {
-        // Skip automation only for fully locked deals — a commission-locked
-        // deal (commission already paid/distributed) still allows automations
-        // to run; only the general edit lock freezes them.
-        if ($deal->is_locked) {
-            Log::info("Skipping automations for locked Deal ID: {$deal->id}");
+        // Skip automation for fully locked deals and for deals the client has
+        // already paid through a payment request. A commission-locked deal
+        // (commission already paid/distributed) on its own still allows
+        // automations to run.
+        if ($this->isExcludedFromAutomations($deal)) {
+            Log::info("Skipping automations for locked or paid Deal ID: {$deal->id}");
 
             return;
         }
@@ -127,8 +142,8 @@ class DealAutomationService
             return;
         }
 
-        if ($subject instanceof Deal && $subject->is_locked) {
-            Log::info("Skipping date-based automation for locked Deal ID: {$subject->id}");
+        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject)) {
+            Log::info("Skipping date-based automation for locked or paid Deal ID: {$subject->id}");
 
             return;
         }
@@ -266,8 +281,8 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && $subject->is_locked) {
-            Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked");
+        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject)) {
+            Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked or paid");
 
             return true;
         }

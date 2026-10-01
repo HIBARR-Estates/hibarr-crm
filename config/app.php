@@ -52,6 +52,12 @@ return [
     // config:cache; see App\Http\Middleware\TrustProxies for the default.
     'trusted_proxies' => env('TRUSTED_PROXIES'),
     'seed_record_count' => env('SEED_RECORD_COUNT', 5),
+
+    // Demo accounts get this password; a random one is generated and printed
+    // when it is unset. Demo data never seeds in production unless
+    // SEED_DEMO_DATA opts in (a demo instance running APP_ENV=production).
+    'seed_user_password' => env('SEED_USER_PASSWORD'),
+    'seed_demo_data' => env('SEED_DEMO_DATA', false),
     'extra_company_seed_count' => env('EXTRA_COMPANY_SEED_COUNT', 0),
     /*
     |--------------------------------------------------------------------------

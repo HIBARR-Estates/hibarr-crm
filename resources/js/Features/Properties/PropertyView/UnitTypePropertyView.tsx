@@ -32,6 +32,7 @@ import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import type { PropertyCompleteness } from "@/lib/propertyCompletenessFlag";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
 const { Text, Paragraph } = Typography;
@@ -55,6 +56,7 @@ interface UnitTypePropertyViewProps {
     onCheckAvailability: () => void;
     onMarkAsSold: () => void;
     onGenerateExpose?: () => void;
+    completeness?: PropertyCompleteness | null;
 }
 
 // ─── Gallery Section ───
@@ -215,6 +217,7 @@ export default function UnitTypePropertyView({
     onCheckAvailability,
     onMarkAsSold,
     onGenerateExpose,
+    completeness = null,
 }: UnitTypePropertyViewProps) {
     const location = developerProject.location;
     const effectiveAddress =
@@ -236,6 +239,7 @@ export default function UnitTypePropertyView({
                 onCheckAvailability={onCheckAvailability}
                 onMarkAsSold={onMarkAsSold}
                 onGenerateExpose={onGenerateExpose}
+                completeness={completeness}
             />
 
             {/* Photo Gallery */}

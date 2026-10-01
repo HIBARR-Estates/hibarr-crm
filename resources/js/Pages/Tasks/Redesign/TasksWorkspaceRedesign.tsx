@@ -417,9 +417,12 @@ export default function TasksWorkspaceRedesign({
         setBoardTasks(kanbanTasks);
     }, [kanbanTasks]);
 
+    // Mirror board resync (`[kanbanTasks]`): sync from server/optimistic page
+    // payload fields — not the hook return object, which was a new reference
+    // every render and clobbered optimistic completes (incl. notification deep links).
     useEffect(() => {
         setListTasks(pagedTableTasks.data);
-    }, [pagedTableTasks]);
+    }, [pagedTableTasks.data, pagedTableTasks.current_page]);
 
     const filterSignature = useMemo(
         () => JSON.stringify(filters ?? {}),

@@ -26,6 +26,7 @@ import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag
 import { useMobileSidebar } from "@/contexts/MobileSidebarContext";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
+import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
 
 interface BreadcrumbItem {
@@ -239,6 +240,7 @@ export default function PageLayout({
                                             : undefined
                                     }
                                 />
+                                <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
                             <NotificationDropdown pollingInterval={30000} />

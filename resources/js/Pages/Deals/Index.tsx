@@ -561,7 +561,14 @@ const Index = ({
                     per_page: perPage,
                     view,
                 }),
-                { only: ["deals"], preserveState: true, preserveScroll: true },
+                {
+                    only: ["deals"],
+                    preserveState: true,
+                    preserveScroll: true,
+                    // Restoring the saved page size on load isn't a user
+                    // navigation — don't leave an identical entry behind it.
+                    replace: true,
+                },
             ),
     });
 

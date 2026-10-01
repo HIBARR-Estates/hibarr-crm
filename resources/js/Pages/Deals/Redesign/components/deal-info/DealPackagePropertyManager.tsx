@@ -16,6 +16,10 @@ import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import usePipelineHasPackages from "../../hooks/usePipelineHasPackages";
 import useSinglePackageMode from "../../hooks/useSinglePackageMode";
+import {
+    PaymentInvalidationCancelled,
+    usePaymentInvalidationGuard,
+} from "../../context/DealWorkspaceContext";
 
 /**
  * 1:1 port of v2.2's PackagePropertyManager (deal-v2-2.jsx:3118-3315) — the
@@ -75,6 +79,7 @@ export default function DealPackagePropertyManager({
 }: DealPackagePropertyManagerProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const withPaymentInvalidation = usePaymentInvalidationGuard();
     // Packages/properties feed the deal value directly, so they stay locked
     // once commission has been distributed, even if the deal itself isn't.
     const valueLocked = isDealValueLocked(deal);
@@ -128,9 +133,19 @@ export default function DealPackagePropertyManager({
         savePackages(packageIds.filter((x) => x !== id));
 
     const removeProperty = async (productId: number) => {
-        await axios.delete(
-            route("deals.properties.destroy", [deal.id, productId]),
-        );
+        // Detaching changes the calculated value — warn about an unpaid
+        // payment request first.
+        try {
+            await withPaymentInvalidation((flags) =>
+                axios.delete(
+                    route("deals.properties.destroy", [deal.id, productId]),
+                    { params: flags },
+                ),
+            );
+        } catch (error) {
+            if (error instanceof PaymentInvalidationCancelled) return;
+            throw error;
+        }
         await onRefresh();
     };
 

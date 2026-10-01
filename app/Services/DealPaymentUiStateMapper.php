@@ -12,7 +12,18 @@ class DealPaymentUiStateMapper
         $status = strtolower(trim((string) $olStatus));
         $type = strtolower(trim((string) $olPaymentType));
 
-        if (in_array($status, ['failed', 'expired', 'cancelled'], true)) {
+        // Only the CRM cancels a deal payment request — when the deal's value
+        // changed before the client paid — so an OL "cancelled" is always an
+        // invalidation, distinct from the payment itself failing or expiring.
+        if ($status === 'cancelled') {
+            return [
+                'ui_state' => 'invalidated',
+                'can_confirm' => false,
+                'show_checkout_url' => false,
+            ];
+        }
+
+        if (in_array($status, ['failed', 'expired'], true)) {
             return [
                 'ui_state' => 'failed',
                 'can_confirm' => false,
@@ -64,6 +75,41 @@ class DealPaymentUiStateMapper
             'ui_state' => 'pending_payment',
             'can_confirm' => false,
             'show_checkout_url' => false,
+        ];
+    }
+
+    /**
+     * SQL-shaped mirror of map()'s branches, keyed by the same ui_state
+     * vocabulary, for server-side filtering (PaymentRequestController).
+     * Every branch here must stay in 1:1 correspondence with map() above —
+     * see DealPaymentUiStateMapperQueryScopesTest, which walks the same
+     * fixtures map()'s own test uses and asserts they land in the matching
+     * bucket here and no other.
+     *
+     * @return array<string, callable(\Illuminate\Database\Eloquent\Builder): void>
+     */
+    public static function queryScopes(): array
+    {
+        return [
+            'failed' => fn ($q) => $q->whereIn('ol_status', ['failed', 'expired']),
+            'invalidated' => fn ($q) => $q->where('ol_status', 'cancelled'),
+            'pending_payment' => fn ($q) => $q->where(function ($q2) {
+                $q2->where('ol_status', 'pending')
+                    ->orWhereNull('ol_status')
+                    ->orWhereNotIn('ol_status', ['failed', 'expired', 'cancelled', 'pending', 'confirming', 'completed']);
+            }),
+            'bank_transfer_pending' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', 'manual'),
+            'processing_online' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', '!=', 'manual'),
+            'confirmed' => fn ($q) => $q->where('ol_status', 'completed')
+                ->where('ol_payment_type', 'manual')
+                ->whereNotNull('verified_by_user_id')
+                ->whereNotNull('verified_at'),
+            'paid_online' => fn ($q) => $q->where('ol_status', 'completed')
+                ->where(function ($q2) {
+                    $q2->where('ol_payment_type', '!=', 'manual')
+                        ->orWhereNull('verified_by_user_id')
+                        ->orWhereNull('verified_at');
+                }),
         ];
     }
 }

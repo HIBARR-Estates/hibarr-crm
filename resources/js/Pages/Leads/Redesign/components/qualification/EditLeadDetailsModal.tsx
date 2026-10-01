@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
+import { getFirstValidationMessage } from "@/lib/api/utils/common";
 import type { Lead, LeadCategory } from "@/Types/api/leads";
 import { Modal, ModalField } from "@/Components/Redesign";
 import {
@@ -194,11 +195,10 @@ export default function EditLeadDetailsModal({
             message.success(td("Lead details saved", { source: "en" }));
             onClose();
         } catch (error: unknown) {
-            const detail =
-                (error as { response?: { data?: { message?: string } } })
-                    ?.response?.data?.message ||
-                (error as Error)?.message ||
-                td("Failed to save lead details", { source: "en" });
+            const detail = getFirstValidationMessage(
+                error,
+                td("Failed to save lead details", { source: "en" }),
+            );
             message.error(detail);
         } finally {
             setSaving(false);

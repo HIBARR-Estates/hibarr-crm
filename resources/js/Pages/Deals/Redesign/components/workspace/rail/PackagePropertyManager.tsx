@@ -14,7 +14,10 @@ import { propertyDisplayName } from "../../../adapters/propertyDisplay";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import useDealPackages from "../../../hooks/useDealPackages";
-import { useDealWorkspace } from "../../../context/DealWorkspaceContext";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../../../context/DealWorkspaceContext";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface PackageOption {
@@ -42,7 +45,7 @@ export default function PackagePropertyManager({
     const { t } = useTranslation();
     const permissions = useDealPermissions(deal);
     const { addPackage, removePackage, saving } = useDealPackages(deal);
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, withPaymentInvalidation } = useDealWorkspace();
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [removingProductId, setRemovingProductId] = useState<number | null>(
@@ -67,15 +70,22 @@ export default function PackagePropertyManager({
         async (productId: number) => {
             setRemovingProductId(productId);
             try {
-                await axios.delete(
-                    route("deals.properties.destroy", [deal.id, productId]),
+                // Detaching changes the calculated value — warn about an
+                // unpaid payment request first.
+                await withPaymentInvalidation((flags) =>
+                    axios.delete(
+                        route("deals.properties.destroy", [deal.id, productId]),
+                        { params: flags },
+                    ),
                 );
                 await refreshDeal();
+            } catch (error) {
+                if (!(error instanceof PaymentInvalidationCancelled)) throw error;
             } finally {
                 setRemovingProductId(null);
             }
         },
-        [deal.id, refreshDeal],
+        [deal.id, refreshDeal, withPaymentInvalidation],
     );
 
     const packages = deal.packages ?? [];

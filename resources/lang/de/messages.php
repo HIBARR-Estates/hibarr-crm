@@ -140,4 +140,6 @@ return array(
     'noAgentAdded' => 'Kein Agent hinzugefügt.',
     'invalidDealForLead' => 'Der ausgewählte Deal gehört nicht zu diesem Lead.',
     'leadFollowUpOwnerRequired' => 'Diesem Lead ist kein Eigentümer zugewiesen. Bitte weisen Sie einen Lead-Eigentümer zu, bevor Sie ein Meeting buchen.',
+    'leadDuplicateEmail' => 'Diese E-Mail-Adresse wird bereits von einem anderen Lead verwendet.',
+    'leadDuplicateContact' => 'Der Wert für :attribute wird bereits von einem anderen Lead verwendet.',
 );
