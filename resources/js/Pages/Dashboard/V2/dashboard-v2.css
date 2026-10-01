@@ -163,6 +163,55 @@
     box-shadow: 0 0 0 2px #1a6bb5;
 }
 
+/* Inline metric / list deep-links. Colour + soft wash on hover — not underline. */
+.dashboard-v2 .dv2-metric-link {
+    color: #1a6bb5;
+    text-decoration: none;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin: -1px -5px;
+    font: inherit;
+    font-weight: inherit;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.dashboard-v2 .dv2-metric-link:hover {
+    background: #e8f1fb;
+    color: #14538c;
+}
+
+.dashboard-v2 .dv2-metric-link:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #1a6bb5;
+}
+
+.dashboard-v2 .dv2-metric-link[data-tone="danger"] {
+    color: #b91c1c;
+}
+
+.dashboard-v2 .dv2-metric-link[data-tone="danger"]:hover {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+/* RangePicker presets portal outside .dashboard-v2, so these stay global.
+   antd has no built-in "selected preset" state — we mark the matching label. */
+.dv2-period-preset {
+    display: block;
+}
+
+.ant-picker-presets li:has(.dv2-period-preset.is-active) {
+    background: #e8f1fb;
+    color: #1a6bb5;
+    font-weight: 600;
+}
+
+.ant-picker-presets li:has(.dv2-period-preset.is-active):hover {
+    background: #dbeafe;
+}
+
 /* Personal dashboard shell: queue 8 / rail 4 on the 12-column grid, per the
    breakpoint rules in the design handoff. */
 .dashboard-v2 .dv2-grid {
@@ -534,7 +583,7 @@
 }
 
 .dashboard-v2 .dv2-commission-deal:hover {
-    text-decoration: underline;
+    color: #1a6bb5;
 }
 
 /* Team dashboard headline tiles — earnings needs room for three currency figures. */
