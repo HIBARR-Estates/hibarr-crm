@@ -78,7 +78,12 @@ return [
     'meta' => [
         'pixel_id' => env('META_PIXEL_ID'),
         'access_token' => env('META_ACCESS_TOKEN'),
-        'api_version' => env('META_CONVERSIONS_API_VERSION', 'v18.0'),
+        // Graph API version for the Conversions API. Meta retires each version
+        // after ~2 years — keep this in step with the backend's
+        // facebook-nodejs-business-sdk major (v23 -> 'v23.0'). `?:` (not a
+        // default arg) so an empty META_CONVERSIONS_API_VERSION= in .env still
+        // falls back instead of producing a malformed URL.
+        'api_version' => env('META_CONVERSIONS_API_VERSION') ?: 'v23.0',
     ],
 
     'property_recommendation' => [
