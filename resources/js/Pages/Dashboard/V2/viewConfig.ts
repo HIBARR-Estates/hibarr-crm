@@ -6,9 +6,9 @@
  * would let "Team" and "Downline" drift apart between the page you switch from
  * and the page you land on.
  *
- * Static and hook-free: English defaults here. Dashboard switcher labels are
- * resolved with t("pages.dashboard.views.*") at the render site; role view
- * subtext still uses td() until those views move to lang files.
+ * Static and hook-free: English defaults here. Switcher labels and role-view
+ * subtext / period copy are resolved with t("pages.dashboard.views.*") at the
+ * render site.
  *
  * Named viewConfig rather than views so it can't be confused with — or shadow
  * an index of — the sibling views/ directory holding the components.
@@ -30,19 +30,6 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
     team: "Team",
     leadership: "Company",
     partner: "Partner",
-};
-
-/**
- * The line under the greeting on each role view.
- *
- * The personal dashboard doesn't appear here — its subtext is derived from
- * live counts (StatusLine), not written copy.
- */
-export const VIEW_SUBTEXT: Record<ViewKey, string> = {
-    manager: "How every active agent is doing — not just people under you.",
-    team: "Commissions, deals and leads across everyone below you — not your own activity.",
-    leadership: "Company-wide movement across every team.",
-    partner: "Your referrals only — no deal values.",
 };
 
 /** Views whose panels are windowed, and so get the period picker. */
@@ -115,18 +102,42 @@ export function localizeSwitcherSegments(
 }
 
 /**
- * Presets offered by the range picker. Must match DashboardDateRange::PRESETS,
- * which is what the server will actually accept as ?days=.
+ * Presets offered by the range picker. Rolling day counts must match
+ * DashboardDateRange::PRESETS; named keys must match NAMED_PRESETS.
  *
- * A preset is rolling — "last 30 days" moves with today — so picking one sends
- * ?days=N rather than the two dates it currently resolves to. Anything else the
- * user drags out is sent as ?from=&to=.
+ * A rolling preset moves with today, so picking one sends ?days=N rather than
+ * the two dates it currently resolves to. YTD / all-time send ?period= so the
+ * server re-resolves them each visit. Anything else the user drags out is
+ * sent as ?from=&to=.
  */
-export const PERIODS = [
-    { days: 30, label: "Last 30 days" },
-    { days: 90, label: "Last 90 days" },
-    { days: 365, label: "Last 12 months" },
+export type NamedPeriod = "ytd" | "all";
+
+export type RangePreset = number | NamedPeriod;
+
+/** Lang key suffix under pages.dashboard.views.period.* */
+export type PeriodLabelKey =
+    | "past_week"
+    | "past_month"
+    | "past_quarter"
+    | "past_year"
+    | "ytd"
+    | "all";
+
+export type PeriodOption =
+    | { days: number; periodKey: PeriodLabelKey; key?: undefined }
+    | { key: NamedPeriod; periodKey: PeriodLabelKey; days?: undefined };
+
+export const PERIODS: PeriodOption[] = [
+    { days: 7, periodKey: "past_week" },
+    { days: 30, periodKey: "past_month" },
+    { days: 90, periodKey: "past_quarter" },
+    { days: 365, periodKey: "past_year" },
+    { key: "ytd", periodKey: "ytd" },
+    { key: "all", periodKey: "all" },
 ];
+
+/** Floor shared with DashboardDateRange::ALL_TIME_FROM. */
+export const ALL_TIME_FROM = "2000-01-01";
 
 /** The window a view is being read over, as the server resolved it. */
 export interface DashboardRange {
@@ -134,5 +145,57 @@ export interface DashboardRange {
     to: string;
     days: number;
     /** Null when the user picked their own dates. */
-    preset: number | null;
+    preset: RangePreset | null;
+}
+
+type Translate = (key: string, replaces?: Record<string, string | number>) => string;
+
+/** Period label for the picker / subtext — already localized via t(). */
+export function periodLabel(
+    option: PeriodOption,
+    t: Translate,
+): string {
+    return t(`pages.dashboard.views.period.${option.periodKey}`);
+}
+
+/**
+ * Window fragment for the greeting subtext. English period keys live in the
+ * lang files; the trailing period is part of the sentence, not the picker label.
+ */
+export function windowLabel(range: DashboardRange, t: Translate): string {
+    if (range.preset === "ytd" || range.preset === "all") {
+        return `${t(`pages.dashboard.views.period.${range.preset}`)}.`;
+    }
+
+    if (typeof range.preset === "number") {
+        const match = PERIODS.find(
+            (option) => "days" in option && option.days === range.preset,
+        );
+
+        if (match) {
+            return `${periodLabel(match, t)}.`;
+        }
+
+        return `${t("pages.dashboard.views.period.last_days", { days: range.preset })}.`;
+    }
+
+    return `${t("pages.dashboard.views.period.custom", {
+        from: range.from,
+        to: range.to,
+    })}.`;
+}
+
+/** Query params that keep the current window when switching views. */
+export function windowParams(
+    range: DashboardRange,
+): Record<string, string | number> {
+    if (range.preset === "ytd" || range.preset === "all") {
+        return { period: range.preset };
+    }
+
+    if (typeof range.preset === "number") {
+        return { days: range.preset };
+    }
+
+    return { from: range.from, to: range.to };
 }

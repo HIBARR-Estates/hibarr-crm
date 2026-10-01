@@ -13,6 +13,7 @@ import ResponseDistribution from "../components/ResponseDistribution";
 import SourceBreakdown from "../components/SourceBreakdown";
 import LeaderboardTable from "../components/LeaderboardTable";
 import PartnerFlagQueue from "../components/PartnerFlagQueue";
+import { figure } from "../format";
 import type {
     LifecycleFunnel as FunnelData,
     PartnerFlagRow,
@@ -95,7 +96,7 @@ export default function ManagerView({
                         previous={teamKpis?.newLeads.previous}
                         spark={teamKpis?.newLeads.spark}
                         // English source string — StatTile translates it once.
-                        note={`${teamKpis?.newLeads.previous ?? 0} in the previous window`}
+                        note={`${figure(teamKpis?.newLeads.previous ?? 0)} in the previous window`}
                     />
                     <StatTile
                         label={
@@ -121,6 +122,7 @@ export default function ManagerView({
                         value={teamKpis?.dealsCreated.value ?? null}
                         previous={teamKpis?.dealsCreated.previous}
                         spark={teamKpis?.dealsCreated.spark}
+                        note={`${figure(teamKpis?.dealsCreated.previous ?? 0)} in the previous window`}
                     />
                     <StatTile
                         label="Deals won"
@@ -128,6 +130,7 @@ export default function ManagerView({
                         value={teamKpis?.dealsWon.value ?? null}
                         previous={teamKpis?.dealsWon.previous}
                         spark={teamKpis?.dealsWon.spark}
+                        note={`${figure(teamKpis?.dealsWon.previous ?? 0)} in the previous window`}
                     />
                 </div>
             </Deferred>

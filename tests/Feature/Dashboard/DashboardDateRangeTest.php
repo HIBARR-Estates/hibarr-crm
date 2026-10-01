@@ -34,8 +34,52 @@ class DashboardDateRangeTest extends TestCase
         // answering the default one.
         $this->assertSame(
             DashboardDateRange::DEFAULT_DAYS,
-            $this->fromQuery(['days' => 7])->preset
+            $this->fromQuery(['days' => 14])->preset
         );
+    }
+
+    public function test_past_week_is_a_valid_preset(): void
+    {
+        $range = $this->fromQuery(['days' => 7]);
+
+        $this->assertSame(7, $range->preset);
+        $this->assertSame(7, $range->days());
+    }
+
+    public function test_year_to_date_runs_from_january_first(): void
+    {
+        $range = $this->fromQuery(['period' => 'ytd']);
+
+        $this->assertSame('ytd', $range->preset);
+        $this->assertSame(now()->startOfYear()->toDateString(), $range->from->toDateString());
+        $this->assertSame(now()->toDateString(), $range->to->toDateString());
+        $this->assertFalse($range->isCustom());
+    }
+
+    public function test_all_time_uses_the_shared_floor(): void
+    {
+        $range = $this->fromQuery(['period' => 'all']);
+
+        $this->assertSame('all', $range->preset);
+        $this->assertSame(DashboardDateRange::ALL_TIME_FROM, $range->from->toDateString());
+        $this->assertSame(now()->toDateString(), $range->to->toDateString());
+    }
+
+    public function test_an_unknown_named_period_falls_through_to_the_default(): void
+    {
+        $this->assertSame(
+            DashboardDateRange::DEFAULT_DAYS,
+            $this->fromQuery(['period' => 'forever'])->preset
+        );
+    }
+
+    public function test_named_period_wins_over_days_when_both_are_sent(): void
+    {
+        // Switching from a rolling preset to YTD must not leave ?days= behind
+        // and have the day count win — period is checked first.
+        $range = $this->fromQuery(['period' => 'ytd', 'days' => 30]);
+
+        $this->assertSame('ytd', $range->preset);
     }
 
     public function test_no_parameters_at_all_gives_the_default_window(): void

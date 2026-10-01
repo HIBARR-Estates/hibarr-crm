@@ -196,6 +196,22 @@
     color: #991b1b;
 }
 
+/* RangePicker presets portal outside .dashboard-v2, so these stay global.
+   antd has no built-in "selected preset" state — we mark the matching label. */
+.dv2-period-preset {
+    display: block;
+}
+
+.ant-picker-presets li:has(.dv2-period-preset.is-active) {
+    background: #e8f1fb;
+    color: #1a6bb5;
+    font-weight: 600;
+}
+
+.ant-picker-presets li:has(.dv2-period-preset.is-active):hover {
+    background: #dbeafe;
+}
+
 /* Personal dashboard shell: queue 8 / rail 4 on the 12-column grid, per the
    breakpoint rules in the design handoff. */
 .dashboard-v2 .dv2-grid {
