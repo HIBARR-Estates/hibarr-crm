@@ -144,11 +144,17 @@ class ImportDealJob implements ShouldQueue
             // Save marketing data - separate transaction
             if (!empty($marketingData)) {
                 DB::transaction(function () use ($lead, $marketingData) {
-                    $marketingData['lead_id'] = $lead->id;
-                    \App\Models\LeadMarketing::updateOrCreate(
-                        ['lead_id' => $lead->id],
-                        $marketingData
-                    );
+                    $utmService = app(\App\Services\LeadUtmService::class);
+                    [$utm, $marketingData] = $utmService->splitPayload($marketingData);
+                    $utmService->record($lead, $utm, 'deal_import');
+
+                    if ($marketingData !== []) {
+                        $marketingData['lead_id'] = $lead->id;
+                        \App\Models\LeadMarketing::updateOrCreate(
+                            ['lead_id' => $lead->id],
+                            $marketingData
+                        );
+                    }
                 });
             }
             
