@@ -20,6 +20,7 @@ export type TriggerKey =
     | "lead_followup_created"
     | "meeting_attended"
     | "lead_meeting_attended"
+    | "deal_payment_received"
     | "date_based"
     | "lead_created_api"
     | "lead_updated_api"
@@ -79,6 +80,8 @@ export interface DealAutomationAction {
     due_time: string | null;
     meta_event_name: string | null;
     meta_event_value: number | null;
+    /** null / "fixed" = meta_event_value; "deal_value" = the triggering deal's value (deal automations only). */
+    meta_event_value_source: "fixed" | "deal_value" | null;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     targetStage?: { id: number; name: string } | null;

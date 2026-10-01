@@ -55,6 +55,15 @@ class DealAutomation extends BaseModel
     public const TRIGGER_LEAD_MEETING_ATTENDED = 'lead_meeting_attended';
 
     /**
+     * Fires once per payment, when a deal's payment is confirmed as paid
+     * (DealPaymentService::markConfirmed — online payment settled, bank
+     * transfer confirmed, or OL pushing a completed payment). Used to send the
+     * Meta "Purchase" conversion. Unlike every other deal trigger it still runs
+     * for a deal that already has a paid request — that is exactly its moment.
+     */
+    public const TRIGGER_DEAL_PAYMENT_RECEIVED = 'deal_payment_received';
+
+    /**
      * "Via API" triggers fire explicitly from the external, API-token-
      * authenticated write paths (DealContactApiController, DealCreationService)
      * — those paths persist with saveQuietly(), which never fires the normal

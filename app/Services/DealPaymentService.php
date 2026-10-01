@@ -6,12 +6,14 @@ use App\Enums\OutcomeStatus;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\Payment;
 use App\Models\User;
 use App\Scopes\CompanyScope;
 use App\Services\Deal\DealOutcomeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -362,13 +364,45 @@ class DealPaymentService
         try {
             $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
 
-            if ($deal === null || $deal->outcome_status === OutcomeStatus::Won) {
+            if ($deal === null) {
                 return;
             }
 
-            $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+            if ($deal->outcome_status !== OutcomeStatus::Won) {
+                $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+            }
         } catch (\Throwable $e) {
             Log::error('DealPaymentService: failed to mark deal won after payment confirmation', [
+                'payment_id' => $payment->id,
+                'deal_id' => $payment->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $this->firePaymentReceivedAutomations($payment);
+    }
+
+    /**
+     * Runs the deal_payment_received automations (e.g. the Meta "Purchase"
+     * conversion) — after the deal has been won, so they see its final state
+     * and value. Once per payment: markConfirmed() is documented idempotent and
+     * several paths can reach it, but a conversion must be reported once.
+     * Failures are logged, never thrown — the payment is already confirmed.
+     */
+    private function firePaymentReceivedAutomations(Payment $payment): void
+    {
+        if (! Cache::add("deal-payment-received-automations:{$payment->id}", 1, now()->addDays(7))) {
+            return;
+        }
+
+        try {
+            $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
+
+            if ($deal !== null) {
+                app(DealAutomationService::class)->process($deal, DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED);
+            }
+        } catch (\Throwable $e) {
+            Log::error('DealPaymentService: payment-received automations failed', [
                 'payment_id' => $payment->id,
                 'deal_id' => $payment->deal_id,
                 'error' => $e->getMessage(),

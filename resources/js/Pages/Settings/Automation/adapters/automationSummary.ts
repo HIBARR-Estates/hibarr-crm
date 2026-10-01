@@ -221,7 +221,13 @@ function describeMetaConversion(action: DealAutomationAction): string[] {
             : "Sends a conversion event to Meta — no event name set yet",
     );
 
-    if (action.meta_event_value) {
+    if (action.meta_event_value_source === "deal_value") {
+        lines.push(
+            action.meta_event_value
+                ? `Conversion value: the deal's value (${action.meta_event_value} if it has none)`
+                : "Conversion value: the deal's value",
+        );
+    } else if (action.meta_event_value) {
         lines.push(`Conversion value: ${action.meta_event_value}`);
     }
 

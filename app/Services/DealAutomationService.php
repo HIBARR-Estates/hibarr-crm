@@ -7,6 +7,7 @@ use App\Events\DealWonEvent;
 use App\Mail\DealAutomationTemplateEmail;
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationAction;
 use App\Models\DealAutomationLog;
 use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
@@ -57,10 +58,17 @@ class DealAutomationService
      * Fully locked deals, and deals the client has already paid through a
      * payment request, never run automations.
      */
-    protected function isExcludedFromAutomations(Deal $deal): bool
+    protected function isExcludedFromAutomations(Deal $deal, ?string $trigger = null): bool
     {
         if ($deal->is_locked) {
             return true;
+        }
+
+        // A payment-received automation exists precisely for the moment a deal
+        // becomes paid, so the paid-deal exclusion below must not apply to it
+        // (otherwise e.g. the Meta Purchase event could never be sent).
+        if ($trigger === DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED) {
+            return false;
         }
 
         return \App\Support\FeatureFlags::enabled('packages.online-payment')
@@ -78,7 +86,7 @@ class DealAutomationService
         // already paid through a payment request. A commission-locked deal
         // (commission already paid/distributed) on its own still allows
         // automations to run.
-        if ($this->isExcludedFromAutomations($deal)) {
+        if ($this->isExcludedFromAutomations($deal, $trigger)) {
             Log::info("Skipping automations for locked or paid Deal ID: {$deal->id}");
 
             return;
@@ -281,7 +289,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject)) {
+        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject, $automation->trigger)) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked or paid");
 
             return true;
@@ -1233,7 +1241,7 @@ class DealAutomationService
             return;
         }
 
-        $value = (float) ($action->meta_event_value ?? 0);
+        $value = $this->resolveMetaEventValue($subject, $action);
 
         DB::afterCommit(function () use ($subject, $eventName, $value, $automation, $label) {
             $result = app(MetaConversionsService::class)->send($eventName, $value, $subject);
@@ -1260,6 +1268,33 @@ class DealAutomationService
                 'meta_event_value' => $value,
             ]);
         });
+    }
+
+    /**
+     * The conversion value for a meta_conversion action: the action's fixed
+     * meta_event_value, or — when the action is set to "deal value" and the
+     * subject is a deal with a value — that deal's value as of right now (so a
+     * Purchase carries what was actually sold). A lead subject, or a deal with
+     * no value, falls back to the fixed value rather than sending nothing.
+     */
+    protected function resolveMetaEventValue(Deal|Lead $subject, $action): float
+    {
+        $fixed = (float) ($action->meta_event_value ?? 0);
+
+        if (($action->meta_event_value_source ?? null) !== DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE) {
+            return $fixed;
+        }
+
+        if ($subject instanceof Deal && $subject->value !== null && (float) $subject->value > 0) {
+            return (float) $subject->value;
+        }
+
+        Log::warning('MetaConversion set to deal value but the subject has none; using the fixed value', [
+            'subject' => $subject instanceof Deal ? "deal:{$subject->id}" : "lead:{$subject->id}",
+            'fixed_value' => $fixed,
+        ]);
+
+        return $fixed;
     }
 
     /**

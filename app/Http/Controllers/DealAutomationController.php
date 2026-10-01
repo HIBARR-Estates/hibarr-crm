@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationAction;
 use App\Models\DealAutomationLog;
 use App\Models\EmailTemplate;
 use App\Models\Lead;
@@ -564,6 +565,7 @@ class DealAutomationController extends AccountBaseController
         $dealTriggers = [
             'deal_created', 'deal_updated', 'followup_created',
             DealAutomation::TRIGGER_MEETING_ATTENDED,
+            DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED,
             DealAutomation::TRIGGER_DEAL_CREATED_API,
             DealAutomation::TRIGGER_DEAL_UPDATED_API,
         ];
@@ -633,6 +635,7 @@ class DealAutomationController extends AccountBaseController
             'actions.*.due_time' => 'nullable|date_format:H:i,H:i:s',
             'actions.*.meta_event_name' => 'required_if:actions.*.action_type,meta_conversion|nullable|string|max:255',
             'actions.*.meta_event_value' => 'nullable|numeric|min:0',
+            'actions.*.meta_event_value_source' => ['nullable', Rule::in([DealAutomationAction::META_VALUE_SOURCE_FIXED, DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE])],
             'actions.*.wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'actions.*.wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
         ];
@@ -701,6 +704,11 @@ class DealAutomationController extends AccountBaseController
                 'due_time' => $isCreateTask ? ($action['due_time'] ?? null) : null,
                 'meta_event_name' => $isMetaConversion ? ($action['meta_event_name'] ?? null) : null,
                 'meta_event_value' => $isMetaConversion ? ($action['meta_event_value'] ?? null) : null,
+                // "Deal value" only exists for a deal-subject automation; a lead has none.
+                'meta_event_value_source' => $isMetaConversion && $subjectType === DealAutomation::SUBJECT_DEAL
+                    && ($action['meta_event_value_source'] ?? null) === DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE
+                    ? DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE
+                    : null,
                 'wait_duration_value' => $isWait ? ($action['wait_duration_value'] ?? null) : null,
                 'wait_duration_unit' => $isWait && ! empty($action['wait_duration_value'])
                     ? (in_array($action['wait_duration_unit'] ?? null, array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))
@@ -734,6 +742,7 @@ class DealAutomationController extends AccountBaseController
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_MEETING_ATTENDED,
             DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED,
+            DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED,
             DealAutomation::TRIGGER_DATE_BASED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,

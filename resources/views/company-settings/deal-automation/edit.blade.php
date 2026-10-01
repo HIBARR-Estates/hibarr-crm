@@ -82,6 +82,7 @@
                             <option value="lead_followup_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_followup_created' ? 'selected' : '' }}>Lead Follow-up Created</option>
                             <option value="meeting_attended" data-subject="deal" {{ ($automation->trigger ?? '') == 'meeting_attended' ? 'selected' : '' }}>Meeting Attended</option>
                             <option value="lead_meeting_attended" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_meeting_attended' ? 'selected' : '' }}>Lead Meeting Attended</option>
+                            <option value="deal_payment_received" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_payment_received' ? 'selected' : '' }}>Payment Received</option>
                             <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>Specific Date / Birthday</option>
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1" id="trigger-help-text">
@@ -105,6 +106,8 @@
                                 Evaluates once, when a deal meeting is logged as Attended.
                             @elseif(($automation->trigger ?? '') == 'lead_meeting_attended')
                                 Evaluates once, when a lead meeting (not on a deal) is logged as Attended.
+                            @elseif(($automation->trigger ?? '') == 'deal_payment_received')
+                                Evaluates once, when a payment on the deal is confirmed as paid.
                             @elseif(($automation->trigger ?? '') == 'date_based')
                                 Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year (birthdays) or fires one time only.
                             @endif
@@ -247,6 +250,7 @@
                 'lead_followup_created': 'Evaluates when a follow-up/meeting is added to the lead (not to a deal).',
                 'meeting_attended': 'Evaluates once, when a deal meeting is logged as Attended.',
                 'lead_meeting_attended': 'Evaluates once, when a lead meeting (not on a deal) is logged as Attended.',
+                'deal_payment_received': 'Evaluates once, when a payment on the deal is confirmed as paid.',
                 'date_based': 'Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year or fires one time only.'
             };
 

@@ -44,6 +44,7 @@ function newAction(subjectType: SubjectType): DealAutomationAction {
         due_time: null,
         meta_event_name: null,
         meta_event_value: null,
+        meta_event_value_source: null,
         wait_duration_value: null,
         wait_duration_unit: "minutes",
     };
@@ -843,6 +844,17 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                     </div>
                                     <div>
                                         <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
+                                        {subjectType === "deal" && (
+                                            <SearchableSelect
+                                                value={step.meta_event_value_source === "deal_value" ? "deal_value" : "fixed"}
+                                                onChange={(value) => updateAction(i, { meta_event_value_source: value === "deal_value" ? "deal_value" : null })}
+                                                options={[
+                                                    { value: "fixed", label: t("app.automation.valueSourceFixed") },
+                                                    { value: "deal_value", label: t("app.automation.valueSourceDeal") },
+                                                ]}
+                                                className="w-full mb-1.5"
+                                            />
+                                        )}
                                         <input
                                             type="number"
                                             step="0.01"
@@ -851,6 +863,11 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                             onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
                                             className="dr-input w-full"
                                         />
+                                        {subjectType === "deal" && step.meta_event_value_source === "deal_value" && (
+                                            <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                                                {t("app.automation.valueSourceDealHint")}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

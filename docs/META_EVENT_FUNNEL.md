@@ -12,7 +12,7 @@ sent server-side by **CRM automations** through the Conversions API (CAPI).
 | `CompleteRegistration` | Qualification questions answered and the consultation registration saved | Pixel | `ConsultationForm` (both variants), mutation `onSuccess` |
 | `Schedule` | Calendly booking confirmed (`calendly.event_scheduled`) | Pixel | `hibarr-website` `components/CalendlyEmbed.tsx` |
 | `Contact` | Meeting logged as **Attended** (value 1500) | CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
-| `Purchase` | Payment received (real value) | CAPI | **Not wired yet** — see "Purchase" below |
+| `Purchase` | Payment confirmed (real value) | CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
 
 `ViewContent`, `Lead`, `CompleteRegistration` and `Schedule` are only sent from tracked
 pages — `/consultation*` and `/lp/<slug>` — enforced in `trackMetaEvent()` by the
@@ -48,14 +48,28 @@ Behaviour worth knowing:
 - A meeting that goes attended → another outcome → attended again would fire a
   second time (there is no per-meeting "already reported" marker).
 
-## Purchase
+## Setting up the `Purchase` event in the CRM
 
-`Purchase` needs a **real value**, but the `meta_conversion` action only sends a
-fixed `meta_event_value`. Two gaps to close before this can be automated:
+1. Settings → Automation → New automation, subject **Deal**, trigger
+   **Payment Received** (`deal_payment_received`).
+2. Add a **Meta conversion** action: event name `Purchase`, and under *Value*
+   choose **Deal value** to send what the deal is actually worth. Choose
+   **Fixed value** (the default) to send the number you type instead. The number
+   is also the fallback if a "Deal value" deal has no value.
 
-1. a way to send the deal's / payment's actual amount instead of a fixed number;
-2. a trigger that actually runs when payment lands. Payment confirmation marks the
-   deal Won (`DealPaymentService::markConfirmed`), but
-   `DealAutomationService::isExcludedFromAutomations()` skips deals with a paid
-   request while `packages.online-payment` is on, so a `deal_updated` automation
-   would never run for them.
+Behaviour worth knowing:
+
+- Fires **once per payment**, when it is confirmed as paid — online payment
+  settled, bank transfer confirmed in the CRM, or a completed payment pushed from
+  the payment system (`DealPaymentService::markConfirmed`). It runs *after* the
+  deal has been marked Won, so the deal's value is its final one.
+- This is the one deal trigger that still runs for a deal with a paid request.
+  Every other trigger is skipped for paid deals while `packages.online-payment`
+  is on; that skip is bypassed only for `deal_payment_received`. Locked deals are
+  still skipped.
+- "Deal value" is the deal's `value` in the deal's own currency, and the event is
+  sent with that currency (fallback `GBP`). It reads the value when the event
+  fires, so later edits don't change an already-sent Purchase.
+- "Deal value" only exists on deal automations; a lead automation always sends the
+  fixed value. Existing actions are unchanged (no source = fixed).
+- Needs `crm.automation-v2`.
