@@ -60,6 +60,9 @@ interface SidebarProps {
     onCollapse: (collapsed: boolean) => void;
 }
 
+/** The only nav section a partner-only account is offered (the user menu is separate). */
+const PARTNER_NAV_KEYS = new Set(["dashboard"]);
+
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
     const { auth, company, appName, integrationsHubUrl } = props;
@@ -83,6 +86,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
     const isAdmin = useIsAdminRole();
+    // Partner accounts get the partner surface only. The server refuses the
+    // other sections too (RestrictPartnerAccounts); this just stops the links
+    // being offered.
+    const isPartnerOnly = props.auth?.isPartnerOnly === true;
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { mobileOpen, closeMobileSidebar } = useMobileSidebar();
     const isDesktopViewport = useIsDesktopViewport();
@@ -681,6 +688,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 {/* Nav items */}
                 {navItems
                     .filter((a) => a.hidden !== true)
+                    .filter((a) => !isPartnerOnly || PARTNER_NAV_KEYS.has(a.key))
                     .map((a) => {
                         a.children = a.children?.filter(
                             (a) => a.hidden !== true,

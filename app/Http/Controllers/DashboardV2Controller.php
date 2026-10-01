@@ -15,6 +15,7 @@ use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
+use App\Support\PartnerRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -84,6 +85,12 @@ class DashboardV2Controller extends AccountBaseController
         $availableViews = $this->availableViews();
         $requestedView = $request->query('view');
         $personalDashboardEnabled = FeatureFlags::enabled('crm.personal-dashboard');
+
+        // A partner account has no tasks or queue for the personal dashboard to
+        // show; the referral book is their home.
+        if ($requestedView === null && PartnerRole::isPartnerOnly($user) && in_array('partner', $availableViews, true)) {
+            $requestedView = 'partner';
+        }
 
         // Behind the flag, the personal dashboard is the default landing for
         // everyone, not just accounts with no view_*_dashboard permission —

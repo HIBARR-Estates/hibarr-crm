@@ -158,7 +158,7 @@ Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\
     ->name('availability-requests.respond-email')
     ->middleware('signed');
 
-Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
+Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
 
     Route::get('account-unverified', [DashboardController::class, 'accountUnverified'])->name('account_unverified');
@@ -1552,6 +1552,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::post('invite', [App\Http\Controllers\PartnerAdminController::class, 'invite'])->name('invite');
         Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
     });
 

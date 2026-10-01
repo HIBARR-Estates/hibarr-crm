@@ -632,6 +632,8 @@ class CompanyObserver
         $rolePermissionController->permissionRole($allPermissions, 'employee', $company->id);
         $rolePermissionController->rolePermissionInsert($allPermissions, $adminRole->id, 'all');
         $rolePermissionController->permissionRole($allPermissions, 'client', $company->id);
+
+        \App\Support\PartnerRole::ensureFor((int) $company->id);
     }
 
     public function taskBoard($company): void

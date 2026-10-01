@@ -4,8 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\Lead;
+use App\Models\Role;
 use App\Models\LeadAgent;
+use App\Models\User;
+use App\Notifications\PartnerInvited;
+use App\Support\PartnerRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -88,6 +93,72 @@ class PartnerAdminController extends AccountBaseController
 
         $agent->update(['is_partner' => true]);
         $agent->loadCount('referredLeads')->load('user:id,name,email,image,status');
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'agent' => $agent,
+        ]);
+    }
+
+    /**
+     * Create a brand-new partner account and tell them how to sign in.
+     *
+     * The user gets `employee` + `partner` and only the partner role's
+     * permissions (PartnerRole). An email that already has an account is
+     * refused rather than converted: turning an existing staff user into a
+     * partner would be a role change nobody asked for — flag them from the
+     * Add Partner picker instead.
+     *
+     * Sign-in is Keycloak SSO, which this app does not provision. The account
+     * here only becomes usable once the same, verified email exists at the
+     * identity provider; the invite mail says so.
+     */
+    public function invite(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email:rfc,strict|unique:users,email',
+            'mobile' => 'nullable|string|max:50',
+        ], [
+            'email.unique' => __('messages.duplicateEntryForEmail'),
+        ]);
+
+        $companyId = company()->id;
+        $partnerRole = PartnerRole::ensureFor($companyId);
+
+        $employeeRole = Role::where('name', 'employee')
+            ->where('company_id', $companyId)
+            ->first();
+
+        $agent = DB::transaction(function () use ($data, $companyId, $partnerRole, $employeeRole) {
+            $user = new User;
+            $user->company_id = $companyId;
+            $user->name = $data['name'];
+            $user->email = $data['email'];
+            $user->mobile = $data['mobile'] ?? null;
+            // Never used and never shared: sign-in is SSO only.
+            $user->password = bcrypt(str()->random(32));
+            $user->save();
+
+            if ($employeeRole) {
+                $user->attachRole($employeeRole->id);
+            }
+
+            $user->attachRole($partnerRole->id);
+            $user->assignUserRolePermission($partnerRole->id);
+
+            return LeadAgent::create([
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'lead_category_id' => null,
+                'added_by' => user()->id,
+                'status' => 'enabled',
+                'is_partner' => true,
+            ]);
+        });
+
+        $agent->loadCount('referredLeads')->load('user:id,name,email,image,status');
+
+        $agent->user->notify(new PartnerInvited($agent->user, user()->name));
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'agent' => $agent,

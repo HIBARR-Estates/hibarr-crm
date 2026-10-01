@@ -80,6 +80,7 @@ class Kernel extends HttpKernel
         'api.token.or.session' => \App\Http\Middleware\ApiTokenOrSession::class,
         'crm.write.client' => \App\Http\Middleware\EnsureCrmWriteClientEnabled::class,
         'crm.event' => \App\Http\Middleware\CrmEventMiddleware::class,
+        'partner.restrict' => \App\Http\Middleware\RestrictPartnerAccounts::class,
     ];
 
     /**
