@@ -137,11 +137,7 @@ class OlPaymentReviewDecisionService
     private function olRequest(array $payload, Payment $payment, string $decision, ?User $admin): ?Response
     {
         $baseUrl = (string) config('services.ol.base_url', '');
-        // The backend gates these payment routes with crmWebhookAuth
-        // (CRM_WEBHOOK_API_KEY), not the application key OL_API_KEY that the
-        // calendar/telephony calls use. Fall back to OL_API_KEY so setups where
-        // both are the same value keep working.
-        $apiKey = (string) (config('services.ol.crm_webhook_api_key') ?: config('services.ol.api_key', ''));
+        $apiKey = (string) config('services.ol.api_key', '');
         $timeout = (int) config('services.ol.timeout', 15);
         $path = (string) config(
             'services.ol.payment_review_decision_path',
