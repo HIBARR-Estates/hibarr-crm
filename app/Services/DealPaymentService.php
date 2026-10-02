@@ -13,7 +13,6 @@ use App\Scopes\CompanyScope;
 use App\Services\Deal\DealOutcomeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -385,17 +384,27 @@ class DealPaymentService
     /**
      * Runs the deal_payment_received automations (e.g. the Meta "Purchase"
      * conversion) — after the deal has been won, so they see its final state
-     * and value. Once per payment: markConfirmed() is documented idempotent and
-     * several paths can reach it, but a conversion must be reported once.
+     * and value. Once per payment (durable `automations_dispatched_at` claim):
+     * markConfirmed() is documented idempotent and several paths can reach
+     * it, but a conversion must be reported once.
      * Failures are logged, never thrown — the payment is already confirmed.
      */
     private function firePaymentReceivedAutomations(Payment $payment): void
     {
-        if (! Cache::add("deal-payment-received-automations:{$payment->id}", 1, now()->addDays(7))) {
-            return;
-        }
+        $claimed = false;
 
         try {
+            // Atomic, durable claim: only the caller that flips the column from
+            // NULL runs the automations, and it survives cache flushes/expiry.
+            $claimed = Payment::withoutGlobalScopes()
+                ->whereKey($payment->id)
+                ->whereNull('automations_dispatched_at')
+                ->update(['automations_dispatched_at' => now()]) === 1;
+
+            if (! $claimed) {
+                return;
+            }
+
             $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
 
             if ($deal !== null) {
@@ -407,6 +416,15 @@ class DealPaymentService
                 'deal_id' => $payment->deal_id,
                 'error' => $e->getMessage(),
             ]);
+
+            // Release the claim so a later confirmation can retry the dispatch.
+            if ($claimed) {
+                try {
+                    Payment::withoutGlobalScopes()->whereKey($payment->id)->update(['automations_dispatched_at' => null]);
+                } catch (\Throwable) {
+                    // Nothing more to do — never let this escape a confirmed payment.
+                }
+            }
         }
     }
 

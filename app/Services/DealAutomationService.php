@@ -44,6 +44,14 @@ class DealAutomationService
      */
     protected ?string $currentRunId = null;
 
+    /**
+     * The trigger that started the execution currently running, carried onto
+     * any resume row a mid-sequence wait queues so the paid-deal exclusion is
+     * judged against the firing trigger (not the automation's configured one,
+     * which is null for "any trigger" automations).
+     */
+    protected ?string $currentTrigger = null;
+
     public function __construct(
         FieldResolverService $fieldResolver,
         ConditionEvaluatorService $conditionEvaluator,
@@ -198,7 +206,7 @@ class DealAutomationService
                 return;
             }
 
-            $this->executeActions($subject, $automation);
+            $this->executeActions($subject, $automation, null, null, $trigger);
 
             return;
         }
@@ -289,7 +297,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject, $automation->trigger)) {
+        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject, $pendingRun->trigger ?? $automation->trigger)) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked or paid");
 
             return true;
@@ -305,7 +313,7 @@ class DealAutomationService
 
         // run_id is only set when a mid-sequence wait step queued this row —
         // a pre-actions wait starts a fresh execution, so null is correct there.
-        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id);
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id, $pendingRun->trigger);
     }
 
     /**
@@ -442,8 +450,9 @@ class DealAutomationService
      * @return bool True when the full action list finished; false when a wait
      *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null): bool
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null, ?string $trigger = null): bool
     {
+        $this->currentTrigger = $trigger;
         // One id for this whole execution — every step's log row carries it,
         // and a wait step hands it to the pending row so the steps that resume
         // afterwards land in the same run rather than looking like a new one.
@@ -493,7 +502,7 @@ class DealAutomationService
                 $nextAction = $actions->get($i + 1);
 
                 if ($waitSeconds > 0 && $nextAction) {
-                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId);
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId, $this->currentTrigger);
                     $this->logAction(
                         $subject,
                         $automation,
@@ -536,7 +545,7 @@ class DealAutomationService
      * $runId carries the paused execution across the wait so its remaining
      * steps log under the same run as the ones that already ran.
      */
-    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null): void
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null, ?string $trigger = null): void
     {
         try {
             DealAutomationPendingRun::updateOrCreate([
@@ -547,6 +556,7 @@ class DealAutomationService
                 'company_id' => $subject->company_id,
                 'resume_action_id' => $resumeActionId,
                 'run_id' => $runId,
+                'trigger' => $trigger,
                 'run_at' => now()->addSeconds($waitSeconds),
             ]);
         } catch (\Exception $e) {

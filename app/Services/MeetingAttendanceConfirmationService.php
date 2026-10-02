@@ -306,7 +306,14 @@ class MeetingAttendanceConfirmationService
         $trimmedNote = $note !== null ? trim($note) : '';
 
         return DB::transaction(function () use ($followUp, $user, $outcome, $trimmedNote) {
-            $previousOutcome = $followUp->attendance_outcome;
+            // Read the previous outcome from a locked row, not the model the
+            // caller loaded earlier: two concurrent edits both holding the
+            // same stale `no_show` would otherwise each see a transition into
+            // Attended and double-fire the automation.
+            $previousOutcome = DealFollowUp::query()
+                ->whereKey($followUp->getKey())
+                ->lockForUpdate()
+                ->value('attendance_outcome');
 
             $followUp->attendance_outcome = $outcome->value;
             $followUp->attendance_outcome_logged_at = now();
