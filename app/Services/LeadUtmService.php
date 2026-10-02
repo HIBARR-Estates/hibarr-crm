@@ -47,6 +47,11 @@ class LeadUtmService
         }
 
         return DB::transaction(function () use ($lead, $utm, $origin) {
+            // Lock the parent lead first: when no lead_marketing row exists yet
+            // there is nothing to lock on it, so concurrent calls could each
+            // decide they are the first touch.
+            Lead::withoutGlobalScopes()->whereKey($lead->id)->lockForUpdate()->value('id');
+
             $marketing = LeadMarketing::query()->where('lead_id', $lead->id)->lockForUpdate()->first();
 
             $hasFirstTouch = $marketing && collect(LeadUtmTouch::UTM_FIELDS)->contains(fn ($f) => filled($marketing->{$f}));
