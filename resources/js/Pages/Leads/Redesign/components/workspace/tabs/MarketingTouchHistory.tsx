@@ -1,8 +1,8 @@
 import { Deferred, usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
-import { Icon } from "@/Components/Redesign";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import type { LeadUtmTouch } from "@/Types/api/leads";
+import MarketingSection from "./MarketingSection";
 
 const UTM_FIELDS = [
     ["utm_source", "pages.leads.marketing.utm_source"],
@@ -17,7 +17,9 @@ const KNOWN_ORIGINS = ["api", "bitrix_import", "deal_import", "backfill"];
 
 function TouchHistoryList() {
     const { t } = useTranslation();
-    const { utmTouches = [] } = usePage<{ utmTouches?: LeadUtmTouch[] }>().props;
+    const { utmTouches = [] } = usePage().props as unknown as {
+        utmTouches?: LeadUtmTouch[];
+    };
 
     // The first touch is already shown above; the history is only interesting
     // once something arrived after it.
@@ -85,11 +87,10 @@ export default function MarketingTouchHistory() {
     const { t } = useTranslation();
 
     return (
-        <section className="v2-mkt-section">
-            <header className="v2-mkt-section-head">
-                <Icon name="activity" size={14} />
-                <span>{t("pages.leads.marketing.touch_history")}</span>
-            </header>
+        <MarketingSection
+            title={t("pages.leads.marketing.touch_history")}
+            icon="activity"
+        >
             <div className="v2-mkt-touch-body">
                 <Deferred
                     data="utmTouches"
@@ -98,6 +99,6 @@ export default function MarketingTouchHistory() {
                     <TouchHistoryList />
                 </Deferred>
             </div>
-        </section>
+        </MarketingSection>
     );
 }

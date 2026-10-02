@@ -1339,12 +1339,35 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 0;
     border-bottom: 1px solid var(--dr-border);
     background: var(--dr-surface-2);
     font-size: 12px;
     font-weight: 650;
     color: var(--dr-text);
+}
+.lead-redesign .v2-mkt-section-head.is-collapsed {
+    border-bottom: none;
+}
+.lead-redesign .v2-mkt-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.lead-redesign .v2-mkt-section-toggle:hover {
+    background: var(--dr-surface-3, rgba(0, 0, 0, 0.03));
+}
+.lead-redesign .v2-mkt-section-title {
+    flex: 1;
+    min-width: 0;
 }
 .lead-redesign .v2-mkt-grid {
     display: grid;
