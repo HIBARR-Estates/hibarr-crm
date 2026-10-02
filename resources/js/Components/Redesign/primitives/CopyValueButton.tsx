@@ -52,10 +52,14 @@ export default function CopyValueButton({
                 void copy(text);
             }}
             onDoubleClick={stop}
+            // Plain-:hover arbitrary variants, not hover:/group-hover:. Tailwind
+            // v4 wraps those in @media (hover: hover), which Chrome reports as
+            // false on touchscreen laptops, so the icon never revealed there
+            // even with a mouse/touchpad.
             className={`inline-flex shrink-0 cursor-pointer items-center rounded border-0 bg-transparent p-0.5 transition-[opacity,color] focus-visible:opacity-100 ${
                 copied
                     ? "text-dr-green opacity-100"
-                    : "text-dr-text-hint opacity-0 hover:text-dr-blue group-hover:opacity-100 group-focus-within:opacity-100"
+                    : "text-dr-text-hint opacity-0 [&:hover]:text-dr-blue [.group:hover_&]:opacity-100 group-focus-within:opacity-100"
             } ${className}`}
         >
             <Icon name={copied ? "check" : "copy"} size={12} />

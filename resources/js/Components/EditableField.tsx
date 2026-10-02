@@ -1405,7 +1405,7 @@ export default function EditableField({
                     text={displayText}
                     textClassName={`border-b border-dashed ${
                         canStartEditing
-                            ? "border-transparent transition-colors group-hover:border-blue-300"
+                            ? "border-transparent transition-colors [.group:hover_&]:border-blue-300"
                             : ""
                     } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     trailing={
@@ -1418,9 +1418,11 @@ export default function EditableField({
                                     // has the same specificity as Tailwind's `.hidden`
                                     // and loads later, so a display-based hide never
                                     // took effect and the pencil showed permanently.
+                                    // Plain-:hover variant (not group-hover:) for the
+                                    // same touchscreen-laptop reason as CopyValueButton.
                                     <EditOutlined
                                         aria-hidden="true"
-                                        className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                                        className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity [.group:hover_&]:opacity-100 group-focus-within:opacity-100"
                                         style={{ fontSize: 11 }}
                                     />
                                 ) : null}
