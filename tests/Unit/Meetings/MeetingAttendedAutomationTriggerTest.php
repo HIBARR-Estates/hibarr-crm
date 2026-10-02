@@ -53,7 +53,7 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $deal = new Deal;
         $deal->id = 7;
 
-        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended', ['meeting_type_id' => null]);
         $this->automations->shouldNotReceive('processLead');
 
         $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, null);
@@ -64,7 +64,7 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $lead = new Lead;
         $lead->id = 9;
 
-        $this->automations->shouldReceive('processLead')->once()->with($lead, 'meeting_attended');
+        $this->automations->shouldReceive('processLead')->once()->with($lead, 'meeting_attended', ['meeting_type_id' => null]);
         $this->automations->shouldNotReceive('process');
 
         $this->dispatch($this->followUp(lead: $lead), MeetingAttendanceOutcome::Attended, null);
@@ -77,7 +77,7 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $lead = new Lead;
         $lead->id = 9;
 
-        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended', ['meeting_type_id' => null]);
         $this->automations->shouldNotReceive('processLead');
 
         $this->dispatch($this->followUp(deal: $deal, lead: $lead), MeetingAttendanceOutcome::Attended, null);
@@ -88,7 +88,7 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $deal = new Deal;
         $deal->id = 7;
 
-        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended');
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended', ['meeting_type_id' => null]);
 
         $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, 'no_show');
     }
@@ -159,6 +159,58 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $this->assertTrue(AutomationV2Feature::supportsAutomation(
             new DealAutomation(['trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED, 'subject_type' => DealAutomation::SUBJECT_DEAL])
         ));
+    }
+
+    public function test_dispatch_passes_the_meetings_type_so_automations_can_scope_to_it(): void
+    {
+        $deal = new Deal;
+        $deal->id = 7;
+
+        $followUp = $this->followUp(deal: $deal);
+        $followUp->meeting_type_id = 4;
+
+        $this->automations->shouldReceive('process')->once()->with($deal, 'meeting_attended', ['meeting_type_id' => 4]);
+
+        $this->dispatch($followUp, MeetingAttendanceOutcome::Attended, null);
+    }
+
+    public function test_meeting_type_scope_only_matches_selected_types(): void
+    {
+        $scoped = new DealAutomation([
+            'trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED,
+            'meeting_type_ids' => [2, 3],
+        ]);
+
+        $this->assertTrue($this->matchesScope($scoped, ['meeting_type_id' => 3]));
+        $this->assertFalse($this->matchesScope($scoped, ['meeting_type_id' => 9]));
+        $this->assertFalse($this->matchesScope($scoped, ['meeting_type_id' => null]), 'A meeting with no type never matches a scoped automation.');
+    }
+
+    public function test_unscoped_automations_match_every_meeting_type(): void
+    {
+        $this->assertTrue($this->matchesScope(
+            new DealAutomation(['trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED, 'meeting_type_ids' => []]),
+            ['meeting_type_id' => 9]
+        ));
+        $this->assertTrue($this->matchesScope(
+            new DealAutomation(['trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED, 'meeting_type_ids' => null]),
+            ['meeting_type_id' => null]
+        ));
+        // The scope only applies to the meeting_attended trigger.
+        $this->assertTrue($this->matchesScope(
+            new DealAutomation(['trigger' => 'deal_updated', 'meeting_type_ids' => [2]]),
+            ['meeting_type_id' => 9]
+        ));
+    }
+
+    /** @param array<string, mixed> $context */
+    private function matchesScope(DealAutomation $automation, array $context): bool
+    {
+        $service = (new \ReflectionClass(\App\Services\DealAutomationService::class))->newInstanceWithoutConstructor();
+        $method = new \ReflectionMethod($service, 'matchesTriggerScope');
+        $method->setAccessible(true);
+
+        return $method->invoke($service, $automation, $context);
     }
 
     private function followUp(?Deal $deal = null, ?Lead $lead = null): DealFollowUp

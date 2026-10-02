@@ -43,6 +43,9 @@ Behaviour worth knowing:
   from the attendance confirmation prompt or the meeting's edit form. Saving an
   already-attended meeting again does not re-fire. No-show, cancelled,
   rescheduled and partial outcomes never fire it.
+- Optionally scope the automation to particular **Meeting types** (picker under the trigger).
+  With none selected it fires for every type; with some selected it fires only for meetings of
+  those types, and a meeting with no type never matches.
 - Requires `crm.automation-v2` (like every `meta_conversion` action).
 - A deal automation is skipped for locked deals, and — with
   `packages.online-payment` on — for deals that already have a paid request.

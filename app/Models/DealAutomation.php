@@ -19,6 +19,7 @@ class DealAutomation extends BaseModel
         'trigger',
         'date_field',
         'date_recurrence',
+        'meeting_type_ids',
         'wait_duration_value',
         'wait_duration_unit',
         'active',
@@ -99,6 +100,7 @@ class DealAutomation extends BaseModel
     protected $casts = [
         'active' => 'boolean',
         'priority' => 'integer',
+        'meeting_type_ids' => 'array',
     ];
 
     /**

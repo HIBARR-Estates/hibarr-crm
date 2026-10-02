@@ -81,6 +81,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const [trigger, setTrigger] = useState<TriggerKey | null>(automation?.trigger ?? null);
     const [dateField, setDateField] = useState<string | null>(automation?.date_field ?? null);
     const [dateRecurrence, setDateRecurrence] = useState<"yearly" | "once" | null>(automation?.date_recurrence ?? null);
+    const [meetingTypeIds, setMeetingTypeIds] = useState<number[]>(automation?.meeting_type_ids ?? []);
     const [waitMode, setWaitMode] = useState<"immediate" | "wait">(automation?.wait_duration_value ? "wait" : "immediate");
     const [waitValue, setWaitValue] = useState<string>(automation?.wait_duration_value ? String(automation.wait_duration_value) : "5");
     const [waitUnit, setWaitUnit] = useState<string>(automation?.wait_duration_unit ?? "minutes");
@@ -163,6 +164,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
             trigger: trigger || null,
             trigger_date_field: trigger === "date_based" ? dateField : null,
             trigger_date_recurrence: trigger === "date_based" ? dateRecurrence : null,
+            trigger_meeting_type_ids: trigger === "meeting_attended" ? meetingTypeIds : [],
             wait_duration_value: waitMode === "wait" && waitValue ? Number(waitValue) : null,
             wait_duration_unit: waitMode === "wait" && waitValue ? waitUnit : null,
             priority: Number(priority) || 0,
@@ -322,6 +324,28 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                         placeholder={t("app.automation.selectRecurrence")}
                                         className="w-full"
                                     />
+                                </div>
+                            </div>
+                        )}
+
+                        {trigger === "meeting_attended" && catalog && (
+                            <div className="mt-3">
+                                <label style={fieldLabelStyle}>{t("app.automation.meetingTypeScope")}</label>
+                                <Select
+                                    mode="multiple"
+                                    value={meetingTypeIds}
+                                    onChange={(values) => setMeetingTypeIds(values)}
+                                    options={(catalog.meetingTypes ?? []).map((mt) => ({ value: mt.id, label: mt.name }))}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                    placeholder={t("app.automation.allMeetingTypes")}
+                                    className="w-full"
+                                />
+                                <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                                    {meetingTypeIds.length === 0
+                                        ? t("app.automation.meetingTypeScopeAll")
+                                        : t("app.automation.meetingTypeScopeSome")}
                                 </div>
                             </div>
                         )}

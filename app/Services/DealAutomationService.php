@@ -88,7 +88,7 @@ class DealAutomationService
      * and an optional trigger. Matches automations scoped to the deal's own
      * pipeline as well as ones with no pipeline scope (run for any pipeline).
      */
-    public function process(Deal $deal, ?string $trigger = null): void
+    public function process(Deal $deal, ?string $trigger = null, array $context = []): void
     {
         // Skip automation for fully locked deals and for deals the client has
         // already paid through a payment request. A commission-locked deal
@@ -111,6 +111,10 @@ class DealAutomationService
                 continue;
             }
 
+            if (! $this->matchesTriggerScope($automation, $context)) {
+                continue;
+            }
+
             if ($this->evaluateConditions($deal, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
                 $this->dispatchOrWait($deal, $automation, $trigger);
@@ -122,7 +126,7 @@ class DealAutomationService
      * Process lead-subject automations for a lead based on its current state
      * and an optional trigger. Leads aren't pipeline-scoped.
      */
-    public function processLead(Lead $lead, ?string $trigger = null): void
+    public function processLead(Lead $lead, ?string $trigger = null, array $context = []): void
     {
         if (! AutomationV2Feature::enabled()) {
             return;
@@ -136,6 +140,10 @@ class DealAutomationService
             if (! AutomationV2Feature::supportsAutomation($automation)) {
                 AutomationV2Feature::warnIfUnsupported($automation);
 
+                continue;
+            }
+
+            if (! $this->matchesTriggerScope($automation, $context)) {
                 continue;
             }
 
@@ -339,6 +347,34 @@ class DealAutomationService
             'hours' => $value * 3600,
             default => $value * 86400,
         };
+    }
+
+    /**
+     * Trigger-specific scope an automation adds on top of its trigger. Today
+     * that is the meeting_attended trigger's meeting-type filter: an automation
+     * with meeting types selected only runs for a meeting of one of them (a
+     * meeting with no type never matches a scoped automation); no selection
+     * means every meeting type. Every other automation passes through.
+     *
+     * @param  array<string, mixed>  $context  Facts about the firing event, e.g. ['meeting_type_id' => 3].
+     */
+    protected function matchesTriggerScope(DealAutomation $automation, array $context): bool
+    {
+        $meetingTypeIds = array_map('intval', (array) ($automation->meeting_type_ids ?? []));
+
+        if ($automation->trigger !== DealAutomation::TRIGGER_MEETING_ATTENDED || $meetingTypeIds === []) {
+            return true;
+        }
+
+        $typeId = $context['meeting_type_id'] ?? null;
+
+        if ($typeId !== null && in_array((int) $typeId, $meetingTypeIds, true)) {
+            return true;
+        }
+
+        Log::info("Skipping automation '{$automation->name}' (ID: {$automation->id}): meeting type is outside its scope.");
+
+        return false;
     }
 
     /**

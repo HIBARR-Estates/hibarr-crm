@@ -354,11 +354,13 @@ class MeetingAttendanceConfirmationService
             try {
                 $followUp->loadMissing(['deal', 'lead']);
                 $automations = app(DealAutomationService::class);
+                // Lets an automation scope itself to particular meeting types.
+                $context = ['meeting_type_id' => $followUp->meeting_type_id];
 
                 if ($followUp->deal) {
-                    $automations->process($followUp->deal, DealAutomation::TRIGGER_MEETING_ATTENDED);
+                    $automations->process($followUp->deal, DealAutomation::TRIGGER_MEETING_ATTENDED, $context);
                 } elseif ($followUp->lead) {
-                    $automations->processLead($followUp->lead, DealAutomation::TRIGGER_MEETING_ATTENDED);
+                    $automations->processLead($followUp->lead, DealAutomation::TRIGGER_MEETING_ATTENDED, $context);
                 }
             } catch (\Throwable $e) {
                 Log::error('[MeetingAttendanceConfirmationService] meeting-attended automations failed', [

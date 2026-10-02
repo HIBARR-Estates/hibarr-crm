@@ -85,6 +85,7 @@ class DealAutomationController extends AccountBaseController
                 'trigger' => $request->trigger ?: null,
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
+                'meeting_type_ids' => $this->resolvedMeetingTypeIds($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
@@ -144,6 +145,7 @@ class DealAutomationController extends AccountBaseController
                 'trigger' => $request->trigger ?: null,
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
+                'meeting_type_ids' => $this->resolvedMeetingTypeIds($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
@@ -615,6 +617,29 @@ class DealAutomationController extends AccountBaseController
             : null;
     }
 
+    /**
+     * Meeting-type scope — only meaningful for trigger = 'meeting_attended';
+     * cleared for every other trigger. An empty selection is stored as null,
+     * meaning "every meeting type".
+     *
+     * @return array<int, int>|null
+     */
+    protected function resolvedMeetingTypeIds(Request $request): ?array
+    {
+        if ($request->trigger !== DealAutomation::TRIGGER_MEETING_ATTENDED) {
+            return null;
+        }
+
+        $ids = collect($request->input('trigger_meeting_type_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $ids === [] ? null : $ids;
+    }
+
     protected function resolvedTriggerDateRecurrence(Request $request): ?string
     {
         return $request->trigger === DealAutomation::TRIGGER_DATE_BASED
@@ -697,6 +722,8 @@ class DealAutomationController extends AccountBaseController
             'trigger' => ['nullable', Rule::in($this->allowedTriggersFor($subjectType))],
             'trigger_date_field' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', 'string'],
             'trigger_date_recurrence' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', Rule::in(array_keys(AutomationFieldCatalog::DATE_RECURRENCES))],
+            'trigger_meeting_type_ids' => ['nullable', 'array'],
+            'trigger_meeting_type_ids.*' => ['integer', Rule::exists('meeting_types', 'id')->where('company_id', company()->id)],
             'wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',

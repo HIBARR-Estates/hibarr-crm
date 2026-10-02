@@ -95,6 +95,8 @@ export interface Automation {
     trigger: TriggerKey | null;
     date_field: string | null;
     date_recurrence: "yearly" | "once" | null;
+    /** meeting_attended trigger only: meeting types it fires for. null/empty = every type. */
+    meeting_type_ids?: number[] | null;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     active: boolean;
@@ -314,6 +316,8 @@ export interface AutomationCatalog {
     leadSettableFields: Record<string, string>;
     dateFields: { lead: Record<string, string>; deal: Record<string, string> };
     dateRecurrences: Record<string, string>;
+    /** Active meeting types — the meeting_attended trigger can be scoped to some of them. */
+    meetingTypes: { id: number; name: string }[];
     dealActionTypes: ActionType[];
     leadActionTypes: ActionType[];
     assignmentTypes: Record<string, string>;
