@@ -25,7 +25,11 @@ class KeycloakLogout
      * End-session URL, or null when Keycloak isn't configured.
      *
      * `id_token_hint` lets Keycloak end the session without a confirmation
-     * screen; `post_logout_redirect_uri` must be listed under the client's
+     * screen, but Keycloak rejects an expired hint ("Invalid parameter:
+     * id_token_hint") and ID tokens only live a few minutes, so it is only sent
+     * while still valid. Without it, `client_id` + `post_logout_redirect_uri`
+     * make Keycloak show a one-click logout confirmation instead of failing.
+     * `post_logout_redirect_uri` must be listed under the client's
      * "Valid post logout redirect URIs" in Keycloak.
      */
     public static function url(?string $idToken): ?string
@@ -55,11 +59,34 @@ class KeycloakLogout
             'client_id' => $clientId,
         ];
 
-        if ($idToken) {
+        if (self::isUnexpired($idToken)) {
             $query['id_token_hint'] = $idToken;
         }
 
         return $baseUrl.'/realms/'.rawurlencode($realm).'/protocol/openid-connect/logout?'
             .http_build_query(array_filter($query), '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * Whether the JWT's `exp` claim is still in the future (with a small
+     * margin for the redirect). Only reads the payload — Keycloak does the
+     * real verification.
+     */
+    private static function isUnexpired(?string $jwt): bool
+    {
+        if (! $jwt) {
+            return false;
+        }
+
+        $parts = explode('.', $jwt);
+        if (count($parts) !== 3) {
+            return false;
+        }
+
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+        return is_array($payload)
+            && isset($payload['exp'])
+            && (int) $payload['exp'] > time() + 30;
     }
 }
