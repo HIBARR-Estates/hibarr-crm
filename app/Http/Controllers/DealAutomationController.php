@@ -13,9 +13,12 @@ use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Services\AutomationFieldCatalog;
+use App\Services\MetaConversionsService;
 use App\Support\AutomationV2Feature;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class DealAutomationController extends AccountBaseController
@@ -255,6 +258,98 @@ class DealAutomationController extends AccountBaseController
         return Reply::dataOnly(['status' => 'success', 'data' => [
             'id' => $log->id,
             'details' => $log->details,
+        ]]);
+    }
+
+    /**
+     * Manually re-send ONE failed Meta conversion event from Run History.
+     *
+     * Meta sends are never retried automatically (see SendMetaConversionEventJob),
+     * so this is the recovery path: it re-sends just this step's event with the
+     * event name and value that were originally sent, and records the attempt as
+     * its own run. It deliberately does not re-run the automation, touch other
+     * actions, or reset any dispatch marker (e.g. payments.automations_dispatched_at).
+     */
+    public function retryMetaLog($id)
+    {
+        abort_403(! AutomationV2Feature::enabled());
+
+        $log = DealAutomationLog::findOrFail($id);
+        $details = (array) ($log->details ?? []);
+        $original = (array) ($details['meta'] ?? []);
+
+        $eventName = $details['event_name'] ?? $original['event_name'] ?? null;
+        $value = $details['value'] ?? $original['value'] ?? null;
+
+        if ($log->channel !== 'meta'
+            || $log->status !== DealAutomationLog::STATUS_FAILED
+            || ($details['stage'] ?? null) !== 'delivery'
+            || ! is_string($eventName) || $eventName === ''
+            || ! is_numeric($value)) {
+            return response()->json(Reply::error('Only a failed Meta delivery step can be retried.'), 422);
+        }
+
+        if (! empty($details['resolved_by_log_id'])) {
+            return response()->json(Reply::error('This event was already re-sent successfully.'), 409);
+        }
+
+        $subject = $log->deal_id
+            ? Deal::find($log->deal_id)
+            : ($log->lead_id ? Lead::find($log->lead_id) : null);
+
+        if (! $subject) {
+            return response()->json(Reply::error('The deal or lead for this step no longer exists.'), 404);
+        }
+
+        // A double click must not send the same conversion twice.
+        $lockKey = "deal-automation-meta-retry:{$log->id}";
+        if (! Cache::add($lockKey, 1, now()->addSeconds(30))) {
+            return response()->json(Reply::error('A retry for this step is already in progress.'), 409);
+        }
+
+        try {
+            $result = app(MetaConversionsService::class)->send($eventName, (float) $value, $subject);
+            $success = (bool) ($result['success'] ?? false);
+
+            $description = $success
+                ? "Manual retry: Meta Conversion event \"{$eventName}\" accepted by Meta".(isset($result['status_code']) ? " (HTTP {$result['status_code']})" : '')
+                : "Manual retry: Meta Conversion event \"{$eventName}\" failed: ".($result['error'] ?? 'unknown error');
+
+            $retryLog = DealAutomationLog::create([
+                'company_id' => $log->company_id,
+                'deal_id' => $log->deal_id,
+                'lead_id' => $log->lead_id,
+                'automation_id' => $log->automation_id,
+                'run_id' => (string) Str::uuid(),
+                'action' => $description,
+                'status' => $success ? DealAutomationLog::STATUS_SUCCESS : DealAutomationLog::STATUS_FAILED,
+                'channel' => 'meta',
+                'details' => [
+                    'stage' => 'delivery',
+                    'source' => 'manual_retry',
+                    'automation_name' => $details['automation_name'] ?? null,
+                    'event_name' => $eventName,
+                    'value' => (float) $value,
+                    'retry_of_log_id' => $log->id,
+                    'retried_by_user_id' => user()->id,
+                    'meta' => $result,
+                ],
+                'executed_at' => now(),
+            ]);
+
+            if ($success) {
+                $log->details = array_merge($details, ['resolved_by_log_id' => $retryLog->id]);
+                $log->save();
+            }
+        } finally {
+            Cache::forget($lockKey);
+        }
+
+        return Reply::dataOnly(['status' => 'success', 'data' => [
+            'success' => $success,
+            'log_id' => $retryLog->id,
+            'error' => $result['error'] ?? null,
+            'status_code' => $result['status_code'] ?? null,
         ]]);
     }
 

@@ -192,6 +192,10 @@ export interface RunLogDetails {
     event_name?: string;
     value?: number;
     meta?: MetaDeliveryDetail;
+    /** meta rows: set on the failed step once a manual retry succeeded. */
+    resolved_by_log_id?: number;
+    /** meta rows: set on a manual-retry step — the failed step it re-sent. */
+    retry_of_log_id?: number;
     [key: string]: unknown;
 }
 
