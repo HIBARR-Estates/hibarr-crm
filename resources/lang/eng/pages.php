@@ -247,6 +247,23 @@ return [
             'partner' => 'Partner',
             'coming_soon' => 'Coming soon',
             'switcher_aria' => 'Dashboard',
+            'period_aria' => 'Period',
+            'subtext' => [
+                'manager' => 'How every active agent is doing.',
+                'team' => 'Commissions, deals and leads across everyone below you — not your own activity.',
+                'leadership' => 'Company-wide movement across every team.',
+                'partner' => 'Your referrals only — no deal values.',
+            ],
+            'period' => [
+                'past_week' => 'Past week',
+                'past_month' => 'Past month',
+                'past_quarter' => 'Past quarter',
+                'past_year' => 'Past year',
+                'ytd' => 'Year to date',
+                'all' => 'All time',
+                'last_days' => 'Last {{days}} days',
+                'custom' => '{{from}} to {{to}}',
+            ],
         ],
         'personal' => [
             'title' => 'Dashboard',
@@ -720,6 +737,7 @@ return [
             'tasks' => 'Tasks',
             'meetings' => 'Meetings',
             'files' => 'Files',
+            'payments' => 'Payments',
             'recommendations' => 'Recommendations',
             'offers' => 'Offers',
             'history' => 'History',
@@ -892,6 +910,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Back',
             'cancel' => 'Cancel',
             'close' => 'Close',
             'select' => 'Select',

@@ -50,6 +50,19 @@ export function amount(value: number, currency: string | null): string {
 }
 
 /**
+ * Plain count / rate for a tile — always with grouping separators so a four-
+ * digit delta (+1,240%) and a four-digit lead count read the same way.
+ */
+export function figure(
+    value: number,
+    options: { maximumFractionDigits?: number } = {},
+): string {
+    return value.toLocaleString("en-US", {
+        maximumFractionDigits: options.maximumFractionDigits ?? 0,
+    });
+}
+
+/**
  * "Good morning" / "Good afternoon" / "Good evening", from the page's clock.
  *
  * English source string — the caller translates it through td().

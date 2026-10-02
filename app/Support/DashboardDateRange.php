@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 /**
  * The window a dashboard is being read over.
  *
- * Two shapes reach the dashboards: a preset ("last 30 days") and a custom
- * from/to pair the user picked. Both end up here as a resolved pair of
- * timestamps, so panels never have to care which one they were given.
+ * Two shapes reach the dashboards: a named/rolling preset and a custom from/to
+ * pair the user picked. Both end up here as a resolved pair of timestamps, so
+ * panels never have to care which one they were given.
  *
  * Parsing is deliberately strict. These bounds reach date arithmetic inside
  * aggregate queries, so a value that isn't a real date is rejected and falls
@@ -20,33 +20,56 @@ use Illuminate\Http\Request;
  */
 class DashboardDateRange
 {
-    /** Presets offered by the picker, in days. */
-    public const PRESETS = [30, 90, 365];
+    /**
+     * Rolling presets offered by the picker, in days.
+     *
+     * Week / month / quarter / year. Calendar-anchored presets (YTD, all time)
+     * live in NAMED_PRESETS — they are not a day count.
+     */
+    public const PRESETS = [7, 30, 90, 365];
+
+    /** Calendar-anchored presets accepted as ?period=. */
+    public const NAMED_PRESETS = ['ytd', 'all'];
 
     public const DEFAULT_DAYS = 30;
+
+    /**
+     * Floor for "all time". Named so the picker and the server agree on the
+     * same span when detecting that the user clicked the preset.
+     */
+    public const ALL_TIME_FROM = '2000-01-01';
 
     /**
      * Longest custom range accepted, in days.
      *
      * Not a performance guard — a bound on nonsense. A five-century range is a
      * typo or a probe, and clamping it silently would report a number nobody
-     * asked for.
+     * asked for. "All time" bypasses this via the named preset.
      */
     public const MAX_DAYS = 1826;
 
     private function __construct(
         public readonly Carbon $from,
         public readonly Carbon $to,
-        /** The preset this came from, or null when it is a custom range. */
-        public readonly ?int $preset,
+        /**
+         * Rolling day count (7/30/90/365), a named key ('ytd'|'all'), or null
+         * when the user picked their own dates.
+         */
+        public readonly int|string|null $preset,
     ) {}
 
     /**
-     * Read the window off the request: ?from=&to= when both parse, else
-     * ?days= from the whitelist, else the default.
+     * Read the window off the request: ?period= for calendar presets, else
+     * ?from=&to= when both parse, else ?days= from the whitelist, else default.
      */
     public static function fromRequest(Request $request): self
     {
+        $named = self::parseNamed($request->query('period'));
+
+        if ($named) {
+            return $named;
+        }
+
         $custom = self::parseCustom($request->query('from'), $request->query('to'));
 
         if ($custom) {
@@ -74,6 +97,33 @@ class DashboardDateRange
             now()->endOfDay(),
             $days,
         );
+    }
+
+    /** Year-to-date or all-time, resolved against today so they keep rolling. */
+    public static function named(string $key): self
+    {
+        return match ($key) {
+            'ytd' => new self(
+                now()->startOfYear()->startOfDay(),
+                now()->endOfDay(),
+                'ytd',
+            ),
+            'all' => new self(
+                Carbon::parse(self::ALL_TIME_FROM)->startOfDay(),
+                now()->endOfDay(),
+                'all',
+            ),
+            default => self::preset(self::DEFAULT_DAYS),
+        };
+    }
+
+    private static function parseNamed(mixed $period): ?self
+    {
+        if (! is_string($period) || ! in_array($period, self::NAMED_PRESETS, true)) {
+            return null;
+        }
+
+        return self::named($period);
     }
 
     /**
@@ -140,10 +190,14 @@ class DashboardDateRange
         return $date;
     }
 
-    /** Whole days covered, at least one. Presets report their own length. */
+    /** Whole days covered, at least one. Rolling presets report their own length. */
     public function days(): int
     {
-        return $this->preset ?? max(1, (int) $this->from->diffInDays($this->to) + 1);
+        if (is_int($this->preset)) {
+            return $this->preset;
+        }
+
+        return max(1, (int) $this->from->diffInDays($this->to) + 1);
     }
 
     public function isCustom(): bool
@@ -155,7 +209,7 @@ class DashboardDateRange
      * The shape the frontend's picker round-trips. `days` is always populated
      * so copy like "last N days" reads correctly for a custom range too.
      *
-     * @return array{from: string, to: string, days: int, preset: int|null}
+     * @return array{from: string, to: string, days: int, preset: int|string|null}
      */
     public function toArray(): array
     {

@@ -28,6 +28,7 @@ import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
 import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
+import WorkspacePaymentsTab from "./components/workspace/WorkspacePaymentsTab";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -133,6 +134,8 @@ function DealViewRedesignInner(
         dealFollowUpsLoading,
         files,
         filesLoading,
+        paymentRequests,
+        paymentRequestLoading,
     } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
     const { t, locale } = useTranslation();
@@ -296,6 +299,9 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
+        if (props.showOnlinePayment) {
+            tabs.push("payments");
+        }
         // Offers only appear when a property on this deal has an applied offer.
         if (showOffersTab) {
             tabs.push("offers");
@@ -313,7 +319,13 @@ function DealViewRedesignInner(
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages, showExposes, showOffersTab]);
+    }, [
+        permissions,
+        pipelineHasPackages,
+        showExposes,
+        showOffersTab,
+        props.showOnlinePayment,
+    ]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -399,6 +411,11 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
+            payments: props.showOnlinePayment
+                ? paymentRequestLoading
+                    ? undefined
+                    : paymentRequests.length
+                : undefined,
             offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes:
                 exposesCount?.dealId === deal.id
@@ -422,6 +439,9 @@ function DealViewRedesignInner(
             offerApplicationsCount,
             exposesCount,
             recommendationsCount,
+            props.showOnlinePayment,
+            paymentRequestLoading,
+            paymentRequests.length,
         ],
     );
 
@@ -732,6 +752,22 @@ function DealViewRedesignInner(
                                                     visibilityMap={dealFileVisibilityMap}
                                                     leadFileFields={leadFileFields}
                                                     leadFileFieldsData={leadFileFieldsData}
+                                                />
+                                            ))}
+                                        {activeTab === "payments" &&
+                                            props.showOnlinePayment &&
+                                            (paymentRequestLoading &&
+                                            paymentRequests.length === 0 ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
+                                                <WorkspacePaymentsTab
+                                                    deal={deal}
+                                                    canCreatePaymentRequest={
+                                                        canCreatePaymentRequest
+                                                    }
+                                                    canConfirmPaymentTransfer={
+                                                        canConfirmPaymentTransfer
+                                                    }
                                                 />
                                             ))}
                                         {activeTab === "offers" &&
