@@ -44,6 +44,21 @@ class PartnerRole
     }
 
     /**
+     * "Sarah Al-Rashid" → "S. Al-Rashid". A partner may recognise a client by
+     * this but cannot use it to reach them.
+     */
+    public static function abbreviateName(?string $name): ?string
+    {
+        $parts = array_values(array_filter(explode(' ', trim((string) $name))));
+
+        if (count($parts) < 2) {
+            return $parts[0] ?? null;
+        }
+
+        return mb_substr($parts[0], 0, 1).'. '.implode(' ', array_slice($parts, 1));
+    }
+
+    /**
      * A partner account: holds `partner` and nothing beyond the `employee`
      * baseline it is stacked on. Anyone with another role (admin, manager, …) is
      * staff first and keeps staff access even if `partner` was added to them.

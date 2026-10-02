@@ -60,8 +60,8 @@ interface SidebarProps {
     onCollapse: (collapsed: boolean) => void;
 }
 
-/** The only nav section a partner-only account is offered (the user menu is separate). */
-const PARTNER_NAV_KEYS = new Set(["dashboard"]);
+/** The only nav sections a partner-only account is offered (the user menu is separate). */
+const PARTNER_NAV_KEYS = new Set(["dashboard", "my-mlm"]);
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();

@@ -49,6 +49,11 @@ class RestrictPartnerAccountsTest extends TestCase
             'flag a referral' => ['/account/partner-flags'],
             'notifications' => ['/account/notifications'],
             'settings' => ['/account/settings/profile'],
+            // Kept on purpose: partners keep the Affiliate workspace. What it
+            // returns is redacted in MlmAgentController, not blocked here.
+            'affiliate dashboard' => ['/account/mlm/agent/dashboard'],
+            'affiliate commissions' => ['/account/mlm/agent/api/commissions'],
+            'affiliate deals api' => ['/account/mlm/agent/api/deals'],
             'outside account' => ['/login'],
         ];
     }

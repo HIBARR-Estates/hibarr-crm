@@ -1984,12 +1984,6 @@ class DashboardMetricsService
      */
     private function abbreviateName(?string $name): ?string
     {
-        $parts = array_values(array_filter(explode(' ', trim((string) $name))));
-
-        if (count($parts) < 2) {
-            return $parts[0] ?? null;
-        }
-
-        return mb_substr($parts[0], 0, 1).'. '.implode(' ', array_slice($parts, 1));
+        return \App\Support\PartnerRole::abbreviateName($name);
     }
 }
