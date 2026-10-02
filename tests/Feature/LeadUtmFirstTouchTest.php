@@ -79,4 +79,19 @@ class LeadUtmFirstTouchTest extends TestCase
         $this->assertNull((new LeadUtmService())->record($lead, ['utm_source' => null, 'utm_medium' => ''], 'api'));
         $this->assertSame(0, LeadUtmTouch::count());
     }
+
+    public function test_untracked_first_touch_is_logged_before_a_later_set(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->forceCreate([]);
+        LeadMarketing::create(['lead_id' => $lead->id, 'utm_source' => 'facebook']);
+
+        (new LeadUtmService())->record($lead, ['utm_source' => 'google'], 'api');
+
+        $touches = LeadUtmTouch::where('lead_id', $lead->id)->orderBy('id')->get();
+        $this->assertCount(2, $touches);
+        $this->assertTrue($touches[0]->is_first_touch);
+        $this->assertSame('facebook', $touches[0]->utm_source);
+        $this->assertFalse($touches[1]->is_first_touch);
+        $this->assertSame('facebook', LeadMarketing::where('lead_id', $lead->id)->value('utm_source'));
+    }
 }

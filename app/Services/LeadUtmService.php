@@ -62,6 +62,16 @@ class LeadUtmService
                 LeadMarketing::query()->updateOrCreate(['lead_id' => $lead->id], $utm);
             }
 
+            // lead_marketing holds a first touch that has no history row (written
+            // outside this service): log it first so the history starts with it.
+            if ($hasFirstTouch && ! LeadUtmTouch::query()->where('lead_id', $lead->id)->exists()) {
+                LeadUtmTouch::create($marketing->only(LeadUtmTouch::UTM_FIELDS) + [
+                    'lead_id' => $lead->id,
+                    'origin' => 'backfill',
+                    'is_first_touch' => true,
+                ]);
+            }
+
             // Skip an exact repeat of the most recent touch (e.g. API retries).
             $latest = LeadUtmTouch::query()->where('lead_id', $lead->id)->latest('id')->first();
             if ($latest && $this->sameUtm($latest, $utm)) {
