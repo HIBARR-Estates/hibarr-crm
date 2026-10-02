@@ -52,6 +52,8 @@ class DealMeetingLeadLinkTest extends TestCase
     protected function tearDown(): void
     {
         DealFollowUp::flushEventListeners();
+        // booted() runs once per process; reset it so later tests get the real hooks back.
+        DealFollowUp::clearBootedModels();
         Schema::dropIfExists('lead_follow_up');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('leads');
