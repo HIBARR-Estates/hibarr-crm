@@ -355,7 +355,26 @@ class LeadService
                     'type' => 'task',
                     'id' => $task->id,
                     'title' => $task->heading,
-                    'due_at' => $task->due_date?->format('Y-m-d H:i:s'),
+                    // tasks.due_date is a true UTC instant — every live write
+                    // runs through UserTimezone::interpretWallClock(), which is
+                    // not feature-flagged — so the raw column holds UTC digits
+                    // and must be converted before it leaves here. Formatting it
+                    // directly made the list disagree with the task modal: a
+                    // task due 17:00 was rendered as 14:00, three hours early.
+                    //
+                    // Task::wallClockString() rather than a local setTimezone():
+                    // it is the exact call the task modal makes, so the two
+                    // surfaces cannot drift, and it honours crm.user-timezone
+                    // (a viewer's own zone wins over the company default).
+                    //
+                    // Note the meeting branch above converts into the *company*
+                    // zone for filter/sort comparability, so when a viewer's
+                    // zone differs from the company's the two branches are on
+                    // different bases. Same record, same viewer, same instant
+                    // must not be able to pick a different "next action"
+                    // depending on which branch won — see
+                    // nextActionAtSql(), which is already company-basis.
+                    'due_at' => Task::wallClockString($task->due_date),
                     'meta' => null,
                 ];
             }

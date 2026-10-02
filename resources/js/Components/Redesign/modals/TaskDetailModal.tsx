@@ -13,12 +13,9 @@ import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
-import {
-    formatDate,
-    formatDateWithTime,
-} from "@/Components/Redesign/adapters/dateFormat";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import {
+    formatTaskDateWithCompanyTime,
     parseTaskDateTime,
     toDateInputValue,
     toTimeInputValue,
@@ -161,9 +158,16 @@ export default function TaskDetailModal({
     const done =
         isCompletedColumn(statusSlug, taskBoardColumns) ||
         Boolean(task.completed_on);
-    const startDate = parseTaskDateTime(task.start_date);
     const dueDate = parseTaskDateTime(task.due_date);
-    const dueLabel = formatDateWithTime(dueDate, "-");
+    // Formatted from the raw wall-clock string, not the Date: a wall-clock time
+    // that doesn't exist in the viewer's zone (DST spring-forward) can't be held
+    // by a Date and reads an hour late.
+    const dueLabel = formatTaskDateWithCompanyTime(task.due_date, {
+        fallback: "-",
+    });
+    const startLabel = formatTaskDateWithCompanyTime(task.start_date, {
+        fallback: "-",
+    });
     const overdue =
         !done && dueDate != null && dueDate.getTime() < Date.now();
     const assignees = task.users ?? [];
@@ -446,7 +450,7 @@ export default function TaskDetailModal({
                                 style={{ fontSize: 14, color: T.TEXT_MUTED }}
                             >
                                 <Icon name="calendar" size={14} />
-                                {formatDate(startDate, "-")}
+                                {startLabel}
                             </div>
                         </div>
                     </div>

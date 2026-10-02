@@ -3,7 +3,10 @@
 namespace Tests\Feature\Leads;
 
 use App\Models\Lead;
+use App\Models\Task;
+use App\Services\FeatureFlagService;
 use App\Services\LeadService;
+use App\Support\UserTimezone;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -158,6 +161,60 @@ class LeadNextActionTest extends TestCase
         );
     }
 
+    public function test_task_due_at_is_converted_from_utc_for_the_viewer(): void
+    {
+        // tasks.due_date is a true UTC instant: every live write path runs
+        session(['company' => (object) ['timezone' => 'Asia/Tokyo']]);
+
+        $this->makeLead(1);
+        // A task the user saved as 09:00 Tokyo wall-clock, i.e. 00:00 UTC.
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-14 00:00:00', 'UTC'));
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame(
+            Task::wallClockString(\Carbon\Carbon::parse('2026-08-14 00:00:00', 'UTC')),
+            $action['due_at'],
+            'due_at must be the wall-clock time the task modal shows, never raw UTC digits',
+        );
+        $this->assertSame(
+            '2026-08-14 09:00:00',
+            $action['due_at'],
+            'with the company zone at Asia/Tokyo the wall clock is 09:00 (00:00 UTC + 9h)',
+        );
+    }
+
+    public function test_task_due_at_follows_the_viewers_own_timezone_not_the_companys(): void
+    {
+        // With crm.user-timezone on, a viewer's own zone wins over the company
+        app(FeatureFlagService::class)->setTestingOverrides([
+            UserTimezone::FLAG => true,
+        ]);
+
+        session(['company' => (object) ['timezone' => 'UTC']]);
+        session(['user' => new class
+        {
+            public int $id = 10;
+
+            public string $timezone = 'Europe/Istanbul';
+
+            public function permission(string $ability): string
+            {
+                return 'all';
+            }
+        }]);
+
+        $this->makeLead(1);
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-14 06:00:00', 'UTC'));
+
+        $this->assertSame(
+            '2026-08-14 09:00:00',
+            $this->nextActionFor(1)['due_at'],
+            'a viewer in Istanbul should see 09:00 for an instant stored as 06:00 UTC',
+        );
+    }
+
     public function test_task_bucket_uses_company_local_now_not_utc_now(): void
     {
         // tasks.due_date carries no timezone label — it's raw wall-clock
@@ -172,9 +229,6 @@ class LeadNextActionTest extends TestCase
         session(['company' => (object) ['timezone' => 'Asia/Tokyo']]);
 
         $this->makeLead(1);
-        // A task due 08:00 on the 15th — 30 minutes ago in Tokyo wall-clock
-        // terms, stored as the same raw digits (no shift, matching how
-        // TaskController@store actually writes it).
         $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-15 08:00:00'));
 
         $this->assertSame(
