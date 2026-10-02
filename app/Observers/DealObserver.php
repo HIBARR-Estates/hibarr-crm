@@ -23,6 +23,7 @@ use App\Notifications\LeadAgentAssigned;
 use App\Notifications\LeadImported;
 use App\Services\CrmEventDescriptionBuilder;
 use App\Services\DealAutomationService;
+use App\Services\DealMeetingLeadLinker;
 use App\Services\DealNotificationService;
 use App\Services\DealPaymentService;
 use App\Services\DealTaskService;
@@ -223,6 +224,11 @@ class DealObserver
 
     public function updated(Deal $deal)
     {
+        // Re-linking a deal to another lead moves its meetings with it.
+        if ($deal->wasChanged('lead_id')) {
+            app(DealMeetingLeadLinker::class)->syncDeal($deal->id);
+        }
+
         HasDynamicTranslations::dispatchDynamicTranslation($deal, true);
 
         if ($deal->wasChanged('value')) {
