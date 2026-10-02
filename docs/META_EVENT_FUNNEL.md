@@ -39,7 +39,7 @@ silent in a `?noanalytics=1` session.
 
 Behaviour worth knowing:
 
-- Fires **once per meeting**, the first time its outcome becomes *Attended* —
+- Fires when a meeting's outcome changes **into** *Attended* —
   from the attendance confirmation prompt or the meeting's edit form. Saving an
   already-attended meeting again does not re-fire. No-show, cancelled,
   rescheduled and partial outcomes never fire it.
