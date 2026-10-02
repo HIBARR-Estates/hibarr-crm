@@ -171,13 +171,32 @@ class OlPaymentReviewDecisionService
         $url = rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
 
         try {
-            return Http::timeout($timeout)
+            $response = Http::timeout($timeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-Api-Key' => $apiKey,
                     'Accept' => 'application/json',
                 ])
                 ->post($url, $payload);
+
+            if (! $response->successful()) {
+                // OL's rejection (401/404/…) is rethrown to the caller with only
+                // its `message`, so record what was actually called and answered —
+                // the key itself is never logged, just a short fingerprint to
+                // compare against the key configured on the OL side.
+                Log::error('OlPaymentReviewDecisionService: OL rejected review decision', [
+                    'payment_id' => $payment->id,
+                    'external_reference' => $payment->external_reference,
+                    'decision' => $decision,
+                    'admin_id' => $admin?->id,
+                    'url' => $url,
+                    'status' => $response->status(),
+                    'body' => mb_substr($response->body(), 0, 500),
+                    'api_key_fingerprint' => substr(hash('sha256', $apiKey), 0, 8),
+                ]);
+            }
+
+            return $response;
         } catch (\Throwable $e) {
             Log::error('OlPaymentReviewDecisionService: OL request failed', [
                 'payment_id' => $payment->id,

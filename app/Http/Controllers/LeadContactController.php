@@ -397,6 +397,11 @@ class LeadContactController extends AccountBaseController
             // Each key carries a named group. Inertia resolves one group per request,
             // so a slow or throwing closure can no longer stall every other tab —
             // the same failure documented in DealController::show().
+            // Full UTM history (newest first) for the Marketing tab; lead_marketing keeps only the first touch.
+            'utmTouches' => Inertia::defer(
+                fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
+                'marketing'
+            ),
             'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')

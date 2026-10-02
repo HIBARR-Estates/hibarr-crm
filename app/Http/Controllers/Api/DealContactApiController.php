@@ -19,6 +19,7 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -1096,6 +1097,10 @@ class DealContactApiController extends Controller
         $marketingPayload = array_filter($marketingPayload, function ($value) {
             return $value !== null;
         });
+
+        // UTM is first-touch: the first set is kept on lead_marketing, later sets are logged separately.
+        [$utm, $marketingPayload] = app(LeadUtmService::class)->splitPayload($marketingPayload);
+        app(LeadUtmService::class)->record($contact, $utm, 'api');
 
         if (! empty($marketingPayload)) {
             $contact->marketing()->updateOrCreate(

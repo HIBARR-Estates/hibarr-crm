@@ -498,6 +498,8 @@ use App\Observers\UserTaskboardSettingObserver;
 use App\Observers\WeeklyTimesheetEntriesObserver;
 use App\Observers\WeeklyTimeSheetObserver;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use App\Listeners\CaptureKeycloakLogoutUrl;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Events\NotificationSending;
 
@@ -511,6 +513,7 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         NotificationSending::class => [SuppressBypassedNotification::class],
         Login::class => [LogSuccessfulLogin::class],
+        Logout::class => [CaptureKeycloakLogoutUrl::class],
         SubTaskCompletedEvent::class => [SubTaskCompletedListener::class],
         NewUserEvent::class => [NewUserListener::class],
         NewUserSlackEvent::class => [NewUserSlackListener::class],

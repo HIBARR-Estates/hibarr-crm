@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { DealInfoSectionId, DealTab } from "../types";
 import { parseCategorySectionId } from "../config/dealInfoSections";
-import {
-    replaceHistoryOnPartialReloads,
-    replaceUrlKeepingHistoryState,
-} from "@/lib/inertiaHistory";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 const VALID_TABS: DealTab[] = [
     "overview",
@@ -88,10 +85,8 @@ export default function useDealViewNavigation() {
         // address bar to that stale URL — silently reverting a tab switch
         // that happened while the request was in flight. Re-stamp our tab
         // state into the URL after every Inertia request finishes so those
-        // background reloads can't clobber it. Those reloads must also
-        // replace rather than push, or each late deferred group leaves a
-        // duplicate history entry and back takes several clicks to leave.
-        const stopReplacingPartialReloads = replaceHistoryOnPartialReloads();
+        // background reloads can't clobber it. (Same-page reloads replace
+        // rather than push globally: see replaceHistoryOnSamePageReloads.)
         const stopRestamping = router.on("finish", () => {
             syncQuery(
                 tabRef.current,
@@ -99,7 +94,6 @@ export default function useDealViewNavigation() {
             );
         });
         return () => {
-            stopReplacingPartialReloads();
             stopRestamping();
         };
     }, []);

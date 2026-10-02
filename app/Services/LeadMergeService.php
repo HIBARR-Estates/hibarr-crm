@@ -10,6 +10,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadContactMethod;
 use App\Models\LeadFlightItinerary;
 use App\Models\LeadMarketing;
+use App\Models\LeadUtmTouch;
 use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\Taskable;
@@ -536,16 +537,46 @@ class LeadMergeService
         $primaryMarketing = LeadMarketing::query()->where('lead_id', $primary->id)->first();
         $duplicateMarketing = LeadMarketing::query()->where('lead_id', $duplicate->id)->first();
 
+        // Whether the duplicate's UTM values end up as the primary's first touch.
+        $duplicateIsFirstTouch = false;
+
         if ($primaryMarketing && $duplicateMarketing) {
+            // The primary's own first touch wins. Only when it never had UTM
+            // data does it inherit the duplicate's, so they are not lost.
+            if (!$this->hasUtm($primaryMarketing) && $this->hasUtm($duplicateMarketing)) {
+                $primaryMarketing->fill($duplicateMarketing->only(LeadUtmTouch::UTM_FIELDS))->save();
+                $duplicateIsFirstTouch = true;
+            }
+
             $duplicateMarketing->delete();
-
-            return;
-        }
-
-        if (!$primaryMarketing && $duplicateMarketing) {
+        } elseif (!$primaryMarketing && $duplicateMarketing) {
             $duplicateMarketing->lead_id = $primary->id;
             $duplicateMarketing->save();
+            $duplicateIsFirstTouch = $this->hasUtm($duplicateMarketing);
         }
+
+        // Keep the duplicate's UTM history on the primary. Its touches stop
+        // being "first" unless its marketing row (and so its first-touch
+        // values) was carried over.
+        if (Schema::hasTable('lead_utm_touches')) {
+            $changes = ['lead_id' => $primary->id];
+            if (!$duplicateIsFirstTouch) {
+                $changes['is_first_touch'] = false;
+            }
+
+            LeadUtmTouch::query()->where('lead_id', $duplicate->id)->update($changes);
+        }
+    }
+
+    private function hasUtm(LeadMarketing $marketing): bool
+    {
+        foreach (LeadUtmTouch::UTM_FIELDS as $field) {
+            if (filled($marketing->{$field})) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function invalidateUniqueChannelFields(Lead $duplicate): void

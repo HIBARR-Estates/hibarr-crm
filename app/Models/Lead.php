@@ -485,6 +485,12 @@ class Lead extends BaseModel
         return $this->hasOne(LeadMarketing::class, 'lead_id');
     }
 
+    /** Every UTM set the lead has arrived with, oldest first (the first is the first touch). */
+    public function utmTouches(): HasMany
+    {
+        return $this->hasMany(LeadUtmTouch::class, 'lead_id')->orderBy('id');
+    }
+
     public function lifecycleStatus(): BelongsTo
     {
         return $this->belongsTo(LeadLifecycleStatus::class, 'lead_lifecycle_status_id');

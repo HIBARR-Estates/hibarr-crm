@@ -8,7 +8,7 @@
                     {{-- UTM Parameters Section --}}
                     <div class="col-12 px-0 mb-3">
                         <h5 class="f-16 f-w-500 mb-3 text-capitalize">
-                            <i class="fa fa-bullseye mr-2"></i>UTM & Campaign Tracking
+                            <i class="fa fa-bullseye mr-2"></i>First-Touch UTM & Campaign Tracking
                         </h5>
                     </div>
 
