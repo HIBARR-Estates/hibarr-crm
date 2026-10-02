@@ -7,6 +7,7 @@ use App\Events\DealWonEvent;
 use App\Mail\DealAutomationTemplateEmail;
 use App\Models\Deal;
 use App\Models\DealAutomation;
+use App\Models\DealAutomationAction;
 use App\Models\DealAutomationLog;
 use App\Models\DealAutomationPendingRun;
 use App\Models\DealNote;
@@ -43,6 +44,14 @@ class DealAutomationService
      */
     protected ?string $currentRunId = null;
 
+    /**
+     * The trigger that started the execution currently running, carried onto
+     * any resume row a mid-sequence wait queues so the paid-deal exclusion is
+     * judged against the firing trigger (not the automation's configured one,
+     * which is null for "any trigger" automations).
+     */
+    protected ?string $currentTrigger = null;
+
     public function __construct(
         FieldResolverService $fieldResolver,
         ConditionEvaluatorService $conditionEvaluator,
@@ -57,10 +66,17 @@ class DealAutomationService
      * Fully locked deals, and deals the client has already paid through a
      * payment request, never run automations.
      */
-    protected function isExcludedFromAutomations(Deal $deal): bool
+    protected function isExcludedFromAutomations(Deal $deal, ?string $trigger = null): bool
     {
         if ($deal->is_locked) {
             return true;
+        }
+
+        // A payment-received automation exists precisely for the moment a deal
+        // becomes paid, so the paid-deal exclusion below must not apply to it
+        // (otherwise e.g. the Meta Purchase event could never be sent).
+        if ($trigger === DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED) {
+            return false;
         }
 
         return \App\Support\FeatureFlags::enabled('packages.online-payment')
@@ -72,13 +88,13 @@ class DealAutomationService
      * and an optional trigger. Matches automations scoped to the deal's own
      * pipeline as well as ones with no pipeline scope (run for any pipeline).
      */
-    public function process(Deal $deal, ?string $trigger = null): void
+    public function process(Deal $deal, ?string $trigger = null, array $context = []): void
     {
         // Skip automation for fully locked deals and for deals the client has
         // already paid through a payment request. A commission-locked deal
         // (commission already paid/distributed) on its own still allows
         // automations to run.
-        if ($this->isExcludedFromAutomations($deal)) {
+        if ($this->isExcludedFromAutomations($deal, $trigger)) {
             Log::info("Skipping automations for locked or paid Deal ID: {$deal->id}");
 
             return;
@@ -95,6 +111,10 @@ class DealAutomationService
                 continue;
             }
 
+            if (! $this->matchesTriggerScope($automation, $context)) {
+                continue;
+            }
+
             if ($this->evaluateConditions($deal, $automation)) {
                 Log::info("Automation matched: {$automation->name} (ID: {$automation->id})");
                 $this->dispatchOrWait($deal, $automation, $trigger);
@@ -106,7 +126,7 @@ class DealAutomationService
      * Process lead-subject automations for a lead based on its current state
      * and an optional trigger. Leads aren't pipeline-scoped.
      */
-    public function processLead(Lead $lead, ?string $trigger = null): void
+    public function processLead(Lead $lead, ?string $trigger = null, array $context = []): void
     {
         if (! AutomationV2Feature::enabled()) {
             return;
@@ -120,6 +140,10 @@ class DealAutomationService
             if (! AutomationV2Feature::supportsAutomation($automation)) {
                 AutomationV2Feature::warnIfUnsupported($automation);
 
+                continue;
+            }
+
+            if (! $this->matchesTriggerScope($automation, $context)) {
                 continue;
             }
 
@@ -190,7 +214,7 @@ class DealAutomationService
                 return;
             }
 
-            $this->executeActions($subject, $automation);
+            $this->executeActions($subject, $automation, null, null, $trigger);
 
             return;
         }
@@ -281,7 +305,7 @@ class DealAutomationService
             return true;
         }
 
-        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject)) {
+        if ($subject instanceof Deal && $this->isExcludedFromAutomations($subject, $pendingRun->trigger ?? $automation->trigger)) {
             Log::info("Skipping pending automation run #{$pendingRun->id}: Deal {$subject->id} is locked or paid");
 
             return true;
@@ -297,7 +321,7 @@ class DealAutomationService
 
         // run_id is only set when a mid-sequence wait step queued this row —
         // a pre-actions wait starts a fresh execution, so null is correct there.
-        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id);
+        return $this->executeActions($subject, $automation, $pendingRun->resume_action_id, $pendingRun->run_id, $pendingRun->trigger);
     }
 
     /**
@@ -323,6 +347,34 @@ class DealAutomationService
             'hours' => $value * 3600,
             default => $value * 86400,
         };
+    }
+
+    /**
+     * Trigger-specific scope an automation adds on top of its trigger. Today
+     * that is the meeting_attended trigger's meeting-type filter: an automation
+     * with meeting types selected only runs for a meeting of one of them (a
+     * meeting with no type never matches a scoped automation); no selection
+     * means every meeting type. Every other automation passes through.
+     *
+     * @param  array<string, mixed>  $context  Facts about the firing event, e.g. ['meeting_type_id' => 3].
+     */
+    protected function matchesTriggerScope(DealAutomation $automation, array $context): bool
+    {
+        $meetingTypeIds = array_map('intval', (array) ($automation->meeting_type_ids ?? []));
+
+        if ($automation->trigger !== DealAutomation::TRIGGER_MEETING_ATTENDED || $meetingTypeIds === []) {
+            return true;
+        }
+
+        $typeId = $context['meeting_type_id'] ?? null;
+
+        if ($typeId !== null && in_array((int) $typeId, $meetingTypeIds, true)) {
+            return true;
+        }
+
+        Log::info("Skipping automation '{$automation->name}' (ID: {$automation->id}): meeting type is outside its scope.");
+
+        return false;
     }
 
     /**
@@ -434,8 +486,9 @@ class DealAutomationService
      * @return bool True when the full action list finished; false when a wait
      *              step queued a resume row for later.
      */
-    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null): bool
+    protected function executeActions(Deal|Lead $subject, DealAutomation $automation, ?int $resumeFromActionId = null, ?string $runId = null, ?string $trigger = null): bool
     {
+        $this->currentTrigger = $trigger;
         // One id for this whole execution — every step's log row carries it,
         // and a wait step hands it to the pending row so the steps that resume
         // afterwards land in the same run rather than looking like a new one.
@@ -485,7 +538,7 @@ class DealAutomationService
                 $nextAction = $actions->get($i + 1);
 
                 if ($waitSeconds > 0 && $nextAction) {
-                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId);
+                    $this->queueResume($subject, $automation, $nextAction->id, $waitSeconds, $this->currentRunId, $this->currentTrigger);
                     $this->logAction(
                         $subject,
                         $automation,
@@ -528,7 +581,7 @@ class DealAutomationService
      * $runId carries the paused execution across the wait so its remaining
      * steps log under the same run as the ones that already ran.
      */
-    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null): void
+    protected function queueResume(Deal|Lead $subject, DealAutomation $automation, int $resumeActionId, int $waitSeconds, ?string $runId = null, ?string $trigger = null): void
     {
         try {
             DealAutomationPendingRun::updateOrCreate([
@@ -539,6 +592,7 @@ class DealAutomationService
                 'company_id' => $subject->company_id,
                 'resume_action_id' => $resumeActionId,
                 'run_id' => $runId,
+                'trigger' => $trigger,
                 'run_at' => now()->addSeconds($waitSeconds),
             ]);
         } catch (\Exception $e) {
@@ -1233,7 +1287,7 @@ class DealAutomationService
             return;
         }
 
-        $value = (float) ($action->meta_event_value ?? 0);
+        $value = $this->resolveMetaEventValue($subject, $action);
 
         DB::afterCommit(function () use ($subject, $eventName, $value, $automation, $label) {
             $result = app(MetaConversionsService::class)->send($eventName, $value, $subject);
@@ -1260,6 +1314,33 @@ class DealAutomationService
                 'meta_event_value' => $value,
             ]);
         });
+    }
+
+    /**
+     * The conversion value for a meta_conversion action: the action's fixed
+     * meta_event_value, or — when the action is set to "deal value" and the
+     * subject is a deal with a value — that deal's value as of right now (so a
+     * Purchase carries what was actually sold). A lead subject, or a deal with
+     * no value, falls back to the fixed value rather than sending nothing.
+     */
+    protected function resolveMetaEventValue(Deal|Lead $subject, $action): float
+    {
+        $fixed = (float) ($action->meta_event_value ?? 0);
+
+        if (($action->meta_event_value_source ?? null) !== DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE) {
+            return $fixed;
+        }
+
+        if ($subject instanceof Deal && $subject->value !== null && (float) $subject->value > 0) {
+            return (float) $subject->value;
+        }
+
+        Log::warning('MetaConversion set to deal value but the subject has none; using the fixed value', [
+            'subject' => $subject instanceof Deal ? "deal:{$subject->id}" : "lead:{$subject->id}",
+            'fixed_value' => $fixed,
+        ]);
+
+        return $fixed;
     }
 
     /**

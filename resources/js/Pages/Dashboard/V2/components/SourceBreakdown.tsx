@@ -1,3 +1,4 @@
+import { Link } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { SourceQualityRow } from "../types";
@@ -9,6 +10,9 @@ interface SourceBreakdownProps {
     maxRows?: number;
     /** Leadership doesn't query won, so the column is opt-in. */
     showWon?: boolean;
+    /** When set, each lead count opens that source in the leads list. */
+    from?: string;
+    to?: string;
 }
 
 /**
@@ -18,11 +22,16 @@ interface SourceBreakdownProps {
  * or ROI column. No spend data is fed into the CRM for any channel (the Meta
  * integration is outbound Conversions API only), so a cost column here would
  * imply a parity across channels that does not exist.
+ *
+ * Lead counts open the leads list filtered to that source (and the window,
+ * when the caller has one).
  */
 export default function SourceBreakdown({
     rows,
     maxRows = 8,
     showWon = false,
+    from,
+    to,
 }: SourceBreakdownProps) {
     const { td } = useTd();
 
@@ -36,7 +45,9 @@ export default function SourceBreakdown({
         );
     }
 
-    const grid = showWon ? "1fr 54px 78px 66px" : "1fr 54px 78px";
+    const grid = showWon
+        ? "minmax(0, 1fr) 64px 96px 66px"
+        : "minmax(0, 1fr) 64px 96px";
     const best = Math.max(...visible.map((row) => share(row.won ?? 0, row.count)));
 
     return (
@@ -46,6 +57,7 @@ export default function SourceBreakdown({
                 style={{
                     display: "grid",
                     gridTemplateColumns: grid,
+                    columnGap: 16,
                     padding: "9px 0",
                     borderBottom: `1px solid ${T.BORDER_SOFT}`,
                 }}
@@ -58,6 +70,7 @@ export default function SourceBreakdown({
 
             {visible.map((row, index) => {
                 const wonShare = share(row.won ?? 0, row.count);
+                const href = sourceListHref(row.id, from, to);
 
                 return (
                     <div
@@ -65,6 +78,7 @@ export default function SourceBreakdown({
                         style={{
                             display: "grid",
                             gridTemplateColumns: grid,
+                            columnGap: 16,
                             padding: "10px 0",
                             fontSize: 14,
                             borderBottom:
@@ -80,9 +94,15 @@ export default function SourceBreakdown({
                                 whiteSpace: "nowrap",
                             }}
                         >
-                            {td(row.name, { source: "en" })}
+                            <Link href={href} className="dv2-metric-link">
+                                {td(row.name, { source: "en" })}
+                            </Link>
                         </div>
-                        <div style={{ textAlign: "right" }}>{row.count}</div>
+                        <div style={{ textAlign: "right" }}>
+                            <Link href={href} className="dv2-metric-link">
+                                {row.count}
+                            </Link>
+                        </div>
                         <div style={{ textAlign: "right", color: T.TEXT_MUTED }}>
                             {share(row.contacted, row.count)}%
                         </div>
@@ -111,3 +131,11 @@ export default function SourceBreakdown({
 
 const share = (part: number, whole: number) =>
     whole > 0 ? Math.round((part / whole) * 100) : 0;
+
+function sourceListHref(sourceId: number, from?: string, to?: string): string {
+    return route("lead-contact.index", {
+        lead_source: sourceId,
+        ...(from ? { start_date: from } : {}),
+        ...(to ? { end_date: to } : {}),
+    });
+}

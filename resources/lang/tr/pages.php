@@ -212,6 +212,23 @@ return [
             'partner' => 'Partner',
             'coming_soon' => 'Yakında',
             'switcher_aria' => 'Pano',
+            'period_aria' => 'Dönem',
+            'subtext' => [
+                'manager' => 'Tüm aktif temsilcilerin durumu.',
+                'team' => 'Altınızdaki herkesin komisyon, anlaşma ve leadleri — kendi aktiviteniz hariç.',
+                'leadership' => 'Tüm ekiplerde şirket genelindeki hareket.',
+                'partner' => 'Yalnızca yönlendirmeleriniz — anlaşma değerleri yok.',
+            ],
+            'period' => [
+                'past_week' => 'Geçen hafta',
+                'past_month' => 'Geçen ay',
+                'past_quarter' => 'Geçen çeyrek',
+                'past_year' => 'Geçen yıl',
+                'ytd' => 'Yılbaşından bugüne',
+                'all' => 'Tüm zamanlar',
+                'last_days' => 'Son {{days}} gün',
+                'custom' => '{{from}} – {{to}}',
+            ],
         ],
         'personal' => [
             'title' => 'Pano',
@@ -690,6 +707,7 @@ return [
             'tasks' => 'Görevler',
             'meetings' => 'Toplantılar',
             'files' => 'Dosyalar',
+            'payments' => 'Ödemeler',
             'recommendations' => 'Öneriler',
             'offers' => 'Teklifler',
             'history' => 'Geçmiş',
@@ -865,6 +883,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Geri',
             'cancel' => 'İptal',
             'close' => 'Kapat',
             'select' => 'Seç',
