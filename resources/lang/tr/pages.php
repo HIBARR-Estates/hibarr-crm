@@ -874,6 +874,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Geri',
             'cancel' => 'İptal',
             'close' => 'Kapat',
             'select' => 'Seç',
