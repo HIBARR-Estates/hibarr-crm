@@ -205,11 +205,16 @@ class LoginController extends Controller
             $idToken = $data->accessTokenResponseBody['id_token'] ?? null;
             if ($idToken) {
                 session()->put(KeycloakLogout::ID_TOKEN_SESSION_KEY, $idToken);
+            } else {
+                // Never keep a previous login's token for this one.
+                session()->forget(KeycloakLogout::ID_TOKEN_SESSION_KEY);
             }
 
             // Lets logout end the Keycloak session server-to-server.
             if (! empty($data->refreshToken)) {
                 session()->put(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY, $data->refreshToken);
+            } else {
+                session()->forget(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY);
             }
 
             $redirectPath = $this->redirectPath();

@@ -32,8 +32,9 @@ class KeycloakLogout
      * browser flow's "Invalid parameter" errors.
      *
      * Returns true when no Keycloak session is left — ended now, or already
-     * gone (Keycloak answers 400 invalid_grant) — and false when the caller
-     * should fall back to the browser end-session redirect.
+     * gone (400 invalid_grant for an expired token / inactive session) — and
+     * false when the caller should fall back to the browser end-session
+     * redirect (no token, non-HTTPS endpoint, unreachable, or any other error).
      */
     public static function endSession(?string $refreshToken): bool
     {
@@ -71,6 +72,16 @@ class KeycloakLogout
             return false;
         }
 
+        // The refresh token and client secret are sent in this request: never
+        // over plain HTTP, except to a local development Keycloak.
+        $scheme = strtolower((string) parse_url($baseUrl, PHP_URL_SCHEME));
+        $host = strtolower((string) parse_url($baseUrl, PHP_URL_HOST));
+
+        if ($scheme !== 'https'
+            && ! ($scheme === 'http' && in_array($host, ['localhost', '127.0.0.1', '[::1]', '::1'], true))) {
+            return false;
+        }
+
         try {
             $response = Http::asForm()
                 ->timeout(5)
@@ -86,8 +97,18 @@ class KeycloakLogout
             return false;
         }
 
-        return $response->successful()
-            || ($response->status() === 400 && $response->json('error') === 'invalid_grant');
+        if ($response->successful()) {
+            return true;
+        }
+
+        // 400 invalid_grant covers both "the SSO session is already gone"
+        // (token expired / session not active — nothing left to end) and
+        // problems that leave the session alive (wrong client, bad token).
+        // Only the first counts as done; anything else falls back to the
+        // browser end-session redirect.
+        return $response->status() === 400
+            && $response->json('error') === 'invalid_grant'
+            && preg_match('/not active|expired|session|stale/i', (string) $response->json('error_description')) === 1;
     }
 
     private function buildUrl(?string $idToken): ?string
