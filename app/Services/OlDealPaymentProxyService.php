@@ -79,7 +79,11 @@ class OlDealPaymentProxyService
     private function request(string $method, string $path, array $payload): Response
     {
         $baseUrl = (string) config('services.ol.base_url', '');
-        $apiKey = (string) config('services.ol.api_key', '');
+        // The backend gates these payment routes with crmWebhookAuth
+        // (CRM_WEBHOOK_API_KEY), not the application key OL_API_KEY that the
+        // calendar/telephony calls use. Fall back to OL_API_KEY so setups where
+        // both are the same value keep working.
+        $apiKey = (string) (config('services.ol.crm_webhook_api_key') ?: config('services.ol.api_key', ''));
         $timeout = (int) config('services.ol.timeout', 15);
 
         if ($baseUrl === '' || $apiKey === '') {
