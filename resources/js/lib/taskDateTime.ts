@@ -144,6 +144,34 @@ function toWallClockDayjs(
     return taskDateTimeToDayjs(value);
 }
 
+/**
+ * Resolves the wall-clock dayjs and the resolved date format for a value.
+ *
+ * `wall` is non-null when the value was a wall-clock string, which both fixes
+ * the digits (see parseTaskWallClock) and makes omitCurrentYear compare the
+ * year on the face of the clock rather than this object's UTC epoch.
+ */
+function resolveTaskDateFormat(
+    value: Date | Dayjs | string | null | undefined,
+    omitCurrentYear?: boolean,
+): { d: Dayjs; dateFormat: string } | null {
+    const wall = typeof value === "string" ? parseTaskWallClock(value) : null;
+    const d = wall ? wallClockDayjs(wall) : toWallClockDayjs(value);
+
+    if (!d) return null;
+
+    let dateFormat = companyDateDayjsFormat();
+    const sameYear = wall
+        ? wall.year === dayjs().year()
+        : d.isSame(dayjs(), "year");
+
+    if (omitCurrentYear && sameYear) {
+        dateFormat = omitYearFromDayjsFormat(dateFormat);
+    }
+
+    return { d, dateFormat };
+}
+
 export function formatTaskCompanyTime(
     value: Date | Dayjs | string | null | undefined,
     fallback = "--",
@@ -155,6 +183,22 @@ export function formatTaskCompanyTime(
     return d ? d.format(companyTimeDayjsFormat()) : fallback;
 }
 
+/**
+ * Date only, company `date_format`. For callers that append the time
+ * themselves — formatTaskDateWithCompanyTime() always includes it, so using it
+ * for a "date · time" label repeats the time twice.
+ */
+export function formatTaskCompanyDate(
+    value: Date | Dayjs | string | null | undefined,
+    options?: { fallback?: string; omitCurrentYear?: boolean },
+): string {
+    const resolved = resolveTaskDateFormat(value, options?.omitCurrentYear);
+
+    return resolved
+        ? resolved.d.format(resolved.dateFormat)
+        : options?.fallback ?? "--";
+}
+
 
 export function formatTaskDateWithCompanyTime(
     value: Date | Dayjs | string | null | undefined,
@@ -164,21 +208,12 @@ export function formatTaskDateWithCompanyTime(
         omitCurrentYear?: boolean;
     },
 ): string {
-    const wall = typeof value === "string" ? parseTaskWallClock(value) : null;
-    const d = wall ? wallClockDayjs(wall) : toWallClockDayjs(value);
-    if (!d) return options?.fallback ?? "--";
+    const resolved = resolveTaskDateFormat(value, options?.omitCurrentYear);
+    if (!resolved) return options?.fallback ?? "--";
 
     const separator = options?.separator ?? " · ";
-    let dateFormat = companyDateDayjsFormat();
-    // Compared against the viewer's own current year: for a wall-clock value
-    // that is the year on the face of the clock, not this object's UTC epoch.
-    const sameYear = wall
-        ? wall.year === dayjs().year()
-        : d.isSame(dayjs(), "year");
-    if (options?.omitCurrentYear && sameYear) {
-        dateFormat = omitYearFromDayjsFormat(dateFormat);
-    }
-    return `${d.format(dateFormat)}${separator}${d.format(companyTimeDayjsFormat())}`;
+
+    return `${resolved.d.format(resolved.dateFormat)}${separator}${resolved.d.format(companyTimeDayjsFormat())}`;
 }
 
 /** Compact task date+time for list rows. */

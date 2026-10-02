@@ -47,16 +47,19 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
 }) => {
     const priorityInfo = getPriorityConfig(priority);
 
-    // Formatted from the wall-clock string when one was handed in, so a due time
-// that doesn't exist in this browser's zone (the DST spring-forward hour)
-// can't read an hour late. A Date passed in has already been through a
-// browser-zone parse and is the best available.
-const formattedDueDate =
-    typeof dueDate === "string"
+    // A wall-clock string is formatted from its stored digits, so a due time
+    // that doesn't exist in this browser's zone (the DST spring-forward hour)
+    // can't read an hour late. A Date passed in has already been through a
+    // browser-zone parse and is the best available.
+    const hasDueDate =
+        (typeof dueDate === "string" && dueDate !== "") ||
+        (dueDate instanceof Date && !Number.isNaN(dueDate.getTime()));
+
+    // null — not the helper's "--" fallback — when there is no date, so the card
+    // keeps its existing no-date state instead of rendering a due-date badge.
+    const formattedDueDate = hasDueDate
         ? formatTaskDateWithCompanyTime(dueDate)
-        : dueDate instanceof Date && !Number.isNaN(dueDate.getTime())
-          ? formatTaskDateWithCompanyTime(dueDate)
-          : null;
+        : null;
 
     const fullDueDate = formattedDueDate;
 
