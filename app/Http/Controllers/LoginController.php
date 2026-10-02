@@ -6,6 +6,7 @@ use Exception;
 use App\Models\User;
 use App\Helper\Reply;
 use App\Models\Social;
+use App\Support\KeycloakLogout;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Fortify;
 use App\Events\TwoFactorCodeEvent;
@@ -199,6 +200,22 @@ class LoginController extends Controller
             Log::info("Social record saved, logging in user", ['user_id' => $user->id]);
 
             Auth::login($user, true);
+
+            // Needed as id_token_hint to end the Keycloak session on logout.
+            $idToken = $data->accessTokenResponseBody['id_token'] ?? null;
+            if ($idToken) {
+                session()->put(KeycloakLogout::ID_TOKEN_SESSION_KEY, $idToken);
+            } else {
+                // Never keep a previous login's token for this one.
+                session()->forget(KeycloakLogout::ID_TOKEN_SESSION_KEY);
+            }
+
+            // Lets logout end the Keycloak session server-to-server.
+            if (! empty($data->refreshToken)) {
+                session()->put(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY, $data->refreshToken);
+            } else {
+                session()->forget(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY);
+            }
 
             $redirectPath = $this->redirectPath();
             Log::info("Auth::login complete, redirecting", [
