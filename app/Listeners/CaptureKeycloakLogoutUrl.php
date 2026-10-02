@@ -8,7 +8,12 @@ use Illuminate\Auth\Events\Logout;
 /**
  * The Logout event fires while the session is still intact (Fortify
  * invalidates it afterwards), so this is the last chance to read the stored
- * Keycloak id_token. The URL travels to the logout response on the request.
+ * Keycloak tokens.
+ *
+ * First choice is ending the Keycloak session server-to-server with the
+ * refresh token. Only when that isn't possible (no token stored — sessions
+ * from before this change — or Keycloak unreachable) is the browser
+ * end-session URL handed to the logout response on the request.
  */
 class CaptureKeycloakLogoutUrl
 {
@@ -19,6 +24,10 @@ class CaptureKeycloakLogoutUrl
         }
 
         try {
+            if (KeycloakLogout::endSession(session()->get(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY))) {
+                return;
+            }
+
             $url = KeycloakLogout::url(session()->get(KeycloakLogout::ID_TOKEN_SESSION_KEY));
         } catch (\Throwable $e) {
             // Never let SSO lookup break a local logout.

@@ -207,6 +207,11 @@ class LoginController extends Controller
                 session()->put(KeycloakLogout::ID_TOKEN_SESSION_KEY, $idToken);
             }
 
+            // Lets logout end the Keycloak session server-to-server.
+            if (! empty($data->refreshToken)) {
+                session()->put(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY, $data->refreshToken);
+            }
+
             $redirectPath = $this->redirectPath();
             Log::info("Auth::login complete, redirecting", [
                 'user_id' => $user->id,
