@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
+import { Link } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { LifecycleFunnel as FunnelData } from "../types";
@@ -15,6 +16,10 @@ const GRID = "minmax(110px, 1fr) 2fr 58px 92px 78px";
  * The steps are not strictly nested — a deal can be created without a meeting
  * ever having been logged — so bars are scaled to the largest step rather than
  * to the first, and the caveat is stated in the panel.
+ *
+ * In-betweens and counts link to the list that owns that object — leads,
+ * meetings or deals — using that page's existing filters, not a dashboard-only
+ * query param.
  */
 export default function LifecycleFunnel({ data }: { data: FunnelData }) {
     const { td } = useTd();
@@ -36,15 +41,26 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                 >
                     <div>{td("Stage", { source: "en" })}</div>
                     <div>{td("Volume", { source: "en" })}</div>
-                    <div style={{ textAlign: "right" }}>{td("Count", { source: "en" })}</div>
-                    <div style={{ textAlign: "right" }}>{td("To next", { source: "en" })}</div>
-                    <div style={{ textAlign: "right" }}>{td("Median", { source: "en" })}</div>
+                    <div style={{ textAlign: "right" }}>
+                        {td("Count", { source: "en" })}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                        {td("To next", { source: "en" })}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                        {td("Median", { source: "en" })}
+                    </div>
                 </div>
 
                 {data.steps.map((step, index) => {
                     const isLast = index === data.steps.length - 1;
-                    // A conversion under a third is the leak worth naming.
                     const leaking = step.to_next !== null && step.to_next < 34;
+                    const stepHref =
+                        step.count > 0 ? stepListHref(data, step.key) : null;
+                    const dropHref =
+                        step.dropped && step.drop_label
+                            ? dropListHref(data, step.key)
+                            : null;
 
                     return (
                         <Fragment key={step.key}>
@@ -72,16 +88,27 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                                         style={{
                                             height: 20,
                                             width: `${step.count === 0 ? 0 : Math.max((step.count / max) * 100, 3)}%`,
-                                            background: isLast ? T.GREEN : T.BLUE,
+                                            background: isLast
+                                                ? T.GREEN
+                                                : T.BLUE,
                                             borderRadius: 4,
                                         }}
                                     />
                                 </div>
 
                                 <div
-                                    style={{ textAlign: "right", fontWeight: 600 }}
+                                    style={{
+                                        textAlign: "right",
+                                        fontWeight: 600,
+                                    }}
                                 >
-                                    {step.count}
+                                    {stepHref ? (
+                                        <FunnelLink href={stepHref}>
+                                            {step.count}
+                                        </FunnelLink>
+                                    ) : (
+                                        step.count
+                                    )}
                                 </div>
 
                                 <div
@@ -134,16 +161,33 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                                                 marginLeft: 6,
                                             }}
                                         />
-                                        <span
-                                            style={{
-                                                fontSize: 13,
-                                                color: leaking
-                                                    ? T.RED
-                                                    : T.TEXT_HINT,
-                                            }}
-                                        >
-                                            {step.dropped} {td(step.drop_label, { source: "en" })}
-                                        </span>
+                                        {dropHref ? (
+                                            <FunnelLink
+                                                href={dropHref}
+                                                tone={
+                                                    leaking ? T.RED : T.TEXT_HINT
+                                                }
+                                            >
+                                                {step.dropped}{" "}
+                                                {td(step.drop_label, {
+                                                    source: "en",
+                                                })}
+                                            </FunnelLink>
+                                        ) : (
+                                            <span
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: leaking
+                                                        ? T.RED
+                                                        : T.TEXT_HINT,
+                                                }}
+                                            >
+                                                {step.dropped}{" "}
+                                                {td(step.drop_label, {
+                                                    source: "en",
+                                                })}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -152,5 +196,93 @@ export default function LifecycleFunnel({ data }: { data: FunnelData }) {
                 })}
             </div>
         </div>
+    );
+}
+
+function leadListHref(
+    data: FunnelData,
+    extra: Record<string, string> = {},
+): string {
+    return route("lead-contact.index", {
+        start_date: data.from,
+        end_date: data.to,
+        ...extra,
+    });
+}
+
+function dealListHref(extra: Record<string, string> = {}): string {
+    return route("deals.index", {
+        lead_pipeline_id: "all",
+        ...extra,
+    });
+}
+
+function meetingListHref(data: FunnelData): string {
+    return route("meetings.index", {
+        date_from: data.from,
+        date_to: data.to,
+    });
+}
+
+function stepListHref(data: FunnelData, key: string): string | null {
+    switch (key) {
+        case "created":
+            return leadListHref(data);
+        case "contacted":
+            return leadListHref(data, { contact_status: "contacted" });
+        case "met":
+            return meetingListHref(data);
+        case "deal":
+            return dealListHref({
+                start_date: data.from,
+                end_date: data.to,
+            });
+        case "won":
+            return dealListHref({
+                outcome_status: "won",
+                start_date: data.from,
+                end_date: data.to,
+            });
+        default:
+            return null;
+    }
+}
+
+function dropListHref(data: FunnelData, stepKey: string): string | null {
+    switch (stepKey) {
+        case "created":
+            return leadListHref(data, { contact_status: "uncontacted" });
+        case "contacted":
+            return leadListHref(data, { contact_status: "contacted" });
+        case "met":
+            return meetingListHref(data);
+        case "deal":
+            return dealListHref({
+                outcome_status: "open,lost",
+                start_date: data.from,
+                end_date: data.to,
+            });
+        default:
+            return null;
+    }
+}
+
+function FunnelLink({
+    href,
+    children,
+    tone,
+}: {
+    href: string;
+    children: ReactNode;
+    tone?: string;
+}) {
+    return (
+        <Link
+            href={href}
+            className="dv2-metric-link"
+            data-tone={tone === T.RED ? "danger" : undefined}
+        >
+            {children}
+        </Link>
     );
 }

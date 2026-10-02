@@ -276,7 +276,7 @@ The six gaps listed in the first pass have since been closed. What follows is th
 
 ### Two things the UI states rather than hides
 
-1. **Meetings "held" has a cutover date.** `DashboardMetricsService::STATUS_TRUSTED_FROM` is the deploy date. Before it, `status` was never written through a working path, so held is read as past-and-not-cancelled; from it, only an explicit "Mark held" counts. Expect the meetings KPI to read low for a few weeks while agents learn the button — the panel note says which side of the line it is reading.
+1. **Meetings "held" has a cutover date.** `DashboardMetricsService::STATUS_TRUSTED_FROM` is the deploy date. Before it, `status` was never written through a working path, so held is read as past-and-not-cancelled; from it, only an explicit "Mark held" counts. Expect the meetings KPI to read low for a few weeks while agents learn the button — the panel note explains the rule without naming the date.
 2. **The commission forecast returns zero today, and is not broken.** `distribute()` pays `deals.agent_id` and their `agent_hierarchy` ancestors and never reads `leads.referred_by_agent_id` — referral is not a concept the commission engine has — and `agent_hierarchy` is empty, so upline legs pay nothing regardless. The tile renders an em dash with "Awaiting commission setup". It starts producing real numbers the day referral attribution reaches the engine, with no further dashboard work. Below three open referred deals the figure is suppressed anyway, because a partner knows their own rate and could back-derive a deal value.
 
 ### Funnel steps are not strictly nested
