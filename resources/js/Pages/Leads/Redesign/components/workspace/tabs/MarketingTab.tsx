@@ -3,6 +3,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { EmptyState, Icon } from "@/Components/Redesign";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import MarketingTouchHistory from "./MarketingTouchHistory";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 
 type MarketingField =
@@ -259,6 +260,7 @@ export default function MarketingTab() {
                     </div>
                 </section>
             ))}
+            <MarketingTouchHistory />
         </div>
     );
 }
