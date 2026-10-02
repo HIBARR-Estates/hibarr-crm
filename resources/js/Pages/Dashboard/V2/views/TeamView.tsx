@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Deferred, Link } from "@inertiajs/react";
+import { Deferred, Link, usePage } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import DashboardPanel, {
@@ -362,6 +362,11 @@ function NodeDetail({
     networkForecast?: TeamForecast | null;
 }) {
     const { t } = useTranslation();
+    // Partner accounts can hold this view but are not let into the lead and
+    // deal lists it would link to (RestrictPartnerAccounts).
+    const isPartnerOnly =
+        (usePage().props as { auth?: { isPartnerOnly?: boolean } }).auth
+            ?.isPartnerOnly === true;
 
     if (!selection) {
         return (
@@ -493,7 +498,7 @@ function NodeDetail({
     ];
 
     const listFilters =
-        node.user_id != null
+        node.user_id != null && !isPartnerOnly
             ? {
                   leads: route("lead-contact.index", {
                       lead_owner_id: node.user_id,
