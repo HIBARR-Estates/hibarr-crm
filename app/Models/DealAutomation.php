@@ -45,14 +45,13 @@ class DealAutomation extends BaseModel
     /**
      * Fire when a meeting's attendance outcome is logged as "Attended"
      * (MeetingAttendanceConfirmationService — the confirmation prompt or the
-     * meeting's own edit form). The deal trigger covers a meeting attached to
-     * a deal; the lead trigger covers a lead-only meeting, mirroring how
-     * followup_created / lead_followup_created split. Used to send the Meta
-     * "Contact" conversion once a lead actually shows up.
+     * meeting's own edit form). One trigger for both subjects: a meeting
+     * attached to a deal runs the deal-scoped automations, a lead-only meeting
+     * runs the lead-scoped ones (the automation's own subject type is the
+     * differentiator). Used to send the Meta "Contact" conversion once a lead
+     * actually shows up.
      */
     public const TRIGGER_MEETING_ATTENDED = 'meeting_attended';
-
-    public const TRIGGER_LEAD_MEETING_ATTENDED = 'lead_meeting_attended';
 
     /**
      * Fires once per payment, when a deal's payment is confirmed as paid

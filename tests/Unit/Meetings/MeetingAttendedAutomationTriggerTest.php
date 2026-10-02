@@ -20,10 +20,10 @@ use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 /**
- * The meeting_attended / lead_meeting_attended triggers feed the Meta "Contact"
+ * The single meeting_attended trigger feeds the Meta "Contact"
  * conversion, so the rules that matter are: fire only on the move *into*
  * Attended (never for other outcomes, never again for an already-attended
- * meeting), pick the deal or lead flavour by what the meeting is attached to,
+ * meeting), run it for the deal or the lead depending on what the meeting is attached to,
  * and never let a failing automation escape into the outcome-logging flow.
  *
  * The dispatch step is exercised directly: confirm()/update() wrap it in
@@ -59,12 +59,12 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
         $this->dispatch($this->followUp(deal: $deal), MeetingAttendanceOutcome::Attended, null);
     }
 
-    public function test_attended_lead_only_meeting_fires_the_lead_trigger(): void
+    public function test_attended_lead_only_meeting_fires_the_same_trigger_for_the_lead(): void
     {
         $lead = new Lead;
         $lead->id = 9;
 
-        $this->automations->shouldReceive('processLead')->once()->with($lead, 'lead_meeting_attended');
+        $this->automations->shouldReceive('processLead')->once()->with($lead, 'meeting_attended');
         $this->automations->shouldNotReceive('process');
 
         $this->dispatch($this->followUp(lead: $lead), MeetingAttendanceOutcome::Attended, null);
@@ -145,12 +145,12 @@ class MeetingAttendedAutomationTriggerTest extends TestCase
     {
         $this->setFeatureFlag(AutomationV2Feature::FLAG, false);
 
-        foreach ([DealAutomation::TRIGGER_MEETING_ATTENDED, DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED] as $trigger) {
-            $automation = new DealAutomation(['trigger' => $trigger, 'subject_type' => DealAutomation::SUBJECT_DEAL]);
+        foreach ([DealAutomation::SUBJECT_DEAL, DealAutomation::SUBJECT_LEAD] as $subject) {
+            $automation = new DealAutomation(['trigger' => DealAutomation::TRIGGER_MEETING_ATTENDED, 'subject_type' => $subject]);
 
             $this->assertFalse(
                 AutomationV2Feature::supportsAutomation($automation),
-                "{$trigger} drives v2-only actions (meta_conversion) and must not run on the legacy engine."
+                'meeting_attended drives v2-only actions (meta_conversion) and must not run on the legacy engine.'
             );
         }
 

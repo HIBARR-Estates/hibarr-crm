@@ -12,7 +12,7 @@ later funnel via **CRM automations**.
 | `Lead` | Contact step completed (lead created first via `POST /leads/capture`, event sent with its uuid) | **Backend → CAPI** | website calls `hibarr-backend` `POST /v1/meta/events` |
 | `CompleteRegistration` | Last qualification answer given (creates the lead first if needed) | **Backend → CAPI** | same endpoint |
 | `Schedule` | Calendly booking confirmed (creates the lead first if needed) | **Backend → CAPI** | same endpoint, from the Calendly embed; the three events are independent of each other |
-| `Contact` | Meeting logged as **Attended** (value 1500) | CRM → CAPI | CRM automation — `meeting_attended` / `lead_meeting_attended` trigger → `meta_conversion` action |
+| `Contact` | Meeting logged as **Attended** (value 1500) | CRM → CAPI | CRM automation — `meeting_attended` trigger → `meta_conversion` action |
 | `Purchase` | Payment confirmed (real value) | CRM → CAPI | CRM automation — `deal_payment_received` trigger → `meta_conversion` action with value source **Deal value** |
 
 The pixel does **not** send `Lead`, `CompleteRegistration` or `Schedule`: they are tied to a real
@@ -29,10 +29,11 @@ silent in a `?noanalytics=1` session.
 ## Setting up the `Contact` event in the CRM
 
 1. Settings → Automation → New automation.
-2. Subject **Deal**, trigger **Meeting Attended** (`meeting_attended`) — or
-   subject **Lead**, trigger **Lead Meeting Attended** (`lead_meeting_attended`)
-   if your meetings are logged against leads with no deal. Meetings attached to a
-   deal only fire the deal trigger; lead-only meetings only fire the lead trigger.
+2. Trigger **Meeting Attended** (`meeting_attended`) — one trigger for both subjects. Pick
+   subject **Deal** for meetings attached to a deal, or subject **Lead** for meetings logged
+   against a lead with no deal. A meeting only runs the automations whose subject matches what
+   it is attached to: a deal meeting never runs lead automations, and a lead-only meeting never
+   runs deal automations.
 3. Add a **Meta conversion** action: event name `Contact`, value `1500`.
    (Add `Contact` under Meta Events first if it isn't in the picker.)
 

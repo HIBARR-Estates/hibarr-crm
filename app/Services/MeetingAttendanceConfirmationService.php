@@ -329,8 +329,8 @@ class MeetingAttendanceConfirmationService
     }
 
     /**
-     * Fires the meeting_attended (deal) / lead_meeting_attended (lead-only)
-     * automation trigger when — and only when — a meeting moves *into* the
+     * Fires the meeting_attended automation trigger — on the deal when the
+     * meeting is attached to one, otherwise on the lead (lead-only meeting) — when — and only when — a meeting moves *into* the
      * Attended outcome. Re-saving an already-attended meeting (e.g. editing
      * its remark) must not re-run the automations, otherwise a Meta "Contact"
      * conversion action would report the same attendance twice.
@@ -358,7 +358,7 @@ class MeetingAttendanceConfirmationService
                 if ($followUp->deal) {
                     $automations->process($followUp->deal, DealAutomation::TRIGGER_MEETING_ATTENDED);
                 } elseif ($followUp->lead) {
-                    $automations->processLead($followUp->lead, DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED);
+                    $automations->processLead($followUp->lead, DealAutomation::TRIGGER_MEETING_ATTENDED);
                 }
             } catch (\Throwable $e) {
                 Log::error('[MeetingAttendanceConfirmationService] meeting-attended automations failed', [

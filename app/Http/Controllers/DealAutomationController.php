@@ -560,11 +560,14 @@ class DealAutomationController extends AccountBaseController
      */
     protected function allowedTriggersFor(string $subjectType): array
     {
-        $anyTriggers = ['custom_field_updated', DealAutomation::TRIGGER_DATE_BASED];
+        $anyTriggers = [
+            'custom_field_updated',
+            DealAutomation::TRIGGER_MEETING_ATTENDED,
+            DealAutomation::TRIGGER_DATE_BASED,
+        ];
 
         $dealTriggers = [
             'deal_created', 'deal_updated', 'followup_created',
-            DealAutomation::TRIGGER_MEETING_ATTENDED,
             DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED,
             DealAutomation::TRIGGER_DEAL_CREATED_API,
             DealAutomation::TRIGGER_DEAL_UPDATED_API,
@@ -573,7 +576,6 @@ class DealAutomationController extends AccountBaseController
         $leadTriggers = [
             'lead_created', 'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
-            DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,
         ];
@@ -741,7 +743,6 @@ class DealAutomationController extends AccountBaseController
             'lead_updated',
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_MEETING_ATTENDED,
-            DealAutomation::TRIGGER_LEAD_MEETING_ATTENDED,
             DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED,
             DealAutomation::TRIGGER_DATE_BASED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
