@@ -1,5 +1,6 @@
 import { Deferred, usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import type { LeadUtmTouch } from "@/Types/api/leads";
 import MarketingSection from "./MarketingSection";
@@ -17,6 +18,7 @@ const KNOWN_ORIGINS = ["api", "bitrix_import", "deal_import", "backfill"];
 
 function TouchHistoryList() {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { utmTouches = [] } = usePage().props as unknown as {
         utmTouches?: LeadUtmTouch[];
     };
@@ -42,7 +44,7 @@ function TouchHistoryList() {
                         ? t(
                               `pages.leads.marketing.touch_origin_${touch.origin}`,
                           )
-                        : touch.origin
+                        : td(touch.origin, { source: "en" })
                     : null;
 
                 return (

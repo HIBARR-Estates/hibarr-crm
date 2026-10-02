@@ -39,7 +39,9 @@ export default function MarketingSection({
                     />
                 </button>
             </header>
-            {open && <div id={bodyId}>{children}</div>}
+            <div id={bodyId} hidden={!open}>
+                {children}
+            </div>
         </section>
     );
 }
