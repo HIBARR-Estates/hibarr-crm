@@ -889,6 +889,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Zurück',
             'cancel' => 'Abbrechen',
             'close' => 'Schließen',
             'select' => 'Auswählen',
