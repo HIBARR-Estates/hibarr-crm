@@ -6,6 +6,7 @@ use App\Enums\OutcomeStatus;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Deal;
+use App\Models\DealAutomation;
 use App\Models\Payment;
 use App\Models\User;
 use App\Scopes\CompanyScope;
@@ -362,17 +363,68 @@ class DealPaymentService
         try {
             $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
 
-            if ($deal === null || $deal->outcome_status === OutcomeStatus::Won) {
+            if ($deal === null) {
                 return;
             }
 
-            $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+            if ($deal->outcome_status !== OutcomeStatus::Won) {
+                $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+            }
         } catch (\Throwable $e) {
             Log::error('DealPaymentService: failed to mark deal won after payment confirmation', [
                 'payment_id' => $payment->id,
                 'deal_id' => $payment->deal_id,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        $this->firePaymentReceivedAutomations($payment);
+    }
+
+    /**
+     * Runs the deal_payment_received automations (e.g. the Meta "Purchase"
+     * conversion) — after the deal has been won, so they see its final state
+     * and value. Once per payment (durable `automations_dispatched_at` claim):
+     * markConfirmed() is documented idempotent and several paths can reach
+     * it, but a conversion must be reported once.
+     * Failures are logged, never thrown — the payment is already confirmed.
+     */
+    private function firePaymentReceivedAutomations(Payment $payment): void
+    {
+        $claimed = false;
+
+        try {
+            // Atomic, durable claim: only the caller that flips the column from
+            // NULL runs the automations, and it survives cache flushes/expiry.
+            $claimed = Payment::withoutGlobalScopes()
+                ->whereKey($payment->id)
+                ->whereNull('automations_dispatched_at')
+                ->update(['automations_dispatched_at' => now()]) === 1;
+
+            if (! $claimed) {
+                return;
+            }
+
+            $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
+
+            if ($deal !== null) {
+                app(DealAutomationService::class)->process($deal, DealAutomation::TRIGGER_DEAL_PAYMENT_RECEIVED);
+            }
+        } catch (\Throwable $e) {
+            Log::error('DealPaymentService: payment-received automations failed', [
+                'payment_id' => $payment->id,
+                'deal_id' => $payment->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Release the claim so a later confirmation can retry the dispatch.
+            if ($claimed) {
+                try {
+                    Payment::withoutGlobalScopes()->whereKey($payment->id)->update(['automations_dispatched_at' => null]);
+                } catch (\Throwable) {
+                    // Nothing more to do — never let this escape a confirmed payment.
+                }
+            }
         }
     }
 
