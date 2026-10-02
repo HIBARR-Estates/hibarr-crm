@@ -552,7 +552,7 @@ class LeadMergeService
         } elseif (!$primaryMarketing && $duplicateMarketing) {
             $duplicateMarketing->lead_id = $primary->id;
             $duplicateMarketing->save();
-            $duplicateIsFirstTouch = true;
+            $duplicateIsFirstTouch = $this->hasUtm($duplicateMarketing);
         }
 
         // Keep the duplicate's UTM history on the primary. Its touches stop
