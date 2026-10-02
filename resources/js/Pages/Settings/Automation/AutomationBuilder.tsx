@@ -3,6 +3,7 @@ import { Select } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import Button from "@/Components/Redesign/primitives/Button";
 import Switch from "@/Components/Redesign/primitives/Switch";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -842,33 +843,72 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                             </div>
                                         )}
                                     </div>
-                                    <div>
-                                        <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
-                                        {subjectType === "deal" && (
-                                            <SearchableSelect
+                                    {subjectType !== "deal" && (
+                                        <div>
+                                            <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                value={step.meta_event_value ?? ""}
+                                                onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                className="dr-input w-full"
+                                            />
+                                        </div>
+                                    )}
+                                    {subjectType === "deal" && (
+                                        <div className="col-span-3">
+                                            <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
+                                            <Segmented<"fixed" | "deal_value">
+                                                ariaLabel={t("app.automation.eventValue")}
                                                 value={step.meta_event_value_source === "deal_value" ? "deal_value" : "fixed"}
                                                 onChange={(value) => updateAction(i, { meta_event_value_source: value === "deal_value" ? "deal_value" : null })}
                                                 options={[
                                                     { value: "fixed", label: t("app.automation.valueSourceFixed") },
                                                     { value: "deal_value", label: t("app.automation.valueSourceDeal") },
                                                 ]}
-                                                className="w-full mb-1.5"
                                             />
-                                        )}
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min={0}
-                                            value={step.meta_event_value ?? ""}
-                                            onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
-                                            className="dr-input w-full"
-                                        />
-                                        {subjectType === "deal" && step.meta_event_value_source === "deal_value" && (
-                                            <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>
-                                                {t("app.automation.valueSourceDealHint")}
-                                            </div>
-                                        )}
-                                    </div>
+                                            {step.meta_event_value_source === "deal_value" ? (
+                                                <div className="mt-2 flex flex-col gap-2">
+                                                    <div
+                                                        className="rounded-[8px] px-3 py-2"
+                                                        style={{ background: T.BLUE_WASH, color: T.BLUE_DARK, fontSize: 12, fontWeight: 600 }}
+                                                    >
+                                                        {t("app.automation.valueSourceDealLive")}
+                                                    </div>
+                                                    <div
+                                                        className="rounded-[8px] border px-3 py-2"
+                                                        style={{ background: T.AMBER_BG, borderColor: T.AMBER_BORDER }}
+                                                    >
+                                                        <label style={{ ...fieldLabelStyle, color: T.AMBER_TEXT }}>{t("app.automation.valueFallbackLabel")}</label>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min={0}
+                                                            value={step.meta_event_value ?? ""}
+                                                            onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                            className="dr-input w-full"
+                                                        />
+                                                        <div className="mt-1.5" style={{ fontSize: 11, color: T.AMBER_TEXT }}>
+                                                            {t("app.automation.valueFallbackHint")}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2">
+                                                    <label style={fieldLabelStyle}>{t("app.automation.valueFixedLabel")}</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min={0}
+                                                        value={step.meta_event_value ?? ""}
+                                                        onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                        className="dr-input w-full"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

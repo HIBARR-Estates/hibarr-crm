@@ -224,11 +224,11 @@ function describeMetaConversion(action: DealAutomationAction): string[] {
     if (action.meta_event_value_source === "deal_value") {
         lines.push(
             action.meta_event_value
-                ? `Conversion value: the deal's value (${action.meta_event_value} if it has none)`
-                : "Conversion value: the deal's value",
+                ? `Conversion value: the deal's value — fallback ${action.meta_event_value} if the deal has none`
+                : "Conversion value: the deal's value — fallback 0 if the deal has none",
         );
     } else if (action.meta_event_value) {
-        lines.push(`Conversion value: ${action.meta_event_value}`);
+        lines.push(`Conversion value: fixed ${action.meta_event_value}`);
     }
 
     return lines;
