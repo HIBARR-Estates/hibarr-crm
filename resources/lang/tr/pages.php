@@ -460,7 +460,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'Bu lead için pazarlama bilgisi mevcut değil',
-            'utm_section' => 'UTM & Kampanya Takibi',
+            'utm_section' => 'İlk Temas UTM & Kampanya Takibi',
             'social_section' => 'Sosyal Medya Takibi',
             'engagement_section' => 'Etkileşim & Puanlama',
             'utm_source' => 'UTM Source',

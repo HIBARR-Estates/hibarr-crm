@@ -460,7 +460,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'Нет маркетинговой информации для этого лида',
-            'utm_section' => 'UTM & отслеживание кампании',
+            'utm_section' => 'UTM первого касания & отслеживание кампании',
             'social_section' => 'Отслеживание социальных сетей',
             'engagement_section' => 'Вовлеченность и оценка',
             'utm_source' => 'UTM Source',

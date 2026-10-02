@@ -500,7 +500,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'No marketing information available for this lead',
-            'utm_section' => 'UTM & Campaign Tracking',
+            'utm_section' => 'First-Touch UTM & Campaign Tracking',
             'social_section' => 'Social Media Tracking',
             'engagement_section' => 'Engagement & Scoring',
             'utm_source' => 'UTM Source',

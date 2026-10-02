@@ -479,7 +479,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'Keine Marketinginformationen für diesen Lead verfügbar',
-            'utm_section' => 'UTM & Kampagnenverfolgung',
+            'utm_section' => 'Erstkontakt-UTM & Kampagnenverfolgung',
             'social_section' => 'Social-Media-Verfolgung',
             'engagement_section' => 'Engagement & Bewertung',
             'utm_source' => 'UTM-Quelle',
