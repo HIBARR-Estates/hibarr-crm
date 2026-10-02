@@ -93,9 +93,6 @@ export default function LeadHeaderRoot({
 
     return (
         <>
-            <div style={{ marginBottom: 12 }}>
-                <BackButton fallbackHref={route("lead-contact.index")} />
-            </div>
             <header
                 data-tour="lead-sticky-header"
                 style={{
@@ -105,6 +102,7 @@ export default function LeadHeaderRoot({
                     flexWrap: "wrap",
                 }}
             >
+                <BackButton fallbackHref={route("lead-contact.index")} />
                 <LeadAvatarButton
                     name={lead.client_name ?? ""}
                     image={lead.image}
