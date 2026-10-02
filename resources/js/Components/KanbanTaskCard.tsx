@@ -2,10 +2,7 @@ import React from "react";
 import { Card, Dropdown, Button, Typography, Tooltip } from "antd";
 import { MoreOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import {
-    formatTaskDateWithCompanyTime,
-    parseTaskDateTime,
-} from "@/lib/taskDateTime";
+import { formatTaskDateWithCompanyTime } from "@/lib/taskDateTime";
 import MultiUserIndicator from "./MultiUserIndicator";
 import { getPriorityConfig } from "@/lib/priority";
 
@@ -50,14 +47,18 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
 }) => {
     const priorityInfo = getPriorityConfig(priority);
 
-    const parsed =
-        typeof dueDate === "string"
-            ? parseTaskDateTime(dueDate)
-            : dueDate instanceof Date && !Number.isNaN(dueDate.getTime())
-              ? dueDate
-              : null;
-    const formattedDueDate = parsed
-        ? formatTaskDateWithCompanyTime(parsed)
+    // A wall-clock string is formatted from its stored digits, so a due time
+    // that doesn't exist in this browser's zone (the DST spring-forward hour)
+    // can't read an hour late. A Date passed in has already been through a
+    // browser-zone parse and is the best available.
+    const hasDueDate =
+        (typeof dueDate === "string" && dueDate !== "") ||
+        (dueDate instanceof Date && !Number.isNaN(dueDate.getTime()));
+
+    // null — not the helper's "--" fallback — when there is no date, so the card
+    // keeps its existing no-date state instead of rendering a due-date badge.
+    const formattedDueDate = hasDueDate
+        ? formatTaskDateWithCompanyTime(dueDate)
         : null;
 
     const fullDueDate = formattedDueDate;

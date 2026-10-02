@@ -46,6 +46,31 @@ class HtmlSanitizerTest extends TestCase
         $this->assertSame($html, HtmlSanitizer::clean($html));
     }
 
+    public function test_it_keeps_quill_2_ordered_list_markup(): void
+    {
+        $html = '<ol><li data-list="ordered"><span class="ql-ui" contenteditable="false"></span>hshhud</li>'
+            . '<li data-list="ordered">jhdhjaief</li>'
+            . '<li data-list="ordered">hdfjdfhhfikakbdfvdd</li></ol>';
+
+        $clean = HtmlSanitizer::clean($html);
+
+        $this->assertStringContainsString('<ol>', $clean);
+        $this->assertStringContainsString('<li data-list="ordered">', $clean);
+        $this->assertStringContainsString('hshhud', $clean);
+        $this->assertStringContainsString('jhdhjaief', $clean);
+        $this->assertStringContainsString('hdfjdfhhfikakbdfvdd', $clean);
+    }
+
+    public function test_it_keeps_quill_list_type_attribute_for_bullets(): void
+    {
+        $html = '<ol><li data-list="bullet">alpha</li><li data-list="bullet">beta</li></ol>';
+
+        $clean = HtmlSanitizer::clean($html);
+
+        $this->assertStringContainsString('data-list="bullet"', $clean);
+        $this->assertStringContainsString('alpha', $clean);
+    }
+
     public function test_it_keeps_colours_and_links_that_open_in_a_new_tab(): void
     {
         $clean = HtmlSanitizer::clean('<p><span style="color: rgb(230, 0, 0);">red</span> <a href="https://example.com" target="_blank" rel="noopener noreferrer">link</a></p>');

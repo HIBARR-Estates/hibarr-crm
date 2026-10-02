@@ -2,12 +2,18 @@
 
 namespace App\Services;
 
+use App\Support\TaskWallClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
 /**
  * Aggregated task counts for the redesigned Tasks workspace — one MySQL
  * round-trip per count shape instead of cloning the filter query N times.
+ *
+ * These compare the raw `due_date` column, so the bound must be a UTC
+ * instant ({@see TaskWallClock::utcTodayBounds()} /
+ * {@see TaskWallClock::utcNowDateTimeString()}) — the viewer's wall clock is
+ * only for values already run through `Task::wallClockString()`.
  */
 class TaskFilterCountsService
 {
@@ -20,8 +26,8 @@ class TaskFilterCountsService
     public function quickFilterCounts(Builder $baseQuery, int $userId): array
     {
         $query = $this->prepareAggregateQuery($baseQuery);
-        $today = now()->toDateString();
-        $now = now()->toDateTimeString();
+        [$todayFrom, $todayTo] = TaskWallClock::utcTodayBounds();
+        $now = TaskWallClock::utcNowDateTimeString();
         $hasParticipantsTable = Schema::hasTable('task_participants');
 
         $query->selectRaw('COUNT(DISTINCT tasks.id) as count_all')
@@ -47,8 +53,8 @@ class TaskFilterCountsService
             )
             ->selectRaw(
                 'SUM(CASE WHEN tasks.due_date IS NOT NULL
-                    AND DATE(tasks.due_date) = ? THEN 1 ELSE 0 END) as count_today',
-                [$today]
+                    AND tasks.due_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as count_today',
+                [$todayFrom, $todayTo]
             )
             ->selectRaw(
                 'SUM(CASE WHEN tasks.due_date IS NOT NULL
@@ -95,8 +101,8 @@ class TaskFilterCountsService
     public function workspaceStats(Builder $baseQuery): array
     {
         $query = $this->prepareAggregateQuery($baseQuery);
-        $today = now()->toDateString();
-        $now = now()->toDateTimeString();
+        [$todayFrom, $todayTo] = TaskWallClock::utcTodayBounds();
+        $now = TaskWallClock::utcNowDateTimeString();
 
         $row = $query
             ->selectRaw('COUNT(DISTINCT tasks.id) as count_total')
@@ -120,8 +126,8 @@ class TaskFilterCountsService
             )
             ->selectRaw(
                 'SUM(CASE WHEN tasks.due_date IS NOT NULL
-                    AND DATE(tasks.due_date) = ? THEN 1 ELSE 0 END) as count_due_today',
-                [$today]
+                    AND tasks.due_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as count_due_today',
+                [$todayFrom, $todayTo]
             )
             ->first();
 
