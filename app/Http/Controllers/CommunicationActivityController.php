@@ -71,7 +71,7 @@ class CommunicationActivityController extends Controller
     public function getLeadActivities(Request $request, $leadId)
     {
         // Same tenant check as getDealActivities(), through the parent lead.
-        $companyId = $request->header('X-COMPANY-ID');
+        $companyId = RequestCompany::id($request);
         abort_unless($companyId && Lead::where('company_id', $companyId)->whereKey($leadId)->exists(), 404);
 
         $perPage = $request->get('per_page', $this->defaultPageSize);
@@ -90,7 +90,7 @@ class CommunicationActivityController extends Controller
      */
     public function getActivitiesByChannel(Request $request, $channelType)
     {
-        $companyId = $request->header('X-COMPANY-ID');
+        $companyId = RequestCompany::id($request);
         abort_unless($companyId, 404);
 
         $perPage = $request->get('per_page', $this->defaultPageSize);
@@ -125,7 +125,13 @@ class CommunicationActivityController extends Controller
             $activity = null;
             
             if ($request->has('activity_id')) {
-                $activity = CommunicationActivity::find($request->activity_id);
+                // Scoped to the caller's own company: this record is written to
+                // below, so an unscoped lookup by id would let any token edit
+                // (and read the sender of) another tenant's activity.
+                $activity = CommunicationActivity::where('company_id', $companyId)
+                    ->find($request->activity_id);
+
+                abort_if(! $activity, 404);
                 
                 // If activity exists, ensure it has direction set to 'outbound' for email sending
                 if ($activity) {
@@ -349,6 +355,10 @@ class CommunicationActivityController extends Controller
                 'customer_email' => $customerEmail,
             ]);
 
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            // The tenant guards abort with 404; keep that status instead of
+            // masking it as a generic 200 error reply.
+            throw $e;
         } catch (\Exception $e) {
             // Log detailed error information for debugging (includes full stack trace)
             Log::error('Failed to send email to customer', [

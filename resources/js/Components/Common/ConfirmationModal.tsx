@@ -11,6 +11,8 @@ interface ConfirmationModalProps {
     onSubmit: {
         fn: () => void;
         loading?: boolean;
+        /** Disable confirm, e.g. when the action has nothing to act on. */
+        disabled?: boolean;
     };
     title?: string;
     description?: string;
@@ -82,6 +84,7 @@ export default function ConfirmationModal({
                         type={confirmType}
                         onClick={handleSubmit}
                         loading={onSubmit.loading}
+                        disabled={onSubmit.disabled}
                         size="middle"
                         danger={confirmDanger}
                         className="rounded-xl font-bold"
