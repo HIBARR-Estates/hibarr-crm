@@ -26,6 +26,7 @@ use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
 use App\Services\DealPaymentService;
 use App\Services\DealTaskService;
+use App\Services\SallyInsightRetentionService;
 use App\Support\FeatureFlags;
 use App\Traits\DealHistoryTrait;
 use App\Traits\EmployeeActivityTrait;
@@ -665,6 +666,15 @@ class DealObserver
 
     public function deleted(Deal $deal)
     {
+        // A deal hard-deletes, so a cascade would destroy transcripts whose
+        // lead is still alive. Detach instead, and purge only the rows the deal
+        // was the last reference for.
+        try {
+            app(SallyInsightRetentionService::class)->purgeForDeal($deal->id);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::warning('Failed to release Sally insights for deal ID '.$deal->id.': '.$e->getMessage());
+        }
+
         UniversalSearch::where('searchable_id', $deal->id)->where('module_type', 'lead')->delete();
 
         // custom_fields_data.model_id has no FK, so nothing cascades on its

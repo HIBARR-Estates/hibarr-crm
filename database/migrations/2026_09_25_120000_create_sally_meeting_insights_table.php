@@ -26,13 +26,14 @@ return new class extends Migration
                 ->references('id')->on('companies')->cascadeOnDelete();
             $table->foreign('meeting_follow_up_id', 'fk_sally_insights_follow_up')
                 ->references('id')->on('lead_follow_up')->cascadeOnDelete();
-            // Transcripts are client conversations, so they follow the lead or the
-            // deal out of the CRM: deleting either must not leave the
-            // recording behind, reachable only through the meeting row.
+            // Deletion is NOT cascaded here. Lead soft-deletes, so a cascadeOnDelete FK
+            // would never fire for the common case; and Deal hard-deletes, where
+            // it would destroy a transcript that still belongs to a live lead.
+            // LeadObserver/DealObserver purge these rows explicitly instead.
             $table->foreign('lead_id', 'fk_sally_insights_lead')
-                ->references('id')->on('leads')->cascadeOnDelete();
+                ->references('id')->on('leads')->nullOnDelete();
             $table->foreign('deal_id', 'fk_sally_insights_deal')
-                ->references('id')->on('deals')->cascadeOnDelete();
+                ->references('id')->on('deals')->nullOnDelete();
 
             $table->index(['deal_id', 'company_id']);
             $table->index(['lead_id', 'company_id']);

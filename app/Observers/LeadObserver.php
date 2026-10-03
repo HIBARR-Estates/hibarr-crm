@@ -15,6 +15,7 @@ use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
 use App\Services\LeadAutomationService;
 use App\Services\MlmNotificationService;
+use App\Services\SallyInsightRetentionService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\DB;
@@ -178,6 +179,15 @@ class LeadObserver
 
     public function deleted(Lead $leadContact)
     {
+        // Transcripts are client conversations, so they go with the lead. This
+        // has to happen here rather than through a cascadeOnDelete foreign key
+        // because Lead soft-deletes, so the database never fires one.
+        try {
+            app(SallyInsightRetentionService::class)->purgeForLead($leadContact->id);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::warning('Failed to purge Sally insights for lead ID '.$leadContact->id.': '.$e->getMessage());
+        }
+
         try {
             UniversalSearch::where('searchable_id', $leadContact->id)
                 ->where('module_type', 'lead')
