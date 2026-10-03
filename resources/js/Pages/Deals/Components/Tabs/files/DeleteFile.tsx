@@ -26,7 +26,11 @@ const DeleteFile: React.FC<Props> = ({
         onClose();
     };
 
-    const deletePath = file?.id ? route("deal-files.destroy", file.id) : "";
+    // Never an empty path: useApiMutate("") would resolve against the current
+    // URL and DELETE whatever route the deal page happens to map to.
+    const deletePath = file?.id
+        ? route("deal-files.destroy", file.id)
+        : "/api/v1/deal-files/0";
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
         deletePath,
@@ -57,6 +61,8 @@ const DeleteFile: React.FC<Props> = ({
             onSubmit={{
                 fn: onSubmit,
                 loading: isLoading({ status }),
+                // Nothing to delete without an id; don't offer the action.
+                disabled: !file?.id,
             }}
             title="Delete File"
             description={
