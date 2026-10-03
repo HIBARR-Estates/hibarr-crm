@@ -475,6 +475,11 @@ return array(
     'importUploadSuccess' => 'Data uploaded successfully.',
     'importProcessStart' => 'Import process started. Please wait.',
     'confirmResetPermission' => 'This will reset permissions for all users with this role. Do you want to reset?',
+    'confirmResyncAllUserPermissions' => 'This rebuilds every user\'s permissions in this company from their role template (users with customised permissions are skipped). Use this when roles look correct but users still get access errors. Continue?',
+    'resyncUserPermissionsStarted' => 'User permission resync has started. You will be notified when it finishes.',
+    'resyncUserPermissionsAlreadyRunning' => 'A user permission resync is already running for this company.',
+    'resyncUserPermissionsSuccess' => 'Resynced permissions for :synced user(s). Skipped :skipped with no role.',
+    'resyncUserPermissionsFailed' => 'User permission resync failed. Check application logs and try again.',
     'invoiceDueOn' => 'Invoice Due On',
     'googleCalendar' => array(
         'confirmRemove' => 'Are you want to disable Google Calendar ?',
