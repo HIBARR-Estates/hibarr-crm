@@ -24,6 +24,8 @@
                         <x-forms.button-primary icon="users-cog" id="add-role" class="mb-2 mr-2">
                             @lang('modules.roles.addRole')
                         </x-forms.button-primary>
+                        {{-- Runs in the background (queued job) and notifies the actor on
+                             completion, so the button must not block or navigate. --}}
                         <x-forms.button-secondary icon="sync" id="resync-all-user-permissions" class="mb-2">
                             @lang('modules.permission.resyncAllUserPermissions')
                         </x-forms.button-secondary>

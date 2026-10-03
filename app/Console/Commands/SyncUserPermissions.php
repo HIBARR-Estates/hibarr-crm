@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Role;
 use App\Models\User;
+use App\Services\ResyncUserPermissionsService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
 class SyncUserPermissions extends Command
@@ -14,7 +15,10 @@ class SyncUserPermissions extends Command
      *
      * @var string
      */
-    protected $signature = 'sync-user-permissions {all?} {--resync-all : Backfill role templates and rebuild user_permissions for every user with standard role permissions}';
+    protected $signature = 'sync-user-permissions
+                            {all?}
+                            {--resync-all : Backfill role templates and rebuild user_permissions for users with standard role permissions}
+                            {--company= : Scope --resync-all to a single company_id. Omit to resync every company (CLI only).}';
 
     /**
      * The console command description.
@@ -23,10 +27,18 @@ class SyncUserPermissions extends Command
      */
     protected $description = 'Sync user_permissions from each user\'s role (permission_role)';
 
-    public function handle()
+    /**
+     * Note on behaviour: a user with no role is NOT marked permission_sync = 1,
+     * so they are retried on the next run. Previously they were marked synced
+     * despite the sync doing nothing, which permanently hid them. The scheduler
+     * runs this every minute, so the "no role" line is a warning rather than an
+     * error — it repeats for a genuinely role-less user by design.
+     */
+
+    public function handle(ResyncUserPermissionsService $resync)
     {
         if ($this->option('resync-all')) {
-            return $this->resyncAllUsersFromRoles();
+            return $this->resyncAllUsersFromRoles($resync);
         }
 
         $output = new ConsoleOutput;
@@ -47,10 +59,10 @@ class SyncUserPermissions extends Command
 
         $total = $unsyncedUsers->count();
 
-        $unsyncedUsers->each(function ($user, $key) use ($total) {
+        $unsyncedUsers->each(function ($user, $key) use ($total, $output) {
             $remaining = $total - $key;
 
-            if ($this->syncUserFromRole($user, $remaining)) {
+            if ($this->syncUserFromRole($user, $remaining, $output)) {
                 $user->permission_sync = 1;
                 $user->saveQuietly();
             }
@@ -59,44 +71,27 @@ class SyncUserPermissions extends Command
         return Command::SUCCESS;
     }
 
-    private function resyncAllUsersFromRoles(): int
+    private function resyncAllUsersFromRoles(ResyncUserPermissionsService $resync): int
     {
+        $companyId = $this->option('company') !== null ? (int) $this->option('company') : null;
+
         $this->info('Backfilling missing permissions on role templates…');
 
-        if (Artisan::call('add-missing-permissions') !== Command::SUCCESS) {
+        if (! $resync->backfillRoleTemplates($companyId)) {
             $this->error('add-missing-permissions failed');
 
             return Command::FAILURE;
         }
 
-        $synced = 0;
-        $skipped = 0;
+        $counts = $resync->resync($companyId);
 
-        User::query()
-            ->where('customised_permissions', 0)
-            ->with('roles')
-            ->chunkById(100, function ($users) use (&$synced, &$skipped) {
-                foreach ($users as $user) {
-                    if ($this->syncUserFromRole($user)) {
-                        $user->permission_sync = 1;
-                        $user->saveQuietly();
-                        cache()->forget('sidebar_user_perms_'.$user->id);
-                        $synced++;
-                    } else {
-                        $skipped++;
-                    }
-                }
-            });
-
-        $this->info("Resynced permissions for {$synced} user(s). Skipped {$skipped} with no role.");
+        $this->info("Resynced permissions for {$counts['synced']} user(s). Skipped {$counts['skipped_no_role']} with no role and {$counts['skipped_admin']} admin user(s).");
 
         return Command::SUCCESS;
     }
 
-    private function syncUserFromRole(User $user, ?int $remaining = null): bool
+    private function syncUserFromRole(User $user, ?int $remaining, ConsoleOutput $output): bool
     {
-        $output = new ConsoleOutput;
-
         if ($remaining !== null) {
             // phpcs:ignore
             $output->writeln('<info>Remaining: '.$remaining.' Syncing permission started for '.$user->name.'</info>');
@@ -107,7 +102,7 @@ class SyncUserPermissions extends Command
         if (! $role) {
             if ($remaining !== null) {
                 // phpcs:ignore
-                $output->writeln('<error>Role not found for '.$user->name.'</error>');
+                $output->writeln('<comment>Role not found for '.$user->name.' — will retry next run</comment>');
             }
 
             return false;
@@ -127,7 +122,7 @@ class SyncUserPermissions extends Command
      * Same rule as the legacy sync job: when a user holds employee plus another
      * role, permissions come from the non-employee role.
      */
-    private function primaryPermissionRole(User $user): ?\App\Models\Role
+    private function primaryPermissionRole(User $user): ?Role
     {
         $roles = $user->roles;
 

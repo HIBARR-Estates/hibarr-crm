@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\Role\StoreRole;
+use App\Jobs\ResyncUserPermissionsJob;
 use App\Models\Module;
 use App\Models\ModuleSetting;
 use App\Models\Permission;
@@ -13,16 +14,16 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 
 class RolePermissionController extends AccountBaseController
 {
+
     protected array $permissionTypes = [
         'added' => 1,
         'owned' => 2,
         'both' => 3,
         'all' => 4,
-        'none' => 5,
+        'none' => 5
     ];
 
     public function __construct()
@@ -58,6 +59,7 @@ class RolePermissionController extends AccountBaseController
      *
      * @return \Illuminate\Http\Response
      */
+
     public function create()
     {
         abort_403(user()->permission('manage_role_permission_setting') != 'all');
@@ -78,6 +80,7 @@ class RolePermissionController extends AccountBaseController
         $roleId = $request->roleId;
         $permissionId = $request->permissionId;
 
+
         $role = Role::with('users', 'users.role')->findOrFail($roleId);
 
         // Update role's permission
@@ -90,8 +93,9 @@ class RolePermissionController extends AccountBaseController
                 ->where('role_id', $roleId)
                 ->update(['permission_type_id' => $permissionType]);
 
-        } else {
-            $permissionRole = new PermissionRole;
+        }
+        else {
+            $permissionRole = new PermissionRole();
             $permissionRole->permission_id = $permissionId;
             $permissionRole->role_id = $roleId;
             $permissionRole->permission_type_id = $permissionType;
@@ -107,17 +111,17 @@ class RolePermissionController extends AccountBaseController
                     $userPermissions[] = [
                         'permission_id' => $permissionId,
                         'user_id' => $roleuser->id,
-                        'permission_type_id' => $permissionType,
+                        'permission_type_id' => $permissionType
                     ];
                 }
 
             }
 
-            cache()->forget('sidebar_user_perms_'.$roleuser->id);
+            cache()->forget('sidebar_user_perms_' . $roleuser->id);
         }
 
         // Perform bulk insert or update for user permissions
-        if (! empty($userPermissions)) {
+        if (!empty($userPermissions)) {
             UserPermission::upsert(
                 $userPermissions,
                 ['permission_id', 'user_id'],
@@ -145,19 +149,20 @@ class RolePermissionController extends AccountBaseController
             $this->modulesData = Module::with('permissions')->withCount('customPermissions')
                 ->whereIn('module_name', $clientModules)->where('module_name', '<>', 'messages')->get();
 
-        } else {
+        }
+        else {
             $this->modulesData = Module::with('permissions')->where('module_name', '<>', 'messages')->withCount('customPermissions')->get();
         }
 
-        $role = in_array($this->role->name, ['employee', 'client']) ? $this->role->name : 'employee';
-        $this->employeeModules = array_merge(
-            ModuleSetting::where('module_name', '<>', 'settings')
-                ->where('status', 'active')
-                ->where('type', $role)
-                ->pluck('module_name')
-                ->toArray(),
-            ['settings', 'dashboards']
-        );
+            $role = in_array($this->role->name,['employee','client']) ? $this->role->name : 'employee';
+            $this->employeeModules = array_merge(
+                ModuleSetting::where('module_name', '<>', 'settings')
+                                ->where('status', 'active')
+                                ->where('type', $role)
+                                ->pluck('module_name')
+                                ->toArray(),
+                ['settings', 'dashboards']
+            );
 
         $html = view('role-permissions.ajax.permissions', $this->data)->render();
 
@@ -179,7 +184,7 @@ class RolePermissionController extends AccountBaseController
                 ->update(['permission_type_id' => $value->permission_type_id]);
         }
 
-        cache()->forget('sidebar_user_perms_'.$userId);
+        cache()->forget('sidebar_user_perms_' . $userId);
 
         return Reply::dataOnly(['status' => 'success']);
     }
@@ -188,7 +193,7 @@ class RolePermissionController extends AccountBaseController
     {
         abort_403(user()->permission('manage_role_permission_setting') != 'all');
 
-        $role = new Role;
+        $role = new Role();
         $role->name = $request->name;
         $role->display_name = $request->name;
         $role->save();
@@ -202,11 +207,12 @@ class RolePermissionController extends AccountBaseController
 
             foreach ($importRolePermissions as $perm) {
                 $perm->replicate()->fill([
-                    'role_id' => $role->id,
+                    'role_id' => $role->id
                 ])->save();
             }
 
-        } else {
+        }
+        else {
             $allPermissions = Permission::all();
             $role->perms()->sync([]);
             $role->attachPermissions($allPermissions);
@@ -246,16 +252,16 @@ class RolePermissionController extends AccountBaseController
         PermissionRole::where('role_id', $role->id)->delete();
 
         switch ($role->name) {
-            case 'employee':
-                $rolePermissionsArray = PermissionRole::employeeRolePermissions();
-                break;
+        case 'employee':
+            $rolePermissionsArray = PermissionRole::employeeRolePermissions();
+            break;
 
-            case 'client':
-                $rolePermissionsArray = PermissionRole::clientRolePermissions();
-                break;
+        case 'client':
+            $rolePermissionsArray = PermissionRole::clientRolePermissions();
+            break;
 
-            default:
-                return Reply::error(__('messages.permissionDenied'));
+        default:
+            return Reply::error(__('messages.permissionDenied'));
         }
 
         $this->permissionrole($allPermissions, $role->name, $role->company_id);
@@ -270,20 +276,23 @@ class RolePermissionController extends AccountBaseController
 
     /**
      * Rebuild user_permissions from each user's primary role (same as
-     * `php artisan sync-user-permissions --resync-all`) when role templates
-     * and per-user copies have drifted.
+     * `php artisan sync-user-permissions --resync-all --company=<id>`) when
+     * role templates and per-user copies have drifted.
+     *
+     * Scoped to the acting admin's own company and dispatched to the queue: a
+     * full rewrite does not fit inside an HTTP request. The job takes a
+     * per-company lock, so a second click while one is in flight is a no-op
+     * rather than a concurrent rewrite.
      */
     public function resyncAllUserPermissions()
     {
         abort_403(user()->permission('manage_role_permission_setting') != 'all');
 
-        $exitCode = Artisan::call('sync-user-permissions', ['--resync-all' => true]);
+        ResyncUserPermissionsJob::dispatch((int) company()->id, (int) user()->id);
 
-        if ($exitCode !== 0) {
-            return Reply::error(__('messages.resyncUserPermissionsFailed'));
-        }
+        $this->logUserActivity(user()->id, 'messages.resyncUserPermissionsStarted');
 
-        return Reply::success(__('messages.resyncUserPermissionsSuccess'));
+        return Reply::success(__('messages.resyncUserPermissionsStarted'));
     }
 
     public function update(Request $request, $id)
@@ -295,7 +304,7 @@ class RolePermissionController extends AccountBaseController
     {
         $adminRole = Role::where('name', 'admin')->where('company_id', $companyId)->first();
 
-        if (! $adminRole) {
+        if (!$adminRole) {
             return true;
         }
 
@@ -321,6 +330,7 @@ class RolePermissionController extends AccountBaseController
         if (count($missingPermissions) > 0) {
             $this->addMissingAdminUserPermission($adminRole->id);
         }
+
 
     }
 
@@ -374,7 +384,7 @@ class RolePermissionController extends AccountBaseController
         foreach ($users as $user) {
             $userRole = $user->roles->pluck('name')->toArray();
 
-            if (! in_array('admin', $userRole)) {
+            if (!in_array('admin', $userRole)) {
                 $user->assignUserRolePermission($roleId);
             }
         }
@@ -414,7 +424,8 @@ class RolePermissionController extends AccountBaseController
         if ($type === 'client') {
             $permissionArray = PermissionRole::clientRolePermissions();
 
-        } elseif ($type === 'employee') {
+        }
+        elseif ($type === 'employee') {
             $permissionArray = PermissionRole::employeeRolePermissions();
 
         }
@@ -441,4 +452,5 @@ class RolePermissionController extends AccountBaseController
             }
         }
     }
+
 }

@@ -28,9 +28,13 @@ class UserPermissionController extends AccountBaseController
         $userPermission->permission_id = $request->permissionId;
         $userPermission->save();
 
-        if ($request->permissionCustomised == 1) {
-            User::where('id', $id)->update(['customised_permissions' => 1]);
-        }
+        // A per-user edit is by definition a customisation, so the flag is set
+        // unconditionally rather than trusting the client to send it. It is
+        // what the resync (`sync-user-permissions --resync-all`) uses to decide
+        // a user's permissions are still safe to rebuild from their role, so
+        // missing it here would silently discard deliberate per-user changes.
+        // resetPermissions() is the only thing that clears it again.
+        User::where('id', $id)->update(['customised_permissions' => 1]);
 
         cache()->forget('sidebar_user_perms_' . $id);
 
