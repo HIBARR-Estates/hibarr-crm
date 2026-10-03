@@ -16,6 +16,7 @@ use App\Http\Requests\ApiV2\CrmWrite\UpsertPaymentV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpsertSallyMeetingV2Request;
 use App\Services\ApiV2\CrmWriteService;
 use App\Services\SallyMeetingInsightService;
+use App\Support\RequestCompany;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -272,7 +273,7 @@ class CrmWriteApiController extends Controller
 
     public function upsertSallyMeeting(UpsertSallyMeetingV2Request $request): JsonResponse
     {
-        $companyId = (int) $request->header('X-COMPANY-ID');
+        $companyId = (int) RequestCompany::id($request);
         if ($companyId <= 0) {
             return response()->json(Reply::error(__('messages.missingCompanyId')), 401);
         }

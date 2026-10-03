@@ -1752,7 +1752,14 @@ class CrmWriteService
 
         $content = [];
         if (array_key_exists('summary', $data)) {
-            $content['summary'] = $this->decodeSallyText($data['summary']);
+            // This endpoint is the one write path that takes content from an
+            // external system, so the summary is purified here rather than only
+            // on the two edit routes. Every other consumer of the column — the
+            // gRPC transformer, exports, and this API's own reads — then sees
+            // stored HTML that is already safe.
+            $content['summary'] = SallyMeetingInsightService::sanitizeSummary(
+                (string) $this->decodeSallyText($data['summary'])
+            );
         }
         if (array_key_exists('transcript', $data) || array_key_exists('transcript_segments', $data)) {
             $normalized = SallyTranscriptNormalizer::normalize(
@@ -1842,11 +1849,21 @@ class CrmWriteService
 
     private function isUniqueConstraintViolation(QueryException $e): bool
     {
-        if ($e->getCode() === '23000' || $e->getCode() === 23000) {
+        // 23000 is the whole integrity-constraint class — it also covers foreign
+        // key and NOT NULL failures — so check the driver's duplicate-key code
+        // (1062 on MySQL/MariaDB, 23505 on PostgreSQL) and fall back to the
+        // message for drivers that report neither.
+        if (in_array((string) $e->getCode(), ['1062', '23505'], true)) {
             return true;
         }
 
-        return str_contains(strtolower($e->getMessage()), 'unique constraint');
+        if ($e->getCode() === '23000' || $e->getCode() === 23000) {
+            return false;
+        }
+
+        return str_contains(strtolower($e->getMessage()), 'unique constraint')
+            || str_contains(strtolower($e->getMessage()), 'duplicate entry')
+            || str_contains(strtolower($e->getMessage()), 'duplicate key');
     }
 
     /**

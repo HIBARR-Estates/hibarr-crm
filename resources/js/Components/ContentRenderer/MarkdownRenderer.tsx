@@ -12,6 +12,22 @@ interface MarkdownRendererProps {
     showFullContent?: boolean;
 }
 
+// Hooks are global to the shared DOMPurify instance and accumulate, so this
+// is registered once at module scope — before any sanitize call — instead of
+// inside the render body, where every render added another copy and the very
+// first output was sanitized before the hook existed.
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    // A sanitized markdown link with target="_blank" would otherwise hand the
+    // new tab a window.opener reference back to this one.
+    if (
+        node.tagName === "A" &&
+        node.getAttribute("target") === "_blank" &&
+        !node.getAttribute("rel")
+    ) {
+        node.setAttribute("rel", "noopener noreferrer");
+    }
+});
+
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     content,
     className = "",
@@ -64,7 +80,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             "li",
             "blockquote",
             "a",
-            "img",
             "span",
             "div",
             "code",
@@ -83,21 +98,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         // reference back to this one; DOMPurify drops noopener on its own.
         ADD_ATTR: ["target"],
         ADD_TAGS: [],
-        FORBID_TAGS: ["style"],
+        // Summary content is LLM-generated from meeting transcripts, so a
+        // prompt-injected transcript can emit a remote URL. Forbid img here
+        // to match the server-side purifier: without it the browser fetches
+        // attacker-controlled URLs (and their query strings) on render.
+        FORBID_TAGS: ["style", "img"],
         FORBID_ATTR: ["style"],
         ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-    });
-
-    // Same for the sanitize pass above: attach rel after the fact so a
-    // sanitized markdown link can't be used to reach window.opener.
-    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-        if (
-            node.tagName === "A" &&
-            node.getAttribute("target") === "_blank" &&
-            !node.getAttribute("rel")
-        ) {
-            node.setAttribute("rel", "noopener noreferrer");
-        }
     });
 
     return (

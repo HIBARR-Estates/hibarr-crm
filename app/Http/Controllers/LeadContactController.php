@@ -2202,16 +2202,13 @@ class LeadContactController extends AccountBaseController
         $lead = $model->lead_id ? Lead::find($model->lead_id) : null;
         $deal = $model->deal_id ? Deal::find($model->deal_id) : null;
 
-        // An insight is reachable from both a lead and a deal, so it is only
-        // editable through whichever of those the user is allowed to see.
+        // leadSallyInsights hides an insight whose deal the user may not view,
+        // so editing one must not be granted on the lead's permission alone:
+        // a lead editor with no access to the deal could otherwise write a
+        // summary they cannot even read. A deal-scoped insight needs both gates.
         $canEdit = false;
 
-        if ($lead) {
-            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
-            $canEdit = PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
-        }
-
-        if (! $canEdit && $deal) {
+        if ($deal) {
             // Write gate: watchers may read a deal but never write to it, so
             // this uses hasTeamMemberAccess() rather than isVisibleToUser().
             $dealRules = [
@@ -2219,6 +2216,12 @@ class LeadContactController extends AccountBaseController
                 'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
             ];
             $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        if ($lead) {
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $leadCanEdit = PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
+            $canEdit = $deal ? ($canEdit && $leadCanEdit) : $leadCanEdit;
         }
 
         abort_403(! $canEdit);

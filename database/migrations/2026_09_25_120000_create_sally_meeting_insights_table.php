@@ -26,10 +26,13 @@ return new class extends Migration
                 ->references('id')->on('companies')->cascadeOnDelete();
             $table->foreign('meeting_follow_up_id', 'fk_sally_insights_follow_up')
                 ->references('id')->on('lead_follow_up')->cascadeOnDelete();
+            // Transcripts are client conversations, so they follow the lead or the
+            // deal out of the CRM: deleting either must not leave the
+            // recording behind, reachable only through the meeting row.
             $table->foreign('lead_id', 'fk_sally_insights_lead')
-                ->references('id')->on('leads')->nullOnDelete();
+                ->references('id')->on('leads')->cascadeOnDelete();
             $table->foreign('deal_id', 'fk_sally_insights_deal')
-                ->references('id')->on('deals')->nullOnDelete();
+                ->references('id')->on('deals')->cascadeOnDelete();
 
             $table->index(['deal_id', 'company_id']);
             $table->index(['lead_id', 'company_id']);

@@ -110,6 +110,82 @@ class CrmWriteSallyMeetingApiTest extends TestCase
         $this->assertSame(1, SallyMeetingInsight::withoutGlobalScopes()->count());
     }
 
+    public function test_upsert_strips_dangerous_markup_from_the_stored_summary(): void
+    {
+        $companyId = 1;
+        $leadId = DB::table('leads')->insertGetId([
+            'company_id' => $companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $meetingId = DB::table('lead_follow_up')->insertGetId([
+            'lead_id' => $leadId,
+            'remark' => 'Call',
+            'location' => 'zoom',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->insertApiToken('test-crm-write-token', companyId: $companyId);
+
+        // This endpoint takes content from an external system, so the summary
+        // must be purified on write — not only on the two edit routes.
+        app(CrmWriteService::class)->upsertSallyMeetingInsight($companyId, [
+            'meeting_id' => $meetingId,
+            'summary' => '<p>Client wants a villa.</p>'
+                .'<script>alert(1)</script>'
+                .'<img src=x onerror=alert(2)>'
+                .'<iframe src="https://evil.test"></iframe>'
+                .'<a href="javascript:alert(3)">bad link</a>',
+        ]);
+
+        $stored = (string) DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $meetingId)
+            ->value('summary');
+
+        $this->assertStringContainsString('<p>Client wants a villa.</p>', $stored);
+        $this->assertStringNotContainsString('<script', $stored);
+        $this->assertStringNotContainsString('<img', $stored);
+        $this->assertStringNotContainsString('<iframe', $stored);
+        $this->assertStringNotContainsString('javascript:', $stored);
+        $this->assertStringNotContainsString('onerror', $stored);
+    }
+
+    public function test_api_posted_summary_never_stores_executable_markup(): void
+    {
+        $companyId = 1;
+        $leadId = DB::table('leads')->insertGetId([
+            'company_id' => $companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $meetingId = DB::table('lead_follow_up')->insertGetId([
+            'lead_id' => $leadId,
+            'remark' => 'Call',
+            'location' => 'zoom',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->insertApiToken('test-crm-write-token', companyId: $companyId);
+
+        // Over HTTP the global XSS middleware strip_tags the body, so this
+        // arrives as inert text. The row must hold no markup at all.
+        $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $meetingId,
+            'summary' => '<script>alert(1)</script><img src=x onerror=alert(2)>',
+        ], [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ])->assertCreated();
+
+        $stored = (string) DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $meetingId)
+            ->value('summary');
+
+        $this->assertDoesNotMatchRegularExpression('/<[a-z\/!?]/i', $stored);
+    }
+
     public function test_get_sally_meeting_insight_by_meeting_id(): void
     {
         $companyId = 1;

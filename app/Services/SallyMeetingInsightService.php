@@ -201,8 +201,10 @@ class SallyMeetingInsightService
         // anchors without href. Forbidding the tags the summary must not
         // contain keeps the default (complete) attribute sets intact.
         $config->set('HTML.ForbiddenElements', implode(',', self::SUMMARY_FORBIDDEN_TAGS));
-        // The editor's toolbar can set colour, background and alignment.
-        $config->set('CSS.AllowedProperties', 'color,background-color,background,font-weight,font-style,text-align,text-decoration');
+        // The editor's toolbar can set colour and alignment. `background` is
+        // deliberately excluded: it carries url(...), which would let a
+        // prompt-injected summary make the browser fetch a remote URL.
+        $config->set('CSS.AllowedProperties', 'color,background-color,font-weight,font-style,text-align,text-decoration');
 
         return $config;
     }
