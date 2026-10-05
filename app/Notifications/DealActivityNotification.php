@@ -33,7 +33,7 @@ class DealActivityNotification extends BaseNotification
 
     private array $data;
 
-    private $emailSetting;
+    private ?EmailNotificationSetting $emailSetting;
 
     /**
      * Create a new notification instance.
@@ -49,10 +49,15 @@ class DealActivityNotification extends BaseNotification
         $this->data = $data;
         $this->company = $this->deal->company;
 
-        // Load email notification settings
-        $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
-            ->where('slug', $this->activityType->emailSettingSlug())
-            ->first();
+        // Load email notification settings. The deal may have no company
+        // (company_id null or company deleted, e.g. bulk agent reassignment
+        // on legacy data) — database notification must still work, mail
+        // channel simply stays disabled via the null emailSetting.
+        $this->emailSetting = $this->company
+            ? EmailNotificationSetting::where('company_id', $this->company->id)
+                ->where('slug', $this->activityType->emailSettingSlug())
+                ->first()
+            : null;
 
         $this->initUnsRouting();
     }
