@@ -95,4 +95,7 @@ return array(
         'noNotificationFound' => 'Keine Benachrichtigung gefunden',
         'markAllRead' => 'Alle als gelesen markieren',
     ),
+    'permission' => array(
+        'resyncAllUserPermissions' => 'Alle Benutzerberechtigungen neu synchronisieren',
+    ),
 );

@@ -73,7 +73,19 @@ class SyncUserPermissions extends Command
 
     private function resyncAllUsersFromRoles(ResyncUserPermissionsService $resync): int
     {
-        $companyId = $this->option('company') !== null ? (int) $this->option('company') : null;
+        $rawCompany = $this->option('company');
+
+        if ($rawCompany === null) {
+            $companyId = null;
+        } else {
+            if (! ctype_digit((string) $rawCompany) || (int) $rawCompany <= 0) {
+                $this->error('Invalid --company value. Expected a positive integer company ID.');
+
+                return Command::FAILURE;
+            }
+
+            $companyId = (int) $rawCompany;
+        }
 
         $this->info('Backfilling missing permissions on role templates…');
 

@@ -382,6 +382,10 @@ class RolePermissionController extends AccountBaseController
         $users = $role->users;
 
         foreach ($users as $user) {
+            if ((int) $user->customised_permissions === 1) {
+                continue;
+            }
+
             $userRole = $user->roles->pluck('name')->toArray();
 
             if (!in_array('admin', $userRole)) {

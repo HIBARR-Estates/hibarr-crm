@@ -95,4 +95,7 @@ return array(
         'noNotificationFound' => 'Уведомление не найдено',
         'markAllRead' => 'Отметить все как прочитанные',
     ),
+    'permission' => array(
+        'resyncAllUserPermissions' => 'Синхронизировать все права пользователей',
+    ),
 );

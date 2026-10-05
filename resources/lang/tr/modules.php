@@ -95,4 +95,7 @@ return array(
         'noNotificationFound' => 'Bildirim bulunamadı',
         'markAllRead' => 'Tümünü Okundu İşaretle',
     ),
+    'permission' => array(
+        'resyncAllUserPermissions' => 'Tüm kullanıcı izinlerini yeniden senkronize et',
+    ),
 );

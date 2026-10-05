@@ -58,7 +58,9 @@ class ResyncUserPermissionsJob implements ShouldQueue
         }
 
         try {
-            $resync->backfillRoleTemplates($this->companyId);
+            if (! $resync->backfillRoleTemplates($this->companyId)) {
+                throw new \RuntimeException('Backfilling role templates failed for company '.$this->companyId);
+            }
 
             $counts = $resync->resync($this->companyId);
 
