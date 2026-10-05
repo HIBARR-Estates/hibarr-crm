@@ -461,6 +461,10 @@ class LeadMergeService
             DealFollowUp::query()->where('lead_id', $fromId)->update(['lead_id' => $toId]);
         });
 
+        // Repair drifted meetings, including moved follow-ups whose deals
+        // belong to a lead outside this merge.
+        app(DealMeetingLeadLinker::class)->syncAll();
+
         CommunicationActivity::withoutEvents(function () use ($fromId, $toId) {
             CommunicationActivity::query()->where('lead_id', $fromId)->update(['lead_id' => $toId]);
         });
