@@ -39,6 +39,9 @@ import { ApiSuccessResponse } from "@/lib/api/types";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { useCurrencies } from "@/Hooks/useFormData";
 import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
+import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
+import ProgressRing from "@/Components/Redesign/primitives/ProgressRing";
+import useTranslation from "@/Hooks/useTranslation";
 
 const { Title, Text } = Typography;
 
@@ -62,8 +65,15 @@ function PropertyHeader({
     onGenerateExpose,
 }: PropertyHeaderProps) {
     const { props } = usePage<any>();
+    const { t } = useTranslation();
     const { currencies } = useCurrencies();
     const shareLinksEnabled = useExposeShareLinksFlag();
+    const showCompleteness = usePropertyCompletenessFlag();
+    const completeness = property.completeness;
+    const showRing =
+        showCompleteness &&
+        completeness != null &&
+        completeness.total > 0;
     const {
         default_currency_code: defaultCurrencyCode,
         default_currency_symbol: defaultCurrencySymbol,
@@ -341,6 +351,32 @@ function PropertyHeader({
                             <Text type="secondary">
                                 / {property.rent_payment_interval || "month"}
                             </Text>
+                        )}
+                        {showRing && (
+                            <Tooltip
+                                title={t(
+                                    "pages.properties.completeness.tooltip",
+                                )
+                                    .replace(
+                                        ":filled",
+                                        String(completeness!.filled),
+                                    )
+                                    .replace(
+                                        ":total",
+                                        String(completeness!.total),
+                                    )}
+                            >
+                                <span className="inline-flex ml-1">
+                                    <ProgressRing
+                                        done={completeness!.filled}
+                                        total={completeness!.total}
+                                        size={36}
+                                        stroke={3}
+                                        trackColor="#e5e7eb"
+                                        label={`${completeness!.percent}%`}
+                                    />
+                                </span>
+                            </Tooltip>
                         )}
                     </div>
                 </div>

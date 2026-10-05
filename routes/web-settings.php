@@ -128,6 +128,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('entity-reminder-defaults', [EntityReminderDefaultController::class, 'index'])->name('entity-reminder-defaults.index');
     Route::post('entity-reminder-defaults', [EntityReminderDefaultController::class, 'update'])->name('entity-reminder-defaults.update');
     Route::post('entity-reminder-defaults/email-templates', [EntityReminderDefaultController::class, 'updateEmailTemplates'])->name('entity-reminder-defaults.email-templates');
+    Route::post('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'updateLeadCadence'])->name('entity-reminder-defaults.lead-cadence');
+    Route::delete('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'destroyLeadCadence'])->name('entity-reminder-defaults.lead-cadence.destroy');
     Route::delete('entity-reminder-defaults/{entityType}', [EntityReminderDefaultController::class, 'destroy'])->name('entity-reminder-defaults.destroy');
 
     /* Reminder ledger (company send queue) */
@@ -394,6 +396,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
     Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
     Route::get('deal-automation-logs/{id}', [DealAutomationController::class, 'logDetail'])->name('deal-automations.log-detail');
+    Route::post('deal-automation-logs/{id}/retry-meta', [DealAutomationController::class, 'retryMetaLog'])->name('deal-automations.log-retry-meta');
     Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
     Route::resource('deal-automations', DealAutomationController::class);
 

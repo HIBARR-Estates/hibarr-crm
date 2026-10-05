@@ -938,6 +938,9 @@ class BitrixImportController extends Controller
         ];
 
         try {
+            [$utm, $marketingPayload] = app(\App\Services\LeadUtmService::class)->splitPayload($marketingPayload);
+            app(\App\Services\LeadUtmService::class)->record($lead, $utm, 'bitrix_import');
+
             $lead->marketing()->updateOrCreate(
                 ['lead_id' => $lead->id],
                 $marketingPayload

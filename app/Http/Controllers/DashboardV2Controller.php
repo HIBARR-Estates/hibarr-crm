@@ -29,7 +29,7 @@ use Inertia\Inertia;
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
  * Manager is gated on view_manager_dashboard and crm.manager-dashboard so the
- * direct-reports rollup can roll out separately from the team hierarchy view.
+ * all-agents rollup can roll out separately from the team hierarchy view.
  * Team is gated twice as well: on view_team_dashboard, and on the
  * crm.team-dashboard flag — it is the first surface to show commission across a
  * whole hierarchy, so it rolls out per manager rather than all at once.
@@ -232,28 +232,28 @@ class DashboardV2Controller extends AccountBaseController
         // resolved range's length keeps one picker driving both views without
         // rewriting metrics this change isn't touching.
         $days = $range->days();
-        // Resolved once per request rather than inside every closure: each view
-        // fans out to several panels that all need the same scope.
-        $team = fn () => $metrics->teamAgentIds($userId);
+        // Every enabled agent in the company — not the viewer's downline. Team
+        // is the hierarchy surface; this one is for managers of agents.
+        $agents = fn () => $metrics->activeAgentIds();
 
         return match ($view) {
             'manager' => [
-                'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($team(), $days), 'kpis'),
+                'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($agents(), $days), 'kpis'),
                 'lifecycleFunnel' => Inertia::defer(
-                    fn () => $metrics->lifecycleFunnel($team(), max($days, 90)),
+                    fn () => $metrics->lifecycleFunnel($agents(), max($days, 90)),
                     'funnel'
                 ),
                 'responseDistribution' => Inertia::defer(
-                    fn () => $metrics->responseDistribution($team(), $days),
+                    fn () => $metrics->responseDistribution($agents(), $days),
                     'funnel'
                 ),
                 'sourceQuality' => Inertia::defer(
-                    fn () => $metrics->sourceQuality($team(), max($days, 90)),
+                    fn () => $metrics->sourceQuality($agents(), max($days, 90)),
                     'sources'
                 ),
-                'teamAgents' => Inertia::defer(fn () => $metrics->teamAgents($team(), $days), 'team'),
+                'teamAgents' => Inertia::defer(fn () => $metrics->teamAgents($agents(), $days), 'team'),
                 'openPartnerFlags' => Inertia::defer(
-                    fn () => $metrics->openPartnerFlags($team()),
+                    fn () => $metrics->openPartnerFlags($agents()),
                     'team'
                 ),
             ],

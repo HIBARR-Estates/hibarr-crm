@@ -1,3 +1,4 @@
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import { useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -166,6 +167,7 @@ export default function DealStickyHeader({
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
+                            <BackButton fallbackHref={route("deals.index")} />
                             <EditableTitle
                                 value={deal.name ?? ""}
                                 canEdit={dealPermissions.canEdit}

@@ -13,6 +13,7 @@ export type DealRecordTab =
     | "tasks"
     | "meetings"
     | "files"
+    | "payments"
     | "offers"
     | "exposes"
     | "recommendations"
@@ -27,6 +28,7 @@ export interface DealTabCount {
     tasks?: number;
     meetings?: number;
     files?: number;
+    payments?: number;
     offers?: number;
     exposes?: number;
     recommendations?: number;
