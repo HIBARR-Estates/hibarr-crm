@@ -24,18 +24,11 @@ use Illuminate\Support\Facades\Schema;
 class DealMeetingLeadLinker
 {
     /**
-     * Force the follow-up's lead_id to its deal's lead. Cheap no-op when the
-     * follow-up has no deal, or is an untouched, already-linked existing row.
+     * Force the follow-up's lead_id to its deal's lead when one exists.
      */
     public function apply(DealFollowUp $followUp): void
     {
         if (! $followUp->deal_id) {
-            return;
-        }
-
-        if ($followUp->exists
-            && $followUp->lead_id !== null
-            && ! $followUp->isDirty(['deal_id', 'lead_id'])) {
             return;
         }
 

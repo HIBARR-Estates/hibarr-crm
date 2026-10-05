@@ -39,7 +39,8 @@ class DealMeetingLeadLinkTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('lead_id')->nullable();
             $table->unsignedBigInteger('deal_id')->nullable();
-            $table->timestamp('updated_at')->nullable();
+            $table->string('location')->nullable();
+            $table->timestamps();
         });
 
         // Only the lead-link `saving` hook: skip the heavy DealFollowUp observers.
@@ -132,6 +133,28 @@ class DealMeetingLeadLinkTest extends TestCase
         $meeting->save();
 
         $this->assertSame($lead, $this->leadOf($meeting->id));
+    }
+
+    public function test_saving_an_existing_meeting_with_unchanged_links_repairs_a_mismatch(): void
+    {
+        $lead = $this->lead();
+        $id = $this->raw($this->deal($lead), $this->lead());
+
+        $meeting = DealFollowUp::findOrFail($id);
+        $this->assertFalse($meeting->isDirty(['deal_id', 'lead_id']));
+        $meeting->save();
+
+        $this->assertSame($lead, $this->leadOf($id));
+    }
+
+    public function test_saving_an_existing_meeting_without_a_deal_lead_preserves_its_lead(): void
+    {
+        $lead = $this->lead();
+        $id = $this->raw($this->deal(null), $lead);
+
+        DealFollowUp::findOrFail($id)->save();
+
+        $this->assertSame($lead, $this->leadOf($id));
     }
 
     public function test_lead_only_meetings_are_untouched(): void
