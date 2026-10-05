@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type { Lead } from "@/Types/api/leads";
 import { initialsFromName } from "@/Components/Redesign";
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import EditableTitle from "@/Components/Redesign/primitives/EditableTitle";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
@@ -101,6 +102,7 @@ export default function LeadHeaderRoot({
                     flexWrap: "wrap",
                 }}
             >
+                <BackButton fallbackHref={route("lead-contact.index")} />
                 <LeadAvatarButton
                     name={lead.client_name ?? ""}
                     image={lead.image}

@@ -3,6 +3,7 @@ import { Select } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import Button from "@/Components/Redesign/primitives/Button";
 import Switch from "@/Components/Redesign/primitives/Switch";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -44,6 +45,7 @@ function newAction(subjectType: SubjectType): DealAutomationAction {
         due_time: null,
         meta_event_name: null,
         meta_event_value: null,
+        meta_event_value_source: null,
         wait_duration_value: null,
         wait_duration_unit: "minutes",
     };
@@ -79,6 +81,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const [trigger, setTrigger] = useState<TriggerKey | null>(automation?.trigger ?? null);
     const [dateField, setDateField] = useState<string | null>(automation?.date_field ?? null);
     const [dateRecurrence, setDateRecurrence] = useState<"yearly" | "once" | null>(automation?.date_recurrence ?? null);
+    const [meetingTypeIds, setMeetingTypeIds] = useState<number[]>(automation?.meeting_type_ids ?? []);
     const [waitMode, setWaitMode] = useState<"immediate" | "wait">(automation?.wait_duration_value ? "wait" : "immediate");
     const [waitValue, setWaitValue] = useState<string>(automation?.wait_duration_value ? String(automation.wait_duration_value) : "5");
     const [waitUnit, setWaitUnit] = useState<string>(automation?.wait_duration_unit ?? "minutes");
@@ -161,6 +164,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
             trigger: trigger || null,
             trigger_date_field: trigger === "date_based" ? dateField : null,
             trigger_date_recurrence: trigger === "date_based" ? dateRecurrence : null,
+            trigger_meeting_type_ids: trigger === "meeting_attended" ? meetingTypeIds : [],
             wait_duration_value: waitMode === "wait" && waitValue ? Number(waitValue) : null,
             wait_duration_unit: waitMode === "wait" && waitValue ? waitUnit : null,
             priority: Number(priority) || 0,
@@ -320,6 +324,28 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                         placeholder={t("app.automation.selectRecurrence")}
                                         className="w-full"
                                     />
+                                </div>
+                            </div>
+                        )}
+
+                        {trigger === "meeting_attended" && catalog && (
+                            <div className="mt-3">
+                                <label style={fieldLabelStyle}>{t("app.automation.meetingTypeScope")}</label>
+                                <Select
+                                    mode="multiple"
+                                    value={meetingTypeIds}
+                                    onChange={(values) => setMeetingTypeIds(values)}
+                                    options={(catalog.meetingTypes ?? []).map((mt) => ({ value: mt.id, label: mt.name }))}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                    placeholder={t("app.automation.allMeetingTypes")}
+                                    className="w-full"
+                                />
+                                <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                                    {meetingTypeIds.length === 0
+                                        ? t("app.automation.meetingTypeScopeAll")
+                                        : t("app.automation.meetingTypeScopeSome")}
                                 </div>
                             </div>
                         )}
@@ -841,17 +867,72 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                             </div>
                                         )}
                                     </div>
-                                    <div>
-                                        <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min={0}
-                                            value={step.meta_event_value ?? ""}
-                                            onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
-                                            className="dr-input w-full"
-                                        />
-                                    </div>
+                                    {subjectType !== "deal" && (
+                                        <div>
+                                            <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                value={step.meta_event_value ?? ""}
+                                                onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                className="dr-input w-full"
+                                            />
+                                        </div>
+                                    )}
+                                    {subjectType === "deal" && (
+                                        <div className="col-span-3">
+                                            <label style={fieldLabelStyle}>{t("app.automation.eventValue")}</label>
+                                            <Segmented<"fixed" | "deal_value">
+                                                ariaLabel={t("app.automation.eventValue")}
+                                                value={step.meta_event_value_source === "deal_value" ? "deal_value" : "fixed"}
+                                                onChange={(value) => updateAction(i, { meta_event_value_source: value === "deal_value" ? "deal_value" : null })}
+                                                options={[
+                                                    { value: "fixed", label: t("app.automation.valueSourceFixed") },
+                                                    { value: "deal_value", label: t("app.automation.valueSourceDeal") },
+                                                ]}
+                                            />
+                                            {step.meta_event_value_source === "deal_value" ? (
+                                                <div className="mt-2 flex flex-col gap-2">
+                                                    <div
+                                                        className="rounded-[8px] px-3 py-2"
+                                                        style={{ background: T.BLUE_WASH, color: T.BLUE_DARK, fontSize: 12, fontWeight: 600 }}
+                                                    >
+                                                        {t("app.automation.valueSourceDealLive")}
+                                                    </div>
+                                                    <div
+                                                        className="rounded-[8px] border px-3 py-2"
+                                                        style={{ background: T.AMBER_BG, borderColor: T.AMBER_BORDER }}
+                                                    >
+                                                        <label style={{ ...fieldLabelStyle, color: T.AMBER_TEXT }}>{t("app.automation.valueFallbackLabel")}</label>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min={0}
+                                                            value={step.meta_event_value ?? ""}
+                                                            onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                            className="dr-input w-full"
+                                                        />
+                                                        <div className="mt-1.5" style={{ fontSize: 11, color: T.AMBER_TEXT }}>
+                                                            {t("app.automation.valueFallbackHint")}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2">
+                                                    <label style={fieldLabelStyle}>{t("app.automation.valueFixedLabel")}</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min={0}
+                                                        value={step.meta_event_value ?? ""}
+                                                        onChange={(e) => updateAction(i, { meta_event_value: e.target.value ? Number(e.target.value) : null })}
+                                                        className="dr-input w-full"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

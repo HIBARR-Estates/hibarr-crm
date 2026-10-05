@@ -16,6 +16,13 @@ use Illuminate\Support\Facades\Log;
 class MetaConversionsService
 {
     /**
+     * Graph API version used when none is configured. Keep in step with the
+     * backend's facebook-nodejs-business-sdk major; Meta retires versions after
+     * ~2 years.
+     */
+    public const DEFAULT_API_VERSION = 'v23.0';
+
+    /**
      * Meta Pixel ID from environment configuration
      */
     protected ?string $pixelId;
@@ -37,7 +44,7 @@ class MetaConversionsService
     {
         $this->pixelId = config('services.meta.pixel_id') ?? env('META_PIXEL_ID');
         $this->accessToken = config('services.meta.access_token') ?? env('META_ACCESS_TOKEN');
-        $this->apiVersion = config('services.meta.api_version') ?? env('META_CONVERSIONS_API_VERSION', 'v18.0');
+        $this->apiVersion = config('services.meta.api_version') ?: self::DEFAULT_API_VERSION;
     }
 
     /**

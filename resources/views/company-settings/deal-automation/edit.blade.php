@@ -80,6 +80,8 @@
                             <option value="lead_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_created' ? 'selected' : '' }}>Lead Created</option>
                             <option value="lead_updated" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_updated' ? 'selected' : '' }}>Lead Updated</option>
                             <option value="lead_followup_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_followup_created' ? 'selected' : '' }}>Lead Follow-up Created</option>
+                            <option value="meeting_attended" data-subject="any" {{ ($automation->trigger ?? '') == 'meeting_attended' ? 'selected' : '' }}>Meeting Attended</option>
+                            <option value="deal_payment_received" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_payment_received' ? 'selected' : '' }}>Payment Received</option>
                             <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>Specific Date / Birthday</option>
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1" id="trigger-help-text">
@@ -99,6 +101,10 @@
                                 Evaluates when a lead's properties are updated.
                             @elseif(($automation->trigger ?? '') == 'lead_followup_created')
                                 Evaluates when a follow-up or meeting is added to the lead (not to a deal).
+                            @elseif(($automation->trigger ?? '') == 'meeting_attended')
+                                Evaluates when a meeting's outcome changes into Attended — a deal meeting for deal automations, a lead-only meeting for lead automations.
+                            @elseif(($automation->trigger ?? '') == 'deal_payment_received')
+                                Evaluates once, when a payment on the deal is confirmed as paid.
                             @elseif(($automation->trigger ?? '') == 'date_based')
                                 Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year (birthdays) or fires one time only.
                             @endif
@@ -239,6 +245,8 @@
                 'lead_created': 'Evaluates only when a new lead is created.',
                 'lead_updated': 'Evaluates when a lead\'s properties are updated.',
                 'lead_followup_created': 'Evaluates when a follow-up/meeting is added to the lead (not to a deal).',
+                'meeting_attended': 'Evaluates when a meeting's outcome changes into Attended — a deal meeting for deal automations, a lead-only meeting for lead automations.',
+                'deal_payment_received': 'Evaluates once, when a payment on the deal is confirmed as paid.',
                 'date_based': 'Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year or fires one time only.'
             };
 
