@@ -265,9 +265,9 @@ Folder policy beyond what sandbox returns; bounce.
 
 #### Verify
 
-- [ ] Fake path: job ingests fixture
+- [x] Fake path: job ingests fixture
 - [ ] Optional manual: one sandbox message → one copy locally
-- [ ] Job no-ops when flag off
+- [x] Job no-ops when flag off
 
 ---
 

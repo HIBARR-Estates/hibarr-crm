@@ -5,7 +5,6 @@ namespace Tests\Feature\Email;
 use App\Email\Adapters\Mailtrap\MailtrapAdapter;
 use App\Email\Adapters\Mailtrap\MailtrapClient;
 use App\Email\Contracts\MailTransport;
-use App\Email\Data\Checkpoint;
 use App\Email\Data\ConnectionContext;
 use App\Email\Data\Draft;
 use App\Email\Data\EmailAddress;
@@ -172,29 +171,14 @@ class MailtrapAdapterTest extends TestCase
         }
     }
 
-    public function test_unbuilt_operations_say_so_instead_of_pretending(): void
+    public function test_unbuilt_send_says_so_instead_of_pretending(): void
     {
         Http::fake();
-        $connection = $this->connection();
 
-        $result = $this->adapter->send($connection, new Draft(new EmailAddress('agent@agency.test'), ['lead@example.test']));
+        $result = $this->adapter->send($this->connection(), new Draft(new EmailAddress('agent@agency.test'), ['lead@example.test']));
 
         $this->assertSame(SendStatus::Rejected, $result->status);
         $this->assertSame('not_implemented', $result->errorCode);
-
-        foreach ([
-            fn () => $this->adapter->fetchSince($connection, Checkpoint::start(), []),
-            fn () => $this->adapter->getMessage($connection, 'm-1'),
-            fn () => $this->adapter->getAttachment($connection, 'm-1', 'p-1'),
-        ] as $call) {
-            try {
-                $call();
-                $this->fail('Expected a not-implemented transport error.');
-            } catch (MailTransportException $exception) {
-                $this->assertSame('not_implemented', $exception->errorCode);
-                $this->assertFalse($exception->retryable);
-            }
-        }
 
         Http::assertNothingSent();
     }

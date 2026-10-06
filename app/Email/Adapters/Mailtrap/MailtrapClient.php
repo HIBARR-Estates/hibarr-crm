@@ -72,6 +72,27 @@ class MailtrapClient
         return $response;
     }
 
+    /**
+     * GET a path Mailtrap handed back (e.g. an attachment's download_path).
+     * Only ever resolved against the configured API host.
+     *
+     * @throws MailTransportException
+     */
+    public function getPath(string $path): Response
+    {
+        if (! str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            throw new MailTransportException('provider_error', retryable: false);
+        }
+
+        try {
+            return $this->request()->get($this->baseUrl.$path);
+        } catch (ConnectionException) {
+            throw new MailTransportException('provider_unreachable', retryable: true);
+        } catch (Throwable) {
+            throw new MailTransportException('provider_error', retryable: true);
+        }
+    }
+
     public function inboxUrl(string $path = ''): string
     {
         $url = "{$this->baseUrl}/api/accounts/{$this->accountId}/inboxes/{$this->inboxId}";
