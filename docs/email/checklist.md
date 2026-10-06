@@ -100,8 +100,8 @@ Port implementation, migrations.
 
 #### Verify
 
-- [ ] `config('email.queues.sync')` etc. resolve
-- [ ] App boots; no new endpoints
+- [x] `config('email.queues.sync')` etc. resolve
+- [x] App boots; no new endpoints
 
 ---
 

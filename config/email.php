@@ -42,4 +42,26 @@ return [
         'lead_follow_up_overdue' => env('LEAD_FOLLOW_UP_OVERDUE_PLUNK_TEMPLATE_ID', ''),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | CRM Email module (App\Email)
+    |--------------------------------------------------------------------------
+    |
+    | Mailbox integration behind the crm.email feature flag — unrelated to the
+    | notification template settings above. See docs/email/architecture.md.
+    |
+    | Dedicated queues keep mail sync/send off the default workers. The provider
+    | selects the MailTransport adapter for new connections: fake | mailtrap | zoho.
+    |
+    */
+
+    'flag' => 'crm.email',
+
+    'queues' => [
+        'sync' => env('EMAIL_SYNC_QUEUE', 'email-sync'),
+        'send' => env('EMAIL_SEND_QUEUE', 'email-send'),
+    ],
+
+    'default_provider' => env('EMAIL_DEFAULT_PROVIDER', 'fake'),
+
 ];
