@@ -3,11 +3,10 @@
 namespace App\Email\Http\Controllers;
 
 use App\Email\Enums\LinkableType;
-use App\Email\Matching\RecordVisibility;
+use App\Email\Matching\RecordResolver;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Review\ReviewActions;
 use App\Email\Review\ReviewQueue;
-use App\Models\Lead;
 use App\Models\User;
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +24,7 @@ class CopyActionController
     public function __construct(
         private readonly ReviewQueue $queue,
         private readonly ReviewActions $actions,
-        private readonly RecordVisibility $visibility,
+        private readonly RecordResolver $records,
     ) {}
 
     public function link(Request $request, string $copy): JsonResponse
@@ -71,14 +70,9 @@ class CopyActionController
             'record_id' => ['required', 'integer', 'min:1'],
         ]);
 
-        $class = LinkableType::from($input['record_type'])->modelClass();
+        $record = $this->records->find($user, $input['record_type'], (int) $input['record_id']);
 
-        $record = $class::withoutGlobalScopes()
-            ->where('company_id', $user->company_id)
-            ->when($class === Lead::class, fn ($query) => $query->whereNull('deleted_at'))
-            ->find((int) $input['record_id']);
-
-        abort_if($record === null || ! $this->visibility->canSee($user, $record), 404);
+        abort_if($record === null, 404);
 
         return $record;
     }

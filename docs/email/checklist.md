@@ -397,8 +397,8 @@ Ingest same RFC Message-ID on two connections; link both to one record; Timeline
 
 #### Verify
 
-- [ ] Fixture test as above
-- [ ] Headers still show both To/Cc participants
+- [x] Fixture test as above
+- [x] Headers still show both To/Cc participants
 
 ---
 
