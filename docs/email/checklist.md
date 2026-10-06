@@ -165,8 +165,8 @@ OAuth, UI.
 
 #### Verify
 
-- [ ] Encrypt round-trip
-- [ ] Company isolation on the model
+- [x] Encrypt round-trip
+- [x] Company isolation on the model
 
 ---
 
