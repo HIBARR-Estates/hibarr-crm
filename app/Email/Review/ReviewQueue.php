@@ -21,6 +21,12 @@ class ReviewQueue
 
     public function for(User $owner): Builder
     {
+        return $this->owned($owner)->where('review_status', ReviewStatus::Unlinked);
+    }
+
+    /** Every copy in the user's own mailboxes, in review or not. */
+    public function owned(User $owner): Builder
+    {
         $connections = EmailConnection::withoutGlobalScopes()
             ->where('user_id', $owner->id)
             ->where('company_id', $owner->company_id)
@@ -29,8 +35,7 @@ class ReviewQueue
         return EmailMailboxCopy::withoutGlobalScopes()
             ->with(['message', 'connection'])
             ->where('company_id', $owner->company_id)
-            ->whereIn('connection_id', $connections)
-            ->where('review_status', ReviewStatus::Unlinked);
+            ->whereIn('connection_id', $connections);
     }
 
     /**

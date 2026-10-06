@@ -81,6 +81,8 @@ trait BuildsEmailSchema
             $table->id();
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('lead_id')->nullable();
+            $table->unsignedInteger('agent_id')->nullable();
+            $table->unsignedInteger('added_by')->nullable();
             $table->string('name')->nullable();
             $table->timestamps();
         });
@@ -135,9 +137,9 @@ trait BuildsEmailSchema
     }
 
     /** A persisted deal, built without the observers that need the full schema. */
-    protected function makeEmailDeal(Company $company, ?Lead $lead = null): Deal
+    protected function makeEmailDeal(Company $company, ?Lead $lead = null, array $extra = []): Deal
     {
-        $attributes = [
+        $attributes = $extra + [
             'company_id' => $company->id,
             'lead_id' => $lead?->id,
             'name' => 'Deal '.Str::random(6),

@@ -380,8 +380,8 @@ Explicit actions + audit. Dismiss: not provider delete. Unlink: projections gone
 
 #### Verify
 
-- [ ] Link then unlink: record feed empty, copy remains
-- [ ] Dismiss does not call adapter delete
+- [x] Link then unlink: record feed empty, copy remains
+- [x] Dismiss does not call adapter delete
 
 ---
 

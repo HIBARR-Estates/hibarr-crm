@@ -5,6 +5,7 @@ namespace App\Email\Linking;
 use App\Email\Enums\LinkableType;
 use App\Email\Enums\LinkAuditAction;
 use App\Email\Enums\ReviewStatus;
+use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailConversation;
 use App\Email\Models\EmailLinkAudit;
 use App\Email\Models\EmailMailboxCopy;
@@ -29,13 +30,17 @@ class ConversationLinker
      * Idempotent: linking an already-linked record returns the existing link
      * and writes no second audit row.
      *
+     * With a mailbox, only that mailbox's copies leave review: linking brings
+     * its own earlier messages onto the record, never a colleague's private
+     * ones. Doing so for a second mailbox on an existing link is audited too.
+     *
      * @param  Model  $record  A Lead or Deal in the conversation's company.
      */
-    public function link(EmailConversation $conversation, Model $record, ?User $actor = null): EmailRecordLink
+    public function link(EmailConversation $conversation, Model $record, ?User $actor = null, ?EmailConnection $mailbox = null): EmailRecordLink
     {
         $type = $this->guard($conversation, $record, $actor);
 
-        return DB::transaction(function () use ($conversation, $record, $type, $actor) {
+        return DB::transaction(function () use ($conversation, $record, $type, $actor, $mailbox) {
             $link = EmailRecordLink::withoutGlobalScopes()->createOrFirst(
                 [
                     'conversation_id' => $conversation->id,
@@ -49,9 +54,12 @@ class ConversationLinker
                 ],
             );
 
-            if ($link->wasRecentlyCreated) {
+            $moved = $link->wasRecentlyCreated || $mailbox !== null
+                ? $this->moveCopies($conversation, ReviewStatus::Unlinked, ReviewStatus::None, $mailbox)
+                : 0;
+
+            if ($link->wasRecentlyCreated || $moved > 0) {
                 $this->audit(LinkAuditAction::Link, $conversation, $type, $record, $actor);
-                $this->moveCopies($conversation, ReviewStatus::Unlinked, ReviewStatus::None);
             }
 
             return $link;
@@ -124,10 +132,11 @@ class ConversationLinker
     }
 
     /** Only copies in exactly the $from state move; dismissed and handed-off copies keep theirs. */
-    private function moveCopies(EmailConversation $conversation, ReviewStatus $from, ReviewStatus $to): void
+    private function moveCopies(EmailConversation $conversation, ReviewStatus $from, ReviewStatus $to, ?EmailConnection $mailbox = null): int
     {
-        EmailMailboxCopy::withoutGlobalScopes()
+        return EmailMailboxCopy::withoutGlobalScopes()
             ->where('review_status', $from)
+            ->when($mailbox !== null, fn ($query) => $query->where('connection_id', $mailbox->id))
             ->whereIn('message_id', EmailMessage::withoutGlobalScopes()->where('conversation_id', $conversation->id)->select('id'))
             ->update(['review_status' => $to]);
     }

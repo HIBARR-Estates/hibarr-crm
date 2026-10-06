@@ -1,6 +1,7 @@
 <?php
 
 use App\Email\Http\Controllers\ConnectionController;
+use App\Email\Http\Controllers\CopyActionController;
 use App\Email\Http\Controllers\ReviewController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
@@ -35,4 +36,11 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
         Route::get('review', [ReviewController::class, 'index'])->name('review.index');
         Route::get('review/{copy}', [ReviewController::class, 'show'])
             ->whereUuid('copy')->name('review.show');
+
+        Route::post('copies/{copy}/link', [CopyActionController::class, 'link'])
+            ->whereUuid('copy')->name('copies.link');
+        Route::post('copies/{copy}/unlink', [CopyActionController::class, 'unlink'])
+            ->whereUuid('copy')->name('copies.unlink');
+        Route::post('copies/{copy}/dismiss', [CopyActionController::class, 'dismiss'])
+            ->whereUuid('copy')->name('copies.dismiss');
     });

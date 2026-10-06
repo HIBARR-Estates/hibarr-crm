@@ -66,7 +66,7 @@ class ContactMatcher
             return $this->review($copy);
         }
 
-        $this->linker->link($conversation, $lead);
+        $this->linker->link($conversation, $lead, null, $connection);
 
         return MatchResult::Linked;
     }
