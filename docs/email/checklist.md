@@ -141,7 +141,7 @@ HTTP, Mailtrap SDK.
 
 #### Verify
 
-- [ ] Unit tests cover seed + fetch + send results without network
+- [x] Unit tests cover seed + fetch + send results without network
 
 ---
 
