@@ -11,8 +11,8 @@ use Throwable;
 
 /**
  * Whether a user may see the lead or deal they want to put mail on. Fails
- * closed: anything unreadable, and any deal role whose email access is not
- * signed off (participants, watchers), counts as not visible.
+ * closed: anything unreadable counts as not visible, and so does a deal
+ * watcher, whose email access is not signed off.
  */
 class RecordVisibility
 {
@@ -41,8 +41,8 @@ class RecordVisibility
             return match ($scope) {
                 'all' => true,
                 'added' => $added,
-                'owned' => $this->isDealAgent($user, $deal),
-                'both' => $added || $this->isDealAgent($user, $deal),
+                'owned' => $this->isDealAgent($user, $deal) || $this->isDealParticipant($user, $deal),
+                'both' => $added || $this->isDealAgent($user, $deal) || $this->isDealParticipant($user, $deal),
                 default => false,
             };
         } catch (Throwable) {
@@ -58,6 +58,15 @@ class RecordVisibility
 
         return DB::table('lead_agents')
             ->where('id', $deal->agent_id)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    /** Participants work a deal with full access, like its agent. Watchers do not count. */
+    private function isDealParticipant(User $user, Deal $deal): bool
+    {
+        return DB::table('deal_participants')
+            ->where('deal_id', $deal->id)
             ->where('user_id', $user->id)
             ->exists();
     }

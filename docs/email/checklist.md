@@ -455,7 +455,7 @@ Central checker; middleware/policies on all email HTTP. Partner Lead Owner **N**
 
 #### Verify
 
-- [ ] Matrix Y/N cases as automated tests
+- [x] Matrix Y/N cases as automated tests
 - [ ] Search/export/file routes use the same checker
 
 ---

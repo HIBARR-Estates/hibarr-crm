@@ -2,11 +2,11 @@
 
 namespace App\Email\Linking;
 
+use App\Email\Authorization\EmailAccess;
 use App\Email\Enums\ReviewStatus;
 use App\Email\Models\EmailConversation;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
-use App\Email\Review\ReviewQueue;
 use App\Email\Support\SafePreview;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -16,23 +16,15 @@ use Illuminate\Database\Eloquent\Model;
  * The email history of a lead or deal as one user sees it: one event per
  * message, however many mailboxes hold a copy of it.
  *
- * Until EmailAccess exists (E-20) a user only gets the messages they hold a
- * projected copy of themselves; record access alone shows nothing.
+ * Which messages a user gets is EmailAccess's decision, not this class's.
  */
 class RecordHistory
 {
-    public function __construct(
-        private readonly RecordFeed $feed,
-        private readonly ReviewQueue $copies,
-    ) {}
+    public function __construct(private readonly EmailAccess $access) {}
 
     public function for(User $viewer, Model $record, int $perPage): LengthAwarePaginator
     {
-        $own = $this->ownProjectedCopies($viewer);
-
-        return $this->feed->messages($record)
-            ->whereIn('id', (clone $own)->select('message_id'))
-            ->paginate($perPage);
+        return $this->access->messagesOnRecord($viewer, $record)->paginate($perPage);
     }
 
     /**
@@ -82,6 +74,6 @@ class RecordHistory
 
     private function ownProjectedCopies(User $viewer)
     {
-        return $this->copies->owned($viewer)->where('review_status', ReviewStatus::None);
+        return $this->access->ownCopies($viewer)->where('review_status', ReviewStatus::None);
     }
 }

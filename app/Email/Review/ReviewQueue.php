@@ -2,9 +2,9 @@
 
 namespace App\Email\Review;
 
+use App\Email\Authorization\EmailAccess;
 use App\Email\Enums\ReviewStatus;
 use App\Email\Matching\LeadDirectory;
-use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Support\SafePreview;
 use App\Models\User;
@@ -12,12 +12,15 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * A mailbox owner's private review: their own copies that are on no record.
- * Until EmailAccess exists (E-20) nobody else can reach these — every query
- * starts from the connections the user owns.
+ * Nobody else can reach these — every query starts from EmailAccess's own-copies
+ * scope.
  */
 class ReviewQueue
 {
-    public function __construct(private readonly LeadDirectory $leads) {}
+    public function __construct(
+        private readonly LeadDirectory $leads,
+        private readonly EmailAccess $access,
+    ) {}
 
     public function for(User $owner): Builder
     {
@@ -27,15 +30,7 @@ class ReviewQueue
     /** Every copy in the user's own mailboxes, in review or not. */
     public function owned(User $owner): Builder
     {
-        $connections = EmailConnection::withoutGlobalScopes()
-            ->where('user_id', $owner->id)
-            ->where('company_id', $owner->company_id)
-            ->select('id');
-
-        return EmailMailboxCopy::withoutGlobalScopes()
-            ->with(['message', 'connection'])
-            ->where('company_id', $owner->company_id)
-            ->whereIn('connection_id', $connections);
+        return $this->access->ownCopies($owner);
     }
 
     /**

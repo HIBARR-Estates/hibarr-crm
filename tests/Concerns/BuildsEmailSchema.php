@@ -87,6 +87,21 @@ trait BuildsEmailSchema
             $table->timestamps();
         });
 
+        Schema::create('lead_agents', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('user_id');
+            $table->boolean('is_partner')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('deal_participants', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedBigInteger('deal_id');
+            $table->unsignedInteger('user_id');
+            $table->timestamps();
+        });
+
         foreach ($this->emailMigrations as $migration) {
             (require database_path("migrations/{$migration}"))->up();
         }

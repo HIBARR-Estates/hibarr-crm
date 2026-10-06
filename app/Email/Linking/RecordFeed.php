@@ -47,6 +47,19 @@ class RecordFeed
             ->distinct();
     }
 
+    /** Only the conversations linked to this very record — for a deal, not the ones it shows through its lead. */
+    public function directConversations(Model $record): Builder
+    {
+        $type = LinkableType::tryFromModel($record);
+
+        return EmailRecordLink::withoutGlobalScopes()
+            ->where('company_id', $record->getAttribute('company_id'))
+            ->when($type === null, fn ($query) => $query->whereRaw('1 = 0'))
+            ->where('linkable_type', $type)
+            ->where('linkable_id', $record->getKey())
+            ->select('conversation_id');
+    }
+
     public function messages(Model $record): Builder
     {
         $conversations = $this->conversations($record);
