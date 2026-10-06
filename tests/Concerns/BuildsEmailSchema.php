@@ -21,6 +21,8 @@ trait BuildsEmailSchema
     private array $emailMigrations = [
         '2026_10_06_000001_create_email_connections_table.php',
         '2026_10_06_000002_create_email_pilot_allowlist_table.php',
+        '2026_10_06_000003_create_email_messages_table.php',
+        '2026_10_06_000004_create_email_mailbox_copies_table.php',
     ];
 
     protected function buildEmailSchema(): void

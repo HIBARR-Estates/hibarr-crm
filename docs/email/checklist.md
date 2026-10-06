@@ -184,8 +184,8 @@ OAuth, UI.
 
 #### Verify
 
-- [ ] Double ingest same provider id → one copy
-- [ ] Same RFC id, two connections → one message, two copies
+- [x] Double ingest same provider id → one copy
+- [x] Same RFC id, two connections → one message, two copies
 
 ---
 
