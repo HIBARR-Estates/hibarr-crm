@@ -66,7 +66,14 @@ export default function AccessInspector() {
     const flags = props.featureFlags ?? {};
     const permissions = props.auth?.permissions ?? {};
 
-    const visible = isAdmin || import.meta.env.DEV;
+    // `import.meta.env` only exists under the Vite pipeline — webpack/Mix
+    // leaves `import.meta.env` undefined, which previously crashed this
+    // component. Fall back to NODE_ENV there.
+    const isDev =
+        import.meta.env?.DEV === true ||
+        (typeof process !== "undefined" &&
+            process?.env?.NODE_ENV === "development");
+    const visible = isAdmin || isDev;
 
     const flagRows = useMemo(() => {
         const q = query.trim().toLowerCase();
