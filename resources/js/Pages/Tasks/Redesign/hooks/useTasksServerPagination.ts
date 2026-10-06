@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import {
@@ -33,7 +33,10 @@ export default function useTasksServerPagination({
     );
     const [isPaging, setIsPaging] = useState(false);
 
-    const display = optimistic ?? tableTasks;
+    const display = useMemo(
+        () => optimistic ?? tableTasks,
+        [optimistic, tableTasks],
+    );
 
     // Seed cache whenever Inertia delivers a fresh page.
     useEffect(() => {
@@ -136,10 +139,13 @@ export default function useTasksServerPagination({
         [onPersistPageSize],
     );
 
-    return {
-        tableTasks: display,
-        isPaging,
-        navigateToPage: navigate,
-        changePageSize,
-    };
+    return useMemo(
+        () => ({
+            tableTasks: display,
+            isPaging,
+            navigateToPage: navigate,
+            changePageSize,
+        }),
+        [display, isPaging, navigate, changePageSize],
+    );
 }

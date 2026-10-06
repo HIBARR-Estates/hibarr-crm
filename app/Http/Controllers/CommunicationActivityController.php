@@ -50,9 +50,8 @@ class CommunicationActivityController extends Controller
      */
     public function getDealActivities(Request $request, $dealId)
     {
-        // X-COMPANY-ID is set by ApiTokenAuth from the token (not the client), and
-        // the deal must belong to that company. Token requests get no CompanyScope.
-        $companyId = $request->header('X-COMPANY-ID');
+        // Session user's company (frontend) or the API token's company (external).
+        $companyId = RequestCompany::id($request);
         abort_unless($companyId && Deal::where('company_id', $companyId)->whereKey($dealId)->exists(), 404);
 
         $perPage = $request->get('per_page', $this->defaultPageSize);

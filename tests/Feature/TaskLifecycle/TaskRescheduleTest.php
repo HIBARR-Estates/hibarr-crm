@@ -6,6 +6,7 @@ use App\Http\Controllers\TaskController;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Reminders\TaskReminderSync;
+use App\Support\UserTimezone;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -139,6 +140,65 @@ class TaskRescheduleTest extends TaskLifecycleTestCase
         $this->expectException(ValidationException::class);
 
         $this->controller->reschedule($this->request([]), $task->id);
+    }
+
+    /**
+     * The date posted here was read off a row rendered by
+     * Task::wallClockString, so it has to be interpreted in that same basis.
+     * With the flag off the queue shows company-zone digits, and reading them
+     * in the user's own zone would store an instant shifted by the difference.
+     */
+    public function test_it_interprets_the_posted_date_in_the_company_timezone_when_the_user_timezone_flag_is_off(): void
+    {
+        $this->setFeatureFlag(UserTimezone::FLAG, false);
+        $this->giveViewerTimezones(user: 'America/New_York', company: 'Europe/Istanbul');
+
+        $task = $this->createTask();
+
+        $this->controller->reschedule(
+            $this->request(['due_date' => '2026-12-24', 'due_time' => '17:00']),
+            $task->id,
+        );
+
+        // 17:00 Istanbul (UTC+3) is 14:00 UTC. Read in New York it would have
+        // been 22:00 UTC.
+        $this->assertSame(
+            '2026-12-24 14:00:00',
+            Task::findOrFail($task->id)->due_date->format('Y-m-d H:i:s'),
+        );
+    }
+
+    /** The mirror image: with the flag on, the user's own zone wins. */
+    public function test_it_interprets_the_posted_date_in_the_user_timezone_when_the_flag_is_on(): void
+    {
+        $this->setFeatureFlag(UserTimezone::FLAG, true);
+        $this->giveViewerTimezones(user: 'America/New_York', company: 'Europe/Istanbul');
+
+        $task = $this->createTask();
+
+        $this->controller->reschedule(
+            $this->request(['due_date' => '2026-12-24', 'due_time' => '17:00']),
+            $task->id,
+        );
+
+        // 17:00 New York in December (UTC-5) is 22:00 UTC.
+        $this->assertSame(
+            '2026-12-24 22:00:00',
+            Task::findOrFail($task->id)->due_date->format('Y-m-d H:i:s'),
+        );
+    }
+
+    /**
+     * Put the acting user and their company on different timezones, and drop
+     * the company `company()` cached in the session so the helper re-reads it.
+     */
+    private function giveViewerTimezones(string $user, string $company): void
+    {
+        DB::table('users')->where('id', $this->assignerId)->update(['timezone' => $user]);
+        DB::table('companies')->where('id', $this->companyId)->update(['timezone' => $company]);
+
+        session()->forget('company');
+        Auth::setUser(User::withoutGlobalScopes()->setEagerLoads([])->findOrFail($this->assignerId));
     }
 
     private function request(array $payload): Request

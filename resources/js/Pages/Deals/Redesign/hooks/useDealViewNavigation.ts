@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { DealInfoSectionId, DealTab } from "../types";
 import { parseCategorySectionId } from "../config/dealInfoSections";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 const VALID_TABS: DealTab[] = [
     "overview",
@@ -9,6 +10,7 @@ const VALID_TABS: DealTab[] = [
     "tasks",
     "meetings",
     "files",
+    "payments",
     "offers",
     "exposes",
     "recommendations",
@@ -57,7 +59,7 @@ function syncQuery(tab: DealTab, section?: DealInfoSectionId) {
     } else {
         url.searchParams.delete("section");
     }
-    window.history.replaceState({}, "", url.toString());
+    replaceUrlKeepingHistoryState(url);
 }
 
 /**
@@ -83,13 +85,17 @@ export default function useDealViewNavigation() {
         // address bar to that stale URL — silently reverting a tab switch
         // that happened while the request was in flight. Re-stamp our tab
         // state into the URL after every Inertia request finishes so those
-        // background reloads can't clobber it.
-        return router.on("finish", () => {
+        // background reloads can't clobber it. (Same-page reloads replace
+        // rather than push globally: see replaceHistoryOnSamePageReloads.)
+        const stopRestamping = router.on("finish", () => {
             syncQuery(
                 tabRef.current,
                 tabRef.current === "dealinfo" ? infoSectionRef.current : undefined,
             );
         });
+        return () => {
+            stopRestamping();
+        };
     }, []);
 
     const setTab = useCallback(

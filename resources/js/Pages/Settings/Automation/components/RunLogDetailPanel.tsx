@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { TdFn } from "@/lib/dynamicTranslation";
 import { EmailDeliveryDetail, MailSystem, RunLogDetails, RunLogEntry } from "../types";
+import useMetaLogRetry from "../hooks/useMetaLogRetry";
 
 /** Human label for the mail system that actually delivered a message. */
 const MAIL_SYSTEM_LABEL: Record<MailSystem, string> = {
@@ -111,7 +113,49 @@ function DetailSkeleton() {
     );
 }
 
-function DetailBody({ entry, details, td }: { entry: RunLogEntry; details: RunLogDetails; td: TdFn }) {
+/**
+ * Manual re-send for a failed Meta delivery. Meta events are never retried
+ * automatically, so this is how a failed conversion gets recovered: it sends
+ * just this event again and records the attempt as a new run.
+ */
+function MetaRetry({ entry, details, td, onRetried }: { entry: RunLogEntry; details: RunLogDetails; td: TdFn; onRetried?: () => void }) {
+    const { retry, retrying, result, errorMessage } = useMetaLogRetry();
+
+    if (entry.status !== "failed" || details.stage !== "delivery") return null;
+
+    if (details.resolved_by_log_id || result?.success) {
+        return (
+            <div style={{ fontSize: 12, color: T.GREEN }}>
+                {td("Re-sent successfully — see the newer run for the new Meta response.")}
+            </div>
+        );
+    }
+
+    const handleRetry = async () => {
+        const data = await retry(entry.id);
+        if (data) onRetried?.();
+    };
+
+    return (
+        <div className="flex flex-col gap-1.5 items-start">
+            <Button size="sm" loading={retrying} onClick={handleRetry}>
+                {td("Retry this event")}
+            </Button>
+            <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                {td("Re-sends only this Meta event with the same name and value. Nothing else in the automation runs again.")}
+            </div>
+            {result && !result.success && (
+                <div style={{ fontSize: 12, color: T.RED }}>
+                    {td("The retry failed too")}
+                    {result.error ? `: ${result.error}` : ""}
+                </div>
+            )}
+            {errorMessage && <div style={{ fontSize: 12, color: T.RED }}>{errorMessage}</div>}
+        </div>
+    );
+}
+
+function DetailBody({ entry, details, td, onRetried }: { entry: RunLogEntry; details: RunLogDetails; td: TdFn; onRetried?: () => void }) {
     const deliveries = details.deliveries ?? [];
     const meta = details.meta;
 
@@ -155,7 +199,13 @@ function DetailBody({ entry, details, td }: { entry: RunLogEntry; details: RunLo
                         {details.source && (
                             <Field
                                 label={td("Triggered by")}
-                                value={details.source === "stage_trigger" ? td("Pipeline stage trigger") : td("Automation")}
+                                value={
+                                    details.source === "stage_trigger"
+                                        ? td("Pipeline stage trigger")
+                                        : details.source === "manual_retry"
+                                          ? td("Manual retry")
+                                          : td("Automation")
+                                }
                             />
                         )}
                         {(details.event_name || meta?.event_name) && (
@@ -177,6 +227,8 @@ function DetailBody({ entry, details, td }: { entry: RunLogEntry; details: RunLo
                         <RawBlock label={td("Meta error object")} body={JSON.stringify(meta.error_details, null, 2)} />
                     )}
                     {meta?.response_body && <RawBlock label={td("Meta response")} body={meta.response_body} />}
+
+                    <MetaRetry entry={entry} details={details} td={td} onRetried={onRetried} />
                 </>
             )}
 
@@ -192,7 +244,7 @@ function DetailBody({ entry, details, td }: { entry: RunLogEntry; details: RunLo
  * recipient and why it failed, or exactly what Meta answered for a conversion
  * event. Details are fetched on expand so the list payload stays lightweight.
  */
-export default function RunLogDetailPanel({ entry }: { entry: RunLogEntry }) {
+export default function RunLogDetailPanel({ entry, onRetried }: { entry: RunLogEntry; onRetried?: () => void }) {
     const { td } = useTd();
     const [details, setDetails] = useState<RunLogDetails | null>(entry.details ?? null);
     const [loading, setLoading] = useState(entry.details === undefined);
@@ -250,5 +302,5 @@ export default function RunLogDetailPanel({ entry }: { entry: RunLogEntry }) {
         );
     }
 
-    return <DetailBody entry={entry} details={details} td={td} />;
+    return <DetailBody entry={entry} details={details} td={td} onRetried={onRetried} />;
 }

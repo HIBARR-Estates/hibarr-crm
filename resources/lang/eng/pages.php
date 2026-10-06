@@ -247,6 +247,23 @@ return [
             'partner' => 'Partner',
             'coming_soon' => 'Coming soon',
             'switcher_aria' => 'Dashboard',
+            'period_aria' => 'Period',
+            'subtext' => [
+                'manager' => 'How every active agent is doing.',
+                'team' => 'Commissions, deals and leads across everyone below you — not your own activity.',
+                'leadership' => 'Company-wide movement across every team.',
+                'partner' => 'Your referrals only — no deal values.',
+            ],
+            'period' => [
+                'past_week' => 'Past week',
+                'past_month' => 'Past month',
+                'past_quarter' => 'Past quarter',
+                'past_year' => 'Past year',
+                'ytd' => 'Year to date',
+                'all' => 'All time',
+                'last_days' => 'Last {{days}} days',
+                'custom' => '{{from}} to {{to}}',
+            ],
         ],
         'personal' => [
             'title' => 'Dashboard',
@@ -402,6 +419,7 @@ return [
             'qualification' => 'Qualification',
             'tasks' => 'Tasks',
             'events' => 'Events',
+            'meetings' => 'Meetings',
         ],
         'contacts_table' => [
             'columns' => [
@@ -499,7 +517,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'No marketing information available for this lead',
-            'utm_section' => 'UTM & Campaign Tracking',
+            'utm_section' => 'First-Touch UTM & Campaign Tracking',
             'social_section' => 'Social Media Tracking',
             'engagement_section' => 'Engagement & Scoring',
             'utm_source' => 'UTM Source',
@@ -508,6 +526,15 @@ return [
             'utm_content' => 'UTM Content',
             'utm_term' => 'UTM Term',
             'utm_audience' => 'UTM Audience',
+            'touch_history' => 'UTM Touch History',
+            'touch_history_empty' => 'No later UTM touches recorded yet.',
+            'touch_first' => 'First touch',
+            'touch_latest' => 'Latest',
+            'touch_origin' => 'Origin',
+            'touch_origin_api' => 'API',
+            'touch_origin_bitrix_import' => 'Bitrix import',
+            'touch_origin_deal_import' => 'Deal import',
+            'touch_origin_backfill' => 'Imported',
             'traffic_source_id' => 'Traffic Source ID',
             'facebook_click_id' => 'Facebook Click ID',
             'facebook_lead_id' => 'Facebook Lead ID',
@@ -677,6 +704,22 @@ return [
     'deals' => [
         'locked_message' => 'This deal is locked. Editing and deletion are disabled.',
         'value_locked_tooltip' => 'Commission has already been calculated for this deal, so this can no longer be changed.',
+        'payment_request' => [
+            'invalidate_title' => 'Invalidate the payment request?',
+            'invalidate_message' => 'This deal has a payment request the client hasn\'t paid yet. Saving this change will invalidate it — the client will no longer be able to pay with its checkout link. You can create a new request afterwards.',
+            'invalidate_confirm' => 'Save and invalidate',
+            'cancel' => 'Cancel',
+            'currency' => 'Currency',
+            'deal_value' => 'Deal value',
+            'exchange_rate' => 'Exchange rate',
+            'amount_to_request' => 'Amount to request',
+            'rate_loading' => 'Fetching live rate…',
+            'rate_unavailable' => 'Live exchange rate unavailable. Try again shortly.',
+            'conversion_hint' => 'Converted from the deal value at today\'s rate. The client pays this amount in {{currency}}.',
+            'no_deal_value' => 'This deal has no value yet, so there is nothing to request.',
+            'history_title' => 'Previous requests',
+            'invalidated_on' => 'Invalidated {{date}}',
+        ],
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'stage_jump_confirm_title' => 'Skip pipeline stages?',
         'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
@@ -701,8 +744,9 @@ return [
             'header' => 'Details',
             'notes' => 'Notes',
             'tasks' => 'Tasks',
-            'meeting' => 'Meeting',
+            'meetings' => 'Meetings',
             'files' => 'Files',
+            'payments' => 'Payments',
             'recommendations' => 'Recommendations',
             'offers' => 'Offers',
             'history' => 'History',
@@ -875,6 +919,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Back',
             'cancel' => 'Cancel',
             'close' => 'Close',
             'select' => 'Select',
@@ -1525,6 +1570,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => ':filled of :total listing fields filled',
+            'aria' => ':filled of :total listing fields filled',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Title',
@@ -2079,6 +2128,33 @@ return [
                 ],
             ],
         ],
+    ],
+
+    'payment_requests' => [
+        'subtitle' => '{{count}} payment requests',
+        'refresh' => 'Refresh',
+        'filter_label' => 'Filter payment requests',
+        'col_deal' => 'Deal',
+        'col_deal_value' => 'Deal value',
+        'col_requested' => 'Requested',
+        'col_status' => 'Status',
+        'col_method' => 'Method',
+        'col_created' => 'Created',
+        'method_bank_transfer' => 'Bank transfer',
+        'method_crypto' => 'Crypto',
+        'method_client_choice' => 'Client\'s choice',
+        'action_proof' => 'Proof',
+        'action_checkout' => 'Checkout',
+        'action_confirm' => 'Confirm transfer',
+        'empty_title' => 'No payment requests',
+        'empty_description' => 'Deal payment requests will appear here once created.',
+        'empty_filtered' => 'No payment requests in this status.',
+        'confirm_title' => 'Confirm bank transfer?',
+        'confirm_message' => 'Confirm that the customer\'s bank transfer proof has been reviewed and approved. The deal will be marked as won.',
+        'confirm_yes' => 'Yes, confirm',
+        'cancel' => 'Cancel',
+        'confirmed_toast' => 'Bank transfer confirmed.',
+        'confirm_failed' => 'Unable to confirm transfer.',
     ],
 
 ];

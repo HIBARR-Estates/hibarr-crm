@@ -26,6 +26,7 @@ import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag
 import { useMobileSidebar } from "@/contexts/MobileSidebarContext";
 import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
+import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
 
 interface BreadcrumbItem {
@@ -167,9 +168,12 @@ export default function PageLayout({
                         logoutMutation.mutate(
                             {},
                             {
-                                onSuccess: () => {
-                                    // Redirect to login page on successful logout
-                                    window.location.href = route("login");
+                                onSuccess: (res) => {
+                                    // The server returns the Keycloak end-session URL so
+                                    // the SSO session ends too; fall back to the login page.
+                                    window.location.href =
+                                        (res as { url?: string } | undefined)
+                                            ?.url ?? route("login");
                                 },
                             },
                         );
@@ -239,6 +243,7 @@ export default function PageLayout({
                                             : undefined
                                     }
                                 />
+                                <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
                             <NotificationDropdown pollingInterval={30000} />

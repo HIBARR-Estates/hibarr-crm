@@ -10,6 +10,7 @@ import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { generatePropertySubtitle } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 
 const { Text } = Typography;
 
@@ -20,7 +21,12 @@ interface DealOffersTabProps {
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
     const { td } = useTd();
     const insight = getDealValueInsight(deal);
-    const currencySymbol = deal.currency?.currency_symbol || "£";
+    const companyCurrency = useCompanyCurrency();
+    const currencySymbol =
+        deal.currency?.currency_symbol ||
+        companyCurrency.symbol ||
+        companyCurrency.code ||
+        "";
 
     const formatMoney = (value: number | null) => {
         if (value === null || value === undefined) {

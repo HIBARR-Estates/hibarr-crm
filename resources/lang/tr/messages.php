@@ -140,4 +140,6 @@ return array(
     'noAgentAdded' => 'Ajan eklenmemiş.',
     'invalidDealForLead' => 'Seçilen anlaşma bu müşteri adayına ait değil.',
     'leadFollowUpOwnerRequired' => 'Bu müşteri adayına atanmış bir sahip yok. Toplantı oluşturmadan önce lütfen bir sahip atayın.',
+    'leadDuplicateEmail' => 'Bu e-posta adresi başka bir müşteri adayı tarafından zaten kullanılıyor.',
+    'leadDuplicateContact' => ':attribute başka bir müşteri adayı tarafından zaten kullanılıyor.',
 );

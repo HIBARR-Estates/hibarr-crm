@@ -1,3 +1,4 @@
+import { toDateInputValue, toTimeInputValue } from "@/lib/taskDateTime";
 import type { TaskPriorityKey, RecordTypeKey } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "./taskViewModel";
 
@@ -101,9 +102,9 @@ export function taskFormInitialFromVm(
     return {
         title: vm.task.heading,
         description: vm.descriptionText,
-        startDate: vm.task.start_date?.slice(0, 10) ?? "",
-        dueDate: vm.task.due_date?.slice(0, 10) ?? "",
-        dueTime: vm.task.due_date?.slice(11, 16) || DEFAULT_DUE_TIME,
+        startDate: toDateInputValue(vm.task.start_date),
+        dueDate: toDateInputValue(vm.task.due_date),
+        dueTime: toTimeInputValue(vm.task.due_date, DEFAULT_DUE_TIME),
         priority: vm.task.priority as TaskPriorityKey,
         assignees: vm.people.map((person) => person.id),
         categoryId: vm.task.category?.id ?? null,

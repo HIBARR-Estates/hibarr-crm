@@ -18,11 +18,12 @@ const HtmlRenderer: React.FC<HtmlRendererProps> = ({
   // Sanitize HTML content to prevent XSS
   const sanitizedHtml = DOMPurify.sanitize(content, {
     ALLOWED_TAGS: [
-      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
       'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'div', 'code', 'pre',
-      'table', 'thead', 'tbody', 'tr', 'td', 'th'
+      'table', 'thead', 'tbody', 'tr', 'td', 'th',
     ],
-    ALLOWED_ATTR: ['href', 'target', 'src', 'alt', 'title', 'class', 'style'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class', 'style'],
+    ADD_ATTR: ['data-list'],
     ALLOW_DATA_ATTR: false,
   });
 

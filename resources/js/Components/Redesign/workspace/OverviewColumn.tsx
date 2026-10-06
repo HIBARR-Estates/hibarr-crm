@@ -58,14 +58,18 @@ export default function OverviewColumn({
                     </Button>
                 )}
             </div>
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div
+                className={
+                    isEmpty ? "dr-ov-col-empty" : "dr-ov-col-body"
+                }
+            >
                 {isEmpty ? (
                     <EmptyState
                         icon={empty.icon}
                         title={empty.title}
                         description={empty.hint}
                         balancedDescription
-                        className="flex flex-1 flex-col items-center justify-center py-[22px]"
+                        className="flex flex-col items-center justify-center py-[22px]"
                         style={{ background: T.SURFACE }}
                         action={
                             canAdd

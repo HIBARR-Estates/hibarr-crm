@@ -48,7 +48,7 @@ export default function StartConversationDrawer({
         ConversationResponse,
         ApiResponse<ConversationResponse>
     >(
-        `/api/v1/internal/communication-activities`,
+        route("communication-activities.store"),
         "POST",
         (response) => {
             if (response?.status === "success") {

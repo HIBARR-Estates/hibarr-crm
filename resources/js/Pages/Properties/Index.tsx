@@ -53,6 +53,7 @@ import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useCurrencies } from "@/Hooks/useFormData";
+import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -119,6 +120,7 @@ const Index = ({
 }: IndexProps) => {
     const { t } = useTranslation();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    const showCompleteness = usePropertyCompletenessFlag();
     const { td } = useTd();
     const { currencies } = useCurrencies();
 
@@ -400,6 +402,7 @@ const Index = ({
             currencyCode,
             currencySymbol,
             t,
+            showCompleteness,
         ),
         ["property_type", "sale_type", "location", "publish_status", "created_at"],
         isMobileResponsive,

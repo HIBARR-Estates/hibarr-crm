@@ -1339,12 +1339,35 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 0;
     border-bottom: 1px solid var(--dr-border);
     background: var(--dr-surface-2);
     font-size: 12px;
     font-weight: 650;
     color: var(--dr-text);
+}
+.lead-redesign .v2-mkt-section-head.is-collapsed {
+    border-bottom: none;
+}
+.lead-redesign .v2-mkt-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.lead-redesign .v2-mkt-section-toggle:hover {
+    background: var(--dr-surface-3, rgba(0, 0, 0, 0.03));
+}
+.lead-redesign .v2-mkt-section-title {
+    flex: 1;
+    min-width: 0;
 }
 .lead-redesign .v2-mkt-grid {
     display: grid;
@@ -1383,6 +1406,66 @@
     .lead-redesign .v2-mkt-row {
         border-right: none;
     }
+}
+
+/* Marketing tab — UTM touch history */
+.lead-redesign .v2-mkt-touch-body {
+    padding: 4px 14px 12px;
+}
+.lead-redesign .v2-mkt-touch-empty {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--dr-text-hint);
+}
+.lead-redesign .v2-mkt-touch-skeleton {
+    height: 64px;
+    margin-top: 8px;
+    border-radius: 8px;
+    background: var(--dr-surface-2);
+}
+.lead-redesign .v2-mkt-touches {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.lead-redesign .v2-mkt-touch {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--dr-border-soft);
+}
+.lead-redesign .v2-mkt-touch:last-child {
+    border-bottom: none;
+}
+.lead-redesign .v2-mkt-touch-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.lead-redesign .v2-mkt-touch-date {
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--dr-text);
+}
+.lead-redesign .v2-mkt-touch-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin: 0;
+}
+.lead-redesign .v2-mkt-touch-values dt {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--dr-text-hint);
+}
+.lead-redesign .v2-mkt-touch-values dd {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--dr-text);
+    word-break: break-word;
 }
 
 .lead-redesign .v2-dropzone {

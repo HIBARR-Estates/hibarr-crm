@@ -22,6 +22,7 @@ use App\Scopes\CompanyScope;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
+use App\Services\DealPaymentService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\Reminders\NoteReminderSync;
 use App\Services\Reminders\TaskReminderSync;
@@ -359,6 +360,7 @@ class CrmWriteService
             ->first();
 
         $created = $existing === null;
+        $wasComplete = $existing !== null && $existing->status === 'complete';
         $payment = $existing ?? new Payment;
 
         $payment->company_id = $companyId;
@@ -422,6 +424,12 @@ class CrmWriteService
             } catch (\Throwable $exception) {
                 report($exception);
             }
+        }
+
+        // OL pushing a completed payment (online payment settled, or a review
+        // decision) wins the deal, same as a confirm from the CRM side.
+        if (! $wasComplete && $payment->status === 'complete') {
+            app(DealPaymentService::class)->markConfirmed($payment);
         }
 
         $payment->loadMissing(['currency', 'deal.leadStage', 'deal.pipeline']);

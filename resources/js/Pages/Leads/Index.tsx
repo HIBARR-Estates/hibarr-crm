@@ -300,7 +300,14 @@ const Index = ({
             router.get(
                 route("lead-contact.index"),
                 mergeQueryParams({ page: 1, per_page: perPage }),
-                { only: ["leads"], preserveState: true, preserveScroll: true },
+                {
+                    only: ["leads"],
+                    preserveState: true,
+                    preserveScroll: true,
+                    // Restoring the saved page size on load isn't a user
+                    // navigation — don't leave an identical entry behind it.
+                    replace: true,
+                },
             ),
     });
 

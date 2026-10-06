@@ -1294,6 +1294,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::delete('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'destroy'])
         ->name('crm-events.destroy');
 
+    // Session-authenticated JSON for the in-app communication timeline
+    // (same reason as crm-events.feed: /api/v1 does not see the web session).
+    Route::get('deals/{dealId}/communication-activities', [\App\Http\Controllers\CommunicationActivityController::class, 'getDealActivities'])
+        ->name('deals.communication-activities');
+    Route::post('communication-activities', [\App\Http\Controllers\CommunicationActivityController::class, 'store'])
+        ->name('communication-activities.store');
+
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');
@@ -1421,6 +1428,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
+    Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
 

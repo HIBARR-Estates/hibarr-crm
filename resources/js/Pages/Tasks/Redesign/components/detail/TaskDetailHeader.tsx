@@ -1,5 +1,5 @@
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import { formatDateWithTime } from "@/Components/Redesign/adapters/dateFormat";
+import { formatTaskDateWithCompanyTime } from "@/lib/taskDateTime";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { TASK_ICON } from "../../config/taskDesignTokens";
@@ -110,7 +110,7 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
                 />
                 {task.due_date ? (
                     <>
-                        {formatDateWithTime(task.due_date)}
+                        {formatTaskDateWithCompanyTime(task.due_date)}
                         {" · "}
                         {td(vm.dueSub, { source: "en" })}
                     </>

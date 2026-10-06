@@ -1,0 +1,160 @@
+{
+  "title": "CRM Reliability",
+  "description": "SLI/SLO dashboard for hibarr-crm — latency, availability, error rate, RPS. See docs/observability/slo.md for the SLO targets and burn-rate alert queries this dashboard's thresholds are drawn from.",
+  "tags": ["hibarr-crm", "slo", "reliability"],
+  "layout": [
+    { "i": "rps", "x": 0, "y": 0, "w": 6, "h": 3 },
+    { "i": "availability", "x": 6, "y": 0, "w": 6, "h": 3 },
+    { "i": "error-rate", "x": 0, "y": 3, "w": 6, "h": 3 },
+    { "i": "latency-all", "x": 6, "y": 3, "w": 6, "h": 3 },
+    { "i": "latency-critical", "x": 0, "y": 6, "w": 12, "h": 3 }
+  ],
+  "widgets": [
+    {
+      "id": "rps",
+      "title": "Requests per second",
+      "description": "Total request throughput, service.name=hibarr-crm.",
+      "panelTypes": "graph",
+      "yAxisUnit": "reqps",
+      "query": {
+        "queryType": "promql",
+        "promql": [
+          {
+            "name": "A",
+            "query": "sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m]))",
+            "legend": "RPS",
+            "disabled": false
+          }
+        ],
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "clickhouse_sql": []
+      }
+    },
+    {
+      "id": "availability",
+      "title": "Availability (non-5xx %)",
+      "description": "SLO target: 99.9% over a rolling 30-day window. See docs/observability/slo.md §2.",
+      "panelTypes": "graph",
+      "yAxisUnit": "percent",
+      "thresholds": [
+        { "thresholdValue": 99.9, "thresholdColor": "Red", "thresholdLabel": "SLO: 99.9%" }
+      ],
+      "query": {
+        "queryType": "promql",
+        "promql": [
+          {
+            "name": "A",
+            "query": "sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", http_status_code!~\"5..\", deployment_environment_name=\"$environment\"}[5m])) / sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) * 100",
+            "legend": "Availability %",
+            "disabled": false
+          }
+        ],
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "clickhouse_sql": []
+      }
+    },
+    {
+      "id": "error-rate",
+      "title": "Error rate (4xx / 5xx)",
+      "description": "SLO target: 5xx rate < 0.1% per day. See docs/observability/slo.md §2.",
+      "panelTypes": "graph",
+      "yAxisUnit": "percent",
+      "thresholds": [
+        { "thresholdValue": 0.1, "thresholdColor": "Red", "thresholdLabel": "SLO: 5xx < 0.1%" }
+      ],
+      "query": {
+        "queryType": "promql",
+        "promql": [
+          {
+            "name": "A",
+            "query": "sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", http_status_code=~\"5..\", deployment_environment_name=\"$environment\"}[5m])) / sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) * 100",
+            "legend": "5xx %",
+            "disabled": false
+          },
+          {
+            "name": "B",
+            "query": "sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", http_status_code=~\"4..\", deployment_environment_name=\"$environment\"}[5m])) / sum(rate(signoz_calls_total{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) * 100",
+            "legend": "4xx %",
+            "disabled": false
+          }
+        ],
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "clickhouse_sql": []
+      }
+    },
+    {
+      "id": "latency-all",
+      "title": "Latency percentiles (all routes)",
+      "description": "p50 / p95 / p99 response time across all hibarr-crm endpoints.",
+      "panelTypes": "graph",
+      "yAxisUnit": "ms",
+      "query": {
+        "queryType": "promql",
+        "promql": [
+          {
+            "name": "A",
+            "query": "histogram_quantile(0.99, sum(rate(signoz_latency_bucket{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) by (le))",
+            "legend": "p99",
+            "disabled": false
+          },
+          {
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum(rate(signoz_latency_bucket{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) by (le))",
+            "legend": "p95",
+            "disabled": false
+          },
+          {
+            "name": "C",
+            "query": "histogram_quantile(0.50, sum(rate(signoz_latency_bucket{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\"}[5m])) by (le))",
+            "legend": "p50",
+            "disabled": false
+          }
+        ],
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "clickhouse_sql": []
+      }
+    },
+    {
+      "id": "latency-critical",
+      "title": "p99 latency — critical routes (deals, leads, auth)",
+      "description": "SLO target: p99 < 200ms. Regex below assumes route patterns 'deals', 'leads', 'login' — VERIFY against real `operation` values in the Traces Explorer before relying on this panel (see docs/observability/slo.md §3).",
+      "panelTypes": "graph",
+      "yAxisUnit": "ms",
+      "thresholds": [
+        { "thresholdValue": 200, "thresholdColor": "Red", "thresholdLabel": "SLO: p99 < 200ms" }
+      ],
+      "query": {
+        "queryType": "promql",
+        "promql": [
+          {
+            "name": "A",
+            "query": "histogram_quantile(0.99, sum(rate(signoz_latency_bucket{service_name=\"hibarr-crm\", deployment_environment_name=\"$environment\", operation=~\"^(GET|POST|PUT|PATCH|DELETE) (deals|leads|login).*\"}[5m])) by (le))",
+            "legend": "p99 (critical routes)",
+            "disabled": false
+          }
+        ],
+        "builder": { "queryData": [], "queryFormulas": [] },
+        "clickhouse_sql": []
+      }
+    }
+  ],
+  "variables": {
+    "environment": {
+      "name": "environment",
+      "description": "deployment.environment.name resource attribute",
+      "type": "CUSTOM",
+      "customValue": "production,staging",
+      "multiSelect": false,
+      "showALLOption": false,
+      "selectedValue": "production"
+    },
+    "hostname": {
+      "name": "hostname",
+      "description": "host.name resource attribute — leave blank for all hosts",
+      "type": "TEXT",
+      "textboxValue": "",
+      "multiSelect": false,
+      "showALLOption": false
+    }
+  }
+}

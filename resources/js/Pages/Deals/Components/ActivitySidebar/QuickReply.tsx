@@ -43,7 +43,7 @@ export default function QuickReply({ activity, deal, onCancel }: Props) {
         ConversationResponse,
         ApiResponse<ConversationResponse>
     >(
-        route("api.communication-activities.store.internal"),
+        route("communication-activities.store"),
         "POST",
         (response) => {
             if (response?.status === "success") {

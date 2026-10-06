@@ -155,7 +155,7 @@ export function OverviewDeferredSkeleton() {
                     <div className="mb-2.5 flex items-center justify-between gap-2">
                         <span className="dr-label">{title}</span>
                     </div>
-                    <div className="flex-1 space-y-2">
+                    <div className="dr-ov-col-body space-y-2">
                         {Array.from({ length: 3 }).map((_, index) => (
                             <div
                                 key={index}

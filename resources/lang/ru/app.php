@@ -609,4 +609,16 @@ return [
     'recommendations' => [
         'cache_notice' => 'Результаты кэшируются для повышения производительности',
     ],
+
+    'access_inspector' => [
+        'title' => 'Доступ',
+        'flags' => 'Флаги',
+        'permissions' => 'Права',
+        'search_flags' => 'Поиск флагов',
+        'search_permissions' => 'Поиск прав',
+        'empty' => 'Нет совпадений',
+        'on' => 'Вкл',
+        'off' => 'Выкл',
+        'read_only' => 'Только чтение',
+    ],
 ];

@@ -80,6 +80,9 @@ abstract class TaskLifecycleTestCase extends TestCase
             $table->string('name');
             $table->string('email')->nullable();
             $table->string('image')->nullable();
+            // UserTimezone::resolve() reads this, so the flag-off / flag-on
+            // split in reschedule() is only observable if the column exists.
+            $table->string('timezone')->nullable();
             $table->boolean('email_notifications')->default(true);
             $table->string('status')->default('active');
             $table->timestamps();

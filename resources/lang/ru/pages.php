@@ -212,6 +212,23 @@ return [
             'partner' => 'Партнёр',
             'coming_soon' => 'Скоро',
             'switcher_aria' => 'Панель',
+            'period_aria' => 'Период',
+            'subtext' => [
+                'manager' => 'Как обстоят дела у каждого активного агента.',
+                'team' => 'Комиссии, сделки и лиды всех ниже вас — без вашей собственной активности.',
+                'leadership' => 'Динамика по всей компании во всех командах.',
+                'partner' => 'Только ваши рекомендации — без сумм сделок.',
+            ],
+            'period' => [
+                'past_week' => 'Прошлая неделя',
+                'past_month' => 'Прошлый месяц',
+                'past_quarter' => 'Прошлый квартал',
+                'past_year' => 'Прошлый год',
+                'ytd' => 'С начала года',
+                'all' => 'За всё время',
+                'last_days' => 'Последние {{days}} дн.',
+                'custom' => '{{from}} — {{to}}',
+            ],
         ],
         'personal' => [
             'title' => 'Панель',
@@ -367,6 +384,7 @@ return [
             'qualification' => 'Квалификация',
             'tasks' => 'Задачи',
             'events' => 'События',
+            'meetings' => 'Встречи',
         ],
         'contacts_table' => [
             'columns' => [
@@ -459,7 +477,7 @@ return [
         ],
         'marketing' => [
             'empty' => 'Нет маркетинговой информации для этого лида',
-            'utm_section' => 'UTM & отслеживание кампании',
+            'utm_section' => 'UTM первого касания & отслеживание кампании',
             'social_section' => 'Отслеживание социальных сетей',
             'engagement_section' => 'Вовлеченность и оценка',
             'utm_source' => 'UTM Source',
@@ -468,6 +486,15 @@ return [
             'utm_content' => 'UTM Content',
             'utm_term' => 'UTM Term',
             'utm_audience' => 'UTM Audience',
+            'touch_history' => 'История UTM-касаний',
+            'touch_history_empty' => 'Дополнительных UTM-касаний пока нет.',
+            'touch_first' => 'Первое касание',
+            'touch_latest' => 'Последнее',
+            'touch_origin' => 'Источник',
+            'touch_origin_api' => 'API',
+            'touch_origin_bitrix_import' => 'Импорт Bitrix',
+            'touch_origin_deal_import' => 'Импорт сделки',
+            'touch_origin_backfill' => 'Импортировано',
             'traffic_source_id' => 'Traffic Source ID',
             'facebook_click_id' => 'Facebook Click ID',
             'facebook_lead_id' => 'Facebook Lead ID',
@@ -637,6 +664,22 @@ return [
     'deals' => [
         'locked_message' => 'Эта сделка заблокирована. Редактирование и удаление отключены.',
         'value_locked_tooltip' => 'По этой сделке уже рассчитана комиссия, поэтому это больше нельзя изменить.',
+        'payment_request' => [
+            'invalidate_title' => 'Аннулировать запрос на оплату?',
+            'invalidate_message' => 'По этой сделке есть запрос на оплату, который клиент ещё не оплатил. Сохранение этого изменения аннулирует его — клиент больше не сможет оплатить по ссылке. После этого можно создать новый запрос.',
+            'invalidate_confirm' => 'Сохранить и аннулировать',
+            'cancel' => 'Отмена',
+            'currency' => 'Валюта',
+            'deal_value' => 'Сумма сделки',
+            'exchange_rate' => 'Курс обмена',
+            'amount_to_request' => 'Сумма к оплате',
+            'rate_loading' => 'Получение текущего курса…',
+            'rate_unavailable' => 'Текущий курс недоступен. Попробуйте ещё раз чуть позже.',
+            'conversion_hint' => 'Пересчитано из суммы сделки по сегодняшнему курсу. Клиент оплачивает эту сумму в {{currency}}.',
+            'no_deal_value' => 'У этой сделки пока нет суммы, поэтому запрашивать нечего.',
+            'history_title' => 'Предыдущие запросы',
+            'invalidated_on' => 'Аннулирован {{date}}',
+        ],
         'refresh_tooltip_disabled' => 'Сохраните или отмените изменения перед обновлением',
         'stage_jump_confirm_title' => 'Пропустить этапы воронки?',
         'stage_jump_confirm_message' => 'Вы перемещаете эту сделку на этап «{{stage}}», пропуская один или несколько промежуточных этапов. Продолжить?',
@@ -661,8 +704,9 @@ return [
             'header' => 'Детали',
             'notes' => 'Заметки',
             'tasks' => 'Задачи',
-            'meeting' => 'Встречи',
+            'meetings' => 'Встречи',
             'files' => 'Файлы',
+            'payments' => 'Платежи',
             'recommendations' => 'Рекомендации',
             'offers' => 'Предложения',
             'history' => 'История',
@@ -835,6 +879,7 @@ return [
         ],
 
         'common' => [
+            'back' => 'Назад',
             'cancel' => 'Отмена',
             'close' => 'Закрыть',
             'select' => 'Выбрать',
@@ -1422,6 +1467,10 @@ return [
     ],
 
     'properties' => [
+        'completeness' => [
+            'tooltip' => 'Заполнено :filled из :total полей объявления',
+            'aria' => 'Заполнено :filled из :total полей объявления',
+        ],
         'table' => [
             'columns' => [
                 'title' => 'Название',
@@ -1891,6 +1940,33 @@ return [
                 ],
             ],
         ],
+    ],
+
+    'payment_requests' => [
+        'subtitle' => 'Запросов на оплату: {{count}}',
+        'refresh' => 'Обновить',
+        'filter_label' => 'Фильтр запросов на оплату',
+        'col_deal' => 'Сделка',
+        'col_deal_value' => 'Сумма сделки',
+        'col_requested' => 'Запрошено',
+        'col_status' => 'Статус',
+        'col_method' => 'Способ',
+        'col_created' => 'Создан',
+        'method_bank_transfer' => 'Банковский перевод',
+        'method_crypto' => 'Криптовалюта',
+        'method_client_choice' => 'На выбор клиента',
+        'action_proof' => 'Подтверждение',
+        'action_checkout' => 'Оплата',
+        'action_confirm' => 'Подтвердить перевод',
+        'empty_title' => 'Нет запросов на оплату',
+        'empty_description' => 'Запросы на оплату по сделкам появятся здесь после создания.',
+        'empty_filtered' => 'Нет запросов на оплату с этим статусом.',
+        'confirm_title' => 'Подтвердить банковский перевод?',
+        'confirm_message' => 'Подтвердите, что документ о переводе клиента проверен и одобрен. Сделка будет отмечена как выигранная.',
+        'confirm_yes' => 'Да, подтвердить',
+        'cancel' => 'Отмена',
+        'confirmed_toast' => 'Банковский перевод подтверждён.',
+        'confirm_failed' => 'Не удалось подтвердить перевод.',
     ],
 
 ];

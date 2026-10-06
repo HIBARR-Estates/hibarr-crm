@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import ProductTour, {
     ProductTourHandle,
@@ -27,6 +28,7 @@ import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
 import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
+import WorkspacePaymentsTab from "./components/workspace/WorkspacePaymentsTab";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -132,6 +134,8 @@ function DealViewRedesignInner(
         dealFollowUpsLoading,
         files,
         filesLoading,
+        paymentRequests,
+        paymentRequestLoading,
     } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
     const { t, locale } = useTranslation();
@@ -141,6 +145,7 @@ function DealViewRedesignInner(
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
+    const isAdminRole = useIsAdminRole();
     const fields = props.fields ?? [];
     const customFieldCategories = props.customFieldCategories ?? [];
     // NOT pipeline-filtered — this is the raw company-wide category list, kept
@@ -264,7 +269,10 @@ function DealViewRedesignInner(
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
     const canCreatePaymentRequest = dealPermissions.canEdit;
-    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
+    // Mirrors DealPaymentService::canConfirmTransfer — the admin role passes
+    // even without an edit_payments row.
+    const canConfirmPaymentTransfer =
+        isAdminRole || permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -291,6 +299,9 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
+        if (props.showOnlinePayment) {
+            tabs.push("payments");
+        }
         // Offers only appear when a property on this deal has an applied offer.
         if (showOffersTab) {
             tabs.push("offers");
@@ -308,7 +319,13 @@ function DealViewRedesignInner(
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages, showExposes, showOffersTab]);
+    }, [
+        permissions,
+        pipelineHasPackages,
+        showExposes,
+        showOffersTab,
+        props.showOnlinePayment,
+    ]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -394,6 +411,11 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
+            payments: props.showOnlinePayment
+                ? paymentRequestLoading
+                    ? undefined
+                    : paymentRequests.length
+                : undefined,
             offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes:
                 exposesCount?.dealId === deal.id
@@ -417,6 +439,9 @@ function DealViewRedesignInner(
             offerApplicationsCount,
             exposesCount,
             recommendationsCount,
+            props.showOnlinePayment,
+            paymentRequestLoading,
+            paymentRequests.length,
         ],
     );
 
@@ -727,6 +752,22 @@ function DealViewRedesignInner(
                                                     visibilityMap={dealFileVisibilityMap}
                                                     leadFileFields={leadFileFields}
                                                     leadFileFieldsData={leadFileFieldsData}
+                                                />
+                                            ))}
+                                        {activeTab === "payments" &&
+                                            props.showOnlinePayment &&
+                                            (paymentRequestLoading &&
+                                            paymentRequests.length === 0 ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
+                                                <WorkspacePaymentsTab
+                                                    deal={deal}
+                                                    canCreatePaymentRequest={
+                                                        canCreatePaymentRequest
+                                                    }
+                                                    canConfirmPaymentTransfer={
+                                                        canConfirmPaymentTransfer
+                                                    }
                                                 />
                                             ))}
                                         {activeTab === "offers" &&

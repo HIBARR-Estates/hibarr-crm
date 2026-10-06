@@ -57,16 +57,33 @@ class OlDealPaymentProxyService
     }
 
     /**
+     * Cancels a still-pending payment request so its checkout link stops
+     * accepting payment. OL answers 409 once the client has already started
+     * paying (proof uploaded / crypto in flight) — that surfaces as an
+     * HttpException with the same status.
+     *
+     * @param  array<string, mixed>  $meta  reason / cancelled_by
+     * @return array<string, mixed>
+     */
+    public function cancel(string $paymentId, array $meta): array
+    {
+        $path = rtrim($this->dealPaymentRequestPath(), '/') . '/' . rawurlencode($paymentId) . '/cancel';
+        $response = $this->request('POST', $path, $meta);
+
+        return $this->decodeSuccessfulResponse($response, 'cancel deal payment request');
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function request(string $method, string $path, array $payload): Response
     {
         $baseUrl = (string) config('services.ol.base_url', '');
-        $apiKey = (string) config('services.ol.crm_webhook_api_key', '');
+        $apiKey = (string) config('services.ol.api_key', '');
         $timeout = (int) config('services.ol.timeout', 15);
 
         if ($baseUrl === '' || $apiKey === '') {
-            Log::error('OlDealPaymentProxyService: OL webhook config missing', [
+            Log::error('OlDealPaymentProxyService: OL config missing', [
                 'base_url_set' => $baseUrl !== '',
                 'api_key_set' => $apiKey !== '',
             ]);
@@ -110,11 +127,85 @@ class OlDealPaymentProxyService
 
             throw new HttpException(
                 $response->status() >= 400 && $response->status() < 600 ? $response->status() : 502,
-                $response->json('message') ?? 'Payment service request failed.'
+                $this->olErrorMessage($response)
             );
         }
 
         return $response;
+    }
+
+    /**
+     * OL error envelopes vary: ApiError uses `{ error: { message } }` with no
+     * top-level `message`; Joi validation uses `{ message, data: { error: [...] } }`.
+     * Always return a string so HttpException never receives an array.
+     */
+    private function olErrorMessage(Response $response): string
+    {
+        $fallback = 'Payment service request failed.';
+        $json = $response->json();
+        if (!is_array($json)) {
+            return $fallback;
+        }
+
+        $topMessage = $json['message'] ?? null;
+        if (is_string($topMessage) && trim($topMessage) !== '') {
+            $joiDetails = $this->joinOlErrorList($json['data']['error'] ?? null);
+            // Prefer field-level Joi details when present; otherwise the top-level string.
+            if ($joiDetails !== null) {
+                return $joiDetails;
+            }
+
+            return trim($topMessage);
+        }
+
+        $errorMessage = data_get($json, 'error.message');
+        if (is_string($errorMessage) && trim($errorMessage) !== '') {
+            return trim($errorMessage);
+        }
+
+        $joiDetails = $this->joinOlErrorList($json['data']['error'] ?? null);
+        if ($joiDetails !== null) {
+            return $joiDetails;
+        }
+
+        if (is_array($topMessage)) {
+            $joined = $this->joinOlErrorList($topMessage);
+            if ($joined !== null) {
+                return $joined;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param  mixed  $list
+     */
+    private function joinOlErrorList($list): ?string
+    {
+        if (!is_array($list) || $list === []) {
+            return null;
+        }
+
+        $parts = [];
+        foreach ($list as $entry) {
+            if (is_string($entry) && trim($entry) !== '') {
+                $parts[] = trim($entry);
+                continue;
+            }
+            if (is_array($entry) && isset($entry['message']) && is_string($entry['message'])) {
+                $trimmed = trim($entry['message']);
+                if ($trimmed !== '') {
+                    $parts[] = $trimmed;
+                }
+            }
+        }
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode(' ', $parts);
     }
 
     /**

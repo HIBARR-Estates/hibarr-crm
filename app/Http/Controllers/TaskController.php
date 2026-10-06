@@ -41,6 +41,8 @@ use App\Services\TaskFilterCountsService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
 use App\Support\TaskPresenter;
+use App\Support\TaskWallClock;
+use App\Support\UserTimezone;
 use App\Traits\ProjectProgress;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -199,17 +201,14 @@ class TaskController extends AccountBaseController
 
         $dueRange = $this->taskFilterDateRange('due_date_range', 'due_start_date', 'due_end_date');
         if ($dueRange !== null) {
-            $tasksQuery->whereBetween('due_date', $dueRange);
+            $tasksQuery->whereBetween('due_date', TaskWallClock::dayBounds($dueRange));
         } elseif (request('due_date_range') === 'none') {
             $tasksQuery->whereNull('due_date');
         }
 
         $createdRange = $this->taskFilterDateRange('created_date_range', 'created_start_date', 'created_end_date');
         if ($createdRange !== null) {
-            $tasksQuery->whereBetween('created_at', [
-                $createdRange[0].' 00:00:00',
-                $createdRange[1].' 23:59:59',
-            ]);
+            $tasksQuery->whereBetween('created_at', TaskWallClock::dayBounds($createdRange));
         }
 
         if ($applyQuickFilter && \App\Support\FeatureFlags::enabled('crm.tasks-workspace-redesign')) {
@@ -332,13 +331,19 @@ class TaskController extends AccountBaseController
                     return ($task->boardColumn->slug ?? '') === 'done';
                 })->count(),
                 'overdue' => $kanbanTasks->filter(function ($task) {
+                    // Instants, not wall-clock digits. `due_date` is a UTC
+                    // instant, so comparing it against now() is the same answer
+                    // as the wall-clock string compare everywhere except the
+                    // repeated hour a DST fall-back produces, where one local
+                    // time stands for two instants and the digits cannot tell
+                    // them apart. Same basis as the redesign counts, which go
+                    // through TaskWallClock::utcNowDateTimeString() in SQL.
                     return $task->due_date
-                        && $task->due_date->isPast()
+                        && $task->due_date->lt(now())
                         && ($task->boardColumn->slug ?? '') !== 'done';
                 })->count(),
                 'dueToday' => $kanbanTasks->filter(function ($task) {
-                    return $task->due_date
-                        && $task->due_date->isToday();
+                    return TaskWallClock::isDueOnViewerToday($task->due_date);
                 })->count(),
             ];
         }
@@ -393,7 +398,7 @@ class TaskController extends AccountBaseController
             // and comparing a wall-clock due date against the browser's real tz-aware
             // `new Date()` put tasks in the wrong bucket for anyone whose browser
             // timezone doesn't match the one due dates are already expressed in.
-            'now' => Task::wallClockString(now()),
+            'now' => TaskWallClock::wallClockNowString(),
 
             // Modal/filter lookup data can arrive after the task list shell.
             'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
@@ -1871,7 +1876,18 @@ class TaskController extends AccountBaseController
             return Reply::error(__('messages.permissionDenied'));
         }
 
-        $task->due_date = Carbon::parse($request->due_date.' '.($request->due_time ?: '17:00'));
+        // The date posted here was read off a row rendered by
+        // Task::wallClockString, so it has to be interpreted in the same
+        // basis it was displayed in: the user zone when crm.user-timezone is
+        // on, the company zone when it is off. forWrite() would always use the
+        // user's own zone and store an instant shifted by the difference.
+        $task->due_date = UserTimezone::interpretWallClock(
+            user(),
+            company(),
+            $request->due_date.' '.($request->due_time ?: '17:00'),
+            'Y-m-d H:i',
+            UserTimezone::forViewer(user(), company()),
+        );
         $task->save();
 
         // A moved due date with unmoved reminders fires at the old time.
@@ -2572,11 +2588,13 @@ class TaskController extends AccountBaseController
                 $query->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
                 break;
             case 'today':
-                $query->whereDate('due_date', now()->toDateString());
+                // `due_date` is a UTC instant, so "today" has to be bounded in
+                // UTC — a viewer-day filter is not a single DATE() match.
+                $query->whereBetween('due_date', TaskWallClock::utcTodayBounds());
                 break;
             case 'overdue':
                 $query->whereNotNull('due_date')
-                    ->where('due_date', '<', now())
+                    ->where('due_date', '<', TaskWallClock::utcNowDateTimeString())
                     ->whereHas('boardColumn', fn ($q) => $q->where('slug', '!=', 'done'));
                 break;
             case 'mentioned':

@@ -8,7 +8,13 @@ class CrmEventTimelineWebRoutesTest extends TestCase
 {
     public function test_timeline_json_routes_use_web_auth_not_api_token(): void
     {
-        foreach (['crm-events.feed', 'crm-events.store', 'crm-events.types'] as $name) {
+        foreach ([
+            'crm-events.feed',
+            'crm-events.store',
+            'crm-events.types',
+            'deals.communication-activities',
+            'communication-activities.store',
+        ] as $name) {
             $route = app('router')->getRoutes()->getByName($name);
 
             $this->assertNotNull($route, $name.' is not registered');

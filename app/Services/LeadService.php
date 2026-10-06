@@ -12,10 +12,12 @@ use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
 use App\Support\LeadSearchQuery;
+use App\Support\TaskWallClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class LeadService
@@ -153,62 +155,6 @@ class LeadService
      *
      * @return array{0: string, 1: array<int, mixed>} [sql, bindings]
      */
-    /**
-     * Company's current UTC offset in minutes (east positive), matching
-     * Carbon's own getOffset() sign convention.
-     *
-     * ponytail: derived from *today's* DST state, not the meeting's own
-     * date — wrong by an hour for a meeting on the far side of a DST
-     * boundary from today. Upgrade to MySQL CONVERT_TZ() if that turns out
-     * to matter; it needs the timezone tables loaded, which isn't
-     * guaranteed in every environment this runs in.
-     */
-    private function companyOffsetMinutes(): int
-    {
-        return (int) round(now()->setTimezone($this->companyTimezone())->getOffset() / 60);
-    }
-
-    private function companyTimezone(): string
-    {
-        // company() can return false (no session/user context — e.g. a
-        // console/queue run), not just null, so ?? alone isn't safe here.
-        $company = company();
-
-        return is_object($company) ? ($company->timezone ?: 'UTC') : 'UTC';
-    }
-
-    /**
-     * lead_follow_up.next_follow_up_date is stored as true UTC (see
-     * DealController::followUpStore's ->setTimezone('UTC')); tasks.due_date
-     * is stored as company wall-clock digits with no timezone label at all
-     * (see Task::wallClockString's docblock — TaskController@store never
-     * shifts it). Shifting the meeting column by the company's UTC offset
-     * makes it comparable, as a naive string, to the task column and to
-     * companyNow() below — matching the convention tasks already assume
-     * everywhere else in the app, rather than making meetings "correct" and
-     * tasks wrong.
-     */
-    private function shiftToCompanyWallClockSql(string $column, int $offsetMinutes): string
-    {
-        if ($offsetMinutes === 0) {
-            return $column;
-        }
-
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $sign = $offsetMinutes >= 0 ? '+' : '-';
-
-            return "datetime({$column}, '{$sign}".abs($offsetMinutes)." minutes')";
-        }
-
-        return "DATE_ADD({$column}, INTERVAL {$offsetMinutes} MINUTE)";
-    }
-
-    /** "Now", rendered as the same naive company-wall-clock basis as tasks.due_date. */
-    private function companyNow(): \Illuminate\Support\Carbon
-    {
-        return now()->setTimezone($this->companyTimezone());
-    }
-
     private function nextActionAtSql(): array
     {
         // ponytail: sqlite has no LEAST (its MIN/2 is the equivalent), and both
@@ -216,12 +162,7 @@ class LeadService
         $least = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
         $bindings = [];
 
-        $meetingColumn = $this->shiftToCompanyWallClockSql(
-            'f.next_follow_up_date',
-            $this->companyOffsetMinutes(),
-        );
-
-        $meeting = "(SELECT MIN({$meetingColumn}) FROM lead_follow_up f
+        $meeting = "(SELECT MIN(f.next_follow_up_date) FROM lead_follow_up f
             WHERE f.lead_id = leads.id AND f.status = 'scheduled'
               AND f.next_follow_up_date IS NOT NULL";
 
@@ -234,6 +175,11 @@ class LeadService
 
         $meeting .= ')';
 
+        // Both columns hold true UTC instants (tasks.due_date via
+        // UserTimezone::interpretWallClock, lead_follow_up.next_follow_up_date
+        // via DealController::followUpStore's ->setTimezone('UTC')), so the
+        // comparison below needs no shifting at all — LEAST() on two UTC
+        // instants is the sooner action, unambiguously.
         $task = '(SELECT MIN(t.due_date) FROM taskables tb
             JOIN tasks t ON t.id = tb.task_id
             WHERE tb.taskable_id = leads.id AND tb.taskable_type = ?
@@ -252,7 +198,6 @@ class LeadService
         return [$sql, $bindings];
     }
 
-    /** Urgency bucket filter — same boundaries the table cell colours by. */
     /** Whether `first_contacted_at` has been stamped yet. */
     private function applyContactStatusFilter(Builder $query, mixed $status): void
     {
@@ -263,18 +208,48 @@ class LeadService
         };
     }
 
+    /**
+     * A date-only bound is a closed calendar day. Datetimes from the dashboard
+     * already carry a time and are left alone.
+     */
+    private function dateBound(mixed $value, string $time): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1
+            ? "{$value} {$time}"
+            : $value;
+    }
+
     private function applyNextActionFilter(Builder $query, mixed $bucket): void
     {
         [$sql, $bindings] = $this->nextActionAtSql();
-        // Same naive company-wall-clock basis nextActionAtSql() now produces
-        // for both tasks and meetings — real UTC now() would be off by the
-        // company's offset against tasks.due_date, which carries no tz label.
-        $now = $this->companyNow();
+        // Both branches of that expression are raw UTC instants, so "now" has to
+        // be raw UTC too. Comparing against a company-local clock here would
+        // bucket a task up to a full day early for anyone whose company is not
+        // on UTC.
+        $now = TaskWallClock::utcNowDateTimeString();
 
         match ($bucket) {
             'overdue' => $query->whereRaw("{$sql} < ?", [...$bindings, $now]),
-            'today' => $query->whereRaw("{$sql} between ? and ?", [...$bindings, $now, $now->copy()->endOfDay()]),
-            'week' => $query->whereRaw("{$sql} between ? and ?", [...$bindings, $now, $now->copy()->addDays(7)]),
+            // Viewer-day bounds rather than a UTC calendar day: a viewer whose
+            // day starts before theirs must still see everything due before their
+            // own midnight as "today".
+            // Still "not yet overdue, and due before the viewer's midnight" — the same
+            // two boundaries nextActionUrgency() on the frontend applies, so
+            // the filter and the coloured pill cannot disagree. The upper bound
+            // is the viewer's day end in UTC digits, which is a different
+            // instant per viewer; the lower bound stays "now" so an already
+            // overdue action stays in the overdue bucket rather than appearing
+            // in both.
+            'today' => $query->whereRaw(
+                "{$sql} between ? and ?",
+                [...$bindings, $now, TaskWallClock::utcTodayBounds()[1]]
+            ),
+            'week' => $query->whereRaw(
+                "{$sql} between ? and ?",
+                [...$bindings, $now, now()->utc()->addDays(7)->format('Y-m-d H:i:s')]
+            ),
             'none' => $query->whereRaw("{$sql} is null", $bindings),
             default => null,
         };
@@ -337,15 +312,11 @@ class LeadService
                     'id' => $meeting->id,
                     'title' => trim(strip_tags((string) $meeting->remark))
                         ?: ($meeting->meetingType?->name ?? 'Meeting'),
-                    // next_follow_up_date is stored as true UTC (unlike
-                    // tasks.due_date — see Task::wallClockString's docblock),
-                    // so it needs an explicit conversion before formatting as
-                    // a naive string. Without this the frontend, which treats
-                    // due_at as already-company-local, displayed raw UTC.
-                    'due_at' => $meeting->next_follow_up_date
-                        ?->copy()
-                        ->setTimezone($this->companyTimezone())
-                        ->format('Y-m-d H:i:s'),
+                    // Both branches are compared as instants in nextActionAtSql() and only
+                    // converted here, at the edge, for display — so the list, the
+                    // sort and the urgency filters cannot drift apart on which
+                    // action they call "next".
+                    'due_at' => $this->wallClockString($meeting->next_follow_up_date),
                     'meta' => $meeting->meetingType?->name,
                 ];
             }
@@ -355,13 +326,40 @@ class LeadService
                     'type' => 'task',
                     'id' => $task->id,
                     'title' => $task->heading,
-                    'due_at' => $task->due_date?->format('Y-m-d H:i:s'),
+                    // tasks.due_date is a true UTC instant — every live write
+                    // runs through UserTimezone::interpretWallClock(), which is
+                    // not feature-flagged — so the raw column holds UTC digits
+                    // and must be converted before it leaves here. Formatting it
+                    // directly made the list disagree with the task modal: a
+                    // task due 17:00 was rendered as 14:00, three hours early.
+                    //
+                    // Same helper as the task modal, so the two surfaces cannot
+                    // drift, and it honours crm.user-timezone (a viewer's own
+                    // zone wins over the company default).
+                    'due_at' => $this->wallClockString($task->due_date),
                     'meta' => null,
                 ];
             }
 
             $lead->next_action = collect($candidates)->sortBy('due_at')->first();
         });
+    }
+
+    /**
+     * A UTC instant as viewer wall-clock digits, for `next_action.due_at`.
+     *
+     * One conversion for both candidate types so the two branches of the cell
+     * cannot land on different bases — which is what previously let the sort pick
+     * one "next action" and the cell render another's date.
+     */
+    private function wallClockString(?\DateTimeInterface $date): ?string
+    {
+        return $date ? Carbon::instance($date)->copy()->setTimezone($this->viewerTimezone())->format('Y-m-d H:i:s') : null;
+    }
+
+    private function viewerTimezone(): string
+    {
+        return TaskWallClock::timezone();
     }
 
     private ?int $doneTaskColumnId = null;
@@ -594,8 +592,8 @@ class LeadService
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
-                $request->get('start_date'),
-                $request->get('end_date'),
+                $this->dateBound($request->get('start_date'), '00:00:00'),
+                $this->dateBound($request->get('end_date'), '23:59:59'),
             ]);
         }
 

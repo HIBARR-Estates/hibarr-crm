@@ -14,7 +14,6 @@ use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Models\MlmCommission;
 use App\Models\PartnerFlag;
-use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Services\CrmEventService;
@@ -29,9 +28,9 @@ use Illuminate\Support\Facades\DB;
  * Query layer behind the v2 dashboards.
  *
  * Every method takes an explicit scope (a user id, or a set of lead_agent ids)
- * rather than reading auth() internally — the same query serves the agent view
- * scoped to one person and the manager view scoped to a team, which is what
- * keeps this from becoming four parallel dashboards.
+ * rather than reading auth() internally — the same query serves the personal
+ * view scoped to one person and the manager view scoped to every active agent,
+ * which is what keeps this from becoming four parallel dashboards.
  *
  * Company scoping is automatic via CompanyScope on Lead, Deal, Task and
  * LeadAgent. It is NOT on DealFollowUp or MlmCommission, so anything touching
@@ -87,22 +86,24 @@ class DashboardMetricsService
     private bool $trackingSinceResolved = false;
 
     /**
-     * Lead agent ids a manager's view covers: themselves plus their direct reports.
+     * Lead agent ids the manager view covers: every enabled agent whose user
+     * account is still active.
      *
-     * ponytail: one level deep via lead_agents.parent_agent_id. The agent_hierarchy
-     * closure table would give arbitrary depth but is currently empty (0 rows), so
-     * using it would silently return no team at all. Swap to it once it's backfilled.
+     * This is a company-wide coaching surface, not a downline. Hierarchy —
+     * parent_agent_id, skip-level reports, "people under you" — belongs on the
+     * team view. A manager of agents needs to see everyone who currently has
+     * a book, including people who don't report to them.
+     *
+     * "Active" matches how deal assignment already lists agents: lead_agents
+     * status is enabled, and the linked user is active. Disabled agent rows
+     * and deactivated employees stay out so the table is people a manager can
+     * still coach.
      */
-    public function teamAgentIds(int $userId): array
+    public function activeAgentIds(): array
     {
-        $agent = LeadAgent::where('user_id', $userId)->first();
-
-        if (! $agent) {
-            return [];
-        }
-
-        return LeadAgent::where('id', $agent->id)
-            ->orWhere('parent_agent_id', $agent->id)
+        return LeadAgent::query()
+            ->where('lead_agents.status', 'enabled')
+            ->whereHas('user', fn ($query) => $query->where('users.status', 'active'))
             ->pluck('id')
             ->all();
     }
@@ -891,9 +892,11 @@ class DashboardMetricsService
     {
         $ownerIds = $this->ownerIdsFor($agentIds);
 
+        $from = now()->subDays($days)->startOfDay();
+
         $cohort = Lead::query()
             ->whereIn('lead_owner', $ownerIds ?: [0])
-            ->where('leads.created_at', '>=', now()->subDays($days)->startOfDay())
+            ->where('leads.created_at', '>=', $from)
             ->toBase()
             ->get([
                 'leads.id',
@@ -940,7 +943,14 @@ class DashboardMetricsService
             ];
         }
 
-        return ['days' => $days, 'steps' => $rows];
+        return [
+            'days' => $days,
+            // The list-page date filter is a closed range; 23:59:59 keeps
+            // leads created today inside the same window the funnel counted.
+            'from' => $from->toDateString(),
+            'to' => now()->toDateString(),
+            'steps' => $rows,
+        ];
     }
 
     /**
@@ -1161,8 +1171,8 @@ class DashboardMetricsService
     /**
      * Per-agent detail with the one column a manager acts on: what's slipping.
      *
-     * The team median contact rate rides along so the UI can mark it on each
-     * bar — an agent at 75% means nothing until you know the team sits at 68%.
+     * The median contact rate rides along so the UI can mark it on each bar —
+     * an agent at 75% means nothing until you know the set sits at 68%.
      *
      * @return array{rows: array, median_contact_rate: float|null, sla_hours: int}
      */
@@ -1862,12 +1872,10 @@ class DashboardMetricsService
                     ->where('lead_follow_up.status', 'completed')));
     }
 
-    /** Human-readable form of the cutover, for panel notes. */
+    /** Explains how "held" is counted, without naming the cutover date. */
     public function meetingsHeldNote(): string
     {
-        return 'Marked held; before '
-            .Carbon::parse(self::STATUS_TRUSTED_FROM)->format('j M Y')
-            .', past and not cancelled';
+        return 'Marked held; older meetings count if past and not cancelled';
     }
 
     /**

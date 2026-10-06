@@ -6,6 +6,7 @@ import {
     computeAgeFieldsFromDateOfBirth,
     computeAgeRangeFromAge,
 } from "@/lib/leadAge";
+import { getFirstValidationMessage } from "@/lib/api/utils/common";
 import { formatMobileForDisplay } from "@/lib/utils";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
@@ -270,13 +271,14 @@ export default function useLeadInfoFieldUpdate(canEdit = true) {
             try {
                 await handleFieldsUpdate([{ fieldName, value, type }]);
             } catch (error: unknown) {
-                const detail =
-                    (error as { response?: { data?: { message?: string } } })
-                        ?.response?.data?.message ||
-                    (error as Error)?.message ||
-                    "Failed to save change";
+                const detail = getFirstValidationMessage(
+                    error,
+                    "Failed to save change",
+                );
                 message.error(detail);
-                throw error;
+                // Rethrow with the resolved text so EditableField's own toast
+                // doesn't fall back to axios' "Request failed with status code …".
+                throw new Error(detail);
             } finally {
                 setUpdatingField(null);
             }

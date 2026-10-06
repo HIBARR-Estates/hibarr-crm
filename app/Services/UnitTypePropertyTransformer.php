@@ -58,7 +58,7 @@ class UnitTypePropertyTransformer
         // Build price in the same format as Property.price (simple number)
         $price = $ut->starting_price ? (float) $ut->starting_price : 0;
 
-        return [
+        $payload = [
             // Synthetic ID: negative to never collide with real properties
             'id' => -$ut->id,
             'product_id' => 0,
@@ -148,5 +148,11 @@ class UnitTypePropertyTransformer
             'photos' => [],
             'assets' => [],
         ];
+
+        if (\App\Support\FeatureFlags::enabled(PropertyCompletenessScorer::FLAG)) {
+            $payload['completeness'] = app(PropertyCompletenessScorer::class)->scoreUnitType($ut);
+        }
+
+        return $payload;
     }
 }
