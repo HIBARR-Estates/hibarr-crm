@@ -506,8 +506,8 @@ Record search: participants, subject, body, filename. Review search: owner only.
 
 #### Verify
 
-- [ ] Unauthorized snippet absent
-- [ ] Review query cannot see another user’s unlinked body
+- [x] Unauthorized snippet absent
+- [x] Review query cannot see another user’s unlinked body
 
 ---
 

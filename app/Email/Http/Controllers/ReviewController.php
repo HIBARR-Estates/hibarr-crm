@@ -3,6 +3,7 @@
 namespace App\Email\Http\Controllers;
 
 use App\Email\Review\ReviewQueue;
+use App\Email\Search\MessageSearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,10 +23,14 @@ class ReviewController
     {
         $perPage = min(self::MAX_PER_PAGE, max(1, (int) $request->integer('per_page', self::PER_PAGE)));
 
-        $page = $this->queue->for($request->user())->orderByDesc('id')->paginate($perPage);
+        // Optional search within the user's own review.
+        $term = $request->validate(['q' => ['nullable', 'string', 'min:'.MessageSearch::MIN_LENGTH, 'max:200']])['q'] ?? null;
+
+        $query = $term !== null ? $this->queue->search($request->user(), $term) : $this->queue->for($request->user());
+        $page = $query->orderByDesc('id')->paginate($perPage);
 
         return response()->json([
-            'items' => $this->queue->present($request->user(), $page->items()),
+            'items' => $this->queue->present($request->user(), $page->items(), $term),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),

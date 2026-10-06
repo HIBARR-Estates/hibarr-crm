@@ -13,6 +13,7 @@ use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
 use App\Email\Support\Charset;
 use App\Email\Support\EmailHtmlSanitizer;
+use App\Email\Support\SafePreview;
 use App\Email\Threading\ConversationThreader;
 use Illuminate\Support\Facades\DB;
 
@@ -208,7 +209,8 @@ class MessageIngestor
             'reply_to_recipients' => $this->addresses($normalized->replyTo),
             'subject' => $normalized->subject,
             'sent_at' => $normalized->sentAt,
-            'text_body' => Charset::toUtf8($normalized->textBody),
+            // Mail sent as HTML only still needs text to search and preview: taken from the HTML, tags removed.
+            'text_body' => Charset::toUtf8($normalized->textBody) ?? SafePreview::from(null, $htmlRaw, PHP_INT_MAX),
             'html_raw' => $htmlRaw,
             'has_attachments' => $normalized->hasAttachments(),
             'is_partial' => $normalized->partial,

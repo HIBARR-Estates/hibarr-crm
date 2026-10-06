@@ -54,4 +54,6 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
 
         Route::get('records/{type}/{id}/history', [RecordHistoryController::class, 'index'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.history');
+        Route::get('records/{type}/{id}/search', [RecordHistoryController::class, 'search'])
+            ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.search');
     });

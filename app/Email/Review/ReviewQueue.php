@@ -7,6 +7,8 @@ use App\Email\Enums\ReviewStatus;
 use App\Email\Files\EmailFiles;
 use App\Email\Matching\LeadDirectory;
 use App\Email\Models\EmailMailboxCopy;
+use App\Email\Models\EmailMessage;
+use App\Email\Search\MessageSearch;
 use App\Email\Support\SafePreview;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,11 +24,26 @@ class ReviewQueue
         private readonly LeadDirectory $leads,
         private readonly EmailAccess $access,
         private readonly EmailFiles $files,
+        private readonly MessageSearch $search,
     ) {}
 
     public function for(User $owner): Builder
     {
         return $this->owned($owner)->where('review_status', ReviewStatus::Unlinked);
+    }
+
+    /**
+     * The owner's review, narrowed to a search term. The search runs inside
+     * their own copies, so it cannot reach anyone else's unlinked mail.
+     */
+    public function search(User $owner, string $term): Builder
+    {
+        $matching = $this->search->filter(
+            EmailMessage::withoutGlobalScopes()->where('company_id', $owner->company_id),
+            $term,
+        )->select('id');
+
+        return $this->for($owner)->whereIn('message_id', $matching);
     }
 
     /** Every copy in the user's own mailboxes, in review or not. */
@@ -43,7 +60,7 @@ class ReviewQueue
      * @param  iterable<EmailMailboxCopy>  $copies
      * @return list<array<string, mixed>>
      */
-    public function present(User $owner, iterable $copies): array
+    public function present(User $owner, iterable $copies, ?string $term = null): array
     {
         $counterparts = [];
 
@@ -70,7 +87,7 @@ class ReviewQueue
         foreach ($copies as $copy) {
             $message = $copy->message;
 
-            $items[] = [
+            $items[] = ($term !== null && $message !== null ? ['snippet' => $this->search->snippet($message, $term)] : []) + [
                 'id' => $copy->uuid,
                 'connection_id' => $copy->connection?->uuid,
                 'direction' => $copy->direction->value,

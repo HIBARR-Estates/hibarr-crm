@@ -8,6 +8,7 @@ use App\Email\Files\EmailFiles;
 use App\Email\Models\EmailConversation;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Search\MessageSearch;
 use App\Email\Support\SafePreview;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -24,6 +25,7 @@ class RecordHistory
     public function __construct(
         private readonly EmailAccess $access,
         private readonly EmailFiles $files,
+        private readonly MessageSearch $search,
     ) {}
 
     public function for(User $viewer, Model $record, int $perPage): LengthAwarePaginator
@@ -31,14 +33,21 @@ class RecordHistory
         return $this->access->messagesOnRecord($viewer, $record)->paginate($perPage);
     }
 
+    /** The same messages the viewer may read on the record, narrowed to a search term. */
+    public function search(User $viewer, Model $record, string $term, int $perPage): LengthAwarePaginator
+    {
+        return $this->search->filter($this->access->messagesOnRecord($viewer, $record), $term)->paginate($perPage);
+    }
+
     /**
      * Headers and a plain-text preview. The headers are the message's own, so
-     * every To/Cc participant shows — not just the viewer's mailbox.
+     * every To/Cc participant shows — not just the viewer's mailbox. With a
+     * search term, each event also carries the text around the match.
      *
      * @param  iterable<EmailMessage>  $messages
      * @return list<array<string, mixed>>
      */
-    public function present(User $viewer, iterable $messages): array
+    public function present(User $viewer, iterable $messages, ?string $term = null): array
     {
         $messages = collect($messages);
 
@@ -56,11 +65,11 @@ class RecordHistory
 
         $files = $this->files->summaries($messages->pluck('id')->all());
 
-        return $messages->map(function (EmailMessage $message) use ($copies, $conversations, $files) {
+        return $messages->map(function (EmailMessage $message) use ($copies, $conversations, $files, $term) {
             /** @var EmailMailboxCopy|null $copy */
             $copy = $copies->get($message->id);
 
-            return [
+            return ($term !== null ? ['snippet' => $this->search->snippet($message, $term)] : []) + [
                 'id' => $message->uuid,
                 'conversation_id' => $conversations->get($message->conversation_id),
                 'copy_id' => $copy?->uuid,
