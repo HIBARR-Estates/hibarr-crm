@@ -28,6 +28,8 @@ trait BuildsEmailSchema
         '2026_10_06_000005_create_email_conversations_table.php',
         '2026_10_06_000006_create_email_record_links_table.php',
         '2026_10_06_000007_create_email_link_audits_table.php',
+        '2026_10_06_000008_create_email_send_attempts_table.php',
+        '2026_10_06_000009_create_email_send_recipients_table.php',
     ];
 
     protected function buildEmailSchema(): void

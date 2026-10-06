@@ -221,8 +221,8 @@ OAuth, UI.
 
 #### Verify
 
-- [ ] Accept → `sent` not `delivered`
-- [ ] Second retry does not create a second attempt when reconciling unknown
+- [x] Accept → `sent` not `delivered`
+- [x] Second retry does not create a second attempt when reconciling unknown
 
 ---
 
