@@ -523,8 +523,8 @@ Record search: participants, subject, body, filename. Review search: owner only.
 
 #### Verify
 
-- [ ] Two users, one open: other still unread
-- [ ] Duplicate sync does not duplicate unread
+- [x] Two users, one open: other still unread
+- [x] Duplicate sync does not duplicate unread
 
 ---
 

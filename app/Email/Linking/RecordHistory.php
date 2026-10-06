@@ -8,6 +8,7 @@ use App\Email\Files\EmailFiles;
 use App\Email\Models\EmailConversation;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Reads\ReadState;
 use App\Email\Search\MessageSearch;
 use App\Email\Support\SafePreview;
 use App\Models\User;
@@ -26,6 +27,7 @@ class RecordHistory
         private readonly EmailAccess $access,
         private readonly EmailFiles $files,
         private readonly MessageSearch $search,
+        private readonly ReadState $reads,
     ) {}
 
     public function for(User $viewer, Model $record, int $perPage): LengthAwarePaginator
@@ -64,8 +66,9 @@ class RecordHistory
             ->pluck('uuid', 'id');
 
         $files = $this->files->summaries($messages->pluck('id')->all());
+        $unread = $this->reads->unreadAmong($viewer, $messages->pluck('id')->map(fn ($id) => (int) $id)->all());
 
-        return $messages->map(function (EmailMessage $message) use ($copies, $conversations, $files, $term) {
+        return $messages->map(function (EmailMessage $message) use ($copies, $conversations, $files, $term, $unread) {
             /** @var EmailMailboxCopy|null $copy */
             $copy = $copies->get($message->id);
 
@@ -73,6 +76,7 @@ class RecordHistory
                 'id' => $message->uuid,
                 'conversation_id' => $conversations->get($message->conversation_id),
                 'copy_id' => $copy?->uuid,
+                'unread' => in_array((int) $message->id, $unread, true),
                 'direction' => $copy?->direction->value,
                 'from' => $message->from_email !== null
                     ? ['address' => $message->from_email, 'name' => $message->from_name]

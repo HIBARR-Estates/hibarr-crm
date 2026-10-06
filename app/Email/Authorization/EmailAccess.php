@@ -136,6 +136,12 @@ class EmailAccess
             ->exists();
     }
 
+    /** Looks a message up by its CRM uuid. Finding it grants nothing; ask canViewMessage(). */
+    public function findMessage(string $uuid): ?EmailMessage
+    {
+        return EmailMessage::withoutGlobalScopes()->where('uuid', $uuid)->first();
+    }
+
     /** Looks a file up by its CRM uuid. Finding it grants nothing; ask canViewFile(). */
     public function findFile(string $uuid): ?EmailFile
     {

@@ -8,6 +8,7 @@ use App\Email\Files\EmailFiles;
 use App\Email\Matching\LeadDirectory;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Reads\ReadState;
 use App\Email\Search\MessageSearch;
 use App\Email\Support\SafePreview;
 use App\Models\User;
@@ -25,6 +26,7 @@ class ReviewQueue
         private readonly EmailAccess $access,
         private readonly EmailFiles $files,
         private readonly MessageSearch $search,
+        private readonly ReadState $reads,
     ) {}
 
     public function for(User $owner): Builder
@@ -81,7 +83,9 @@ class ReviewQueue
             $messageIds[] = (int) $copy->message_id;
         }
 
-        $files = $this->files->summaries(array_values(array_unique($messageIds)));
+        $messageIds = array_values(array_unique($messageIds));
+        $files = $this->files->summaries($messageIds);
+        $unread = $this->reads->unreadAmong($owner, $messageIds);
         $items = [];
 
         foreach ($copies as $copy) {
@@ -89,6 +93,8 @@ class ReviewQueue
 
             $items[] = ($term !== null && $message !== null ? ['snippet' => $this->search->snippet($message, $term)] : []) + [
                 'id' => $copy->uuid,
+                'message_uuid' => $message?->uuid,
+                'unread' => in_array((int) $copy->message_id, $unread, true),
                 'connection_id' => $copy->connection?->uuid,
                 'direction' => $copy->direction->value,
                 'folder' => $copy->folder,
