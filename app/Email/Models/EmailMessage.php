@@ -5,6 +5,7 @@ namespace App\Email\Models;
 use App\Models\BaseModel;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $uuid
  * @property int $company_id
+ * @property int|null $conversation_id
  * @property string|null $rfc_message_id
  * @property string|null $rfc_message_id_hash
  * @property string|null $in_reply_to
@@ -41,6 +43,7 @@ class EmailMessage extends BaseModel
 
     protected $fillable = [
         'company_id',
+        'conversation_id',
         'rfc_message_id',
         'rfc_message_id_hash',
         'in_reply_to',
@@ -88,6 +91,11 @@ class EmailMessage extends BaseModel
     public static function hashRfcMessageId(?string $rfcMessageId): ?string
     {
         return $rfcMessageId !== null ? hash('sha256', $rfcMessageId) : null;
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(EmailConversation::class, 'conversation_id')->withoutGlobalScopes();
     }
 
     public function copies(): HasMany

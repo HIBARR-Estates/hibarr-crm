@@ -203,7 +203,7 @@ OAuth, UI.
 
 #### Verify
 
-- [ ] Unlink leaves copies; audit row written
+- [x] Unlink leaves copies; audit row written
 
 ---
 

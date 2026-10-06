@@ -3,6 +3,8 @@
 namespace Tests\Concerns;
 
 use App\Models\Company;
+use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
@@ -23,6 +25,9 @@ trait BuildsEmailSchema
         '2026_10_06_000002_create_email_pilot_allowlist_table.php',
         '2026_10_06_000003_create_email_messages_table.php',
         '2026_10_06_000004_create_email_mailbox_copies_table.php',
+        '2026_10_06_000005_create_email_conversations_table.php',
+        '2026_10_06_000006_create_email_record_links_table.php',
+        '2026_10_06_000007_create_email_link_audits_table.php',
     ];
 
     protected function buildEmailSchema(): void
@@ -43,6 +48,22 @@ trait BuildsEmailSchema
             $table->unsignedInteger('company_id')->nullable();
             $table->string('name');
             $table->string('email')->nullable()->unique();
+            $table->timestamps();
+        });
+
+        Schema::create('leads', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('client_name')->nullable();
+            $table->string('client_email')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('deals', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('lead_id')->nullable();
+            $table->string('name')->nullable();
             $table->timestamps();
         });
 
@@ -79,5 +100,33 @@ trait BuildsEmailSchema
         $user->setRelation('company', $company);
 
         return $user;
+    }
+
+    /** A persisted lead, built without the observers that need the full schema. */
+    protected function makeEmailLead(Company $company, ?string $email = null): Lead
+    {
+        $attributes = [
+            'company_id' => $company->id,
+            'client_name' => 'Lead '.Str::random(6),
+            'client_email' => $email ?? Str::lower(Str::random(10)).'@example.test',
+        ];
+
+        $id = DB::table('leads')->insertGetId($attributes + ['created_at' => now(), 'updated_at' => now()]);
+
+        return (new Lead)->newFromBuilder(['id' => $id] + $attributes);
+    }
+
+    /** A persisted deal, built without the observers that need the full schema. */
+    protected function makeEmailDeal(Company $company, ?Lead $lead = null): Deal
+    {
+        $attributes = [
+            'company_id' => $company->id,
+            'lead_id' => $lead?->id,
+            'name' => 'Deal '.Str::random(6),
+        ];
+
+        $id = DB::table('deals')->insertGetId($attributes + ['created_at' => now(), 'updated_at' => now()]);
+
+        return (new Deal)->newFromBuilder(['id' => $id] + $attributes);
     }
 }
