@@ -1,6 +1,7 @@
 <?php
 
 use App\Email\Http\Controllers\ConnectionController;
+use App\Email\Http\Controllers\ReviewController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
 use Illuminate\Support\Facades\Route;
@@ -30,4 +31,8 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('connection')->name('connections.reconnect');
         Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
             ->whereUuid('connection')->name('connections.destroy');
+
+        Route::get('review', [ReviewController::class, 'index'])->name('review.index');
+        Route::get('review/{copy}', [ReviewController::class, 'show'])
+            ->whereUuid('copy')->name('review.show');
     });

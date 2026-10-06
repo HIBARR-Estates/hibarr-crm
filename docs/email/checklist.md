@@ -363,8 +363,8 @@ List/show unlinked copies for `auth` mailbox owner only. Access conflict: messag
 
 #### Verify
 
-- [ ] Other user IDOR 403/404
-- [ ] Owner sees sender, To/Cc, subject, time, safe preview
+- [x] Other user IDOR 403/404
+- [x] Owner sees sender, To/Cc, subject, time, safe preview
 
 ---
 
