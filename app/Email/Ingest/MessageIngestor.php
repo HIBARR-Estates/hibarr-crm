@@ -11,6 +11,8 @@ use App\Email\Matching\ContactMatcher;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Support\Charset;
+use App\Email\Support\EmailHtmlSanitizer;
 use App\Email\Threading\ConversationThreader;
 use Illuminate\Support\Facades\DB;
 
@@ -29,6 +31,7 @@ class MessageIngestor
         private readonly ConversationThreader $threader,
         private readonly ContactMatcher $matcher,
         private readonly EmailFiles $files,
+        private readonly EmailHtmlSanitizer $sanitizer,
     ) {}
 
     public function ingestNormalized(EmailConnection $connection, NormalizedMessage $normalized): EmailMailboxCopy
@@ -96,6 +99,7 @@ class MessageIngestor
     private function findOrCreateMessage(EmailConnection $connection, NormalizedMessage $normalized): EmailMessage
     {
         $attributes = $this->messageAttributes($normalized);
+        $attributes['html_safe'] = $this->sanitizer->clean($attributes['html_raw']);
 
         if ($normalized->rfcMessageId === null) {
             return EmailMessage::withoutGlobalScopes()->create(['company_id' => $connection->company_id] + $attributes);
@@ -145,6 +149,11 @@ class MessageIngestor
             }
         }
 
+        // The safe copy is only ever made from the raw HTML actually stored.
+        if ($message->isDirty('html_raw')) {
+            $message->html_safe = $this->sanitizer->clean($message->html_raw);
+        }
+
         $message->has_attachments = $message->has_attachments || $normalized->hasAttachments();
         $message->is_partial = $message->is_partial && $normalized->partial;
 
@@ -183,6 +192,9 @@ class MessageIngestor
      */
     private function messageAttributes(NormalizedMessage $normalized): array
     {
+        // Stored as UTF-8. The raw HTML is kept as received otherwise; only the safe copy is ever shown.
+        $htmlRaw = Charset::toUtf8($normalized->htmlRaw, Charset::declaredIn($normalized->htmlRaw));
+
         return [
             'rfc_message_id' => $normalized->rfcMessageId,
             'rfc_message_id_hash' => EmailMessage::hashRfcMessageId($normalized->rfcMessageId),
@@ -196,8 +208,8 @@ class MessageIngestor
             'reply_to_recipients' => $this->addresses($normalized->replyTo),
             'subject' => $normalized->subject,
             'sent_at' => $normalized->sentAt,
-            'text_body' => $normalized->textBody,
-            'html_raw' => $normalized->htmlRaw,
+            'text_body' => Charset::toUtf8($normalized->textBody),
+            'html_raw' => $htmlRaw,
             'has_attachments' => $normalized->hasAttachments(),
             'is_partial' => $normalized->partial,
         ];

@@ -103,7 +103,7 @@ class MessageIngestorTest extends TestCase
         $this->assertSame('2026-10-01 09:30:00', $message->sent_at->utc()->format('Y-m-d H:i:s'));
         $this->assertSame('See you Friday.', $message->text_body);
         $this->assertSame('<p onclick="x()">See you Friday.</p>', $message->html_raw);
-        $this->assertNull($message->html_safe);
+        $this->assertSame('<p>See you Friday.</p>', $message->html_safe);
         $this->assertTrue($message->has_attachments);
         $this->assertArrayNotHasKey('html_raw', $message->toArray());
     }

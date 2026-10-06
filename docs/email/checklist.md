@@ -489,8 +489,8 @@ Store raw + safe HTML + text. Strip/block remote resources by default. Charset: 
 
 #### Verify
 
-- [ ] Script/onerror stripped
-- [ ] Remote `img` not loaded in safe HTML
+- [x] Script/onerror stripped
+- [x] Remote `img` not loaded in safe HTML
 
 ---
 
