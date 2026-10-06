@@ -75,9 +75,9 @@ Routes, UI, Mailtrap, registering the flag in the remote flags service (ops; not
 
 #### Verify
 
-- [ ] `forInertia()` includes `crm.email`
-- [ ] Flag absent/false → helper false
-- [ ] Test override true → helper true
+- [x] `forInertia()` includes `crm.email`
+- [x] Flag absent/false → helper false
+- [x] Test override true → helper true
 
 ---
 
