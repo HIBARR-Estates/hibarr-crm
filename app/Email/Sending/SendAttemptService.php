@@ -31,7 +31,13 @@ use Throwable;
  */
 class SendAttemptService
 {
-    public function __construct(private readonly MailTransportFactory $transports) {}
+    /** A send still "sending" after this long is taken to have died mid-flight and may be retried. */
+    private const STALE_SENDING_SECONDS = 600;
+
+    public function __construct(
+        private readonly MailTransportFactory $transports,
+        private readonly DraftValidator $validator,
+    ) {}
 
     /**
      * @throws EmailUnavailableException before anything is stored or sent.
@@ -57,6 +63,11 @@ class SendAttemptService
             return $attempt;
         });
 
+        // An invalid draft is kept on the attempt and never reaches the provider.
+        if (($invalid = $this->validator->check($connection, $draft)) !== null) {
+            return $this->failValidation($attempt, $invalid);
+        }
+
         return $this->submit($attempt, $connection, [SendAttemptStatus::Sending]);
     }
 
@@ -68,18 +79,44 @@ class SendAttemptService
      */
     public function retry(EmailSendAttempt $attempt): EmailSendAttempt
     {
-        if (! $attempt->status->isRetryable()) {
+        if (! $attempt->status->isRetryable() && ! $this->isStale($attempt)) {
             return $attempt;
         }
 
         $connection = $attempt->connection;
         $this->guard($connection);
 
+        if (($invalid = $this->validator->check($connection, $attempt->draft())) !== null) {
+            return $attempt->status === SendAttemptStatus::Failed ? $this->failValidation($attempt, $invalid) : $attempt;
+        }
+
         return $this->submit($attempt, $connection, [
             SendAttemptStatus::Failed,
             SendAttemptStatus::Checking,
             SendAttemptStatus::WaitingQuota,
+            SendAttemptStatus::Sending,
         ]);
+    }
+
+    /** A worker that died mid-send leaves the attempt "sending" with no one working on it. */
+    private function isStale(EmailSendAttempt $attempt): bool
+    {
+        if ($attempt->status !== SendAttemptStatus::Sending) {
+            return false;
+        }
+
+        $since = $attempt->last_attempted_at ?? $attempt->created_at;
+
+        return $since === null || $since->lte(now()->subSeconds(self::STALE_SENDING_SECONDS));
+    }
+
+    private function failValidation(EmailSendAttempt $attempt, string $code): EmailSendAttempt
+    {
+        $attempt->status = SendAttemptStatus::Failed;
+        $attempt->error_code = $code;
+        $attempt->save();
+
+        return $attempt;
     }
 
     /**
@@ -95,8 +132,8 @@ class SendAttemptService
                 return null;
             }
 
-            // A fresh attempt is already "sending"; only one that has never been tried may be claimed in that state.
-            if ($locked->status === SendAttemptStatus::Sending && $locked->attempt_count > 0) {
+            // "Sending" may be claimed only when it has never been tried, or when the try died mid-flight.
+            if ($locked->status === SendAttemptStatus::Sending && $locked->attempt_count > 0 && ! $this->isStale($locked)) {
                 return null;
             }
 

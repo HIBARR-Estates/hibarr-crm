@@ -285,8 +285,8 @@ Folder policy beyond what sandbox returns; bounce.
 
 #### Verify
 
-- [ ] Fake reject retains draft
-- [ ] Accept does not set Delivered
+- [x] Fake reject retains draft
+- [x] Accept does not set Delivered
 - [ ] Optional manual: captured in sandbox
 
 ---

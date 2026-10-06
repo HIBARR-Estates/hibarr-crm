@@ -6,10 +6,8 @@ use App\Email\Adapters\Mailtrap\MailtrapAdapter;
 use App\Email\Adapters\Mailtrap\MailtrapClient;
 use App\Email\Contracts\MailTransport;
 use App\Email\Data\ConnectionContext;
-use App\Email\Data\Draft;
 use App\Email\Data\EmailAddress;
 use App\Email\Data\HealthState;
-use App\Email\Data\SendStatus;
 use App\Email\Exceptions\MailTransportException;
 use App\Email\Transport\MailTransportFactory;
 use Illuminate\Http\Client\ConnectionException;
@@ -169,18 +167,6 @@ class MailtrapAdapterTest extends TestCase
             $this->assertFalse($exception->retryable);
             $this->assertStringNotContainsString(self::TOKEN, $exception->getMessage().$exception->getTraceAsString());
         }
-    }
-
-    public function test_unbuilt_send_says_so_instead_of_pretending(): void
-    {
-        Http::fake();
-
-        $result = $this->adapter->send($this->connection(), new Draft(new EmailAddress('agent@agency.test'), ['lead@example.test']));
-
-        $this->assertSame(SendStatus::Rejected, $result->status);
-        $this->assertSame('not_implemented', $result->errorCode);
-
-        Http::assertNothingSent();
     }
 
     public function test_factory_resolves_mailtrap_outside_production_only(): void

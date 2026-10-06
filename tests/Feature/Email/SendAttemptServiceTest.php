@@ -46,7 +46,10 @@ class SendAttemptServiceTest extends TestCase
         $this->service = app(SendAttemptService::class);
         $this->fake = app(FakeMailAdapter::class);
         $this->agent = $this->makeEmailUser();
-        $this->connection = EmailConnection::factory()->forUser($this->agent)->create();
+        $this->connection = EmailConnection::factory()->forUser($this->agent)->create([
+            'identity_email' => 'anna@agency.test',
+            'from_email' => 'anna@agency.test',
+        ]);
 
         EmailPilotAllowlistEntry::factory()->forUser($this->agent)->create();
     }
@@ -295,6 +298,84 @@ class SendAttemptServiceTest extends TestCase
 
         $this->assertSame(0, EmailSendAttempt::query()->count());
         $this->assertSame(0, EmailSendRecipient::query()->count());
+        $this->assertSame(1, EmailSendAttempt::withoutGlobalScopes()->count());
+    }
+
+    public function test_missing_to_never_reaches_the_provider_and_the_draft_is_retained(): void
+    {
+        $draft = new Draft(
+            from: new EmailAddress('anna@agency.test'),
+            cc: ['partner@example.test'],
+            subject: 'Villa viewing',
+            textBody: 'Half-written',
+        );
+
+        $attempt = $this->service->send($this->connection, $draft, $this->agent)->fresh();
+
+        $this->assertSame(SendAttemptStatus::Failed, $attempt->status);
+        $this->assertSame('validation_missing_to', $attempt->error_code);
+        $this->assertSame(0, $attempt->attempt_count);
+        $this->assertNull($attempt->last_attempted_at);
+        $this->assertNull($attempt->sent_at);
+        $this->assertSame([], $this->fake->sendCalls($this->connection->uuid));
+
+        // The draft is still there, exactly as written.
+        $this->assertSame('Half-written', $attempt->draft()->textBody);
+        $this->assertSame('Villa viewing', $attempt->draft()->subject);
+        $this->assertSame('partner@example.test', $attempt->draft()->cc[0]->address);
+
+        // Retrying an unchanged invalid draft still does not call the provider.
+        $retried = $this->service->retry($attempt);
+
+        $this->assertSame(SendAttemptStatus::Failed, $retried->status);
+        $this->assertSame('validation_missing_to', $retried->error_code);
+        $this->assertSame([], $this->fake->sendCalls($this->connection->uuid));
+        $this->assertSame(1, EmailSendAttempt::withoutGlobalScopes()->count());
+    }
+
+    public function test_draft_from_another_address_or_with_no_content_is_refused_before_the_provider(): void
+    {
+        $spoofed = $this->service->send($this->connection, new Draft(
+            from: new EmailAddress('ceo@agency.test'),
+            to: ['lead@example.test'],
+            subject: 'Villa viewing',
+            textBody: 'Hello',
+        ));
+        $empty = $this->service->send($this->connection, new Draft(
+            from: new EmailAddress('anna@agency.test'),
+            to: ['lead@example.test'],
+            htmlBody: '<p> </p>',
+        ));
+
+        $this->assertSame(SendAttemptStatus::Failed, $spoofed->status);
+        $this->assertSame('validation_wrong_sender', $spoofed->error_code);
+        $this->assertSame(SendAttemptStatus::Failed, $empty->status);
+        $this->assertSame('validation_empty_message', $empty->error_code);
+        $this->assertSame([], $this->fake->sendCalls($this->connection->uuid));
+    }
+
+    public function test_a_send_that_died_mid_flight_can_be_retried_once_it_is_stale(): void
+    {
+        $attempt = $this->service->send($this->connection, $this->draft('<stuck@crm.test>'));
+
+        // Simulate a worker that claimed the attempt and died before recording an outcome.
+        $attempt->forceFill(['status' => SendAttemptStatus::Sending, 'sent_at' => null, 'last_attempted_at' => now()])->save();
+
+        $inFlight = $this->service->retry($attempt->fresh());
+
+        $this->assertSame(SendAttemptStatus::Sending, $inFlight->status);
+        $this->assertCount(1, $this->fake->sendCalls($this->connection->uuid));
+
+        $attempt->forceFill(['last_attempted_at' => now()->subMinutes(11)])->save();
+
+        $recovered = $this->service->retry($attempt->fresh());
+
+        $this->assertSame($attempt->id, $recovered->id);
+        $this->assertSame(SendAttemptStatus::Sent, $recovered->status);
+        $this->assertSame(2, $recovered->attempt_count);
+        $this->assertCount(2, $this->fake->sendCalls($this->connection->uuid));
+        // The provider had already taken it the first time: still exactly one message.
+        $this->assertCount(1, $this->fake->messages($this->connection->uuid, FakeMailAdapter::FOLDER_SENT));
         $this->assertSame(1, EmailSendAttempt::withoutGlobalScopes()->count());
     }
 

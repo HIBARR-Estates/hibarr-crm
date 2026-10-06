@@ -2,6 +2,7 @@
 
 namespace App\Email\Adapters\Mailtrap;
 
+use App\Email\Contracts\AttachmentStore;
 use App\Email\Contracts\MailTransport;
 use App\Email\Data\AttachmentContent;
 use App\Email\Data\AttachmentRef;
@@ -18,13 +19,17 @@ use App\Email\Exceptions\MailTransportException;
 use App\Email\Support\RfcHeaders;
 use DateTimeImmutable;
 use Illuminate\Http\Client\Response;
+use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
 use Throwable;
 
 /**
  * Mailtrap Email Sandbox, for dev and staging. Captured mail never reaches a
  * real recipient. One sandbox inbox stands in for one agent's mailbox.
  *
- * Sending is not implemented yet and says so rather than pretending.
+ * Reads through the Sandbox REST API; sends through the inbox's SMTP.
  */
 class MailtrapAdapter implements MailTransport
 {
@@ -38,6 +43,11 @@ class MailtrapAdapter implements MailTransport
 
     /** Safety stop when walking the (newest-first) message list back to the checkpoint. */
     private const MAX_LIST_PAGES = 50;
+
+    public function __construct(
+        private readonly MailtrapSmtpFactory $smtp,
+        private readonly AttachmentStore $attachments,
+    ) {}
 
     public function health(ConnectionContext $connection): ConnectionHealth
     {
@@ -63,9 +73,43 @@ class MailtrapAdapter implements MailTransport
         };
     }
 
+    /**
+     * Sends through the inbox's sandbox SMTP rather than the HTTP API, so the
+     * CRM's own Message-ID and reply headers go out exactly as written.
+     */
     public function send(ConnectionContext $connection, Draft $draft): SendResult
     {
-        return SendResult::rejected('not_implemented');
+        if (! $connection->hasCredential('smtp_username') || ! $connection->hasCredential('smtp_password')) {
+            return SendResult::rejected('missing_smtp_credentials');
+        }
+
+        if (! $draft->hasRecipients()) {
+            return SendResult::rejected('missing_recipient');
+        }
+
+        try {
+            $email = $this->compose($draft);
+        } catch (MailTransportException $exception) {
+            return SendResult::rejected($exception->errorCode);
+        } catch (Throwable) {
+            return SendResult::rejected('invalid_draft');
+        }
+
+        // Nothing has left the CRM up to here. From here on a failure may or
+        // may not mean Mailtrap took the message.
+        try {
+            $sent = $this->smtp->make(
+                (string) $connection->credential('smtp_username'),
+                (string) $connection->credential('smtp_password'),
+                (array) config('email.mailtrap', []),
+            )->send($email);
+        } catch (UnexpectedResponseException $exception) {
+            return $this->smtpRefusal($exception);
+        } catch (Throwable) {
+            return SendResult::unknown('transport_error');
+        }
+
+        return SendResult::accepted($this->queueId($sent));
     }
 
     /**
@@ -147,6 +191,83 @@ class MailtrapAdapter implements MailTransport
             isset($attachment['content_type']) ? (string) $attachment['content_type'] : null,
             $download->body(),
         );
+    }
+
+    /**
+     * @throws MailTransportException when an attachment cannot be read; the whole send is refused.
+     */
+    private function compose(Draft $draft): Email
+    {
+        $address = fn (EmailAddress $a): Address => new Address($a->address, (string) $a->name);
+
+        $email = (new Email)
+            ->from($address($draft->from))
+            ->to(...array_map($address, $draft->to))
+            ->cc(...array_map($address, $draft->cc))
+            ->subject($draft->subject);
+
+        if ($draft->replyTo !== null) {
+            $email->replyTo($address($draft->replyTo));
+        }
+
+        if ($draft->htmlBody !== null && $draft->htmlBody !== '') {
+            $email->html($draft->htmlBody);
+        }
+
+        if ($draft->textBody !== null || $email->getHtmlBody() === null) {
+            $email->text((string) $draft->textBody);
+        }
+
+        $headers = $email->getHeaders();
+
+        if ($draft->rfcMessageId !== null) {
+            $headers->addIdHeader('Message-ID', trim($draft->rfcMessageId, '<>'));
+        }
+
+        if ($draft->inReplyTo !== null) {
+            $headers->addTextHeader('In-Reply-To', $draft->inReplyTo);
+        }
+
+        if ($draft->references !== []) {
+            $headers->addTextHeader('References', implode(' ', $draft->references));
+        }
+
+        foreach ($draft->attachments as $attachment) {
+            $bytes = $this->attachments->read($attachment->storageKey);
+
+            if ($bytes === null) {
+                throw new MailTransportException('attachment_unavailable', retryable: false);
+            }
+
+            $email->attach($bytes, $attachment->filename, $attachment->mimeType);
+        }
+
+        return $email;
+    }
+
+    /** The server answered, so we know it did not take the message. */
+    private function smtpRefusal(UnexpectedResponseException $exception): SendResult
+    {
+        $code = $exception->getCode();
+
+        if (stripos($exception->getMessage(), 'too many') !== false || in_array($code, [421, 450, 451, 452], true)) {
+            return SendResult::throttled(null, 'rate_limited');
+        }
+
+        return SendResult::rejected(match (true) {
+            in_array($code, [530, 534, 535], true) => 'unauthorized',
+            default => 'rejected_by_provider',
+        });
+    }
+
+    /** The server's queue id from its final "250 … queued as <id>" reply, when it gave one. */
+    private function queueId(?SentMessage $sent): ?string
+    {
+        if ($sent !== null && preg_match('/queued as\s+([\w.\-]+)/i', $sent->getDebug(), $match) === 1) {
+            return substr($match[1], 0, 191);
+        }
+
+        return null;
     }
 
     /**
