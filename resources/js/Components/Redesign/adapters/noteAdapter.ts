@@ -41,6 +41,36 @@ function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
+/**
+ * Single source of truth for "does this note body count as non-empty?".
+ * Backs both the AddNoteModal save-button/dirty state and the create-note
+ * hooks' server-boundary check, so the two can never disagree about what
+ * counts as empty rich text. Changing that definition belongs here only.
+ */
+export function hasNoteBodyHtml(html: string): boolean {
+    return stripHtml(html).length > 0;
+}
+
+/**
+ * Store responses occasionally omit `details` or arrive before the notes index
+ * refetch; keep the HTML the user just submitted so list/detail renderers don't
+ * fall back to plain-text previews.
+ */
+export function normalizeNoteDetailsFromSave<T extends { details?: string; created_at?: string; updated_at?: string }>(
+    note: T,
+    submittedHtml: string,
+): T {
+    const submitted = submittedHtml.trim();
+    const fromApi = note.details?.trim() ?? "";
+    const now = new Date().toISOString();
+    return {
+        ...note,
+        details: fromApi || submitted,
+        created_at: note.created_at || now,
+        updated_at: note.updated_at || note.created_at || now,
+    };
+}
+
 /** dayjs().fromNow() alone drifts between "a day ago" and "2 days ago" with
  * no clear rule a reader can predict. Special-casing yesterday and falling
  * back to the shared absolute date past a week keeps the transitions

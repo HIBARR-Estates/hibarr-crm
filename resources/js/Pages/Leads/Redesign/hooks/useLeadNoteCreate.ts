@@ -6,6 +6,10 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadNote } from "@/Types/api/lead-note";
+import {
+    hasNoteBodyHtml,
+    normalizeNoteDetailsFromSave,
+} from "@/Components/Redesign/adapters/noteAdapter";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 export interface LeadNoteCreateInput {
@@ -60,8 +64,7 @@ export default function useLeadNoteCreate(leadId: number) {
 
     const createNote = useCallback(
         (input: LeadNoteCreateInput, onSuccess?: () => void) => {
-            const trimmed = input.text.trim();
-            if (!trimmed) {
+            if (!hasNoteBodyHtml(input.text)) {
                 setErrors(["Please enter note details"]);
                 return;
             }
@@ -72,7 +75,7 @@ export default function useLeadNoteCreate(leadId: number) {
                     // Left blank when the user leaves the title field empty —
                     // same as deal notes; list UI falls back to "Untitled note".
                     title: input.title?.trim() || undefined,
-                    details: `<p>${trimmed}</p>`,
+                    details: input.text,
                     lead_id: leadId,
                 },
                 {
@@ -83,8 +86,11 @@ export default function useLeadNoteCreate(leadId: number) {
                                 t("pages.deals.workspace.notes.messages.saved"),
                             );
                             if (response.data) {
-                                const note = normalizeCreatedNote(
-                                    response.data as LeadNote,
+                                const note = normalizeNoteDetailsFromSave(
+                                    normalizeCreatedNote(
+                                        response.data as LeadNote,
+                                    ),
+                                    input.text,
                                 );
                                 setNotes((prev) => [note, ...prev]);
                             }

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Helper\UserService;
+use App\Support\UserTimezone;
 use DateTimeInterface;
 
 /**
@@ -174,13 +175,66 @@ class Task extends BaseModel
     const CUSTOM_FIELD_MODEL = 'App\Models\Task';
 
     /**
-     * Task start/due/completed are wall-clock values (company date+time parsed
-     * under app TZ). Eloquent's default ISO-Z serialization shifts display in
-     * non-UTC browsers; keep a naive Y-m-d H:i:s for frontend APIs instead.
+     * Naive Y-m-d H:i:s in the viewer's wall clock, for frontend APIs
+     * (never ISO-Z — that shifts in browsers).
+     *
+     * `due_date` / `start_date` are true UTC instants: every live write path
+     * runs through {@see UserTimezone::interpretWallClock()}, which is not
+     * feature-flagged. The read side must therefore *always* convert back out
+     * of UTC, or a 17:00 save reloads as 14:00 for anyone west of UTC.
+     *
+     * {@see UserTimezone::FLAG} only decides *which* zone to render in — the
+     * user's own versus the company default, see
+     * {@see UserTimezone::forViewer()} — never whether to convert at all.
+     * Gating the conversion on it is what desynced reads from writes.
      */
-    public static function wallClockString(?DateTimeInterface $date): ?string
-    {
-        return $date ? Carbon::instance($date)->format('Y-m-d H:i:s') : null;
+    public static function wallClockString(
+        ?DateTimeInterface $date,
+        ?User $user = null,
+        ?Company $company = null,
+    ): ?string {
+        if (! $date) {
+            return null;
+        }
+
+        $user ??= function_exists('user') ? user() : null;
+        $company ??= function_exists('company') ? company() : null;
+        $company = is_object($company) ? $company : null;
+
+        return Carbon::instance($date)
+            ->copy()
+            ->timezone(UserTimezone::forViewer($user, $company))
+            ->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * `completed_on` for frontend APIs, same `Y-m-d H:i:s` shape as
+     * {@see wallClockString()}.
+     *
+     * Unlike `due_date`, this column is *not* an instant: every path that sets
+     * it stamps a bare calendar date (`now()->format('Y-m-d')`), so there is
+     * nothing to convert out of UTC. Converting one anyway rolls the date back
+     * a day for anyone west of UTC — a task completed on the 24th would read
+     * as the 23rd. Values that do carry a real time are converted as before.
+     */
+    public static function completionDateString(
+        ?DateTimeInterface $date,
+        ?User $user = null,
+        ?Company $company = null,
+    ): ?string {
+        if (! $date) {
+            return null;
+        }
+
+        $completedOn = Carbon::instance($date);
+
+        // Midnight in the storage basis is what a date-only stamp looks like
+        // once the datetime cast has run on it.
+        if ($completedOn->format('H:i:s') === '00:00:00') {
+            return $completedOn->format('Y-m-d H:i:s');
+        }
+
+        return self::wallClockString($completedOn, $user, $company);
     }
 
     /**
@@ -191,7 +245,7 @@ class Task extends BaseModel
         $data = $this->toArray();
         $data['due_date'] = self::wallClockString($this->due_date);
         $data['start_date'] = self::wallClockString($this->start_date);
-        $data['completed_on'] = self::wallClockString($this->completed_on);
+        $data['completed_on'] = self::completionDateString($this->completed_on);
 
         return $data;
     }
