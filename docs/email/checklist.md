@@ -436,7 +436,7 @@ Linked conversation remains queryable from the deal via the lead without duplica
 
 #### Verify
 
-- [ ] After deal created with `lead_id`, deal email feed lists the conversation once
+- [x] After deal created with `lead_id`, deal email feed lists the conversation once
 
 ---
 
