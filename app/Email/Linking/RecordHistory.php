@@ -4,6 +4,7 @@ namespace App\Email\Linking;
 
 use App\Email\Authorization\EmailAccess;
 use App\Email\Enums\ReviewStatus;
+use App\Email\Files\EmailFiles;
 use App\Email\Models\EmailConversation;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
@@ -20,7 +21,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class RecordHistory
 {
-    public function __construct(private readonly EmailAccess $access) {}
+    public function __construct(
+        private readonly EmailAccess $access,
+        private readonly EmailFiles $files,
+    ) {}
 
     public function for(User $viewer, Model $record, int $perPage): LengthAwarePaginator
     {
@@ -50,7 +54,9 @@ class RecordHistory
             ->whereIn('id', $messages->pluck('conversation_id')->filter()->unique()->all())
             ->pluck('uuid', 'id');
 
-        return $messages->map(function (EmailMessage $message) use ($copies, $conversations) {
+        $files = $this->files->summaries($messages->pluck('id')->all());
+
+        return $messages->map(function (EmailMessage $message) use ($copies, $conversations, $files) {
             /** @var EmailMailboxCopy|null $copy */
             $copy = $copies->get($message->id);
 
@@ -68,6 +74,7 @@ class RecordHistory
                 'sent_at' => $message->sent_at?->toIso8601String(),
                 'preview' => SafePreview::from($message->text_body, $message->html_raw),
                 'has_attachments' => (bool) $message->has_attachments,
+                'files' => $files->get($message->id, []),
             ];
         })->values()->all();
     }

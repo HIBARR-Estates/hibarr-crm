@@ -5,6 +5,8 @@ namespace App\Email\Ingest;
 use App\Email\Data\AttachmentRef;
 use App\Email\Data\EmailAddress;
 use App\Email\Data\NormalizedMessage;
+use App\Email\Files\EmailFiles;
+use App\Email\Jobs\StoreEmailFileJob;
 use App\Email\Matching\ContactMatcher;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
@@ -26,6 +28,7 @@ class MessageIngestor
     public function __construct(
         private readonly ConversationThreader $threader,
         private readonly ContactMatcher $matcher,
+        private readonly EmailFiles $files,
     ) {}
 
     public function ingestNormalized(EmailConnection $connection, NormalizedMessage $normalized): EmailMailboxCopy
@@ -65,6 +68,11 @@ class MessageIngestor
             // Matched once, when the copy first arrives; a later sync never re-decides it.
             if ($copy->wasRecentlyCreated) {
                 $this->matcher->match($connection, $copy);
+
+                // The bytes follow on the queue; the message does not wait for them.
+                foreach ($this->files->register($copy, $message, $normalized->attachments) as $file) {
+                    StoreEmailFileJob::dispatch($file->id);
+                }
             }
 
             return $copy;

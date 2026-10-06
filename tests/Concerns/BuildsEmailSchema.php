@@ -31,6 +31,7 @@ trait BuildsEmailSchema
         '2026_10_06_000008_create_email_send_attempts_table.php',
         '2026_10_06_000009_create_email_send_recipients_table.php',
         '2026_10_06_000010_create_email_message_references_table.php',
+        '2026_10_06_000011_create_email_files_table.php',
     ];
 
     protected function buildEmailSchema(): void

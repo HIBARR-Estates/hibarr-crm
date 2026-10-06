@@ -5,7 +5,7 @@ namespace App\Providers;
 use App\Email\Adapters\FakeMailAdapter;
 use App\Email\Contracts\AttachmentStore;
 use App\Email\Contracts\MailTransport;
-use App\Email\Support\UnavailableAttachmentStore;
+use App\Email\Files\EmailFileAttachmentStore;
 use App\Email\Transport\MailTransportFactory;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,8 +19,8 @@ class EmailServiceProvider extends ServiceProvider
 
         $this->app->singleton(MailTransportFactory::class);
 
-        // Until email files exist no attachment can be read, so drafts carrying one are refused.
-        $this->app->bind(AttachmentStore::class, UnavailableAttachmentStore::class);
+        // Outbound attachments are email files; one that is missing or unfit reads as null and blocks the send.
+        $this->app->bind(AttachmentStore::class, EmailFileAttachmentStore::class);
 
         // The default provider's adapter (config email.default_provider). Code
         // working on a specific connection asks the factory instead.

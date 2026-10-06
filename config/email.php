@@ -66,6 +66,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Email files (attachments)
+    |--------------------------------------------------------------------------
+    |
+    | Stored through the existing file gateway (config/file_storage.php) under
+    | their own prefix — never as lead or deal files. Size and type limits are
+    | placeholders until the security policy is signed.
+    |
+    | No malware scanner exists yet (E-43), so every stored file stays
+    | "pending". Unscanned files can be neither downloaded nor sent unless
+    | allow_unscanned is switched on, which is meant for dev/staging sandboxes
+    | only and is ignored in production.
+    |
+    */
+
+    'files' => [
+        'prefix' => 'email-attachments',
+        'max_bytes' => (int) env('EMAIL_FILES_MAX_BYTES', 25 * 1024 * 1024),
+        'blocked_extensions' => ['exe', 'bat', 'cmd', 'com', 'scr', 'pif', 'msi', 'js', 'jse', 'vbs', 'vbe', 'wsf', 'ps1', 'jar', 'lnk', 'hta'],
+        'allow_unscanned' => (bool) env('EMAIL_FILES_ALLOW_UNSCANNED', false),
+        'timeout' => (int) env('EMAIL_FILES_TIMEOUT', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Mailtrap Email Sandbox (dev / staging adapter)
     |--------------------------------------------------------------------------
     |

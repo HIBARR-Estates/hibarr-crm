@@ -8,6 +8,7 @@ use App\Email\Enums\ReviewStatus;
 use App\Email\Linking\RecordFeed;
 use App\Email\Matching\RecordVisibility;
 use App\Email\Models\EmailConnection;
+use App\Email\Models\EmailFile;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
 use App\Email\Models\EmailRecordLink;
@@ -106,6 +107,53 @@ class EmailAccess
         }
 
         return false;
+    }
+
+    /**
+     * A file on a message follows the message. A file uploaded for sending
+     * and not yet on any message is its uploader's and the mailbox owner's.
+     */
+    public function canViewFile(?User $user, EmailFile $file): bool
+    {
+        if (! $this->enabledFor($user) || (int) $file->company_id !== (int) $user->company_id) {
+            return false;
+        }
+
+        if ($file->message_id !== null) {
+            $message = EmailMessage::withoutGlobalScopes()->find($file->message_id);
+
+            return $message !== null && $this->canViewMessage($user, $message);
+        }
+
+        if ($file->uploaded_by !== null && (int) $file->uploaded_by === (int) $user->id) {
+            return true;
+        }
+
+        return $file->connection_id !== null && EmailConnection::withoutGlobalScopes()
+            ->whereKey($file->connection_id)
+            ->where('user_id', $user->id)
+            ->where('company_id', $user->company_id)
+            ->exists();
+    }
+
+    /** Looks a file up by its CRM uuid. Finding it grants nothing; ask canViewFile(). */
+    public function findFile(string $uuid): ?EmailFile
+    {
+        return EmailFile::withoutGlobalScopes()->where('uuid', $uuid)->first();
+    }
+
+    /** A mailbox of the user's own, by its CRM uuid. */
+    public function ownConnection(?User $user, string $uuid): ?EmailConnection
+    {
+        if (! $this->enabledFor($user)) {
+            return null;
+        }
+
+        return EmailConnection::withoutGlobalScopes()
+            ->where('uuid', $uuid)
+            ->where('user_id', $user->id)
+            ->where('company_id', $user->company_id)
+            ->first();
     }
 
     /**

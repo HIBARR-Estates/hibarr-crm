@@ -257,7 +257,7 @@ class EmailAccessTest extends TestCase
 
         foreach (File::allFiles(app_path('Email/Http/Controllers')) as $file) {
             // A controller that queried these models itself would be deciding access on its own.
-            if (preg_match('/\b(EmailMessage|EmailMailboxCopy|EmailConversation|EmailRecordLink)::/', $file->getContents()) === 1) {
+            if (preg_match('/\b(EmailMessage|EmailMailboxCopy|EmailConversation|EmailRecordLink|EmailFile)::/', $file->getContents()) === 1) {
                 $offenders[] = $file->getFilename();
             }
         }

@@ -472,8 +472,8 @@ Central checker; middleware/policies on all email HTTP. Partner Lead Owner **N**
 
 #### Verify
 
-- [ ] Download without access 403
-- [ ] Not listed on CRM Files tab
+- [x] Download without access 403
+- [x] Not listed on CRM Files tab
 
 ---
 

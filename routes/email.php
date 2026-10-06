@@ -2,6 +2,7 @@
 
 use App\Email\Http\Controllers\ConnectionController;
 use App\Email\Http\Controllers\CopyActionController;
+use App\Email\Http\Controllers\FileController;
 use App\Email\Http\Controllers\RecordHistoryController;
 use App\Email\Http\Controllers\ReviewController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
@@ -46,6 +47,10 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('copy')->name('copies.dismiss');
         Route::post('copies/{copy}/create-lead', [CopyActionController::class, 'createLead'])
             ->whereUuid('copy')->name('copies.create-lead');
+
+        Route::post('files', [FileController::class, 'store'])->name('files.store');
+        Route::get('files/{file}/download', [FileController::class, 'download'])
+            ->whereUuid('file')->name('files.download');
 
         Route::get('records/{type}/{id}/history', [RecordHistoryController::class, 'index'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.history');

@@ -4,6 +4,7 @@ namespace App\Email\Review;
 
 use App\Email\Authorization\EmailAccess;
 use App\Email\Enums\ReviewStatus;
+use App\Email\Files\EmailFiles;
 use App\Email\Matching\LeadDirectory;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Support\SafePreview;
@@ -20,6 +21,7 @@ class ReviewQueue
     public function __construct(
         private readonly LeadDirectory $leads,
         private readonly EmailAccess $access,
+        private readonly EmailFiles $files,
     ) {}
 
     public function for(User $owner): Builder
@@ -56,6 +58,13 @@ class ReviewQueue
             ? $this->leads->addressesHiddenFrom($owner, (int) $owner->company_id, $addresses)
             : [];
 
+        $messageIds = [];
+
+        foreach ($copies as $copy) {
+            $messageIds[] = (int) $copy->message_id;
+        }
+
+        $files = $this->files->summaries(array_values(array_unique($messageIds)));
         $items = [];
 
         foreach ($copies as $copy) {
@@ -75,6 +84,7 @@ class ReviewQueue
                 'sent_at' => $message?->sent_at?->toIso8601String(),
                 'preview' => SafePreview::from($message?->text_body, $message?->html_raw),
                 'has_attachments' => (bool) $message?->has_attachments,
+                'files' => $files->get($copy->message_id, []),
                 'record_exists' => array_intersect($counterparts[$copy->id], $hidden) !== [],
             ];
         }
