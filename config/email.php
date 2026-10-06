@@ -64,4 +64,56 @@ return [
 
     'default_provider' => env('EMAIL_DEFAULT_PROVIDER', 'fake'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mailtrap Email Sandbox (dev / staging adapter)
+    |--------------------------------------------------------------------------
+    |
+    | Sandbox only — mail is captured by Mailtrap and never reaches a real
+    | recipient. This is not Mailtrap's live Sending product, and the adapter
+    | is never selectable in production whatever "environments" says.
+    |
+    | Account-level settings live here (the API token belongs in Infisical /
+    | env). Everything specific to one mailbox is stored encrypted on its
+    | email_connections row, as credentials:
+    |
+    |   inbox_id       the sandbox inbox this connection reads and sends through
+    |   smtp_username  that inbox's SMTP user
+    |   smtp_password  that inbox's SMTP password
+    |
+    | Two agents, two sandboxes. One Mailtrap inbox stands in for one agent's
+    | mailbox, so a two-agent scenario needs two inboxes and two connections:
+    |
+    |   Agent A's connection -> sandbox "a" (MAILTRAP_INBOX_ID_A)
+    |   Agent B's connection -> sandbox "b" (MAILTRAP_INBOX_ID_B)
+    |
+    | For local setup a connection may store credentials.sandbox = "a" or "b"
+    | instead of inbox_id and the id is read from "sandboxes" below. Staging
+    | stores the real inbox_id on the connection.
+    |
+    | A message sent into sandbox A does not appear in sandbox B. To simulate
+    | one email received by both agents, inject the same RFC Message-ID into
+    | both inboxes. Plus-addressing is not a substitute for a second inbox.
+    |
+    */
+
+    'mailtrap' => [
+        'api_token' => env('MAILTRAP_API_TOKEN'),
+        'account_id' => env('MAILTRAP_ACCOUNT_ID'),
+        'api_base_url' => env('MAILTRAP_API_BASE_URL', 'https://mailtrap.io'),
+        'timeout' => (int) env('MAILTRAP_TIMEOUT', 10),
+
+        'smtp' => [
+            'host' => env('MAILTRAP_SMTP_HOST', 'sandbox.smtp.mailtrap.io'),
+            'port' => (int) env('MAILTRAP_SMTP_PORT', 2525),
+        ],
+
+        'sandboxes' => [
+            'a' => env('MAILTRAP_INBOX_ID_A'),
+            'b' => env('MAILTRAP_INBOX_ID_B'),
+        ],
+
+        'environments' => ['local', 'development', 'staging', 'testing'],
+    ],
+
 ];

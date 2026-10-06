@@ -228,7 +228,7 @@ class SendAttemptServiceTest extends TestCase
 
     public function test_provider_without_an_adapter_fails_without_submitting(): void
     {
-        $this->connection->update(['provider' => 'mailtrap']);
+        $this->connection->update(['provider' => 'zoho']);
 
         $attempt = $this->service->send($this->connection, $this->draft());
 

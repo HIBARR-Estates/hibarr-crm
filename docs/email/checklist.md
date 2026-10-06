@@ -243,7 +243,7 @@ OAuth, UI.
 
 #### Verify
 
-- [ ] Missing token → health = needs_reconnect, no exception leak
+- [x] Missing token → health = needs_reconnect, no exception leak
 
 ---
 
