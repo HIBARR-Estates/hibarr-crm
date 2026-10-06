@@ -306,10 +306,10 @@ Folder policy beyond what sandbox returns; bounce.
 
 #### Verify
 
-- [ ] Flag off → 404
-- [ ] Non-allowlisted → 403
-- [ ] Stopped connection: jobs skip
-- [ ] Unauthenticated → 401
+- [x] Flag off → 404
+- [x] Non-allowlisted → 403
+- [x] Stopped connection: jobs skip
+- [x] Unauthenticated → 401
 
 ---
 
@@ -327,8 +327,8 @@ Join only on In-Reply-To / References / Message-ID. Subject match **must not** j
 
 #### Verify
 
-- [ ] Reply with In-Reply-To joins
-- [ ] Same subject, new Message-ID, no refs → not joined
+- [x] Reply with In-Reply-To joins
+- [x] Same subject, new Message-ID, no refs → not joined
 
 ---
 

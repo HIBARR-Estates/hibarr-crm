@@ -26,4 +26,10 @@ class EmailServiceProvider extends ServiceProvider
         // working on a specific connection asks the factory instead.
         $this->app->bind(MailTransport::class, fn ($app) => $app->make(MailTransportFactory::class)->default());
     }
+
+    public function boot(): void
+    {
+        // Always registered; each route answers 404 while crm.email is off.
+        $this->loadRoutesFrom(base_path('routes/email.php'));
+    }
 }

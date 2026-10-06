@@ -1,0 +1,33 @@
+<?php
+
+use App\Email\Http\Controllers\ConnectionController;
+use App\Email\Http\Middleware\EnsureEmailEnabled;
+use App\Email\Http\Middleware\EnsureEmailPilot;
+use Illuminate\Support\Facades\Route;
+
+/*
+| CRM Email module (App\Email) — JSON endpoints. Loaded by EmailServiceProvider.
+|
+| Every route sits behind, in this order: the crm.email flag (off → 404),
+| auth (signed out → 401), then the pilot allowlist (not listed → 403).
+| The flag check comes before the web group because Laravel hoists auth
+| into that group; listed after it, a signed-out caller would get 401
+| instead of 404 while the flag is off.
+*/
+
+Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class])
+    ->prefix('email')
+    ->name('email.')
+    ->group(function () {
+        Route::get('connections', [ConnectionController::class, 'index'])->name('connections.index');
+        Route::post('connections', [ConnectionController::class, 'store'])->name('connections.store');
+
+        Route::post('connections/{connection}/stop', [ConnectionController::class, 'stop'])
+            ->whereUuid('connection')->name('connections.stop');
+        Route::post('connections/{connection}/resume', [ConnectionController::class, 'resume'])
+            ->whereUuid('connection')->name('connections.resume');
+        Route::put('connections/{connection}/reconnect', [ConnectionController::class, 'reconnect'])
+            ->whereUuid('connection')->name('connections.reconnect');
+        Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
+            ->whereUuid('connection')->name('connections.destroy');
+    });

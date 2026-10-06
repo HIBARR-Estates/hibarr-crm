@@ -8,17 +8,21 @@ use App\Email\Data\NormalizedMessage;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Threading\ConversationThreader;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Stores a provider message as this mailbox's copy of a canonical message.
- * Safe to run any number of times for the same provider message.
+ * Stores a provider message as this mailbox's copy of a canonical message
+ * and places that message in its conversation. Safe to run any number of
+ * times for the same provider message.
  *
  * Every query here names its company explicitly: sync runs in jobs, where no
  * logged-in user is present to scope by.
  */
 class MessageIngestor
 {
+    public function __construct(private readonly ConversationThreader $threader) {}
+
     public function ingestNormalized(EmailConnection $connection, NormalizedMessage $normalized): EmailMailboxCopy
     {
         return DB::transaction(function () use ($connection, $normalized) {
@@ -27,11 +31,14 @@ class MessageIngestor
             if ($copy !== null) {
                 $this->completeMessage($copy->message, $normalized);
                 $this->refreshCopy($copy, $normalized);
+                // A fuller payload may have brought the reply headers a thin one lacked.
+                $this->threader->thread($copy->message);
 
                 return $copy;
             }
 
             $message = $this->findOrCreateMessage($connection, $normalized);
+            $this->threader->thread($message);
 
             $copy = EmailMailboxCopy::withoutGlobalScopes()->createOrFirst(
                 [

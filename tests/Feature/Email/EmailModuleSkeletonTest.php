@@ -3,6 +3,8 @@
 namespace Tests\Feature\Email;
 
 use App\Email\EmailFeature;
+use App\Email\Http\Middleware\EnsureEmailEnabled;
+use App\Email\Http\Middleware\EnsureEmailPilot;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -31,9 +33,9 @@ class EmailModuleSkeletonTest extends TestCase
         'email/verification-notification',
     ];
 
-    public function test_module_registers_no_endpoints(): void
+    public function test_every_module_endpoint_sits_behind_flag_auth_and_pilot_in_that_order(): void
     {
-        $offenders = collect(Route::getRoutes()->getRoutes())
+        $moduleRoutes = collect(Route::getRoutes()->getRoutes())
             ->filter(function (RoutingRoute $route) {
                 $uri = trim($route->uri(), '/');
                 $action = (string) ($route->getAction('controller') ?? '');
@@ -46,10 +48,16 @@ class EmailModuleSkeletonTest extends TestCase
                     || Str::startsWith($uri, 'email/')
                     || Str::startsWith(ltrim($action, '\\'), 'App\\Email\\');
             })
-            ->map(fn (RoutingRoute $route) => $route->uri())
-            ->values()
-            ->all();
+            ->values();
 
-        $this->assertSame([], $offenders);
+        $this->assertNotEmpty($moduleRoutes);
+
+        foreach ($moduleRoutes as $route) {
+            $this->assertSame(
+                [EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class],
+                $route->middleware(),
+                $route->uri(),
+            );
+        }
     }
 }
