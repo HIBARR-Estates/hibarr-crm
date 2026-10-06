@@ -3,8 +3,11 @@
 namespace App\Email\Http\Controllers;
 
 use App\Email\Enums\LinkableType;
+use App\Email\Exceptions\DuplicateLeadException;
 use App\Email\Matching\RecordResolver;
+use App\Email\Matching\RecordVisibility;
 use App\Email\Models\EmailMailboxCopy;
+use App\Email\Review\CreateLeadFromCopy;
 use App\Email\Review\ReviewActions;
 use App\Email\Review\ReviewQueue;
 use App\Models\User;
@@ -13,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 /**
  * Link, unlink and dismiss for the signed-in user's own mailbox copies. A
@@ -25,6 +29,8 @@ class CopyActionController
         private readonly ReviewQueue $queue,
         private readonly ReviewActions $actions,
         private readonly RecordResolver $records,
+        private readonly RecordVisibility $visibility,
+        private readonly CreateLeadFromCopy $createLead,
     ) {}
 
     public function link(Request $request, string $copy): JsonResponse
@@ -54,6 +60,53 @@ class CopyActionController
         }
     }
 
+    /**
+     * Creates a lead for the other party and links the conversation to it.
+     * When a lead already holds the address nothing is created: the answer
+     * says so, and names the lead only if the user may see it, so they can
+     * link to it instead.
+     */
+    public function createLead(Request $request, string $copy): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $found = $this->find($request, $copy);
+
+        abort_unless($this->mayAddLeads($user), 403);
+
+        $input = $request->validate(['client_name' => ['nullable', 'string', 'max:255']]);
+
+        try {
+            $lead = $this->createLead->handle($user, $found, $input['client_name'] ?? null);
+        } catch (DuplicateLeadException $exception) {
+            return response()->json([
+                'message' => 'duplicate_lead',
+                'record_exists' => true,
+                'candidates' => $exception->duplicates
+                    ->filter(fn ($duplicate) => $this->visibility->canSee($user, $duplicate))
+                    ->map(fn ($duplicate) => ['record_type' => LinkableType::Lead->value, 'record_id' => $duplicate->id])
+                    ->values()
+                    ->all(),
+            ], 409);
+        } catch (DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        return response()->json([
+            'copy' => $this->present($found->refresh()),
+            'record' => ['record_type' => LinkableType::Lead->value, 'record_id' => $lead->id],
+        ], 201);
+    }
+
+    private function mayAddLeads(User $user): bool
+    {
+        try {
+            return in_array($user->permission('add_lead'), ['all', 'added'], true);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     private function find(Request $request, string $uuid): EmailMailboxCopy
     {
         return $this->queue->owned($request->user())->where('uuid', $uuid)->firstOrFail();
@@ -79,12 +132,18 @@ class CopyActionController
 
     private function respond(EmailMailboxCopy $copy): JsonResponse
     {
-        return response()->json([
-            'copy' => [
-                'id' => $copy->uuid,
-                'review_status' => $copy->review_status->value,
-                'linked' => $this->actions->isLinked($copy),
-            ],
-        ]);
+        return response()->json(['copy' => $this->present($copy)]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function present(EmailMailboxCopy $copy): array
+    {
+        return [
+            'id' => $copy->uuid,
+            'review_status' => $copy->review_status->value,
+            'linked' => $this->actions->isLinked($copy),
+        ];
     }
 }

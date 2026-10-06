@@ -44,6 +44,8 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('copy')->name('copies.unlink');
         Route::post('copies/{copy}/dismiss', [CopyActionController::class, 'dismiss'])
             ->whereUuid('copy')->name('copies.dismiss');
+        Route::post('copies/{copy}/create-lead', [CopyActionController::class, 'createLead'])
+            ->whereUuid('copy')->name('copies.create-lead');
 
         Route::get('records/{type}/{id}/history', [RecordHistoryController::class, 'index'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.history');

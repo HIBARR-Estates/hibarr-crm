@@ -419,7 +419,7 @@ Merge UI redesign.
 
 #### Verify
 
-- [ ] Duplicate email: second create fails; both copies intact
+- [x] Duplicate email: second create fails; both copies intact
 
 ---
 
