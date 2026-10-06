@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { DatePicker, Select } from "antd";
 import dayjs from "dayjs";
 import { companyDateDayjsFormat } from "@/lib/companyDateTime";
+import { viewerDayjsNow, viewerTodayDateString } from "@/lib/userDateTime";
 import type { FilterOption } from "@/contexts/FilterContext";
 
 const { RangePicker } = DatePicker;
@@ -425,11 +426,12 @@ export function DatePresets({
 }) {
     const activePreset = useMemo(() => {
         if (!start || !end) return null;
-        const today = dayjs().format("YYYY-MM-DD");
+        const today = viewerTodayDateString();
         if (end !== today) return null;
+        const anchor = viewerDayjsNow();
         const match = DATE_PRESETS.find(
             (preset) =>
-                dayjs().subtract(preset.days, "day").format("YYYY-MM-DD") ===
+                anchor.subtract(preset.days, "day").format("YYYY-MM-DD") ===
                 start,
         );
         return match?.key ?? null;
@@ -444,14 +446,15 @@ export function DatePresets({
                     className={`lfm-chipbtn${
                         activePreset === preset.key ? " is-on" : ""
                     }`}
-                    onClick={() =>
+                    onClick={() => {
+                        const anchor = viewerDayjsNow();
                         onChange(
-                            dayjs()
+                            anchor
                                 .subtract(preset.days, "day")
                                 .format("YYYY-MM-DD"),
-                            dayjs().format("YYYY-MM-DD"),
-                        )
-                    }
+                            anchor.format("YYYY-MM-DD"),
+                        );
+                    }}
                 >
                     {preset.label}
                 </button>
