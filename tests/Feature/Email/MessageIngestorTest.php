@@ -87,7 +87,8 @@ class MessageIngestorTest extends TestCase
         $this->assertSame('prov-1', $copy->provider_message_id);
         $this->assertSame('INBOX', $copy->folder);
         $this->assertSame(MessageDirection::Inbound, $copy->direction);
-        $this->assertSame(ReviewStatus::None, $copy->review_status);
+        // No lead holds the sender's address, so the copy waits in review.
+        $this->assertSame(ReviewStatus::Unlinked, $copy->review_status);
         $this->assertSame('part-2', $copy->provider_attachments[0]['part_id']);
 
         $this->assertSame('<reply-1@mail.example.test>', $message->rfc_message_id);

@@ -345,9 +345,9 @@ Exactly one authorized address on a visible record → attach/create conversatio
 
 #### Verify
 
-- [ ] Unique lead email → linked
-- [ ] Two leads same email → review
-- [ ] Unknown → review
+- [x] Unique lead email → linked
+- [x] Two leads same email → review
+- [x] Unknown → review
 
 ---
 

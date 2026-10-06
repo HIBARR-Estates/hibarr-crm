@@ -59,6 +59,21 @@ trait BuildsEmailSchema
             $table->unsignedInteger('company_id')->nullable();
             $table->string('client_name')->nullable();
             $table->string('client_email')->nullable();
+            $table->unsignedInteger('lead_owner')->nullable();
+            $table->unsignedInteger('added_by')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('lead_contact_methods', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('type', 16);
+            $table->string('identifier');
+            $table->string('normalized');
+            $table->boolean('is_main')->default(false);
+            $table->string('source_field', 32)->nullable();
             $table->timestamps();
         });
 
@@ -106,9 +121,9 @@ trait BuildsEmailSchema
     }
 
     /** A persisted lead, built without the observers that need the full schema. */
-    protected function makeEmailLead(Company $company, ?string $email = null): Lead
+    protected function makeEmailLead(Company $company, ?string $email = null, array $extra = []): Lead
     {
-        $attributes = [
+        $attributes = $extra + [
             'company_id' => $company->id,
             'client_name' => 'Lead '.Str::random(6),
             'client_email' => $email ?? Str::lower(Str::random(10)).'@example.test',

@@ -5,6 +5,7 @@ namespace App\Email\Ingest;
 use App\Email\Data\AttachmentRef;
 use App\Email\Data\EmailAddress;
 use App\Email\Data\NormalizedMessage;
+use App\Email\Matching\ContactMatcher;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
@@ -12,16 +13,20 @@ use App\Email\Threading\ConversationThreader;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Stores a provider message as this mailbox's copy of a canonical message
- * and places that message in its conversation. Safe to run any number of
- * times for the same provider message.
+ * Stores a provider message as this mailbox's copy of a canonical message,
+ * places that message in its conversation, and matches a new copy to a lead
+ * or sends it to review. Safe to run any number of times for the same
+ * provider message.
  *
  * Every query here names its company explicitly: sync runs in jobs, where no
  * logged-in user is present to scope by.
  */
 class MessageIngestor
 {
-    public function __construct(private readonly ConversationThreader $threader) {}
+    public function __construct(
+        private readonly ConversationThreader $threader,
+        private readonly ContactMatcher $matcher,
+    ) {}
 
     public function ingestNormalized(EmailConnection $connection, NormalizedMessage $normalized): EmailMailboxCopy
     {
@@ -55,7 +60,14 @@ class MessageIngestor
                 ],
             );
 
-            return $copy->setRelation('message', $message);
+            $copy->setRelation('message', $message);
+
+            // Matched once, when the copy first arrives; a later sync never re-decides it.
+            if ($copy->wasRecentlyCreated) {
+                $this->matcher->match($connection, $copy);
+            }
+
+            return $copy;
         });
     }
 
