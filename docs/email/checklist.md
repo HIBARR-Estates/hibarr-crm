@@ -123,7 +123,7 @@ HTTP, Mailtrap SDK.
 
 #### Verify
 
-- [ ] Interface compilable; DTOs have no Eloquent
+- [x] Interface compilable; DTOs have no Eloquent
 
 ---
 
