@@ -170,12 +170,15 @@ function boundsFor(option: PeriodOption): [Dayjs, Dayjs] {
         return [dayjs(ALL_TIME_FROM).startOf("day"), end];
     }
 
-    // days - 1: today is one of the counted days, matching the server.
-    // Key-less options always carry `days`; the fallback only satisfies the type.
-    return [
-        dayjs()
-            .subtract((option.days ?? 1) - 1, "day")
-            .startOf("day"),
-        end,
-    ];
+    if ("days" in option && option.days !== undefined) {
+        // days - 1: today is one of the counted days, matching the server.
+        return [
+            dayjs()
+                .subtract(option.days - 1, "day")
+                .startOf("day"),
+            end,
+        ];
+    }
+
+    throw new Error("Invalid PeriodOption: missing key and days");
 }
