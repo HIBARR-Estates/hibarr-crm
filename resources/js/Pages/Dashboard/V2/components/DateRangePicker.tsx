@@ -171,9 +171,10 @@ function boundsFor(option: PeriodOption): [Dayjs, Dayjs] {
     }
 
     // days - 1: today is one of the counted days, matching the server.
+    // Key-less options always carry `days`; the fallback only satisfies the type.
     return [
         dayjs()
-            .subtract(option.days - 1, "day")
+            .subtract((option.days ?? 1) - 1, "day")
             .startOf("day"),
         end,
     ];
