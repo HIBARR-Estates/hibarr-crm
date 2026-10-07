@@ -71,6 +71,7 @@ class SalutationLanguageTest extends TestCase
     {
         $service = Mockery::mock(LeadCoreFieldsService::class);
         $service->shouldReceive('read')->andReturn(['languages' => []], ['languages' => ['de']]);
+        $service->shouldReceive('supportedLanguageCode')->with('de')->andReturn('de');
         $service->shouldReceive('write')
             ->once()
             ->with(Mockery::type(Lead::class), ['languages' => ['de']]);
@@ -79,6 +80,18 @@ class SalutationLanguageTest extends TestCase
         $lead = $this->lead(null, []);
 
         $this->assertTrue($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'de'])));
+    }
+
+    public function test_the_api_ignores_a_language_that_is_not_configured(): void
+    {
+        $service = Mockery::mock(LeadCoreFieldsService::class);
+        $service->shouldReceive('supportedLanguageCode')->with('xx')->andReturn(null);
+        $service->shouldNotReceive('write');
+        $this->app->instance(LeadCoreFieldsService::class, $service);
+
+        $lead = $this->lead(null, []);
+
+        $this->assertFalse($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'xx'])));
     }
 
     public function test_the_api_never_replaces_languages_already_on_the_contact(): void

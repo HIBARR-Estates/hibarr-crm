@@ -837,8 +837,13 @@ class DealContactApiController extends Controller
             $corePayload['languages'] = $request->input('languages');
         } elseif ($request->filled('language') && empty($lead->languages)) {
             // The website/backend send the visitor's single `language`. It fills an
-            // empty list; it never replaces languages already on the contact.
-            $corePayload['languages'] = [$request->input('language')];
+            // empty list; it never replaces languages already on the contact. Only a
+            // configured language is stored, an unsupported code is ignored rather
+            // than rejected so contact creation never fails over it.
+            $languageCode = $coreFieldsService->supportedLanguageCode($request->input('language'));
+            if ($languageCode !== null) {
+                $corePayload['languages'] = [$languageCode];
+            }
         }
         if ($request->has('nationality')) {
             $corePayload['nationality'] = $request->input('nationality');
