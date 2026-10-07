@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\Salutation;
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
@@ -834,6 +835,15 @@ class DealContactApiController extends Controller
         }
         if ($request->has('languages')) {
             $corePayload['languages'] = $request->input('languages');
+        } elseif ($request->filled('language') && empty($lead->languages)) {
+            // The website/backend send the visitor's single `language`. It fills an
+            // empty list; it never replaces languages already on the contact. Only a
+            // configured language is stored, an unsupported code is ignored rather
+            // than rejected so contact creation never fails over it.
+            $languageCode = $coreFieldsService->supportedLanguageCode($request->input('language'));
+            if ($languageCode !== null) {
+                $corePayload['languages'] = [$languageCode];
+            }
         }
         if ($request->has('nationality')) {
             $corePayload['nationality'] = $request->input('nationality');
@@ -869,6 +879,17 @@ class DealContactApiController extends Controller
             $current = $lead->temperature?->value ?? $lead->temperature;
             if ((string) $current !== (string) $temperature) {
                 $lead->temperature = $temperature;
+                $updated = true;
+            }
+        }
+
+        // How the visitor asked to be addressed. Only ever set from a non-empty,
+        // valid value: an empty field never wipes one already on the contact.
+        if ($request->filled('salutation')) {
+            $salutation = Salutation::tryFrom((string) $request->input('salutation'));
+            $current = $lead->salutation instanceof Salutation ? $lead->salutation->value : $lead->salutation;
+            if ($salutation && (string) $current !== $salutation->value) {
+                $lead->salutation = $salutation;
                 $updated = true;
             }
         }
