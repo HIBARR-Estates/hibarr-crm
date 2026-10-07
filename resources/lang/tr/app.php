@@ -621,4 +621,12 @@ return [
         'off' => 'Kapalı',
         'read_only' => 'Salt okunur',
     ],
+    'mr' => 'Bay',
+    'mrs' => 'Bayan',
+    'miss' => 'Bayan',
+    'dr' => 'Dr.',
+    'sir' => 'Bay',
+    'madam' => 'Bayan',
+    'herr' => 'Herr',
+    'frau' => 'Frau',
 ];

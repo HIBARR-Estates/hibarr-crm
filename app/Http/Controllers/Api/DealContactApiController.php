@@ -835,6 +835,10 @@ class DealContactApiController extends Controller
         }
         if ($request->has('languages')) {
             $corePayload['languages'] = $request->input('languages');
+        } elseif ($request->filled('language') && empty($lead->languages)) {
+            // The website/backend send the visitor's single `language`. It fills an
+            // empty list; it never replaces languages already on the contact.
+            $corePayload['languages'] = [$request->input('language')];
         }
         if ($request->has('nationality')) {
             $corePayload['nationality'] = $request->input('nationality');
