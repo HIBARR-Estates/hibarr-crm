@@ -100,6 +100,30 @@ class DealFeedTest extends TestCase
             ->assertJsonPath('events.0.copy_id', $copy->uuid);
     }
 
+    public function test_deal_timeline_groups_show_lead_linked_conversation_once_after_conversion(): void
+    {
+        $first = $this->ingest('<a@mail.test>');
+        $this->ingest('<b@mail.test>', '<a@mail.test>');
+        $deal = $this->makeEmailDeal($this->company, $this->lead);
+
+        cache()->forever('user_is_active_'.$this->agent->id, true);
+        $this->actingAs($this->agent);
+
+        // Via lead_id only — no direct deal link — still one Timeline group.
+        $this->getJson("/email/records/deal/{$deal->id}/timeline")
+            ->assertOk()
+            ->assertJsonCount(1, 'groups')
+            ->assertJsonPath('groups.0.message_count', 2)
+            ->assertJsonPath('groups.0.id', $first->message->conversation->uuid);
+
+        app(ConversationLinker::class)->link($first->message->conversation, $deal);
+
+        $this->getJson("/email/records/deal/{$deal->id}/timeline")
+            ->assertOk()
+            ->assertJsonCount(1, 'groups')
+            ->assertJsonPath('groups.0.message_count', 2);
+    }
+
     public function test_a_deal_does_not_show_mail_the_lead_no_longer_has_or_another_leads_mail(): void
     {
         $copy = $this->ingest('<a@mail.test>');
