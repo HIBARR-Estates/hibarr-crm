@@ -22,6 +22,8 @@ export interface DealFollowup {
     id: number;
     lead_id?: number | null;
     deal_id?: number | null;
+    /** Public uuid of the email message this meeting was created from, if any. */
+    source_email_message_id?: string | null;
     next_follow_up_date: string;
     duration?: number | null; // Meeting duration in minutes
     meeting_link: string;

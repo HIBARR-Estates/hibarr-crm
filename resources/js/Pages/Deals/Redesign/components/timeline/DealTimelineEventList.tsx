@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
+import EmailTimelineGroup from "@/Email/EmailTimelineGroup";
+import type { EmailTimelineGroup as EmailTimelineGroupData } from "@/Email/types";
 import type { TimelineEventViewModel } from "../../adapters/timelineAdapter";
 import useDealTimelineEventMutations, {
     TimelineEventUpdateInput,
@@ -20,7 +22,19 @@ interface DealTimelineEventListProps {
     canManage?: boolean;
     /** Called after a successful edit/delete to refresh the list. */
     onChanged?: () => void;
+    /** Email conversation groups merged into the Timeline (E-28). */
+    emailGroups?: EmailTimelineGroupData[];
+    onOpenEmailMessage?: (messageId: string) => void;
 }
+
+type TimelineItem =
+    | { kind: "crm"; id: string; at: string; event: TimelineEventViewModel }
+    | {
+          kind: "email";
+          id: string;
+          at: string;
+          group: EmailTimelineGroupData;
+      };
 
 function TimelineSkeleton() {
     return (
@@ -46,6 +60,8 @@ export default function DealTimelineEventList({
     onLoadMore,
     canManage = false,
     onChanged,
+    emailGroups = [],
+    onOpenEmailMessage,
 }: DealTimelineEventListProps) {
     const { t } = useTranslation();
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -57,14 +73,33 @@ export default function DealTimelineEventList({
     const { updateEvent, deleteEvent, savingUuid, deletingUuid } =
         useDealTimelineEventMutations(() => onChanged?.());
 
+    const items = useMemo<TimelineItem[]>(() => {
+        const crm: TimelineItem[] = events.map((event) => ({
+            kind: "crm",
+            id: `crm-${event.id}`,
+            at: event.occurredAt,
+            event,
+        }));
+        const email: TimelineItem[] = emailGroups.map((group) => ({
+            kind: "email",
+            id: `email-${group.id}`,
+            at: group.latest_sent_at ?? "",
+            group,
+        }));
+
+        return [...crm, ...email].sort((a, b) =>
+            (b.at || "").localeCompare(a.at || ""),
+        );
+    }, [emailGroups, events]);
+
     // Only block on the skeleton when there's nothing to show yet — a
     // background refetch/filter change with events already on screen should
     // never blank the list back to a loading state.
-    if (isLoading && events.length === 0) {
+    if (isLoading && items.length === 0) {
         return <TimelineSkeleton />;
     }
 
-    if (events.length === 0) {
+    if (items.length === 0) {
         return (
             <div style={{ fontSize: 12, color: T.TEXT_HINT, padding: "8px 0" }}>
                 {t("pages.deals.timeline.empty")}
@@ -84,21 +119,36 @@ export default function DealTimelineEventList({
 
     return (
         <>
-            {events.map((event) => (
-                <DealTimelineEventRow
-                    key={event.id}
-                    event={event}
-                    expanded={expandedId === event.id}
-                    onToggleExpand={() =>
-                        setExpandedId((current) =>
-                            current === event.id ? null : event.id,
-                        )
-                    }
-                    canManage={canManage}
-                    onEdit={setEditingEvent}
-                    onDelete={setDeletingEvent}
-                />
-            ))}
+            {items.map((item) => {
+                if (item.kind === "email") {
+                    if (!onOpenEmailMessage) return null;
+                    return (
+                        <EmailTimelineGroup
+                            key={item.id}
+                            group={item.group}
+                            onOpenMessage={onOpenEmailMessage}
+                        />
+                    );
+                }
+
+                return (
+                    <DealTimelineEventRow
+                        key={item.id}
+                        event={item.event}
+                        expanded={expandedId === item.event.id}
+                        onToggleExpand={() =>
+                            setExpandedId((current) =>
+                                current === item.event.id
+                                    ? null
+                                    : item.event.id,
+                            )
+                        }
+                        canManage={canManage}
+                        onEdit={setEditingEvent}
+                        onDelete={setDeletingEvent}
+                    />
+                );
+            })}
 
             {hasNextPage && (
                 <div className="pt-1">

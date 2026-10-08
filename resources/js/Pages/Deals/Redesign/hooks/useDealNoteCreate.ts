@@ -15,12 +15,14 @@ import { useDealWorkspace } from "../context/DealWorkspaceContext";
 export interface DealNoteCreateInput {
     text: string;
     title?: string;
+    sourceEmailMessageId?: string | null;
 }
 
 interface SaveNotePayload {
     title?: string;
     details: string;
     lead_id: number;
+    source_email_message_id?: string;
 }
 
 export default function useDealNoteCreate(dealId: number) {
@@ -52,6 +54,12 @@ export default function useDealNoteCreate(dealId: number) {
                     title: input.title?.trim() || undefined,
                     details: input.text,
                     lead_id: dealId,
+                    ...(input.sourceEmailMessageId
+                        ? {
+                              source_email_message_id:
+                                  input.sourceEmailMessageId,
+                          }
+                        : {}),
                 },
                 {
                     onSuccess: (response) => {

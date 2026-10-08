@@ -43,6 +43,7 @@ export interface LeadMeetingCreateInput {
     dealId?: number | null;
     /** When true, skip the soft duplicate-meeting warning. */
     confirmDuplicate?: boolean;
+    sourceEmailMessageId?: string | null;
 }
 
 interface FollowUpStorePayload {
@@ -59,6 +60,7 @@ interface FollowUpStorePayload {
     participants?: number[];
     host_id?: number | null;
     timezone?: string;
+    source_email_message_id?: string;
 }
 
 /**
@@ -236,6 +238,10 @@ export default function useLeadMeetingCreate(lead: Lead) {
 
             if (input.dealId) {
                 payload.deal_id = input.dealId;
+            }
+
+            if (input.sourceEmailMessageId) {
+                payload.source_email_message_id = input.sourceEmailMessageId;
             }
 
             setErrors([]);

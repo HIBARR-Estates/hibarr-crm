@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
+use App\Email\EmailFeature;
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
@@ -79,6 +81,7 @@ use ReflectionClass;
 class DealController extends AccountBaseController
 {
     use \App\Traits\DealFormDataTrait;
+    use AttachesSourceEmail;
     use DealAutomationTrait;
     use ImportExcel;
 
@@ -707,6 +710,9 @@ class DealController extends AccountBaseController
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
             'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
+            // Fail-closed Email gate (flag + pilot). Timeline groups (E-28);
+            // Quick action / composer follow in E-29.
+            'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
             // A pipeline that sells packages does not sell individual properties,
             // so properties / recommendations / offers are hidden for its deals.
@@ -1084,6 +1090,12 @@ class DealController extends AccountBaseController
                 ->values()
                 ->toArray();
         });
+
+        try {
+            app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($dealFollowUps);
+        } catch (\Throwable) {
+            // Email module unavailable — list still returns.
+        }
 
         return response()->json(['status' => 'success', 'data' => $dealFollowUps]);
     }
@@ -2891,7 +2903,15 @@ class DealController extends AccountBaseController
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
-        return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
+        $this->attachSourceEmail(user(), $followUp, $request->input('source_email_message_id'));
+
+        $payload = $this->loadFollowUpWithParticipants($followUp->id);
+        $payload->setAttribute(
+            'source_email_message_id',
+            $this->sourceEmailMessageIdFor($followUp),
+        );
+
+        return Reply::successWithData(__('messages.recordSaved'), ['data' => $payload]);
     }
 
     /**

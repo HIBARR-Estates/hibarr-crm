@@ -22,6 +22,7 @@ interface TaskFormInput {
     categoryId?: number | null;
     boardColumnId?: number | null;
     links?: Array<{ type: string; id: number }>;
+    sourceEmailMessageId?: string | null;
 }
 
 interface TaskRequestPayload {
@@ -35,6 +36,7 @@ interface TaskRequestPayload {
     category_id?: number | null;
     board_column_id?: number;
     links?: Array<{ type: string; id: number }>;
+    source_email_message_id?: string;
 }
 
 /** Same request shape/date formatting as the Deal/Lead workspace task hooks, applied at the Tasks workspace level. */
@@ -72,6 +74,10 @@ function buildPayload(
     // accidentally clear a task's existing relations (see syncTaskLinks).
     if (input.links) {
         payload.links = input.links;
+    }
+
+    if (input.sourceEmailMessageId) {
+        payload.source_email_message_id = input.sourceEmailMessageId;
     }
 
     return payload;
