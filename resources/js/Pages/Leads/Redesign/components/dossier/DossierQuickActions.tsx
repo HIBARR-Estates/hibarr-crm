@@ -1,69 +1,96 @@
 import { Icon } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import type { EmailQuickAction } from "@/Email/types";
 
 interface DossierQuickActionsProps {
     onLogAction: () => void;
     onAddNote: () => void;
     onScheduleMeeting: () => void;
+    /** Present only when crm.email is on and the user is allowlisted. */
+    emailQuickAction?: EmailQuickAction | null;
+    onEmail?: () => void;
 }
 
-const ACTIONS = [
-    {
-        id: "log",
-        label: "Log Action",
-        title: "Log an action",
-        icon: "activity",
-        handler: "onLogAction" as const,
-    },
-    {
-        id: "note",
-        label: "Add Note",
-        title: "Take a note",
-        icon: "file-text",
-        handler: "onAddNote" as const,
-    },
-    {
-        id: "meeting",
-        label: "Schedule Meeting",
-        title: "Schedule a meeting",
-        icon: "calendar",
-        handler: "onScheduleMeeting" as const,
-    },
-] as const;
+type ActionId = "log" | "note" | "meeting" | "email";
+
+type ActionDef = {
+    id: ActionId;
+    labelKey: string;
+    titleKey: string;
+    icon: "activity" | "file-text" | "calendar" | "mail";
+    onClick: () => void;
+};
 
 export default function DossierQuickActions({
     onLogAction,
     onAddNote,
     onScheduleMeeting,
+    emailQuickAction = null,
+    onEmail,
 }: DossierQuickActionsProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
-    const handlers = {
-        onLogAction,
-        onAddNote,
-        onScheduleMeeting,
-    };
+    const actions: ActionDef[] = [
+        {
+            id: "log",
+            labelKey: "pages.leads.quick_actions.log",
+            titleKey: "pages.leads.quick_actions.log_title",
+            icon: "activity",
+            onClick: onLogAction,
+        },
+        {
+            id: "note",
+            labelKey: "pages.leads.quick_actions.note",
+            titleKey: "pages.leads.quick_actions.note_title",
+            icon: "file-text",
+            onClick: onAddNote,
+        },
+        {
+            id: "meeting",
+            labelKey: "pages.leads.quick_actions.meeting",
+            titleKey: "pages.leads.quick_actions.meeting_title",
+            icon: "calendar",
+            onClick: onScheduleMeeting,
+        },
+    ];
+
+    if (emailQuickAction != null && onEmail) {
+        actions.push({
+            id: "email",
+            labelKey: emailQuickAction.has_connection
+                ? "pages.leads.quick_actions.email"
+                : "pages.leads.quick_actions.email_connect",
+            titleKey: emailQuickAction.has_connection
+                ? "pages.leads.quick_actions.email_title"
+                : "pages.leads.quick_actions.email_connect_title",
+            icon: "mail",
+            onClick: onEmail,
+        });
+    }
 
     return (
         <section
             className="v2-quick-actions"
             data-tour="lead-quick-actions"
-            aria-label={td("Quick actions", { source: "en" })}
+            aria-label={t("pages.leads.quick_actions.title")}
         >
-            <h2 className="v2-quick-actions__title">{td("Quick actions", { source: "en" })}</h2>
+            <h2 className="v2-quick-actions__title">
+                {t("pages.leads.quick_actions.title")}
+            </h2>
             <div className="v2-quick-actions__list">
-                {ACTIONS.map((action) => (
+                {actions.map((action) => (
                     <button
                         key={action.id}
                         type="button"
                         className="v2-quick-actions__btn"
-                        onClick={handlers[action.handler]}
-                        title={td(action.title, { source: "en" })}
-                        aria-label={td(action.title, { source: "en" })}
+                        onClick={action.onClick}
+                        title={t(action.titleKey)}
+                        aria-label={t(action.titleKey)}
+                        data-action={action.id}
                     >
                         <Icon name={action.icon} size={18} />
                         <span className="v2-quick-actions__label">
-                            {td(action.label, { source: "en" })}
+                            {t(action.labelKey)}
                         </span>
                     </button>
                 ))}

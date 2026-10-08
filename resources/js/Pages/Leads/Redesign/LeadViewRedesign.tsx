@@ -73,6 +73,14 @@ import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
 import DossierQuickActions from "./components/dossier/DossierQuickActions";
+import ComposerEntryModal from "@/Email/ComposerEntryModal";
+import ConnectMailboxModal from "@/Email/ConnectMailboxModal";
+import EmailRecordDrawer from "@/Email/EmailRecordDrawer";
+import type {
+    EmailComposerReplyContext,
+    EmailQuickAction,
+} from "@/Email/types";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 import LogActionModal from "@/Components/CrmEvents/LogActionModal";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import LeadMeetingDetailModal from "./components/workspace/LeadMeetingDetailModal";
@@ -132,6 +140,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
+    // Fail closed: flag off or missing server gate → no Email Quick action.
+    const emailQuickAction: EmailQuickAction | null =
+        featureFlags?.["crm.email"] === true && props.emailQuickAction != null
+            ? props.emailQuickAction
+            : null;
     // An expose is always created on a deal, so the deal view keeps its tab
     // unconditionally. The lead tab is only a rollup of what those deals hold:
     // with nothing attached anywhere it would open on a permanently empty
@@ -239,6 +252,38 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [logActionOpen, setLogActionOpen] = useState(false);
+    const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+    const [emailConnectOpen, setEmailConnectOpen] = useState(false);
+    const [emailReply, setEmailReply] =
+        useState<EmailComposerReplyContext | null>(null);
+    const [emailDrawerMessageId, setEmailDrawerMessageId] = useState<
+        string | null
+    >(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get(
+            "email_message",
+        );
+    });
+    const openEmailQuickAction = () => {
+        if (emailQuickAction?.has_connection) {
+            setEmailReply(null);
+            setEmailComposerOpen(true);
+        } else {
+            setEmailConnectOpen(true);
+        }
+    };
+
+    // Deep link + shareable URL for the record email drawer (E-27 / E-28).
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        if (emailDrawerMessageId) {
+            url.searchParams.set("email_message", emailDrawerMessageId);
+        } else {
+            url.searchParams.delete("email_message");
+        }
+        replaceUrlKeepingHistoryState(url);
+    }, [emailDrawerMessageId]);
     const [detailMeeting, setDetailMeeting] = useState<DealFollowup | null>(
         null,
     );
@@ -580,6 +625,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         leadId={lead.id}
                         leadName={lead.client_name}
                         userId={page.props.auth?.user?.id}
+                        emailEnabled={emailQuickAction != null}
+                        onOpenEmailMessage={setEmailDrawerMessageId}
                     />
                 );
             case "files":
@@ -741,6 +788,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         onScheduleMeeting={() =>
                                             setAddMeetingOpen(true)
                                         }
+                                        emailQuickAction={emailQuickAction}
+                                        onEmail={openEmailQuickAction}
                                     />
                                 </div>
                             )}
@@ -819,6 +868,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     onScheduleMeeting={() =>
                                         setAddMeetingOpen(true)
                                     }
+                                    emailQuickAction={emailQuickAction}
+                                    onEmail={openEmailQuickAction}
                                 />
                             )}
                             <LeadDossier
@@ -931,6 +982,41 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 modelType={LEAD_TIMELINE_MODEL_TYPE}
                 modelId={lead.id}
                 userId={page.props.auth?.user?.id}
+            />
+
+            <ComposerEntryModal
+                open={emailComposerOpen}
+                onClose={() => {
+                    setEmailComposerOpen(false);
+                    setEmailReply(null);
+                }}
+                recordLabel={lead.client_name}
+                prefillTo={
+                    emailReply?.to?.[0] ?? lead.client_email ?? null
+                }
+                reply={emailReply}
+                enabled={emailQuickAction?.has_connection === true}
+            />
+
+            <ConnectMailboxModal
+                open={emailConnectOpen}
+                onClose={() => setEmailConnectOpen(false)}
+            />
+
+            <EmailRecordDrawer
+                open={Boolean(emailDrawerMessageId)}
+                onClose={() => setEmailDrawerMessageId(null)}
+                record={{ type: "lead", id: lead.id }}
+                messageId={emailDrawerMessageId}
+                onReply={
+                    emailQuickAction?.has_connection
+                        ? (reply) => {
+                              setEmailDrawerMessageId(null);
+                              setEmailReply(reply);
+                              setEmailComposerOpen(true);
+                          }
+                        : undefined
+                }
             />
 
             <AddNoteModal

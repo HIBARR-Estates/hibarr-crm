@@ -545,8 +545,8 @@ Email action visible iff flag + allowlist + (connection or connect CTA). Opens c
 
 #### Verify
 
-- [ ] Flag off: no Email action
-- [ ] Keyboard accessible control
+- [x] Flag off: no Email action
+- [x] Keyboard accessible control
 
 ---
 
@@ -562,8 +562,8 @@ New + reply; To/Cc, subject, body, multi-attach, signature preview/once; From/Re
 
 #### Verify
 
-- [ ] Fake/Mailtrap accept shows Sent not Delivered
-- [ ] Missing To kept as draft
+- [x] Fake/Mailtrap accept shows Sent not Delivered
+- [x] Missing To kept as draft
 
 ---
 
@@ -579,8 +579,8 @@ Conversation + exchanged attachments; deep link to exact message; header From/To
 
 #### Verify
 
-- [ ] Oldest and newest visible
-- [ ] File deep-links to message
+- [x] Oldest and newest visible
+- [x] File deep-links to message
 
 ---
 
@@ -601,8 +601,8 @@ Emitting unused catalog slugs as duplicates.
 
 #### Verify
 
-- [ ] One group per conversation
-- [ ] Click opens that message
+- [x] One group per conversation
+- [x] Click opens that message
 
 ---
 
@@ -619,8 +619,8 @@ Equivalent Quick action / composer / drawer / Timeline on deal redesign.
 
 #### Verify
 
-- [ ] Same flag gates
-- [ ] Conversion visibility from E-19
+- [x] Same flag gates
+- [x] Conversion visibility from E-19
 
 ---
 

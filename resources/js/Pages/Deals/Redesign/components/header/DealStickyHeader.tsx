@@ -22,6 +22,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import type { EmailQuickAction } from "@/Email/types";
 import DealValueBlock from "../primitives/DealValueBlock";
 import DealActionsMenu from "./DealActionsMenu";
 import DealAgentCard from "./DealAgentCard";
@@ -41,6 +42,9 @@ interface DealStickyHeaderProps {
     onReplayGuide?: () => void;
     onOpenAnalysis?: () => void;
     isMobileResponsive?: boolean;
+    /** Fail-closed Email Quick action (flag + pilot). */
+    emailQuickAction?: EmailQuickAction | null;
+    onEmail?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -55,6 +59,8 @@ export default function DealStickyHeader({
     onReplayGuide,
     onOpenAnalysis,
     isMobileResponsive = false,
+    emailQuickAction = null,
+    onEmail,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -225,6 +231,32 @@ export default function DealStickyHeader({
                                 }
                                 currentOutcome={outcome}
                             />
+                            {emailQuickAction != null && onEmail && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={<Icon name="mail" size={14} />}
+                                    onClick={onEmail}
+                                    title={t(
+                                        emailQuickAction.has_connection
+                                            ? "pages.deals.quick_actions.email_title"
+                                            : "pages.deals.quick_actions.email_connect_title",
+                                    )}
+                                    aria-label={t(
+                                        emailQuickAction.has_connection
+                                            ? "pages.deals.quick_actions.email_title"
+                                            : "pages.deals.quick_actions.email_connect_title",
+                                    )}
+                                    data-tour="deal-email-action"
+                                    data-action="email"
+                                >
+                                    {t(
+                                        emailQuickAction.has_connection
+                                            ? "pages.deals.quick_actions.email"
+                                            : "pages.deals.quick_actions.email_connect",
+                                    )}
+                                </Button>
+                            )}
                             {onOpenAnalysis && (
                                 <Button
                                     variant="ghost"
