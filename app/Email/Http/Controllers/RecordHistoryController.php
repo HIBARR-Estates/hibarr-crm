@@ -2,8 +2,10 @@
 
 namespace App\Email\Http\Controllers;
 
+use App\Email\Authorization\EmailAccess;
 use App\Email\Linking\RecordHistory;
 use App\Email\Matching\RecordResolver;
+use App\Email\Reads\ReadState;
 use App\Email\Search\MessageSearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,8 @@ class RecordHistoryController
     public function __construct(
         private readonly RecordResolver $records,
         private readonly RecordHistory $history,
+        private readonly ReadState $reads,
+        private readonly EmailAccess $access,
     ) {}
 
     public function index(Request $request, string $type, string $id): JsonResponse
@@ -41,6 +45,21 @@ class RecordHistoryController
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
             ],
+        ]);
+    }
+
+    /**
+     * Compact Timeline groups: one conversation per row (latest, count, status)
+     * with dated messages for expand. Not a flat history list.
+     */
+    public function timeline(Request $request, string $type, string $id): JsonResponse
+    {
+        $record = $this->records->find($request->user(), $type, (int) $id);
+
+        abort_if($record === null, 404);
+
+        return response()->json([
+            'groups' => $this->history->timelineGroups($request->user(), $record),
         ]);
     }
 
@@ -65,5 +84,52 @@ class RecordHistoryController
                 'total' => $page->total(),
             ],
         ]);
+    }
+
+    /** Full conversation for the record email drawer (oldest → newest). */
+    public function conversation(Request $request, string $type, string $id, string $conversation): JsonResponse
+    {
+        $record = $this->records->find($request->user(), $type, (int) $id);
+
+        abort_if($record === null, 404);
+
+        $focus = $request->validate(['message' => ['nullable', 'uuid']])['message'] ?? null;
+        $payload = $this->history->conversation($request->user(), $record, $conversation, $focus);
+
+        abort_if($payload === null, 404);
+
+        $this->markFocusRead($request, $payload);
+
+        return response()->json($payload);
+    }
+
+    /** Deep link: open the conversation that contains this message on the record. */
+    public function message(Request $request, string $type, string $id, string $message): JsonResponse
+    {
+        $record = $this->records->find($request->user(), $type, (int) $id);
+
+        abort_if($record === null, 404);
+
+        $payload = $this->history->conversationByMessage($request->user(), $record, $message);
+
+        abort_if($payload === null, 404);
+
+        $this->markFocusRead($request, $payload);
+
+        return response()->json($payload);
+    }
+
+    /** @param  array<string, mixed>  $payload */
+    private function markFocusRead(Request $request, array $payload): void
+    {
+        $focusId = $payload['focus_message_id'] ?? null;
+        if (! is_string($focusId)) {
+            return;
+        }
+
+        $message = $this->access->findMessage($focusId);
+        if ($message !== null && $this->access->canViewMessage($request->user(), $message)) {
+            $this->reads->markRead($request->user(), $message);
+        }
     }
 }

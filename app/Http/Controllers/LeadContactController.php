@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
+use App\Email\EmailFeature;
 use App\Enums\LeadTemperature;
 use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
@@ -386,6 +387,8 @@ class LeadContactController extends AccountBaseController
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
                 ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
+            // CRM Email Quick action (E-25): null when flag off or not allowlisted.
+            'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
             // Synchronous so the qualification workspace paints without an extra
             // round-trip — `activeQualification.answers` is already eager-loaded above.

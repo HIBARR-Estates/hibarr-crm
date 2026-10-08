@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
+use App\Email\EmailFeature;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
@@ -707,6 +708,9 @@ class DealController extends AccountBaseController
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
             'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
+            // Fail-closed Email gate (flag + pilot). Timeline groups (E-28);
+            // Quick action / composer follow in E-29.
+            'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
             // A pipeline that sells packages does not sell individual properties,
             // so properties / recommendations / offers are hidden for its deals.

@@ -5,6 +5,7 @@ namespace App\Email\Http\Controllers;
 use App\Email\Connections\ConnectionManager;
 use App\Email\Connections\CredentialRules;
 use App\Email\Models\EmailConnection;
+use App\Email\Models\EmailSignature;
 use App\Email\Transport\MailTransportFactory;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -26,9 +27,16 @@ class ConnectionController
     public function index(Request $request): JsonResponse
     {
         $connections = $this->owned($request->user())->orderBy('id')->get();
+        $signatures = EmailSignature::withoutGlobalScopes()
+            ->where('company_id', $request->user()->company_id)
+            ->whereIn('connection_id', $connections->pluck('id'))
+            ->get()
+            ->keyBy('connection_id');
 
         return response()->json([
-            'connections' => $connections->map(fn (EmailConnection $connection) => $this->present($connection))->all(),
+            'connections' => $connections->map(
+                fn (EmailConnection $connection) => $this->present($connection, $signatures->get($connection->id))
+            )->all(),
         ]);
     }
 
@@ -63,7 +71,7 @@ class ConnectionController
 
         $connection = $this->connections->connect($user, $attributes, $credentials);
 
-        return response()->json(['connection' => $this->present($connection)], 201);
+        return response()->json(['connection' => $this->present($connection, null)], 201);
     }
 
     public function stop(Request $request, string $connection): JsonResponse
@@ -129,7 +137,12 @@ class ConnectionController
 
     private function respond(EmailConnection $connection): JsonResponse
     {
-        return response()->json(['connection' => $this->present($connection)]);
+        $signature = EmailSignature::withoutGlobalScopes()
+            ->where('connection_id', $connection->id)
+            ->where('company_id', $connection->company_id)
+            ->first();
+
+        return response()->json(['connection' => $this->present($connection, $signature)]);
     }
 
     /**
@@ -137,7 +150,7 @@ class ConnectionController
      *
      * @return array<string, mixed>
      */
-    private function present(EmailConnection $connection): array
+    private function present(EmailConnection $connection, ?EmailSignature $signature): array
     {
         return [
             'id' => $connection->uuid,
@@ -149,6 +162,11 @@ class ConnectionController
             'sync_stopped_at' => $connection->sync_stopped_at?->toIso8601String(),
             'last_sync_at' => $connection->last_sync_at?->toIso8601String(),
             'last_error_code' => $connection->last_error_code,
+            'signature' => $signature?->present() ?? [
+                'text' => null,
+                'html' => null,
+                'has_content' => false,
+            ],
         ];
     }
 }

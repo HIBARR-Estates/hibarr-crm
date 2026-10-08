@@ -2,6 +2,7 @@
 
 namespace App\Email;
 
+use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailPilotAllowlistEntry;
 use App\Models\User;
 use App\Support\FeatureFlags;
@@ -39,5 +40,30 @@ class EmailFeature
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    /**
+     * Lead/deal Quick action gate. Null when the Email control must not appear
+     * (flag off or not allowlisted). When present, the UI shows Email and
+     * either opens the composer (has a mailbox) or a connect CTA.
+     *
+     * @return array{has_connection: bool}|null
+     */
+    public static function quickActionFor(?User $user): ?array
+    {
+        if (! self::enabledFor($user)) {
+            return null;
+        }
+
+        try {
+            $hasConnection = EmailConnection::withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->where('company_id', $user->company_id)
+                ->exists();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return ['has_connection' => $hasConnection];
     }
 }
