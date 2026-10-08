@@ -3,8 +3,10 @@
 use App\Email\Http\Controllers\ConnectionController;
 use App\Email\Http\Controllers\CopyActionController;
 use App\Email\Http\Controllers\FileController;
+use App\Email\Http\Controllers\HandoffController;
 use App\Email\Http\Controllers\ReadController;
 use App\Email\Http\Controllers\RecordHistoryController;
+use App\Email\Http\Controllers\ReportController;
 use App\Email\Http\Controllers\ReviewController;
 use App\Email\Http\Controllers\SendController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
@@ -38,8 +40,11 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('connection')->name('connections.destroy');
 
         Route::get('review', [ReviewController::class, 'index'])->name('review.index');
+        Route::get('review/candidates', [ReviewController::class, 'candidates'])->name('review.candidates');
         Route::get('review/{copy}', [ReviewController::class, 'show'])
             ->whereUuid('copy')->name('review.show');
+
+        Route::get('report', [ReportController::class, 'index'])->name('report.index');
 
         Route::post('copies/{copy}/link', [CopyActionController::class, 'link'])
             ->whereUuid('copy')->name('copies.link');
@@ -49,6 +54,17 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('copy')->name('copies.dismiss');
         Route::post('copies/{copy}/create-lead', [CopyActionController::class, 'createLead'])
             ->whereUuid('copy')->name('copies.create-lead');
+        Route::post('copies/{copy}/handoff', [HandoffController::class, 'handoff'])
+            ->whereUuid('copy')->name('copies.handoff');
+        Route::post('copies/{copy}/escalate', [HandoffController::class, 'escalate'])
+            ->whereUuid('copy')->name('copies.escalate');
+
+        Route::get('handoffs/incoming', [HandoffController::class, 'incoming'])->name('handoffs.incoming');
+        Route::get('handoffs/colleagues', [HandoffController::class, 'colleagues'])->name('handoffs.colleagues');
+        Route::post('handoffs/{handoff}/accept', [HandoffController::class, 'accept'])
+            ->whereUuid('handoff')->name('handoffs.accept');
+        Route::post('handoffs/{handoff}/reject', [HandoffController::class, 'reject'])
+            ->whereUuid('handoff')->name('handoffs.reject');
 
         Route::get('unread', [ReadController::class, 'count'])->name('unread');
         Route::post('messages/{message}/read', [ReadController::class, 'store'])

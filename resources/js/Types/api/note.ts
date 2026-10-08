@@ -9,6 +9,8 @@ export interface Note {
     title: string | null;
     details: string;
     integration_origin?: IntegrationOrigin | null;
+    /** Public uuid of the email message this note was created from, if any. */
+    source_email_message_id?: string | null;
     created_at: string;
     updated_at: string;
     added_by?: User;

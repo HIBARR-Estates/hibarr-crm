@@ -1,6 +1,7 @@
 import { Icon } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EmailQuickAction } from "@/Email/types";
+import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 
 interface DossierQuickActionsProps {
     onLogAction: () => void;
@@ -29,6 +30,11 @@ export default function DossierQuickActions({
     onEmail,
 }: DossierQuickActionsProps) {
     const { t } = useTranslation();
+    const { unread: emailUnread, available: emailUnreadAvailable } =
+        useEmailUnreadCount({
+            enabled: emailQuickAction != null,
+            pollingInterval: 60_000,
+        });
 
     const actions: ActionDef[] = [
         {
@@ -78,22 +84,50 @@ export default function DossierQuickActions({
                 {t("pages.leads.quick_actions.title")}
             </h2>
             <div className="v2-quick-actions__list">
-                {actions.map((action) => (
-                    <button
-                        key={action.id}
-                        type="button"
-                        className="v2-quick-actions__btn"
-                        onClick={action.onClick}
-                        title={t(action.titleKey)}
-                        aria-label={t(action.titleKey)}
-                        data-action={action.id}
-                    >
-                        <Icon name={action.icon} size={18} />
-                        <span className="v2-quick-actions__label">
-                            {t(action.labelKey)}
-                        </span>
-                    </button>
-                ))}
+                {actions.map((action) => {
+                    const showUnreadDot =
+                        action.id === "email" &&
+                        emailUnreadAvailable &&
+                        emailUnread > 0;
+                    const ariaLabel =
+                        showUnreadDot
+                            ? t("pages.email.indicator.unread_aria").replace(
+                                  "{{count}}",
+                                  String(emailUnread),
+                              )
+                            : t(action.titleKey);
+
+                    return (
+                        <button
+                            key={action.id}
+                            type="button"
+                            className="v2-quick-actions__btn"
+                            onClick={action.onClick}
+                            title={ariaLabel}
+                            aria-label={ariaLabel}
+                            data-action={action.id}
+                            data-email-unread={
+                                action.id === "email" && emailUnreadAvailable
+                                    ? emailUnread
+                                    : undefined
+                            }
+                        >
+                            <span className="relative inline-flex">
+                                <Icon name={action.icon} size={18} />
+                                {showUnreadDot ? (
+                                    <span
+                                        className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-dr-red"
+                                        aria-hidden="true"
+                                        data-tour="lead-email-unread-dot"
+                                    />
+                                ) : null}
+                            </span>
+                            <span className="v2-quick-actions__label">
+                                {t(action.labelKey)}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
         </section>
     );

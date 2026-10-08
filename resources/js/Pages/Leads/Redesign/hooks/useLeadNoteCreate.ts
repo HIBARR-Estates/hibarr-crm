@@ -11,12 +11,14 @@ import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 export interface LeadNoteCreateInput {
     text: string;
     title?: string;
+    sourceEmailMessageId?: string | null;
 }
 
 interface SaveNotePayload {
     title?: string;
     details: string;
     lead_id: number;
+    source_email_message_id?: string;
 }
 
 /**
@@ -74,6 +76,12 @@ export default function useLeadNoteCreate(leadId: number) {
                     title: input.title?.trim() || undefined,
                     details: `<p>${trimmed}</p>`,
                     lead_id: leadId,
+                    ...(input.sourceEmailMessageId
+                        ? {
+                              source_email_message_id:
+                                  input.sourceEmailMessageId,
+                          }
+                        : {}),
                 },
                 {
                     onSuccess: (response) => {

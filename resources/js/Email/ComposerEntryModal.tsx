@@ -15,6 +15,8 @@ export interface ComposerEntryModalProps {
     reply?: EmailComposerReplyContext | null;
     enabled?: boolean;
     onSent?: () => void;
+    /** Open mailbox connection settings (stop / reconnect / connect). */
+    onManageMailbox?: () => void;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -36,6 +38,7 @@ export default function ComposerEntryModal({
     reply = null,
     enabled = true,
     onSent,
+    onManageMailbox,
 }: ComposerEntryModalProps) {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -149,11 +152,38 @@ export default function ComposerEntryModal({
                     {t("pages.email.composer.loading")}
                 </p>
             ) : !selectedConnection ? (
-                <p className="m-0 text-sm text-dr-text-muted">
-                    {t("pages.email.composer.no_active_connection")}
-                </p>
+                <div className="flex flex-col gap-3">
+                    <p className="m-0 text-sm text-dr-text-muted">
+                        {t("pages.email.composer.no_active_connection")}
+                    </p>
+                    <p className="m-0 text-sm text-dr-text-muted">
+                        {t("pages.email.connect.waiting_to_send_hint")}
+                    </p>
+                    {onManageMailbox ? (
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={onManageMailbox}
+                        >
+                            {t("pages.email.connect.manage")}
+                        </Button>
+                    ) : null}
+                </div>
             ) : (
                 <div className="flex flex-col gap-1">
+                    {onManageMailbox ? (
+                        <div className="mb-1 flex justify-end">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={onManageMailbox}
+                            >
+                                {t("pages.email.connect.manage")}
+                            </Button>
+                        </div>
+                    ) : null}
                     {connections.length > 1 ? (
                         <ModalField label={t("pages.email.composer.from")}>
                             <select
@@ -390,15 +420,24 @@ export default function ComposerEntryModal({
                     ) : null}
 
                     {statusLabel && lastAttempt ? (
-                        <p
+                        <div
                             className="m-0 text-sm text-dr-text-muted"
                             role="status"
                         >
-                            {statusLabel}
-                            {lastAttempt.status === "sent"
-                                ? ` — ${t("pages.email.composer.not_delivered")}`
-                                : null}
-                        </p>
+                            <p className="m-0">{statusLabel}</p>
+                            {lastAttempt.status === "sent" ? (
+                                <p className="mb-0 mt-1">
+                                    {t("pages.email.composer.not_delivered")}
+                                </p>
+                            ) : null}
+                            {lastAttempt.status === "waiting_quota" ? (
+                                <p className="mb-0 mt-1">
+                                    {t(
+                                        "pages.email.connect.waiting_to_send_hint",
+                                    )}
+                                </p>
+                            ) : null}
+                        </div>
                     ) : null}
                 </div>
             )}

@@ -12,6 +12,7 @@ interface DealScheduleMeetingModalProps {
     onClose: () => void;
     deal: Deal;
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    sourceEmailMessageId?: string | null;
 }
 
 export default function DealScheduleMeetingModal({
@@ -19,6 +20,7 @@ export default function DealScheduleMeetingModal({
     onClose,
     deal,
     meetingTypes,
+    sourceEmailMessageId = null,
 }: DealScheduleMeetingModalProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -54,6 +56,7 @@ export default function DealScheduleMeetingModal({
                 remark: form.remark,
                 reminders: form.reminders,
                 timezone: form.timezone,
+                sourceEmailMessageId,
             },
             handleClose,
         );

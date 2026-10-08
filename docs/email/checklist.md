@@ -638,7 +638,7 @@ Inertia page: create / attach / dismiss. Safe preview.
 
 #### Verify
 
-- [ ] Direct URL other user’s item 403/404
+- [x] Direct URL other user’s item 403/404
 
 ---
 
@@ -654,8 +654,8 @@ Explicit + audit. No silent `lead_owner` change. Recipient must have access to a
 
 #### Verify
 
-- [ ] Owner unchanged on handoff
-- [ ] Reject leaves copy with sender
+- [x] Owner unchanged on handoff
+- [x] Reject leaves copy with sender
 
 ---
 
@@ -671,8 +671,8 @@ Create existing task/meeting/note with `source_email_message_id` (or equivalent)
 
 #### Verify
 
-- [ ] Inbound does not create a task by default
-- [ ] Follow-up opens source message
+- [x] Inbound does not create a task by default
+- [x] Follow-up opens source message
 
 ---
 
@@ -688,7 +688,7 @@ Mailtrap connect form (dev/staging), status, stop, reconnect, waiting-to-send co
 
 #### Verify
 
-- [ ] Stop from UI halts jobs
+- [x] Stop from UI halts jobs
 
 ---
 
@@ -708,7 +708,7 @@ Emailing the agent a copy of customer mail (privacy).
 
 #### Verify
 
-- [ ] Lead reassignment does not mark old mail unread for new owner
+- [x] Lead reassignment does not mark old mail unread for new owner
 
 ---
 
@@ -724,8 +724,8 @@ Counts only: pending unlinked routing, open follow-ups linked to email, unresolv
 
 #### Verify
 
-- [ ] Informational inbound creates no overdue
-- [ ] Counts match queues
+- [x] Informational inbound creates no overdue
+- [x] Counts match queues
 
 ---
 
@@ -742,7 +742,7 @@ Already in E-12; ensure UI + support path; preserve history.
 
 #### Verify
 
-- [ ] Stop: no send, no sync, copies readable by owner
+- [x] Stop: no send, no sync, copies readable by owner
 
 ---
 
@@ -759,7 +759,7 @@ Structured logs: connection, send, link, unlink, permission denies — **no** fu
 
 #### Verify
 
-- [ ] Sample log line has no body/token
+- [x] Sample log line has no body/token
 
 ---
 

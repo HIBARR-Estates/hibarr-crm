@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
+import { notifyEmailUnreadChanged } from "@/Email/emailUnreadEvents";
 import type {
     EmailConversationDrawerPayload,
     EmailRecordRef,
@@ -41,6 +42,8 @@ export default function useEmailRecordDrawer(options: {
                     response.data.messages.at(-1)?.id ??
                     null,
             );
+            // Opening the exact message marks it read for this user only.
+            notifyEmailUnreadChanged();
         } catch {
             setPayload(null);
             setSelectedMessageId(null);
@@ -59,8 +62,8 @@ export default function useEmailRecordDrawer(options: {
             setSelectedMessageId(id);
             if (!record) return;
             void axios
-                .post(`/email/messages/${id}/read`)
-                .then(() => {
+                .post<{ unread?: number }>(`/email/messages/${id}/read`)
+                .then((response) => {
                     setPayload((current) => {
                         if (!current) return current;
                         return {
@@ -72,6 +75,11 @@ export default function useEmailRecordDrawer(options: {
                             ),
                         };
                     });
+                    notifyEmailUnreadChanged(
+                        typeof response.data.unread === "number"
+                            ? response.data.unread
+                            : undefined,
+                    );
                 })
                 .catch(() => {
                     /* read state is best-effort */

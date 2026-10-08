@@ -28,6 +28,9 @@ export type EmailComposerAttachment = {
     downloadable: boolean;
 };
 
+/** CRM follow-up created from a specific email message (E-32). */
+export type EmailFollowUpKind = "task" | "note" | "meeting";
+
 export type EmailComposerReplyContext = {
     in_reply_to: string;
     references?: string[];
@@ -134,4 +137,102 @@ export type EmailTimelineGroup = {
 
 export type EmailTimelineGroupsResponse = {
     groups: EmailTimelineGroup[];
+};
+
+export type EmailHandoffRef = {
+    id: string;
+    type: "handoff" | "escalate";
+    status: "pending" | "accepted" | "rejected";
+    note?: string | null;
+    to_user?: { id: number; name: string } | null;
+    from_user?: { id: number; name: string } | null;
+    created_at?: string | null;
+    copy_id?: string | null;
+    subject?: string | null;
+    from?: EmailAddressRef | null;
+    sent_at?: string | null;
+    preview?: string | null;
+};
+
+export type EmailHandoffColleague = {
+    id: number;
+    name: string;
+    email: string | null;
+};
+
+export type EmailReviewItem = {
+    id: string;
+    message_uuid: string | null;
+    unread: boolean;
+    connection_id: string | null;
+    direction: string;
+    folder: string | null;
+    review_status?: string;
+    from: EmailAddressRef | null;
+    to: EmailAddressRef[];
+    cc: EmailAddressRef[];
+    subject: string | null;
+    sent_at: string | null;
+    preview: string | null;
+    has_attachments: boolean;
+    files: EmailComposerAttachment[];
+    record_exists: boolean;
+    snippet?: string | null;
+    handoff?: EmailHandoffRef | null;
+};
+
+export type EmailReviewMeta = {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+};
+
+export type EmailAttachCandidate = {
+    record_type: "lead" | "deal";
+    record_id: number;
+    label: string;
+    email: string | null;
+};
+
+export type EmailWorkReportMailbox = {
+    connection_id: string;
+    email: string;
+    owner_id: number | null;
+    owner_name: string | null;
+};
+
+export type EmailWorkReportItem = {
+    id: string;
+    kind:
+        | "pending_routing"
+        | "open_follow_up"
+        | "unresolved_handoff"
+        | "sync_fault"
+        | "delivery_fault";
+    label: string | null;
+    since: string;
+    age_seconds: number;
+    mailbox: EmailWorkReportMailbox | null;
+    href: string | null;
+    handoff_type?: string;
+    from_user?: { id: number; name: string } | null;
+    to_user?: { id: number; name: string } | null;
+    connection_status?: string;
+    send_status?: string;
+    error_code?: string | null;
+};
+
+export type EmailWorkReportCounts = {
+    pending_routing: number;
+    open_follow_ups: number;
+    unresolved_handoffs: number;
+    faults: number;
+};
+
+export type EmailWorkReportSections = {
+    pending_routing: EmailWorkReportItem[];
+    open_follow_ups: EmailWorkReportItem[];
+    unresolved_handoffs: EmailWorkReportItem[];
+    faults: EmailWorkReportItem[];
 };

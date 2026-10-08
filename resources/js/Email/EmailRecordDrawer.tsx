@@ -6,6 +6,7 @@ import type {
     EmailAddressRef,
     EmailComposerReplyContext,
     EmailDrawerMessage,
+    EmailFollowUpKind,
     EmailRecordRef,
 } from "@/Email/types";
 
@@ -15,6 +16,8 @@ export interface EmailRecordDrawerProps {
     record: EmailRecordRef | null;
     messageId: string | null;
     onReply?: (reply: EmailComposerReplyContext) => void;
+    /** Create a task / note / meeting linked to the selected message. */
+    onCreateFollowUp?: (kind: EmailFollowUpKind, messageId: string) => void;
 }
 
 function formatAddress(address: EmailAddressRef | null | undefined): string {
@@ -68,6 +71,7 @@ export default function EmailRecordDrawer({
     record,
     messageId,
     onReply,
+    onCreateFollowUp,
 }: EmailRecordDrawerProps) {
     const { t, locale } = useTranslation();
     const messageRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -136,17 +140,74 @@ export default function EmailRecordDrawer({
                             <div className="text-xs text-dr-text-muted">
                                 {t("pages.email.drawer.oldest_newest_hint")}
                             </div>
-                            {selectedMessage && onReply ? (
-                                <Button
-                                    type="button"
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={() =>
-                                        onReply(replyContextFor(selectedMessage))
-                                    }
-                                >
-                                    {t("pages.email.drawer.reply")}
-                                </Button>
+                            {selectedMessage ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {onCreateFollowUp ? (
+                                        <>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                    onCreateFollowUp(
+                                                        "task",
+                                                        selectedMessage.id,
+                                                    )
+                                                }
+                                            >
+                                                {t(
+                                                    "pages.email.drawer.create_task",
+                                                )}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                    onCreateFollowUp(
+                                                        "note",
+                                                        selectedMessage.id,
+                                                    )
+                                                }
+                                            >
+                                                {t(
+                                                    "pages.email.drawer.create_note",
+                                                )}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                    onCreateFollowUp(
+                                                        "meeting",
+                                                        selectedMessage.id,
+                                                    )
+                                                }
+                                            >
+                                                {t(
+                                                    "pages.email.drawer.create_meeting",
+                                                )}
+                                            </Button>
+                                        </>
+                                    ) : null}
+                                    {onReply ? (
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            size="sm"
+                                            onClick={() =>
+                                                onReply(
+                                                    replyContextFor(
+                                                        selectedMessage,
+                                                    ),
+                                                )
+                                            }
+                                        >
+                                            {t("pages.email.drawer.reply")}
+                                        </Button>
+                                    ) : null}
+                                </div>
                             ) : null}
                         </div>
 

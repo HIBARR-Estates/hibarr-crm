@@ -5,6 +5,8 @@ import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollow
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import MeetingDetailModal from "@/Components/Redesign/modals/MeetingDetailModal";
 import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
+import { openSourceEmailMessage } from "@/Email/openSourceEmail";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import DealEditMeetingModal from "./DealEditMeetingModal";
@@ -31,6 +33,7 @@ export default function DealMeetingDetailModal({
     onClose,
     initialPanel = "info",
 }: DealMeetingDetailModalProps) {
+    const { t } = useTranslation();
     const { setDealFollowUps, dealFollowUps } = useDealWorkspace();
     const meeting =
         meetingProp == null
@@ -40,6 +43,7 @@ export default function DealMeetingDetailModal({
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const { updateMeeting, isUpdating } = useDealMeetingUpdate(deal);
+    const sourceEmailId = meeting?.source_email_message_id ?? null;
 
     const handleCancelMeeting = () => {
         if (!meeting) return;
@@ -115,6 +119,19 @@ export default function DealMeetingDetailModal({
             includeSummary
             userId={currentUserId}
             initialPanel={initialPanel}
+            onOpenSourceEmail={
+                sourceEmailId
+                    ? () => {
+                          onClose();
+                          openSourceEmailMessage(sourceEmailId);
+                      }
+                    : undefined
+            }
+            openSourceEmailLabel={
+                sourceEmailId
+                    ? t("pages.email.drawer.open_source")
+                    : undefined
+            }
             renderNestedModals={nested}
             fallback={
                 <MeetingDetailModal
