@@ -5,10 +5,6 @@ import {
     subscribeEmailUnreadChanged,
 } from "@/Email/emailUnreadEvents";
 
-type PageFeatureFlags = {
-    featureFlags?: Record<string, boolean | undefined>;
-};
-
 /**
  * Mailbox-owner unread count (inbound copies in own mailboxes). Independent of
  * Lead Owner — two recipients each get their own indicator.
@@ -18,7 +14,7 @@ export default function useEmailUnreadCount(options?: {
     pollingInterval?: number;
     enabled?: boolean;
 }) {
-    const { props } = usePage<PageFeatureFlags>();
+    const { props } = usePage();
     const flagOn = props.featureFlags?.["crm.email"] === true;
     const enabled = (options?.enabled ?? true) && flagOn;
     const pollingInterval = options?.pollingInterval ?? 60_000;
