@@ -37,6 +37,7 @@ class ConnectionController
             'connections' => $connections->map(
                 fn (EmailConnection $connection) => $this->present($connection, $signatures->get($connection->id))
             )->all(),
+            'providers' => $this->availableProviders(),
         ]);
     }
 
@@ -168,5 +169,42 @@ class ConnectionController
                 'has_content' => false,
             ],
         ];
+    }
+
+    /**
+     * Providers the current environment can connect, plus Mailtrap sandbox
+     * names that actually have an inbox id configured (no secrets).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function availableProviders(): array
+    {
+        $providers = [];
+
+        if ($this->transports->supports('fake')) {
+            $providers[] = [
+                'id' => 'fake',
+                'label' => 'fake',
+                'fields' => [],
+            ];
+        }
+
+        if ($this->transports->supports('mailtrap')) {
+            $sandboxes = array_values(array_filter(
+                array_map('strval', array_keys(array_filter(
+                    (array) config('email.mailtrap.sandboxes', []),
+                    fn ($inboxId) => $inboxId !== null && $inboxId !== '',
+                ))),
+            ));
+
+            $providers[] = [
+                'id' => 'mailtrap',
+                'label' => 'mailtrap',
+                'fields' => ['inbox_id', 'sandbox', 'smtp_username', 'smtp_password'],
+                'sandboxes' => $sandboxes,
+            ];
+        }
+
+        return $providers;
     }
 }

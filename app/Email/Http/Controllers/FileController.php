@@ -5,6 +5,7 @@ namespace App\Email\Http\Controllers;
 use App\Email\Authorization\EmailAccess;
 use App\Email\Files\EmailFiles;
 use App\Email\Files\FileRefused;
+use App\Email\Observability\EmailLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +47,15 @@ class FileController
         $found = $this->access->findFile($file);
 
         abort_if($found === null, 404);
-        abort_unless($this->access->canViewFile($request->user(), $found), 403);
+
+        if (! $this->access->canViewFile($request->user(), $found)) {
+            EmailLog::permissionDenied('file.download', [
+                'user_id' => $request->user()?->id,
+                'company_id' => $request->user()?->company_id,
+                'file_id' => $found->uuid,
+            ]);
+            abort(403);
+        }
 
         $bytes = $this->files->bytes($found);
 

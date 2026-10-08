@@ -34,6 +34,8 @@ trait BuildsEmailSchema
         '2026_10_06_000011_create_email_files_table.php',
         '2026_10_06_000012_create_email_user_reads_table.php',
         '2026_10_06_000013_create_email_signatures_table.php',
+        '2026_10_06_000014_create_email_handoffs_table.php',
+        '2026_10_06_000015_create_email_follow_ups_table.php',
     ];
 
     protected function buildEmailSchema(): void

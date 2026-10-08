@@ -7,6 +7,7 @@ use App\Email\Enums\ConnectionStatus;
 use App\Email\Exceptions\MailTransportException;
 use App\Email\Ingest\MessageIngestor;
 use App\Email\Models\EmailConnection;
+use App\Email\Observability\EmailLog;
 use App\Email\Transport\MailTransportFactory;
 
 /**
@@ -35,16 +36,19 @@ class MailboxSynchronizer
 
     public function sync(EmailConnection $connection): SyncOutcome
     {
+        $started = microtime(true);
+
         // Fail closed: flag, pilot allowlist and an active mailbox are all required.
         if (! EmailFeature::enabledFor($connection->user)) {
-            return SyncOutcome::skipped('feature_disabled');
+            return $this->finishSync($connection, SyncOutcome::skipped('feature_disabled'), $started);
         }
 
         if (! $connection->isSyncable()) {
-            return SyncOutcome::skipped('connection_inactive');
+            return $this->finishSync($connection, SyncOutcome::skipped('connection_inactive'), $started);
         }
 
         $ingested = 0;
+        $maxLagMs = null;
 
         try {
             $context = $connection->toContext();
@@ -56,6 +60,11 @@ class MailboxSynchronizer
                 foreach ($fetched->messages as $message) {
                     $this->ingestor->ingestNormalized($connection, $message);
                     $ingested++;
+
+                    if (config('email.observability.log_ingest_lag', true) && $message->sentAt !== null) {
+                        $lag = (int) max(0, (now()->getTimestamp() - $message->sentAt->getTimestamp()) * 1000);
+                        $maxLagMs = $maxLagMs === null ? $lag : max($maxLagMs, $lag);
+                    }
                 }
 
                 $connection->forceFill([
@@ -71,10 +80,38 @@ class MailboxSynchronizer
         } catch (MailTransportException $exception) {
             $this->recordFailure($connection, $exception);
 
-            return SyncOutcome::failed($ingested, $exception->errorCode);
+            return $this->finishSync(
+                $connection,
+                SyncOutcome::failed($ingested, $exception->errorCode),
+                $started,
+                $maxLagMs,
+            );
         }
 
-        return SyncOutcome::synced($ingested);
+        return $this->finishSync($connection, SyncOutcome::synced($ingested), $started, $maxLagMs);
+    }
+
+    private function finishSync(
+        EmailConnection $connection,
+        SyncOutcome $outcome,
+        float $startedAt,
+        ?int $maxIngestLagMs = null,
+    ): SyncOutcome {
+        $context = [
+            'connection_id' => $connection->uuid,
+            'company_id' => $connection->company_id,
+            'user_id' => $connection->user_id,
+            'ran' => $outcome->ran,
+            'ingested' => $outcome->ingested,
+            'reason' => $outcome->reason,
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            // Measured only — not an SLO (see docs/email/architecture.md).
+            'ingest_lag_ms_max' => $maxIngestLagMs,
+        ];
+
+        EmailLog::metric('email.job.sync', $context);
+
+        return $outcome;
     }
 
     /**

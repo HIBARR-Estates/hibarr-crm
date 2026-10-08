@@ -3,6 +3,7 @@
 namespace Tests\Feature\Email;
 
 use App\Email\Adapters\FakeMailAdapter;
+use App\Email\Authorization\EmailAccess;
 use App\Email\Data\ConnectionHealth;
 use App\Email\Data\Draft;
 use App\Email\Data\EmailAddress;
@@ -12,12 +13,14 @@ use App\Email\Exceptions\EmailUnavailableException;
 use App\Email\Jobs\SyncMailboxJob;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
+use App\Email\Models\EmailMessage;
 use App\Email\Models\EmailPilotAllowlistEntry;
 use App\Email\Models\EmailSendAttempt;
 use App\Email\Sending\SendAttemptService;
 use App\Email\Sync\MailboxSynchronizer;
 use App\Email\Sync\SyncOutcome;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -105,7 +108,21 @@ class ConnectionApiTest extends TestCase
         EmailPilotAllowlistEntry::factory()->forCompany($colleague->company_id)->create();
         $this->signIn($colleague);
 
-        $this->getJson('/email/connections')->assertOk()->assertExactJson(['connections' => []]);
+        $this->getJson('/email/connections')
+            ->assertOk()
+            ->assertJsonPath('connections', [])
+            ->assertJsonStructure(['connections', 'providers']);
+    }
+
+    public function test_index_lists_available_providers_for_the_environment(): void
+    {
+        $this->signIn($this->agent);
+
+        $response = $this->getJson('/email/connections')->assertOk();
+
+        $response->assertJsonPath('connections', []);
+        $ids = collect($response->json('providers'))->pluck('id')->all();
+        $this->assertContains('fake', $ids);
     }
 
     // ------------------------------------------------------------------
@@ -299,6 +316,81 @@ class ConnectionApiTest extends TestCase
         $this->postJson("/email/connections/{$connection->uuid}/stop")->assertOk();
 
         $this->assertSame(1, EmailMailboxCopy::withoutGlobalScopes()->where('connection_id', $connection->id)->count());
+    }
+
+    /** E-36: stop — no send, no sync, copies still readable by the owner; history preserved. */
+    public function test_stop_halts_send_and_sync_but_owner_can_still_read_copies(): void
+    {
+        $connection = $this->connectionFor($this->agent);
+        $this->fake->seedInbound($connection->toContext(), [
+            'subject' => 'Keep me',
+            'text' => 'History must remain.',
+        ]);
+        $this->assertTrue($this->sync($connection)->succeeded());
+
+        $copy = EmailMailboxCopy::withoutGlobalScopes()->where('connection_id', $connection->id)->sole();
+        $message = EmailMessage::withoutGlobalScopes()->findOrFail($copy->message_id);
+        $checkpoint = $connection->fresh()->checkpoint;
+        $copyCount = EmailMailboxCopy::withoutGlobalScopes()->count();
+        $messageCount = EmailMessage::withoutGlobalScopes()->count();
+
+        $this->signIn($this->agent);
+        $this->postJson("/email/connections/{$connection->uuid}/stop")
+            ->assertOk()
+            ->assertJsonPath('connection.status', 'stopped');
+
+        $connection = $connection->fresh();
+        $this->assertSame(ConnectionStatus::Stopped, $connection->status);
+        $this->assertFalse($connection->isSyncable());
+
+        // No new sync.
+        $this->assertSame('connection_inactive', $this->sync($connection)->reason);
+        $this->assertSame($copyCount, EmailMailboxCopy::withoutGlobalScopes()->count());
+
+        // No new send (service + HTTP).
+        try {
+            app(SendAttemptService::class)->send($connection, $this->draft($connection));
+            $this->fail('A stopped connection must not send.');
+        } catch (EmailUnavailableException $exception) {
+            $this->assertSame('connection_inactive', $exception->reason);
+        }
+
+        $this->postJson('/email/send', [
+            'connection_id' => $connection->uuid,
+            'to' => ['lead@example.test'],
+            'subject' => 'Should fail',
+            'text_body' => 'Nope',
+        ])->assertStatus(422)->assertJsonValidationErrors(['connection_id']);
+
+        $this->assertSame(0, EmailSendAttempt::withoutGlobalScopes()->count());
+
+        // Owner can still read their copies; history rows unchanged.
+        $access = app(EmailAccess::class);
+        $this->assertTrue($access->canViewCopy($this->agent, $copy->fresh()));
+        $this->assertTrue($access->canViewMessage($this->agent, $message->fresh()));
+        $this->assertSame($copyCount, EmailMailboxCopy::withoutGlobalScopes()->count());
+        $this->assertSame($messageCount, EmailMessage::withoutGlobalScopes()->count());
+        $this->assertSame($checkpoint, $connection->fresh()->checkpoint);
+
+        $this->getJson('/email/review')
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $copy->uuid)
+            ->assertJsonPath('items.0.subject', 'Keep me');
+
+        // Support path: artisan stop is idempotent and still preserves copies.
+        $this->assertSame(0, Artisan::call('email:mailbox', [
+            'action' => 'stop',
+            'uuid' => $connection->uuid,
+            '--force' => true,
+        ]));
+        $this->assertSame(ConnectionStatus::Stopped, $connection->fresh()->status);
+        $this->assertSame($copyCount, EmailMailboxCopy::withoutGlobalScopes()->count());
+
+        $this->assertSame(0, Artisan::call('email:mailbox', [
+            'action' => 'status',
+            'uuid' => $connection->uuid,
+        ]));
+        $this->assertStringContainsString('stopped', Artisan::output());
     }
 
     public function test_resume_turns_sync_back_on_from_the_saved_checkpoint(): void

@@ -59,6 +59,7 @@ class EmailReadStateTest extends TestCase
         $this->bensMailbox = EmailConnection::factory()->forUser($this->ben)->create();
     }
 
+    /** E-34: two mailbox recipients are both indicated; neither is sole responder. */
     public function test_two_users_one_opens_the_other_still_has_it_unread(): void
     {
         $annas = $this->ingest($this->annasMailbox, '<shared@mail.test>');
@@ -66,8 +67,13 @@ class EmailReadStateTest extends TestCase
         $uuid = $annas->message->uuid;
 
         $this->assertSame($annas->message_id, $bens->message_id);
+        // Both mailbox owners see new mail — Lead Owner is irrelevant here.
         $this->assertSame(1, $this->reads()->unreadCount($this->anna));
         $this->assertSame(1, $this->reads()->unreadCount($this->ben));
+        $this->signIn($this->anna);
+        $this->getJson('/email/unread')->assertOk()->assertExactJson(['unread' => 1]);
+        $this->signIn($this->ben);
+        $this->getJson('/email/unread')->assertOk()->assertExactJson(['unread' => 1]);
 
         // Opening is a CRM matter only: any use of a mail transport fails the test (no \Seen at the provider).
         $this->mock(MailTransportFactory::class, function (MockInterface $mock) {
@@ -75,7 +81,6 @@ class EmailReadStateTest extends TestCase
         });
 
         $this->signIn($this->anna);
-        $this->getJson('/email/unread')->assertOk()->assertExactJson(['unread' => 1]);
         $this->getJson('/email/review')->assertJsonPath('items.0.unread', true)->assertJsonPath('items.0.message_uuid', $uuid);
 
         $this->postJson("/email/messages/{$uuid}/read")
@@ -125,7 +130,8 @@ class EmailReadStateTest extends TestCase
         $this->assertSame(1, DB::table('email_user_reads')->count());
     }
 
-    public function test_reassigning_a_lead_neither_creates_nor_resurrects_unread(): void
+    /** E-34: lead reassignment does not mark old mail unread for the new owner. */
+    public function test_lead_reassignment_does_not_mark_old_mail_unread_for_new_owner(): void
     {
         $lena = $this->user(['view_lead' => 'owned']);
         $nora = $this->user(['view_lead' => 'owned']);

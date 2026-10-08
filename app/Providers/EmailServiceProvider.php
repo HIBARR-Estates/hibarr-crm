@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Email\Adapters\FakeMailAdapter;
+use App\Email\Console\ManageMailboxCommand;
 use App\Email\Contracts\AttachmentStore;
 use App\Email\Contracts\MailTransport;
 use App\Email\Files\EmailFileAttachmentStore;
@@ -25,6 +26,10 @@ class EmailServiceProvider extends ServiceProvider
         // The default provider's adapter (config email.default_provider). Code
         // working on a specific connection asks the factory instead.
         $this->app->bind(MailTransport::class, fn ($app) => $app->make(MailTransportFactory::class)->default());
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([ManageMailboxCommand::class]);
+        }
     }
 
     public function boot(): void

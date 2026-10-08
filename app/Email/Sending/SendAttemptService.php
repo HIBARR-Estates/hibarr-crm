@@ -15,6 +15,7 @@ use App\Email\Exceptions\MailTransportException;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailSendAttempt;
 use App\Email\Models\EmailSendRecipient;
+use App\Email\Observability\EmailLog;
 use App\Email\Transport\MailTransportFactory;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -65,10 +66,17 @@ class SendAttemptService
 
         // An invalid draft is kept on the attempt and never reaches the provider.
         if (($invalid = $this->validator->check($connection, $draft)) !== null) {
-            return $this->failValidation($attempt, $invalid);
+            return $this->logSend($this->failValidation($attempt, $invalid), $connection, $actor, microtime(true));
         }
 
-        return $this->submit($attempt, $connection, [SendAttemptStatus::Sending]);
+        $started = microtime(true);
+
+        return $this->logSend(
+            $this->submit($attempt, $connection, [SendAttemptStatus::Sending]),
+            $connection,
+            $actor,
+            $started,
+        );
     }
 
     /**
@@ -87,15 +95,59 @@ class SendAttemptService
         $this->guard($connection);
 
         if (($invalid = $this->validator->check($connection, $attempt->draft())) !== null) {
-            return $attempt->status === SendAttemptStatus::Failed ? $this->failValidation($attempt, $invalid) : $attempt;
+            $failed = $attempt->status === SendAttemptStatus::Failed
+                ? $this->failValidation($attempt, $invalid)
+                : $attempt;
+
+            return $this->logSend($failed, $connection, null, microtime(true), retry: true);
         }
 
-        return $this->submit($attempt, $connection, [
-            SendAttemptStatus::Failed,
-            SendAttemptStatus::Checking,
-            SendAttemptStatus::WaitingQuota,
-            SendAttemptStatus::Sending,
+        $started = microtime(true);
+
+        return $this->logSend(
+            $this->submit($attempt, $connection, [
+                SendAttemptStatus::Failed,
+                SendAttemptStatus::Checking,
+                SendAttemptStatus::WaitingQuota,
+                SendAttemptStatus::Sending,
+            ]),
+            $connection,
+            null,
+            $started,
+            retry: true,
+        );
+    }
+
+    private function logSend(
+        EmailSendAttempt $attempt,
+        ?EmailConnection $connection,
+        ?User $actor,
+        float $startedAt,
+        bool $retry = false,
+    ): EmailSendAttempt {
+        EmailLog::metric('email.job.send', [
+            'attempt_id' => $attempt->uuid,
+            'connection_id' => $connection?->uuid,
+            'company_id' => $attempt->company_id,
+            'user_id' => $actor?->id ?? $attempt->created_by,
+            'status' => $attempt->status->value,
+            'error_code' => $attempt->error_code,
+            'attempt_count' => $attempt->attempt_count,
+            'retry' => $retry,
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            // Never log draft/body — EmailLog scrub is belt-and-braces.
         ]);
+
+        EmailLog::info('email.send', [
+            'attempt_id' => $attempt->uuid,
+            'connection_id' => $connection?->uuid,
+            'company_id' => $attempt->company_id,
+            'status' => $attempt->status->value,
+            'error_code' => $attempt->error_code,
+            'retry' => $retry,
+        ]);
+
+        return $attempt;
     }
 
     /** A worker that died mid-send leaves the attempt "sending" with no one working on it. */

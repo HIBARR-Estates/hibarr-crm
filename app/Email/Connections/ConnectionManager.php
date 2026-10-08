@@ -7,6 +7,7 @@ use App\Email\Data\HealthState;
 use App\Email\Enums\ConnectionStatus;
 use App\Email\Exceptions\MailTransportException;
 use App\Email\Models\EmailConnection;
+use App\Email\Observability\EmailLog;
 use App\Email\Transport\MailTransportFactory;
 use App\Models\User;
 use SensitiveParameter;
@@ -40,7 +41,12 @@ class ConnectionManager
         // Named before it is saved: the health check addresses the mailbox by its CRM uuid.
         $connection->uuid = $connection->newUniqueId();
 
-        return $this->activate($connection);
+        $activated = $this->activate($connection);
+        EmailLog::info('email.connection.connect', $this->logContext($activated, [
+            'user_id' => $owner->id,
+        ]));
+
+        return $activated;
     }
 
     /** No new sync and no new send until resumed. Mail already in the CRM stays readable. */
@@ -52,6 +58,8 @@ class ConnectionManager
             $connection->save();
         }
 
+        EmailLog::info('email.connection.stop', $this->logContext($connection));
+
         return $connection;
     }
 
@@ -62,7 +70,10 @@ class ConnectionManager
             return $connection;
         }
 
-        return $this->activate($connection);
+        $activated = $this->activate($connection);
+        EmailLog::info('email.connection.resume', $this->logContext($activated));
+
+        return $activated;
     }
 
     /**
@@ -75,13 +86,18 @@ class ConnectionManager
     {
         $connection->credentials = $credentials;
 
-        return $this->activate($connection);
+        $activated = $this->activate($connection);
+        EmailLog::info('email.connection.reconnect', $this->logContext($activated));
+
+        return $activated;
     }
 
     /** Removes the connection from the CRM only; the provider mailbox is left as it is. */
     public function disconnect(EmailConnection $connection): void
     {
+        $context = $this->logContext($connection);
         $connection->delete();
+        EmailLog::info('email.connection.disconnect', $context);
     }
 
     private function activate(EmailConnection $connection): EmailConnection
@@ -98,6 +114,22 @@ class ConnectionManager
         $connection->save();
 
         return $connection;
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function logContext(EmailConnection $connection, array $extra = []): array
+    {
+        return $extra + [
+            'connection_id' => $connection->uuid,
+            'company_id' => $connection->company_id,
+            'user_id' => $connection->user_id,
+            'provider' => $connection->provider,
+            'status' => $connection->status->value,
+            'error_code' => $connection->last_error_code,
+        ];
     }
 
     private function health(EmailConnection $connection): ConnectionHealth

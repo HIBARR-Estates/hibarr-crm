@@ -131,6 +131,13 @@ class TaskPresenter
             $payload['files'] = self::serializeFiles($task);
         }
 
+        try {
+            $payload['source_email_message_id'] = app(\App\Email\FollowUps\FollowUpLinker::class)
+                ->sourceUuidFor($task);
+        } catch (\Throwable) {
+            $payload['source_email_message_id'] = null;
+        }
+
         return $payload;
     }
 

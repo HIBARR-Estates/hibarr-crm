@@ -66,6 +66,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Observability (E-37)
+    |--------------------------------------------------------------------------
+    |
+    | Structured logs via App\Email\Observability\EmailLog (no bodies/tokens).
+    | Job metrics include duration and counts. Ingest lag may be logged when
+    | known — the proposed 2-minute p95 is measured only, not an SLO.
+    |
+    */
+
+    'observability' => [
+        'log_ingest_lag' => (bool) env('EMAIL_LOG_INGEST_LAG', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Email files (attachments)
     |--------------------------------------------------------------------------
     |

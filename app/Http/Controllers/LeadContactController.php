@@ -405,10 +405,20 @@ class LeadContactController extends AccountBaseController
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
                 'marketing'
             ),
-            'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
-                ->with('addedBy')
-                ->orderBy('created_at', 'desc')
-                ->get(), 'workspace'),
+            'notes' => Inertia::defer(function () use ($leadId) {
+                $notes = LeadNote::where('lead_id', $leadId)
+                    ->with('addedBy')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                try {
+                    app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($notes);
+                } catch (\Throwable) {
+                    // Email module unavailable — list still returns.
+                }
+
+                return $notes;
+            }, 'workspace'),
             // A lead-owned FILE field's value is stored directly on the lead
             // (shared across every deal on that lead) — no per-deal lookup
             // needed, the lead's own custom_fields_data (sent with the shell
@@ -443,7 +453,8 @@ class LeadContactController extends AccountBaseController
                 return $leadContact->tasks()
                     ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
                     ->orderBy('id', 'desc')
-                    ->get();
+                    ->get()
+                    ->map(fn ($task) => $task->toFrontendArray());
             }, 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
@@ -481,6 +492,12 @@ class LeadContactController extends AccountBaseController
                         ->values()
                         ->toArray();
                 });
+
+                try {
+                    app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($leadFollowUps);
+                } catch (\Throwable) {
+                    // Email module unavailable — list still returns.
+                }
 
                 return $leadFollowUps;
             }, 'workspace'),

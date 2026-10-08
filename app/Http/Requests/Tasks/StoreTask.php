@@ -66,6 +66,8 @@ class StoreTask extends CoreRequest
             // Marks this task as the record's committed next action. Only the
             // dashboard's "log activity" flow sets it.
             'is_next_step' => 'nullable|boolean',
+            // Exact email message this task was created from (CRM uuid).
+            'source_email_message_id' => 'nullable|uuid',
         ];
 
         if(in_array('client', user_roles()) || $taskSetting->project_required == 'yes')

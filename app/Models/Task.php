@@ -193,6 +193,15 @@ class Task extends BaseModel
         $data['start_date'] = self::wallClockString($this->start_date);
         $data['completed_on'] = self::wallClockString($this->completed_on);
 
+        if (! array_key_exists('source_email_message_id', $data)) {
+            try {
+                $data['source_email_message_id'] = app(\App\Email\FollowUps\FollowUpLinker::class)
+                    ->sourceUuidFor($this);
+            } catch (\Throwable) {
+                $data['source_email_message_id'] = null;
+            }
+        }
+
         return $data;
     }
 

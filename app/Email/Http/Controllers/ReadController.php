@@ -3,6 +3,7 @@
 namespace App\Email\Http\Controllers;
 
 use App\Email\Authorization\EmailAccess;
+use App\Email\Observability\EmailLog;
 use App\Email\Reads\ReadState;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,16 @@ class ReadController
         $found = $this->access->findMessage($message);
 
         // Missing and not-readable look the same: a message id says nothing to someone without access.
-        abort_if($found === null || ! $this->access->canViewMessage($request->user(), $found), 404);
+        if ($found === null || ! $this->access->canViewMessage($request->user(), $found)) {
+            if ($found !== null) {
+                EmailLog::permissionDenied('message.read', [
+                    'user_id' => $request->user()?->id,
+                    'company_id' => $request->user()?->company_id,
+                    'message_id' => $found->uuid,
+                ]);
+            }
+            abort(404);
+        }
 
         $this->reads->markRead($request->user(), $found);
 

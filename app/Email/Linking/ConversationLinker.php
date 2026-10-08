@@ -11,6 +11,7 @@ use App\Email\Models\EmailLinkAudit;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
 use App\Email\Models\EmailRecordLink;
+use App\Email\Observability\EmailLog;
 use App\Models\User;
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
@@ -60,6 +61,15 @@ class ConversationLinker
 
             if ($link->wasRecentlyCreated || $moved > 0) {
                 $this->audit(LinkAuditAction::Link, $conversation, $type, $record, $actor);
+                EmailLog::info('email.link', [
+                    'company_id' => $conversation->company_id,
+                    'conversation_id' => $conversation->uuid,
+                    'record_type' => $type->value,
+                    'record_id' => $record->getKey(),
+                    'actor_id' => $actor?->id,
+                    'connection_id' => $mailbox?->uuid,
+                    'copies_moved' => $moved,
+                ]);
             }
 
             return $link;
@@ -85,6 +95,13 @@ class ConversationLinker
             }
 
             $this->audit(LinkAuditAction::Unlink, $conversation, $type, $record, $actor);
+            EmailLog::info('email.unlink', [
+                'company_id' => $conversation->company_id,
+                'conversation_id' => $conversation->uuid,
+                'record_type' => $type->value,
+                'record_id' => $record->getKey(),
+                'actor_id' => $actor?->id,
+            ]);
 
             // With no record left to project onto, the mail goes back to its owners' review.
             if (! $this->isLinked($conversation)) {

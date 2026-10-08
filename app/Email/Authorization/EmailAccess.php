@@ -191,6 +191,35 @@ class EmailAccess
     }
 
     /**
+     * May this user accept an explicit handoff / escalate? Needs the feature
+     * and pilot allowlist, and must not be a partner. Pending recipients still
+     * only see a request card — this gate is for accept, not body access.
+     */
+    public function canAcceptHandoff(?User $user): bool
+    {
+        return $this->enabledFor($user) && ! $this->isPartner($user);
+    }
+
+    /**
+     * Company-wide manager work report (counts + age + mailbox + link).
+     * Bodies stay behind EmailAccess — this gate is metadata only. Until the
+     * access-matrix workshop settles successors/managers, treat company-wide
+     * lead visibility (`view_lead` = all) as the manager proxy; partners never.
+     */
+    public function canViewWorkReport(?User $user): bool
+    {
+        if (! $this->enabledFor($user) || $this->isPartner($user)) {
+            return false;
+        }
+
+        try {
+            return $user->permission('view_lead') === 'all';
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * The "communications ACL": may this user read mail linked to this record
      * without holding a copy of it? Needs ordinary record access as well, and
      * is never true for a partner.

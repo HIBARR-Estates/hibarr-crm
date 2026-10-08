@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * A mailbox owner's private review: their own copies that are on no record.
  * Nobody else can reach these — every query starts from EmailAccess's own-copies
- * scope.
+ * scope. Pending handoffs stay listed so the request remains visible.
  */
 class ReviewQueue
 {
@@ -27,11 +27,17 @@ class ReviewQueue
         private readonly EmailFiles $files,
         private readonly MessageSearch $search,
         private readonly ReadState $reads,
+        private readonly Handoffs $handoffs,
     ) {}
 
     public function for(User $owner): Builder
     {
-        return $this->owned($owner)->where('review_status', ReviewStatus::Unlinked);
+        $pending = $this->handoffs->pendingCopyIdsFrom($owner);
+
+        return $this->owned($owner)->where(function (Builder $query) use ($pending) {
+            $query->where('review_status', ReviewStatus::Unlinked)
+                ->when($pending->isNotEmpty(), fn (Builder $q) => $q->orWhereIn('id', $pending->all()));
+        });
     }
 
     /**
@@ -98,6 +104,7 @@ class ReviewQueue
                 'connection_id' => $copy->connection?->uuid,
                 'direction' => $copy->direction->value,
                 'folder' => $copy->folder,
+                'review_status' => $copy->review_status->value,
                 'from' => $message?->from_email !== null
                     ? ['address' => $message->from_email, 'name' => $message->from_name]
                     : null,
@@ -109,6 +116,7 @@ class ReviewQueue
                 'has_attachments' => (bool) $message?->has_attachments,
                 'files' => $files->get($copy->message_id, []),
                 'record_exists' => array_intersect($counterparts[$copy->id], $hidden) !== [],
+                'handoff' => $this->handoffs->presentForCopy($owner, $copy),
             ];
         }
 
