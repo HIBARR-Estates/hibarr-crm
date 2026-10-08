@@ -752,6 +752,8 @@ return [
             'disconnect' => 'Bağlantıyı kes',
             'stopped_hint' => 'Senkron ve gönderim, siz sürdürene kadar bekletilir. CRM\'de zaten duran postalar okunabilir kalır.',
             'reconnect_no_secrets' => 'Bu posta kutusunu sağlayıcıda yeniden kontrol edin.',
+            'zoho_submit' => 'Zoho ile bağlan',
+            'zoho_hint' => 'Zoho’da oturum açarsınız. Posta kutusu adresi o hesaptan gelir ve belirteç bağlantınızda saklanır.',
             'no_providers' => 'Bu ortamda kullanılabilir posta kutusu sağlayıcısı yok.',
             'manage' => 'Posta kutusu ayarları',
             'status' => [
@@ -766,6 +768,12 @@ return [
                 'unavailable' => 'Posta kutusu ayarları kullanılamıyor.',
                 'already_connected' => 'Bu posta kutusu zaten bağlı.',
                 'provider_unavailable' => 'Bu sağlayıcı burada kullanılamıyor.',
+                'oauth_required' => 'Bu posta kutusunu Zoho üzerinden yeniden bağlayın.',
+                'oauth_state' => 'Zoho oturumu süresi doldu. Yeniden başlayın.',
+                'oauth_denied' => 'Zoho posta kutusu erişimi vermedi.',
+                'mailbox_not_found' => 'Zoho bu hesap için bir posta kutusu döndürmedi.',
+                'missing_oauth_client' => 'Zoho Mail yapılandırılmamış.',
+                'oauth_exchange_failed' => 'Zoho bir posta kutusu belirteci döndürmedi.',
             ],
         ],
         'drawer' => [

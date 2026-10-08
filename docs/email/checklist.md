@@ -774,6 +774,14 @@ Structured logs: connection, send, link, unlink, permission denies — **no** fu
 
 Same port. Per-user tokens. Do not use `config/zoho.php` refresh token.
 
+#### Verify
+
+- [x] OAuth callback stores a per-user refresh token on `email_connections`
+- [x] Calendar `config/zoho.php` refresh token is never sent or stored
+- [x] Missing Mail client → needs reconnect, no Zoho call
+- [x] Flag off → OAuth routes 404
+- [x] Accept is not Delivered
+
 ---
 
 ### Task E-39 — Provider spike matrix

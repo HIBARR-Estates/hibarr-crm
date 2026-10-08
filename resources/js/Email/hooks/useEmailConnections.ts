@@ -7,6 +7,8 @@ export type EmailConnectionProviderOption = {
     label: string;
     fields: string[];
     sandboxes?: string[];
+    oauth?: boolean;
+    authorize_path?: string;
 };
 
 export type EmailConnectionDetail = EmailConnectionSummary & {
