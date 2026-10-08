@@ -5,12 +5,16 @@ interface TimelineTabProps {
     leadId: number;
     leadName?: string;
     userId?: number;
+    emailEnabled?: boolean;
+    onOpenEmailMessage?: (messageId: string) => void;
 }
 
 export default function TimelineTab({
     leadId,
     leadName,
     userId,
+    emailEnabled,
+    onOpenEmailMessage,
 }: TimelineTabProps) {
     return (
         <DealTimelineTab
@@ -18,6 +22,9 @@ export default function TimelineTab({
             dealName={leadName}
             userId={userId}
             modelType={LEAD_TIMELINE_MODEL_TYPE}
+            recordType="lead"
+            emailEnabled={emailEnabled}
+            onOpenEmailMessage={onOpenEmailMessage}
         />
     );
 }

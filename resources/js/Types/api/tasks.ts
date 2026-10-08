@@ -9,6 +9,8 @@ export interface Task {
     priority: "low" | "medium" | "high" | "highest" | "urgent";
     status: string;
     integration_origin?: IntegrationOrigin | null;
+    /** Public uuid of the email message this task was created from, if any. */
+    source_email_message_id?: string | null;
     board_column_id?: number;
     project?: {
         id: number;

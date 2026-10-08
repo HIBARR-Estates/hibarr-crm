@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\LeadNotesDataTable;
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\Helper\Reply;
 use App\Http\Requests\Lead\StoreLeadNote;
 use App\Models\Lead;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 
 class LeadNoteController extends AccountBaseController
 {
+    use AttachesSourceEmail;
     use RecordsCrmEvents;
 
     public function __construct()
@@ -105,6 +107,9 @@ class LeadNoteController extends AccountBaseController
         } finally {
             app()->forgetInstance('skip_lead_note_created_notification');
         }
+
+        $this->attachSourceEmail(user(), $note, $request->input('source_email_message_id'));
+
         /* if note type is private */
         if ($request->type == 1) {
             $users = $request->user_id;
@@ -147,6 +152,7 @@ class LeadNoteController extends AccountBaseController
             'data' => array_merge($note->toArray(), [
                 'added_by' => $note->addedBy,
                 'added_by_user' => $note->addedBy,
+                'source_email_message_id' => $this->sourceEmailMessageIdFor($note),
             ]),
         ]);
     }

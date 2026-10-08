@@ -35,6 +35,7 @@ class StoreDealNote extends CoreRequest
             ],
             // Optional — notes may be saved/updated with no title.
             'title' => 'nullable|string|max:191',
+            'source_email_message_id' => 'nullable|uuid',
         ];
     }
 

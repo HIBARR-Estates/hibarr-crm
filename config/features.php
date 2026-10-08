@@ -51,6 +51,7 @@ return [
         'shared.3cx-calling',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
+        'crm.email',
     ],
 
     /*

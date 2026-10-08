@@ -40,6 +40,7 @@ export interface DealMeetingCreateInput {
     reminders: Reminder[];
     /** IANA zone the date/time were entered in — see MeetingFormState. */
     timezone?: string;
+    sourceEmailMessageId?: string | null;
 }
 
 interface FollowUpStorePayload {
@@ -55,6 +56,7 @@ interface FollowUpStorePayload {
     participants?: number[];
     host_id?: number | null;
     timezone?: string;
+    source_email_message_id?: string;
 }
 
 function dealHasAgent(deal: Deal): boolean {
@@ -181,6 +183,10 @@ export default function useDealMeetingCreate(deal: Deal) {
                 host_id: input.hostId,
                 timezone: input.timezone || undefined,
             };
+
+            if (input.sourceEmailMessageId) {
+                payload.source_email_message_id = input.sourceEmailMessageId;
+            }
 
             setErrors([]);
             mutate(payload, {
