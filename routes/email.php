@@ -6,6 +6,7 @@ use App\Email\Http\Controllers\FileController;
 use App\Email\Http\Controllers\ReadController;
 use App\Email\Http\Controllers\RecordHistoryController;
 use App\Email\Http\Controllers\ReviewController;
+use App\Email\Http\Controllers\SendController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
 use Illuminate\Support\Facades\Route;
@@ -57,8 +58,18 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
         Route::get('files/{file}/download', [FileController::class, 'download'])
             ->whereUuid('file')->name('files.download');
 
+        Route::post('send', [SendController::class, 'store'])->name('send');
+
         Route::get('records/{type}/{id}/history', [RecordHistoryController::class, 'index'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.history');
+        Route::get('records/{type}/{id}/timeline', [RecordHistoryController::class, 'timeline'])
+            ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.timeline');
         Route::get('records/{type}/{id}/search', [RecordHistoryController::class, 'search'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->name('records.search');
+        Route::get('records/{type}/{id}/conversations/{conversation}', [RecordHistoryController::class, 'conversation'])
+            ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->whereUuid('conversation')
+            ->name('records.conversations.show');
+        Route::get('records/{type}/{id}/messages/{message}', [RecordHistoryController::class, 'message'])
+            ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->whereUuid('message')
+            ->name('records.messages.show');
     });
