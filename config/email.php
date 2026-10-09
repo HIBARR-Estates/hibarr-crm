@@ -155,4 +155,34 @@ return [
         'environments' => ['local', 'development', 'staging', 'testing'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Zoho Mail (API adapter)
+    |--------------------------------------------------------------------------
+    |
+    | Per-user OAuth for the Mail API. Client id and secret are the Mail
+    | client (the same OAuth app as ZOHO_OAUTH_* when ops says so). They are
+    | not read from config/zoho.php, and the calendar refresh token is never
+    | used as a mailbox credential.
+    |
+    | Refresh tokens live encrypted on email_connections. The redirect URI
+    | must match the Zoho client exactly (path /email/connections/zoho/callback
+    | on this CRM). When ZOHO_MAIL_REDIRECT_URI is empty, the route URL is used.
+    |
+    | API only. IMAP is not part of this adapter. Default provider stays
+    | fake/mailtrap until the staging cutover task.
+    |
+    */
+
+    'zoho' => [
+        'client_id' => env('ZOHO_MAIL_CLIENT_ID'),
+        'client_secret' => env('ZOHO_MAIL_CLIENT_SECRET'),
+        'redirect_uri' => env('ZOHO_MAIL_REDIRECT_URI'),
+        'accounts_url' => env('ZOHO_MAIL_ACCOUNTS_URL', 'https://accounts.zoho.eu'),
+        'api_base_url' => env('ZOHO_MAIL_API_BASE_URL', 'https://mail.zoho.eu'),
+        'scopes' => env('ZOHO_MAIL_SCOPES', 'ZohoMail.accounts.READ,ZohoMail.folders.READ,ZohoMail.messages.ALL,ZohoMail.attachments.ALL'),
+        'timeout' => (int) env('ZOHO_MAIL_TIMEOUT', 15),
+        'environments' => ['local', 'staging', 'testing', 'production', 'codecanyon'],
+    ],
+
 ];

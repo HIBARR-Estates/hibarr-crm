@@ -792,6 +792,8 @@ return [
             'disconnect' => 'Disconnect',
             'stopped_hint' => 'Sync and send are paused until you resume. Mail already in the CRM stays readable.',
             'reconnect_no_secrets' => 'Re-check this mailbox with the provider.',
+            'zoho_submit' => 'Connect with Zoho',
+            'zoho_hint' => 'You will sign in at Zoho. The mailbox address comes from that account, and the token is stored on your connection.',
             'no_providers' => 'No mailbox providers are available in this environment.',
             'manage' => 'Mailbox settings',
             'status' => [
@@ -806,6 +808,12 @@ return [
                 'unavailable' => 'Mailbox settings are unavailable.',
                 'already_connected' => 'That mailbox is already connected.',
                 'provider_unavailable' => 'That provider is not available here.',
+                'oauth_required' => 'Reconnect this mailbox through Zoho.',
+                'oauth_state' => 'That Zoho sign-in expired. Start again.',
+                'oauth_denied' => 'Zoho did not grant mailbox access.',
+                'mailbox_not_found' => 'Zoho did not return a mailbox for this account.',
+                'missing_oauth_client' => 'Zoho Mail is not configured.',
+                'oauth_exchange_failed' => 'Zoho did not return a mailbox token.',
             ],
         ],
         'drawer' => [

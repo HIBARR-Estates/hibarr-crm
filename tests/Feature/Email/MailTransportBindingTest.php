@@ -53,10 +53,10 @@ class MailTransportBindingTest extends TestCase
     {
         $factory = app(MailTransportFactory::class);
 
-        $this->assertFalse($factory->supports('zoho'));
+        $this->assertFalse($factory->supports('postmark'));
 
         try {
-            $factory->make('zoho');
+            $factory->make('postmark');
             $this->fail('Expected an unavailable provider to throw.');
         } catch (MailTransportException $exception) {
             $this->assertSame('provider_unavailable', $exception->errorCode);

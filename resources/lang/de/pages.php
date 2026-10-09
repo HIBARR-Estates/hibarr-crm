@@ -771,6 +771,8 @@ return [
             'disconnect' => 'Trennen',
             'stopped_hint' => 'Sync und Versand sind pausiert, bis Sie fortsetzen. Bereits im CRM liegende E-Mails bleiben lesbar.',
             'reconnect_no_secrets' => 'Prüfen Sie dieses Postfach erneut beim Anbieter.',
+            'zoho_submit' => 'Mit Zoho verbinden',
+            'zoho_hint' => 'Sie melden sich bei Zoho an. Die Postfachadresse kommt von diesem Konto, das Token bleibt an Ihrer Verbindung.',
             'no_providers' => 'In dieser Umgebung sind keine Postfach-Anbieter verfügbar.',
             'manage' => 'Postfach-Einstellungen',
             'status' => [
@@ -785,6 +787,12 @@ return [
                 'unavailable' => 'Postfach-Einstellungen sind nicht verfügbar.',
                 'already_connected' => 'Dieses Postfach ist bereits verbunden.',
                 'provider_unavailable' => 'Dieser Anbieter ist hier nicht verfügbar.',
+                'oauth_required' => 'Verbinden Sie dieses Postfach erneut über Zoho.',
+                'oauth_state' => 'Die Zoho-Anmeldung ist abgelaufen. Starten Sie erneut.',
+                'oauth_denied' => 'Zoho hat den Postfachzugriff nicht gewährt.',
+                'mailbox_not_found' => 'Zoho hat kein Postfach für dieses Konto zurückgegeben.',
+                'missing_oauth_client' => 'Zoho Mail ist nicht konfiguriert.',
+                'oauth_exchange_failed' => 'Zoho hat kein Postfach-Token zurückgegeben.',
             ],
         ],
         'drawer' => [
