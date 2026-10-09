@@ -2,6 +2,7 @@
 
 namespace App\Email\Http\Controllers;
 
+use App\Email\Adapters\Zoho\ZohoMailAdapter;
 use App\Email\Connections\ConnectionManager;
 use App\Email\Connections\CredentialRules;
 use App\Email\Models\EmailConnection;
@@ -55,6 +56,12 @@ class ConnectionController
 
         $attributes['provider'] = $attributes['provider'] ?? (string) config('email.default_provider', '');
 
+        // Zoho mailboxes are connected by the OAuth callback, which stores the
+        // per-user refresh token. A posted secret is never accepted.
+        if ($attributes['provider'] === ZohoMailAdapter::PROVIDER) {
+            throw ValidationException::withMessages(['provider' => 'oauth_required']);
+        }
+
         // Fail closed: a provider with no adapter in this environment cannot be connected.
         if (! $this->transports->supports($attributes['provider'])) {
             throw ValidationException::withMessages(['provider' => 'provider_unavailable']);
@@ -88,6 +95,10 @@ class ConnectionController
     public function reconnect(Request $request, string $connection): JsonResponse
     {
         $found = $this->find($request, $connection);
+
+        if ($found->provider === ZohoMailAdapter::PROVIDER) {
+            throw ValidationException::withMessages(['provider' => 'oauth_required']);
+        }
 
         if (! $this->transports->supports($found->provider)) {
             throw ValidationException::withMessages(['provider' => 'provider_unavailable']);
@@ -185,6 +196,16 @@ class ConnectionController
             $providers[] = [
                 'id' => 'fake',
                 'label' => 'fake',
+                'fields' => [],
+            ];
+        }
+
+        if ($this->transports->supports(ZohoMailAdapter::PROVIDER)) {
+            $providers[] = [
+                'id' => ZohoMailAdapter::PROVIDER,
+                'label' => 'zoho',
+                'oauth' => true,
+                'authorize_path' => '/email/connections/zoho/redirect',
                 'fields' => [],
             ];
         }

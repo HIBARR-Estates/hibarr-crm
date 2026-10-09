@@ -4,6 +4,7 @@ namespace App\Email\Transport;
 
 use App\Email\Adapters\FakeMailAdapter;
 use App\Email\Adapters\Mailtrap\MailtrapAdapter;
+use App\Email\Adapters\Zoho\ZohoMailAdapter;
 use App\Email\Contracts\MailTransport;
 use App\Email\Data\ConnectionContext;
 use App\Email\Exceptions\MailTransportException;
@@ -49,11 +50,19 @@ class MailTransportFactory
         return $this->app->make(match ($provider) {
             FakeMailAdapter::PROVIDER => FakeMailAdapter::class,
             MailtrapAdapter::PROVIDER => MailtrapAdapter::class,
+            ZohoMailAdapter::PROVIDER => ZohoMailAdapter::class,
         });
     }
 
     public function supports(string $provider): bool
     {
+        // Zoho is the production mailbox adapter. Sandbox and in-memory
+        // providers stay refused in production whatever config says.
+        if ($provider === ZohoMailAdapter::PROVIDER) {
+            return $this->zohoClientConfigured()
+                && $this->app->environment((array) config('email.zoho.environments', []));
+        }
+
         if ($this->app->environment(self::PRODUCTION_ENVIRONMENTS)) {
             return false;
         }
@@ -63,5 +72,14 @@ class MailTransportFactory
             MailtrapAdapter::PROVIDER => $this->app->environment((array) config('email.mailtrap.environments', [])),
             default => false,
         };
+    }
+
+    /** Mail OAuth client only. config/zoho.php is never consulted. */
+    private function zohoClientConfigured(): bool
+    {
+        $id = config('email.zoho.client_id');
+        $secret = config('email.zoho.client_secret');
+
+        return is_string($id) && trim($id) !== '' && is_string($secret) && trim($secret) !== '';
     }
 }

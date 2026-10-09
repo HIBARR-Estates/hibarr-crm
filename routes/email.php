@@ -9,6 +9,7 @@ use App\Email\Http\Controllers\RecordHistoryController;
 use App\Email\Http\Controllers\ReportController;
 use App\Email\Http\Controllers\ReviewController;
 use App\Email\Http\Controllers\SendController;
+use App\Email\Http\Controllers\ZohoOAuthController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,8 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
     ->group(function () {
         Route::get('connections', [ConnectionController::class, 'index'])->name('connections.index');
         Route::post('connections', [ConnectionController::class, 'store'])->name('connections.store');
+        Route::get('connections/zoho/redirect', [ZohoOAuthController::class, 'redirect'])->name('connections.zoho.redirect');
+        Route::get('connections/zoho/callback', [ZohoOAuthController::class, 'callback'])->name('connections.zoho.callback');
 
         Route::post('connections/{connection}/stop', [ConnectionController::class, 'stop'])
             ->whereUuid('connection')->name('connections.stop');

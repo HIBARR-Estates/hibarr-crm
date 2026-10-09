@@ -96,7 +96,17 @@ export default function ConnectMailboxModal({
     );
 
     const isMailtrap = selectedProvider?.id === "mailtrap";
+    const isOAuth = selectedProvider?.oauth === true;
     const busy = busyId != null;
+
+    const startZoho = () => {
+        const path = selectedProvider?.authorize_path;
+        if (!path) return;
+        const back = `${window.location.pathname}${window.location.search}`;
+        window.location.assign(
+            `${path}?return=${encodeURIComponent(back)}`,
+        );
+    };
 
     const errorMessage = errorCode
         ? t(`pages.email.connect.errors.${errorCode}`, {
@@ -308,11 +318,30 @@ export default function ConnectMailboxModal({
                                                         variant="primary"
                                                         size="sm"
                                                         disabled={rowBusy}
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            if (
+                                                                connection.provider ===
+                                                                "zoho"
+                                                            ) {
+                                                                const zoho =
+                                                                    providers.find(
+                                                                        (row) =>
+                                                                            row.oauth,
+                                                                    );
+                                                                if (
+                                                                    zoho?.authorize_path
+                                                                ) {
+                                                                    const back = `${window.location.pathname}${window.location.search}`;
+                                                                    window.location.assign(
+                                                                        `${zoho.authorize_path}?return=${encodeURIComponent(back)}`,
+                                                                    );
+                                                                }
+                                                                return;
+                                                            }
                                                             setReconnectId(
                                                                 connection.id,
-                                                            )
-                                                        }
+                                                            );
+                                                        }}
                                                         data-action="reconnect"
                                                     >
                                                         {t(
@@ -523,6 +552,27 @@ export default function ConnectMailboxModal({
                             </ModalField>
                         ) : null}
 
+                        {isOAuth ? (
+                            <div className="flex flex-col gap-3">
+                                <p className="m-0 text-sm leading-relaxed text-dr-text-muted">
+                                    {t("pages.email.connect.zoho_hint")}
+                                </p>
+                                <div>
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        disabled={busy}
+                                        onClick={startZoho}
+                                        data-action="connect-zoho"
+                                    >
+                                        {t("pages.email.connect.zoho_submit")}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {!isOAuth ? (
+                        <>
                         <ModalField
                             label={t("pages.email.connect.identity_email")}
                         >
@@ -674,7 +724,10 @@ export default function ConnectMailboxModal({
                                 </ModalField>
                             </>
                         ) : null}
+                        </>
+                        ) : null}
 
+                        {!isOAuth ? (
                         <div className="mt-2">
                             <Button
                                 type="button"
@@ -695,6 +748,7 @@ export default function ConnectMailboxModal({
                                 {t("pages.email.connect.submit")}
                             </Button>
                         </div>
+                        ) : null}
                     </section>
                 ) : null}
             </div>

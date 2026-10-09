@@ -546,6 +546,8 @@ class ConnectionApiTest extends TestCase
         return $onlyExisting ? $onConnection : array_merge([
             ['GET', '/email/connections'],
             ['POST', '/email/connections'],
+            ['GET', '/email/connections/zoho/redirect'],
+            ['GET', '/email/connections/zoho/callback'],
         ], $onConnection);
     }
 

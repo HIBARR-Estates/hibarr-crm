@@ -25,8 +25,11 @@ class MailboxSynchronizer
         'missing_api_token',
         'missing_account_id',
         'missing_inbox_id',
+        'missing_oauth_client',
+        'missing_refresh_token',
         'unauthorized',
         'inbox_not_found',
+        'mailbox_not_found',
     ];
 
     public function __construct(
