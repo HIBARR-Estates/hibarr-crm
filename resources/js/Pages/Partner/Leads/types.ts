@@ -1,6 +1,7 @@
 /** Shapes returned by PartnerLeadController. No contact fields exist here on purpose. */
 
 export interface LeadStatus {
+    id: number;
     label: string;
     color: string | null;
 }
@@ -20,8 +21,23 @@ export interface PartnerLeadRow {
     active_deal_statuses: DealStage[];
 }
 
+export interface PartnerLeadFilters {
+    search: string | null;
+    status: number | null;
+    stage: string | null;
+    deals: "with" | "without" | null;
+}
+
+export interface PartnerLeadOptions {
+    /** Lifecycle statuses the partner's own leads actually have. */
+    statuses: LeadStatus[];
+    /** Stage names of the partner's own active deals. */
+    stages: string[];
+}
+
 export interface PartnerLeadsPage {
     data: PartnerLeadRow[];
+    options: PartnerLeadOptions;
     current_page: number;
     last_page: number;
     per_page: number;

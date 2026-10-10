@@ -39,22 +39,28 @@ class PartnerLeadService
     }
 
     /**
-     * One page of the partner's leads.
+     * The partner's leads, filtered and paged, with the options the filters offer.
      *
-     * @return LengthAwarePaginator<int, array<string, mixed>>
+     * Every one of the partner's own leads is loaded (four columns each) so the
+     * deal-based filters see the same payout-adjusted deals as the counts do —
+     * a deal that pays the partner nothing never makes a lead match "has an
+     * active deal" or a stage. Filtering and paging then happen on the rows.
+     *
+     * @param  array{search?: string|null, status?: int|null, stage?: string|null, deals?: string|null}  $filters
+     * @return array{page: LengthAwarePaginator, options: array{statuses: array<int, array<string, mixed>>, stages: array<int, string>}}
      */
-    public function list(LeadAgent $agent, int $perPage = 25): LengthAwarePaginator
+    public function index(LeadAgent $agent, array $filters, int $page = 1, int $perPage = 25): array
     {
-        $page = Lead::query()
+        $leads = Lead::query()
             ->where('referred_by_agent_id', $agent->id)
             ->with('lifecycleStatus:id,label,label_color')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->paginate($perPage, ['leads.id', 'leads.client_name', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
+            ->get(['leads.id', 'leads.client_name', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
 
-        $deals = $this->payableDeals($page->getCollection()->pluck('id')->all(), $agent);
+        $deals = $this->payableDeals($leads->pluck('id')->all(), $agent);
 
-        return $page->through(function (Lead $lead) use ($deals) {
+        $rows = $leads->map(function (Lead $lead) use ($deals) {
             $active = $deals->get($lead->id, collect())->filter(fn (Deal $d) => $d->outcome_status === null);
 
             return [
@@ -68,8 +74,66 @@ class PartnerLeadService
                     ->unique('name')
                     ->values()
                     ->all(),
+                // Matched against, never sent: removed before the row leaves here.
+                '_search' => mb_strtolower((string) $lead->client_name),
             ];
         });
+
+        $options = [
+            'statuses' => $rows->pluck('status')->filter()->unique('id')->sortBy('label')->values()->all(),
+            'stages' => $rows->flatMap(fn (array $r) => array_column($r['active_deal_statuses'], 'name'))
+                ->unique()->sort()->values()->all(),
+        ];
+
+        $filtered = self::filterRows($rows, $filters);
+
+        $paginator = new LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->map(function (array $row) {
+                unset($row['_search']);
+
+                return $row;
+            })->values(),
+            $filtered->count(),
+            $perPage,
+            $page,
+        );
+
+        return ['page' => $paginator, 'options' => $options];
+    }
+
+    /**
+     * Pure: applies the four filters to already-built rows. Public so it can be
+     * tested without a database.
+     *
+     * - search: a case-insensitive part of the client's name
+     * - status: lifecycle status id
+     * - stage: the name of the stage of an active deal
+     * - deals: "with" (at least one active deal) or "without"
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  array{search?: string|null, status?: int|null, stage?: string|null, deals?: string|null}  $filters
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function filterRows(Collection $rows, array $filters): Collection
+    {
+        $search = mb_strtolower(trim((string) ($filters['search'] ?? '')));
+        $status = $filters['status'] ?? null;
+        $stage = $filters['stage'] ?? null;
+        $deals = $filters['deals'] ?? null;
+
+        return $rows
+            ->when($search !== '', fn (Collection $c) => $c->filter(
+                fn (array $r) => str_contains((string) $r['_search'], $search)
+            ))
+            ->when($status !== null, fn (Collection $c) => $c->filter(
+                fn (array $r) => ($r['status']['id'] ?? null) === $status
+            ))
+            ->when($stage !== null && $stage !== '', fn (Collection $c) => $c->filter(
+                fn (array $r) => in_array($stage, array_column($r['active_deal_statuses'], 'name'), true)
+            ))
+            ->when($deals === 'with', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] > 0))
+            ->when($deals === 'without', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] === 0))
+            ->values();
     }
 
     /**
@@ -165,12 +229,12 @@ class PartnerLeadService
         });
     }
 
-    /** @return array{label: string, color: string|null}|null */
+    /** @return array{id: int, label: string, color: string|null}|null */
     private function status(Lead $lead): ?array
     {
         $status = $lead->lifecycleStatus;
 
-        return $status ? ['label' => $status->label, 'color' => $status->label_color] : null;
+        return $status ? ['id' => (int) $status->id, 'label' => $status->label, 'color' => $status->label_color] : null;
     }
 
     /** @return array{name: string, color: string|null} */

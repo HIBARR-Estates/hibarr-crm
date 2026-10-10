@@ -162,7 +162,7 @@ export default function LeadDetailModal({ open, detail, loading, error, onClose 
                             ))
                         )}
                         <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
-                            {td("Open and won deals. Lost deals are not counted.", { source: "en" })}
+                            {td("Across open and won deals.", { source: "en" })}
                         </div>
                     </div>
 

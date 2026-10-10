@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Partner\PartnerLeadService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
@@ -31,16 +32,48 @@ class PartnerLeadController extends AccountBaseController
         });
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $agent = $this->leads->agentFor((int) user()->id);
+        $filters = $this->filters($request);
 
         return Inertia::render('Partner/Leads/Index', [
-            'pageTitle' => 'My leads',
+            'pageTitle' => 'Referred leads',
+            // Not deferred: the controls render at once, already holding the
+            // values the URL carried.
+            'filters' => $filters,
             // Deferred like every other panel: the shell paints first.
-            'leads' => Inertia::defer(fn () => $agent ? $this->page($this->leads->list($agent)) : null),
+            'leads' => Inertia::defer(function () use ($agent, $filters, $request) {
+                if (! $agent) {
+                    return null;
+                }
+
+                $result = $this->leads->index($agent, $filters, max(1, $request->integer('page', 1)));
+
+                return $this->page($result['page']) + ['options' => $result['options']];
+            }),
             'hasAgent' => (bool) $agent,
         ]);
+    }
+
+    /**
+     * Only the four filters the page offers, each normalised; anything else in
+     * the query string is ignored.
+     *
+     * @return array{search: string|null, status: int|null, stage: string|null, deals: string|null}
+     */
+    private function filters(Request $request): array
+    {
+        $search = trim(mb_substr((string) $request->query('search', ''), 0, 100));
+        $stage = trim(mb_substr((string) $request->query('stage', ''), 0, 100));
+        $deals = (string) $request->query('deals', '');
+
+        return [
+            'search' => $search !== '' ? $search : null,
+            'status' => ctype_digit((string) $request->query('status', '')) ? (int) $request->query('status') : null,
+            'stage' => $stage !== '' ? $stage : null,
+            'deals' => in_array($deals, ['with', 'without'], true) ? $deals : null,
+        ];
     }
 
     /**

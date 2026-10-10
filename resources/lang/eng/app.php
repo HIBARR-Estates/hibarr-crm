@@ -197,7 +197,7 @@ return [
         'offers' => 'Offers',
         'partner_network' => 'Partner Network',
         'partners' => 'Partners',
-        'partner_leads' => 'My leads',
+        'partner_leads' => 'Referred leads',
         'affiliate_workspace' => 'Affiliate Workspace',
         'mlm' => [
             'dashboard' => 'Dashboard',
