@@ -46,7 +46,7 @@ class PartnerLeadService
      * a deal that pays the partner nothing never makes a lead match "has an
      * active deal" or a stage. Filtering and paging then happen on the rows.
      *
-     * @param  array{search?: string|null, status?: int|null, stage?: string|null, deals?: string|null}  $filters
+     * @param  array{search?: string|null, status?: array<int, int>, stage?: array<int, string>, deals?: string|null}  $filters
      * @return array{page: LengthAwarePaginator, options: array{statuses: array<int, array<string, mixed>>, stages: array<int, string>}}
      */
     public function index(LeadAgent $agent, array $filters, int $page = 1, int $perPage = 25): array
@@ -106,30 +106,30 @@ class PartnerLeadService
      * tested without a database.
      *
      * - search: a case-insensitive part of the client's name
-     * - status: lifecycle status id
-     * - stage: the name of the stage of an active deal
+     * - status: lifecycle status ids; a lead matches any of them
+     * - stage: names of active-deal stages; a lead matches any of them
      * - deals: "with" (at least one active deal) or "without"
      *
      * @param  Collection<int, array<string, mixed>>  $rows
-     * @param  array{search?: string|null, status?: int|null, stage?: string|null, deals?: string|null}  $filters
+     * @param  array{search?: string|null, status?: array<int, int>, stage?: array<int, string>, deals?: string|null}  $filters
      * @return Collection<int, array<string, mixed>>
      */
     public static function filterRows(Collection $rows, array $filters): Collection
     {
         $search = mb_strtolower(trim((string) ($filters['search'] ?? '')));
-        $status = $filters['status'] ?? null;
-        $stage = $filters['stage'] ?? null;
+        $statuses = array_values(array_filter((array) ($filters['status'] ?? []), fn ($v) => $v !== null && $v !== ''));
+        $stages = array_values(array_filter((array) ($filters['stage'] ?? []), fn ($v) => $v !== null && $v !== ''));
         $deals = $filters['deals'] ?? null;
 
         return $rows
             ->when($search !== '', fn (Collection $c) => $c->filter(
                 fn (array $r) => str_contains((string) $r['_search'], $search)
             ))
-            ->when($status !== null, fn (Collection $c) => $c->filter(
-                fn (array $r) => ($r['status']['id'] ?? null) === $status
+            ->when($statuses !== [], fn (Collection $c) => $c->filter(
+                fn (array $r) => in_array($r['status']['id'] ?? null, $statuses, true)
             ))
-            ->when($stage !== null && $stage !== '', fn (Collection $c) => $c->filter(
-                fn (array $r) => in_array($stage, array_column($r['active_deal_statuses'], 'name'), true)
+            ->when($stages !== [], fn (Collection $c) => $c->filter(
+                fn (array $r) => array_intersect($stages, array_column($r['active_deal_statuses'], 'name')) !== []
             ))
             ->when($deals === 'with', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] > 0))
             ->when($deals === 'without', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] === 0))

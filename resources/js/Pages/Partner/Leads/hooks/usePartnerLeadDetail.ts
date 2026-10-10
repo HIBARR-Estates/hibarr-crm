@@ -25,7 +25,11 @@ export default function usePartnerLeadDetail() {
         setLoading(true);
         try {
             const response = await axios.get(route("partner.leads.show", id));
-            const data = response.data.data as PartnerLeadDetail;
+            const data = response.data?.data as PartnerLeadDetail | undefined;
+            // An empty or malformed body is a failure, not a blank modal.
+            if (!data || !Array.isArray(data.active_deals)) {
+                throw new Error("Unexpected lead response");
+            }
             cache.current.set(id, data);
             setDetail(data);
         } catch {

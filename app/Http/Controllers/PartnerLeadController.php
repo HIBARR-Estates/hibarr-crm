@@ -32,23 +32,26 @@ class PartnerLeadController extends AccountBaseController
         });
     }
 
+    /** The page sizes the shared Pagination offers. */
+    private const PAGE_SIZES = [10, 15, 25, 50, 100];
+
     public function index(Request $request)
     {
         $agent = $this->leads->agentFor((int) user()->id);
         $filters = $this->filters($request);
+        $perPage = in_array($request->integer('per_page'), self::PAGE_SIZES, true) ? $request->integer('per_page') : 25;
 
         return Inertia::render('Partner/Leads/Index', [
             'pageTitle' => 'Referred leads',
-            // Not deferred: the controls render at once, already holding the
-            // values the URL carried.
-            'filters' => $filters,
-            // Deferred like every other panel: the shell paints first.
-            'leads' => Inertia::defer(function () use ($agent, $filters, $request) {
+            // Deferred like every other panel: the shell paints first. The
+            // filter controls read their values from the URL (FilterContext),
+            // so nothing about them needs to be a prop.
+            'leads' => Inertia::defer(function () use ($agent, $filters, $request, $perPage) {
                 if (! $agent) {
                     return null;
                 }
 
-                $result = $this->leads->index($agent, $filters, max(1, $request->integer('page', 1)));
+                $result = $this->leads->index($agent, $filters, max(1, $request->integer('page', 1)), $perPage);
 
                 return $this->page($result['page']) + ['options' => $result['options']];
             }),
@@ -58,20 +61,25 @@ class PartnerLeadController extends AccountBaseController
 
     /**
      * Only the four filters the page offers, each normalised; anything else in
-     * the query string is ignored.
+     * the query string is ignored. The shared filter modal writes a multi-select
+     * as a comma-joined value, so those are split here.
      *
-     * @return array{search: string|null, status: int|null, stage: string|null, deals: string|null}
+     * @return array{search: string|null, status: array<int, int>, stage: array<int, string>, deals: string|null}
      */
     private function filters(Request $request): array
     {
+        $list = fn (string $key): array => array_values(array_filter(
+            array_map('trim', explode(',', mb_substr((string) $request->query($key, ''), 0, 500))),
+            fn ($v) => $v !== ''
+        ));
+
         $search = trim(mb_substr((string) $request->query('search', ''), 0, 100));
-        $stage = trim(mb_substr((string) $request->query('stage', ''), 0, 100));
         $deals = (string) $request->query('deals', '');
 
         return [
             'search' => $search !== '' ? $search : null,
-            'status' => ctype_digit((string) $request->query('status', '')) ? (int) $request->query('status') : null,
-            'stage' => $stage !== '' ? $stage : null,
+            'status' => array_map('intval', array_filter($list('status'), 'ctype_digit')),
+            'stage' => $list('stage'),
             'deals' => in_array($deals, ['with', 'without'], true) ? $deals : null,
         ];
     }
