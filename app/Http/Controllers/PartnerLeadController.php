@@ -60,11 +60,11 @@ class PartnerLeadController extends AccountBaseController
     }
 
     /**
-     * Only the four filters the page offers, each normalised; anything else in
+     * Only the three filters the page offers, each normalised; anything else in
      * the query string is ignored. The shared filter modal writes a multi-select
      * as a comma-joined value, so those are split here.
      *
-     * @return array{search: string|null, status: array<int, int>, stage: array<int, string>, deals: string|null}
+     * @return array{search: string|null, status: array<int, int>, deals: array<int, string>}
      */
     private function filters(Request $request): array
     {
@@ -74,13 +74,11 @@ class PartnerLeadController extends AccountBaseController
         ));
 
         $search = trim(mb_substr((string) $request->query('search', ''), 0, 100));
-        $deals = (string) $request->query('deals', '');
 
         return [
             'search' => $search !== '' ? $search : null,
             'status' => array_map('intval', array_filter($list('status'), 'ctype_digit')),
-            'stage' => $list('stage'),
-            'deals' => in_array($deals, ['with', 'without'], true) ? $deals : null,
+            'deals' => array_values(array_intersect($list('deals'), ['open', 'won', 'lost', 'none'])),
         ];
     }
 

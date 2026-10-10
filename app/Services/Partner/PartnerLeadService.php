@@ -44,10 +44,10 @@ class PartnerLeadService
      * Every one of the partner's own leads is loaded (four columns each) so the
      * deal-based filters see the same payout-adjusted deals as the counts do —
      * a deal that pays the partner nothing never makes a lead match "has an
-     * active deal" or a stage. Filtering and paging then happen on the rows.
+     * open, won or lost deal". Filtering and paging then happen on the rows.
      *
-     * @param  array{search?: string|null, status?: array<int, int>, stage?: array<int, string>, deals?: string|null}  $filters
-     * @return array{page: LengthAwarePaginator, options: array{statuses: array<int, array<string, mixed>>, stages: array<int, string>}}
+     * @param  array{search?: string|null, status?: array<int, int>, deals?: array<int, string>}  $filters
+     * @return array{page: LengthAwarePaginator, options: array{statuses: array<int, array<string, mixed>>}}
      */
     public function index(LeadAgent $agent, array $filters, int $page = 1, int $perPage = 25): array
     {
@@ -61,19 +61,20 @@ class PartnerLeadService
         $deals = $this->payableDeals($leads->pluck('id')->all(), $agent);
 
         $rows = $leads->map(function (Lead $lead) use ($deals) {
-            $active = $deals->get($lead->id, collect())->filter(fn (Deal $d) => $d->outcome_status === null);
+            $leadDeals = $deals->get($lead->id, collect());
 
             return [
                 'id' => $lead->id,
                 'name' => PartnerRole::abbreviateName($lead->client_name),
                 'status' => $this->status($lead),
                 'created_at' => $lead->created_at?->toIso8601String(),
-                'active_deals' => $active->count(),
-                'active_deal_statuses' => $active
-                    ->map(fn (Deal $d) => $this->stage($d))
-                    ->unique('name')
-                    ->values()
-                    ->all(),
+                // Outcome, not pipeline stage: stages differ from one pipeline
+                // to the next, open/won/lost mean the same everywhere.
+                'deals' => [
+                    'open' => $leadDeals->filter(fn (Deal $d) => $d->outcome_status === null)->count(),
+                    'won' => $leadDeals->filter(fn (Deal $d) => $d->outcome_status === OutcomeStatus::Won)->count(),
+                    'lost' => $leadDeals->filter(fn (Deal $d) => $d->outcome_status === OutcomeStatus::Lost)->count(),
+                ],
                 // Matched against, never sent: removed before the row leaves here.
                 '_search' => mb_strtolower((string) $lead->client_name),
             ];
@@ -81,8 +82,6 @@ class PartnerLeadService
 
         $options = [
             'statuses' => $rows->pluck('status')->filter()->unique('id')->sortBy('label')->values()->all(),
-            'stages' => $rows->flatMap(fn (array $r) => array_column($r['active_deal_statuses'], 'name'))
-                ->unique()->sort()->values()->all(),
         ];
 
         $filtered = self::filterRows($rows, $filters);
@@ -107,19 +106,19 @@ class PartnerLeadService
      *
      * - search: a case-insensitive part of the client's name
      * - status: lifecycle status ids; a lead matches any of them
-     * - stage: names of active-deal stages; a lead matches any of them
-     * - deals: "with" (at least one active deal) or "without"
+     * - deals: any of "open", "won", "lost" (the lead has at least one deal in
+     *   that outcome) or "none" (it has no deals at all); a lead matches any
+     *   of the ones chosen
      *
      * @param  Collection<int, array<string, mixed>>  $rows
-     * @param  array{search?: string|null, status?: array<int, int>, stage?: array<int, string>, deals?: string|null}  $filters
+     * @param  array{search?: string|null, status?: array<int, int>, deals?: array<int, string>}  $filters
      * @return Collection<int, array<string, mixed>>
      */
     public static function filterRows(Collection $rows, array $filters): Collection
     {
         $search = mb_strtolower(trim((string) ($filters['search'] ?? '')));
         $statuses = array_values(array_filter((array) ($filters['status'] ?? []), fn ($v) => $v !== null && $v !== ''));
-        $stages = array_values(array_filter((array) ($filters['stage'] ?? []), fn ($v) => $v !== null && $v !== ''));
-        $deals = $filters['deals'] ?? null;
+        $deals = array_values(array_filter((array) ($filters['deals'] ?? []), fn ($v) => $v !== null && $v !== ''));
 
         return $rows
             ->when($search !== '', fn (Collection $c) => $c->filter(
@@ -128,11 +127,21 @@ class PartnerLeadService
             ->when($statuses !== [], fn (Collection $c) => $c->filter(
                 fn (array $r) => in_array($r['status']['id'] ?? null, $statuses, true)
             ))
-            ->when($stages !== [], fn (Collection $c) => $c->filter(
-                fn (array $r) => array_intersect($stages, array_column($r['active_deal_statuses'], 'name')) !== []
-            ))
-            ->when($deals === 'with', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] > 0))
-            ->when($deals === 'without', fn (Collection $c) => $c->filter(fn (array $r) => $r['active_deals'] === 0))
+            ->when($deals !== [], fn (Collection $c) => $c->filter(function (array $r) use ($deals) {
+                $counts = $r['deals'];
+
+                foreach ($deals as $condition) {
+                    $matches = $condition === 'none'
+                        ? array_sum($counts) === 0
+                        : ($counts[$condition] ?? 0) > 0;
+
+                    if ($matches) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }))
             ->values();
     }
 
@@ -191,12 +200,11 @@ class PartnerLeadService
         return Deal::query()
             ->whereIn('lead_id', $leadIds)
             ->with([
-                'leadStage:id,name,label_color',
                 'currency:id,currency_code,currency_symbol',
                 'packages:id,value,currency,commission_type,commission_value',
             ])
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'lead_id', 'value', 'currency_id', 'pipeline_stage_id', 'outcome_status', 'won_at', 'close_date', 'created_at'])
+            ->get(['id', 'name', 'lead_id', 'value', 'currency_id', 'outcome_status', 'won_at', 'close_date', 'created_at'])
             ->reject(fn (Deal $deal) => $this->paysNothing($deal, $agent, $overrides))
             ->groupBy('lead_id');
     }
@@ -237,22 +245,14 @@ class PartnerLeadService
         return $status ? ['id' => (int) $status->id, 'label' => $status->label, 'color' => $status->label_color] : null;
     }
 
-    /** @return array{name: string, color: string|null} */
-    private function stage(Deal $deal): array
-    {
-        return ['name' => $deal->leadStage?->name ?? '—', 'color' => $deal->leadStage?->label_color];
-    }
-
     /** @return array<string, mixed> */
     private function dealRow(Deal $deal): array
     {
-        $closed = $deal->outcome_status !== null;
-
         return [
             'id' => $deal->id,
             'name' => $deal->name,
-            'status' => $closed ? $deal->outcome_status->value : $this->stage($deal)['name'],
-            'status_color' => $closed ? null : $this->stage($deal)['color'],
+            // open, won or lost — never the pipeline stage, which differs per pipeline.
+            'status' => $deal->outcome_status?->value ?? 'open',
             'value' => (float) ($deal->value ?? 0),
             'currency' => $this->currencyOf($deal),
             'date' => ($deal->won_at ?? $deal->close_date ?? $deal->created_at)?->toDateString(),

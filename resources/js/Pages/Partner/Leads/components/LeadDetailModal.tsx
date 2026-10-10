@@ -12,8 +12,9 @@ interface Props {
     onClose: () => void;
 }
 
-/** Won reads green, lost reads muted; an open deal shows its stage colour. */
-const CLOSED_COLOR: Record<string, string> = {
+/** Outcome colours: open reads blue, won green, lost muted. */
+const OUTCOME_COLOR: Record<PartnerDealRow["status"], string> = {
+    open: T.BLUE,
     won: T.GREEN,
     lost: T.TEXT_HINT,
 };
@@ -72,12 +73,11 @@ function DealList({
                                 </div>
                                 <div style={{ marginTop: 3 }}>
                                     <StatusDot
-                                        label={
-                                            deal.status === "won" || deal.status === "lost"
-                                                ? td(deal.status === "won" ? "Won" : "Lost", { source: "en" })
-                                                : deal.status
-                                        }
-                                        color={CLOSED_COLOR[deal.status] ?? deal.status_color}
+                                        label={td(
+                                            deal.status === "won" ? "Won" : deal.status === "lost" ? "Lost" : "Open",
+                                            { source: "en" },
+                                        )}
+                                        color={OUTCOME_COLOR[deal.status]}
                                     />
                                 </div>
                             </div>

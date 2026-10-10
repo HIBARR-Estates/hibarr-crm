@@ -4,7 +4,7 @@ import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
-import EntityListHeader from "@/Components/Redesign/primitives/EntityListHeader";
+import EntityListHeader, { FiltersButton } from "@/Components/Redesign/primitives/EntityListHeader";
 import { REDESIGN_FONT_STACK, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import "@/Components/Redesign/redesign.css";
 import ActiveFilterSentence from "@/Features/Filters/ActiveFilterSentence";
@@ -28,7 +28,7 @@ interface Props {
     hasAgent: boolean;
 }
 
-const NO_OPTIONS: PartnerLeadOptions = { statuses: [], stages: [] };
+const NO_OPTIONS: PartnerLeadOptions = { statuses: [] };
 
 /** Placeholder rows shaped like the table, so the page does not jump when it lands. */
 function ResultsSkeleton() {
@@ -113,11 +113,19 @@ const PartnerLeadsIndex = ({ pageTitle, leads, hasAgent }: Props) => {
         >
             <EntityListHeader
                 title={title}
-                subtitle={td("The leads you have referred, with their status and active deals.")}
+                subtitle={td("The leads you have referred, with their status and open, won and lost deals.")}
                 sticky
-                filtersCount={activeFilterCount}
-                onOpenFilters={hasAgent ? openDrawer : undefined}
-                filtersLabel={t("app.filter")}
+                // On the title line rather than a toolbar row of its own: the
+                // page has no tabs or toolbar content for that row to hold.
+                actions={
+                    hasAgent ? (
+                        <FiltersButton
+                            count={activeFilterCount}
+                            onClick={openDrawer}
+                            label={t("app.filter")}
+                        />
+                    ) : undefined
+                }
                 // Only when something actually narrows the list: the header
                 // renders the band around whatever it is given, so passing an
                 // element that renders nothing would leave an empty grey strip.

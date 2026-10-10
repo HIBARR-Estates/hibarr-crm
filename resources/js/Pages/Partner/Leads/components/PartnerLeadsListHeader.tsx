@@ -31,10 +31,7 @@ export default function PartnerLeadsListHeader() {
                 {td("Status")}
             </span>
             <span className={`shrink-0 ${C.deals.className}`} style={{ width: C.deals.width }}>
-                {td("Active deals")}
-            </span>
-            <span className={`shrink-0 ${C.stages.className}`} style={{ width: C.stages.width }}>
-                {td("Deal status")}
+                {td("Deals")}
             </span>
             <span className="shrink-0" style={{ width: C.open.width }} aria-hidden />
         </div>

@@ -3,8 +3,6 @@ import { FilterConfig } from "@/contexts/FilterContext";
 interface PartnerLeadFilterConfigProps {
     /** Lifecycle statuses the partner's own leads actually have. */
     statuses?: Array<{ id: number; label: string }>;
-    /** Stage names of the partner's own active deals. */
-    stages?: string[];
 }
 
 /**
@@ -12,26 +10,17 @@ interface PartnerLeadFilterConfigProps {
  *
  * Same shape as the lead/deal/meeting configs, so the shared `EntityFilterModal`
  * and `ActiveFilterSentence` render this page without knowing anything about
- * partners. Keys are the query params `PartnerLeadController@index` reads. The
- * options are only what this partner's own leads have — there is nothing to
- * pick that would match nothing.
+ * partners. Keys are the query params `PartnerLeadController@index` reads.
+ * Search is not a field here: it lives in the page's top bar, as on Leads, so
+ * it is not offered twice. Status options are only what this partner's own
+ * leads have.
  */
 const createPartnerLeadFilterConfig = ({
     statuses = [],
-    stages = [],
 }: PartnerLeadFilterConfigProps): FilterConfig => ({
     routeName: "partner.leads.index",
     title: "Lead Filters",
     fields: [
-        {
-            key: "search",
-            label: "Search",
-            type: "text",
-            placeholder: "Search by name...",
-            span: 24,
-            section: "General",
-            sentence: "search",
-        },
         {
             key: "status",
             label: "Status",
@@ -47,26 +36,20 @@ const createPartnerLeadFilterConfig = ({
         },
         {
             key: "deals",
-            label: "Active deals",
-            type: "select",
-            control: "select",
-            section: "Deals",
-            sentence: "deals",
-            options: [
-                { label: "With active deals", value: "with" },
-                { label: "Without active deals", value: "without" },
-            ],
-            placeholder: "Any",
-        },
-        {
-            key: "stage",
-            label: "Deal status",
+            label: "Deals",
             type: "multiselect",
             control: "pills",
-            section: "Deals",
-            sentence: "deal status",
-            options: stages.map((stage) => ({ label: stage, value: stage })),
-            placeholder: "Filter by deal status",
+            section: "General",
+            sentence: "deals",
+            // Outcomes, not pipeline stages: stages differ from one pipeline to
+            // the next, these mean the same on every deal.
+            options: [
+                { label: "Open", value: "open" },
+                { label: "Won", value: "won" },
+                { label: "Lost", value: "lost" },
+                { label: "No deals", value: "none" },
+            ],
+            placeholder: "Filter by deal outcome",
         },
     ],
     defaultValues: {},

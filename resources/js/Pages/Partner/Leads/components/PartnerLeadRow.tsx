@@ -4,7 +4,6 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { formatDate } from "@/Components/Redesign/adapters/dateFormat";
 import type { PartnerLeadRow as LeadRow } from "../types";
-import StatusDot from "./StatusDot";
 import StatusPill from "./StatusPill";
 
 /**
@@ -14,8 +13,7 @@ import StatusPill from "./StatusPill";
  */
 export const PARTNER_LEAD_COLUMNS = {
     status: { width: 168, className: "hidden sm:block" },
-    deals: { width: 120, className: "" },
-    stages: { width: 280, className: "hidden md:block" },
+    deals: { width: 280, className: "" },
     /** The open-detail chevron. */
     open: { width: 20, className: "" },
 } as const;
@@ -26,11 +24,12 @@ interface Props {
 }
 
 /**
- * One referred lead as a table row: who, where it stands, and what is open on
- * it. No contact fields exist on the row — see PartnerLeadService.
+ * One referred lead as a table row: who, where it stands, and how its deals
+ * have turned out. No contact fields exist on the row — see PartnerLeadService.
  */
 export default function PartnerLeadRow({ lead, onOpen }: Props) {
     const { td } = useTd();
+    const total = lead.deals.open + lead.deals.won + lead.deals.lost;
 
     return (
         <div
@@ -73,30 +72,27 @@ export default function PartnerLeadRow({ lead, onOpen }: Props) {
                 className={`shrink-0 ${PARTNER_LEAD_COLUMNS.deals.className}`}
                 style={{ width: PARTNER_LEAD_COLUMNS.deals.width }}
             >
-                {lead.active_deals === 0 ? (
-                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                        {td("None")}
-                    </span>
-                ) : (
-                    <Badge variant="blue">
-                        {lead.active_deals} {td("active")}
-                    </Badge>
-                )}
-            </div>
-
-            <div
-                className={`shrink-0 ${PARTNER_LEAD_COLUMNS.stages.className}`}
-                style={{ width: PARTNER_LEAD_COLUMNS.stages.width }}
-            >
-                {lead.active_deal_statuses.length === 0 ? (
-                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>—</span>
+                {total === 0 ? (
+                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{td("No deals")}</span>
                 ) : (
                     // Inside the column wrapper: its responsive class sets
                     // `display`, which would override a `flex` placed on it.
-                    <div className="flex flex-wrap items-center" style={{ columnGap: 14, rowGap: 4 }}>
-                        {lead.active_deal_statuses.map((stage) => (
-                            <StatusDot key={stage.name} label={stage.name} color={stage.color} />
-                        ))}
+                    <div className="flex flex-wrap items-center" style={{ gap: 6 }}>
+                        {lead.deals.open > 0 && (
+                            <Badge variant="blue">
+                                {lead.deals.open} {td("open")}
+                            </Badge>
+                        )}
+                        {lead.deals.won > 0 && (
+                            <Badge variant="green">
+                                {lead.deals.won} {td("won")}
+                            </Badge>
+                        )}
+                        {lead.deals.lost > 0 && (
+                            <Badge variant="gray">
+                                {lead.deals.lost} {td("lost")}
+                            </Badge>
+                        )}
                     </div>
                 )}
             </div>
