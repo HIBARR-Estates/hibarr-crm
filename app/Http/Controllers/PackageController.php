@@ -60,6 +60,7 @@ class PackageController extends AccountBaseController
     {
         DB::transaction(function () use ($request, &$package) {
             $package = Package::create([
+                'company_id' => company()->id,
                 'name' => $request->name,
                 'value' => $request->value,
                 'description' => $request->description,
