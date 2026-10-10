@@ -28,6 +28,7 @@ import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
+import EmailUnreadIndicator from "@/Email/EmailUnreadIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -246,6 +247,7 @@ export default function PageLayout({
                                 <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
+                            <EmailUnreadIndicator />
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

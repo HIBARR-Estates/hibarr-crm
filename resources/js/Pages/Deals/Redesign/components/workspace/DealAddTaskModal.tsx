@@ -30,6 +30,7 @@ interface DealAddTaskModalProps {
     dealName?: string;
     /** Deal agent's user id — prefilled as an assignee so auto-assignment is visible. */
     dealAgentUserId?: number | null;
+    sourceEmailMessageId?: string | null;
 }
 
 export default function DealAddTaskModal({
@@ -38,6 +39,7 @@ export default function DealAddTaskModal({
     dealId,
     dealName,
     dealAgentUserId,
+    sourceEmailMessageId = null,
 }: DealAddTaskModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -83,6 +85,7 @@ export default function DealAddTaskModal({
                 dueTime: form.dueTime,
                 priority: form.priority,
                 assignees: form.assignees,
+                sourceEmailMessageId,
             },
             handleClose,
         );
@@ -132,6 +135,7 @@ export default function DealAddTaskModal({
                                 boardColumnId:
                                     values.boardColumnId ?? undefined,
                                 links: formLinksPayload(values),
+                                sourceEmailMessageId,
                             },
                             afterCreateTaskFormSubmit(
                                 values,

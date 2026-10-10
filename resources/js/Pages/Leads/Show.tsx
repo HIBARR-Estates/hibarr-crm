@@ -10,6 +10,7 @@ import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import type { EntitySummaryPayload } from "@/Types/entity-summary";
 import type { LeadQualification } from "@/Types/qualification";
+import type { EmailQuickAction } from "@/Email/types";
 import LegacyLeadShow from "./LegacyLeadShow";
 import LeadViewRedesign from "./Redesign/LeadViewRedesign";
 
@@ -47,6 +48,11 @@ export interface LeadShowProps {
     followUpPermissions?: Record<string, string>;
     qualificationPermissions?: Record<string, string>;
     featureFlags?: Record<string, boolean>;
+    /**
+     * CRM Email Quick action gate (E-25). Null when `crm.email` is off or the
+     * viewer is not on the pilot allowlist — the Email control must not render.
+     */
+    emailQuickAction?: EmailQuickAction | null;
     leadAiSummary?: EntitySummaryPayload | null;
     /**
      * Synchronous seed for the qualification workspace — null when the
