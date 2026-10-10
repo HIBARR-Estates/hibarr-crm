@@ -64,6 +64,36 @@ class MlmAgentController extends AccountBaseController
     }
 
     /**
+     * Agent ids a partner may see named: themselves and their own downline.
+     * Anyone else who closed a deal is the company's staff, and a partner has
+     * no need of who they are.
+     *
+     * @return array<int, int>
+     */
+    private function nameableAgentIds(LeadAgent $agent): array
+    {
+        return array_map('intval', array_merge(
+            [$agent->id],
+            AgentHierarchy::where('ancestor_id', $agent->id)->pluck('descendant_id')->all()
+        ));
+    }
+
+    /** Drop the closing agent from a commission a partner is about to see, unless it is them or their downline. */
+    private function hideForeignCloser(MlmCommission $commission, array $nameable): MlmCommission
+    {
+        if ($this->isPartnerOnly() && ! in_array((int) $commission->source_agent_id, $nameable, true)) {
+            $commission->setRelation('sourceAgent', null);
+        }
+
+        return $commission;
+    }
+
+    private function closerName(MlmCommission $commission): string
+    {
+        return $commission->sourceAgent?->user?->name ?? ($this->isPartnerOnly() ? '—' : 'Unknown');
+    }
+
+    /**
      * Get the current user's LeadAgent record.
      */
     private function getAgent(): ?LeadAgent
@@ -186,12 +216,14 @@ class MlmAgentController extends AccountBaseController
             ->get();
 
         // Recent commissions
+        $nameable = $this->nameableAgentIds($agent);
         $recentCommissions = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
             ->with([$this->dealRelation(), 'sourceAgent.user:id,name', 'level:id,name'])
             ->orderByDesc('created_at')
             ->limit(5)
-            ->get();
+            ->get()
+            ->each(fn (MlmCommission $c) => $this->hideForeignCloser($c, $nameable));
 
         // Network growth: monthly count of new downline agents over last 12 months
         $descendantIds = AgentHierarchy::where('ancestor_id', $agent->id)
@@ -345,21 +377,8 @@ class MlmAgentController extends AccountBaseController
         $paginated = $query->paginate($perPage);
 
         if ($this->isPartnerOnly()) {
-            // Same row shape the page renders, minus value, follow-up, watchers
-            // and every client contact field but an abbreviated name.
-            $paginated->through(fn (Deal $deal) => [
-                'id' => $deal->id,
-                'name' => $deal->name,
-                'value' => null,
-                'next_follow_up' => null,
-                'created_at' => $deal->created_at,
-                'updated_at' => $deal->updated_at,
-                'close_date' => $deal->close_date,
-                'lead_stage' => $deal->leadStage,
-                'pipeline' => $deal->pipeline,
-                'contact' => ['client_name' => PartnerRole::abbreviateName($deal->contact?->client_name)],
-                'lead_agent' => ['user' => ['name' => $deal->leadAgent?->user?->name]],
-            ]);
+            $nameable = $this->nameableAgentIds($agent);
+            $paginated->through(fn (MlmCommission $c) => $this->hideForeignCloser($c, $nameable));
         }
 
         return response()->json($paginated);
@@ -628,11 +647,12 @@ class MlmAgentController extends AccountBaseController
         $perPage = min($request->input('per_page', 15), 100);
         $paginated = $query->paginate($perPage);
 
-        $data = collect($paginated->items())->map(function ($c) use ($agent) {
+        $nameable = $this->nameableAgentIds($agent);
+        $data = collect($paginated->items())->map(function ($c) use ($agent, $nameable) {
             return [
                 'deal_id' => $c->deal_id,
                 'deal_name' => $c->deal?->name ?? 'Unknown Deal',
-                'closed_by' => $c->sourceAgent?->user?->name ?? 'Unknown',
+                'closed_by' => $this->closerName($this->hideForeignCloser($c, $nameable)),
                 'closed_by_self' => $c->source_agent_id === $agent->id,
                 'deal_value' => $this->dealValueFor($c),
                 'commission_amount' => (float) $c->amount,
@@ -735,11 +755,12 @@ class MlmAgentController extends AccountBaseController
         $perPage = min($request->input('per_page', 8), 100);
         $paginated = $query->paginate($perPage);
 
-        $data = collect($paginated->items())->map(function ($c) use ($downlineId) {
+        $nameable = $this->nameableAgentIds($agent);
+        $data = collect($paginated->items())->map(function ($c) use ($downlineId, $nameable) {
             return [
                 'deal_id' => $c->deal_id,
                 'deal_name' => $c->deal?->name ?? 'Unknown Deal',
-                'closed_by' => $c->sourceAgent?->user?->name ?? 'Unknown',
+                'closed_by' => $this->closerName($this->hideForeignCloser($c, $nameable)),
                 'closed_by_self' => $c->source_agent_id === $downlineId,
                 'deal_value' => $this->dealValueFor($c),
                 'commission_amount' => (float) $c->amount,
@@ -861,8 +882,27 @@ class MlmAgentController extends AccountBaseController
         $query->orderByDesc('deals.created_at');
 
         $perPage = min($request->input('per_page', 15), 100);
+        $paginated = $query->paginate($perPage);
 
-        return response()->json($query->paginate($perPage));
+        if ($this->isPartnerOnly()) {
+            // Same row shape the page renders, minus value, follow-up, watchers,
+            // the handling agent, and every client contact field but an
+            // abbreviated name.
+            $paginated->through(fn (Deal $deal) => [
+                'id' => $deal->id,
+                'name' => $deal->name,
+                'value' => null,
+                'next_follow_up' => null,
+                'created_at' => $deal->created_at,
+                'updated_at' => $deal->updated_at,
+                'close_date' => $deal->close_date,
+                'lead_stage' => $deal->leadStage,
+                'pipeline' => $deal->pipeline,
+                'contact' => ['client_name' => PartnerRole::abbreviateName($deal->contact?->client_name)],
+            ]);
+        }
+
+        return response()->json($paginated);
     }
 
     /**

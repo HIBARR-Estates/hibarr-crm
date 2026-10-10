@@ -3,7 +3,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
-const GRID = "minmax(150px, 1.5fr) 1fr .9fr .8fr 1fr 96px";
+const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr 96px";
 
 const STAGE_PILL: Record<string, string> = {
     "Deal open": "blue",
@@ -68,7 +68,7 @@ export default function ReferralTable({
                         style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 3 }}
                     >
                         {rows.length} {td("in progress", { source: "en" })} ·{" "}
-                        {td("client contact details stay with the assigned agent", { source: "en" })}
+                        {td("client contact details are not shown", { source: "en" })}
                     </div>
                 </div>
 
@@ -107,7 +107,6 @@ export default function ReferralTable({
                     >
                         <div>{td("Client", { source: "en" })}</div>
                         <div>{td("Stage", { source: "en" })}</div>
-                        <div>{td("Agent", { source: "en" })}</div>
                         <div style={{ textAlign: "right" }}>{td("Days open", { source: "en" })}</div>
                         <div style={{ textAlign: "right" }}>
                             {td("Last update", { source: "en" })}
@@ -159,10 +158,6 @@ export default function ReferralTable({
                                         ? td("Stalled", { source: "en" })
                                         : td(row.stage, { source: "en" })}
                                 </span>
-                            </div>
-
-                            <div style={{ color: T.TEXT_MUTED }}>
-                                {row.agent ?? "—"}
                             </div>
 
                             <div

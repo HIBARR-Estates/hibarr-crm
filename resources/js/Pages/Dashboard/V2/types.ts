@@ -154,7 +154,6 @@ export interface PartnerReferral {
     client: string | null;
     stage: string;
     stalled: boolean;
-    agent: string | null;
     days_open: number;
     idle_days: number;
     /** Null when this partner has no open flag on the referral. */

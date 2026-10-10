@@ -7,6 +7,7 @@ import DashboardPanel, {
     PanelSkeleton,
 } from "../components/DashboardPanel";
 import StatTile from "../components/StatTile";
+import MultiStatTile from "../components/MultiStatTile";
 import StageFunnel from "../components/StageFunnel";
 import PartnerTrendChart from "../components/PartnerTrendChart";
 import ReferralTable from "../components/ReferralTable";
@@ -59,7 +60,7 @@ export default function PartnerView({
                 data="partnerStats"
                 fallback={
                     <div style={tileGrid}>
-                        {Array.from({ length: 5 }).map((_, index) => (
+                        {Array.from({ length: 4 }).map((_, index) => (
                             <CardSkeleton key={index} height={96} />
                         ))}
                     </div>
@@ -67,19 +68,26 @@ export default function PartnerView({
             >
                 {partnerStats ? (
                     <div style={tileGrid}>
-                        <StatTile
-                            label="Referred"
-                            value={partnerStats.referredLeads}
-                        />
-                        <StatTile
-                            label="In progress"
-                            value={partnerStats.inProgressLeads}
-                            note="With an open deal"
-                        />
-                        <StatTile
-                            label="Completed"
-                            tone="green"
-                            value={partnerStats.convertedLeads}
+                        <MultiStatTile
+                            label="Referrals"
+                            variant="team"
+                            segments={[
+                                {
+                                    label: "Referred",
+                                    value: partnerStats.referredLeads,
+                                },
+                                {
+                                    label: "In progress",
+                                    value: partnerStats.inProgressLeads,
+                                    tone: "blue",
+                                },
+                                {
+                                    label: "Completed",
+                                    value: partnerStats.convertedLeads,
+                                    tone: "green",
+                                },
+                            ]}
+                            hint="In progress means the referral has an open deal"
                         />
                         <StatTile
                             label="Conversion"
