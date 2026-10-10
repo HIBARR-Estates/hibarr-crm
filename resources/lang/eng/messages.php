@@ -47,7 +47,7 @@ return array(
     'dealLocked' => 'This deal is locked and cannot be modified.',
     'dealValueLockedByCommission' => 'Commission has already been calculated for this deal, so its value can no longer be changed.',
     'dealValueLockedByPaymentRequest' => 'The client has already started paying this deal\'s payment request, so its value can no longer be changed.',
-    'dealPaymentRequestInvalidationRequired' => 'Changing the deal value will invalidate the current payment request — the client will no longer be able to pay with its link.',
+    'dealPaymentRequestInvalidationRequired' => 'Changing the deal value will cancel the current payment request — the client will no longer be able to pay with its link.',
     'dealAgentLockedByCommission' => 'Commission has already been calculated for this deal, so its agent can no longer be changed.',
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'leadReferrerImmutable' => 'The referrer is already set and cannot be changed.',
