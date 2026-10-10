@@ -95,6 +95,9 @@ return [
         'noNotificationFound' => 'Keine Benachrichtigung gefunden',
         'markAllRead' => 'Alle als gelesen markieren',
     ],
+    'permission' => [
+        'resyncAllUserPermissions' => 'Alle Benutzerberechtigungen neu synchronisieren',
+    ],
     'settings' => [
         'leadMeetingCadence' => 'Lead-Besprechungserinnerungen',
         'leadMeetingCadenceDescription' => 'Überschreibt, wann kundenbezogene (Lead-)Besprechungserinnerungen gesendet werden. Teilnehmer-/Benutzererinnerungen nutzen weiterhin persönliche Einstellungen und den Firmenstandard für Besprechungen oben.',

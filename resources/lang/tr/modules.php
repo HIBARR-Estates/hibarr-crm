@@ -95,6 +95,9 @@ return [
         'noNotificationFound' => 'Bildirim bulunamadı',
         'markAllRead' => 'Tümünü Okundu İşaretle',
     ],
+    'permission' => [
+        'resyncAllUserPermissions' => 'Tüm kullanıcı izinlerini yeniden senkronize et',
+    ],
     'settings' => [
         'leadMeetingCadence' => 'Lead toplantı hatırlatıcıları',
         'leadMeetingCadenceDescription' => 'Müşteriye giden (lead) toplantı hatırlatma e-postalarının ne zaman gönderileceğini geçersiz kılar. Katılımcı/kullanıcı hatırlatıcıları kişisel tercihler ve yukarıdaki şirket toplantı varsayılanını kullanmaya devam eder.',
