@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\PartnerFlag;
+use App\Support\FeatureFlags;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -16,10 +17,36 @@ class PartnerFlagRaised extends BaseNotification
 {
     private PartnerFlag $flag;
 
-    public function __construct(PartnerFlag $flag)
+    /** crm.partner-flag-routing, read at dispatch (queue workers do not call the flag service). */
+    private bool $routeByAccess;
+
+    /** crm.manager-dashboard, read at dispatch for the same reason. */
+    private bool $managerViewEnabled;
+
+    public function __construct(PartnerFlag $flag, bool $routeByAccess = false)
     {
         $this->flag = $flag->load(['partner.user', 'lead']);
         $this->company = $flag->lead->company ?? null;
+        $this->routeByAccess = $routeByAccess;
+        $this->managerViewEnabled = $routeByAccess && FeatureFlags::enabled('crm.manager-dashboard');
+    }
+
+    /**
+     * Where the button goes. The flag queue lives on the Manager dashboard, so
+     * that is the target — except, with routing on, for a recipient who cannot
+     * open it (no view_manager_dashboard, or the dashboard flag is off): they
+     * would be dropped on some other view with no queue, so they get the home
+     * dashboard instead.
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    public static function destination(bool $routeByAccess, bool $managerViewEnabled, mixed $viewManagerPermission): array
+    {
+        if ($routeByAccess && ! ($managerViewEnabled && $viewManagerPermission === 'all')) {
+            return ['dashboard', []];
+        }
+
+        return ['dashboard.v2', ['view' => 'manager']];
     }
 
     public function via($notifiable): array
@@ -29,6 +56,14 @@ class PartnerFlagRaised extends BaseNotification
 
     public function toMail($notifiable): MailMessage
     {
+        [$routeName, $params] = self::destination(
+            $this->routeByAccess,
+            $this->managerViewEnabled,
+            // Only asked when routing is on, so the flag-off path is untouched.
+            $this->routeByAccess ? $notifiable->permission('view_manager_dashboard') : null,
+        );
+        $canOpenQueue = $routeName === 'dashboard.v2';
+
         return $this->build($notifiable)
             ->subject('Partner flagged a referral')
             ->greeting("Hello {$notifiable->name},")
@@ -37,12 +72,15 @@ class PartnerFlagRaised extends BaseNotification
             ->when($this->flag->message, function ($mail) {
                 $mail->line("**Their message:** {$this->flag->message}");
             })
-            ->action('Open the team dashboard', $this->modifyUrl(
-                route('dashboard.v2', ['view' => 'manager'])
-            ))
+            ->action(
+                $canOpenQueue ? 'Open the team dashboard' : 'Open your dashboard',
+                $this->modifyUrl(route($routeName, $params))
+            )
             // No client name in the mail body: it travels further than the
             // dashboard does, and the flag is about the handling, not the client.
-            ->line('Open the dashboard to see which referral and respond.');
+            ->line($canOpenQueue
+                ? 'Open the dashboard to see which referral and respond.'
+                : 'Partner flags are answered from the Manager dashboard. If you cannot open it, ask an admin for access.');
     }
 
     public function toArray($notifiable): array
