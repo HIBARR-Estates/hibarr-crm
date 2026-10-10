@@ -214,6 +214,7 @@ export default function DealInfoSectionPanel({
                         loadingField={updatingField}
                         disabled={!canEdit}
                         activateOnSingleClick
+                        copyable
                     />
                 </div>
             );
@@ -229,6 +230,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={deal.name}
                         fieldName="name"
+                        copyable
                         fieldType="text"
                         onSave={(value) => onFieldUpdate("name", value)}
                         alwaysEditing={editing}
@@ -241,6 +243,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={deal.close_date}
                         fieldName="close_date"
+                        copyable
                         fieldType="date"
                         onSave={(value) => onFieldUpdate("close_date", value)}
                         formatValue={(value) =>
@@ -256,6 +259,9 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={deal.category_id}
                         fieldName="category_id"
+                        copyable
+                        copyValue={deal.category?.category_name ?? ""}
+                        editLabel={t("pages.deals.info.fields.deal_category")}
                         selectorType="categories"
                         displayValue={
                             deal.category?.category_name ? (
@@ -308,6 +314,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={hibarrFields.interested_in}
                         fieldName="interested_in"
+                        copyable
                         fieldType="text"
                         onSave={(value) =>
                             onFieldUpdate("interested_in", value, "hibarr_field")
@@ -324,6 +331,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
+                        copyable
                         fieldType="currency_range"
                         onSave={(value) =>
                             onFieldUpdate("budget_range", value, "hibarr_field")
@@ -340,6 +348,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={hibarrFields.purchase_timeline}
                         fieldName="purchase_timeline"
+                        copyable
                         fieldType="text"
                         onSave={(value) =>
                             onFieldUpdate(
@@ -363,6 +372,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={hibarrFields.inspection_trip_date}
                         fieldName="inspection_trip_date"
+                        copyable
                         fieldType="date"
                         onSave={(value) =>
                             onFieldUpdate(
@@ -438,6 +448,7 @@ export default function DealInfoSectionPanel({
                     <EditableField
                         value={hibarrFields.motivation}
                         fieldName="motivation"
+                        copyable
                         fieldType="textarea"
                         onSave={(value) =>
                             onFieldUpdate("motivation", value, "hibarr_field")
@@ -568,6 +579,7 @@ export default function DealInfoSectionPanel({
                 loadingField={updatingField}
                 disabled={!canEdit}
                 activateOnSingleClick
+                copyable
             />
         );
     };
