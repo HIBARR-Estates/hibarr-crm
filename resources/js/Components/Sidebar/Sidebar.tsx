@@ -61,7 +61,7 @@ interface SidebarProps {
 }
 
 /** The only nav sections a partner-only account is offered (the user menu is separate). */
-const PARTNER_NAV_KEYS = new Set(["dashboard", "my-mlm"]);
+const PARTNER_NAV_KEYS = new Set(["dashboard", "partner-leads", "my-mlm"]);
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
@@ -82,6 +82,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     );
     const canManagePartners = isPermissionAll(
         props.auth?.permissions?.manage_partners,
+    );
+    // A partner's own leads view: for anyone holding the partner dashboard
+    // permission, which the migration keeps off staff accounts.
+    const canViewPartnerLeads = isPermissionAll(
+        props.auth?.permissions?.view_partner_dashboard,
     );
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
@@ -246,6 +251,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <BankOutlined />,
             href: "/account/payment-requests",
             hidden: !canViewPaymentRequests,
+        },
+        {
+            key: "partner-leads",
+            label: t("app.menu.partner_leads"),
+            icon: <PersonIcon />,
+            href: "/account/partner/leads",
+            hidden: !canViewPartnerLeads,
         },
         {
             key: "meetings",

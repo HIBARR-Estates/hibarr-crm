@@ -1549,6 +1549,13 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // ══════════════════════════════════════════════════════════════
     //  Partners — manage which agents are flagged as partners
     // ══════════════════════════════════════════════════════════════
+    // A partner's own leads. Under /partner/, not /leads/: the latter is blocked
+    // for partner accounts by RestrictPartnerAccounts.
+    Route::prefix('partner/leads')->name('partner.leads.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerLeadController::class, 'index'])->name('index');
+        Route::get('{lead}', [App\Http\Controllers\PartnerLeadController::class, 'show'])->whereNumber('lead')->name('show');
+    });
+
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');

@@ -252,7 +252,7 @@ return [
                 'manager' => 'How every active agent is doing.',
                 'team' => 'Commissions, deals and leads across everyone below you — not your own activity.',
                 'leadership' => 'Company-wide movement across every team.',
-                'partner' => 'Your referrals only — no deal values.',
+                'partner' => 'Your referrals only.',
             ],
             'period' => [
                 'past_week' => 'Past week',

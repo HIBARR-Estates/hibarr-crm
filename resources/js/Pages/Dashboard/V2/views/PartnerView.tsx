@@ -38,9 +38,10 @@ const COMMISSION_TONE: Record<string, string> = {
  * The whole referral book, and nothing else.
  *
  * External partners sit outside the trust boundary: no deal values, no client
- * contact details, nothing about other partners. That scoping is enforced in
- * DashboardMetricsService — the fields never reach this component — so there is
- * no forecast tile here either, since forecasting would need the deal values.
+ * contact details, no handling agent, nothing about other partners. That
+ * scoping is enforced in DashboardMetricsService — the fields never reach this
+ * component. A partner's per-lead deal values live on the My leads view
+ * (Partner/Leads), which has its own scoping.
  */
 export default function PartnerView({
     partnerStats,
@@ -184,21 +185,24 @@ export default function PartnerView({
                     alignItems: "start",
                 }}
             >
-                <DashboardPanel flush>
-                    <Deferred
-                        data="partnerReferrals"
-                        fallback={
-                            <div style={{ padding: 18 }}>
-                                <PanelSkeleton rows={5} />
-                            </div>
-                        }
-                    >
-                        <ReferralTable
-                            rows={partnerReferrals ?? []}
-                            onFlag={setFlagging}
-                        />
-                    </Deferred>
-                </DashboardPanel>
+                {/* Full row: the table has five columns and a Flag action, which a half-width panel clips. */}
+                <div style={{ gridColumn: "1 / -1", minWidth: 0 }}>
+                    <DashboardPanel flush>
+                        <Deferred
+                            data="partnerReferrals"
+                            fallback={
+                                <div style={{ padding: 18 }}>
+                                    <PanelSkeleton rows={5} />
+                                </div>
+                            }
+                        >
+                            <ReferralTable
+                                rows={partnerReferrals ?? []}
+                                onFlag={setFlagging}
+                            />
+                        </Deferred>
+                    </DashboardPanel>
+                </div>
 
                 <DashboardPanel
                     title="Commission ledger"

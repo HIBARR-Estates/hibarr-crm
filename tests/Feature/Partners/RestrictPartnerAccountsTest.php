@@ -51,6 +51,9 @@ class RestrictPartnerAccountsTest extends TestCase
             'settings' => ['/account/settings/profile'],
             // Kept on purpose: partners keep the Affiliate workspace. What it
             // returns is redacted in MlmAgentController, not blocked here.
+            // A partner's own leads view lives under /partner/, not /lead-contact/.
+            'partner leads list' => ['/account/partner/leads'],
+            'partner lead detail' => ['/account/partner/leads/12'],
             'affiliate dashboard' => ['/account/mlm/agent/dashboard'],
             'affiliate commissions' => ['/account/mlm/agent/api/commissions'],
             'affiliate deals api' => ['/account/mlm/agent/api/deals'],

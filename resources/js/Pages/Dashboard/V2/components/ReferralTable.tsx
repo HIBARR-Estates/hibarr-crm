@@ -94,7 +94,7 @@ export default function ReferralTable({
             </div>
 
             <div className="dv2-scroll-x">
-                <div style={{ minWidth: 620 }}>
+                <div style={{ minWidth: 520 }}>
                     <div
                         className="dv2-eyebrow"
                         style={{

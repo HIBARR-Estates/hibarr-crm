@@ -329,6 +329,7 @@ export const permissions = {
     "view_notice": "all",
     "view_order": "all",
     "view_overview_dashboard": "all",
+    "view_partner_dashboard": "all",
     "view_payments": "all",
     "view_product": "all",
     "view_project_budget": "all",
