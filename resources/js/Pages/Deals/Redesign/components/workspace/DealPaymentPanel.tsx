@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
-import { App } from "antd";
 import type { Deal } from "@/Types/api/deals";
-import { copyToClipboard } from "@/lib/utils";
 import { useApiQuery } from "@/lib/api/client";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -22,6 +20,7 @@ import {
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
+import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
@@ -61,7 +60,6 @@ export default function DealPaymentPanel({
 }: DealPaymentPanelProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { message } = App.useApp();
     const {
         paymentRequest,
         paymentRequests,
@@ -153,16 +151,6 @@ export default function DealPaymentPanel({
         setCreateError(result.message);
     };
 
-    const handleCopyCheckoutUrl = async () => {
-        if (!paymentRequest?.checkout_url) return;
-        try {
-            await copyToClipboard(paymentRequest.checkout_url);
-            message.success(td("Checkout link copied."));
-        } catch {
-            message.error(td("Unable to copy checkout link."));
-        }
-    };
-
     if (paymentRequestLoading) {
         return (
             <p className="py-2 text-xs italic text-dr-text-hint">
@@ -243,26 +231,10 @@ export default function DealPaymentPanel({
 
                     {mapped.showCheckoutUrl && paymentRequest?.checkout_url && (
                         <div className="rounded-md border border-dr-border-soft bg-[#fafbfc] p-2.5">
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
-                                {td("Checkout link")}
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
+                                {t("pages.deals.payment_request.checkout_link")}
                             </p>
-                            <a
-                                href={paymentRequest.checkout_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={paymentRequest.checkout_url}
-                                className="block break-all text-xs text-dr-blue"
-                            >
-                                {paymentRequest.checkout_url}
-                            </a>
-                            <button
-                                type="button"
-                                onClick={() => void handleCopyCheckoutUrl()}
-                                className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-xs font-semibold text-dr-blue"
-                            >
-                                <Icon name="copy" size={12} />
-                                {td("Copy link")}
-                            </button>
+                            <CheckoutLinkActions url={paymentRequest.checkout_url} />
                         </div>
                     )}
 
