@@ -140,6 +140,7 @@ class RecordHistoryApiTest extends TestCase
         $this->app->instance('user.permission-map.'.$carol->id, ['view_lead' => 'all']);
         $this->signIn($carol);
         $this->getJson("/email/records/lead/{$this->lead->id}/history")->assertOk()->assertExactJson([
+            'addresses' => [['address' => strtolower((string) $this->lead->client_email)]],
             'events' => [],
             'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 50, 'total' => 0],
         ]);
