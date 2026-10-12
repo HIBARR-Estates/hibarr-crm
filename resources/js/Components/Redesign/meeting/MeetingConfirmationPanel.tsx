@@ -240,8 +240,9 @@ export default function MeetingConfirmationPanel({
                     onDismiss={() => setModalMode(null)}
                     onConfirmed={handleConfirmed}
                     // Opened from inside the show/edit dialog (a redesign
-                    // `Modal` at z-index 1100) — clear it explicitly.
-                    zIndex={1300}
+                    // `Modal`, z-index 1300) — sit just above it, below antd
+                    // popups (1350+) so its own selects still open on top.
+                    zIndex={1320}
                 />
             )}
         </>

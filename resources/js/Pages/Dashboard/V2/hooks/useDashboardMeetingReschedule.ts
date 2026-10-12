@@ -33,6 +33,12 @@ interface RescheduleResponse {
  */
 export default function useDashboardMeetingReschedule(
     followupId: number | null,
+    /**
+     * Deferred props to re-resolve once the meeting moves. Required rather
+     * than defaulted: it used to hardcode the agent view's prop names, and
+     * when that view was removed the reload became a silent no-op.
+     */
+    reloadKeys: string[],
 ) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,7 +95,7 @@ export default function useDashboardMeetingReschedule(
 
                 if (json.success) {
                     message.success("Meeting rescheduled");
-                    router.reload({ only: ["todaySchedule", "agentWeek"] });
+                    router.reload({ only: reloadKeys });
                     onSuccess?.();
                     return;
                 }
@@ -104,7 +110,7 @@ export default function useDashboardMeetingReschedule(
                 setIsSubmitting(false);
             }
         },
-        [followupId, props.auth?.user?.timezone],
+        [followupId, props.auth?.user?.timezone, reloadKeys],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

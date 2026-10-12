@@ -269,6 +269,9 @@ export const createProjectFilterConfig = (props: ProjectFilterProps): FilterConf
     return {
         routeName: "developer-projects.index",
         title: "Project Filters",
+        // Match Index.tsx VISIT_OPTIONS — omitting this passes only: undefined
+        // into Inertia and crashes isPartial() on Apply Filters.
+        only: ["projects", "filters"],
         fields,
         excludeFields: props.excludeFields,
         defaultValues: {},

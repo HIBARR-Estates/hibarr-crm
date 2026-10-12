@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { ANALYSIS_CURRENCIES } from "../data/currencies";
 
 interface CurrencyRangeInputProps {
@@ -47,7 +47,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
         onChange(`${newCode}|${newMin}|${newMax}`);
 
     const fieldClass =
-        "w-full h-10 bg-white border border-slate-200 rounded-r-xl pl-7 pr-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors";
+        "w-full h-10 bg-white border border-dr-border rounded-r-xl pl-7 pr-3 text-sm placeholder-dr-text-hint focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors";
 
     return (
         <div className="space-y-2" ref={ref}>
@@ -59,7 +59,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
                     className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-semibold transition-colors"
                     style={
                         open
-                            ? { backgroundColor: T.BLUE_LIGHT, borderColor: "#38bdf8", boxShadow: "0 0 0 2px #e0f2fe" }
+                            ? { backgroundColor: T.BLUE_LIGHT, borderColor: "var(--dr-sky)", boxShadow: "0 0 0 2px var(--dr-sky-soft)" }
                             : { backgroundColor: T.SURFACE_2, borderColor: T.BORDER }
                     }
                 >
@@ -79,16 +79,16 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
 
                 {open && (
                     <div
-                        className="absolute z-30 top-9 left-0 w-60 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+                        className="absolute z-30 top-9 left-0 w-60 bg-white border border-dr-border rounded-xl shadow-lg overflow-hidden"
                     >
-                        <div className="p-2 border-b border-slate-100">
+                        <div className="p-2 border-b border-dr-border-soft">
                             <input
                                 autoFocus
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={td("Search currency...", { source: "en" })}
-                                className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
+                                className="w-full text-sm px-2 py-1.5 bg-dr-surface-2 border border-dr-border rounded-lg outline-none focus:border-sky-400"
                             />
                         </div>
                         <div className="max-h-48 overflow-y-auto py-1">
@@ -122,7 +122,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
                     </label>
                     <div className="flex">
                         <span
-                            className="h-10 flex items-center px-2.5 border border-r-0 border-slate-200 rounded-l-xl text-sm font-medium shrink-0"
+                            className="h-10 flex items-center px-2.5 border border-r-0 border-dr-border rounded-l-xl text-sm font-medium shrink-0"
                             style={{ backgroundColor: T.SURFACE_2, color: T.TEXT_MUTED }}
                         >
                             {currency.symbol}
@@ -148,7 +148,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
                     </label>
                     <div className="flex">
                         <span
-                            className="h-10 flex items-center px-2.5 border border-r-0 border-slate-200 rounded-l-xl text-sm font-medium shrink-0"
+                            className="h-10 flex items-center px-2.5 border border-r-0 border-dr-border rounded-l-xl text-sm font-medium shrink-0"
                             style={{ backgroundColor: T.SURFACE_2, color: T.TEXT_MUTED }}
                         >
                             {currency.symbol}

@@ -15,7 +15,7 @@ function parse(value: string): [string, string] {
 }
 
 const fieldClass =
-    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors disabled:opacity-40";
+    "w-full bg-white border border-dr-border rounded-xl px-3 py-2.5 text-sm text-dr-text placeholder-dr-text-hint focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors disabled:opacity-40";
 
 export default function NumberRangeInput({ value, unit, disabled, onChange }: NumberRangeInputProps) {
     const { td } = useTd();
@@ -31,7 +31,7 @@ export default function NumberRangeInput({ value, unit, disabled, onChange }: Nu
     return (
         <div className="flex items-center gap-3">
             <div className="flex-1">
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{td("Min", { source: "en" })}</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-dr-text-hint mb-1">{td("Min", { source: "en" })}</label>
                 <div className="relative">
                     <input
                         type="text"
@@ -43,13 +43,13 @@ export default function NumberRangeInput({ value, unit, disabled, onChange }: Nu
                         className={fieldClass}
                     />
                     {unit && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">{unit}</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-dr-text-hint">{unit}</span>
                     )}
                 </div>
             </div>
-            <span className="text-slate-300 mt-5">—</span>
+            <span className="text-dr-text-hint mt-5">—</span>
             <div className="flex-1">
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{td("Max", { source: "en" })}</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-dr-text-hint mb-1">{td("Max", { source: "en" })}</label>
                 <div className="relative">
                     <input
                         type="text"
@@ -61,7 +61,7 @@ export default function NumberRangeInput({ value, unit, disabled, onChange }: Nu
                         className={fieldClass}
                     />
                     {unit && (
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">{unit}</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-dr-text-hint">{unit}</span>
                     )}
                 </div>
             </div>

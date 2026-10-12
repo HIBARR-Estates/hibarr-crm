@@ -14,24 +14,26 @@ import {
     toWorkspaceTaskListItem,
     type WorkspaceTaskListItem,
 } from "@/Pages/Deals/Redesign/adapters/taskAdapter";
-import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
-import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/DealBulkActionBar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import {
     TasksEmptyState,
     TasksFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import { buildWorkspaceTaskTabSections } from "@/Components/Redesign/workspace/buildWorkspaceTaskTabSections";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import IntegrationOriginBadge from "@/Components/Redesign/primitives/IntegrationOriginBadge";
-import DealMenuSelect from "@/Pages/Deals/Redesign/components/primitives/DealMenuSelect";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import DealPeoplePicker, {
     type DealPersonOption,
 } from "@/Pages/Deals/Redesign/components/primitives/DealPeoplePicker";
-import DealSelectCheckbox from "@/Pages/Deals/Redesign/components/primitives/DealSelectCheckbox";
+import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import DealPriorityBadge from "@/Pages/Deals/Redesign/components/primitives/DealPriorityBadge";
 import useFloatingMenuPosition from "@/Pages/Deals/Redesign/hooks/useFloatingMenuPosition";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 import useLeadTaskStatus from "../../../hooks/useLeadTaskStatus";
 import LeadTaskDetailModal from "../LeadTaskDetailModal";
@@ -183,7 +185,7 @@ function AssigneeStack({
                         border: `2px solid ${T.WHITE}`,
                     }}
                 >
-                    <DealAvatar size={size} initials={person.initials} />
+                    <Avatar size={size} initials={person.initials} />
                 </span>
             ))}
             {overflow > 0 && (
@@ -330,6 +332,28 @@ export default function TasksTab({
         all: t("pages.deals.workspace.tasks.filter_all"),
     };
 
+    const taskSections = useMemo(
+        () =>
+            buildWorkspaceTaskTabSections(
+                filter,
+                filteredTasks,
+                tasks,
+                taskBoardColumns,
+                {
+                    open: filterLabels.open,
+                    done: filterLabels.done,
+                },
+            ),
+        [
+            filter,
+            filteredTasks,
+            tasks,
+            taskBoardColumns,
+            filterLabels.open,
+            filterLabels.done,
+        ],
+    );
+
     const showAddTask = canAddTasks(permissions) && Boolean(onAddTask);
     const canBulkDelete = !permissions || permissions.delete_tasks === "all";
     const showSelectMode = true;
@@ -474,7 +498,7 @@ export default function TasksTab({
 
                     <div className="flex gap-1.5">
                         {showSelectMode && (
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 onClick={() =>
                                     selectMode
@@ -485,24 +509,24 @@ export default function TasksTab({
                                 {selectMode
                                     ? t("pages.deals.common.cancel")
                                     : t("pages.deals.common.select")}
-                            </DealButton>
+                            </Button>
                         )}
                         {showAddTask && onAddTask && (
-                            <DealButton
+                            <Button
                                 variant="primary"
                                 size="sm"
-                                icon={<DealIcon name="plus" size={14} />}
+                                icon={<Icon name="plus" size={14} />}
                                 onClick={onAddTask}
                             >
                                 {t("pages.deals.workspace.tasks.add_task")}
-                            </DealButton>
+                            </Button>
                         )}
                     </div>
                 </div>
             )}
 
             {selectMode && (
-                <DealBulkActionBar
+                <BulkActionBar
                     count={selected.size}
                     onClear={() => setSelected(new Set())}
                     clearLabel={t("pages.deals.common.clear")}
@@ -517,7 +541,7 @@ export default function TasksTab({
                             ? t("pages.deals.common.deselect_all")
                             : t("pages.deals.common.select_all")}
                     </button>
-                    <DealMenuSelect
+                    <MenuSelect
                         value={null}
                         placeholder={t(
                             "pages.deals.workspace.tasks.set_status_placeholder",
@@ -560,7 +584,7 @@ export default function TasksTab({
                             {t("pages.deals.common.delete")}
                         </button>
                     )}
-                </DealBulkActionBar>
+                </BulkActionBar>
             )}
 
             {!hasTasks ? (
@@ -574,7 +598,24 @@ export default function TasksTab({
                     onShowAll={() => setFilter("all")}
                 />
             ) : (
-                filteredTasks.map((task) => {
+                taskSections.map((section, sectionIndex) => (
+                    <section
+                        key={section.key}
+                        className={sectionIndex > 0 ? "mt-4" : undefined}
+                    >
+                        <WorkspaceTabSectionHeader
+                            title={section.title}
+                            count={section.tasks.length}
+                            hint={
+                                sectionIndex === 0
+                                    ? td(
+                                          "Each card is one task — use the title, due date, assignee, and status to find it.",
+                                          { source: "en" },
+                                      )
+                                    : undefined
+                            }
+                        />
+                        {section.tasks.map((task) => {
                     const rawTask = tasks.find((item) => item.id === task.id);
                     const done = rawTask
                         ? isTaskDone(rawTask, taskBoardColumns)
@@ -590,12 +631,12 @@ export default function TasksTab({
                     return (
                         <article
                             key={task.id}
-                            className="mb-2 flex flex-wrap items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                            className="dr-card flex flex-wrap items-start gap-3 !py-3"
                             style={{ opacity: done ? 0.65 : 1 }}
                         >
                             {selectMode && (
                                 <div className="pt-0.5">
-                                    <DealSelectCheckbox
+                                    <SelectCheckbox
                                         checked={selected.has(task.id)}
                                         onChange={() => toggleSelect(task.id)}
                                         label={`Select task ${task.title}`}
@@ -619,7 +660,7 @@ export default function TasksTab({
                             >
                                 <div className="mb-1 flex items-start justify-between gap-2">
                                     <span
-                                        className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1a1f2e]"
+                                        className="min-w-0 flex-1 truncate text-[13px] font-semibold text-dr-text"
                                         style={{
                                             textDecoration: done
                                                 ? "line-through"
@@ -648,7 +689,7 @@ export default function TasksTab({
                                     </div>
                                 )}
 
-                                <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#5b6472]">
+                                <div className="flex flex-wrap items-center gap-2.5 text-xs text-dr-text-muted">
                                     {task.dueDateLabel && (
                                         <span
                                             className="inline-flex items-center gap-1"
@@ -659,7 +700,7 @@ export default function TasksTab({
                                                 fontWeight: overdue ? 600 : 400,
                                             }}
                                         >
-                                            <DealIcon
+                                            <Icon
                                                 name="calendar"
                                                 size={11}
                                             />
@@ -696,7 +737,9 @@ export default function TasksTab({
                             </div>
                         </article>
                     );
-                })
+                        })}
+                    </section>
+                ))
             )}
 
             {useRedesignedTasks ? (
@@ -805,7 +848,7 @@ export default function TasksTab({
                 />
             )}
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmBulkDelete}
                 title={`${t("pages.deals.common.delete")} ${selected.size} ${
                     selected.size === 1

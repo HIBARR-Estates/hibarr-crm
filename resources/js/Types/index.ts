@@ -276,6 +276,12 @@ export interface Property {
     _sold_count?: number;
     _sold_property_ids?: number[];
     is_sold_out?: boolean;
+    /** crm.property-completeness-score — listing-facing filled/total. */
+    completeness?: {
+        filled: number;
+        total: number;
+        percent: number;
+    };
 }
 
 // Project Location (simplified reference)
@@ -632,6 +638,8 @@ export interface AuthType {
     user: User;
     permissions: AppPermission;
     modules: AppModule[];
+    /** Holds only the partner role: sidebar shows the partner surface and nothing else. */
+    isPartnerOnly?: boolean;
 }
 export interface AppProps extends PageProps {
     props: {

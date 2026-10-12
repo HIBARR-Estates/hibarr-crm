@@ -18,6 +18,8 @@ interface LanguageSwitcherProps {
     compact?: boolean;
     /** Custom class name */
     className?: string;
+    /** Applied to the flag + native-name cluster (e.g. hide below lg). */
+    labelClassName?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ interface LanguageSwitcherProps {
 const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
     compact = false,
     className = "",
+    labelClassName = "",
 }) => {
     const { locale, availableLocales, changeLanguage, t } = useTranslation();
 
@@ -80,10 +83,12 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
                 type={compact ? "text" : "default"}
             >
                 {!compact && (
-                    <Space>
-                        <span>{currentFlag}</span>
-                        <span>{currentLang?.native || "English"}</span>
-                    </Space>
+                    <span className={labelClassName || undefined}>
+                        <Space>
+                            <span>{currentFlag}</span>
+                            <span>{currentLang?.native || "English"}</span>
+                        </Space>
+                    </span>
                 )}
             </Button>
         </Dropdown>

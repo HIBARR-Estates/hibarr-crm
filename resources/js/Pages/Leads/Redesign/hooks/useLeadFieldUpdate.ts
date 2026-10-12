@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
+import { getFirstValidationMessage } from "@/lib/api/utils/common";
 import { formatMobileForDisplay } from "@/lib/utils";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
@@ -75,13 +76,14 @@ export default function useLeadFieldUpdate() {
                     return next as unknown as Lead;
                 });
             } catch (error: unknown) {
-                const detail =
-                    (error as { response?: { data?: { message?: string } } })
-                        ?.response?.data?.message ||
-                    (error as Error)?.message ||
-                    "Failed to save change";
+                const detail = getFirstValidationMessage(
+                    error,
+                    "Failed to save change",
+                );
                 message.error(detail);
-                throw error;
+                // Rethrow with the resolved text so EditableField's own toast
+                // doesn't fall back to axios' "Request failed with status code …".
+                throw new Error(detail);
             } finally {
                 setUpdatingField(null);
             }

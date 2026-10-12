@@ -89,7 +89,7 @@ export default function FileDropzone({
                 color={T.TEXT_HINT}
                 className="mx-auto mb-1.5 opacity-60"
             />
-            <div className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
+            <div className="mb-1 text-[13px] font-medium text-dr-text">
                 {isUploading
                     ? uploadProgress > 0
                         ? `${uploadingLabel}… ${uploadProgress}%`
@@ -97,20 +97,20 @@ export default function FileDropzone({
                     : dropHint}
             </div>
             {showByteProgress ? (
-                <div className="mb-1 text-[12px] text-[#6b7280]">
+                <div className="mb-1 text-[12px] text-dr-text-muted">
                     {formatFileSize(uploadBytesLoaded)} /{" "}
                     {formatFileSize(uploadBytesTotal)}
                 </div>
             ) : null}            {isUploading ? (
                 <div
-                    className="mx-auto mb-2 mt-1 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[#e5e7eb]"
+                    className="mx-auto mb-2 mt-1 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-dr-border"
                     role="progressbar"
                     aria-valuenow={uploadProgress}
                     aria-valuemin={0}
                     aria-valuemax={100}
                 >
                     <div
-                        className="h-full rounded-full bg-[#1a6bb5] transition-[width] duration-150 ease-out"
+                        className="h-full rounded-full bg-dr-blue transition-[width] duration-150 ease-out"
                         style={{
                             width:
                                 uploadProgress > 0
@@ -120,7 +120,7 @@ export default function FileDropzone({
                     />
                 </div>
             ) : null}
-            <div className="text-[12px] text-[#9ca3af]">{sizeHint}</div>
+            <div className="text-[12px] text-dr-text-hint">{sizeHint}</div>
         </div>
     );
 }

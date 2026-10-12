@@ -1,6 +1,6 @@
 import useTranslation from "@/Hooks/useTranslation";
 import DealPriorityBadge from "../../primitives/DealPriorityBadge";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 const VERTICAL_STYLES = {
     high: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID, labelKey: "priority_high" },

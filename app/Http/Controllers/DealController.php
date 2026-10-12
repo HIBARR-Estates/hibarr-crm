@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
+use App\Email\EmailFeature;
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
@@ -51,6 +53,7 @@ use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\Deal\DealOutcomeService;
+use App\Services\Deal\DealPaymentValueGuard;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
@@ -78,6 +81,7 @@ use ReflectionClass;
 class DealController extends AccountBaseController
 {
     use \App\Traits\DealFormDataTrait;
+    use AttachesSourceEmail;
     use DealAutomationTrait;
     use ImportExcel;
 
@@ -706,6 +710,9 @@ class DealController extends AccountBaseController
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
             'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
+            // Fail-closed Email gate (flag + pilot). Timeline groups (E-28);
+            // Quick action / composer follow in E-29.
+            'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
             // A pipeline that sells packages does not sell individual properties,
             // so properties / recommendations / offers are hidden for its deals.
@@ -1053,7 +1060,15 @@ class DealController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
         abort_403(! $access['canAccess']);
 
-        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])
+        $dealFollowUps = DealFollowUp::with([
+            'addedBy:id,name,image',
+            'host:id,name,image',
+            'meetingType',
+            'meetingSummary',
+            'lead:id,client_name,mobile,cell,office',
+            'deal:id,name,lead_id',
+            'deal.contact:id,client_name,mobile,cell,office',
+        ])
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
@@ -1075,6 +1090,12 @@ class DealController extends AccountBaseController
                 ->values()
                 ->toArray();
         });
+
+        try {
+            app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($dealFollowUps);
+        } catch (\Throwable) {
+            // Email module unavailable — list still returns.
+        }
 
         return response()->json(['status' => 'success', 'data' => $dealFollowUps]);
     }
@@ -1626,6 +1647,25 @@ class DealController extends AccountBaseController
             return Reply::error($lockMessage);
         }
 
+        // This legacy full-form path has no confirm step of its own, so an
+        // unpaid payment request is only invalidated when the flag is posted;
+        // otherwise the warning comes back as the error.
+        $paymentBlock = app(DealPaymentValueGuard::class)->check(
+            $deal,
+            $deal->isDirty(['manual_value', 'value', 'value_source'])
+                || ($request->has('package_id') && (! empty($addedPackageIds) || ! empty($removedPackageIds)))
+                || ($request->has('product_id') && (! empty($newProductIds) || ! empty($removedProductIds))),
+            $request->boolean(DealPaymentValueGuard::CONFIRM_FLAG),
+            user()
+        );
+        if ($paymentBlock !== null) {
+            if ($request->header('X-Inertia')) {
+                return redirect()->back()->with('error', $paymentBlock['message']);
+            }
+
+            return Reply::error($paymentBlock['message']);
+        }
+
         $deal->save();
 
         app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
@@ -1975,6 +2015,22 @@ class DealController extends AccountBaseController
                 'success' => false,
                 'message' => __('messages.dealAgentLockedByCommission'),
             ], 403);
+        }
+
+        // A payment request the client hasn't paid yet is invalidated (after
+        // an explicit confirm); one already being paid freezes the value.
+        $paymentBlock = app(DealPaymentValueGuard::class)->check(
+            $deal,
+            Deal::touchesValueFields($validatedData),
+            $request->boolean(DealPaymentValueGuard::CONFIRM_FLAG),
+            user()
+        );
+        if ($paymentBlock !== null) {
+            return response()->json([
+                'success' => false,
+                'code' => $paymentBlock['code'],
+                'message' => $paymentBlock['message'],
+            ], $paymentBlock['status']);
         }
 
         // Start database transaction
@@ -2847,7 +2903,15 @@ class DealController extends AccountBaseController
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
-        return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
+        $this->attachSourceEmail(user(), $followUp, $request->input('source_email_message_id'));
+
+        $payload = $this->loadFollowUpWithParticipants($followUp->id);
+        $payload->setAttribute(
+            'source_email_message_id',
+            $this->sourceEmailMessageIdFor($followUp),
+        );
+
+        return Reply::successWithData(__('messages.recordSaved'), ['data' => $payload]);
     }
 
     /**
@@ -2857,7 +2921,15 @@ class DealController extends AccountBaseController
      */
     private function loadFollowUpWithParticipants($followUpId): DealFollowUp
     {
-        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'host:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
+        $followUp = DealFollowUp::with([
+            'addedBy:id,name,image',
+            'host:id,name,image',
+            'meetingType',
+            'meetingSummary',
+            'lead:id,client_name,mobile,cell,office',
+            'deal:id,name,lead_id',
+            'deal.contact:id,client_name,mobile,cell,office',
+        ])->findOrFail($followUpId);
 
         $participantIds = collect($followUp->participants ?? []);
         $participantUsersMap = $participantIds->isEmpty()

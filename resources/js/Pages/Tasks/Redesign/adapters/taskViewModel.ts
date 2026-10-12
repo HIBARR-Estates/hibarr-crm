@@ -1,8 +1,9 @@
-import { formatTaskCompanyTime, parseTaskDateTime } from "@/lib/taskDateTime";
 import {
-    formatDate,
-    formatDateWithTime,
-} from "@/Components/Redesign/adapters/dateFormat";
+    formatTaskCompanyTime,
+    formatTaskDateWithCompanyTime,
+    parseTaskDateTime,
+} from "@/lib/taskDateTime";
+import { formatDate } from "@/Components/Redesign/adapters/dateFormat";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import type { Task } from "@/Types/Task";
 import {
@@ -16,6 +17,7 @@ import {
     type StatusToken,
     type TaskBucketKey,
 } from "../config/taskDesignTokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export interface LinkedRecord {
     type: RecordTypeKey;
@@ -142,8 +144,15 @@ function dueSubLabel(
     return `Due in ${dayDiff} days`;
 }
 
-/** "Today · 17:00" / "Yesterday · 11:00" / "22 Aug · 12:00" / "No date". */
-function dueDisplay(due: Date | null, now: Date): string {
+/**
+ * "Today · 17:00" / "Yesterday · 11:00" / "22 Aug · 12:00" / "No date".
+ *
+ * `raw` is the untouched wall-clock string, and the clock face is read from it
+ * rather than from `due`: `due` is a Date in the viewer's own zone, so a
+ * wall-clock time that doesn't exist there (the DST spring-forward hour) can't
+ * survive it and reads an hour late. It stays the right input for the day maths.
+ */
+function dueDisplay(due: Date | null, now: Date, raw?: string | null): string {
     if (!due) return "No date";
 
     const dayDiff = Math.round(
@@ -153,12 +162,12 @@ function dueDisplay(due: Date | null, now: Date): string {
     // string to get "the time" — worked for 24h formats ("17:00", no
     // internal space) but for a 12h company format ("5:00 PM") that token
     // is just "PM", silently dropping the actual time.
-    const time = formatTaskCompanyTime(due, "");
+    const time = formatTaskCompanyTime(raw ?? due, "");
 
     if (dayDiff === 0) return time ? `Today · ${time}` : "Today";
     if (dayDiff === -1) return time ? `Yesterday · ${time}` : "Yesterday";
     if (dayDiff === 1) return time ? `Tomorrow · ${time}` : "Tomorrow";
-    return formatDateWithTime(due);
+    return formatTaskDateWithCompanyTime(raw ?? due);
 }
 
 export function linkedRecordsOf(task: Task): LinkedRecord[] {
@@ -255,17 +264,17 @@ export function toTaskViewModel(
         status: statusToken(slug),
         priority: priorityToken(task.priority),
         category: categoryToken(task.category?.category_name),
-        dueText: dueDisplay(due, now),
+        dueText: dueDisplay(due, now, task.due_date),
         dueSub: dueSubLabel(due, bucket, now),
         dueColor: done
-            ? "#9ca3af"
+            ? T.TEXT_HINT
             : late
-              ? "#b91c1c"
+              ? T.RED
               : today
-                ? "#b45309"
-                : "#5b6472",
-        dueBg: late ? "#fef2f2" : today ? "#fffbeb" : "#f5f6f8",
-        dueBorder: late ? "#fecaca" : today ? "#fde68a" : "#e8eaed",
+                ? T.AMBER_TEXT
+                : T.TEXT_MUTED,
+        dueBg: late ? T.RED_SOFT : today ? T.AMBER_BG : T.GRAY,
+        dueBorder: late ? T.RED_MID : today ? T.AMBER_BORDER : T.GRAY_MID,
         people,
         peopleLabel:
             people.length === 0
@@ -276,10 +285,10 @@ export function toTaskViewModel(
         allLinks,
         links: allLinks.slice(0, 2),
         extraLinks: Math.max(0, allLinks.length - 2),
-        titleColor: done ? "#9ca3af" : "#1a1f2e",
+        titleColor: done ? T.TEXT_HINT : T.TEXT,
         titleDecoration: done ? "line-through" : "none",
-        checkBorder: done ? "#177a5b" : "#c7d0de",
-        checkBg: done ? "#177a5b" : "#ffffff",
+        checkBorder: done ? T.GREEN : T.NAVY_MID,
+        checkBg: done ? T.GREEN : T.WHITE,
     };
 }
 

@@ -9,7 +9,7 @@ import { canManageDealExposes } from "../../adapters/dealExposeAdapter";
 import useDealExposes from "../../hooks/useDealExposes";
 import ExposesPanel from "./ExposesPanel";
 import AddExposeModal from "./AddExposeModal";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 
 interface WorkspaceExposesTabProps {
     deal: Deal;
@@ -95,7 +95,7 @@ export default function WorkspaceExposesTab({
                     onClose={() => setAddSource(null)}
                 />
             )}
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmRemoveId != null}
                 title={t("pages.deals.common.delete")}
                 message={t(

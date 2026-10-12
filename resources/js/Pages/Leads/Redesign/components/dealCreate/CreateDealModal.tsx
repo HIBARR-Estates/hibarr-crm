@@ -561,12 +561,12 @@ export default function CreateDealModal({
                                 height: 4,
                                 borderRadius: 999,
                                 background:
-                                    step >= seg ? "#1a6bb5" : "#e2e5ea",
+                                    step >= seg ? T.BLUE : T.BORDER,
                             }}
                         />
                     ))}
                 </div>
-                <div className="mt-2 text-[12px] text-[#6b7280]">
+                <div className="mt-2 text-[12px] text-dr-text-muted">
                     {td("Step", { source: "en" })} {step} {td("of", { source: "en" })} 2
                     {" · "}
                     {step === 1
@@ -576,7 +576,7 @@ export default function CreateDealModal({
             </div>
 
             {metaMissing && (
-                <p className="mb-3 text-xs text-[#b45309]">
+                <p className="mb-3 text-xs text-dr-amber-text">
                     {td("Deal options are still loading — try again in a moment.", { source: "en" })}
                 </p>
             )}

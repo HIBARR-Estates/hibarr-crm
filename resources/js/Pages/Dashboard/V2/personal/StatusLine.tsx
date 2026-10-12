@@ -1,13 +1,12 @@
 import dayjs from "dayjs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { ScheduleEntry } from "../types";
 import type { PersonalQueue, PipelineRow } from "./types";
-import { dominantTotal, greetingFor, isAgendaActive, isAgendaUpcoming, mergeCurrencyTotals } from "./format";
+import { dominantTotal, isAgendaActive, isAgendaUpcoming, mergeCurrencyTotals } from "./format";
 
 interface StatusLineProps {
-    name: string;
-    /** Server clock, so the greeting doesn't flip on a stale browser. */
+    /** Server clock, so "next is" doesn't drift on a stale browser. */
     now: string;
     /**
      * Clock used to pick "next is …". A meeting that has already started
@@ -21,14 +20,14 @@ interface StatusLineProps {
 }
 
 /**
- * Three lines: who's greeted, what needs them (as a real sentence), and
- * what's next on the clock.
+ * The personal dashboard's subtext: what needs this person (as a real
+ * sentence), and what's next on the clock.
  *
- * Replaces the gradient greeting hero: a status line states the same thing in
- * a quarter of the height, and the numbers in it are the ones the page is
- * about. Every line degrades a fact at a time — a panel still in flight
- * simply drops its clause rather than blocking the line or showing a
- * skeleton, since the greeting alone is already useful.
+ * Sits under the greeting DashboardHeader renders — this component owns the
+ * two derived lines only, so every view's header is the same shape and only
+ * the sentence under it changes. Each line degrades a fact at a time: a panel
+ * still in flight drops its clause rather than blocking the line or showing a
+ * skeleton, since the greeting above is already useful on its own.
  *
  * The summary line is deliberately a sentence, not a fragment list like the
  * rest of this page — it's the one place the dashboard tells the person what
@@ -40,14 +39,13 @@ interface StatusLineProps {
  * trend on a landing page is worse than a missing one.
  */
 export default function StatusLine({
-    name,
     now,
     clock,
     queue,
     agenda,
     pipelines,
 }: StatusLineProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     const openTasks = queue
         ? queue.counts.overdue + queue.counts.today + queue.counts.later
@@ -64,11 +62,13 @@ export default function StatusLine({
 
     const taskPhrase = openTasks
         ? openTasks === 1
-            ? td("1 task that needs your attention")
-            : `${openTasks} ${td("tasks that need your attention")}`
+            ? t("pages.dashboard.personal.status.one_task")
+            : t("pages.dashboard.personal.status.n_tasks", {
+                  count: openTasks,
+              })
         : null;
     const valuePhrase = openValue
-        ? `${openValue} ${td("pending in open deals")}`
+        ? `${openValue} ${t("pages.dashboard.personal.status.pending_in_deals")}`
         : null;
 
     // "Take action below" only when there's a task-shaped reason to — an
@@ -79,14 +79,16 @@ export default function StatusLine({
     );
 
     if (parts.length > 0) {
-        const joined = parts.join(` ${td("and")} `);
+        const joined = parts.join(
+            ` ${t("pages.dashboard.personal.status.and")} `,
+        );
         summary = taskPhrase
-            ? `${td("You have")} ${joined} — ${td("take action below")}.`
-            : `${td("You have")} ${joined}.`;
+            ? `${t("pages.dashboard.personal.status.you_have")} ${joined} — ${t("pages.dashboard.personal.status.take_action")}.`
+            : `${t("pages.dashboard.personal.status.you_have")} ${joined}.`;
     } else if (queue !== undefined && pipelines !== undefined) {
         // Both confirmed loaded, both genuinely empty — a real answer, not a
         // missing one.
-        summary = td("Nothing needs you right now.");
+        summary = t("pages.dashboard.personal.status.nothing_needs_you");
     }
 
     // Client clock, not the page-load `now`: a meeting that started while
@@ -110,22 +112,17 @@ export default function StatusLine({
         // Empty agenda already has its own real estate below — the empty
         // state on the Agenda panel itself, with a "Schedule meeting" action.
         // Repeating "nothing booked" here said nothing that panel doesn't.
+        // When meetings exist, the panel header also keeps an "Add meeting" CTA.
         activeCount && activeCount > 0
-            ? `${activeCount} ${td("calendar items")}`
+            ? `${activeCount} ${t("pages.dashboard.personal.status.calendar_items")}`
             : null,
         next
-            ? `${td("next is")} ${next.title} ${td("at")} ${dayjs(next.at).format("HH:mm")}`
+            ? `${t("pages.dashboard.personal.status.next_is")} ${next.title} ${t("pages.dashboard.personal.status.at")} ${dayjs(next.at).format("HH:mm")}`
             : null,
     ].filter(Boolean);
 
     return (
-        <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 20, lineHeight: 1.3 }}>
-                <span style={{ fontWeight: 700, color: T.NAVY }}>
-                    {td(greetingFor(now))}, {name}.
-                </span>
-            </p>
-
+        <>
             {summary && (
                 <p
                     style={{
@@ -151,6 +148,6 @@ export default function StatusLine({
                     {schedule.join(" · ")}
                 </p>
             )}
-        </div>
+        </>
     );
 }

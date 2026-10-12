@@ -24,7 +24,7 @@ class DispatchOlWebhookJob implements ShouldQueue
 
     public function __construct(private readonly int $crmEventId)
     {
-        $this->tries = (int) config('services.ol_webhook.tries', 3);
+        $this->tries = (int) config('services.ol_webhook.tries', 5);
         $this->onQueue((string) config('services.ol_webhook.queue', 'ol_webhooks'));
     }
 
@@ -33,10 +33,10 @@ class DispatchOlWebhookJob implements ShouldQueue
      */
     public function backoff(): array
     {
-        $configured = config('services.ol_webhook.backoff', [60, 300, 900]);
+        $configured = config('services.ol_webhook.backoff', [5, 30, 120, 600, 1800]);
 
         if (! is_array($configured) || $configured === []) {
-            return [60, 300, 900];
+            return [5, 30, 120, 600, 1800];
         }
 
         return array_map(static fn ($seconds) => (int) $seconds, $configured);
@@ -121,6 +121,8 @@ class DispatchOlWebhookJob implements ShouldQueue
                 throw new \RuntimeException("Retryable OL webhook failure with status {$statusCode}");
             }
 
+            // Terminal (never retried): alert on this message, the record stays
+            // unsynced in OL until ol-webhook:reconcile re-emits it.
             Log::error('DispatchOlWebhookJob: non-retryable webhook failure', [
                 'crm_event_id' => $this->crmEventId,
                 'event_id' => $payload['eventId'] ?? null,

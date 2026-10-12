@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface Props {
     leadName: string;
@@ -109,13 +109,13 @@ export default function AnalysisHeaderBar({
                                 className="h-full rounded-full transition-all duration-700"
                                 style={{
                                     width: `${pct}%`,
-                                    backgroundColor: pct === 100 ? "#10b981" : "#38bdf8",
+                                    backgroundColor: pct === 100 ? "var(--dr-emerald)" : "var(--dr-sky)",
                                 }}
                             />
                         </div>
                         <span
                             className="text-xs font-semibold tabular-nums w-7"
-                            style={{ color: pct === 100 ? "#6ee7b7" : "#38bdf8" }}
+                            style={{ color: pct === 100 ? "#6ee7b7" : "var(--dr-sky)" }}
                         >
                             {pct}%
                         </span>

@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import dayjs from "dayjs";
-import TaskModalShell from "@/Pages/Tasks/Redesign/components/primitives/TaskModalShell";
+import TaskModalShell from "@/Components/Redesign/primitives/ModalShell";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";

@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import UserIndicator from "@/Components/UserIndicator";
 import BulkActionBar from "@/Components/Redesign/primitives/BulkActionBar";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { statusToken } from "../config/taskDesignTokens";
@@ -298,8 +301,8 @@ export default function TasksBulkBar({
                     onClick={onBulkUpdate}
                     style={{
                         ...barButtonStyle,
-                        background: T.BLUE,
-                        color: T.WHITE,
+                        background: B.PRIMARY_BG,
+                        color: B.PRIMARY_TEXT,
                         opacity: busy ? 0.5 : 1,
                     }}
                 >
@@ -314,8 +317,8 @@ export default function TasksBulkBar({
                     onClick={onDelete}
                     style={{
                         ...barButtonStyle,
-                        background: T.RED,
-                        color: T.WHITE,
+                        background: B.DANGER_BG,
+                        color: B.DANGER_TEXT,
                         opacity: busy ? 0.5 : 1,
                     }}
                 >

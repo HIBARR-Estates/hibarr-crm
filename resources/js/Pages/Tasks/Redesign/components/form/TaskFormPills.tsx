@@ -121,7 +121,7 @@ export default function TaskFormPills({
                     padding: "7px 13px",
                     borderRadius: 6,
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: form.assignees.length ? 600 : 500,
                     lineHeight: 1.5,
                     background: form.assignees.length
                         ? T.BLUE_LIGHT
@@ -189,7 +189,7 @@ export default function TaskFormPills({
                     padding: "7px 13px",
                     borderRadius: 6,
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: form.links.length ? 600 : 500,
                     lineHeight: 1.5,
                     background: form.links.length ? T.BLUE_LIGHT : T.WHITE,
                     color: form.links.length ? T.BLUE_DARK : T.TEXT_MUTED,

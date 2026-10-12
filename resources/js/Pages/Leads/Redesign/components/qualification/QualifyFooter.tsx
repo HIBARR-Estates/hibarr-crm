@@ -1,5 +1,6 @@
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
@@ -56,12 +57,12 @@ export default function QualifyFooter({
         treatAsLast != null ? flow.walkIndex > 0 : flow.canGoBack;
 
     return (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-slate-200">
+        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-dr-border">
             <button
                 type="button"
                 onClick={handleBack}
                 disabled={!canGoBack}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-600 cursor-pointer transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-dr-text-muted cursor-pointer transition-colors hover:bg-dr-surface-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
             >
                 <svg
                     className="w-3.5 h-3.5"
@@ -80,14 +81,14 @@ export default function QualifyFooter({
             </button>
 
             <div className="flex flex-col items-center gap-0.5">
-                <span className="text-xs font-medium tabular-nums text-slate-500">
+                <span className="text-xs font-medium tabular-nums text-dr-text-muted">
                     {td("Step", { source: "en" })} {stepLabel}{" "}
                     {td("of", { source: "en" })} {stepCount}
                 </span>
                 {!isLast ? (
                     <button
                         type="button"
-                        className="text-[11px] font-medium text-slate-400 hover:text-slate-600"
+                        className="text-[11px] font-medium text-dr-text-hint hover:text-dr-text-muted"
                         onClick={() => handleNext({ skipValidation: true })}
                     >
                         {td("Skip", { source: "en" })}
@@ -100,7 +101,7 @@ export default function QualifyFooter({
                 onClick={() => handleNext()}
                 disabled={nextDisabled}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: "#0A2E5D" }}
+                style={{ backgroundColor: T.NAVY }}
             >
                 {isLast
                     ? finishLabel || td("Next", { source: "en" })

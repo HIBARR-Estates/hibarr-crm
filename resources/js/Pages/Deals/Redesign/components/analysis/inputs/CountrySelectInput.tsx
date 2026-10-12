@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 import { ANALYSIS_COUNTRIES } from "../data/countries";
 
@@ -44,7 +44,7 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
                 type="button"
                 onClick={() => setOpen((o) => !o)}
                 className="w-full flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 text-sm transition-colors text-left"
-                style={open ? { borderColor: "#38bdf8", boxShadow: "0 0 0 2px #e0f2fe" } : { borderColor: T.BORDER }}
+                style={open ? { borderColor: "var(--dr-sky)", boxShadow: "0 0 0 2px var(--dr-sky-soft)" } : { borderColor: T.BORDER }}
             >
                 {selected ? (
                     <>
@@ -67,15 +67,15 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
             </button>
 
             <FloatingDropdown anchorRef={triggerRef} open={open} minWidth={240}>
-                <div className="bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-                    <div className="p-2 border-b border-slate-100">
+                <div className="bg-white border border-dr-border rounded-xl shadow-lg overflow-hidden">
+                    <div className="p-2 border-b border-dr-border-soft">
                         <input
                             autoFocus
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder={td("Search countries...", { source: "en" })}
-                            className="w-full text-sm px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-sky-400"
+                            className="w-full text-sm px-2 py-1.5 bg-dr-surface-2 border border-dr-border rounded-lg outline-none focus:border-sky-400"
                         />
                     </div>
                     <div className="max-h-52 overflow-y-auto py-1">
@@ -90,7 +90,7 @@ export default function CountrySelectInput({ value, placeholder = "Select a coun
                                 <span className="text-base">{c.flag}</span>
                                 <span className="flex-1">{c.name}</span>
                                 {value === c.name && (
-                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "#38bdf8" }}>
+                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "var(--dr-sky)" }}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 )}

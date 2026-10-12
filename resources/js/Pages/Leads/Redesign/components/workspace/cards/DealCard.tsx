@@ -7,6 +7,7 @@ import {
     resolveCurrencyDisplay,
     useCompanyCurrency,
 } from "../../../adapters/currencyAdapter";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealCardProps {
     deal: Deal;
@@ -21,7 +22,7 @@ interface DealCardProps {
 }
 
 function StagePill({ name, color }: { name: string; color?: string | null }) {
-    const accent = color?.trim() || "#1a6bb5";
+    const accent = color?.trim() || T.BLUE;
     return (
         <span
             className="v2-quick-stat-stage"
@@ -48,16 +49,16 @@ function DetailItem({
 }) {
     return (
         <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-dr-text-hint">
                 {label}
             </div>
             <div
                 className={`truncate text-[12px] leading-snug ${
                     tone === "alert"
-                        ? "font-semibold text-[#c2410c]"
+                        ? "font-semibold text-dr-orange"
                         : tone === "muted"
-                          ? "text-[#9ca3af]"
-                          : "text-[#374151]"
+                          ? "text-dr-text-hint"
+                          : "text-dr-gray-darker"
                 }`}
                 title={value}
             >
@@ -171,7 +172,7 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
             <div className="min-w-0 md:flex-1">
                 {/* Line 1 — deal name and where it stands. */}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="min-w-0 truncate text-[14px] font-bold leading-snug text-[#1a1f2e]">
+                    <span className="min-w-0 truncate text-[14px] font-bold leading-snug text-dr-text">
                         {deal.name}
                     </span>
                     {stageName ? (
@@ -180,7 +181,7 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                             color={stageColor}
                         />
                     ) : (
-                        <span className="text-[11px] text-[#9ca3af]">
+                        <span className="text-[11px] text-dr-text-hint">
                             {td("No stage", { source: "en" })}
                         </span>
                     )}
@@ -201,8 +202,8 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                     facts, on one dense line. */}
                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
                     <span className="flex min-w-0 items-center gap-1.5">
-                        <Icon name="grid" size={12} color="#6b7280" />
-                        <span className="truncate font-semibold text-[#374151]">
+                        <Icon name="grid" size={12} color={T.TEXT_MUTED} />
+                        <span className="truncate font-semibold text-dr-gray-darker">
                             {pipelineName
                                 ? td(pipelineName, { source: "en" })
                                 : td("No pipeline", { source: "en" })}
@@ -215,13 +216,13 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                         <Icon
                             name="layers"
                             size={12}
-                            color={packageEmpty ? "#9ca3af" : "#6b7280"}
+                            color={packageEmpty ? T.TEXT_HINT : T.TEXT_MUTED}
                         />
                         <span
                             className={`truncate ${
                                 packageEmpty
-                                    ? "italic text-[#9ca3af]"
-                                    : "font-medium text-[#374151]"
+                                    ? "italic text-dr-text-hint"
+                                    : "font-medium text-dr-gray-darker"
                             }`}
                             title={packageLabel}
                         >
@@ -245,7 +246,7 @@ export default function DealCard({ deal, onClick, href }: DealCardProps) {
                 ))}
             </div>
 
-            <span className="shrink-0 text-[15px] font-bold tabular-nums text-[#1a6bb5] md:w-[104px] md:text-right">
+            <span className="shrink-0 text-[15px] font-bold tabular-nums text-dr-blue md:w-[104px] md:text-right">
                 {valueLabel}
             </span>
         </div>

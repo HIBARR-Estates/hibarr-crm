@@ -3,7 +3,10 @@ import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
-import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../context/DealWorkspaceContext";
 
 /**
  * Attaching a recommended property to a deal.
@@ -19,7 +22,7 @@ export default function useDealRecommendationAdd(deal: Deal) {
     const [addingPropertyIds, setAddingPropertyIds] = useState<Set<number>>(
         new Set(),
     );
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, withPaymentInvalidation } = useDealWorkspace();
     const { t } = useTranslation();
 
     /** Property ids already on the deal, read through each product. */
@@ -58,22 +61,28 @@ export default function useDealRecommendationAdd(deal: Deal) {
             try {
                 const failures: string[] = [];
 
-                for (const propertyId of propertyIds) {
-                    const response = await axios.post(
-                        route("deals.properties.store", deal.id),
-                        { property_id: propertyId },
-                        { headers: { Accept: "application/json" } },
-                    );
-
-                    if (response.data?.status !== "success") {
-                        failures.push(
-                            response.data?.message ||
-                                t(
-                                    "pages.deals.workspace.recommendations.messages.add_failed",
-                                ),
+                // Attaching changes the calculated value — an unpaid payment
+                // request is warned about once, then invalidated by the first
+                // attach; the rest go through as normal.
+                await withPaymentInvalidation(async (flags) => {
+                    failures.length = 0;
+                    for (const propertyId of propertyIds) {
+                        const response = await axios.post(
+                            route("deals.properties.store", deal.id),
+                            { property_id: propertyId, ...flags },
+                            { headers: { Accept: "application/json" } },
                         );
+
+                        if (response.data?.status !== "success") {
+                            failures.push(
+                                response.data?.message ||
+                                    t(
+                                        "pages.deals.workspace.recommendations.messages.add_failed",
+                                    ),
+                            );
+                        }
                     }
-                }
+                });
 
                 // The attach endpoint returns only a status, so pull the deal
                 // back down to refresh products / value / offers.
@@ -96,6 +105,7 @@ export default function useDealRecommendationAdd(deal: Deal) {
                     t("pages.deals.workspace.recommendations.messages.added"),
                 );
             } catch (error: unknown) {
+                if (error instanceof PaymentInvalidationCancelled) return;
                 const responseMessage =
                     axios.isAxiosError(error) &&
                     typeof error.response?.data?.message === "string"
@@ -112,7 +122,7 @@ export default function useDealRecommendationAdd(deal: Deal) {
                 });
             }
         },
-        [deal.id, setDeal, t],
+        [deal.id, setDeal, t, withPaymentInvalidation],
     );
 
     return {

@@ -52,7 +52,7 @@ export default function FlagReferralModal({
         <Modal
             open
             onClose={onClose}
-            title={td("Flag this referral")}
+            title={td("Flag this referral", { source: "en" })}
             dirty={message.length > 0}
             footer={
                 <>
@@ -61,7 +61,7 @@ export default function FlagReferralModal({
                         className="dr-btn dr-btn-ghost"
                         onClick={onClose}
                     >
-                        {td("Cancel")}
+                        {td("Cancel", { source: "en" })}
                     </button>
                     <button
                         type="button"
@@ -69,7 +69,7 @@ export default function FlagReferralModal({
                         disabled={saving}
                         onClick={submit}
                     >
-                        {td("Send flag")}
+                        {td("Send flag", { source: "en" })}
                     </button>
                 </>
             }
@@ -82,12 +82,12 @@ export default function FlagReferralModal({
                     lineHeight: 1.5,
                 }}
             >
-                {td("About")} <strong>{referral.client}</strong>,{" "}
-                {td("referred")} {referral.days_open}
-                {td("d ago")}.
+                {td("About", { source: "en" })} <strong>{referral.client}</strong>,{" "}
+                {td("referred", { source: "en" })} {referral.days_open}
+                {td("d ago", { source: "en" })}.
             </p>
 
-            <ModalField label={td("What is the problem")}>
+            <ModalField label={td("What is the problem", { source: "en" })}>
                 <select
                     className="dr-input"
                     value={reason}
@@ -95,13 +95,13 @@ export default function FlagReferralModal({
                 >
                     {REASONS.map((option) => (
                         <option key={option.value} value={option.value}>
-                            {td(option.label)}
+                            {td(option.label, { source: "en" })}
                         </option>
                     ))}
                 </select>
             </ModalField>
 
-            <ModalField label={td("Anything to add (optional)")}>
+            <ModalField label={td("Anything to add (optional)", { source: "en" })}>
                 <textarea
                     className="dr-input"
                     rows={4}
@@ -120,8 +120,7 @@ export default function FlagReferralModal({
                 }}
             >
                 {td(
-                    "This reaches the partner team, not the assigned agent. You will see their reply on this row.",
-                )}
+                    "This reaches the partner team, not the assigned agent. You will see their reply on this row.", { source: "en" })}
             </p>
         </Modal>
     );

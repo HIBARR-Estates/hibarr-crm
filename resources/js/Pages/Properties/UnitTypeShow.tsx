@@ -40,6 +40,11 @@ interface UnitTypeShowProps {
     soldPropertyIds: number[];
     deals: DealOption[];
     employees: { id: number; name: string }[];
+    completeness?: {
+        filled: number;
+        total: number;
+        percent: number;
+    } | null;
 }
 
 const UnitTypeShow = ({
@@ -51,6 +56,7 @@ const UnitTypeShow = ({
     soldPropertyIds,
     deals,
     employees,
+    completeness = null,
 }: UnitTypeShowProps) => {
     const { t } = useTranslation();
     const shareLinksEnabled = useExposeShareLinksFlag();
@@ -105,6 +111,7 @@ const UnitTypeShow = ({
                         onCheckAvailability={handleCheckAvailability}
                         onMarkAsSold={handleMarkAsSold}
                         onGenerateExpose={() => setShowExposeModal(true)}
+                        completeness={completeness}
                     />
                 </div>
             </PageLayout>

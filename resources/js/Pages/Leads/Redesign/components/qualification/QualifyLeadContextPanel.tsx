@@ -8,7 +8,7 @@ import { useFormData } from "@/Hooks/useFormData";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import AnalysisCustomFieldRow from "@/Pages/Deals/Redesign/components/analysis/AnalysisCustomFieldRow";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Pages/Deals/Redesign/adapters/initials";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 
@@ -35,17 +35,17 @@ function FieldGroup({
 }) {
     const [open, setOpen] = useState(true);
     return (
-        <div className="border-b border-slate-200">
+        <div className="border-b border-dr-border">
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex w-full items-center justify-between px-4 py-2.5 transition-colors bg-slate-50 hover:bg-slate-100"
+                className="flex w-full items-center justify-between px-4 py-2.5 transition-colors bg-dr-surface-2 hover:bg-dr-gray"
             >
-                <span className="text-xs font-semibold uppercase tracking-widest text-slate-900">
+                <span className="text-xs font-semibold uppercase tracking-widest text-dr-text">
                     {label}
                 </span>
                 <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform text-slate-400 ${open ? "" : "-rotate-90"}`}
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform text-dr-text-hint ${open ? "" : "-rotate-90"}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -68,11 +68,11 @@ function FieldGroup({
 function CoreFieldRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-start gap-3 py-2 px-4">
-            <span className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate">
+            <span className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted truncate">
                 {label}
             </span>
-            <span className="flex-1 text-sm text-slate-800 font-medium break-words">
-                {value || <span className="text-slate-300">—</span>}
+            <span className="flex-1 text-sm text-dr-text font-medium break-words">
+                {value || <span className="text-dr-text-hint">—</span>}
             </span>
         </div>
     );
@@ -317,7 +317,7 @@ export default function QualifyLeadContextPanel({
             style={{ background: T.SURFACE }}
         >
             {/* Profile — same shape as AnalysisLeadContextPanel ProfileCard */}
-            <div className="p-4 border-b border-slate-200">
+            <div className="p-4 border-b border-dr-border">
                 <div className="flex items-center gap-3 mb-3">
                     {lead.image_url && !imgError ? (
                         <img
@@ -329,22 +329,22 @@ export default function QualifyLeadContextPanel({
                     ) : (
                         <div
                             className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
-                            style={{ backgroundColor: "#0A2E5D" }}
+                            style={{ backgroundColor: T.NAVY }}
                         >
                             {initials}
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-slate-900 truncate">
+                        <div className="text-sm font-semibold text-dr-text truncate">
                             {leadName || td("No name", { source: "en" })}
                         </div>
                         {email ? (
-                            <div className="text-xs text-slate-500 truncate">
+                            <div className="text-xs text-dr-text-muted truncate">
                                 {email}
                             </div>
                         ) : null}
                         {phones[0] ? (
-                            <div className="text-xs text-slate-500 truncate">
+                            <div className="text-xs text-dr-text-muted truncate">
                                 {phones[0]}
                             </div>
                         ) : null}
@@ -356,7 +356,7 @@ export default function QualifyLeadContextPanel({
                         <a
                             href={`tel:${phones[0]}`}
                             className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
-                            style={{ backgroundColor: "#0A2E5D" }}
+                            style={{ backgroundColor: T.NAVY }}
                         >
                             {td("Call", { source: "en" })}
                         </a>
@@ -364,7 +364,7 @@ export default function QualifyLeadContextPanel({
                     {email ? (
                         <a
                             href={`mailto:${email}`}
-                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
                         >
                             {td("Email", { source: "en" })}
                         </a>
@@ -374,7 +374,7 @@ export default function QualifyLeadContextPanel({
                             href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
                         >
                             WhatsApp
                         </a>
@@ -384,7 +384,7 @@ export default function QualifyLeadContextPanel({
 
             {/* Tabs — AnalysisLeadContextPanel tab strip */}
             <div
-                className="flex shrink-0 border-b border-slate-200"
+                className="flex shrink-0 border-b border-dr-border"
                 role="tablist"
             >
                 {(
@@ -553,12 +553,12 @@ export default function QualifyLeadContextPanel({
                 >
                     <LeadQuickNote leadId={lead.id} />
                     {notesLoading && notes.length === 0 ? (
-                        <p className="text-xs italic text-slate-400">
+                        <p className="text-xs italic text-dr-text-hint">
                             {td("Loading notes…", { source: "en" })}
                         </p>
                     ) : null}
                     {!notesLoading && notes.length === 0 ? (
-                        <p className="text-xs italic text-slate-400">
+                        <p className="text-xs italic text-dr-text-hint">
                             {td("Notes from this call appear here.", {
                                 source: "en",
                             })}
@@ -567,18 +567,18 @@ export default function QualifyLeadContextPanel({
                     {notes.map((note) => (
                         <div
                             key={note.id}
-                            className="rounded-md px-3 py-2.5 bg-slate-50 border border-slate-200"
+                            className="rounded-md px-3 py-2.5 bg-dr-surface-2 border border-dr-border"
                         >
                             {note.title ? (
-                                <div className="mb-0.5 text-xs font-semibold text-slate-800 truncate">
+                                <div className="mb-0.5 text-xs font-semibold text-dr-text truncate">
                                     {note.title}
                                 </div>
                             ) : null}
-                            <div className="text-xs text-slate-500 line-clamp-3">
+                            <div className="text-xs text-dr-text-muted line-clamp-3">
                                 {stripHtml(note.details || "")}
                             </div>
                             {note.added_by?.name ? (
-                                <div className="mt-1.5 text-[11px] font-medium text-slate-400">
+                                <div className="mt-1.5 text-[11px] font-medium text-dr-text-hint">
                                     {note.added_by.name}
                                 </div>
                             ) : null}

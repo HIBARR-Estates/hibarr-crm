@@ -28,6 +28,11 @@ import { getPriorityConfig } from "@/lib/priority";
 import { Task } from "@/Types/Task";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
+import { withMobileResponsiveColumns } from "@/Components/DataTable";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+
+/** Lower-priority columns hidden below 1024px so the primary fields stay visible. */
+const HIDDEN_ON_MOBILE = ["assigner", "created_at"];
 
 // Types based on Laravel Task model
 
@@ -66,6 +71,7 @@ export const useTasksTableColumns = ({
 }: TasksTableColumnsProps): TableColumnsType<Task> => {
     const { props } = usePage();
     const userId = props.auth.user.id;
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
 
 
     const tableColumns: TableColumnsType<Task> = [
@@ -344,5 +350,9 @@ export const useTasksTableColumns = ({
         },
     ].filter((column) => !exclude.includes(column.key as string));
 
-    return tableColumns;
+    return withMobileResponsiveColumns(
+        tableColumns,
+        HIDDEN_ON_MOBILE,
+        isMobileResponsive,
+    );
 };

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import DealBadge from "../primitives/DealBadge";
-import DealCompletionDot from "../primitives/DealCompletionDot";
-import DealIcon from "../primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import CompletionDot from "@/Components/Redesign/primitives/CompletionDot";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealInfoSectionId } from "../../types";
 
 interface SidebarItem {
@@ -118,32 +118,32 @@ export default function DealInfoSidebar({
                                 onClick={() => onSectionChange(item.id)}
                                 className={[
                                     "flex w-full cursor-pointer items-center justify-between border-l-2 px-2.5 py-1.5 text-left text-[13px] font-normal",
-                                    "hover:border-[#1a6bb5] hover:bg-[#e8f1fb] hover:font-medium hover:text-[#1a6bb5]",
+                                    "hover:border-dr-blue hover:bg-dr-blue-light hover:font-medium hover:text-dr-blue",
                                     isActive
-                                        ? "border-[#1a6bb5] bg-[#e8f1fb] font-medium text-[#1a6bb5]"
-                                        : "border-transparent text-[#5b6472]",
+                                        ? "border-dr-blue bg-dr-blue-light font-medium text-dr-blue"
+                                        : "border-transparent text-dr-text-muted",
                                 ].join(" ")}
                             >
                                 <span className="flex items-center gap-1.5">
-                                    <DealIcon name={item.icon} size={14} />
+                                    <Icon name={item.icon} size={14} />
                                     {td(item.label, { source: "en" })}
                                 </span>
                                 {showDot ? (
                                     isActive ? (
-                                        <DealBadge variant={item.badgeVariant}>
+                                        <Badge variant={item.badgeVariant}>
                                             {td(item.badge!, { source: "en" })}
-                                        </DealBadge>
+                                        </Badge>
                                     ) : (
-                                        <DealCompletionDot
+                                        <CompletionDot
                                             filled={item.completion!.filled}
                                             total={item.completion!.total}
                                         />
                                     )
                                 ) : (
                                     item.badge != null && (
-                                        <DealBadge variant={item.badgeVariant}>
+                                        <Badge variant={item.badgeVariant}>
                                             {td(item.badge, { source: "en" })}
-                                        </DealBadge>
+                                        </Badge>
                                     )
                                 )}
                             </button>

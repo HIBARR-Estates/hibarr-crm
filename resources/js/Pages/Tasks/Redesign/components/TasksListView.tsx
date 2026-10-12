@@ -5,7 +5,7 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import { ROW_PADDING, TASK_ICON, type DensityOption } from "../config/taskDesignTokens";
 import type { TaskViewModel } from "../adapters/taskViewModel";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
-import type { TaskRowAction } from "./primitives/TaskRowMenu";
+import type { RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import type { TaskGroup } from "./list/types";
 import TaskListGroupHeader from "./list/TaskListGroupHeader";
 import TaskListRow from "./list/TaskListRow";
@@ -21,7 +21,7 @@ interface TasksListViewProps {
     onOpen: (vm: TaskViewModel) => void;
     onStatusChange: (vm: TaskViewModel, slug: string, columnId: number) => void;
     isStatusPending: (taskId: number) => boolean;
-    rowActions: (vm: TaskViewModel) => TaskRowAction[];
+    rowActions: (vm: TaskViewModel) => RowAction[];
     selected: Set<number>;
     onToggleSelect: (vm: TaskViewModel) => void;
     onToggleGroup: (tasks: TaskViewModel[], select: boolean) => void;
@@ -42,7 +42,10 @@ export default function TasksListView({
     onToggleGroup,
 }: TasksListViewProps) {
     const { td } = useTd();
-    const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+    /** Due-date grouping includes a "Completed" section — keep it folded on first paint. */
+    const [collapsed, setCollapsed] = useState<Set<string>>(
+        () => new Set(["done"]),
+    );
     const rowPad = ROW_PADDING[density];
 
     const toggleGroup = (key: string) =>
@@ -68,7 +71,7 @@ export default function TasksListView({
                 <span
                     style={{
                         fontSize: 15,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_MUTED,
                     }}
                 >

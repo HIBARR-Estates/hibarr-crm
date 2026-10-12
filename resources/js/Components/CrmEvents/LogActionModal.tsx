@@ -100,7 +100,7 @@ export default function LogActionModal({
     /* ---- Fetch event types ------------------------------------------------ */
     const { data: typesResponse, status: typesStatus } =
         useApiQuery<CrmEventTypesResponse>({
-            path: "/api/v1/crm-event-types",
+            path: route("crm-events.types"),
             params: { model_type: modelType },
             options: { enabled: open },
         });
@@ -149,7 +149,7 @@ export default function LogActionModal({
         CrmEventStorePayload,
         CrmEvent,
         ApiSuccessResponse<CrmEvent>
-    >("/api/v1/crm-events", "POST", () => {
+    >(route("crm-events.store"), "POST", () => {
         form.resetFields();
         onSuccess();
         onClose();
@@ -195,7 +195,7 @@ export default function LogActionModal({
 
             const finish = () => {
                 void queryClient.invalidateQueries({
-                    queryKey: ["/api/v1/crm-events"],
+                    queryKey: [route("crm-events.feed")],
                 });
                 reset();
                 onSuccess();

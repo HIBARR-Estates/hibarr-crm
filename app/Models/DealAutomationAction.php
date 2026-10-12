@@ -11,6 +11,15 @@ class DealAutomationAction extends BaseModel
 
     protected $table = 'deal_automation_actions';
 
+    /**
+     * meta_conversion value sources. Fixed (also NULL) sends meta_event_value;
+     * deal value sends the triggering deal's own value — only meaningful for a
+     * deal-subject automation, a lead has no value to read.
+     */
+    public const META_VALUE_SOURCE_FIXED = 'fixed';
+
+    public const META_VALUE_SOURCE_DEAL_VALUE = 'deal_value';
+
     // Mass assignable attributes
     protected $fillable = [
         'deal_automation_id',
@@ -33,6 +42,7 @@ class DealAutomationAction extends BaseModel
         'recipient_emails',
         'meta_event_name',
         'meta_event_value',
+        'meta_event_value_source',
         'due_date_delta_value',
         'due_date_delta_unit',
         'due_time',

@@ -1,4 +1,4 @@
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { handleOptionGroupArrows } from "./optionGroupNav";
 
 type RadioOption = string | { value: string; label: string };

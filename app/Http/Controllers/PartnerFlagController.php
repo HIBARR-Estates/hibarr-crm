@@ -7,6 +7,8 @@ use App\Models\LeadAgent;
 use App\Models\PartnerFlag;
 use App\Models\User;
 use App\Notifications\PartnerFlagRaised;
+use App\Support\FeatureFlags;
+use App\Support\PartnerFlagRecipients;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -91,15 +93,24 @@ class PartnerFlagController extends AccountBaseController
     }
 
     /**
-     * Notify company admins. Permission-scoped managers are disabled until
-     * that routing is reviewed (TODO below).
+     * Notify admins; behind crm.partner-flag-routing, also everyone who can
+     * answer the flag. The flag is read once here, not in the notification:
+     * queue workers do not call the flag service.
      */
     private function notifyManagers(PartnerFlag $flag): void
     {
-        // TODO: also notify users with manage_partner_flags = all.
+        // Fail closed: a flag-service problem must never cost a partner their
+        // request, and "off" is exactly the earlier behaviour.
+        try {
+            $routed = FeatureFlags::enabled(PartnerFlag::ROUTING_FLAG);
+        } catch (\Throwable $e) {
+            report($e);
+            $routed = false;
+        }
+
         Notification::send(
-            User::allAdmins((int) $flag->company_id),
-            new PartnerFlagRaised($flag),
+            PartnerFlagRecipients::resolve((int) $flag->company_id, $routed),
+            new PartnerFlagRaised($flag, $routed),
         );
     }
 }

@@ -131,7 +131,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                         <div
                             style={{
                                 fontSize: 11,
-                                color: "var(--lr-text-muted)",
+                                color: "var(--dr-text-muted)",
                                 marginTop: 2,
                             }}
                         >
@@ -142,7 +142,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                         <div
                             style={{
                                 fontSize: 11,
-                                color: "var(--lr-text-muted)",
+                                color: "var(--dr-text-muted)",
                                 marginTop: 2,
                                 fontStyle: "italic",
                             }}
@@ -153,7 +153,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                     <div
                         style={{
                             fontSize: 11,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                             marginTop: 2,
                         }}
                     >
@@ -178,7 +178,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                             style={{
                                 margin: 0,
                                 fontSize: 12,
-                                color: "var(--lr-text-dim)",
+                                color: "var(--dr-text-hint)",
                             }}
                         >
                             {td("Loading answers…", { source: "en" })}
@@ -188,7 +188,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                             style={{
                                 margin: 0,
                                 fontSize: 12,
-                                color: "var(--lr-text-dim)",
+                                color: "var(--dr-text-hint)",
                             }}
                         >
                             {td("No captured answers.", { source: "en" })}
@@ -222,7 +222,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                     <div
                                         style={{
                                             fontSize: 11,
-                                            color: "var(--lr-text-dim)",
+                                            color: "var(--dr-text-hint)",
                                             marginBottom: 2,
                                         }}
                                     >
@@ -233,8 +233,8 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                             fontSize: 13.5,
                                             fontWeight: skipped ? 400 : 650,
                                             color: skipped
-                                                ? "var(--lr-text-dim)"
-                                                : "var(--lr-text)",
+                                                ? "var(--dr-text-hint)"
+                                                : "var(--dr-text)",
                                             fontStyle: skipped
                                                 ? "italic"
                                                 : "normal",
@@ -251,7 +251,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                         <div
                                             style={{
                                                 fontSize: 12,
-                                                color: "var(--lr-text-muted)",
+                                                color: "var(--dr-text-muted)",
                                                 marginTop: 4,
                                                 fontStyle: "italic",
                                             }}
@@ -347,7 +347,7 @@ export default function AnswersReviewModal({
                         style={{
                             margin: 0,
                             fontSize: 13,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                         }}
                     >
                         {td("No qualification runs recorded yet.", { source: "en" })}
@@ -369,7 +369,7 @@ export default function AnswersReviewModal({
                                             margin: 0,
                                             fontSize: 13,
                                             fontWeight: 700,
-                                            color: "var(--lr-navy)",
+                                            color: "var(--dr-navy)",
                                         }}
                                     >
                                         {group.name}

@@ -107,7 +107,7 @@ export default function LeadDossier({
                         style={{
                             background: "none",
                             border: "none",
-                            color: "var(--lr-blue)",
+                            color: "var(--dr-blue)",
                             fontSize: 12,
                             fontWeight: 600,
                             cursor: "pointer",
@@ -149,7 +149,7 @@ export default function LeadDossier({
                                     key={field.key}
                                     className="v2-dossier-row group"
                                 >
-                                    <span style={{ color: "var(--lr-text-dim)" }}>
+                                    <span style={{ color: "var(--dr-text-hint)" }}>
                                         {td(field.label, { source: "en" })}
                                     </span>
                                     {EditableField ? (

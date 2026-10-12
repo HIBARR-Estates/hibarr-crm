@@ -66,17 +66,28 @@ class OlPayloadMapper
     {
         return array_merge($base, [
             'entityType' => 'deal',
-            'entityData' => [
-                'title' => $deal->name,
-                'value' => $deal->value,
-                'stage' => $deal->leadStage?->name ?? $deal->pipeline_stage_id,
-                'status' => $deal->outcome_status?->value ?? $deal->status_id,
-                'assignedTo' => $deal->leadAgent?->user ? [
-                    'id' => $deal->leadAgent->user->id,
-                    'name' => $deal->leadAgent->user->name,
-                ] : null,
-            ],
+            'entityData' => $this->mapDealEntityData($deal),
         ]);
+    }
+
+    /**
+     * The deal entityData OL stores on its shadow record. Public so the
+     * payment-request path sends OL the exact same shape as the webhook.
+     *
+     * @return array<string, mixed>
+     */
+    public function mapDealEntityData(Deal $deal): array
+    {
+        return [
+            'title' => $deal->name,
+            'value' => $deal->value,
+            'stage' => $deal->leadStage?->name ?? $deal->pipeline_stage_id,
+            'status' => $deal->outcome_status?->value ?? $deal->status_id,
+            'assignedTo' => $deal->leadAgent?->user ? [
+                'id' => $deal->leadAgent->user->id,
+                'name' => $deal->leadAgent->user->name,
+            ] : null,
+        ];
     }
 
     /**

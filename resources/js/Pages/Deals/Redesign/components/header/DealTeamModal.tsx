@@ -1,14 +1,15 @@
 import { ReactNode, useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import DealAvatar from "../primitives/DealAvatar";
+import ModalShell from "@/Components/Redesign/primitives/ModalShell";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
 import DealAgentPicker from "../primitives/DealAgentPicker";
-import DealBadge from "../primitives/DealBadge";
-import DealButton from "../primitives/DealButton";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
 import DealPanelHeader from "../primitives/DealPanelHeader";
 import DealPeoplePicker, {
     type DealPersonOption,
 } from "../primitives/DealPeoplePicker";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useDealTeamMutations from "../../hooks/useDealTeamMutations";
 
 export interface TeamMember {
@@ -53,20 +54,20 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
             style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}
         >
             <div className="flex min-w-0 items-center gap-2.5">
-                <DealAvatar type={type} size={32} initials={member.initials} />
+                <Avatar type={type} size={32} initials={member.initials} />
                 <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[#1a1f2e]">
+                    <div className="truncate text-sm font-semibold text-dr-text">
                         {member.name}
                     </div>
                     {member.meta && (
-                        <div className="mt-0.5 truncate text-[12px] text-[#5b6472]">
+                        <div className="mt-0.5 truncate text-[12px] text-dr-text-muted">
                             {member.meta}
                         </div>
                     )}
                 </div>
             </div>
             {onRemove && (
-                <DealButton
+                <Button
                     variant="ghost"
                     size="sm"
                     onClick={onRemove}
@@ -74,7 +75,7 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                     loading={removing}
                 >
                     {t("pages.deals.common.remove")}
-                </DealButton>
+                </Button>
             )}
         </div>
     );
@@ -93,13 +94,13 @@ function TeamSection({ title, tag, tagVariant, action, children }: TeamSectionPr
     return (
         <div className="mb-[18px]">
             <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1f2e]">
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-dr-text">
                     {title}
-                    <DealBadge variant={tagVariant}>{tag}</DealBadge>
+                    <Badge variant={tagVariant}>{tag}</Badge>
                 </div>
                 {action}
             </div>
-            <div className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
+            <div className="overflow-hidden rounded-[10px] border border-dr-border bg-white">
                 {children}
             </div>
         </div>
@@ -225,15 +226,15 @@ export default function DealTeamModal({
         );
     };
 
-    if (!open) return null;
-
     return (
-        <div className="modal-overlay redesign-modal-overlay" onClick={onClose}>
-            <div
-                className="modal-panel"
-                onClick={(event) => event.stopPropagation()}
-                style={{ maxWidth: 520 }}
-            >
+        <ModalShell
+            open={open}
+            onClose={onClose}
+            closeOnBackdrop
+            ariaLabel={t("pages.deals.header.team.modal_title")}
+            panelClassName="modal-panel"
+            panelStyle={{ maxWidth: 520 }}
+        >
                 <DealPanelHeader
                     title={t("pages.deals.header.team.modal_title")}
                     onClose={onClose}
@@ -247,7 +248,7 @@ export default function DealTeamModal({
                         tagVariant="blue"
                         action={
                             agentEditable && agent ? (
-                                <DealButton
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => toggleAdding("agent")}
@@ -256,7 +257,7 @@ export default function DealTeamModal({
                                     {adding === "agent"
                                         ? t("pages.deals.common.cancel")
                                         : t("pages.deals.header.team.change")}
-                                </DealButton>
+                                </Button>
                             ) : undefined
                         }
                     >
@@ -274,11 +275,11 @@ export default function DealTeamModal({
                             />
                         ) : (
                             <div className="px-3.5 py-3.5 text-center">
-                                <p className="mb-2.5 text-xs text-[#5b6472]">
+                                <p className="mb-2.5 text-xs text-dr-text-muted">
                                     {t("pages.deals.header.team.no_agent_hint")}
                                 </p>
                                 {agentEditable && (
-                                    <DealButton
+                                    <Button
                                         variant="primary"
                                         size="sm"
                                         onClick={() => toggleAdding("agent")}
@@ -286,7 +287,7 @@ export default function DealTeamModal({
                                         {adding === "agent"
                                             ? t("pages.deals.common.cancel")
                                             : t("pages.deals.header.team.assign_agent")}
-                                    </DealButton>
+                                    </Button>
                                 )}
                             </div>
                         )}
@@ -308,7 +309,7 @@ export default function DealTeamModal({
                         tagVariant="green"
                         action={
                             canEdit ? (
-                                <DealButton
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => toggleAdding("participants")}
@@ -316,12 +317,12 @@ export default function DealTeamModal({
                                     {adding === "participants"
                                         ? t("pages.deals.common.cancel")
                                         : `+ ${t("pages.deals.common.add")}`}
-                                </DealButton>
+                                </Button>
                             ) : undefined
                         }
                     >
                         {participants.length === 0 && (
-                            <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
+                            <div className="px-3.5 py-3 text-xs italic text-dr-text-muted">
                                 {t("pages.deals.header.team.no_participants_hint")}
                             </div>
                         )}
@@ -359,7 +360,7 @@ export default function DealTeamModal({
                         tagVariant="gray"
                         action={
                             canEdit ? (
-                                <DealButton
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => toggleAdding("watchers")}
@@ -367,12 +368,12 @@ export default function DealTeamModal({
                                     {adding === "watchers"
                                         ? t("pages.deals.common.cancel")
                                         : `+ ${t("pages.deals.common.add")}`}
-                                </DealButton>
+                                </Button>
                             ) : undefined
                         }
                     >
                         {watchers.length === 0 && (
-                            <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
+                            <div className="px-3.5 py-3 text-xs italic text-dr-text-muted">
                                 {t("pages.deals.header.team.no_watchers_hint")}
                             </div>
                         )}
@@ -402,7 +403,6 @@ export default function DealTeamModal({
                         )}
                     </TeamSection>
                 </div>
-            </div>
-        </div>
+        </ModalShell>
     );
 }

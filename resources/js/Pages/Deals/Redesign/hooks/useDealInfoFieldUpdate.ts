@@ -8,8 +8,34 @@ import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
 import { useCurrencies } from "@/Hooks/useFormData";
 import type { Deal } from "@/Types/api/deals";
-import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../context/DealWorkspaceContext";
 import useDealCustomFieldsBulkSave from "./useDealCustomFieldsBulkSave";
+
+/**
+ * Mirrors Deal::VALUE_AFFECTING_KEYS — writes touching any of these can
+ * invalidate an unpaid payment request, so they go through
+ * withPaymentInvalidation; every other inline edit skips it.
+ */
+const VALUE_AFFECTING_KEYS = [
+    "value",
+    "manual_value",
+    "calculated_value",
+    "value_source",
+    "currency_id",
+    "exchange_rate",
+    "discount_type",
+    "discount_value",
+    "deduction_amount",
+    "package_id",
+    "product_id",
+    "products",
+];
+
+const touchesValue = (data: Record<string, unknown>): boolean =>
+    VALUE_AFFECTING_KEYS.some((key) => key in data);
 
 const HIBARR_FIELD_NAMES = [
     "interested_in",
@@ -56,7 +82,7 @@ export interface DealFieldChange {
 }
 
 export default function useDealInfoFieldUpdate() {
-    const { deal, setDeal } = useDealWorkspace();
+    const { deal, setDeal, withPaymentInvalidation } = useDealWorkspace();
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
     const { props } = usePage<any>();
@@ -69,7 +95,11 @@ export default function useDealInfoFieldUpdate() {
     const dealPermissions = useDealPermissions(deal);
 
     const { mutateAsync: updateDeal } = useApiMutate<
-        { type: UpdateType; data: Record<string, unknown> },
+        {
+            type: UpdateType;
+            data: Record<string, unknown>;
+            invalidate_payment_request?: boolean;
+        },
         Deal,
         ApiResponse<Deal>
     >(
@@ -163,6 +193,69 @@ export default function useDealInfoFieldUpdate() {
         [currencies, defaultCurrencyCode, resolveUpdateType],
     );
 
+    // Sends already-grouped changes; `flags` carries the payment-request
+    // invalidation flag once the user has accepted it.
+    const sendGroups = useCallback(
+        async (
+            groups: { type: ExplicitUpdateType; data: Record<string, unknown> }[],
+            flags: Record<string, boolean>,
+        ): Promise<void> => {
+            // One type → the single response is authoritative.
+            if (groups.length === 1) {
+                const [group] = groups;
+
+                // Deal custom fields go through the dedicated bulk endpoint
+                // when enabled (see CUSTOM_FIELDS_BULK_FLAG above) — same
+                // write path the analysis modal uses, no lead data here since
+                // this tab can't produce a "lead_custom_field" group today.
+                if (bulkWriteEnabled && group.type === "custom_field") {
+                    await saveCustomFieldsBulk({ deal: group.data });
+                    setUpdatingField(null);
+                    return;
+                }
+
+                // reuse updateDeal so its onSuccess (setDeal + clearing
+                // updatingField) runs. This is also the path every
+                // single-field inline edit takes.
+                await updateDeal({ ...group, ...flags });
+                return;
+            }
+
+            // Multiple types → fire concurrently. Each write returns a full
+            // deal snapshot, so letting each response setDeal() would race and
+            // could drop another group's changes. Instead we suppress the
+            // per-response setDeal (raw axios, not updateDeal), wait for every
+            // write to commit, then do one refresh for the authoritative,
+            // fully-merged snapshot — same rich shape updateDeal returns.
+            // (The custom_field group alone routes to the bulk endpoint when
+            // enabled — the refresh is still needed either way here, since
+            // details/contact/hibarr_field aren't things that endpoint
+            // understands and can't be folded into the same request.)
+            await Promise.all(
+                groups.map((group) => {
+                    if (bulkWriteEnabled && group.type === "custom_field") {
+                        // lean: true — this concurrent path always does its own
+                        // single refresh below once every write settles; a
+                        // per-response setDeal here (the non-lean default)
+                        // would race against the other group's write and could
+                        // clobber it with a stale snapshot.
+                        return saveCustomFieldsBulk({ deal: group.data }, { lean: true });
+                    }
+                    return axios.patch(
+                        route("deals.gathering.inline_update", { id: deal.id }),
+                        { ...group, ...flags },
+                        { headers: { Accept: "application/json" } },
+                    );
+                }),
+            );
+            const refreshed = await axios.get(route("deals.refresh", deal.id));
+            if (refreshed.data?.status === "success" && refreshed.data?.data) {
+                setDeal(refreshed.data.data);
+            }
+        },
+        [bulkWriteEnabled, deal.id, saveCustomFieldsBulk, setDeal, updateDeal],
+    );
+
     // Group N field changes by update type — the endpoint already accepts
     // every field of a type in a single `data` map, so a whole edit-mode save
     // is 1–3 requests, not one per field.
@@ -193,67 +286,24 @@ export default function useDealInfoFieldUpdate() {
 
             if (groups.length === 0) return;
 
-            // One type → the single response is authoritative.
-            if (groups.length === 1) {
-                const [group] = groups;
-
-                // Deal custom fields go through the dedicated bulk endpoint
-                // when enabled (see CUSTOM_FIELDS_BULK_FLAG above) — same
-                // write path the analysis modal uses, no lead data here since
-                // this tab can't produce a "lead_custom_field" group today.
-                if (bulkWriteEnabled && group.type === "custom_field") {
-                    await saveCustomFieldsBulk({ deal: group.data });
-                    setUpdatingField(null);
-                    return;
+            // A value-affecting edit warns about (and, once confirmed,
+            // invalidates) an unpaid payment request before anything is sent.
+            if (groups.some((group) => touchesValue(group.data))) {
+                try {
+                    await withPaymentInvalidation((flags) => sendGroups(groups, flags));
+                } catch (error) {
+                    if (error instanceof PaymentInvalidationCancelled) {
+                        setUpdatingField(null);
+                        return;
+                    }
+                    throw error;
                 }
-
-                // reuse updateDeal so its onSuccess (setDeal + clearing
-                // updatingField) runs. This is also the path every
-                // single-field inline edit takes.
-                await updateDeal(group);
                 return;
             }
 
-            // Multiple types → fire concurrently. Each write returns a full
-            // deal snapshot, so letting each response setDeal() would race and
-            // could drop another group's changes. Instead we suppress the
-            // per-response setDeal (raw axios, not updateDeal), wait for every
-            // write to commit, then do one refresh for the authoritative,
-            // fully-merged snapshot — same rich shape updateDeal returns.
-            // (The custom_field group alone routes to the bulk endpoint when
-            // enabled — the refresh is still needed either way here, since
-            // details/contact/hibarr_field aren't things that endpoint
-            // understands and can't be folded into the same request.)
-            await Promise.all(
-                groups.map((group) => {
-                    if (bulkWriteEnabled && group.type === "custom_field") {
-                        // lean: true — this concurrent path always does its own
-                        // single refresh below once every write settles; a
-                        // per-response setDeal here (the non-lean default)
-                        // would race against the other group's write and could
-                        // clobber it with a stale snapshot.
-                        return saveCustomFieldsBulk({ deal: group.data }, { lean: true });
-                    }
-                    return axios.patch(
-                        route("deals.gathering.inline_update", { id: deal.id }),
-                        group,
-                        { headers: { Accept: "application/json" } },
-                    );
-                }),
-            );
-            const refreshed = await axios.get(route("deals.refresh", deal.id));
-            if (refreshed.data?.status === "success" && refreshed.data?.data) {
-                setDeal(refreshed.data.data);
-            }
+            await sendGroups(groups, {});
         },
-        [
-            bulkWriteEnabled,
-            buildFieldEntries,
-            deal.id,
-            saveCustomFieldsBulk,
-            setDeal,
-            updateDeal,
-        ],
+        [buildFieldEntries, sendGroups, withPaymentInvalidation],
     );
 
     // Public batched save — one request per changed type (see above).
@@ -333,9 +383,12 @@ export default function useDealInfoFieldUpdate() {
         setIsRecalculatingValue(true);
         setUpdatingField("value_recalculate");
         try {
-            await updateDeal({ type: "recalculate_value", data: {} });
+            await withPaymentInvalidation((flags) =>
+                updateDeal({ type: "recalculate_value", data: {}, ...flags }),
+            );
             message.success(t("pages.deals.info.recalculate_success"));
         } catch (error: unknown) {
+            if (error instanceof PaymentInvalidationCancelled) return;
             message.error(
                 (error as { message?: string })?.message ||
                     t("pages.deals.info.recalculate_error"),
@@ -344,7 +397,7 @@ export default function useDealInfoFieldUpdate() {
             setIsRecalculatingValue(false);
             setUpdatingField(null);
         }
-    }, [t, updateDeal]);
+    }, [t, updateDeal, withPaymentInvalidation]);
 
     return {
         deal,

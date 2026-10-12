@@ -1,11 +1,9 @@
 /**
  * CRM Event Engine TypeScript types.
  *
- * Mirrors the JSON responses from:
- *   GET  /api/v1/crm-events
- *   GET  /api/v1/crm-events/{uuid}
- *   GET  /api/v1/crm-event-types
- *   POST /api/v1/crm-events
+ * Mirrors the JSON responses from the session timeline routes
+ * (`crm-events.feed` / `crm-events.types` / `crm-events.store`) and the
+ * token API (`/api/v1/crm-events`, `/api/v1/crm-event-types`).
  */
 
 export interface CrmEventCategory {

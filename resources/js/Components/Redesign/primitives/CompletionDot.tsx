@@ -7,7 +7,7 @@ interface CompletionDotProps {
 
 // Lighter than T.AMBER (which is a dark brownish text tone, not meant for a
 // small solid dot) — no existing token fits a vivid-but-light orange fill.
-const LIGHT_ORANGE = "#f59e0b";
+const LIGHT_ORANGE = T.AMBER_TEXT;
 
 /** Compact progress dot: green when complete, red when empty, orange in between. */
 export default function CompletionDot({ filled, total }: CompletionDotProps) {

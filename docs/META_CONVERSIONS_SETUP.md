@@ -23,7 +23,7 @@ Add the following variables to your `.env` file:
 ```env
 META_PIXEL_ID=your_pixel_id_here
 META_ACCESS_TOKEN=your_access_token_here
-META_CONVERSIONS_API_VERSION=v18.0
+META_CONVERSIONS_API_VERSION=v23.0
 ```
 
 **How to get these credentials:**
@@ -188,7 +188,7 @@ grep "Meta Conversion" storage/logs/laravel.log
 ### Endpoint
 
 ```
-POST https://graph.facebook.com/v18.0/{pixel-id}/events
+POST https://graph.facebook.com/v23.0/{pixel-id}/events
 ```
 
 ### Payload Structure
@@ -274,7 +274,7 @@ For issues or questions:
 ## Version
 
 - **Integration Version**: 1.0.0
-- **Meta API Version**: v18.0
+- **Meta API Version**: v23.0 (default; override with `META_CONVERSIONS_API_VERSION`, and keep it in step with the backend SDK major — Meta retires versions after ~2 years)
 - **Laravel Version**: 10.x
 - **Implementation Date**: November 24, 2025
 

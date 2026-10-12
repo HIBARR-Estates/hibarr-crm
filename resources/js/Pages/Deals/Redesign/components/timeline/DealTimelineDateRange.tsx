@@ -3,10 +3,10 @@ import { DatePicker } from "antd";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import useTranslation from "@/Hooks/useTranslation";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import type { DealTimelineDateRange } from "../../hooks/useDealTimeline";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealTimelineDateRangeControlProps {
     value: DealTimelineDateRange | null;
@@ -26,9 +26,9 @@ export function DealTimelineDateRangeControl({
 
     return (
         <div className="relative">
-            <DealButton
+            <Button
                 variant="ghost"
-                icon={<DealIcon name="calendar" size={12} />}
+                icon={<Icon name="calendar" size={12} />}
                 onClick={() => setOpen(true)}
                 style={
                     value
@@ -41,7 +41,7 @@ export function DealTimelineDateRangeControl({
                 }
             >
                 {label}
-            </DealButton>
+            </Button>
             <DatePicker.RangePicker
                 open={open}
                 onOpenChange={setOpen}

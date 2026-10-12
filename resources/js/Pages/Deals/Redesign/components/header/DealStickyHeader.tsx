@@ -1,3 +1,4 @@
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import { useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -17,10 +18,12 @@ import useDealHeaderData from "../../hooks/useDealHeaderData";
 import useDealInfoFieldUpdate from "../../hooks/useDealInfoFieldUpdate";
 import useDealTeam from "../../hooks/useDealTeam";
 import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealAvatar from "../primitives/DealAvatar";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import type { EmailQuickAction } from "@/Email/types";
+import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import DealValueBlock from "../primitives/DealValueBlock";
 import DealActionsMenu from "./DealActionsMenu";
 import DealAgentCard from "./DealAgentCard";
@@ -39,6 +42,10 @@ interface DealStickyHeaderProps {
     onScheduleMeeting: () => void;
     onReplayGuide?: () => void;
     onOpenAnalysis?: () => void;
+    isMobileResponsive?: boolean;
+    /** Fail-closed Email Quick action (flag + pilot). */
+    emailQuickAction?: EmailQuickAction | null;
+    onEmail?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -52,9 +59,17 @@ export default function DealStickyHeader({
     onScheduleMeeting,
     onReplayGuide,
     onOpenAnalysis,
+    isMobileResponsive = false,
+    emailQuickAction = null,
+    onEmail,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { unread: emailUnread, available: emailUnreadAvailable } =
+        useEmailUnreadCount({
+            enabled: emailQuickAction != null,
+            pollingInterval: 60_000,
+        });
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const header = useDealHeaderData(deal);
@@ -151,11 +166,11 @@ export default function DealStickyHeader({
                     className="mb-4 w-full flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium"
                     style={{
                         background: T.AMBER_BANNER,
-                        border: "1px solid #fde68a",
+                        border: "1px solid var(--dr-amber-border)",
                         color: T.AMBER,
                     }}
                 >
-                    <DealIcon name="info" size={15} />
+                    <Icon name="info" size={15} />
                     {t("pages.deals.locked_message")}
                 </div>
             )}
@@ -164,6 +179,7 @@ export default function DealStickyHeader({
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
+                            <BackButton fallbackHref={route("deals.index")} />
                             <EditableTitle
                                 value={deal.name ?? ""}
                                 canEdit={dealPermissions.canEdit}
@@ -187,6 +203,48 @@ export default function DealStickyHeader({
                                 <span className="dr-pill dr-pill-amber">
                                     {t("pages.deals.header.locked")}
                                 </span>
+                            )}
+                            {emailQuickAction != null && onEmail && (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    icon={
+                                        <span className="relative inline-flex">
+                                            <Icon name="mail" size={14} />
+                                            {emailUnreadAvailable &&
+                                            emailUnread > 0 ? (
+                                                <span
+                                                    className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-dr-red"
+                                                    aria-hidden="true"
+                                                    data-tour="deal-email-unread-dot"
+                                                />
+                                            ) : null}
+                                        </span>
+                                    }
+                                    onClick={onEmail}
+                                    title={t("pages.email.communication.title")}
+                                    aria-label={
+                                        emailUnreadAvailable && emailUnread > 0
+                                            ? t(
+                                                  "pages.email.indicator.unread_aria",
+                                              ).replace(
+                                                  "{{count}}",
+                                                  String(emailUnread),
+                                              )
+                                            : t(
+                                                  "pages.email.communication.title",
+                                              )
+                                    }
+                                    data-tour="deal-email-action"
+                                    data-action="email"
+                                    data-email-unread={
+                                        emailUnreadAvailable
+                                            ? emailUnread
+                                            : undefined
+                                    }
+                                >
+                                    {t("pages.email.communication.open")}
+                                </Button>
                             )}
                             <DealActionsMenu
                                 onAddNote={onAddNote}
@@ -222,7 +280,7 @@ export default function DealStickyHeader({
                                 currentOutcome={outcome}
                             />
                             {onOpenAnalysis && (
-                                <DealButton
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={onOpenAnalysis}
@@ -230,9 +288,9 @@ export default function DealStickyHeader({
                                     {deal.analysis_status === "completed"
                                         ? td("View Analysis", { source: "en" })
                                         : td("Open Analysis", { source: "en" })}
-                                </DealButton>
+                                </Button>
                             )}
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={onRefresh}
@@ -241,29 +299,29 @@ export default function DealStickyHeader({
                                 {isRefreshing
                                     ? t("pages.deals.common.refreshing")
                                     : t("pages.deals.common.refresh")}
-                            </DealButton>
+                            </Button>
                         </div>
 
-                        <div className="mt-1 text-xs text-[#5b6472]">
+                        <div className="mt-1 text-xs text-dr-text-muted">
                             {t("pages.deals.header.created_label")} {createdRel} ·{" "}
                             {t("pages.deals.header.updated_label")} {updatedRel}
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-[#5b6472]">
+                            <span className="text-xs text-dr-text-muted">
                                 {t("pages.deals.header.participants_label")}
                             </span>
                             {team.participants.length === 0 && (
-                                <span className="text-xs italic text-[#5b6472]">
+                                <span className="text-xs italic text-dr-text-muted">
                                     {t("pages.deals.common.none")}
                                 </span>
                             )}
                             {team.participants.map((participant) => (
                                 <span
                                     key={participant.id}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e2e5ea] bg-white py-[3px] pl-1 pr-2.5"
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-dr-border bg-white py-[3px] pl-1 pr-2.5"
                                 >
-                                    <DealAvatar
+                                    <Avatar
                                         type="participant"
                                         size={20}
                                         initials={participant.initials}
@@ -273,30 +331,30 @@ export default function DealStickyHeader({
                                     </span>
                                 </span>
                             ))}
-                            <span className="ml-1 text-xs text-[#5b6472]">
+                            <span className="ml-1 text-xs text-dr-text-muted">
                                 {t("pages.deals.header.watchers_label")}
                             </span>
                             {team.watchers.length === 0 && (
-                                <span className="text-xs italic text-[#5b6472]">
+                                <span className="text-xs italic text-dr-text-muted">
                                     {t("pages.deals.common.none")}
                                 </span>
                             )}
                             {team.watchers.map((watcher) => (
                                 <span
                                     key={watcher.id}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e2e5ea] bg-white py-[3px] pl-1 pr-2.5"
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-dr-border bg-white py-[3px] pl-1 pr-2.5"
                                 >
-                                    <DealAvatar
+                                    <Avatar
                                         type="watcher"
                                         size={20}
                                         initials={watcher.initials}
                                     />
-                                    <span className="text-xs font-medium text-[#5b6472]">
+                                    <span className="text-xs font-medium text-dr-text-muted">
                                         {watcher.name}
                                     </span>
                                 </span>
                             ))}
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => team.setTeamModalOpen(true)}
@@ -306,11 +364,15 @@ export default function DealStickyHeader({
                                         ? "pages.deals.header.view_team"
                                         : "pages.deals.header.manage_team",
                                 )}
-                            </DealButton>
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="flex items-start gap-[18px]">
+                    <div
+                        className={`flex items-start gap-[18px] ${
+                            isMobileResponsive ? "flex-wrap" : ""
+                        }`}
+                    >
                         <div data-tour="deal-value">
                             <DealValueBlock
                                 deal={deal}
@@ -322,10 +384,10 @@ export default function DealStickyHeader({
                         </div>
                         {deal.close_date && (
                             <div className="flex flex-col items-start">
-                                <span className="text-xs text-[#5b6472]">
+                                <span className="text-xs text-dr-text-muted">
                                     {t("pages.deals.info.fields.close_date")}
                                 </span>
-                                <span className="text-sm font-semibold text-[#1a1f2e]">
+                                <span className="text-sm font-semibold text-dr-text">
                                     {header.closeDate}
                                 </span>
                             </div>

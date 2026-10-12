@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
 
 type SelectOption = string | { value: string; label: string };
@@ -38,7 +38,7 @@ export default function SelectInput({ value, options, placeholder = "Select an o
                 className="w-full flex items-center justify-between bg-white border rounded-xl px-3 py-2.5 text-sm transition-colors text-left"
                 style={
                     open
-                        ? { borderColor: "#38bdf8", boxShadow: "0 0 0 2px #e0f2fe" }
+                        ? { borderColor: "var(--dr-sky)", boxShadow: "0 0 0 2px var(--dr-sky-soft)" }
                         : { borderColor: T.BORDER }
                 }
             >
@@ -58,7 +58,7 @@ export default function SelectInput({ value, options, placeholder = "Select an o
             </button>
 
             <FloatingDropdown anchorRef={triggerRef} open={open}>
-                <div className="bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-white border border-dr-border rounded-xl shadow-lg overflow-hidden">
                     <div className="max-h-52 overflow-y-auto py-1">
                         {options.map((opt) => {
                             const v = getVal(opt);
@@ -76,7 +76,7 @@ export default function SelectInput({ value, options, placeholder = "Select an o
                                 >
                                     {getLbl(opt)}
                                     {value === v && (
-                                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "#38bdf8" }}>
+                                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "var(--dr-sky)" }}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                         </svg>
                                     )}

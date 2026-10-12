@@ -19,6 +19,14 @@ import {
 } from "../types";
 import { App } from "antd";
 import { invalidateOnSuccess } from "../utils";
+import { getFirstValidationMessage } from "../utils/common";
+
+/** First field error from a 422 body, else the generic form-error hint. */
+const firstFieldError = (response: ApiFormErrorResponse): string =>
+    getFirstValidationMessage(
+        { errors: response.errors },
+        "Please check the form for errors",
+    );
 
 type AllowedHttpMethod = "PATCH" | "DELETE" | "PUT" | "POST";
 
@@ -179,7 +187,7 @@ export const useApiMutate = <
                 // Handle form validation errors
                 notification.error({
                     message: "Validation Error",
-                    description: "Please check the form for errors",
+                    description: firstFieldError(response),
                     duration: 5,
                 });
 
@@ -204,7 +212,7 @@ export const useApiMutate = <
             if (isFormErrorResponse(apiError)) {
                 notification.error({
                     message: "Validation Error",
-                    description: "Please check the form for errors",
+                    description: firstFieldError(apiError),
                     duration: 5,
                 });
             } else if (isErrorResponse(apiError)) {

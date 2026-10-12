@@ -71,7 +71,7 @@ function ProductTour(
     { tourId, steps, labels }: ProductTourProps,
     ref: Ref<ProductTourHandle>,
 ) {
-    const { t } = useTranslation();
+    const { t, isReady } = useTranslation();
     const { active, stepIndex, next, prev, skip, restart } = useProductTour(
         tourId,
         steps.length,
@@ -144,7 +144,11 @@ function ProductTour(
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [active, skip]);
 
-    if (!active || !step || typeof document === "undefined") return null;
+    // Dictionaries load async from /account/api/i18n — rendering before
+    // isReady would flash raw keys like pages.dashboard.tour.steps.*.
+    if (!active || !step || !isReady || typeof document === "undefined") {
+        return null;
+    }
     if (step.target && !rect) return null;
 
     const tooltipStyle = rect ? computeTooltipStyle(rect, step.placement) : undefined;

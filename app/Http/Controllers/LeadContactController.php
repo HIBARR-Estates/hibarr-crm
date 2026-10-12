@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
+use App\Email\EmailFeature;
 use App\Enums\LeadTemperature;
 use App\Enums\PreferredContactTime;
 use App\Enums\Salutation;
@@ -386,6 +387,8 @@ class LeadContactController extends AccountBaseController
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
                 ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
+            // CRM Email Quick action (E-25): null when flag off or not allowlisted.
+            'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
             // Synchronous so the qualification workspace paints without an extra
             // round-trip — `activeQualification.answers` is already eager-loaded above.
@@ -397,10 +400,25 @@ class LeadContactController extends AccountBaseController
             // Each key carries a named group. Inertia resolves one group per request,
             // so a slow or throwing closure can no longer stall every other tab —
             // the same failure documented in DealController::show().
-            'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
-                ->with('addedBy')
-                ->orderBy('created_at', 'desc')
-                ->get(), 'workspace'),
+            // Full UTM history (newest first) for the Marketing tab; lead_marketing keeps only the first touch.
+            'utmTouches' => Inertia::defer(
+                fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
+                'marketing'
+            ),
+            'notes' => Inertia::defer(function () use ($leadId) {
+                $notes = LeadNote::where('lead_id', $leadId)
+                    ->with('addedBy')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                try {
+                    app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($notes);
+                } catch (\Throwable) {
+                    // Email module unavailable — list still returns.
+                }
+
+                return $notes;
+            }, 'workspace'),
             // A lead-owned FILE field's value is stored directly on the lead
             // (shared across every deal on that lead) — no per-deal lookup
             // needed, the lead's own custom_fields_data (sent with the shell
@@ -435,7 +453,8 @@ class LeadContactController extends AccountBaseController
                 return $leadContact->tasks()
                     ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
                     ->orderBy('id', 'desc')
-                    ->get();
+                    ->get()
+                    ->map(fn ($task) => $task->toFrontendArray());
             }, 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
@@ -443,7 +462,9 @@ class LeadContactController extends AccountBaseController
                     'host:id,name,image',
                     'meetingType',
                     'meetingSummary',
-                    'deal:id,name',
+                    'deal:id,name,lead_id',
+                    'deal.contact:id,client_name,mobile,cell,office',
+                    'lead:id,client_name,mobile,cell,office',
                 ])
                     ->where('lead_id', $leadId)
                     ->orderBy('next_follow_up_date', 'desc');
@@ -471,6 +492,12 @@ class LeadContactController extends AccountBaseController
                         ->values()
                         ->toArray();
                 });
+
+                try {
+                    app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($leadFollowUps);
+                } catch (\Throwable) {
+                    // Email module unavailable — list still returns.
+                }
 
                 return $leadFollowUps;
             }, 'workspace'),

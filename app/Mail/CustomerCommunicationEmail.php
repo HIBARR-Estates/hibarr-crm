@@ -73,7 +73,7 @@ class CustomerCommunicationEmail extends Mailable
         // Get company settings for logo and name
         $globalSetting = GlobalSetting::first();
         
-        // Use SMTP settings from database (loaded by SmtpConfigProvider)
+        // Use SMTP settings from database (loaded by CustomConfigProvider)
         // The from address must match the SMTP username for relay to work
         // Always use the configured email from config, not the sender's email
         // Note: env() is not used here to ensure compatibility with config caching

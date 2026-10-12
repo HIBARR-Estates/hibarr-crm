@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import AgentSelector from "../AgentSelector";
 import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 
 const { Text } = Typography;
 
@@ -56,6 +57,12 @@ const DealCard: React.FC<DealCardProps> = ({
     // Get deal permissions to check if user can edit
     const { canEdit } = useDealPermissions(deal);
     const isLocked = !!deal.is_locked;
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
+    // ~44px touch target below 1024px; the original 24px hit box is restored
+    // at >=1024px via the lg: overrides so desktop is unchanged.
+    const actionsButtonSizeClass = isMobileResponsive
+        ? "w-11 h-11 lg:w-6 lg:h-6"
+        : "w-6 h-6";
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -181,7 +188,7 @@ const DealCard: React.FC<DealCardProps> = ({
                             type="text"
                             icon={<MoreOutlined className="text-[14px]" />}
                             size="small"
-                            className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 -mr-1 -mt-0.5 flex-shrink-0 w-6 h-6 min-w-0 p-0"
+                            className={`text-gray-400 hover:text-gray-600 hover:bg-gray-50 -mr-1 -mt-0.5 flex-shrink-0 ${actionsButtonSizeClass} min-w-0 p-0 flex items-center justify-center`}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();

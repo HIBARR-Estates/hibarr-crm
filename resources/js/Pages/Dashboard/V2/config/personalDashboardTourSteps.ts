@@ -36,14 +36,15 @@ export function buildPersonalDashboardTourSteps(): TourStep[] {
             body: STEP_KEY("queue_panel", "body"),
         },
         {
-            target: '[data-tour="dashboard-pipeline-panel"]',
-            title: STEP_KEY("pipeline_panel", "title"),
-            body: STEP_KEY("pipeline_panel", "body"),
-        },
-        {
             target: '[data-tour="dashboard-agenda"]',
             title: STEP_KEY("agenda", "title"),
             body: STEP_KEY("agenda", "body"),
+            placement: "left",
+        },
+        {
+            target: '[data-tour="dashboard-pipeline-panel"]',
+            title: STEP_KEY("pipeline_panel", "title"),
+            body: STEP_KEY("pipeline_panel", "body"),
             placement: "left",
         },
         {

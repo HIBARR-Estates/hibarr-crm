@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import {
@@ -12,18 +13,19 @@ import {
 } from "../../adapters/itineraryAdapter";
 import useDealItinerary from "../../hooks/useDealItinerary";
 import DealItineraryModal from "./DealItineraryModal";
-import DealButton from "../primitives/DealButton";
-import DealConfirmDialog from "../primitives/DealConfirmDialog";
-import DealIcon from "../primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import {
     ItineraryEmptyState,
     ItineraryFilterEmptyState,
 } from "@/Components/Redesign/workspace/WorkspaceEmptyStates";
+import WorkspaceTabSectionHeader from "@/Components/Redesign/workspace/WorkspaceTabSectionHeader";
 import {
-    DEAL_REDESIGN_RADIUS as R,
-    DEAL_REDESIGN_TOKENS as T,
-    DEAL_REDESIGN_TYPE as TY,
-} from "../../tokens";
+    REDESIGN_RADIUS as R,
+    REDESIGN_TOKENS as T,
+    REDESIGN_TYPE as TY,
+} from "@/Components/Redesign/tokens";
 
 type ItineraryFilter = "all" | "arrival" | "departure" | "transfer";
 
@@ -162,7 +164,7 @@ function ItineraryCard({
                             color: isPastSection ? T.TEXT_MUTED : T.NAVY,
                         }}
                     >
-                        <DealIcon
+                        <Icon
                             name="clock"
                             size={13}
                             color={isPastSection ? T.TEXT_MUTED : T.BLUE}
@@ -184,13 +186,13 @@ function ItineraryCard({
 
             <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1.5 sm:flex-row sm:items-center">
                 {canAdd && (
-                    <DealButton
+                    <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(leg.raw)}
                     >
                         {t("pages.deals.common.edit")}
-                    </DealButton>
+                    </Button>
                 )}
                 {canDelete && (
                     <button
@@ -219,6 +221,7 @@ export default function WorkspaceItineraryTab({
     canAdd,
     canDelete,
 }: WorkspaceItineraryTabProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const [filter, setFilter] = useState<ItineraryFilter>("all");
@@ -324,27 +327,15 @@ export default function WorkspaceItineraryTab({
                         ))}
                     </div>
                     {canAdd && (
-                        <DealButton
+                        <Button
                             variant="primary"
                             size="sm"
-                            icon={<DealIcon name="plus" size={14} />}
+                            icon={<Icon name="plus" size={14} />}
                             onClick={openCreate}
                         >
                             {ft("add_flight")}
-                        </DealButton>
+                        </Button>
                     )}
-                </div>
-            )}
-
-            {filtered.length > 0 && (
-                <div
-                    className="mb-3"
-                    style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}
-                >
-                    {upcoming.length}{" "}
-                    {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
-                    {past.length}{" "}
-                    {t("pages.deals.workspace.meetings.past_label")}
                 </div>
             )}
 
@@ -356,7 +347,17 @@ export default function WorkspaceItineraryTab({
                     onShowAll={() => setFilter("all")}
                 />
             ) : (
-                sections.map((section) => {
+                <>
+                    <WorkspaceTabSectionHeader
+                        title={ft("title")}
+                        count={filtered.length}
+                        hint={td(
+                            "Each card is a flight leg — grouped as upcoming or past. Use filters above to narrow by direction or transfer.",
+                            { source: "en" },
+                        )}
+                        className="mb-3"
+                    />
+                {sections.map((section) => {
                     const isPastSection = section.label === "Past";
                     return (
                         <section key={section.label} className="mb-3">
@@ -387,7 +388,8 @@ export default function WorkspaceItineraryTab({
                             </div>
                         </section>
                     );
-                })
+                })}
+                </>
             )}
 
             <DealItineraryModal
@@ -397,7 +399,7 @@ export default function WorkspaceItineraryTab({
                 leg={editingLeg}
             />
 
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={confirmDeleteId != null}
                 title={ft("delete_flight")}
                 message={ft("delete_confirm")}

@@ -3,6 +3,7 @@ import ProgressRing from "@/Components/Redesign/primitives/ProgressRing";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { LIFECYCLE_BANNER_CONFIG } from "../../config/lifecycleBanners";
 import type { LeadBannerMode } from "../../types";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface LifecycleBannerProps {
     mode: LeadBannerMode;
@@ -51,8 +52,8 @@ export default function LifecycleBanner({
                     alignItems: "center",
                     gap: 16,
                     flexWrap: "wrap",
-                    background: "var(--lr-green-light)",
-                    border: "1px solid var(--lr-green-mid)",
+                    background: "var(--dr-green-light)",
+                    border: "1px solid var(--dr-green-mid)",
                     borderRadius: 10,
                     padding: "12px 16px",
                 }}
@@ -62,11 +63,11 @@ export default function LifecycleBanner({
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: "var(--lr-green)",
+                        background: "var(--dr-green)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--lr-white)",
+                        color: "var(--dr-white)",
                         flexShrink: 0,
                     }}
                 >
@@ -87,7 +88,7 @@ export default function LifecycleBanner({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: "var(--lr-green)",
+                                color: "var(--dr-green)",
                                 marginTop: 2,
                                 display: "flex",
                                 gap: 10,
@@ -101,7 +102,7 @@ export default function LifecycleBanner({
                                 style={{
                                     background: "none",
                                     border: "none",
-                                    color: "var(--lr-green)",
+                                    color: "var(--dr-green)",
                                     cursor: "pointer",
                                     fontSize: 12,
                                     fontFamily: "inherit",
@@ -133,8 +134,8 @@ export default function LifecycleBanner({
                     alignItems: "center",
                     gap: 16,
                     flexWrap: "wrap",
-                    background: "var(--lr-teal-soft)",
-                    border: "1px solid #99e2d8",
+                    background: "var(--dr-teal-soft)",
+                    border: "1px solid var(--dr-teal-mid)",
                     borderRadius: 10,
                     padding: "12px 16px",
                 }}
@@ -144,11 +145,11 @@ export default function LifecycleBanner({
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: "var(--lr-teal)",
+                        background: "var(--dr-teal)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--lr-white)",
+                        color: "var(--dr-white)",
                         flexShrink: 0,
                     }}
                 >
@@ -174,7 +175,7 @@ export default function LifecycleBanner({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: "var(--lr-teal)",
+                                color: "var(--dr-teal)",
                                 marginTop: 2,
                             }}
                         >
@@ -222,8 +223,8 @@ export default function LifecycleBanner({
                     alignItems: "center",
                     gap: 16,
                     flexWrap: "wrap",
-                    background: "var(--lr-surface-2)",
-                    border: "1px solid var(--lr-border)",
+                    background: "var(--dr-surface-2)",
+                    border: "1px solid var(--dr-border)",
                     borderRadius: 10,
                     padding: "12px 16px",
                 }}
@@ -233,11 +234,11 @@ export default function LifecycleBanner({
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: isRed ? "var(--lr-red-soft)" : "#e5e7eb",
+                        background: isRed ? "var(--dr-red-soft)" : T.BORDER,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: isRed ? "var(--lr-red)" : "var(--lr-text-muted)",
+                        color: isRed ? "var(--dr-red)" : "var(--dr-text-muted)",
                         flexShrink: 0,
                     }}
                 >
@@ -248,7 +249,7 @@ export default function LifecycleBanner({
                         style={{
                             fontWeight: 650,
                             fontSize: 14,
-                            color: "var(--lr-text-muted)",
+                            color: "var(--dr-text-muted)",
                         }}
                     >
                         {td(statusLabel, { source: "en" })} — {td(hint || "no further sales push", { source: "en" })}
@@ -257,7 +258,7 @@ export default function LifecycleBanner({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: "var(--lr-text-dim)",
+                                color: "var(--dr-text-hint)",
                                 marginTop: 2,
                             }}
                         >
@@ -267,7 +268,7 @@ export default function LifecycleBanner({
                                 style={{
                                     background: "none",
                                     border: "none",
-                                    color: "var(--lr-text-muted)",
+                                    color: "var(--dr-text-muted)",
                                     cursor: "pointer",
                                     fontSize: 12,
                                     fontFamily: "inherit",
@@ -299,9 +300,9 @@ export default function LifecycleBanner({
                     alignItems: "center",
                     gap: 16,
                     flexWrap: "wrap",
-                    background: "var(--lr-amber-banner)",
+                    background: "var(--dr-amber-banner)",
                     color: "#78350f",
-                    border: "1px solid #fde68a",
+                    border: "1px solid var(--dr-amber-border)",
                     borderRadius: 10,
                     padding: "12px 16px",
                 }}
@@ -310,7 +311,7 @@ export default function LifecycleBanner({
                     done={answered}
                     total={total}
                     size={34}
-                    color="#16294d"
+                    color={T.NAVY}
                     trackColor="#ffffff66"
                 />
                 <div style={{ flex: 1, minWidth: 200 }}>
@@ -322,7 +323,7 @@ export default function LifecycleBanner({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: "#92400e",
+                                color: T.AMBER,
                                 marginTop: 2,
                             }}
                         >
@@ -351,7 +352,7 @@ export default function LifecycleBanner({
                     alignItems: "center",
                     gap: 16,
                     flexWrap: "wrap",
-                    background: "var(--lr-purple-soft)",
+                    background: "var(--dr-purple-soft)",
                     border: "1px solid #ddd6fe",
                     borderRadius: 10,
                     padding: "12px 16px",
@@ -362,7 +363,7 @@ export default function LifecycleBanner({
                         style={{
                             fontWeight: 650,
                             fontSize: 14,
-                            color: "var(--lr-purple)",
+                            color: "var(--dr-purple)",
                         }}
                     >
                         {td(statusLabel, { source: "en" })} — {firstName}
@@ -371,7 +372,7 @@ export default function LifecycleBanner({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: "var(--lr-text-muted)",
+                                color: "var(--dr-text-muted)",
                                 marginTop: 2,
                             }}
                         >
@@ -401,12 +402,12 @@ export default function LifecycleBanner({
                 gap: 16,
                 flexWrap: "wrap",
                 background: isFresh
-                    ? "var(--lr-blue-light)"
-                    : "linear-gradient(90deg, var(--lr-navy) 0%, var(--lr-blue) 100%)",
-                border: isFresh ? "1px solid var(--lr-blue-mid)" : "none",
+                    ? "var(--dr-blue-light)"
+                    : "linear-gradient(90deg, var(--dr-navy) 0%, var(--dr-blue) 100%)",
+                border: isFresh ? "1px solid var(--dr-blue-mid)" : "none",
                 borderRadius: 10,
                 padding: "12px 16px",
-                color: isFresh ? "var(--lr-text)" : "var(--lr-white)",
+                color: isFresh ? "var(--dr-text)" : "var(--dr-white)",
             }}
         >
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -414,7 +415,7 @@ export default function LifecycleBanner({
                     style={{
                         fontWeight: 650,
                         fontSize: 14,
-                        color: isFresh ? "var(--lr-navy)" : "var(--lr-white)",
+                        color: isFresh ? "var(--dr-navy)" : "var(--dr-white)",
                     }}
                 >
                     {td("Qualify", { source: "en" })} {firstName}
@@ -423,7 +424,7 @@ export default function LifecycleBanner({
                     style={{
                         fontSize: 12,
                         color: isFresh
-                            ? "var(--lr-text-muted)"
+                            ? "var(--dr-text-muted)"
                             : "rgba(255,255,255,0.75)",
                         marginTop: 2,
                     }}
@@ -438,7 +439,7 @@ export default function LifecycleBanner({
                 style={{
                     ...(isFresh
                         ? undefined
-                        : { background: "var(--lr-white)", color: "var(--lr-navy)" }),
+                        : { background: "var(--dr-white)", color: "var(--dr-navy)" }),
                     ...(busy ? { opacity: 0.6, cursor: "not-allowed" } : undefined),
                 }}
                 onClick={onPrimary}

@@ -9,7 +9,7 @@ import useTaskActivity from "../hooks/useTaskActivity";
 import useTaskCheckpoints, {
     type TaskCheckpoint,
 } from "../hooks/useTaskCheckpoints";
-import TaskModalShell from "./primitives/TaskModalShell";
+import ModalShell from "@/Components/Redesign/primitives/ModalShell";
 import TaskCommentsPanel from "./TaskCommentsPanel";
 import TaskDetailHeader from "./detail/TaskDetailHeader";
 import TaskDetailLinks from "./detail/TaskDetailLinks";
@@ -73,7 +73,8 @@ export default function TaskDetailModal({
     );
 
     return (
-        <TaskModalShell
+        <ModalShell
+            overlayClassName="tasks-modal-overlay"
             open={vm !== null}
             onClose={onClose}
             onEscape={() => mentionDropdownOpen}
@@ -179,6 +180,6 @@ export default function TaskDetailModal({
                     />
                 </>
             )}
-        </TaskModalShell>
+        </ModalShell>
     );
 }

@@ -23,7 +23,9 @@ import TasksBoardView from "./components/TasksBoardView";
 import TasksWorkspaceChrome from "./components/header/TasksWorkspaceChrome";
 import TasksWorkspaceModals from "./components/workspace/TasksWorkspaceModals";
 import { buildTaskRowActions } from "./components/list/buildTaskRowActions";
-import useTasksFilters from "./hooks/useTasksFilters";
+import useTasksFilters, {
+    type TasksFilterState,
+} from "./hooks/useTasksFilters";
 import useTasksViewNavigation from "./hooks/useTasksViewNavigation";
 import useTasksUrlSync from "./hooks/useTasksUrlSync";
 import useTasksWorkspaceMutations from "./hooks/useTasksWorkspaceMutations";
@@ -56,6 +58,7 @@ import {
     patchTaskListExtrasCounts,
 } from "./adapters/taskFormSubmitAdapter";
 import { type DensityOption } from "./config/taskDesignTokens";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import {
     buildTaskListTourSteps,
     TASKS_LIST_TOUR_ID,
@@ -267,17 +270,9 @@ export default function TasksWorkspaceRedesign({
         [deals, leads, properties, developerProjects],
     );
 
-    const { activeCount } = useTasksFilters({
-        status: filters?.status ?? undefined,
-        priority: filters?.priority ?? undefined,
-        assigned_to: filters?.assigned_to ?? undefined,
-        assigned_by: (filters as Record<string, never> | undefined)
-            ?.assigned_by,
-        category_id: filters?.category_id ?? undefined,
-        due_date_range: filters?.due_date_range as
-            string | string[] | undefined,
-        search: filters?.search ?? undefined,
-    });
+    const { activeCount } = useTasksFilters(
+        (filters ?? {}) as TasksFilterState,
+    );
 
     const filterConfig = useMemo(
         () =>
@@ -416,9 +411,12 @@ export default function TasksWorkspaceRedesign({
         setBoardTasks(kanbanTasks);
     }, [kanbanTasks]);
 
+    // Mirror board resync (`[kanbanTasks]`): sync from server/optimistic page
+    // payload fields — not the hook return object, which was a new reference
+    // every render and clobbered optimistic completes (incl. notification deep links).
     useEffect(() => {
         setListTasks(pagedTableTasks.data);
-    }, [pagedTableTasks]);
+    }, [pagedTableTasks.data, pagedTableTasks.current_page]);
 
     const filterSignature = useMemo(
         () => JSON.stringify(filters ?? {}),
@@ -559,6 +557,7 @@ export default function TasksWorkspaceRedesign({
                     labels={TASKS_LIST_TOUR_LABELS}
                 />
             )}
+            <div style={{ fontFamily: REDESIGN_FONT_STACK }}>
             <TasksWorkspaceChrome
                 view={view}
                 onViewChange={setView}
@@ -693,6 +692,7 @@ export default function TasksWorkspaceRedesign({
                         }
                     />
                 )}
+            </div>
             </div>
 
             <TasksWorkspaceModals

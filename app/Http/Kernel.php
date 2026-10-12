@@ -21,6 +21,7 @@ class Kernel extends HttpKernel
     protected $middleware = [
         \App\Http\Middleware\TrustProxies::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        \App\Http\Middleware\OpenTelemetryTraceMiddleware::class,
         ValidatePostSize::class,
         TrimStrings::class,
         ConvertEmptyStringsToNull::class,
@@ -79,6 +80,7 @@ class Kernel extends HttpKernel
         'api.token.or.session' => \App\Http\Middleware\ApiTokenOrSession::class,
         'crm.write.client' => \App\Http\Middleware\EnsureCrmWriteClientEnabled::class,
         'crm.event' => \App\Http\Middleware\CrmEventMiddleware::class,
+        'partner.restrict' => \App\Http\Middleware\RestrictPartnerAccounts::class,
     ];
 
     /**

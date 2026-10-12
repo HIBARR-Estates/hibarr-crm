@@ -26,7 +26,7 @@ import {
     pipeToRangeObj,
     pipePhoneToPlain,
 } from "./inputs/fieldValueCodecs";
-import { A } from "./analysisTokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 // ─── Currency helper (kept for external callers like DealAnalysisModal) ──────
 
@@ -69,11 +69,11 @@ interface FieldProps {
 
 const INPUT_BASE: React.CSSProperties = {
     width: "100%",
-    border: `1.5px solid ${A.BORDER}`,
+    border: `1.5px solid ${T.BORDER}`,
     borderRadius: 8,
     padding: "9px 12px",
     fontSize: 15,
-    color: A.TEXT,
+    color: T.TEXT,
     fontFamily: "inherit",
     background: "#fff",
     outline: "none",
@@ -81,8 +81,8 @@ const INPUT_BASE: React.CSSProperties = {
 };
 
 const FOCUSED_STYLE: React.CSSProperties = {
-    borderColor: "#38bdf8",
-    boxShadow: "0 0 0 2.5px #e0f2fe",
+    borderColor: T.SKY,
+    boxShadow: "0 0 0 2.5px var(--dr-sky-soft)",
 };
 
 function isFieldFilled(value: unknown): boolean {

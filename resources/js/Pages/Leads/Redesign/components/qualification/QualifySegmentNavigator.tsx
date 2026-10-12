@@ -6,7 +6,7 @@ import {
     stripHtmlTags,
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface QualifySegmentNavigatorProps {
     segments: Segment[];
@@ -134,7 +134,7 @@ function DarkNavItem({
             <div
                 className="absolute left-0 top-0 bottom-0 w-1 transition-all"
                 style={{
-                    backgroundColor: isActive ? "#38bdf8" : "transparent",
+                    backgroundColor: isActive ? "var(--dr-sky)" : "transparent",
                 }}
             />
             <div
@@ -146,7 +146,7 @@ function DarkNavItem({
             </div>
             <div
                 className="text-[15px] font-semibold leading-snug line-clamp-2"
-                style={{ color: "#ffffff" }}
+                style={{ color: T.WHITE }}
             >
                 {title}
             </div>
@@ -155,7 +155,7 @@ function DarkNavItem({
                     className="mt-2.5 rounded-md px-3 py-2"
                     style={{
                         background: "#0c4a6e",
-                        border: "1px solid #38bdf8",
+                        border: "1px solid var(--dr-sky)",
                     }}
                 >
                     <div
@@ -166,7 +166,7 @@ function DarkNavItem({
                     </div>
                     <div
                         className="text-[15px] font-bold leading-snug line-clamp-3"
-                        style={{ color: "#ffffff" }}
+                        style={{ color: T.WHITE }}
                     >
                         {answerText}
                     </div>

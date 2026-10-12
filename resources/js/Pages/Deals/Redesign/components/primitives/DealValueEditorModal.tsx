@@ -7,13 +7,13 @@ import {
     formatMoneyAmount,
     type CurrencyDisplay,
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
-import DealButton from "./DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import DealMoneyInput from "./DealMoneyInput";
-import DealSwitch from "./DealSwitch";
+import Switch from "@/Components/Redesign/primitives/Switch";
 import { DealModal } from "./DealModal";
 import RadioInput from "../analysis/inputs/RadioInput";
 import useDealValueUpdate from "../../hooks/useDealValueUpdate";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface CurrencyOption {
     id: number;
@@ -255,12 +255,12 @@ export default function DealValueEditorModal({
             maxWidth={560}
             footer={
                 <>
-                    <DealButton variant="ghost" onClick={onClose} disabled={isUpdating}>
+                    <Button variant="ghost" onClick={onClose} disabled={isUpdating}>
                         {t("pages.deals.info.value_insight.editor.cancel")}
-                    </DealButton>
-                    <DealButton variant="navy" onClick={handleSave} loading={isUpdating}>
+                    </Button>
+                    <Button variant="navy" onClick={handleSave} loading={isUpdating}>
                         {t("pages.deals.info.value_insight.editor.save")}
-                    </DealButton>
+                    </Button>
                 </>
             }
         >
@@ -330,7 +330,7 @@ export default function DealValueEditorModal({
                         </div>
                     </>
                 ) : null,
-                <DealSwitch
+                <Switch
                     checked={hasDiscount}
                     onChange={() => setHasDiscount((v) => !v)}
                     aria-label={t("pages.deals.info.value_insight.editor.discount")}
@@ -358,7 +358,7 @@ export default function DealValueEditorModal({
                         />
                     </div>
                 ) : null,
-                <DealSwitch
+                <Switch
                     checked={hasDeduction}
                     onChange={() => setHasDeduction((v) => !v)}
                     aria-label={t("pages.deals.info.value_insight.editor.deduction")}
@@ -415,7 +415,7 @@ export default function DealValueEditorModal({
                                     )}
                                     onChange={setRate}
                                 />
-                                <DealButton
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     loading={rateLoading}
@@ -427,7 +427,7 @@ export default function DealValueEditorModal({
                                     }
                                 >
                                     {t("pages.deals.info.value_insight.editor.refresh_rate")}
-                                </DealButton>
+                                </Button>
                             </div>
                             <div
                                 style={{

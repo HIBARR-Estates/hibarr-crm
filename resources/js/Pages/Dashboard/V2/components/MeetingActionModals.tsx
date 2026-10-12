@@ -14,6 +14,8 @@ interface MeetingActionModalsProps {
     onClose: () => void;
     onMarkHeld: (followUpId: number) => void;
     markingHeld?: boolean;
+    /** Deferred props to re-resolve after a reschedule — the host page's. */
+    reloadKeys: string[];
 }
 
 /**
@@ -28,10 +30,11 @@ export default function MeetingActionModals({
     onClose,
     onMarkHeld,
     markingHeld = false,
+    reloadKeys,
 }: MeetingActionModalsProps) {
     const { t } = useTranslation();
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
-        useDashboardMeetingReschedule(meeting?.id ?? null);
+        useDashboardMeetingReschedule(meeting?.id ?? null, reloadKeys);
 
     const rescheduleNested = ({
         rescheduleOpen,

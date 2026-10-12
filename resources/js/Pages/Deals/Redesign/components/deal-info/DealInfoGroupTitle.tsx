@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface DealInfoGroupTitleProps {
     children: ReactNode;

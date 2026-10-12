@@ -2,6 +2,9 @@
 
 /* Setting menu routes starts from here */
 
+use App\Email\Http\Controllers\MailboxSettingsController;
+use App\Email\Http\Middleware\EnsureEmailEnabled;
+use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -28,6 +31,7 @@ use App\Http\Controllers\LeadAgentSettingController;
 use App\Http\Controllers\LeadLifecycleStatusSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
 use App\Http\Controllers\LeadSettingController;
+use App\Http\Controllers\LeadSettingsHubController;
 use App\Http\Controllers\LeadSourceSettingController;
 use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
@@ -51,7 +55,6 @@ use App\Http\Controllers\QuickbookSettingsController;
 use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecuritySettingController;
-use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SettingsOverviewController;
 use App\Http\Controllers\ShiftRotationController;
@@ -59,6 +62,7 @@ use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\SlackSettingController;
 use App\Http\Controllers\SmtpSettingController;
 use App\Http\Controllers\SocialAuthSettingController;
+use App\Http\Controllers\SsoPasswordConfirmationController;
 use App\Http\Controllers\StorageSettingController;
 use App\Http\Controllers\TaskSettingController;
 use App\Http\Controllers\TaxSettingController;
@@ -88,6 +92,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
 
+    /* Leads settings hub — sources, statuses, first-contact SLA, and related defaults */
+    Route::get('leads', [LeadSettingsHubController::class, 'page'])->name('settings-leads.index');
+    Route::put('leads', [LeadSettingsHubController::class, 'update'])->name('settings-leads.update');
+    Route::post('leads/sources/reorder', [LeadSettingsHubController::class, 'reorderSources'])->name('settings-leads.sources.reorder');
+    Route::post('leads/sources', [LeadSettingsHubController::class, 'storeSource'])->name('settings-leads.sources.store');
+    Route::put('leads/sources/{source}', [LeadSettingsHubController::class, 'updateSource'])->name('settings-leads.sources.update');
+    Route::delete('leads/sources/{source}', [LeadSettingsHubController::class, 'destroySource'])->name('settings-leads.sources.destroy');
+    Route::post('leads/statuses/reorder', [LeadSettingsHubController::class, 'reorderStatuses'])->name('settings-leads.statuses.reorder');
+    Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
+    Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
+    Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
+
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
 
@@ -99,6 +115,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         ->whereNumber('id');
     Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* Connected mailbox (crm.email + pilot allowlist). Flag off → 404. */
+    Route::get('mailbox', [MailboxSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureEmailPilot::class])
+        ->name('mailbox-settings.show');
 
     /* User preferences (timezone, in-app alerts, notification bypass) */
     Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
@@ -115,6 +136,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('entity-reminder-defaults', [EntityReminderDefaultController::class, 'index'])->name('entity-reminder-defaults.index');
     Route::post('entity-reminder-defaults', [EntityReminderDefaultController::class, 'update'])->name('entity-reminder-defaults.update');
     Route::post('entity-reminder-defaults/email-templates', [EntityReminderDefaultController::class, 'updateEmailTemplates'])->name('entity-reminder-defaults.email-templates');
+    Route::post('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'updateLeadCadence'])->name('entity-reminder-defaults.lead-cadence');
+    Route::delete('entity-reminder-defaults/lead-cadence', [EntityReminderDefaultController::class, 'destroyLeadCadence'])->name('entity-reminder-defaults.lead-cadence.destroy');
     Route::delete('entity-reminder-defaults/{entityType}', [EntityReminderDefaultController::class, 'destroy'])->name('entity-reminder-defaults.destroy');
 
     /* Reminder ledger (company send queue) */
@@ -380,6 +403,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
     Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
     Route::get('deal-automation-logs/{id}', [DealAutomationController::class, 'logDetail'])->name('deal-automations.log-detail');
+    Route::post('deal-automation-logs/{id}/retry-meta', [DealAutomationController::class, 'retryMetaLog'])->name('deal-automations.log-retry-meta');
     Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
     Route::resource('deal-automations', DealAutomationController::class);
 

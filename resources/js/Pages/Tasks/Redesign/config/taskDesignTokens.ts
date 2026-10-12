@@ -1,11 +1,13 @@
 /**
  * Design tokens for the Tasks workspace redesign.
  *
- * Values are transcribed 1:1 from the `Tasks Workspace Redesign.dc.html`
- * handoff (its ICON / PRIORITY / STATUS / CATEGORIES / BUCKETS maps) so the
- * implementation matches the Claude Design template exactly. Don't "tidy"
- * these hexes — they are the design's source of truth.
+ * The ICON / PRIORITY / STATUS / CATEGORIES / BUCKETS maps mirror the
+ * `Tasks Workspace Redesign.dc.html` handoff. Every colour resolves to the
+ * shared palette (`REDESIGN_TOKENS`, design-tokens.json) — the handoff's
+ * hexes were already that palette; the priority orange/yellow scale was
+ * added to it. Don't reintroduce raw hexes here.
  */
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 /** Raw SVG path data, keyed as in the template's ICON map. */
 export const TASK_ICON = {
@@ -64,50 +66,50 @@ export const TASK_PRIORITY: Record<TaskPriorityKey, PriorityToken> = {
     urgent: {
         label: "Urgent",
         d: TASK_ICON.prioUrgent,
-        color: "#b91c1c",
-        bg: "#fef2f2",
-        fg: "#b91c1c",
-        border: "#fecaca",
+        color: T.RED,
+        bg: T.RED_SOFT,
+        fg: T.RED,
+        border: T.RED_MID,
     },
     highest: {
         label: "Highest",
         d: TASK_ICON.prioHighest,
-        color: "#c2410c",
-        bg: "#fff7ed",
-        fg: "#9a3412",
-        border: "#fed7aa",
+        color: T.ORANGE,
+        bg: T.AMBER_SOFT,
+        fg: T.ORANGE_TEXT,
+        border: T.AMBER_MID,
     },
     high: {
         label: "High",
         d: TASK_ICON.prioHigh,
-        color: "#a16207",
-        bg: "#fefce8",
-        fg: "#854d0e",
-        border: "#fde68a",
+        color: T.YELLOW,
+        bg: T.YELLOW_SOFT,
+        fg: T.YELLOW_TEXT,
+        border: T.AMBER_BORDER,
     },
     medium: {
         label: "Medium",
         d: TASK_ICON.prioMedium,
-        color: "#1a6bb5",
-        bg: "#e8f1fb",
-        fg: "#14538c",
-        border: "#b8d4f0",
+        color: T.BLUE,
+        bg: T.BLUE_LIGHT,
+        fg: T.BLUE_DARK,
+        border: T.BLUE_MID,
     },
     low: {
         label: "Low",
         d: TASK_ICON.prioLow,
-        color: "#0f766e",
-        bg: "#e6f7f5",
-        fg: "#0f766e",
-        border: "#99e2d8",
+        color: T.TEAL,
+        bg: T.TEAL_SOFT,
+        fg: T.TEAL,
+        border: T.TEAL_MID,
     },
     lowest: {
         label: "Lowest",
         d: TASK_ICON.prioLowest,
-        color: "#9ca3af",
-        bg: "#f5f6f8",
-        fg: "#5b6472",
-        border: "#e8eaed",
+        color: T.TEXT_HINT,
+        bg: T.GRAY,
+        fg: T.TEXT_MUTED,
+        border: T.GRAY_MID,
     },
 };
 
@@ -132,46 +134,41 @@ export interface StatusToken {
     dot: string;
 }
 
+const TO_DO_STATUS: Omit<StatusToken, "label"> = {
+    bg: T.GRAY,
+    fg: T.TEXT_MUTED,
+    border: T.GRAY_MID,
+    dot: T.TEXT_HINT,
+};
+
 /**
  * Status colours keyed by taskboard column slug. Columns are configurable
  * per install, so `statusToken()` falls back to the neutral "to do" tone for
  * any slug the design didn't anticipate.
  */
 export const TASK_STATUS: Record<string, StatusToken> = {
-    to_do: {
-        label: "To do",
-        bg: "#f5f6f8",
-        fg: "#5b6472",
-        border: "#e8eaed",
-        dot: "#9ca3af",
-    },
-    incomplete: {
-        label: "To do",
-        bg: "#f5f6f8",
-        fg: "#5b6472",
-        border: "#e8eaed",
-        dot: "#9ca3af",
-    },
+    to_do: { label: "To do", ...TO_DO_STATUS },
+    incomplete: { label: "To do", ...TO_DO_STATUS },
     in_progress: {
         label: "In progress",
-        bg: "#e8f1fb",
-        fg: "#14538c",
-        border: "#b8d4f0",
-        dot: "#1a6bb5",
+        bg: T.BLUE_LIGHT,
+        fg: T.BLUE_DARK,
+        border: T.BLUE_MID,
+        dot: T.BLUE,
     },
     waiting: {
         label: "Waiting",
-        bg: "#fef3c7",
-        fg: "#92400e",
-        border: "#fed7aa",
-        dot: "#b45309",
+        bg: T.AMBER_BANNER,
+        fg: T.AMBER,
+        border: T.AMBER_MID,
+        dot: T.AMBER_TEXT,
     },
     done: {
         label: "Done",
-        bg: "#e1f5ee",
-        fg: "#177a5b",
-        border: "#9fe1cb",
-        dot: "#177a5b",
+        bg: T.GREEN_LIGHT,
+        fg: T.GREEN,
+        border: T.GREEN_MID,
+        dot: T.GREEN,
     },
 };
 
@@ -197,10 +194,10 @@ export interface CategoryToken {
  */
 const CATEGORY_STYLE = {
     d: TASK_ICON.note,
-    dot: "#1a6bb5",
-    bg: "#e8f1fb",
-    fg: "#14538c",
-    border: "#b8d4f0",
+    dot: T.BLUE,
+    bg: T.BLUE_LIGHT,
+    fg: T.BLUE_DARK,
+    border: T.BLUE_MID,
 };
 
 export const UNCATEGORISED_LABEL = "Uncategorised";
@@ -223,11 +220,11 @@ export interface BucketToken {
 }
 
 export const TASK_BUCKETS: BucketToken[] = [
-    { key: "overdue", label: "Overdue", dot: "#b91c1c", fg: "#b91c1c" },
-    { key: "today", label: "Due today", dot: "#b45309", fg: "#92400e" },
-    { key: "upcoming", label: "Upcoming", dot: "#1a6bb5", fg: "#5b6472" },
-    { key: "unscheduled", label: "Unscheduled", dot: "#9ca3af", fg: "#5b6472" },
-    { key: "done", label: "Completed", dot: "#177a5b", fg: "#5b6472" },
+    { key: "overdue", label: "Overdue", dot: T.RED, fg: T.RED },
+    { key: "today", label: "Due today", dot: T.AMBER_TEXT, fg: T.AMBER },
+    { key: "upcoming", label: "Upcoming", dot: T.BLUE, fg: T.TEXT_MUTED },
+    { key: "unscheduled", label: "Unscheduled", dot: T.TEXT_HINT, fg: T.TEXT_MUTED },
+    { key: "done", label: "Completed", dot: T.GREEN, fg: T.TEXT_MUTED },
 ];
 
 /** Linked-record types, with the icon + tint the design gives each. */
@@ -236,29 +233,29 @@ export const RECORD_TYPES = {
         label: "Lead",
         plural: "leads",
         d: TASK_ICON.user,
-        iconBg: "#e8f1fb",
-        iconFg: "#14538c",
+        iconBg: T.BLUE_LIGHT,
+        iconFg: T.BLUE_DARK,
     },
     deal: {
         label: "Deal",
         plural: "deals",
         d: TASK_ICON.euro,
-        iconBg: "#e1f5ee",
-        iconFg: "#177a5b",
+        iconBg: T.GREEN_LIGHT,
+        iconFg: T.GREEN,
     },
     property: {
         label: "Property",
         plural: "properties",
         d: TASK_ICON.building,
-        iconBg: "#e8ecf2",
-        iconFg: "#16294d",
+        iconBg: T.NAVY_SOFT,
+        iconFg: T.NAVY,
     },
     project: {
         label: "Project",
         plural: "projects",
         d: TASK_ICON.pin,
-        iconBg: "#fffbeb",
-        iconFg: "#92400e",
+        iconBg: T.AMBER_BG,
+        iconFg: T.AMBER,
     },
 } as const;
 
@@ -269,10 +266,10 @@ export type RecordTypeKey = keyof typeof RECORD_TYPES;
  * deterministically by user id so the same colleague keeps the same tint.
  */
 export const ASSIGNEE_TONES = [
-    { bg: "#e8f1fb", fg: "#14538c" },
-    { bg: "#e1f5ee", fg: "#177a5b" },
-    { bg: "#e8ecf2", fg: "#16294d" },
-    { bg: "#e6f7f5", fg: "#0f766e" },
+    { bg: T.BLUE_LIGHT, fg: T.BLUE_DARK },
+    { bg: T.GREEN_LIGHT, fg: T.GREEN },
+    { bg: T.NAVY_SOFT, fg: T.NAVY },
+    { bg: T.TEAL_SOFT, fg: T.TEAL },
 ] as const;
 
 export function assigneeTone(userId: number): { bg: string; fg: string } {

@@ -107,6 +107,7 @@ class Payment extends BaseModel
         'paid_on' => 'datetime',
         'expires_at' => 'datetime',
         'verified_at' => 'datetime',
+        'invalidated_at' => 'datetime',
         'payment_gateway_response' => 'object',
     ];
 

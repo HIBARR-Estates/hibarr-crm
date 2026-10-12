@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import type { ResponseDistribution as Data } from "../types";
 
 const SEVERITY_FILL = {
@@ -9,12 +10,19 @@ const SEVERITY_FILL = {
     bad: T.RED,
 } as const;
 
+/** Fixed track for the bars so percentage heights resolve against a real size. */
+const BAR_TRACK_PX = 88;
+
 /**
  * First-response time as a distribution, not a mean.
  *
  * A mean hides the shape that matters: most leads answered inside an hour plus
  * a handful never picked up averages out to the same number as a uniformly
  * mediocre team, and the two need completely different responses.
+ *
+ * Bar height is a share of the tallest bucket — they are not meant to look
+ * level. The track itself is a fixed height so percentage sizing works;
+ * without that, every bar collapses to the same min-height.
  */
 export default function ResponseDistribution({ data }: { data: Data }) {
     const { td } = useTd();
@@ -22,7 +30,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
     if (!data.total) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("No lead in this window has a recorded first contact yet.")}
+                {td("No lead in this window has a recorded first contact yet.", { source: "en" })}
             </p>
         );
     }
@@ -46,41 +54,56 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                     display: "flex",
                     alignItems: "flex-end",
                     gap: 6,
-                    height: 110,
                 }}
             >
-                {data.buckets.map((bucket) => (
-                    <div
-                        key={bucket.label}
-                        style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: 6,
-                        }}
-                        title={`${bucket.count} ${td("leads")}`}
-                    >
-                        <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            {bucket.count || ""}
-                        </span>
+                {data.buckets.map((bucket) => {
+                    const heightPx =
+                        bucket.count > 0
+                            ? Math.max(4, (bucket.count / max) * BAR_TRACK_PX)
+                            : 1;
+
+                    return (
                         <div
+                            key={bucket.label}
                             style={{
-                                width: "100%",
-                                height: `${(bucket.count / max) * 100}%`,
-                                minHeight: bucket.count > 0 ? 4 : 1,
-                                background:
-                                    bucket.count > 0
-                                        ? SEVERITY_FILL[bucket.severity]
-                                        : T.BORDER,
-                                borderRadius: 3,
+                                flex: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 6,
+                                minWidth: 0,
                             }}
-                        />
-                        <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            {bucket.label}
-                        </span>
-                    </div>
-                ))}
+                            title={`${bucket.count} ${td("leads", { source: "en" })}`}
+                        >
+                            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                {bucket.count || ""}
+                            </span>
+                            <div
+                                style={{
+                                    width: "100%",
+                                    height: BAR_TRACK_PX,
+                                    display: "flex",
+                                    alignItems: "flex-end",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: heightPx,
+                                        background:
+                                            bucket.count > 0
+                                                ? SEVERITY_FILL[bucket.severity]
+                                                : T.BORDER,
+                                        borderRadius: 3,
+                                    }}
+                                />
+                            </div>
+                            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                {bucket.label}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
 
             <div
@@ -96,7 +119,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                 {summary.map(([label, value, color]) => (
                     <div key={label}>
                         <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
-                            {td(label)}
+                            {td(label, { source: "en" })}
                         </div>
                         <div
                             style={{
@@ -115,19 +138,16 @@ export default function ResponseDistribution({ data }: { data: Data }) {
     );
 }
 
-function formatMinutes(
-    minutes: number | null,
-    td: (value: string) => string,
-): string {
+function formatMinutes(minutes: number | null, td: TdFn): string {
     if (minutes === null) return "—";
-    if (minutes < 60) return `${minutes}${td("m")}`;
+    if (minutes < 60) return `${minutes}${td("m", { source: "en" })}`;
     if (minutes < 1440) {
         const hours = Math.floor(minutes / 60);
 
-        return `${hours}${td("h")} ${minutes % 60}${td("m")}`;
+        return `${hours}${td("h", { source: "en" })} ${minutes % 60}${td("m", { source: "en" })}`;
     }
 
     const days = Math.floor(minutes / 1440);
 
-    return `${days}${td("d")} ${Math.round((minutes % 1440) / 60)}${td("h")}`;
+    return `${days}${td("d", { source: "en" })} ${Math.round((minutes % 1440) / 60)}${td("h", { source: "en" })}`;
 }

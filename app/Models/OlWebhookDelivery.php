@@ -21,6 +21,8 @@ class OlWebhookDelivery extends Model
 
     public const ORIGIN_BACKFILL = 'backfill';
 
+    public const ORIGIN_RECONCILE = 'reconcile';
+
     protected $table = 'ol_webhook_deliveries';
 
     protected $fillable = [

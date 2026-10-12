@@ -236,6 +236,12 @@
 }
 
 .entity-ai-summary-chip {
+    /* Grid items default to a min-width of "auto" (their content's intrinsic
+       width), not 0 — a long unbroken value (an email, a URL, a compound
+       stage name) can blow the whole grid, and by extension the card and
+       page, out to that width. min-width: 0 lets this item shrink to fit
+       its 1fr track like the rest of the layout expects. */
+    min-width: 0;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
     padding: 12px;
@@ -263,6 +269,7 @@
     font-size: 13px;
     font-weight: 600;
     color: #111827;
+    overflow-wrap: anywhere;
 }
 
 .entity-ai-summary-chip__dot {
@@ -298,6 +305,7 @@
     font-size: 11px;
     color: #6b7280;
     line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .entity-ai-summary-bullets {

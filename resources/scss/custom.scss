@@ -406,9 +406,9 @@ ul.thumbnails.image_picker_selector li .thumbnail.selected {
 
 .btn-active,
 .btn-active.btn-secondary {
-    background-color: black !important;
-    border: solid 1px #000 !important;
-    color: #fff !important;
+    background-color: $btn-active-bg !important;
+    border: solid 1px $btn-active-border !important;
+    color: $btn-active-text !important;
 }
 
 .active-timer-count {

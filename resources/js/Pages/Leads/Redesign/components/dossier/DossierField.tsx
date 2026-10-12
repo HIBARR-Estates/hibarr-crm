@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
 
 interface DossierFieldProps {
@@ -113,7 +113,7 @@ export default function DossierField({
                 "copied" tick shows) so the dossier reads as plain values
                 rather than a column of icons — see lead-redesign.css. */}
             <span className="v2-dossier-value__action" aria-hidden="true">
-                <DealIcon name={copied ? "check" : "copy"} size={12} />
+                <Icon name={copied ? "check" : "copy"} size={12} />
             </span>
         </button>
     );

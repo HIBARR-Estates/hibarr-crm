@@ -17,9 +17,9 @@ import {
     parseCategorySectionId,
 } from "../../config/dealInfoSections";
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../../types";
-import DealButton from "../primitives/DealButton";
-import DealEditableField from "../primitives/DealEditableField";
-import DealSwitch from "../primitives/DealSwitch";
+import Button from "@/Components/Redesign/primitives/Button";
+import EditableField from "@/Components/Redesign/primitives/EditableField";
+import Switch from "@/Components/Redesign/primitives/Switch";
 import DealInfoGroupTitle from "./DealInfoGroupTitle";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -226,7 +226,7 @@ export default function DealInfoSectionPanel({
             </DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField dataDealField="name" label={t("pages.deals.info.fields.deal_name")}>
-                    <DealEditableField
+                    <EditableField
                         value={deal.name}
                         fieldName="name"
                         fieldType="text"
@@ -238,7 +238,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField dataDealField="close_date" label={t("pages.deals.info.fields.close_date")}>
-                    <DealEditableField
+                    <EditableField
                         value={deal.close_date}
                         fieldName="close_date"
                         fieldType="date"
@@ -253,17 +253,17 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField dataDealField="category_id" label={t("pages.deals.info.fields.deal_category")}>
-                    <DealEditableField
+                    <EditableField
                         value={deal.category_id}
                         fieldName="category_id"
                         selectorType="categories"
                         displayValue={
                             deal.category?.category_name ? (
-                                <span className="text-gray-700">
+                                <span className="text-dr-gray-darker">
                                     {deal.category.category_name}
                                 </span>
                             ) : (
-                                <span className="italic text-gray-400">
+                                <span className="italic text-dr-text-hint">
                                     --
                                 </span>
                             )
@@ -305,7 +305,7 @@ export default function DealInfoSectionPanel({
         <>
             <FieldGrid>
                 <DetailField dataDealField="interested_in" label={t("pages.deals.info.fields.interested_in")}>
-                    <DealEditableField
+                    <EditableField
                         value={hibarrFields.interested_in}
                         fieldName="interested_in"
                         fieldType="text"
@@ -321,7 +321,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField dataDealField="budget_range" label={t("pages.deals.info.fields.budget_range")}>
-                    <DealEditableField
+                    <EditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
                         fieldType="currency_range"
@@ -337,7 +337,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField dataDealField="purchase_timeline" label={t("pages.deals.info.fields.purchase_timeline")}>
-                    <DealEditableField
+                    <EditableField
                         value={hibarrFields.purchase_timeline}
                         fieldName="purchase_timeline"
                         fieldType="text"
@@ -360,7 +360,7 @@ export default function DealInfoSectionPanel({
                     dataDealField="inspection_trip_date"
                     label={t("pages.deals.info.fields.inspection_trip_date")}
                 >
-                    <DealEditableField
+                    <EditableField
                         value={hibarrFields.inspection_trip_date}
                         fieldName="inspection_trip_date"
                         fieldType="date"
@@ -386,7 +386,7 @@ export default function DealInfoSectionPanel({
                     dataDealField="strategy_meeting_booked"
                     label={t("pages.deals.info.fields.strategy_meeting_booked")}
                 >
-                    <DealSwitch
+                    <Switch
                         checked={!!hibarrFields.strategy_meeting_booked}
                         onChange={() =>
                             onFieldUpdate(
@@ -408,7 +408,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField dataDealField="downpayment_paid" label={t("pages.deals.info.fields.downpayment_paid")}>
-                    <DealSwitch
+                    <Switch
                         checked={!!hibarrFields.downpayment_paid}
                         onChange={() =>
                             onFieldUpdate(
@@ -435,7 +435,7 @@ export default function DealInfoSectionPanel({
                     span={2}
                     useContainerQuery
                 >
-                    <DealEditableField
+                    <EditableField
                         value={hibarrFields.motivation}
                         fieldName="motivation"
                         fieldType="textarea"
@@ -463,21 +463,21 @@ export default function DealInfoSectionPanel({
     const renderGdpr = () => {
         if (!gdprSetting?.enable_gdpr) {
             return (
-                <p className="text-[13px] italic text-[#9ca3af]">
+                <p className="text-[13px] italic text-dr-text-hint">
                     {t("pages.deals.info.gdpr.not_enabled")}
                 </p>
             );
         }
         if (consents.length === 0) {
             return (
-                <p className="text-[13px] italic text-[#9ca3af]">
+                <p className="text-[13px] italic text-dr-text-hint">
                     {t("pages.deals.info.gdpr.no_consents")}
                 </p>
             );
         }
         return (
             <div style={{ maxWidth: 640 }}>
-                <div className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
+                <div className="overflow-hidden rounded-[10px] border border-dr-border bg-white">
                     <table className="dr-table">
                         <thead>
                             <tr>
@@ -494,10 +494,10 @@ export default function DealInfoSectionPanel({
                                     consent.lead.length > 0;
                                 return (
                                     <tr key={consent.id}>
-                                        <td className="font-semibold text-[#1a1f2e]">
+                                        <td className="font-semibold text-dr-text">
                                             {td(consent.name, { source: "en" })}
                                         </td>
-                                        <td className="text-[#5b6472]">
+                                        <td className="text-dr-text-muted">
                                             {td(consent.description, { source: "en" })}
                                         </td>
                                         <td>
@@ -514,7 +514,7 @@ export default function DealInfoSectionPanel({
                                                     )}
                                             </span>
                                         </td>
-                                        <td className="text-[#5b6472]">
+                                        <td className="text-dr-text-muted">
                                             {granted && consent.lead[0]?.created_at
                                                 ? formatCompanyDate(
                                                     consent.lead[0].created_at,
@@ -527,7 +527,7 @@ export default function DealInfoSectionPanel({
                         </tbody>
                     </table>
                 </div>
-                <div className="mt-2 text-[12px] leading-normal text-[#5b6472]">
+                <div className="mt-2 text-[12px] leading-normal text-dr-text-muted">
                     {t("pages.deals.info.gdpr.consent_hint")}
                 </div>
             </div>
@@ -593,10 +593,10 @@ export default function DealInfoSectionPanel({
         <section className="@container pl-[26px] pt-1">
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
+                    <h3 className="mb-0.5 text-base font-medium text-dr-text">
                         {td(sectionTitle, { source: "en" })}
                     </h3>
-                    <p className="text-xs text-[#5b6472]">
+                    <p className="text-xs text-dr-text-muted">
                         {td(sectionSubtitle, { source: "en" })}
                     </p>
                 </div>
@@ -611,15 +611,15 @@ export default function DealInfoSectionPanel({
                                     })}
                                 </span>
                             )}
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleCancelEdit}
                                 disabled={isSavingAll}
                             >
                                 {t("pages.deals.info.actions.cancel_edit")}
-                            </DealButton>
-                            <DealButton
+                            </Button>
+                            <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={handleSaveAll}
@@ -627,16 +627,16 @@ export default function DealInfoSectionPanel({
                                 loading={isSavingAll}
                             >
                                 {t("pages.deals.info.actions.save_all_tooltip")}
-                            </DealButton>
+                            </Button>
                         </div>
                     ) : (
-                        <DealButton
+                        <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleEnterEdit}
                         >
                             {t("pages.deals.info.edit_fields")}
-                        </DealButton>
+                        </Button>
                     )
                 )}
             </div>

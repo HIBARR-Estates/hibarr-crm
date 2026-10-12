@@ -14,6 +14,7 @@ import {
     type CurrencyDisplay,
 } from "../../adapters/currencyAdapter";
 import { toLeadTaskPreview } from "../../adapters/taskAdapter";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface QuickStatsProps {
     nextMeeting?: DealFollowup | null;
@@ -81,7 +82,7 @@ function resolveTaskStatus(
         column?.column_name ||
         related?.column_name ||
         (slug ? humanizeStatus(slug) : "Open");
-    const color = column?.label_color || related?.label_color || "#6b7280";
+    const color = column?.label_color || related?.label_color || T.TEXT_MUTED;
 
     return { label, color };
 }
@@ -192,7 +193,7 @@ function StatBodySkeleton({
 }
 
 function StagePill({ name, color }: { name: string; color?: string | null }) {
-    const accent = color?.trim() || "#1a6bb5";
+    const accent = color?.trim() || T.BLUE;
     return (
         <span
             className="v2-quick-stat-stage"

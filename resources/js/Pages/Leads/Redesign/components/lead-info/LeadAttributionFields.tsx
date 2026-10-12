@@ -1,6 +1,6 @@
 import { useState } from "react";
-import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
-import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
+import EditableField from "@/Components/Redesign/primitives/EditableField";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import FormDataSelector from "@/Components/FormDataSelector";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -43,15 +43,15 @@ export function LeadSourceField({
     const display = getDossierFieldValue(lead, "source");
 
     return (
-        <DealEditableField
+        <EditableField
             value={lead.source_id || null}
             fieldName="source_id"
             selectorType="sources"
             displayValue={
                 display ? (
-                    <span className="text-gray-700">{display}</span>
+                    <span className="text-dr-gray-darker">{display}</span>
                 ) : (
-                    <span className="italic text-gray-400">--</span>
+                    <span className="italic text-dr-text-hint">--</span>
                 )
             }
             onSave={(value) => onFieldUpdate("source_id", value)}
@@ -90,16 +90,16 @@ export function LeadCategoryField({
               : [];
 
     return (
-        <DealEditableField
+        <EditableField
             value={selected}
             fieldName="category_ids"
             selectorType="categories"
             mode="multiple"
             displayValue={
                 names.length ? (
-                    <span className="text-gray-700">{names.join(", ")}</span>
+                    <span className="text-dr-gray-darker">{names.join(", ")}</span>
                 ) : (
-                    <span className="italic text-gray-400">--</span>
+                    <span className="italic text-dr-text-hint">--</span>
                 )
             }
             onSave={(value) => onFieldUpdate("category_ids", value)}
@@ -131,7 +131,7 @@ export function LeadReferrerField({
 
     if (lead.referred_by_agent_id) {
         return (
-            <span className="text-gray-700">
+            <span className="text-dr-gray-darker">
                 {lead.referred_by_agent?.user?.name ||
                     `#${lead.referred_by_agent_id}`}
             </span>
@@ -139,7 +139,7 @@ export function LeadReferrerField({
     }
 
     if (disabled) {
-        return <span className="italic text-gray-400">--</span>;
+        return <span className="italic text-dr-text-hint">--</span>;
     }
 
     return (
@@ -159,7 +159,7 @@ export function LeadReferrerField({
                 allowClear={false}
                 disabled={isFieldLoading("referred_by_agent_id")}
             />
-            <DealConfirmDialog
+            <ConfirmDialog
                 open={pending !== null}
                 title={td("Set referrer?", { source: "en" })}
                 message={td(
@@ -200,7 +200,7 @@ export function LeadTemperatureField({
     const { t } = useTranslation();
 
     return (
-        <DealEditableField
+        <EditableField
             value={lead.temperature || ""}
             fieldName="temperature"
             fieldType="select"
@@ -254,7 +254,7 @@ export function LeadPreferredContactTimeField({
     const selected = resolvePreferredContactTimes(lead);
 
     return (
-        <DealEditableField
+        <EditableField
             value={selected}
             fieldName="preferred_contact_times"
             fieldType="multiselect"
@@ -266,7 +266,7 @@ export function LeadPreferredContactTimeField({
             }))}
             displayValue={
                 selected.length ? (
-                    <span className="text-gray-700">
+                    <span className="text-dr-gray-darker">
                         {td(formatPreferredContactTimes(selected), {
                             source: "en",
                         })}

@@ -45,6 +45,7 @@ import {
     CommentOutlined,
     ScheduleOutlined,
     RiseOutlined,
+    MailOutlined,
 } from "@ant-design/icons";
 import { Head, router } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -97,6 +98,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
         reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
+        mail: <MailOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -132,6 +134,7 @@ const getIconBackground = (icon: NotificationIcon, isRead: boolean): string => {
         shift: "bg-orange-100",
         promotion: "bg-green-100",
         reminder: "bg-blue-100",
+        mail: "bg-blue-100",
         bell: "bg-gray-100",
     };
 
@@ -384,7 +387,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             exit={{ opacity: 0, height: 0 }}
             className="bg-blue-50 border-b border-blue-100"
         >
-            <div className="px-4 py-3 flex items-center justify-between">
+            <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-4">
                     <Checkbox
                         checked={allSelected}
@@ -400,7 +403,7 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                 </div>
 
                 {selectedCount > 0 && (
-                    <Space>
+                    <Space wrap>
                         <Button
                             size="small"
                             icon={<CheckOutlined />}
@@ -510,7 +513,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
         <div className="p-4 bg-gray-50 border-b border-gray-200">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 {/* Status filter */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <Select
                         value={status}
                         onChange={onStatusChange}

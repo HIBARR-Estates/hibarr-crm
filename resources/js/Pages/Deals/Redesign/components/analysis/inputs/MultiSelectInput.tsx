@@ -1,4 +1,5 @@
 import type { FieldOption } from "./fieldValueCodecs";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface MultiSelectInputProps {
     value: string[];
@@ -26,12 +27,12 @@ export default function MultiSelectInput({ value, options, disabled, onChange }:
                         className="px-3 py-1.5 rounded-md text-sm font-medium transition-all border flex items-center gap-1.5 disabled:opacity-40"
                         style={
                             selected
-                                ? { backgroundColor: "#0A2E5D", color: "#fff", borderColor: "#0A2E5D" }
-                                : { backgroundColor: "#fff", color: "#64748b", borderColor: "#e2e8f0" }
+                                ? { backgroundColor: T.NAVY, color: "#fff", borderColor: T.NAVY }
+                                : { backgroundColor: "#fff", color: T.TEXT_MUTED, borderColor: T.BORDER }
                         }
                     >
                         {selected && (
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: "#38bdf8" }}>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: T.SKY }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                         )}

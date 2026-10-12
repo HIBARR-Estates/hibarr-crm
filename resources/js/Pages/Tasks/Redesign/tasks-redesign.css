@@ -16,7 +16,7 @@
    for the grouped rows + pagination footer so bottom corners clip cleanly. */
 .tasks-list-card {
     background: #fff;
-    border: 1px solid var(--dt-border-color, #e2e5ea);
+    border: 1px solid var(--dt-border-color, var(--dr-border));
     border-radius: 10px;
     box-shadow: none;
     overflow: clip;
@@ -28,7 +28,7 @@
 }
 
 .tasks-list-card .tasks-group-header {
-    background: var(--dt-header-bg, #f8fafc);
+    background: var(--dt-header-bg, var(--dr-surface-2));
 }
 
 .tasks-list-card .tasks-list-body > section:first-child .tasks-group-header {
@@ -44,11 +44,11 @@
 }
 
 .tasks-row:hover {
-    background: #f8f9fb !important;
+    background: var(--dr-surface-2) !important;
 }
 
 .tasks-group-header:hover {
-    background: #eef2f6 !important;
+    background: var(--dr-surface-hover-strong) !important;
 }
 
 .tasks-board-card {
@@ -58,11 +58,11 @@
 }
 
 .tasks-board-card:hover {
-    border-color: #c7d0de !important;
+    border-color: var(--dr-navy-mid) !important;
 }
 
 .tasks-record-row:hover {
-    background: #f8f9fb;
+    background: var(--dr-surface-2);
 }
 
 /* Board cards must never widen their column — long headings/descriptions are
@@ -87,12 +87,12 @@
 }
 
 .tasks-status-option:hover {
-    background: #f2f4f7 !important;
+    background: var(--dr-surface-hover) !important;
 }
 
 /* Checkpoint rows reveal their remove button on hover. */
 .tasks-checkpoint:hover {
-    background: #f5f6f8;
+    background: var(--dr-gray);
 }
 
 .tasks-checkpoint-remove {
@@ -109,9 +109,9 @@
    composer (TaskCommentsPanel) so a mention looks identical while typing
    and once posted. */
 .tasks-mention {
-    color: #14538c;
+    color: var(--dr-blue-dark);
     font-weight: 600;
-    background: #e8f1fb;
+    background: var(--dr-blue-light);
     padding: 1px 5px;
     border-radius: 5px;
 }
@@ -119,7 +119,7 @@
 /* contentEditable has no native `placeholder` attribute. */
 .tasks-comment-editor:empty:before {
     content: attr(data-placeholder);
-    color: #9ca3af;
+    color: var(--dr-text-hint);
     pointer-events: none;
 }
 
@@ -157,7 +157,7 @@
 .tasks-reveal input,
 .tasks-reveal textarea,
 .tasks-reveal select {
-    border-color: #e2e5ea;
+    border-color: var(--dr-border);
     box-shadow: none;
 }
 
@@ -167,7 +167,7 @@
 .tasks-reveal input:invalid,
 .tasks-reveal textarea:invalid,
 .tasks-reveal select:invalid {
-    border-color: #e2e5ea;
+    border-color: var(--dr-border);
     box-shadow: none;
 }
 
@@ -178,8 +178,8 @@
 .tasks-reveal textarea:focus,
 .tasks-reveal select:focus {
     outline: none;
-    border-color: #b8d4f0;
-    box-shadow: 0 0 0 2px #e8f1fb;
+    border-color: var(--dr-blue-mid);
+    box-shadow: 0 0 0 2px var(--dr-blue-light);
 }
 
 /* The borderless title/description keep no chrome at all. */
@@ -200,6 +200,8 @@
 
 .tasks-modal-panel {
     animation: tasks-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+    color: inherit;
 }
 
 @keyframes tasks-fade-in {
@@ -275,7 +277,7 @@
 }
 
 .tasks-entity-link:hover {
-    color: #1a6bb5 !important;
+    color: var(--dr-blue) !important;
     text-decoration: underline;
 }
 

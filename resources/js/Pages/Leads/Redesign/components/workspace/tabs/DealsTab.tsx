@@ -38,7 +38,7 @@ export default function DealsTab({
                 deals the empty state carries the only call to action. */}
             {deals.length > 0 && (
                 <div className="mb-4 flex items-center justify-between gap-2">
-                    <span className="text-xs text-[#6b7280]">
+                    <span className="text-xs text-dr-text-muted">
                         {deals.length}{" "}
                         {td(deals.length === 1 ? "deal" : "deals", {
                             source: "en",

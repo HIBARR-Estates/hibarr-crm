@@ -4,6 +4,7 @@ import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSe
 import { isLeadInfoCoreSection } from "../config/leadInfoSections";
 import type { LeadInfoSectionId, WorkspaceTabId } from "../types";
 import { normalizeTabId, WORKSPACE_TABS } from "../config/workspaceTabs";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 const VALID_TABS: WorkspaceTabId[] = WORKSPACE_TABS.map((t) => t.id);
 const DEFAULT_INFO_SECTION: LeadInfoSectionId = "personal";
@@ -80,7 +81,7 @@ function syncQuery(
         url.searchParams.delete("section");
     }
     url.searchParams.delete("drawer");
-    window.history.replaceState({}, "", url.toString());
+    replaceUrlKeepingHistoryState(url);
 }
 
 /**
@@ -109,7 +110,7 @@ export default function useLeadViewNavigation(
         params.set("tab", "qualification");
         const url = new URL(window.location.href);
         url.search = params.toString();
-        window.history.replaceState({}, "", url.toString());
+        replaceUrlKeepingHistoryState(url);
     }, []);
 
     const tabRef = useRef(tab);
@@ -129,7 +130,7 @@ export default function useLeadViewNavigation(
     }, [categories]);
 
     useEffect(() => {
-        return router.on("finish", () => {
+        const stopRestamping = router.on("finish", () => {
             syncQuery(
                 tabRef.current,
                 qualificationOpenRef.current,
@@ -139,6 +140,9 @@ export default function useLeadViewNavigation(
                     : undefined,
             );
         });
+        return () => {
+            stopRestamping();
+        };
     }, []);
 
     const setTab = useCallback(

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealNoteCreate from "../../hooks/useDealNoteCreate";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export default function AnalysisQuickNote() {
     const { deal } = useDealWorkspace();

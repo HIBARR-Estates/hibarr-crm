@@ -1,7 +1,7 @@
 import { KeyboardEvent } from "react";
 import { Icon } from "@/Components/Redesign";
 import useHScroll from "@/Pages/Deals/Redesign/hooks/useHScroll";
-import DealScrollArrow from "@/Pages/Deals/Redesign/components/primitives/DealScrollArrow";
+import ScrollArrow from "@/Components/Redesign/primitives/ScrollArrow";
 import type { LeadTabCount, WorkspaceTabId } from "../../types";
 import {
     META_TABS,
@@ -104,7 +104,7 @@ export default function WorkspaceTabBar({
     return (
         <div className="dr-tabs" data-tour="lead-tabs">
             {hasOverflow && (
-                <DealScrollArrow
+                <ScrollArrow
                     dir="left"
                     enabled={scroll.overflow.left}
                     onClick={() => scroll.nudge(-1)}
@@ -124,7 +124,7 @@ export default function WorkspaceTabBar({
                 )}
             </div>
             {hasOverflow && (
-                <DealScrollArrow
+                <ScrollArrow
                     dir="right"
                     enabled={scroll.overflow.right}
                     onClick={() => scroll.nudge(1)}

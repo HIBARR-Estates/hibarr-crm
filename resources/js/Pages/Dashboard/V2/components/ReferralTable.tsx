@@ -3,7 +3,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
-const GRID = "minmax(150px, 1.5fr) 1fr .9fr .8fr 1fr 96px";
+const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr 96px";
 
 const STAGE_PILL: Record<string, string> = {
     "Deal open": "blue",
@@ -42,7 +42,7 @@ export default function ReferralTable({
                     color: T.TEXT_MUTED,
                 }}
             >
-                {td("You have no referrals in progress.")}
+                {td("You have no referrals in progress.", { source: "en" })}
             </p>
         );
     }
@@ -62,13 +62,13 @@ export default function ReferralTable({
             >
                 <div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: T.NAVY }}>
-                        {td("Your active referrals")}
+                        {td("Your active referrals", { source: "en" })}
                     </div>
                     <div
                         style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 3 }}
                     >
-                        {rows.length} {td("in progress")} ·{" "}
-                        {td("client contact details stay with the assigned agent")}
+                        {rows.length} {td("in progress", { source: "en" })} ·{" "}
+                        {td("client contact details are not shown", { source: "en" })}
                     </div>
                 </div>
 
@@ -79,7 +79,7 @@ export default function ReferralTable({
                         aria-pressed={!stalledOnly}
                         onClick={() => setStalledOnly(false)}
                     >
-                        {td("All")} {rows.length}
+                        {td("All", { source: "en" })} {rows.length}
                     </button>
                     <button
                         type="button"
@@ -88,13 +88,13 @@ export default function ReferralTable({
                         disabled={stalled === 0}
                         onClick={() => setStalledOnly(true)}
                     >
-                        {td("Stalled")} {stalled}
+                        {td("Stalled", { source: "en" })} {stalled}
                     </button>
                 </div>
             </div>
 
             <div className="dv2-scroll-x">
-                <div style={{ minWidth: 620 }}>
+                <div style={{ minWidth: 520 }}>
                     <div
                         className="dv2-eyebrow"
                         style={{
@@ -105,12 +105,11 @@ export default function ReferralTable({
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
                         }}
                     >
-                        <div>{td("Client")}</div>
-                        <div>{td("Stage")}</div>
-                        <div>{td("Agent")}</div>
-                        <div style={{ textAlign: "right" }}>{td("Days open")}</div>
+                        <div>{td("Client", { source: "en" })}</div>
+                        <div>{td("Stage", { source: "en" })}</div>
+                        <div style={{ textAlign: "right" }}>{td("Days open", { source: "en" })}</div>
                         <div style={{ textAlign: "right" }}>
-                            {td("Last update")}
+                            {td("Last update", { source: "en" })}
                         </div>
                         <div />
                     </div>
@@ -132,7 +131,7 @@ export default function ReferralTable({
                         >
                             <div>
                                 <div style={{ fontWeight: 600 }}>
-                                    {row.client ?? td("Unnamed referral")}
+                                    {row.client ?? td("Unnamed referral", { source: "en" })}
                                 </div>
                                 {row.flag_response && (
                                     <div
@@ -142,7 +141,7 @@ export default function ReferralTable({
                                             marginTop: 2,
                                         }}
                                     >
-                                        {td("Reply")}: {row.flag_response}
+                                        {td("Reply", { source: "en" })}: {row.flag_response}
                                     </div>
                                 )}
                             </div>
@@ -156,13 +155,9 @@ export default function ReferralTable({
                                     }`}
                                 >
                                     {row.stalled
-                                        ? td("Stalled")
-                                        : td(row.stage)}
+                                        ? td("Stalled", { source: "en" })
+                                        : td(row.stage, { source: "en" })}
                                 </span>
-                            </div>
-
-                            <div style={{ color: T.TEXT_MUTED }}>
-                                {row.agent ?? "—"}
                             </div>
 
                             <div
@@ -185,17 +180,17 @@ export default function ReferralTable({
                                 }}
                             >
                                 {row.idle_days === 0
-                                    ? td("Today")
-                                    : `${row.idle_days}${td("d ago")}`}
+                                    ? td("Today", { source: "en" })
+                                    : `${row.idle_days}${td("d ago", { source: "en" })}`}
                             </div>
 
                             <div style={{ textAlign: "right" }}>
                                 {row.flag_status ? (
                                     <span
                                         className="dr-pill dr-pill-amber"
-                                        title={td("Waiting on the partner team")}
+                                        title={td("Waiting on the partner team", { source: "en" })}
                                     >
-                                        {td("Flagged")}
+                                        {td("Flagged", { source: "en" })}
                                     </span>
                                 ) : (
                                     <button
@@ -203,7 +198,7 @@ export default function ReferralTable({
                                         className="dr-btn dr-btn-ghost dr-btn-sm"
                                         onClick={() => onFlag(row)}
                                     >
-                                        {td("Flag")}
+                                        {td("Flag", { source: "en" })}
                                     </button>
                                 )}
                             </div>

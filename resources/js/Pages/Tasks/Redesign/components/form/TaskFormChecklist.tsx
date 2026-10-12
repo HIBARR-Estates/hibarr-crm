@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../../config/taskDesignTokens";
@@ -28,6 +28,7 @@ const TaskFormChecklist = forwardRef<
 >(function TaskFormChecklist({ items, onChange }, ref) {
     const { td } = useTd();
     const [draft, setDraft] = useState("");
+    const draftInputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(
         ref,
@@ -40,11 +41,23 @@ const TaskFormChecklist = forwardRef<
         [draft, items],
     );
 
+    const focusDraftInput = () => {
+        draftInputRef.current?.focus();
+    };
+
     const commitDraft = () => {
         const trimmed = draft.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+            focusDraftInput();
+            return;
+        }
         onChange([...items, trimmed]);
         setDraft("");
+        focusDraftInput();
+    };
+
+    const handlePlusClick = () => {
+        commitDraft();
     };
 
     return (
@@ -105,7 +118,8 @@ const TaskFormChecklist = forwardRef<
                     type="button"
                     aria-label={td("Add checklist item")}
                     title={td("Add checklist item")}
-                    onClick={commitDraft}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={handlePlusClick}
                     className="tasks-press inline-flex flex-shrink-0 items-center justify-center"
                     style={{
                         width: 20,
@@ -120,6 +134,7 @@ const TaskFormChecklist = forwardRef<
                     <TaskGlyph d={TASK_ICON.plus} size={12} strokeWidth={2} />
                 </button>
                 <input
+                    ref={draftInputRef}
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {

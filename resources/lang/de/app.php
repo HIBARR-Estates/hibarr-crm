@@ -112,6 +112,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Erinnerungseinstellungen',
             'preferences' => 'Einstellungen',
+            'mailbox' => 'Postfach',
             'entity_reminder_defaults' => 'Erinnerungsstandards',
         ],
         'reminderDefaults' => 'Erinnerungsstandards',
@@ -611,4 +612,24 @@ return [
     'recommendations' => [
         'cache_notice' => 'Ergebnisse werden zur Leistungsoptimierung zwischengespeichert',
     ],
+
+    'access_inspector' => [
+        'title' => 'Zugriff',
+        'flags' => 'Flags',
+        'permissions' => 'Berechtigungen',
+        'search_flags' => 'Flags suchen',
+        'search_permissions' => 'Berechtigungen suchen',
+        'empty' => 'Keine Treffer',
+        'on' => 'An',
+        'off' => 'Aus',
+        'read_only' => 'Nur Lesen',
+    ],
+    'mr' => 'Herr',
+    'mrs' => 'Frau',
+    'miss' => 'Frau',
+    'dr' => 'Dr.',
+    'sir' => 'Herr',
+    'madam' => 'Frau',
+    'herr' => 'Herr',
+    'frau' => 'Frau',
 ];

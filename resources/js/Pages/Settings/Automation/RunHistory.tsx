@@ -43,7 +43,7 @@ function RowSkeleton() {
  * beyond their description, and an "expand" affordance that reveals nothing
  * is worse than none.
  */
-function StepRow({ step, index, t }: { step: RunLogEntry; index: number; t: (k: string) => string }) {
+function StepRow({ step, index, t, onRetried }: { step: RunLogEntry; index: number; t: (k: string) => string; onRetried: () => void }) {
     const [open, setOpen] = useState(false);
     const expandable = step.has_details === true || step.details != null;
 
@@ -88,7 +88,7 @@ function StepRow({ step, index, t }: { step: RunLogEntry; index: number; t: (k: 
                 {expandable && <Icon name={open ? "chevron-up" : "chevron-down"} size={13} color={T.TEXT_HINT} />}
             </div>
 
-            {expandable && open && <RunLogDetailPanel entry={step} />}
+            {expandable && open && <RunLogDetailPanel entry={step} onRetried={onRetried} />}
         </div>
     );
 }
@@ -252,7 +252,7 @@ export default function RunHistory() {
                                     style={{ background: T.SURFACE_2, borderTop: `1px solid ${T.BORDER}` }}
                                 >
                                     {run.steps.map((step, i) => (
-                                        <StepRow key={step.id} step={step} index={i} t={t} />
+                                        <StepRow key={step.id} step={step} index={i} t={t} onRetried={() => setRefreshKey((k) => k + 1)} />
                                     ))}
                                 </div>
                             )}

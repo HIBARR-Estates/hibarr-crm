@@ -78,10 +78,12 @@ export interface FilterConfig {
     defaultValues?: Record<string, any>;
     /**
      * Inertia partial-reload prop keys to request when filters change. Omit
-     * to fall back to a full (unscoped) visit — every scoped reload
-     * elsewhere on these pages (pagination, tab switches, pipeline/board
-     * switches) already knows its own list, so pass the same one here
-     * instead of re-fetching the whole page on every filter change.
+     * (or leave unset) to fall back to a full (unscoped) visit — do not pass
+     * `only: undefined`, which overwrites Inertia's default `only: []` and
+     * crashes isPartial(). Every scoped reload elsewhere on these pages
+     * (pagination, tab switches, pipeline/board switches) already knows its
+     * own list, so pass the same one here instead of re-fetching the whole
+     * page on every filter change.
      */
     only?: string[];
 }
@@ -129,6 +131,26 @@ interface FilterContextValue {
 }
 
 const FilterContext = createContext<FilterContextValue | null>(null);
+
+/** Wire keys for daterange fields (tasks use due_start_date, not due_date_range_start). */
+function dateRangeParamKeys(field: FilterFieldConfig): [string, string] {
+    return field.rangeKeys ?? [`${field.key}_start`, `${field.key}_end`];
+}
+
+function addManagedFilterKeys(
+    managedKeys: Set<string>,
+    field: FilterFieldConfig,
+): void {
+    managedKeys.add(field.key);
+    if (field.type === "daterange") {
+        const [startKey, endKey] = dateRangeParamKeys(field);
+        managedKeys.add(startKey);
+        managedKeys.add(endKey);
+    } else if (field.type === "numberrange") {
+        managedKeys.add(`min_${field.key}`);
+        managedKeys.add(`max_${field.key}`);
+    }
+}
 
 export const useFilter = () => {
     const context = useContext(FilterContext);
@@ -355,14 +377,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
 
                 const managedKeys = new Set<string>();
                 config.fields.forEach((field) => {
-                    managedKeys.add(field.key);
-                    if (field.type === "daterange") {
-                        managedKeys.add(`${field.key}_start`);
-                        managedKeys.add(`${field.key}_end`);
-                    } else if (field.type === "numberrange") {
-                        managedKeys.add(`min_${field.key}`);
-                        managedKeys.add(`max_${field.key}`);
-                    }
+                    addManagedFilterKeys(managedKeys, field);
                 });
 
                 managedKeys.forEach((k) => {
@@ -376,7 +391,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                 };
 
                 router.get(route(config.routeName), finalParams, {
-                    only: config.only,
+                    ...(config.only ? { only: config.only } : {}),
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
@@ -395,7 +410,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         if (!config) return;
 
         router.get(route(config.routeName), config.defaultValues || {}, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -439,14 +454,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         // (meaning they were cleared by the user)
         const managedKeys = new Set<string>();
         config.fields.forEach((field) => {
-            managedKeys.add(field.key);
-            if (field.type === "daterange") {
-                managedKeys.add(`${field.key}_start`);
-                managedKeys.add(`${field.key}_end`);
-            } else if (field.type === "numberrange") {
-                managedKeys.add(`min_${field.key}`);
-                managedKeys.add(`max_${field.key}`);
-            }
+            addManagedFilterKeys(managedKeys, field);
         });
 
         // Remove managed keys from currentParams
@@ -462,7 +470,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         };
 
         router.get(route(config.routeName), finalParams, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -477,7 +485,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         clearAllFilters();
 
         router.get(route(config.routeName), config.defaultValues || {}, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -533,12 +541,9 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             };
 
             if (field.type === "daterange") {
-                processKey(
-                    `${field.key}_start`,
-                    `${field.label} Start`,
-                    "date"
-                );
-                processKey(`${field.key}_end`, `${field.label} End`, "date");
+                const [startKey, endKey] = dateRangeParamKeys(field);
+                processKey(startKey, `${field.label} Start`, "date");
+                processKey(endKey, `${field.label} End`, "date");
             } else if (field.type === "numberrange") {
                 processKey(
                     `min_${field.key}`,

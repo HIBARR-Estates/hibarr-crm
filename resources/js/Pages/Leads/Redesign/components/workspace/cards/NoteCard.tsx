@@ -13,17 +13,17 @@ export default function NoteCard({ note, onClick }: NoteCardProps) {
             onClick={onClick}
         >
             <div className="mb-1 flex items-start justify-between gap-2">
-                <span className="text-[13px] font-semibold text-[#1a1f2e]">
+                <span className="text-[13px] font-semibold text-dr-text">
                     {note.title}
                 </span>
-                <span className="shrink-0 text-[11px] text-[#9ca3af]">
+                <span className="shrink-0 text-[11px] text-dr-text-hint">
                     {note.timeLabel}
                 </span>
             </div>
-            <p className="mb-1.5 line-clamp-2 text-xs leading-relaxed text-[#6b7280]">
+            <p className="mb-1.5 line-clamp-2 text-xs leading-relaxed text-dr-text-muted">
                 {note.preview}
             </p>
-            <span className="text-[11px] text-[#9ca3af]">{note.authorName}</span>
+            <span className="text-[11px] text-dr-text-hint">{note.authorName}</span>
         </button>
     );
 }

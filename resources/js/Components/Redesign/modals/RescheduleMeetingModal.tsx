@@ -174,7 +174,7 @@ export default function RescheduleMeetingModal({
                 <button
                     type="button"
                     onClick={() => setShowDuration((current) => !current)}
-                    className="border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="border-none bg-transparent p-0 text-[12px] font-semibold text-dr-blue hover:text-dr-blue-hover"
                 >
                     {showDuration
                         ? labels.hideDuration

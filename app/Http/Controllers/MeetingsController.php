@@ -82,11 +82,11 @@ class MeetingsController extends AccountBaseController
         $redesign = FeatureFlags::enabled(self::REDESIGN_FLAG);
 
         $eagerLoads = [
-            'deal:id,name,agent_id,value,currency_id,pipeline_stage_id',
+            'deal:id,name,agent_id,value,currency_id,pipeline_stage_id,lead_id',
             'deal.leadStage:id,name,slug,label_color',
-            'deal.contact:id,client_name',
+            'deal.contact:id,client_name,mobile,cell,office',
             'deal.currency:id,currency_symbol',
-            'lead:id,client_name,salutation,company_name',
+            'lead:id,client_name,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             // Never previously loaded — every "Meeting host" chip fell back
             // to "User #<id>" because `host_id` came through as a bare id
@@ -867,11 +867,11 @@ class MeetingsController extends AccountBaseController
         abort_403(! $visible);
 
         $followUp->load([
-            'deal:id,name,agent_id,value,currency_id,pipeline_stage_id',
+            'deal:id,name,agent_id,value,currency_id,pipeline_stage_id,lead_id',
             'deal.leadStage:id,name,slug,label_color',
-            'deal.contact:id,client_name',
+            'deal.contact:id,client_name,mobile,cell,office',
             'deal.currency:id,currency_symbol',
-            'lead:id,client_name,salutation,company_name',
+            'lead:id,client_name,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             'host:id,name,image',
             'meetingType',

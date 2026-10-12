@@ -152,6 +152,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();
+        $schedule->command('ol-webhook:reconcile')->everyFifteenMinutes()->withoutOverlapping();
         // Retry queue process every 5 minutes
         // $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 
@@ -196,7 +197,7 @@ class Kernel extends ConsoleKernel
 
         // Drain named queues (incl. entity reminders) when supervisor is briefly down.
         // Primary workers still come from supervisor (see scripts/fix_for_supervisor*).
-        $schedule->command('queue:work database --queue=default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send --tries=3 --stop-when-empty')
+        $schedule->command('queue:work database --queue=default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send,ol_webhooks,expose --tries=3 --stop-when-empty')
             ->withoutOverlapping();
     }
 

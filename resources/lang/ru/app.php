@@ -112,6 +112,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Настройки напоминаний',
             'preferences' => 'Предпочтения',
+            'mailbox' => 'Почта',
             'entity_reminder_defaults' => 'Стандартные напоминания',
         ],
         'reminderDefaults' => 'Стандартные напоминания',
@@ -609,4 +610,24 @@ return [
     'recommendations' => [
         'cache_notice' => 'Результаты кэшируются для повышения производительности',
     ],
+
+    'access_inspector' => [
+        'title' => 'Доступ',
+        'flags' => 'Флаги',
+        'permissions' => 'Права',
+        'search_flags' => 'Поиск флагов',
+        'search_permissions' => 'Поиск прав',
+        'empty' => 'Нет совпадений',
+        'on' => 'Вкл',
+        'off' => 'Выкл',
+        'read_only' => 'Только чтение',
+    ],
+    'mr' => 'Г-н',
+    'mrs' => 'Г-жа',
+    'miss' => 'Мисс',
+    'dr' => 'Д-р',
+    'sir' => 'Сэр',
+    'madam' => 'Мадам',
+    'herr' => 'Герр',
+    'frau' => 'Фрау',
 ];

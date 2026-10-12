@@ -5,6 +5,7 @@ import type {
     PriorityToken,
     StatusToken,
 } from "../../config/taskDesignTokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface GlyphProps {
     d: string;
@@ -199,8 +200,8 @@ export function TaskCheckCircle({
                 height: size,
                 padding: 0,
                 borderRadius: 999,
-                border: `1.5px solid ${done ? "#177a5b" : "#c7d0de"}`,
-                background: done ? "#177a5b" : "#ffffff",
+                border: `1.5px solid ${done ? T.GREEN : T.NAVY_MID}`,
+                background: done ? T.GREEN : T.WHITE,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -213,7 +214,7 @@ export function TaskCheckCircle({
                 width={size * 0.61}
                 height={size * 0.61}
                 fill="none"
-                stroke="#ffffff"
+                stroke={T.WHITE}
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"

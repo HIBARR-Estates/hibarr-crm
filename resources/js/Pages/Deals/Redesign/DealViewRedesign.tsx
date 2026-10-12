@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import ProductTour, {
     ProductTourHandle,
@@ -27,6 +28,7 @@ import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
 import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
+import WorkspacePaymentsTab from "./components/workspace/WorkspacePaymentsTab";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -61,10 +63,15 @@ import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_EXPOSES_FLAG } from "@/Hooks/useDealExposesFlag";
+import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
     DealWorkspaceProvider,
     useDealWorkspace,
 } from "./context/DealWorkspaceContext";
+import CommunicationModal from "@/Email/CommunicationModal";
+import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
 const EMPTY_FIELDS: any[] = [];
@@ -95,6 +102,9 @@ function DealViewRedesignInner(
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const [sourceEmailMessageId, setSourceEmailMessageId] = useState<
+        string | null
+    >(null);
     const analysis = useDealAnalysis();
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
@@ -117,6 +127,75 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    // Fail closed: flag off or missing server gate → no Email Quick action.
+    const emailQuickAction: EmailQuickAction | null =
+        featureFlags?.["crm.email"] === true && props.emailQuickAction != null
+            ? props.emailQuickAction
+            : null;
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
+    const emailQuickActionForUi: EmailQuickAction | null =
+        emailQuickAction == null
+            ? null
+            : { ...emailQuickAction, has_connection: hasMailboxConnection };
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
+        string | null
+    >(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get(
+            "email_message",
+        );
+    });
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
+    };
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
+    };
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
+        } else {
+            url.searchParams.delete("email_message");
+        }
+        replaceUrlKeepingHistoryState(url);
+    }, [communicationOpen, emailFocusMessageId]);
+    useEffect(
+        () =>
+            subscribeOpenSourceEmail((messageId) => {
+                openCommunication(messageId);
+            }),
+        [],
+    );
+    const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
+        closeCommunication();
+        setSourceEmailMessageId(messageId);
+        if (kind === "task") setAddTaskOpen(true);
+        else if (kind === "note") setAddNoteOpen(true);
+        else setAddMeetingOpen(true);
+    };
+    const closeAddTask = () => {
+        setAddTaskOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddNote = () => {
+        setAddNoteOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddMeeting = () => {
+        setAddMeetingOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -130,6 +209,8 @@ function DealViewRedesignInner(
         dealFollowUpsLoading,
         files,
         filesLoading,
+        paymentRequests,
+        paymentRequestLoading,
     } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
     const { t, locale } = useTranslation();
@@ -139,6 +220,7 @@ function DealViewRedesignInner(
 
     const meetingTypes = props.meetingTypes ?? [];
     const permissions = props.permissions ?? {};
+    const isAdminRole = useIsAdminRole();
     const fields = props.fields ?? [];
     const customFieldCategories = props.customFieldCategories ?? [];
     // NOT pipeline-filtered — this is the raw company-wide category list, kept
@@ -262,7 +344,10 @@ function DealViewRedesignInner(
     // a dead button.
     const canChangeStages = permissions.change_deal_stages === "all";
     const canCreatePaymentRequest = dealPermissions.canEdit;
-    const canConfirmPaymentTransfer = permissions.edit_payments === "all";
+    // Mirrors DealPaymentService::canConfirmTransfer — the admin role passes
+    // even without an edit_payments row.
+    const canConfirmPaymentTransfer =
+        isAdminRole || permissions.edit_payments === "all";
     const pipeline = useDealPipeline(deal, canChangeStages);
     const advanceToNextStage = useMemo(() => {
         if (!canChangeStages) return undefined;
@@ -289,6 +374,9 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
+        if (props.showOnlinePayment) {
+            tabs.push("payments");
+        }
         // Offers only appear when a property on this deal has an applied offer.
         if (showOffersTab) {
             tabs.push("offers");
@@ -306,7 +394,13 @@ function DealViewRedesignInner(
         // Note `view_events` is the calendar module, not the CRM timeline.
         tabs.push("itinerary", "dealinfo", "timeline");
         return tabs;
-    }, [permissions, pipelineHasPackages, showExposes, showOffersTab]);
+    }, [
+        permissions,
+        pipelineHasPackages,
+        showExposes,
+        showOffersTab,
+        props.showOnlinePayment,
+    ]);
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -392,6 +486,11 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
+            payments: props.showOnlinePayment
+                ? paymentRequestLoading
+                    ? undefined
+                    : paymentRequests.length
+                : undefined,
             offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes:
                 exposesCount?.dealId === deal.id
@@ -415,6 +514,9 @@ function DealViewRedesignInner(
             offerApplicationsCount,
             exposesCount,
             recommendationsCount,
+            props.showOnlinePayment,
+            paymentRequestLoading,
+            paymentRequests.length,
         ],
     );
 
@@ -444,7 +546,7 @@ function DealViewRedesignInner(
             )}
             <DealAddTaskModal
                 open={addTaskOpen}
-                onClose={() => setAddTaskOpen(false)}
+                onClose={closeAddTask}
                 dealId={deal.id}
                 dealName={deal.name}
                 dealAgentUserId={
@@ -454,17 +556,20 @@ function DealViewRedesignInner(
                     deal.agent?.user_id ??
                     null
                 }
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealScheduleMeetingModal
                 open={addMeetingOpen}
-                onClose={() => setAddMeetingOpen(false)}
+                onClose={closeAddMeeting}
                 deal={deal}
                 meetingTypes={meetingTypes}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealAddNoteModal
                 open={addNoteOpen}
-                onClose={() => setAddNoteOpen(false)}
+                onClose={closeAddNote}
                 dealId={deal.id}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <ProductTour
                 ref={tourRef}
@@ -472,8 +577,11 @@ function DealViewRedesignInner(
                 steps={dealTourSteps}
                 labels={DEAL_TOUR_LABELS}
             />
-
-            <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
+            <div
+                className={`deal-redesign min-h-screen bg-dr-gray ${
+                    isMobileResponsive ? "dr-mobile-responsive" : ""
+                }`}
+            >
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <DealStickyHeader
                         deal={deal}
@@ -488,11 +596,18 @@ function DealViewRedesignInner(
                             showAnalysis ? analysis.open : undefined
                         }
                         onReplayGuide={() => tourRef.current?.restart()}
+                        isMobileResponsive={isMobileResponsive}
+                        emailQuickAction={emailQuickActionForUi}
+                        onEmail={() => openCommunication(null)}
                     />
 
                     <div className="">
                         <div
-                            className="mb-[14px] flex items-stretch gap-4"
+                            className={`mb-[14px] flex items-stretch gap-4 ${
+                                isMobileResponsive
+                                    ? "flex-col lg:flex-row"
+                                    : ""
+                            }`}
                             data-tour="deal-pipeline-stepper"
                         >
                             <div className="min-w-0 flex-1">
@@ -573,6 +688,7 @@ function DealViewRedesignInner(
                                     analysis={analysis}
                                     totalFilled={analysisProgress.totalFilled}
                                     totalFields={analysisProgress.totalFields}
+                                    isMobileResponsive={isMobileResponsive}
                                 />
                             )}
                         </div>
@@ -605,7 +721,7 @@ function DealViewRedesignInner(
                                     </div>
                                 )}
 
-                                <section className="overflow-hidden rounded-xl border border-[#e2e5ea] bg-white">
+                                <section className="overflow-hidden rounded-xl border border-dr-border bg-white">
                                     <div data-tour="deal-tabs">
                                         <DealTabBar
                                             activeTab={activeTab}
@@ -718,6 +834,22 @@ function DealViewRedesignInner(
                                                     leadFileFieldsData={leadFileFieldsData}
                                                 />
                                             ))}
+                                        {activeTab === "payments" &&
+                                            props.showOnlinePayment &&
+                                            (paymentRequestLoading &&
+                                            paymentRequests.length === 0 ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
+                                                <WorkspacePaymentsTab
+                                                    deal={deal}
+                                                    canCreatePaymentRequest={
+                                                        canCreatePaymentRequest
+                                                    }
+                                                    canConfirmPaymentTransfer={
+                                                        canConfirmPaymentTransfer
+                                                    }
+                                                />
+                                            ))}
                                         {activeTab === "offers" &&
                                             showOffersTab && (
                                                 <WorkspaceOffersTab
@@ -785,6 +917,17 @@ function DealViewRedesignInner(
                                                 dealId={deal.id}
                                                 dealName={deal.name}
                                                 userId={props.auth?.user?.id}
+                                                recordType="deal"
+                                                emailEnabled={
+                                                    emailQuickAction != null
+                                                }
+                                                onOpenEmailMessage={(
+                                                    messageId,
+                                                ) =>
+                                                    openCommunication(
+                                                        messageId,
+                                                    )
+                                                }
                                             />
                                         )}
                                     </div>
@@ -821,6 +964,17 @@ function DealViewRedesignInner(
                     </div>
                 </div>
             </div>
+
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
+                record={{ type: "deal", id: deal.id }}
+                recordLabel={deal.name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={deal.contact?.client_email ?? null}
+                onCreateFollowUp={openCreateFromEmail}
+            />
         </PageLayout>
     );
 }

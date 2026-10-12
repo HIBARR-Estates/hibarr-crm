@@ -146,6 +146,10 @@ mix.js("resources/js/bootstrap.js", "public/js")
         },
         resolve: {
             alias: {
+                "@inertia-load-page": path.resolve(
+                    __dirname,
+                    "resources/js/inertia/loadPage.mix.ts",
+                ),
                 "@": path.resolve(__dirname, "resources/js"),
                 "@/Components": path.resolve(
                     __dirname,

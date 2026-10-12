@@ -50,7 +50,7 @@ export default function TemplatePickerModal({
                         style={{
                             margin: 0,
                             fontSize: 13,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                         }}
                     >
                         {td("Loading templates…", { source: "en" })}
@@ -60,7 +60,7 @@ export default function TemplatePickerModal({
                         style={{
                             margin: 0,
                             fontSize: 13,
-                            color: "var(--lr-text-dim)",
+                            color: "var(--dr-text-hint)",
                         }}
                     >
                         {td("No published templates available.", { source: "en" })}
@@ -98,7 +98,7 @@ export default function TemplatePickerModal({
                                         style={{
                                             fontSize: 15,
                                             fontWeight: 700,
-                                            color: "var(--lr-text)",
+                                            color: "var(--dr-text)",
                                         }}
                                     >
                                         {template.name}
@@ -111,7 +111,7 @@ export default function TemplatePickerModal({
                                     <span
                                         style={{
                                             fontSize: 12.5,
-                                            color: "var(--lr-text-muted)",
+                                            color: "var(--dr-text-muted)",
                                             lineHeight: 1.4,
                                         }}
                                     >

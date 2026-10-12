@@ -1,4 +1,4 @@
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface QualifyContextNoteProps {
@@ -18,7 +18,7 @@ export default function QualifyContextNote({
     const isAnswer = mode === "answer";
 
     return (
-        <div className="shrink-0 px-6 py-3 bg-white border-t border-slate-200">
+        <div className="shrink-0 px-6 py-3 bg-white border-t border-dr-border">
             <p
                 className="text-xs font-semibold uppercase tracking-wider mb-1.5"
                 style={{ color: T.TEXT }}
@@ -38,23 +38,23 @@ export default function QualifyContextNote({
                           })
                 }
                 rows={3}
-                className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors"
+                className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-dr-text-hint focus:outline-none transition-colors"
                 style={{
                     border: `1px solid ${T.BORDER}`,
                     color: T.TEXT,
                     fontFamily: "inherit",
-                    background: "#f8fafc",
+                    background: T.SURFACE_2,
                     minHeight: 72,
                 }}
                 onFocus={(e) => {
-                    e.target.style.borderColor = "#38bdf8";
-                    e.target.style.boxShadow = "0 0 0 2px #e0f2fe";
+                    e.target.style.borderColor = "var(--dr-sky)";
+                    e.target.style.boxShadow = "0 0 0 2px var(--dr-sky-soft)";
                     e.target.style.background = "#fff";
                 }}
                 onBlur={(e) => {
                     e.target.style.borderColor = T.BORDER;
                     e.target.style.boxShadow = "none";
-                    e.target.style.background = "#f8fafc";
+                    e.target.style.background = T.SURFACE_2;
                 }}
             />
         </div>

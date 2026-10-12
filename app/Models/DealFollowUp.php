@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Scopes\ActiveScope;
+use App\Services\DealMeetingLeadLinker;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -122,6 +123,16 @@ class DealFollowUp extends BaseModel
         'host_id' => 'integer',
         'client_attended' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // A deal's meetings always carry the deal's lead. Model-level so every
+        // Eloquent write path (UI, API, jobs) is covered; bulk/quiet paths use
+        // DealMeetingLeadLinker::sync*() explicitly.
+        static::saving(function (self $followUp) {
+            app(DealMeetingLeadLinker::class)->apply($followUp);
+        });
+    }
 
     /** Default meeting duration (minutes) when none is set */
     public const DEFAULT_DURATION_MINUTES = 30;

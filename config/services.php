@@ -93,7 +93,12 @@ return [
     'meta' => [
         'pixel_id' => env('META_PIXEL_ID'),
         'access_token' => env('META_ACCESS_TOKEN'),
-        'api_version' => env('META_CONVERSIONS_API_VERSION', 'v18.0'),
+        // Graph API version for the Conversions API. Meta retires each version
+        // after ~2 years — keep this in step with the backend's
+        // facebook-nodejs-business-sdk major (v23 -> 'v23.0'). `?:` (not a
+        // default arg) so an empty META_CONVERSIONS_API_VERSION= in .env still
+        // falls back instead of producing a malformed URL.
+        'api_version' => env('META_CONVERSIONS_API_VERSION') ?: 'v23.0',
     ],
 
     'property_recommendation' => [
@@ -129,6 +134,8 @@ return [
         'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
         'base_url'      => env('KEYCLOAK_BASE_URL'),
         'realms'        => env('KEYCLOAK_REALM'),
+        // Where Keycloak sends the user after ending its session; defaults to the login route.
+        'post_logout_redirect' => env('KEYCLOAK_POST_LOGOUT_REDIRECT_URI'),
     ],
 
     'ai' => [
@@ -147,8 +154,11 @@ return [
         'api_key' => env('OL_WEBHOOK_API_KEY'),
         'api_key_header' => env('OL_WEBHOOK_API_KEY_HEADER', 'X-API-KEY'),
         'queue' => env('OL_WEBHOOK_QUEUE', 'ol_webhooks'),
-        'tries' => (int) env('OL_WEBHOOK_TRIES', 3),
-        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
+        // Short first retries so a transient failure right after a deal is created doesn't
+        // leave OL without it for minutes (payment requests read OL's copy); longer tail
+        // keeps a brief OL outage from exhausting the delivery.
+        'tries' => (int) env('OL_WEBHOOK_TRIES', 5),
+        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '5,30,120,600,1800'))),
     ],
 
     /*

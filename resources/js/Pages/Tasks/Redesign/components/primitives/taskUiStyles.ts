@@ -3,7 +3,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 export const MICRO_LABEL: CSSProperties = {
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 600,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
     color: T.TEXT_MUTED,
@@ -11,7 +11,7 @@ export const MICRO_LABEL: CSSProperties = {
 
 export const DETAIL_LABEL: CSSProperties = {
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 600,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
     color: T.TEXT_MUTED,

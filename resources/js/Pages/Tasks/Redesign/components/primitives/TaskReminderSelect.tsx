@@ -220,7 +220,7 @@ export default function TaskReminderSelect({
                                             width: 16,
                                             height: 16,
                                             borderRadius: 4,
-                                            border: `1.5px solid ${checked ? T.BLUE : "#c7d0de"}`,
+                                            border: `1.5px solid ${checked ? T.BLUE : T.NAVY_MID}`,
                                             background: checked
                                                 ? T.BLUE
                                                 : T.WHITE,

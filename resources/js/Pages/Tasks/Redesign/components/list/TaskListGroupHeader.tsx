@@ -25,6 +25,8 @@ export default function TaskListGroupHeader({
     const allSelected =
         group.tasks.length > 0 &&
         group.tasks.every((vm) => selected.has(vm.id));
+    const mutedGroupLabel =
+        group.fg === T.TEXT_MUTED || group.fg === T.TEXT_HINT;
 
     return (
         <div
@@ -76,7 +78,7 @@ export default function TaskListGroupHeader({
                     className="uppercase"
                     style={{
                         fontSize: 14,
-                        fontWeight: 700,
+                        fontWeight: mutedGroupLabel ? 500 : 600,
                         letterSpacing: "0.05em",
                         color: group.fg,
                     }}
@@ -86,7 +88,7 @@ export default function TaskListGroupHeader({
                 <span
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: T.TEXT_HINT,
                     }}
                 >

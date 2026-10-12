@@ -6,6 +6,7 @@ use App\Models\DealAutomation;
 use App\Models\DealAutomationLog;
 use App\Models\EmailTemplate;
 use App\Models\LeadPipeline;
+use App\Models\MeetingType;
 use App\Models\MetaEvent;
 use App\Models\PipelineStage;
 use App\Models\User;
@@ -69,6 +70,7 @@ class AutomationSettingController extends AccountBaseController
                 'leadSettableFields' => AutomationFieldCatalog::LEAD_SETTABLE_FIELDS,
                 'dateFields' => AutomationFieldCatalog::DATE_FIELDS,
                 'dateRecurrences' => AutomationFieldCatalog::DATE_RECURRENCES,
+                'meetingTypes' => MeetingType::where('company_id', company()->id)->where('is_active', true)->orderBy('name')->get(['id', 'name']),
                 'dealActionTypes' => AutomationFieldCatalog::DEAL_ACTION_TYPES,
                 'leadActionTypes' => AutomationFieldCatalog::LEAD_ACTION_TYPES,
                 'assignmentTypes' => AutomationFieldCatalog::ASSIGNMENT_TYPES,

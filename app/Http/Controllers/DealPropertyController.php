@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Deal;
 use App\Models\DeveloperProject;
+use App\Services\Deal\DealPaymentValueGuard;
 use App\Services\DealPropertyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,10 @@ class DealPropertyController extends AccountBaseController
                 'status' => 'error',
                 'message' => __('messages.dealValueLockedByCommission'),
             ], 403);
+        }
+
+        if ($blocked = $this->paymentRequestBlock($request, $deal)) {
+            return $blocked;
         }
 
         if ($request->has('property_id')) {
@@ -88,7 +93,7 @@ class DealPropertyController extends AccountBaseController
     /**
      * Detach a product/property from the deal.
      */
-    public function destroy(Deal $deal, int $productId): JsonResponse
+    public function destroy(Request $request, Deal $deal, int $productId): JsonResponse
     {
         if ($deal->isCommissionLocked()) {
             return response()->json([
@@ -97,9 +102,33 @@ class DealPropertyController extends AccountBaseController
             ], 403);
         }
 
+        if ($blocked = $this->paymentRequestBlock($request, $deal)) {
+            return $blocked;
+        }
+
         $result = $this->service->detachProperty($deal, $productId);
 
         return response()->json($result);
+    }
+
+    /**
+     * Attaching or detaching a property changes calculated_value, so it goes
+     * through the same payment-request rule as any other value write.
+     */
+    private function paymentRequestBlock(Request $request, Deal $deal): ?JsonResponse
+    {
+        $block = app(DealPaymentValueGuard::class)->check(
+            $deal,
+            true,
+            $request->boolean(DealPaymentValueGuard::CONFIRM_FLAG),
+            user()
+        );
+
+        return $block === null ? null : response()->json([
+            'status' => 'error',
+            'code' => $block['code'],
+            'message' => $block['message'],
+        ], $block['status']);
     }
 
     /**

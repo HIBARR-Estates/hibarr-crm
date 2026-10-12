@@ -18,15 +18,15 @@ export default function FileCard({
             onClick={onClick}
         >
             <div className="min-w-0">
-                <div className="truncate text-[13px] font-medium text-[#1a1f2e]">
+                <div className="truncate text-[13px] font-medium text-dr-text">
                     {name}
                 </div>
                 {uploadedAt && (
-                    <div className="text-[11px] text-[#9ca3af]">{uploadedAt}</div>
+                    <div className="text-[11px] text-dr-text-hint">{uploadedAt}</div>
                 )}
             </div>
             {sizeLabel && (
-                <span className="shrink-0 text-[11px] text-[#6b7280]">
+                <span className="shrink-0 text-[11px] text-dr-text-muted">
                     {sizeLabel}
                 </span>
             )}

@@ -21,13 +21,13 @@ export default function PasswordInput({ value, disabled, onChange, onBlur }: Pas
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
                 placeholder={td("Enter value…", { source: "en" })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors pr-10 disabled:opacity-40"
+                className="w-full bg-white border border-dr-border rounded-xl px-3 py-2.5 text-sm text-dr-text placeholder-dr-text-hint focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors pr-10 disabled:opacity-40"
             />
             <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShow((s) => !s)}
-                className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-3 text-dr-text-hint hover:text-dr-text-muted transition-colors"
                 aria-label={show ? "Hide password" : "Show password"}
             >
                 {show ? (

@@ -5,7 +5,7 @@ interface FloatingMenuOptions {
     gap?: number;
     maxHeight?: number;
     /**
-     * Must sit above portaled redesign modals (deal-redesign overlay is 1300).
+     * Must sit above portaled redesign modals (.redesign-modal-overlay is 1300).
      * Default 1500 so MenuSelect / pickers remain visible inside modals.
      */
     zIndex?: number;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { completeButtonState } from "./analysisProgress";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AnalysisStepsPanel from "./AnalysisStepsPanel";
 import AnalysisAnswersPanel from "./AnalysisAnswersPanel";
 import type { RailSectionGroup } from "./analysisRailItems";
@@ -129,7 +129,7 @@ export default function AnalysisRightRail({
                         // Green means "nothing required is outstanding" — optional
                         // empties are reported in the label, not the colour.
                         ...(ready
-                            ? { backgroundColor: "#10b981", color: "#fff" }
+                            ? { backgroundColor: "var(--dr-emerald)", color: "#fff" }
                             : {
                                   backgroundColor: T.AMBER_SOFT,
                                   color: T.AMBER,
@@ -187,7 +187,7 @@ function RailTab({
                         style={{
                             background: dark
                                 ? active
-                                    ? "#38bdf8"
+                                    ? "var(--dr-sky)"
                                     : "rgba(255,255,255,0.22)"
                                 : active
                                   ? T.NAVY
@@ -202,7 +202,7 @@ function RailTab({
             {active ? (
                 <span
                     className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full"
-                    style={{ background: dark ? "#38bdf8" : T.NAVY }}
+                    style={{ background: dark ? "var(--dr-sky)" : T.NAVY }}
                 />
             ) : null}
         </button>

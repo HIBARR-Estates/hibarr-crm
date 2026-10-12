@@ -295,6 +295,12 @@ export interface DeveloperProjectUnitType {
     display_label?: string;
     formatted_price?: string;
     currency_symbol?: string;
+    /** crm.property-completeness-score — listing-facing filled/total. */
+    completeness?: {
+        filled: number;
+        total: number;
+        percent: number;
+    };
 }
 export interface DeveloperProjectUnitTypeAsset {
     id: number;

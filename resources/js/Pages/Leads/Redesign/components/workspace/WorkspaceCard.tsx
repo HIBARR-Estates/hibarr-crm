@@ -21,10 +21,10 @@ export default function WorkspaceCard({
 }: WorkspaceCardProps) {
     return (
         <section
-            className="v2-workspace"
+            className="v2-workspace dr-workspace-card"
             style={{
                 background: "#fff",
-                border: "1px solid #e2e5ea",
+                border: "1px solid var(--dr-border)",
                 borderRadius: 12,
                 overflow: "hidden",
             }}
@@ -36,7 +36,9 @@ export default function WorkspaceCard({
                 showQualification={showQualification}
                 showExposes={showExposes}
             />
-            <div style={{ padding: 16 }}>{children}</div>
+            <div className="dr-workspace-tab-body" style={{ padding: 16 }}>
+                {children}
+            </div>
         </section>
     );
 }

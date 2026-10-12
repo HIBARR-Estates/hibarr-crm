@@ -7,6 +7,7 @@ import DashboardPanel, {
     PanelSkeleton,
 } from "../components/DashboardPanel";
 import StatTile from "../components/StatTile";
+import MultiStatTile from "../components/MultiStatTile";
 import StageFunnel from "../components/StageFunnel";
 import PartnerTrendChart from "../components/PartnerTrendChart";
 import ReferralTable from "../components/ReferralTable";
@@ -37,9 +38,10 @@ const COMMISSION_TONE: Record<string, string> = {
  * The whole referral book, and nothing else.
  *
  * External partners sit outside the trust boundary: no deal values, no client
- * contact details, nothing about other partners. That scoping is enforced in
- * DashboardMetricsService — the fields never reach this component — so there is
- * no forecast tile here either, since forecasting would need the deal values.
+ * contact details, no handling agent, nothing about other partners. That
+ * scoping is enforced in DashboardMetricsService — the fields never reach this
+ * component. A partner's per-lead deal values live on the My leads view
+ * (Partner/Leads), which has its own scoping.
  */
 export default function PartnerView({
     partnerStats,
@@ -59,7 +61,7 @@ export default function PartnerView({
                 data="partnerStats"
                 fallback={
                     <div style={tileGrid}>
-                        {Array.from({ length: 5 }).map((_, index) => (
+                        {Array.from({ length: 4 }).map((_, index) => (
                             <CardSkeleton key={index} height={96} />
                         ))}
                     </div>
@@ -67,19 +69,26 @@ export default function PartnerView({
             >
                 {partnerStats ? (
                     <div style={tileGrid}>
-                        <StatTile
-                            label="Referred"
-                            value={partnerStats.referredLeads}
-                        />
-                        <StatTile
-                            label="In progress"
-                            value={partnerStats.inProgressLeads}
-                            note="With an open deal"
-                        />
-                        <StatTile
-                            label="Completed"
-                            tone="green"
-                            value={partnerStats.convertedLeads}
+                        <MultiStatTile
+                            label="Referrals"
+                            variant="team"
+                            segments={[
+                                {
+                                    label: "Referred",
+                                    value: partnerStats.referredLeads,
+                                },
+                                {
+                                    label: "In progress",
+                                    value: partnerStats.inProgressLeads,
+                                    tone: "blue",
+                                },
+                                {
+                                    label: "Completed",
+                                    value: partnerStats.convertedLeads,
+                                    tone: "green",
+                                },
+                            ]}
+                            hint="In progress means the referral has an open deal"
                         />
                         <StatTile
                             label="Conversion"
@@ -176,21 +185,24 @@ export default function PartnerView({
                     alignItems: "start",
                 }}
             >
-                <DashboardPanel flush>
-                    <Deferred
-                        data="partnerReferrals"
-                        fallback={
-                            <div style={{ padding: 18 }}>
-                                <PanelSkeleton rows={5} />
-                            </div>
-                        }
-                    >
-                        <ReferralTable
-                            rows={partnerReferrals ?? []}
-                            onFlag={setFlagging}
-                        />
-                    </Deferred>
-                </DashboardPanel>
+                {/* Full row: the table has five columns and a Flag action, which a half-width panel clips. */}
+                <div style={{ gridColumn: "1 / -1", minWidth: 0 }}>
+                    <DashboardPanel flush>
+                        <Deferred
+                            data="partnerReferrals"
+                            fallback={
+                                <div style={{ padding: 18 }}>
+                                    <PanelSkeleton rows={5} />
+                                </div>
+                            }
+                        >
+                            <ReferralTable
+                                rows={partnerReferrals ?? []}
+                                onFlag={setFlagging}
+                            />
+                        </Deferred>
+                    </DashboardPanel>
+                </div>
 
                 <DashboardPanel
                     title="Commission ledger"
@@ -198,8 +210,7 @@ export default function PartnerView({
                     footer={
                         <span style={{ color: T.TEXT_MUTED, fontSize: 13 }}>
                             {td(
-                                "Totals come from recorded commissions only — nothing here is a projection.",
-                            )}
+                                "Totals come from recorded commissions only — nothing here is a projection.", { source: "en" })}
                         </span>
                     }
                 >
@@ -249,7 +260,7 @@ export default function PartnerView({
                                                     textTransform: "capitalize",
                                                 }}
                                             >
-                                                {td(status)}
+                                                {td(status, { source: "en" })}
                                             </span>
                                         </div>
                                         <span
@@ -275,7 +286,7 @@ export default function PartnerView({
                                     color: T.TEXT_MUTED,
                                 }}
                             >
-                                {td("No commissions recorded yet.")}
+                                {td("No commissions recorded yet.", { source: "en" })}
                             </p>
                         )}
                     </Deferred>
@@ -350,7 +361,7 @@ function Legend() {
                             borderRadius: 2,
                         }}
                     />
-                    {td(label)}
+                    {td(label, { source: "en" })}
                 </span>
             ))}
         </div>
@@ -364,8 +375,7 @@ function NoPartnerRecord() {
         <DashboardPanel title="No partner record linked to this account">
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
                 {td(
-                    "Referred leads are attributed through the agent record on your profile.",
-                )}
+                    "Referred leads are attributed through the agent record on your profile.", { source: "en" })}
             </p>
         </DashboardPanel>
     );

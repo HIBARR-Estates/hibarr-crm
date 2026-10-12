@@ -26,6 +26,7 @@ import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import useTranslation from "@/Hooks/useTranslation";
 import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 import useDealPermissions from "@/Hooks/useDealPermissions";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 interface Props {
     deal: Deal;
@@ -71,7 +72,7 @@ export default function DealTabs({
         setActiveTabState(key);
         const url = new URL(window.location.href);
         url.searchParams.set("tab", key);
-        window.history.replaceState({}, "", url.toString());
+        replaceUrlKeepingHistoryState(url);
     };
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
@@ -129,7 +130,7 @@ export default function DealTabs({
         if (permissions.view_lead_follow_up !== "none") {
             items.push({
                 key: "follow-up",
-                label: t("pages.deals.tabs.meeting"),
+                label: t("pages.deals.tabs.meetings"),
                 children: (
                     <FollowUpTab
                         deal={deal}

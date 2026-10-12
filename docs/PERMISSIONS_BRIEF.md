@@ -1,5 +1,7 @@
 # Permission Changes — Brief
 
+See also [ACCESS.md](ACCESS.md) for the unified permission + feature-flag checker (OS-portable shape).
+
 ## What changed
 
 Four features were gated behind a single overloaded permission, `edit_product`/`edit_products` (originally "Sales Manager" property/product editing). Any role with that permission got Partner Network admin, Offers admin, Property admin, *and* publish-request approval as a bundle — you couldn't grant one without the others.

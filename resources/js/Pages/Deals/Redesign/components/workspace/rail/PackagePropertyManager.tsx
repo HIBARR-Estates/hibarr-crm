@@ -11,11 +11,14 @@ import usePipelineHasPackages from "../../../hooks/usePipelineHasPackages";
 import useSinglePackageMode from "../../../hooks/useSinglePackageMode";
 import type { Deal } from "@/Types/api/deals";
 import { propertyDisplayName } from "../../../adapters/propertyDisplay";
-import DealIcon from "../../primitives/DealIcon";
-import DealMenuSelect from "../../primitives/DealMenuSelect";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import useDealPackages from "../../../hooks/useDealPackages";
-import { useDealWorkspace } from "../../../context/DealWorkspaceContext";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import {
+    PaymentInvalidationCancelled,
+    useDealWorkspace,
+} from "../../../context/DealWorkspaceContext";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 interface PackageOption {
     id: number;
@@ -42,7 +45,7 @@ export default function PackagePropertyManager({
     const { t } = useTranslation();
     const permissions = useDealPermissions(deal);
     const { addPackage, removePackage, saving } = useDealPackages(deal);
-    const { setDeal } = useDealWorkspace();
+    const { setDeal, withPaymentInvalidation } = useDealWorkspace();
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [removingProductId, setRemovingProductId] = useState<number | null>(
@@ -67,15 +70,22 @@ export default function PackagePropertyManager({
         async (productId: number) => {
             setRemovingProductId(productId);
             try {
-                await axios.delete(
-                    route("deals.properties.destroy", [deal.id, productId]),
+                // Detaching changes the calculated value — warn about an
+                // unpaid payment request first.
+                await withPaymentInvalidation((flags) =>
+                    axios.delete(
+                        route("deals.properties.destroy", [deal.id, productId]),
+                        { params: flags },
+                    ),
                 );
                 await refreshDeal();
+            } catch (error) {
+                if (!(error instanceof PaymentInvalidationCancelled)) throw error;
             } finally {
                 setRemovingProductId(null);
             }
         },
-        [deal.id, refreshDeal],
+        [deal.id, refreshDeal, withPaymentInvalidation],
     );
 
     const packages = deal.packages ?? [];
@@ -150,7 +160,7 @@ export default function PackagePropertyManager({
                         borderColor: T.AMBER_MID,
                     }}
                 >
-                    <DealIcon
+                    <Icon
                         name="info"
                         size={13}
                         className="mt-0.5 shrink-0"
@@ -179,7 +189,7 @@ export default function PackagePropertyManager({
                                     className="normal-case"
                                     style={{ display: "flex" }}
                                 >
-                                    <DealIcon name="lock" size={11} />
+                                    <Icon name="lock" size={11} />
                                 </span>
                             </Tooltip>
                         )}
@@ -204,7 +214,7 @@ export default function PackagePropertyManager({
                                         border: `1px solid ${T.BORDER}`,
                                     }}
                                 >
-                                    <DealIcon
+                                    <Icon
                                         name="briefcase"
                                         size={12}
                                         color={T.TEXT_MUTED}
@@ -244,7 +254,7 @@ export default function PackagePropertyManager({
                     )}
                     {showPackageAdd && (
                         <div className="mb-2">
-                            <DealMenuSelect
+                            <MenuSelect
                                 value={null}
                                 placeholder={`+ ${t("pages.deals.dossier.add_package")}`}
                                 size="sm"
@@ -285,7 +295,7 @@ export default function PackagePropertyManager({
                                     className="normal-case"
                                     style={{ display: "flex" }}
                                 >
-                                    <DealIcon name="lock" size={11} />
+                                    <Icon name="lock" size={11} />
                                 </span>
                             </Tooltip>
                         )}
@@ -317,7 +327,7 @@ export default function PackagePropertyManager({
                                         border: `1px solid ${T.BORDER}`,
                                     }}
                                 >
-                                    <DealIcon
+                                    <Icon
                                         name="building"
                                         size={12}
                                         color={T.TEXT_MUTED}

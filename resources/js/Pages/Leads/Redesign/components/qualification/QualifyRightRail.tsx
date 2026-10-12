@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Segment, SegmentAnswerState } from "@/Types/qualification";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { hasAnswerContent } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import QualifySegmentNavigator from "./QualifySegmentNavigator";
 import QualifyAnswersPanel from "./QualifyAnswersPanel";
 
@@ -145,7 +145,7 @@ function RailTab({
                         style={{
                             background: dark
                                 ? active
-                                    ? "#38bdf8"
+                                    ? "var(--dr-sky)"
                                     : "rgba(255,255,255,0.22)"
                                 : active
                                   ? T.NAVY
@@ -161,7 +161,7 @@ function RailTab({
                 <span
                     className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full"
                     style={{
-                        background: dark ? "#38bdf8" : T.NAVY,
+                        background: dark ? "var(--dr-sky)" : T.NAVY,
                     }}
                 />
             ) : null}

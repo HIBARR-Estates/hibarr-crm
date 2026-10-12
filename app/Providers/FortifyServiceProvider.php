@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\App;
 use App\Actions\Fortify\CreateNewUser;
 use Illuminate\Support\ServiceProvider;
 use App\Actions\Fortify\UpdateUserPassword;
+use Inertia\Inertia;
+use App\Support\KeycloakLogout;
 use Laravel\Fortify\Contracts\LogoutResponse;
 use App\Actions\Fortify\AttemptToAuthenticate;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +40,26 @@ class FortifyServiceProvider extends ServiceProvider
             public function toResponse($request)
             {
                 session()->flush();
-                return redirect()->route('login');
+
+                // Also end the Keycloak SSO session, otherwise the next
+                // "Sign in with Keycloak" click logs the user straight back in.
+                $ssoLogoutUrl = $request->attributes->get(KeycloakLogout::REQUEST_ATTRIBUTE);
+
+                if (! $ssoLogoutUrl) {
+                    return $request->wantsJson()
+                        ? response()->json(['status' => 'success', 'action' => 'redirect', 'url' => route('login')])
+                        : redirect()->route('login');
+                }
+
+                if ($request->header('X-Inertia')) {
+                    return Inertia::location($ssoLogoutUrl);
+                }
+
+                if ($request->wantsJson()) {
+                    return response()->json(['status' => 'success', 'action' => 'redirect', 'url' => $ssoLogoutUrl]);
+                }
+
+                return redirect()->away($ssoLogoutUrl);
             }
 
         });

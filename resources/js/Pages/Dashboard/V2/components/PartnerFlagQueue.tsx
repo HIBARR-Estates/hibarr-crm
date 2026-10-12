@@ -20,7 +20,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
     if (!rows.length) {
         return (
             <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td("No partner has flagged a referral.")}
+                {td("No partner has flagged a referral.", { source: "en" })}
             </p>
         );
     }
@@ -63,7 +63,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                     >
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 14, fontWeight: 600 }}>
-                                {row.partner ?? td("A partner")}
+                                {row.partner ?? td("A partner", { source: "en" })}
                                 <span
                                     style={{
                                         fontWeight: 400,
@@ -71,7 +71,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                                     }}
                                 >
                                     {" · "}
-                                    {row.client ?? td("their referral")}
+                                    {row.client ?? td("their referral", { source: "en" })}
                                 </span>
                             </div>
                             <div
@@ -81,7 +81,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                                     marginTop: 2,
                                 }}
                             >
-                                {td(row.reason.replace(/_/g, " "))}
+                                {td(row.reason.replace(/_/g, " "), { source: "en" })}
                                 {row.message ? ` · "${row.message}"` : ""}
                             </div>
                         </div>
@@ -99,7 +99,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                             style={{ flex: "none" }}
                             onClick={() => setAnswering(row)}
                         >
-                            {td("Respond")}
+                            {td("Respond", { source: "en" })}
                         </button>
                     </div>
                 ))}
@@ -109,7 +109,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                 <Modal
                     open
                     onClose={() => setAnswering(null)}
-                    title={td("Respond to the partner")}
+                    title={td("Respond to the partner", { source: "en" })}
                     footer={
                         <>
                             <button
@@ -117,7 +117,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                                 className="dr-btn dr-btn-ghost"
                                 onClick={() => setAnswering(null)}
                             >
-                                {td("Cancel")}
+                                {td("Cancel", { source: "en" })}
                             </button>
                             <button
                                 type="button"
@@ -125,12 +125,12 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                                 disabled={saving || !response.trim()}
                                 onClick={submit}
                             >
-                                {td("Send response")}
+                                {td("Send response", { source: "en" })}
                             </button>
                         </>
                     }
                 >
-                    <ModalField label={td("Your response")}>
+                    <ModalField label={td("Your response", { source: "en" })}>
                         <textarea
                             className="dr-input"
                             rows={4}
@@ -139,8 +139,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                             value={response}
                             onChange={(event) => setResponse(event.target.value)}
                             placeholder={td(
-                                "What has happened, and what happens next",
-                            )}
+                                "What has happened, and what happens next", { source: "en" })}
                         />
                     </ModalField>
                     <p
@@ -152,8 +151,7 @@ export default function PartnerFlagQueue({ rows }: { rows: PartnerFlagRow[] }) {
                         }}
                     >
                         {td(
-                            "The partner sees this on their dashboard. The assigned agent is not notified.",
-                        )}
+                            "The partner sees this on their dashboard. The assigned agent is not notified.", { source: "en" })}
                     </p>
                 </Modal>
             )}

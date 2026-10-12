@@ -26,8 +26,14 @@ export default function useDealOffers(dealId: number, enabled = true) {
     // The endpoint removes every offer on the deal and returns no payload to
     // read back, so the post-delete state is known outright — write it to the
     // cache directly instead of firing a second request to reload it.
-    const { mutate: removeAllOffers, isPending: isRemovingAllOffers } =
-        useApiMutate<undefined, unknown, ApiResponse<unknown>>(
+    // Payload carries only the optional payment-request invalidation flag
+    // (removing discounts changes the deal value).
+    const {
+        mutate: removeAllOffers,
+        mutateAsync: removeAllOffersAsync,
+        isPending: isRemovingAllOffers,
+    } =
+        useApiMutate<Record<string, boolean> | undefined, unknown, ApiResponse<unknown>>(
             route("deals.offers.remove", dealId),
             "DELETE",
             (response) => {
@@ -57,6 +63,7 @@ export default function useDealOffers(dealId: number, enabled = true) {
         hasOffers: applications.length > 0,
         refetch,
         removeAllOffers,
+        removeAllOffersAsync,
         isRemovingAllOffers,
     };
 }

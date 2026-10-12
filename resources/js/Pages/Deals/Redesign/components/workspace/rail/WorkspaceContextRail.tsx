@@ -9,10 +9,10 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../../hooks/useDealDocumentUpload";
-import DealAvatar from "../../primitives/DealAvatar";
-import DealIcon from "../../primitives/DealIcon";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import DealDocumentSlotRow from "../DealDocumentSlotRow";
-import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
 import DealPaymentPanel from "../DealPaymentPanel";
 import { initialsFromName } from "../../../adapters/initials";
@@ -160,16 +160,16 @@ export default function WorkspaceContextRail({
                             href={leadUrl ?? "#"}
                             className="mb-2.5 flex items-center gap-2.5 text-inherit no-underline"
                         >
-                            <DealAvatar
+                            <Avatar
                                 size={34}
                                 initials={initialsFromName(leadName)}
                                 src={leadPhotoUrl}
                             />
                             <div>
-                                <div className="text-sm font-semibold text-[#1a1f2e]">
+                                <div className="text-sm font-semibold text-dr-text">
                                     {leadName}
                                 </div>
-                                <div className="text-xs text-[#5b6472]">
+                                <div className="text-xs text-dr-text-muted">
                                     {t("pages.deals.dossier.lead_contact")}
                                 </div>
                             </div>
@@ -178,9 +178,9 @@ export default function WorkspaceContextRail({
                             <button
                                 type="button"
                                 onClick={copyEmail}
-                                className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8]"
+                                className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-dr-text-muted hover:bg-dr-gray"
                             >
-                                <DealIcon name="mail" size={12} />
+                                <Icon name="mail" size={12} />
                                 <span className="min-w-0 flex-1 truncate">{email}</span>
                                 <span
                                     className="ml-auto flex items-center gap-1 text-[12px] font-semibold"
@@ -200,9 +200,9 @@ export default function WorkspaceContextRail({
                                     onClick={() =>
                                         void initiateCall(phone, dealCallEntity)
                                     }
-                                    className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8] disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-dr-text-muted hover:bg-dr-gray disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    <DealIcon name="phone" size={12} />
+                                    <Icon name="phone" size={12} />
                                     <span className="min-w-0 flex-1 truncate">
                                         {phone}
                                     </span>
@@ -214,8 +214,8 @@ export default function WorkspaceContextRail({
                                     </span>
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-1.5 rounded px-0 py-2 text-xs text-[#5b6472]">
-                                    <DealIcon name="phone" size={12} />
+                                <div className="flex items-center gap-1.5 rounded px-0 py-2 text-xs text-dr-text-muted">
+                                    <Icon name="phone" size={12} />
                                     <span className="min-w-0 flex-1 truncate">
                                         {phone}
                                     </span>
@@ -223,8 +223,8 @@ export default function WorkspaceContextRail({
                             )
                         )}
                         {leadSource && (
-                            <div className="flex items-center gap-1.5 px-0 py-2 text-xs text-[#5b6472]">
-                                <DealIcon name="info" size={12} />
+                            <div className="flex items-center gap-1.5 px-0 py-2 text-xs text-dr-text-muted">
+                                <Icon name="info" size={12} />
                                 <span className="min-w-0 flex-1 truncate">
                                     {t("pages.deals.info.fields.lead_source")}:{" "}
                                     {leadSource}
@@ -232,10 +232,10 @@ export default function WorkspaceContextRail({
                             </div>
                         )}
                         {leadUrl && (
-                            <div className="mt-2 border-t border-[#eef0f3] pt-2 text-right">
+                            <div className="mt-2 border-t border-dr-border-soft pt-2 text-right">
                                 <a
                                     href={leadUrl}
-                                    className="text-xs font-semibold text-[#1a6bb5] no-underline"
+                                    className="text-xs font-semibold text-dr-blue no-underline"
                                 >
                                     {t("pages.deals.dossier.view_lead_profile")}
                                 </a>
@@ -275,7 +275,7 @@ export default function WorkspaceContextRail({
                 body: (
                     <div>
                         {documentSlots.length === 0 ? (
-                            <p className="py-2 text-xs italic text-[#9ca3af]">
+                            <p className="py-2 text-xs italic text-dr-text-hint">
                                 {t("pages.deals.dossier.no_document_slots")}
                             </p>
                         ) : (
@@ -323,13 +323,13 @@ export default function WorkspaceContextRail({
     return (
         <aside aria-label={t("pages.deals.dossier.aria_label")}>
             <div className="mb-1 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-bold text-[#1a1f2e]">
+                <h2 className="text-sm font-bold text-dr-text">
                     {t("pages.deals.dossier.title")}
                 </h2>
                 <button
                     type="button"
                     onClick={onSwitchToDealInfo}
-                    className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
+                    className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-dr-blue"
                 >
                     {t("pages.deals.dossier.open_deal_info")}
                 </button>
@@ -350,7 +350,7 @@ export default function WorkspaceContextRail({
                             type="button"
                             onClick={() => toggle(section.title)}
                             aria-expanded={isOpen}
-                            className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent py-3 text-left text-[#1a1f2e]"
+                            className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent py-3 text-left text-dr-text"
                         >
                             <span className="dr-label flex-1">
                                 {t(
@@ -358,12 +358,12 @@ export default function WorkspaceContextRail({
                                 )}
                             </span>
                             {!isOpen && (
-                                <span className="max-w-[140px] truncate text-xs font-medium text-[#5b6472]">
+                                <span className="max-w-[140px] truncate text-xs font-medium text-dr-text-muted">
                                     {section.summary}
                                 </span>
                             )}
-                            <span className="flex text-[#5b6472]" aria-hidden="true">
-                                <DealIcon
+                            <span className="flex text-dr-text-muted" aria-hidden="true">
+                                <Icon
                                     name={isOpen ? "chevron-up" : "chevron-down"}
                                     size={14}
                                 />

@@ -5,6 +5,8 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
     isVideoPlatform,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { meetingPlatformColor } from "@/Components/Redesign/tokens";
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -168,16 +170,7 @@ export function platformIconName(location: string): string {
  * provider's own product does. Falls back to a neutral gray for phone/on-site.
  */
 export function platformChipColor(location: string): string {
-    const colors: Record<string, string> = {
-        zoom: "#2D8CFF",
-        teams: "#5059C9",
-        zoho: "#C8202A",
-        zoho_meet: "#C8202A",
-        meet: "#00897B",
-        google_meet: "#00897B",
-        skype: "#00AFF0",
-    };
-    return colors[location] ?? "#9CA3AF";
+    return meetingPlatformColor(location);
 }
 
 /**

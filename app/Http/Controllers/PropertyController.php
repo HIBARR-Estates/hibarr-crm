@@ -28,6 +28,8 @@ use App\Helper\Files;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use App\Services\UnitTypePropertyTransformer;
+use App\Services\PropertyCompletenessScorer;
+use App\Support\FeatureFlags;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\DeveloperProject;
 use App\Models\Deal;
@@ -218,6 +220,17 @@ class PropertyController extends AccountBaseController
         $perPage = max(1, min(100, $perPage));
 
         $properties = $query->paginate($perPage);
+
+        if (FeatureFlags::enabled(PropertyCompletenessScorer::FLAG)) {
+            $scorer = app(PropertyCompletenessScorer::class);
+            $properties->getCollection()->transform(function ($item) use ($scorer) {
+                if ($item instanceof Property) {
+                    $item->setAttribute('completeness', $scorer->scoreProperty($item));
+                }
+
+                return $item;
+            });
+        }
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -577,6 +590,13 @@ class PropertyController extends AccountBaseController
             ->where('requesting_agent_id', $currentUser->id)
             ->pending()
             ->exists();
+
+        if (FeatureFlags::enabled(PropertyCompletenessScorer::FLAG)) {
+            $this->property->setAttribute(
+                'completeness',
+                app(PropertyCompletenessScorer::class)->scoreProperty($this->property)
+            );
+        }
 
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
@@ -2030,6 +2050,11 @@ class PropertyController extends AccountBaseController
 
         $employees = User::allEmployees();
 
+        $completeness = null;
+        if (FeatureFlags::enabled(PropertyCompletenessScorer::FLAG)) {
+            $completeness = app(PropertyCompletenessScorer::class)->scoreUnitType($unitType);
+        }
+
         return Inertia::render('Properties/UnitTypeShow', [
             'pageTitle' => $unitType->display_label . ' — ' . ($project->name ?? 'Unit Type'),
             'unitType' => $unitType,
@@ -2039,6 +2064,7 @@ class PropertyController extends AccountBaseController
             'soldPropertyIds' => $soldProperties->pluck('id')->values()->all(),
             'deals' => $deals,
             'employees' => $employees,
+            'completeness' => $completeness,
         ]);
     }
 

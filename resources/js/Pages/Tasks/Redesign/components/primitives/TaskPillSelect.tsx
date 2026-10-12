@@ -135,7 +135,7 @@ export default function TaskPillSelect({
                     padding: "7px 13px",
                     borderRadius: 6,
                     fontSize: 15,
-                    fontWeight: 600,
+                    fontWeight: selected ? 600 : 500,
                     // Descenders (g, y, p) clip without explicit leading.
                     lineHeight: 1.5,
                     background: selected ? selected.bg : T.WHITE,

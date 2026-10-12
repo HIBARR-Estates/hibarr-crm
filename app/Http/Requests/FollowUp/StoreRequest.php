@@ -30,6 +30,7 @@ class StoreRequest extends CoreRequest
             'participants' => 'nullable|array',
             'participants.*' => 'required_with:participants|integer|exists:users,id',
             'duration' => 'nullable|integer|min:1|max:600',
+            'source_email_message_id' => 'nullable|uuid',
             'timezone' => [
                 'nullable',
                 'string',

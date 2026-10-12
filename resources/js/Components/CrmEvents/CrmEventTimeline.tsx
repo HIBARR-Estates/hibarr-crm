@@ -67,7 +67,7 @@ export default function CrmEventTimeline({
         isRefetching,
         refetch,
     } = useApiQuery<CrmEventsIndexResponse>({
-        path: "/api/v1/crm-events",
+        path: route("crm-events.feed"),
         params: {
             model_type: modelType,
             model_id: modelId,

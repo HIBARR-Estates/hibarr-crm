@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { FormField } from "./AnalysisCustomFieldForm";
 import AnalysisQuestionRow from "./AnalysisQuestionRow";
 import type { AnalysisFlatStep } from "./analysisProgress";
@@ -66,7 +66,7 @@ function StepFooter({
             {required && (
                 <span
                     className="font-semibold"
-                    style={{ color: answered || marked ? "#059669" : "#b45309" }}
+                    style={{ color: answered || marked ? "#059669" : T.AMBER_TEXT }}
                 >
                     {answered
                         ? `${td("Required", { source: "en" })} · ${td("answered", { source: "en" })}`
@@ -85,7 +85,7 @@ function StepFooter({
                         type="button"
                         onClick={() => onToggle(stepKey, !marked)}
                         className={link}
-                        style={{ color: marked ? "#b45309" : T.TEXT_MUTED }}
+                        style={{ color: marked ? T.AMBER_TEXT : T.TEXT_MUTED }}
                     >
                         {marked
                             ? `${td("No answer provided", { source: "en" })} — ${td("undo", { source: "en" })}`
@@ -127,18 +127,18 @@ function SectionHeading({
         <div data-section-id={section.id} className="mb-3 mt-8 first:mt-0">
             <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0 pr-4">
-                    <h2 className="text-base font-semibold text-slate-900 leading-snug">
+                    <h2 className="text-base font-semibold text-dr-text leading-snug">
                         {section.title}
                     </h2>
                     {section.guideText && (
-                        <p className="text-xs mt-0.5 leading-relaxed text-slate-500">
+                        <p className="text-xs mt-0.5 leading-relaxed text-dr-text-muted">
                             {section.guideText}
                         </p>
                     )}
                 </div>
                 {total > 0 && (
                     <div className="shrink-0 flex items-center gap-2 mt-0.5">
-                        <span className="text-xs tabular-nums text-slate-500">
+                        <span className="text-xs tabular-nums text-dr-text-muted">
                             {filled}/{total}
                         </span>
                         <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
@@ -146,7 +146,7 @@ function SectionHeading({
                                 className="h-full rounded-full transition-all duration-500"
                                 style={{
                                     width: `${pct}%`,
-                                    backgroundColor: pct === 100 ? "#10b981" : "#38bdf8",
+                                    backgroundColor: pct === 100 ? "var(--dr-emerald)" : "var(--dr-sky)",
                                 }}
                             />
                         </div>

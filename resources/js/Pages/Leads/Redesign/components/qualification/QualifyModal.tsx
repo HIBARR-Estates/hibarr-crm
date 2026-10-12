@@ -36,7 +36,7 @@ import {
     hashDynamicText,
     normalizeDynamicText,
 } from "@/lib/dynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AnalysisHeaderBar from "@/Pages/Deals/Redesign/components/analysis/AnalysisHeaderBar";
 import QualifySegmentBody from "./QualifySegmentBody";
 import QualifyFooter from "./QualifyFooter";
@@ -294,7 +294,7 @@ function TranslationGate({
         <div className="analysis-translation-gate" role="status" aria-live="polite">
             <div className="analysis-translation-gate-card">
                 <div
-                    className="h-9 w-9 animate-spin rounded-full border-[3px] border-solid border-slate-200 border-t-slate-700"
+                    className="h-9 w-9 animate-spin rounded-full border-[3px] border-solid border-dr-border border-t-slate-700"
                     aria-hidden
                 />
                 <div>
@@ -441,7 +441,7 @@ export default function QualifyModal(props: QualifyModalProps) {
                     leadName={leadName}
                     onMinimize={props.onClose}
                 >
-                    <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
+                    <div className="flex flex-1 min-h-0 items-center justify-center bg-dr-surface-2">
                         <div className="text-center px-6">
                             {!props.qualification || props.treeLoading ? (
                                 <div
@@ -449,7 +449,7 @@ export default function QualifyModal(props: QualifyModalProps) {
                                     aria-hidden
                                 />
                             ) : null}
-                            <p className="m-0 text-sm text-slate-600">
+                            <p className="m-0 text-sm text-dr-text-muted">
                                 {statusText}
                             </p>
                         </div>
@@ -777,11 +777,11 @@ function QualifyModalContent({
 
                     <div className="analysis-3col-center">
                         {inOutcome ? (
-                            <div className="flex-1 min-h-0 flex flex-col bg-slate-50">
+                            <div className="flex-1 min-h-0 flex flex-col bg-dr-surface-2">
                                 <div
-                                    className="shrink-0 px-6 pt-4 pb-3 bg-slate-50"
+                                    className="shrink-0 px-6 pt-4 pb-3 bg-dr-surface-2"
                                     style={{
-                                        borderBottom: "1px solid #e2e8f0",
+                                        borderBottom: "1px solid var(--dr-border)",
                                     }}
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
@@ -808,8 +808,8 @@ function QualifyModalContent({
                                                 width: `${progressPct}%`,
                                                 backgroundColor:
                                                     progressPct === 100
-                                                        ? "#10b981"
-                                                        : "#38bdf8",
+                                                        ? "var(--dr-emerald)"
+                                                        : "var(--dr-sky)",
                                             }}
                                         />
                                     </div>
@@ -835,11 +835,11 @@ function QualifyModalContent({
                             </div>
                         ) : (
                             <>
-                                <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
+                                <div className="flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
                                     <div
-                                        className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-slate-50/95 backdrop-blur-sm"
+                                        className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
                                         style={{
-                                            borderBottom: "1px solid #e2e8f0",
+                                            borderBottom: "1px solid var(--dr-border)",
                                         }}
                                     >
                                         <div className="flex items-center justify-between mb-1.5">
@@ -866,13 +866,13 @@ function QualifyModalContent({
                                                     width: `${progressPct}%`,
                                                     backgroundColor:
                                                         progressPct === 100
-                                                            ? "#10b981"
-                                                            : "#38bdf8",
+                                                            ? "var(--dr-emerald)"
+                                                            : "var(--dr-sky)",
                                                 }}
                                             />
                                         </div>
                                         {templateTree.name ? (
-                                            <p className="mt-2 text-[11px] text-slate-400 truncate">
+                                            <p className="mt-2 text-[11px] text-dr-text-hint truncate">
                                                 {templateTree.name}
                                             </p>
                                         ) : null}
@@ -891,7 +891,7 @@ function QualifyModalContent({
                                                 }
                                             />
                                         ) : (
-                                            <p className="text-sm text-slate-400">
+                                            <p className="text-sm text-dr-text-hint">
                                                 {td(
                                                     "No steps available for this template.",
                                                     { source: "en" },

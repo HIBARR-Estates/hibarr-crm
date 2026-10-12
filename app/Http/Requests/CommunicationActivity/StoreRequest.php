@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\CommunicationActivity;
 
+use App\Support\RequestCompany;
 use Illuminate\Foundation\Http\FormRequest;
 
 
@@ -14,9 +15,8 @@ class StoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // The route middleware (api.token / api.token.or.session) sets X-COMPANY-ID
-        // from the API token or the signed-in user; without it there's no tenant.
-        return filled($this->header('X-COMPANY-ID'));
+        // Session user or API token company — never a bare client header.
+        return RequestCompany::id($this) !== null;
     }
 
     /**

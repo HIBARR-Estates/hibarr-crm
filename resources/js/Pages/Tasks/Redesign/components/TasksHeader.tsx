@@ -1,6 +1,9 @@
 import { ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    REDESIGN_BUTTON_TOKENS as B,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign/tokens";
 import { TASK_ICON } from "../config/taskDesignTokens";
 import { TaskGlyph } from "./primitives/TaskGlyphs";
 
@@ -56,7 +59,7 @@ export default function TasksHeader({
                     borderRadius: 6,
                     border: "none",
                     fontSize: 14,
-                    fontWeight: 600,
+                    fontWeight: active ? 600 : 500,
                     cursor: "pointer",
                     background: active ? T.WHITE : "transparent",
                     color: active ? T.NAVY : T.TEXT_MUTED,
@@ -118,7 +121,7 @@ export default function TasksHeader({
                         color: T.TEXT_MUTED,
                         border: `1px solid ${T.BORDER}`,
                         fontSize: 15,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         cursor: refreshing ? "default" : "pointer",
                         opacity: refreshing ? 0.6 : 1,
                     }}
@@ -142,7 +145,7 @@ export default function TasksHeader({
                             color: T.TEXT_MUTED,
                             border: `1px solid ${T.BORDER}`,
                             fontSize: 15,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             cursor: "pointer",
                         }}
                     >
@@ -181,9 +184,9 @@ export default function TasksHeader({
                         style={{
                             padding: "9px 16px",
                             borderRadius: 8,
-                            background: T.BLUE,
-                            color: T.WHITE,
-                            border: `1px solid ${T.BLUE}`,
+                            background: B.PRIMARY_BG,
+                            color: B.PRIMARY_TEXT,
+                            border: `1px solid ${B.PRIMARY_BG}`,
                             fontSize: 15,
                             fontWeight: 600,
                             cursor: "pointer",

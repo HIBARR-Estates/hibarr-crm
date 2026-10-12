@@ -9,8 +9,8 @@ import {
     getTimelineStatusLabel,
     getTimelineStatusTone,
 } from "../../adapters/timelineAdapter";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealIcon from "../primitives/DealIcon";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import Icon from "@/Components/Redesign/primitives/Icon";
 
 const DOT_COLORS = {
     agent: T.GREEN,
@@ -152,7 +152,7 @@ export default function DealTimelineEventRow({
                                     cursor: "pointer",
                                 }}
                             >
-                                <DealIcon name="edit" size={13} />
+                                <Icon name="edit" size={13} />
                             </button>
                             <button
                                 type="button"
@@ -172,7 +172,7 @@ export default function DealTimelineEventRow({
                                     cursor: "pointer",
                                 }}
                             >
-                                <DealIcon name="trash" size={13} />
+                                <Icon name="trash" size={13} />
                             </button>
                         </span>
                     )}
