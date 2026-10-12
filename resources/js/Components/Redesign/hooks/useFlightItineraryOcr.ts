@@ -33,7 +33,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 /**
  * Uploads a flight ticket image to the OL flight-itinerary OCR endpoint
- * (MIX_OL_BASE_URL / MIX_OL_API_KEY) and polls until recognition completes.
+ * (OL_BASE_URL / OL_API_KEY) and polls until recognition completes.
  */
 export default function useFlightItineraryOcr() {
     const [scanState, setScanState] = useState<OcrScanState>("idle");

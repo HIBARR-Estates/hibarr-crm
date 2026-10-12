@@ -194,7 +194,7 @@ export class FileUploadService implements IFileUploadService {
 
         if (!this.config.apiKey?.trim()) {
             throw new FileUploadError(
-                "File upload API key is not configured. Set MIX_FILE_UPLOAD_API_KEY in .env and restart the Vite dev server.",
+                "File upload API key is not configured. Set OL_API_KEY in .env and restart the Vite dev server.",
                 file.name,
             );
         }

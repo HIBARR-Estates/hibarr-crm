@@ -1,5 +1,20 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| The one OL credential
+|--------------------------------------------------------------------------
+|
+| Resolved once, here, and referenced by every service that talks to OL.
+| Nothing else in this file (or in file_storage.php) names an OL host or key:
+| they read these, so a key is rotated in exactly one place. The literal
+| below is the only hardcoded OL URL in the application.
+|
+*/
+$olBaseUrl = env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1');
+$olApiKey = env('OL_API_KEY');
+$olTimeout = (int) env('OL_API_TIMEOUT', 15);
+
 return [
 
     /*
@@ -88,9 +103,10 @@ return [
     ],
 
     'dynamic_translation' => [
-        'base_url' => env('DYNAMIC_TRANSLATION_BASE_URL', ''),
-        'timeout' => (int) env('DYNAMIC_TRANSLATION_TIMEOUT', 30),
-        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY'),
+        // Same host and same application key as `ol`; only the timeout is its own.
+        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', $olBaseUrl),
+        'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', $olTimeout),
+        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', $olApiKey),
     ],
 
     'notification_service' => [
@@ -116,11 +132,12 @@ return [
     ],
 
     'ai' => [
-        'base_url' => env('AI_BASE_URL', ''),
+        // Same host and key as `ol`; only the model and timeout are its own.
+        'base_url' => $olBaseUrl,
         'timeout'  => (int) env('AI_TIMEOUT', 45),
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
-        'api_key'  => env('AI_API_KEY'),
+        'api_key'  => $olApiKey,
     ],
 
     'ol_webhook' => [
