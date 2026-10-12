@@ -25,6 +25,13 @@ class PartnerFlag extends BaseModel
 {
     use HasCompany;
 
+    /**
+     * When on: partner flags also reach everyone holding manage_partner_flags
+     * (not just admins), and the email links somewhere the recipient can open.
+     * Off by default; off means exactly the earlier behaviour.
+     */
+    public const ROUTING_FLAG = 'crm.partner-flag-routing';
+
     public const STATUS_OPEN = 'open';
 
     public const STATUS_ACKNOWLEDGED = 'acknowledged';

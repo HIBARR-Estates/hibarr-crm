@@ -54,6 +54,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => auth()->user() ? $this->getUserWithLeadAgentId() : null,
                 'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
                 'modules' => function_exists('user_modules') ? user_modules() : [],
+                'isPartnerOnly' => \App\Support\PartnerRole::isPartnerOnly(auth()->user()),
             ],
             'default_currency_symbol' => fn() => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn() => $this->getDefaultCurrencyCode(),

@@ -1,0 +1,15 @@
+/* List layout — rows sit inside one bordered card (same as Meetings), so the
+   last divider would double up with the card's own border. */
+.dr-partner-lead-row {
+    transition: background-color 120ms ease;
+}
+
+.dr-partner-lead-row:last-child {
+    border-bottom: none;
+}
+
+.dr-partner-lead-row:hover,
+.dr-partner-lead-row:focus-visible {
+    background: var(--dr-surface-2);
+    outline: none;
+}

@@ -217,7 +217,7 @@ return [
                 'manager' => 'Tüm aktif temsilcilerin durumu.',
                 'team' => 'Altınızdaki herkesin komisyon, anlaşma ve leadleri — kendi aktiviteniz hariç.',
                 'leadership' => 'Tüm ekiplerde şirket genelindeki hareket.',
-                'partner' => 'Yalnızca yönlendirmeleriniz — anlaşma değerleri yok.',
+                'partner' => 'Yalnızca yönlendirmeleriniz.',
             ],
             'period' => [
                 'past_week' => 'Geçen hafta',

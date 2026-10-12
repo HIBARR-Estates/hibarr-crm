@@ -236,7 +236,7 @@ return [
                 'manager' => 'So stehen alle aktiven Agenten da.',
                 'team' => 'Provisionen, Deals und Leads aller unter Ihnen — ohne Ihre eigene Aktivität.',
                 'leadership' => 'Unternehmensweite Entwicklung über alle Teams hinweg.',
-                'partner' => 'Nur Ihre Empfehlungen — ohne Deal-Werte.',
+                'partner' => 'Nur Ihre Empfehlungen.',
             ],
             'period' => [
                 'past_week' => 'Letzte Woche',
