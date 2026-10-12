@@ -48,6 +48,7 @@ export type NotificationIcon =
     | "shift"
     | "promotion"
     | "reminder"
+    | "mail"
     | "bell";
 
 /**

@@ -45,6 +45,7 @@ import {
     CommentOutlined,
     ScheduleOutlined,
     RiseOutlined,
+    MailOutlined,
 } from "@ant-design/icons";
 import { Head, router } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -97,6 +98,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
         reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
+        mail: <MailOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -132,6 +134,7 @@ const getIconBackground = (icon: NotificationIcon, isRead: boolean): string => {
         shift: "bg-orange-100",
         promotion: "bg-green-100",
         reminder: "bg-blue-100",
+        mail: "bg-blue-100",
         bell: "bg-gray-100",
     };
 

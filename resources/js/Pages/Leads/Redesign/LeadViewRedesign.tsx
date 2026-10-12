@@ -73,15 +73,9 @@ import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
 import DossierQuickActions from "./components/dossier/DossierQuickActions";
-import ComposerEntryModal from "@/Email/ComposerEntryModal";
-import ConnectMailboxModal from "@/Email/ConnectMailboxModal";
-import EmailRecordDrawer from "@/Email/EmailRecordDrawer";
+import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
-import type {
-    EmailComposerReplyContext,
-    EmailFollowUpKind,
-    EmailQuickAction,
-} from "@/Email/types";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
 import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 import LogActionModal from "@/Components/CrmEvents/LogActionModal";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
@@ -257,21 +251,18 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         string | null
     >(null);
     const [logActionOpen, setLogActionOpen] = useState(false);
-    const [mailboxConnectedOverride, setMailboxConnectedOverride] = useState<
-        boolean | null
-    >(null);
-    const hasMailboxConnection =
-        mailboxConnectedOverride ??
-        emailQuickAction?.has_connection === true;
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
     const emailQuickActionForUi: EmailQuickAction | null =
         emailQuickAction == null
             ? null
             : { ...emailQuickAction, has_connection: hasMailboxConnection };
-    const [emailComposerOpen, setEmailComposerOpen] = useState(false);
-    const [emailConnectOpen, setEmailConnectOpen] = useState(false);
-    const [emailReply, setEmailReply] =
-        useState<EmailComposerReplyContext | null>(null);
-    const [emailDrawerMessageId, setEmailDrawerMessageId] = useState<
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
         string | null
     >(() => {
         if (typeof window === "undefined") return null;
@@ -279,39 +270,34 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             "email_message",
         );
     });
-    const openEmailQuickAction = () => {
-        if (hasMailboxConnection) {
-            setEmailReply(null);
-            setEmailComposerOpen(true);
-        } else {
-            setEmailConnectOpen(true);
-        }
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
     };
-    const openMailboxSettings = () => {
-        setEmailComposerOpen(false);
-        setEmailConnectOpen(true);
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
     };
 
-    // Deep link + shareable URL for the record email drawer (E-27 / E-28).
     useEffect(() => {
         if (typeof window === "undefined") return;
         const url = new URL(window.location.href);
-        if (emailDrawerMessageId) {
-            url.searchParams.set("email_message", emailDrawerMessageId);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
         } else {
             url.searchParams.delete("email_message");
         }
         replaceUrlKeepingHistoryState(url);
-    }, [emailDrawerMessageId]);
+    }, [communicationOpen, emailFocusMessageId]);
     useEffect(
         () =>
             subscribeOpenSourceEmail((messageId) => {
-                setEmailDrawerMessageId(messageId);
+                openCommunication(messageId);
             }),
         [],
     );
     const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
-        setEmailDrawerMessageId(null);
+        closeCommunication();
         setSourceEmailMessageId(messageId);
         if (kind === "task") setAddTaskOpen(true);
         else if (kind === "note") setAddNoteOpen(true);
@@ -659,7 +645,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         leadName={lead.client_name}
                         userId={page.props.auth?.user?.id}
                         emailEnabled={emailQuickAction != null}
-                        onOpenEmailMessage={setEmailDrawerMessageId}
+                        onOpenEmailMessage={(messageId) =>
+                            openCommunication(messageId)
+                        }
                     />
                 );
             case "files":
@@ -822,7 +810,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             setAddMeetingOpen(true)
                                         }
                                         emailQuickAction={emailQuickActionForUi}
-                                        onEmail={openEmailQuickAction}
+                                        onEmail={() => openCommunication(null)}
                                     />
                                 </div>
                             )}
@@ -902,7 +890,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         setAddMeetingOpen(true)
                                     }
                                     emailQuickAction={emailQuickActionForUi}
-                                    onEmail={openEmailQuickAction}
+                                    onEmail={() => openCommunication(null)}
                                 />
                             )}
                             <LeadDossier
@@ -1017,47 +1005,15 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 userId={page.props.auth?.user?.id}
             />
 
-            <ComposerEntryModal
-                open={emailComposerOpen}
-                onClose={() => {
-                    setEmailComposerOpen(false);
-                    setEmailReply(null);
-                }}
-                recordLabel={lead.client_name}
-                prefillTo={
-                    emailReply?.to?.[0] ?? lead.client_email ?? null
-                }
-                reply={emailReply}
-                enabled={hasMailboxConnection}
-                onManageMailbox={openMailboxSettings}
-            />
-
-            <ConnectMailboxModal
-                open={emailConnectOpen}
-                onClose={() => setEmailConnectOpen(false)}
-                onConnected={() => {
-                    setMailboxConnectedOverride(true);
-                    setEmailConnectOpen(false);
-                    setEmailReply(null);
-                    setEmailComposerOpen(true);
-                }}
-            />
-
-            <EmailRecordDrawer
-                open={Boolean(emailDrawerMessageId)}
-                onClose={() => setEmailDrawerMessageId(null)}
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
                 record={{ type: "lead", id: lead.id }}
-                messageId={emailDrawerMessageId}
+                recordLabel={lead.client_name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={lead.client_email ?? null}
                 onCreateFollowUp={openCreateFromEmail}
-                onReply={
-                    hasMailboxConnection
-                        ? (reply) => {
-                              setEmailDrawerMessageId(null);
-                              setEmailReply(reply);
-                              setEmailComposerOpen(true);
-                          }
-                        : undefined
-                }
             />
 
             <AddNoteModal
