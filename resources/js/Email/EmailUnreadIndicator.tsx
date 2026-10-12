@@ -24,7 +24,7 @@ export default function EmailUnreadIndicator() {
 
     return (
         <Link
-            href="/email/review"
+            href="/email/inbox"
             className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-dr-text no-underline hover:bg-dr-surface-2"
             aria-label={label}
             title={label}

@@ -112,6 +112,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Настройки напоминаний',
             'preferences' => 'Предпочтения',
+            'mailbox' => 'Почта',
             'entity_reminder_defaults' => 'Стандартные напоминания',
         ],
         'reminderDefaults' => 'Стандартные напоминания',

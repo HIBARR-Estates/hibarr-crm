@@ -4,14 +4,20 @@ import type {
     EmailComposerAttachment,
     EmailComposerReplyContext,
     EmailConnectionSummary,
+    EmailKnownAddress,
+    EmailRecordRef,
     EmailSendAttemptResult,
 } from "@/Email/types";
 
-function parseAddressList(value: string): string[] {
-    return value
-        .split(/[,;\n]+/)
-        .map((part) => part.trim())
-        .filter(Boolean);
+function sameAddress(left: string, right: string): boolean {
+    return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+function onlyKnown(values: string[], allowed: string[] | null | undefined): string[] {
+    if (!allowed) return values;
+    return values.filter((value) =>
+        allowed.some((address) => sameAddress(address, value)),
+    );
 }
 
 /** Strip RFC angle brackets — global XSS middleware removes tagged values. */
@@ -23,8 +29,8 @@ function bareMessageId(value: string | null | undefined): string | null {
 
 export type ComposerFormState = {
     connectionId: string;
-    to: string;
-    cc: string;
+    to: string[];
+    cc: string[];
     subject: string;
     body: string;
     includeSignature: boolean;
@@ -33,8 +39,8 @@ export type ComposerFormState = {
 
 const emptyForm = (connectionId = ""): ComposerFormState => ({
     connectionId,
-    to: "",
-    cc: "",
+    to: [],
+    cc: [],
     subject: "",
     body: "",
     includeSignature: true,
@@ -47,8 +53,12 @@ export default function useEmailComposer(options: {
     /** Prefill To when composing a new message to a lead/deal contact. */
     prefillTo?: string | null;
     reply?: EmailComposerReplyContext | null;
+    /** When set, To/Cc may only be chosen from these addresses. */
+    allowedAddresses?: EmailKnownAddress[] | null;
+    record?: EmailRecordRef | null;
 }) {
-    const { open, enabled, prefillTo, reply } = options;
+    const { open, enabled, prefillTo, reply, allowedAddresses, record } = options;
+    const allowed = allowedAddresses?.map((item) => item.address) ?? null;
     const [connections, setConnections] = useState<EmailConnectionSummary[]>(
         [],
     );
@@ -94,11 +104,10 @@ export default function useEmailComposer(options: {
                         ? `Re: ${replySubject}`
                         : replySubject || "";
 
+                const requested = reply?.to ?? (prefillTo ? [prefillTo] : []);
                 setForm({
                     ...emptyForm(firstActive?.id ?? ""),
-                    to: (reply?.to ?? (prefillTo ? [prefillTo] : [])).join(
-                        ", ",
-                    ),
+                    to: onlyKnown(requested, allowed),
                     subject,
                     includeSignature: true,
                 });
@@ -116,7 +125,7 @@ export default function useEmailComposer(options: {
         return () => {
             cancelled = true;
         };
-    }, [open, enabled, prefillTo, reply]);
+    }, [open, enabled, prefillTo, reply, allowedAddresses]);
 
     const updateForm = useCallback(
         (patch: Partial<ComposerFormState>) => {
@@ -201,8 +210,10 @@ export default function useEmailComposer(options: {
                 attempt: EmailSendAttemptResult;
             }>("/email/send", {
                 connection_id: connectionId,
-                to: parseAddressList(form.to),
-                cc: parseAddressList(form.cc),
+                to: form.to,
+                cc: form.cc,
+                record_type: record?.type,
+                record_id: record?.id,
                 subject: form.subject,
                 text_body: form.body,
                 html_body: form.body
@@ -265,6 +276,7 @@ export default function useEmailComposer(options: {
         form,
         hasInvalidAttachment,
         reply,
+        record,
         selectedConnection?.id,
     ]);
 

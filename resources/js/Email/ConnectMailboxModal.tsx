@@ -11,6 +11,8 @@ export interface ConnectMailboxModalProps {
     onClose: () => void;
     /** Fired after a connect/resume leaves at least one active mailbox. */
     onConnected?: () => void;
+    /** Page renders the same controls without modal chrome (account settings). */
+    variant?: "modal" | "page";
 }
 
 type ConnectFormState = {
@@ -57,6 +59,7 @@ export default function ConnectMailboxModal({
     open,
     onClose,
     onConnected,
+    variant = "modal",
 }: ConnectMailboxModalProps) {
     const { t } = useTranslation();
     const {
@@ -187,25 +190,7 @@ export default function ConnectMailboxModal({
             defaultValue: status,
         });
 
-    return (
-        <Modal
-            open={open}
-            title={t("pages.email.connect.title")}
-            onClose={onClose}
-            closeAriaLabel={t("pages.email.connect.close")}
-            closeOnBackdrop={!busy}
-            maxWidth={640}
-            footer={
-                <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={onClose}
-                    disabled={busy}
-                >
-                    {t("pages.email.connect.close")}
-                </Button>
-            }
-        >
+    const body = (
             <div className="flex flex-col gap-4">
                 <p className="m-0 text-sm leading-relaxed text-dr-text-muted">
                     {t("pages.email.connect.body")}
@@ -752,6 +737,32 @@ export default function ConnectMailboxModal({
                     </section>
                 ) : null}
             </div>
+    );
+
+    if (variant === "page") {
+        return body;
+    }
+
+    return (
+        <Modal
+            open={open}
+            title={t("pages.email.connect.title")}
+            onClose={onClose}
+            closeAriaLabel={t("pages.email.connect.close")}
+            closeOnBackdrop={!busy}
+            maxWidth={640}
+            footer={
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onClose}
+                    disabled={busy}
+                >
+                    {t("pages.email.connect.close")}
+                </Button>
+            }
+        >
+            {body}
         </Modal>
     );
 }

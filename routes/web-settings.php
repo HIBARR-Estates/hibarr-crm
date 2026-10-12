@@ -2,6 +2,9 @@
 
 /* Setting menu routes starts from here */
 
+use App\Email\Http\Controllers\MailboxSettingsController;
+use App\Email\Http\Middleware\EnsureEmailEnabled;
+use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -112,6 +115,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         ->whereNumber('id');
     Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* Connected mailbox (crm.email + pilot allowlist). Flag off → 404. */
+    Route::get('mailbox', [MailboxSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureEmailPilot::class])
+        ->name('mailbox-settings.show');
 
     /* User preferences (timezone, in-app alerts, notification bypass) */
     Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
