@@ -112,6 +112,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Erinnerungseinstellungen',
             'preferences' => 'Einstellungen',
+            'mailbox' => 'Postfach',
             'entity_reminder_defaults' => 'Erinnerungsstandards',
         ],
         'reminderDefaults' => 'Erinnerungsstandards',
