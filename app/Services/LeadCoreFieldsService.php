@@ -179,6 +179,37 @@ class LeadCoreFieldsService
         return $id > 0 ? $id : null;
     }
 
+    /**
+     * The canonical code of a configured language (matched by code or name,
+     * case-insensitively), or null when no such language is configured.
+     */
+    public function supportedLanguageCode(mixed $value): ?string
+    {
+        if (!is_string($value) && !is_numeric($value)) {
+            return null;
+        }
+
+        return $this->languageLookup()[strtolower(trim((string) $value))] ?? null;
+    }
+
+    /**
+     * Lower-cased language code and name => canonical language code.
+     *
+     * @return array<string, string>
+     */
+    private function languageLookup(): array
+    {
+        $lookup = [];
+        foreach (LanguageSetting::select('language_code', 'language_name')->get() as $language) {
+            $canonicalCode = trim($language->language_code);
+            $code = strtolower($canonicalCode);
+            $lookup[$code] = $canonicalCode;
+            $lookup[strtolower(trim($language->language_name))] = $canonicalCode;
+        }
+
+        return $lookup;
+    }
+
     private function normalizeLanguages(mixed $value): array
     {
         if ($value === null || $value === '' || $value === []) {
@@ -189,13 +220,7 @@ class LeadCoreFieldsService
             ? $value
             : preg_split('/\s*,\s*/', (string) $value);
 
-        $lookup = [];
-        foreach (LanguageSetting::select('language_code', 'language_name')->get() as $language) {
-            $canonicalCode = trim($language->language_code);
-            $code = strtolower($canonicalCode);
-            $lookup[$code] = $canonicalCode;
-            $lookup[strtolower(trim($language->language_name))] = $canonicalCode;
-        }
+        $lookup = $this->languageLookup();
 
         $codes = [];
         foreach ($candidates as $candidate) {

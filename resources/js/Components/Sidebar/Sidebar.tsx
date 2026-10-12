@@ -61,6 +61,9 @@ interface SidebarProps {
     onCollapse: (collapsed: boolean) => void;
 }
 
+/** The only nav sections a partner-only account is offered (the user menu is separate). */
+const PARTNER_NAV_KEYS = new Set(["dashboard", "partner-leads", "my-mlm"]);
+
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
     const { auth, company, appName, integrationsHubUrl } = props;
@@ -81,9 +84,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManagePartners = isPermissionAll(
         props.auth?.permissions?.manage_partners,
     );
+    // A partner's own leads view: for anyone holding the partner dashboard
+    // permission, which the migration keeps off staff accounts.
+    const canViewPartnerLeads = isPermissionAll(
+        props.auth?.permissions?.view_partner_dashboard,
+    );
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
     const isAdmin = useIsAdminRole();
+    // Partner accounts get the partner surface only. The server refuses the
+    // other sections too (RestrictPartnerAccounts); this just stops the links
+    // being offered.
+    const isPartnerOnly = props.auth?.isPartnerOnly === true;
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { mobileOpen, closeMobileSidebar } = useMobileSidebar();
     const isDesktopViewport = useIsDesktopViewport();
@@ -240,6 +252,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <BankOutlined />,
             href: "/account/payment-requests",
             hidden: !canViewPaymentRequests,
+        },
+        {
+            key: "partner-leads",
+            label: t("app.menu.partner_leads"),
+            icon: <PersonIcon />,
+            href: "/account/partner/leads",
+            hidden: !canViewPartnerLeads,
         },
         {
             key: "meetings",
@@ -693,6 +712,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 {/* Nav items */}
                 {navItems
                     .filter((a) => a.hidden !== true)
+                    .filter((a) => !isPartnerOnly || PARTNER_NAV_KEYS.has(a.key))
                     .map((a) => {
                         a.children = a.children?.filter(
                             (a) => a.hidden !== true,

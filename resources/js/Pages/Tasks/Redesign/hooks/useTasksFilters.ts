@@ -6,7 +6,14 @@ export interface TasksFilterState {
     assigned_to?: number | string | Array<number | string>;
     assigned_by?: number | string | Array<number | string>;
     category_id?: number | string | Array<number | string>;
+    labels?: number | string | Array<number | string>;
+    project_id?: number | string | null;
     due_date_range?: string | string[];
+    due_start_date?: string;
+    due_end_date?: string;
+    created_date_range?: string | string[];
+    created_start_date?: string;
+    created_end_date?: string;
     search?: string;
 }
 
@@ -37,17 +44,46 @@ export function hasFilter(value: unknown): boolean {
  */
 export default function useTasksFilters(filters: TasksFilterState) {
     /** Total selected values across every dimension (the Filters badge). */
-    const activeCount = useMemo(
-        () =>
-            Object.entries(filters).reduce((total, [key, value]) => {
-                // A due range is one filter, not two endpoints.
-                if (key === "due_date_range") {
-                    return total + (hasFilter(value) ? 1 : 0);
-                }
-                return total + appliedValues(value).length;
-            }, 0),
-        [filters],
-    );
+    const activeCount = useMemo(() => {
+        let total = 0;
+
+        total += appliedValues(filters.status).length;
+        total += appliedValues(filters.priority).length;
+        total += appliedValues(filters.assigned_to).length;
+        total += appliedValues(filters.assigned_by).length;
+        total += appliedValues(filters.category_id).length;
+        total += appliedValues(filters.labels).length;
+
+        if (
+            filters.project_id != null &&
+            filters.project_id !== "" &&
+            filters.project_id !== "all"
+        ) {
+            total += 1;
+        }
+
+        if (hasFilter(filters.search)) {
+            total += 1;
+        }
+
+        if (
+            hasFilter(filters.due_date_range) ||
+            hasFilter(filters.due_start_date) ||
+            hasFilter(filters.due_end_date)
+        ) {
+            total += 1;
+        }
+
+        if (
+            hasFilter(filters.created_date_range) ||
+            hasFilter(filters.created_start_date) ||
+            hasFilter(filters.created_end_date)
+        ) {
+            total += 1;
+        }
+
+        return total;
+    }, [filters]);
 
     return { filters, activeCount };
 }

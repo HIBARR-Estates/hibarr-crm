@@ -1687,7 +1687,6 @@ class DashboardMetricsService
                     ->whereColumn('deals.lead_id', 'leads.id')
                     ->where('deals.outcome_status', 'won');
             })
-            ->leftJoin('users', 'users.id', '=', 'leads.lead_owner')
             // Same query, no extra round trip: the row needs to know whether
             // this partner already flagged it, and what came back.
             ->leftJoin('partner_flags', function ($join) use ($leadAgentId) {
@@ -1707,7 +1706,6 @@ class DashboardMetricsService
                 'leads.created_at',
                 'leads.updated_at',
                 'leads.first_contacted_at',
-                'users.name as agent_name',
                 'partner_flags.status as flag_status',
                 'partner_flags.response as flag_response',
                 DB::raw($this->firstMeetingSubquery().' as met_at'),
@@ -1729,7 +1727,6 @@ class DashboardMetricsService
                     'client' => $this->abbreviateName($row->client_name),
                     'stage' => $stage,
                     'stalled' => $idleDays >= $stalledAfterDays,
-                    'agent' => $this->abbreviateName($row->agent_name),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
                     'idle_days' => $idleDays,
                     'flag_status' => $row->flag_status,
@@ -1984,12 +1981,6 @@ class DashboardMetricsService
      */
     private function abbreviateName(?string $name): ?string
     {
-        $parts = array_values(array_filter(explode(' ', trim((string) $name))));
-
-        if (count($parts) < 2) {
-            return $parts[0] ?? null;
-        }
-
-        return mb_substr($parts[0], 0, 1).'. '.implode(' ', array_slice($parts, 1));
+        return \App\Support\PartnerRole::abbreviateName($name);
     }
 }

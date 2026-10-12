@@ -25,6 +25,8 @@ interface PartnerAgent {
     status: "enabled" | "disabled";
     is_partner: boolean;
     referred_leads_count: number;
+    /** True for an account made through Invite Partner, which can be re-invited. */
+    can_resend?: boolean;
     user: { id: number; name: string; email: string; image?: string | null } | null;
 }
 
@@ -118,6 +120,59 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
         }
     };
 
+    const [inviteOpen, setInviteOpen] = useState(false);
+    const [inviting, setInviting] = useState(false);
+    const [inviteForm, setInviteForm] = useState({ name: "", email: "", mobile: "" });
+    const [inviteError, setInviteError] = useState<string | null>(null);
+
+    const closeInvite = () => {
+        setInviteOpen(false);
+        setInviteError(null);
+        setInviteForm({ name: "", email: "", mobile: "" });
+    };
+
+    const handleInvite = async () => {
+        setInviting(true);
+        setInviteError(null);
+        try {
+            const response = await axios.post(route("partners.invite"), inviteForm);
+            const newAgent = response.data.agent as PartnerAgent;
+            setRows((prev) => [newAgent, ...prev]);
+            setStats((prev) => ({ ...prev, total_partners: prev.total_partners + 1 }));
+            closeInvite();
+            if (response.data.invite_sent === false) {
+                message.warning(response.data.message);
+            } else {
+                message.success(td("Invitation sent.", { source: "en" }));
+            }
+        } catch (error: any) {
+            const errors = error?.response?.data?.errors;
+            setInviteError(
+                (errors && (Object.values(errors).flat()[0] as string)) ||
+                    td("Something went wrong. Please try again.", { source: "en" }),
+            );
+        } finally {
+            setInviting(false);
+        }
+    };
+
+    const [resendingId, setResendingId] = useState<number | null>(null);
+
+    const handleResend = async (agent: PartnerAgent) => {
+        setResendingId(agent.id);
+        try {
+            await axios.post(route("partners.resend_invite", agent.id));
+            message.success(td("Invitation sent.", { source: "en" }));
+        } catch (error: any) {
+            message.error(
+                error?.response?.data?.message ||
+                    td("Something went wrong. Please try again.", { source: "en" }),
+            );
+        } finally {
+            setResendingId(null);
+        }
+    };
+
     const [removeTarget, setRemoveTarget] = useState<PartnerAgent | null>(null);
     const [removing, setRemoving] = useState(false);
 
@@ -166,13 +221,22 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                         placeholder={td("Search partners…", { source: "en" })}
                         aria-label={td("Search partners", { source: "en" })}
                     />
-                    <Button
-                        variant="primary"
-                        icon={<Icon name="plus" size={12} />}
-                        onClick={() => setAddOpen(true)}
-                    >
-                        {td("Add Partner", { source: "en" })}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            icon={<Icon name="plus" size={12} />}
+                            onClick={() => setInviteOpen(true)}
+                        >
+                            {td("Invite Partner", { source: "en" })}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            icon={<Icon name="plus" size={12} />}
+                            onClick={() => setAddOpen(true)}
+                        >
+                            {td("Add Partner", { source: "en" })}
+                        </Button>
+                    </div>
                 </div>
 
                 {rows.length === 0 ? (
@@ -221,6 +285,17 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         String(agent.referred_leads_count),
                                     )}
                                 </Badge>
+                                {agent.can_resend && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Icon name="mail" size={12} />}
+                                        loading={resendingId === agent.id}
+                                        onClick={() => handleResend(agent)}
+                                    >
+                                        {td("Resend invite", { source: "en" })}
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -290,6 +365,60 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                     searchPlaceholder={td("Search agents…", { source: "en" })}
                     emptyLabel={td("No agents match", { source: "en" })}
                 />
+            </Modal>
+
+            <Modal
+                open={inviteOpen}
+                title={td("Invite partner", { source: "en" })}
+                subtitle={td(
+                    "Creates a partner account that sees only the leads they refer. They sign in with single sign-on using this email.",
+                    { source: "en" },
+                )}
+                onClose={closeInvite}
+            >
+                <div className="flex flex-col gap-3">
+                    <input
+                        className="dr-input"
+                        value={inviteForm.name}
+                        onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                        placeholder={td("Full name", { source: "en" })}
+                        aria-label={td("Full name", { source: "en" })}
+                        autoFocus
+                    />
+                    <input
+                        className="dr-input"
+                        type="email"
+                        value={inviteForm.email}
+                        onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                        placeholder={td("Email", { source: "en" })}
+                        aria-label={td("Email", { source: "en" })}
+                    />
+                    <input
+                        className="dr-input"
+                        value={inviteForm.mobile}
+                        onChange={(e) => setInviteForm({ ...inviteForm, mobile: e.target.value })}
+                        placeholder={td("Mobile (optional)", { source: "en" })}
+                        aria-label={td("Mobile", { source: "en" })}
+                    />
+                    {inviteError && (
+                        <div role="alert" style={{ fontSize: TYPE.CAPTION, color: T.RED }}>
+                            {inviteError}
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={closeInvite}>
+                            {td("Cancel", { source: "en" })}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            loading={inviting}
+                            disabled={!inviteForm.name.trim() || !inviteForm.email.trim()}
+                            onClick={handleInvite}
+                        >
+                            {td("Send invite", { source: "en" })}
+                        </Button>
+                    </div>
+                </div>
             </Modal>
 
             <ConfirmDialog

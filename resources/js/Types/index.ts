@@ -638,6 +638,8 @@ export interface AuthType {
     user: User;
     permissions: AppPermission;
     modules: AppModule[];
+    /** Holds only the partner role: sidebar shows the partner surface and nothing else. */
+    isPartnerOnly?: boolean;
 }
 export interface AppProps extends PageProps {
     props: {

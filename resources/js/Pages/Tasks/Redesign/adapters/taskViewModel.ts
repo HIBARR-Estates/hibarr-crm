@@ -1,8 +1,9 @@
-import { formatTaskCompanyTime, parseTaskDateTime } from "@/lib/taskDateTime";
 import {
-    formatDate,
-    formatDateWithTime,
-} from "@/Components/Redesign/adapters/dateFormat";
+    formatTaskCompanyTime,
+    formatTaskDateWithCompanyTime,
+    parseTaskDateTime,
+} from "@/lib/taskDateTime";
+import { formatDate } from "@/Components/Redesign/adapters/dateFormat";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import type { Task } from "@/Types/Task";
 import {
@@ -143,8 +144,15 @@ function dueSubLabel(
     return `Due in ${dayDiff} days`;
 }
 
-/** "Today · 17:00" / "Yesterday · 11:00" / "22 Aug · 12:00" / "No date". */
-function dueDisplay(due: Date | null, now: Date): string {
+/**
+ * "Today · 17:00" / "Yesterday · 11:00" / "22 Aug · 12:00" / "No date".
+ *
+ * `raw` is the untouched wall-clock string, and the clock face is read from it
+ * rather than from `due`: `due` is a Date in the viewer's own zone, so a
+ * wall-clock time that doesn't exist there (the DST spring-forward hour) can't
+ * survive it and reads an hour late. It stays the right input for the day maths.
+ */
+function dueDisplay(due: Date | null, now: Date, raw?: string | null): string {
     if (!due) return "No date";
 
     const dayDiff = Math.round(
@@ -154,12 +162,12 @@ function dueDisplay(due: Date | null, now: Date): string {
     // string to get "the time" — worked for 24h formats ("17:00", no
     // internal space) but for a 12h company format ("5:00 PM") that token
     // is just "PM", silently dropping the actual time.
-    const time = formatTaskCompanyTime(due, "");
+    const time = formatTaskCompanyTime(raw ?? due, "");
 
     if (dayDiff === 0) return time ? `Today · ${time}` : "Today";
     if (dayDiff === -1) return time ? `Yesterday · ${time}` : "Yesterday";
     if (dayDiff === 1) return time ? `Tomorrow · ${time}` : "Tomorrow";
-    return formatDateWithTime(due);
+    return formatTaskDateWithCompanyTime(raw ?? due);
 }
 
 export function linkedRecordsOf(task: Task): LinkedRecord[] {
@@ -256,7 +264,7 @@ export function toTaskViewModel(
         status: statusToken(slug),
         priority: priorityToken(task.priority),
         category: categoryToken(task.category?.category_name),
-        dueText: dueDisplay(due, now),
+        dueText: dueDisplay(due, now, task.due_date),
         dueSub: dueSubLabel(due, bucket, now),
         dueColor: done
             ? T.TEXT_HINT

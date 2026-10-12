@@ -70,7 +70,7 @@ class DealPaymentValueGuard
                 : [
                     'status' => $e->getStatusCode(),
                     'code' => 'payment_request_invalidation_failed',
-                    'message' => $e->getMessage() ?: 'Unable to invalidate the payment request. The deal value was not changed.',
+                    'message' => $e->getMessage() ?: 'Unable to cancel the payment request. The deal value was not changed.',
                 ];
         }
 
