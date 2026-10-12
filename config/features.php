@@ -65,5 +65,9 @@ return [
     'local_defaults' => [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
+        'crm.email' => true,
+    ],
+    'local_overrides' => [
+        'crm.email' => true,
     ],
 ];

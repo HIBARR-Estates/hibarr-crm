@@ -7,6 +7,7 @@ use App\Email\Linking\RecordHistory;
 use App\Email\Matching\RecordResolver;
 use App\Email\Reads\ReadState;
 use App\Email\Search\MessageSearch;
+use App\Email\Sending\KnownAddresses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,7 @@ class RecordHistoryController
         private readonly RecordHistory $history,
         private readonly ReadState $reads,
         private readonly EmailAccess $access,
+        private readonly KnownAddresses $addresses,
     ) {}
 
     public function index(Request $request, string $type, string $id): JsonResponse
@@ -39,6 +41,7 @@ class RecordHistoryController
 
         return response()->json([
             'events' => $this->history->present($request->user(), $page->items()),
+            'addresses' => $this->addresses->present($record),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -60,6 +63,7 @@ class RecordHistoryController
 
         return response()->json([
             'groups' => $this->history->timelineGroups($request->user(), $record),
+            'addresses' => $this->addresses->present($record),
         ]);
     }
 
