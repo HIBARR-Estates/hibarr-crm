@@ -22,13 +22,22 @@ class DraftValidator
 
     public const ATTACHMENT_UNAVAILABLE = 'validation_attachment_unavailable';
 
+    public const UNKNOWN_RECIPIENT = 'validation_unknown_recipient';
+
     public function __construct(private readonly EmailFiles $files) {}
 
-    /** @return string|null A validation code, or null when the draft may be sent. */
-    public function check(EmailConnection $connection, Draft $draft): ?string
+    /**
+     * @param  list<string>|null  $allowedRecipients  When set, every To/Cc must be in this list (record-scoped send).
+     * @return string|null A validation code, or null when the draft may be sent.
+     */
+    public function check(EmailConnection $connection, Draft $draft, ?array $allowedRecipients = null): ?string
     {
         if (! $draft->hasRecipients()) {
             return self::MISSING_TO;
+        }
+
+        if ($allowedRecipients !== null && $this->hasUnknownRecipient($draft, $allowedRecipients)) {
+            return self::UNKNOWN_RECIPIENT;
         }
 
         // Mail goes out as the connected mailbox, never as an address typed into a draft.
@@ -48,6 +57,23 @@ class DraftValidator
         }
 
         return null;
+    }
+
+    /** @param  list<string>  $allowedRecipients */
+    private function hasUnknownRecipient(Draft $draft, array $allowedRecipients): bool
+    {
+        $allowed = array_map(
+            fn (string $address) => strtolower(trim($address)),
+            $allowedRecipients,
+        );
+
+        foreach ([...$draft->to, ...$draft->cc] as $recipient) {
+            if (! in_array($recipient->address, $allowed, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** An email file uploaded to this very mailbox, stored and fit to hand out. */

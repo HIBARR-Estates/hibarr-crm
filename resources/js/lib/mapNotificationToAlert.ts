@@ -31,6 +31,7 @@ const SEVERITY_BY_ICON: Record<NotificationIcon, NotchSeverity> = {
     shift: "amber",
     promotion: "green",
     reminder: "blue",
+    mail: "blue",
     bell: "gray",
 };
 
@@ -98,6 +99,7 @@ const DEST_LABEL_BY_ICON: Record<NotificationIcon, string> = {
     shift: "Attendance",
     promotion: "Team",
     reminder: "Reminder ledger",
+    mail: "Inbox",
     bell: "Notifications",
 };
 

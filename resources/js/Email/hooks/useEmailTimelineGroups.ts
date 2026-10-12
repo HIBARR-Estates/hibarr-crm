@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import type {
+    EmailKnownAddress,
     EmailTimelineGroup,
     EmailTimelineGroupsResponse,
 } from "@/Email/types";
@@ -16,6 +17,7 @@ export default function useEmailTimelineGroups(options: {
 }) {
     const { recordType, recordId, enabled } = options;
     const [groups, setGroups] = useState<EmailTimelineGroup[]>([]);
+    const [addresses, setAddresses] = useState<EmailKnownAddress[]>([]);
     const [loading, setLoading] = useState(false);
 
     const load = useCallback(async () => {
@@ -31,8 +33,10 @@ export default function useEmailTimelineGroups(options: {
                 `/email/records/${recordType}/${recordId}/timeline`,
             );
             setGroups(response.data.groups ?? []);
+            setAddresses(response.data.addresses ?? []);
         } catch {
             setGroups([]);
+            setAddresses([]);
         } finally {
             setLoading(false);
         }
@@ -42,5 +46,5 @@ export default function useEmailTimelineGroups(options: {
         void load();
     }, [load]);
 
-    return { groups, loading, reload: load };
+    return { groups, addresses, loading, reload: load };
 }

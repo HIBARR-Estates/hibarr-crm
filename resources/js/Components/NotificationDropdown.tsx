@@ -32,6 +32,7 @@ import {
     SoundFilled,
     SettingOutlined,
     CloseOutlined,
+    MailOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -90,6 +91,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
         reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
+        mail: <MailOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 

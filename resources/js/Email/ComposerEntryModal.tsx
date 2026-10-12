@@ -2,7 +2,11 @@ import { useRef } from "react";
 import { Button, Icon, Modal, ModalField } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import useEmailComposer from "@/Email/hooks/useEmailComposer";
-import type { EmailComposerReplyContext } from "@/Email/types";
+import type {
+    EmailComposerReplyContext,
+    EmailKnownAddress,
+    EmailRecordRef,
+} from "@/Email/types";
 
 export interface ComposerEntryModalProps {
     open: boolean;
@@ -15,8 +19,13 @@ export interface ComposerEntryModalProps {
     reply?: EmailComposerReplyContext | null;
     enabled?: boolean;
     onSent?: () => void;
+    /** Lead addresses this send may use. */
+    allowedAddresses?: EmailKnownAddress[] | null;
+    record?: EmailRecordRef | null;
     /** Open mailbox connection settings (stop / reconnect / connect). */
     onManageMailbox?: () => void;
+    /** Dock the form in a parent surface instead of a modal. */
+    variant?: "modal" | "embedded";
 }
 
 function formatBytes(bytes: number | null): string {
@@ -39,6 +48,9 @@ export default function ComposerEntryModal({
     enabled = true,
     onSent,
     onManageMailbox,
+    variant = "modal",
+    allowedAddresses = null,
+    record = null,
 }: ComposerEntryModalProps) {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,11 +75,13 @@ export default function ComposerEntryModal({
         enabled: enabled && open,
         prefillTo,
         reply,
+        allowedAddresses,
+        record,
     });
 
     const dirty =
-        Boolean(form.to.trim()) ||
-        Boolean(form.cc.trim()) ||
+        form.to.length > 0 ||
+        form.cc.length > 0 ||
         Boolean(form.subject.trim()) ||
         Boolean(form.body.trim()) ||
         form.attachments.length > 0;
@@ -106,47 +120,36 @@ export default function ComposerEntryModal({
     const showSignaturePreview =
         form.includeSignature && signature?.has_content === true;
 
-    return (
-        <Modal
-            open={open}
-            title={
-                isReply
-                    ? t("pages.email.composer.reply_title")
-                    : t("pages.email.composer.new_title")
-            }
-            subtitle={recordLabel || undefined}
-            onClose={handleClose}
-            closeAriaLabel={t("pages.email.composer.close")}
-            dirty={dirty && lastAttempt?.status !== "sent"}
-            maxWidth={720}
-            footer={
-                <>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={sending}
-                    >
-                        {t("pages.email.composer.cancel")}
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="primary"
-                        onClick={() => void handleSend()}
-                        disabled={
-                            sending ||
-                            uploading ||
-                            loadingConnections ||
-                            !selectedConnection ||
-                            hasInvalidAttachment
-                        }
-                        loading={sending}
-                    >
-                        {t("pages.email.composer.send")}
-                    </Button>
-                </>
-            }
-        >
+    const actions = (
+        <>
+            <Button
+                type="button"
+                variant="ghost"
+                onClick={handleClose}
+                disabled={sending}
+            >
+                {t("pages.email.composer.cancel")}
+            </Button>
+            <Button
+                type="button"
+                variant="primary"
+                onClick={() => void handleSend()}
+                disabled={
+                    sending ||
+                    uploading ||
+                    loadingConnections ||
+                    !selectedConnection ||
+                    hasInvalidAttachment
+                }
+                loading={sending}
+            >
+                {t("pages.email.composer.send")}
+            </Button>
+        </>
+    );
+
+    const form = (
+        <>
             {loadingConnections ? (
                 <p className="m-0 text-sm text-dr-text-muted">
                     {t("pages.email.composer.loading")}
@@ -209,56 +212,43 @@ export default function ComposerEntryModal({
                         </ModalField>
                     ) : (
                         <ModalField label={t("pages.email.composer.from")}>
-                            <input
-                                className="dr-input w-full"
-                                value={selectedConnection.from_email}
-                                readOnly
-                                aria-readonly="true"
-                            />
+                            <p className="m-0 text-sm text-dr-text">
+                                {selectedConnection.from_email}
+                            </p>
                         </ModalField>
                     )}
 
                     {selectedConnection.reply_to_email ? (
                         <ModalField label={t("pages.email.composer.reply_to")}>
-                            <input
-                                className="dr-input w-full"
-                                value={selectedConnection.reply_to_email}
-                                readOnly
-                                aria-readonly="true"
-                            />
+                            <p className="m-0 text-sm text-dr-text">
+                                {selectedConnection.reply_to_email}
+                            </p>
                         </ModalField>
                     ) : null}
 
-                    <ModalField label={t("pages.email.composer.to")}>
-                        <input
-                            className="dr-input w-full"
-                            value={form.to}
-                            disabled={sending}
-                            autoFocus
-                            onChange={(event) =>
-                                updateForm({ to: event.target.value })
-                            }
-                            placeholder={t(
-                                "pages.email.composer.to_placeholder",
-                            )}
-                            aria-label={t("pages.email.composer.to")}
-                        />
-                    </ModalField>
+                    <AddressChips
+                        label={t("pages.email.composer.to")}
+                        selected={form.to}
+                        options={(allowedAddresses ?? []).map(
+                            (item) => item.address,
+                        )}
+                        disabled={sending}
+                        addLabel={t("pages.email.composer.add_recipient")}
+                        removeLabel={t("pages.email.composer.remove_recipient")}
+                        onChange={(to) => updateForm({ to })}
+                    />
 
-                    <ModalField label={t("pages.email.composer.cc")}>
-                        <input
-                            className="dr-input w-full"
-                            value={form.cc}
-                            disabled={sending}
-                            onChange={(event) =>
-                                updateForm({ cc: event.target.value })
-                            }
-                            placeholder={t(
-                                "pages.email.composer.cc_placeholder",
-                            )}
-                            aria-label={t("pages.email.composer.cc")}
-                        />
-                    </ModalField>
+                    <AddressChips
+                        label={t("pages.email.composer.cc")}
+                        selected={form.cc}
+                        options={(allowedAddresses ?? []).map(
+                            (item) => item.address,
+                        )}
+                        disabled={sending}
+                        addLabel={t("pages.email.composer.add_recipient")}
+                        removeLabel={t("pages.email.composer.remove_recipient")}
+                        onChange={(cc) => updateForm({ cc })}
+                    />
 
                     <ModalField label={t("pages.email.composer.subject")}>
                         <input
@@ -441,6 +431,112 @@ export default function ComposerEntryModal({
                     ) : null}
                 </div>
             )}
+        </>
+    );
+
+    if (variant === "embedded") {
+        if (!open) return null;
+        return (
+            <div className="flex flex-col gap-3 border-t border-dr-border pt-4">
+                {form}
+                <div className="flex justify-end gap-2">{actions}</div>
+            </div>
+        );
+    }
+
+    return (
+        <Modal
+            open={open}
+            title={
+                isReply
+                    ? t("pages.email.composer.reply_title")
+                    : t("pages.email.composer.new_title")
+            }
+            subtitle={recordLabel || undefined}
+            onClose={handleClose}
+            closeAriaLabel={t("pages.email.composer.close")}
+            dirty={dirty && lastAttempt?.status !== "sent"}
+            maxWidth={720}
+            footer={actions}
+        >
+            {form}
         </Modal>
+    );
+}
+
+function AddressChips({
+    label,
+    selected,
+    options,
+    disabled,
+    addLabel,
+    removeLabel,
+    onChange,
+}: {
+    label: string;
+    selected: string[];
+    options: string[];
+    disabled: boolean;
+    addLabel: string;
+    removeLabel: string;
+    onChange: (next: string[]) => void;
+}) {
+    const remaining = options.filter(
+        (address) =>
+            !selected.some(
+                (chosen) => chosen.toLowerCase() === address.toLowerCase(),
+            ),
+    );
+
+    return (
+        <ModalField label={label}>
+            <div className="flex flex-wrap items-center gap-2">
+                {selected.map((address) => (
+                    <span
+                        key={address}
+                        className="inline-flex items-center gap-1 rounded-full border border-dr-border bg-dr-surface-2 px-2 py-1 text-sm text-dr-text"
+                    >
+                        {address}
+                        <button
+                            type="button"
+                            className="border-0 bg-transparent p-0 text-dr-text-muted"
+                            disabled={disabled}
+                            aria-label={removeLabel}
+                            onClick={() =>
+                                onChange(
+                                    selected.filter(
+                                        (chosen) =>
+                                            chosen.toLowerCase() !==
+                                            address.toLowerCase(),
+                                    ),
+                                )
+                            }
+                        >
+                            ×
+                        </button>
+                    </span>
+                ))}
+                {remaining.length > 0 ? (
+                    <select
+                        className="dr-input"
+                        value=""
+                        disabled={disabled}
+                        aria-label={addLabel}
+                        onChange={(event) => {
+                            const value = event.target.value;
+                            if (!value) return;
+                            onChange([...selected, value]);
+                        }}
+                    >
+                        <option value="">{addLabel}</option>
+                        {remaining.map((address) => (
+                            <option key={address} value={address}>
+                                {address}
+                            </option>
+                        ))}
+                    </select>
+                ) : null}
+            </div>
+        </ModalField>
     );
 }

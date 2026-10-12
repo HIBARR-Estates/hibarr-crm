@@ -6,7 +6,7 @@ Greenfield module. CRM talks to providers only through `MailTransport`. UI and m
 
 1. Feature flag `crm.email` off → no routes, jobs, or UI. Also require a **pilot allowlist** (user and/or company) so a global flag cannot open Email for everyone.
 2. **Do not** use `CommunicationActivity`, `CustomerCommunicationEmail`, company SMTP, `FetchTicketEmails`, or `config/zoho.php` calendar tokens.
-3. **Mailbox copy is SOT.** Record Timeline/search/drawers are projections of **linked** conversations.
+3. **Provider is the source of mail.** Zoho/Mailtrap decides whether a message exists and what it contains. `email_mailbox_copies` is the synced projection the CRM reads, plus CRM-only facts (record link, review/dismiss/handoff, in-app unread). Inbox date filters query that projection and never call `MailTransport`. The Communication modal and Timeline are projections of **linked** conversations; the Timeline group is a pointer into the modal.
 4. Persist **CRM UUIDs**. Provider ids (`mailtrap_message_id`, IMAP UID, Zoho id) and RFC `Message-ID` are metadata.
 5. Never label provider acceptance as Delivered.
 6. Subject-similar is not a thread match. Use `Message-ID` / `In-Reply-To` / `References`.
@@ -40,10 +40,10 @@ Send-state machine lives **in CRM**, not in the adapter.
 
 | Layer | Role |
 |-------|------|
-| Provider (Mailtrap/Zoho) | Upstream. CRM recovers toward it via checkpoints. |
-| `email_mailbox_copies` | SOT for ownership, unread-on-mailbox, review vs linked, “I still have this after unlink.” |
-| `email_messages` | Canonical body/headers/files per company + RFC Message-ID (when present). |
-| `email_conversations` + links | Projection onto lead and/or deal. |
+| Provider (Mailtrap/Zoho) | Source of mail. Authority for existence and content. CRM recovers toward it via checkpoints; it does not query the provider to render a date range. |
+| `email_mailbox_copies` | Synced projection the inbox and record surfaces read. Also stores ownership, in-app unread, review vs linked, and “I still have this after unlink.” |
+| `email_messages` | Canonical body/headers/files per company + RFC Message-ID (when present), copied from the provider at ingest. |
+| `email_conversations` + links | Projection onto lead and/or deal. The Communication modal reads this; the Timeline group only points at it. |
 
 **Two agents, one mail:** two copies, one canonical message (same RFC Message-ID), one Timeline event if both are linked to the same record. Independent unread and reply.
 
@@ -128,11 +128,19 @@ p95 “visible in two minutes” is **measured**, not an SLO, until the Zoho spi
 
 ## HTTP / UI shape
 
-Prefix routes (flag middleware): `/email/...` JSON for composer, review, files, connection. Inertia pages for review queue and manager report.
+Prefix routes (flag middleware): `/email/...` JSON for composer, inbox, files, connection. Inertia pages for the inbox and manager report. Mailbox connect/stop/reconnect UI is `/account/settings/mailbox` (user menu, beside Preferences). Connection JSON stays on `/email/connections`.
 
-Lead redesign: Quick action Email (today: Log / Note / Meeting only). Deal: equivalent. Drawer: Conversation + Exchanged attachments. Timeline: **one compact group per conversation**, not a duplicate generic `email_sent` activity row.
+Lead and deal redesign: a **Communication** control opens one large modal (conversation list, selected thread, composer docked in the same surface). Email is the only channel chip. To/Cc are chips from the lead’s known addresses (`client_email` plus email `lead_contact_methods`); From and Reply-To render as text. Deal history includes the lead’s linked mail without duplicating rows.
+
+Timeline: **one compact group per conversation**, a pointer into that modal, not a duplicate generic `email_sent` activity row and not the reader.
+
+Inbox (`/email/inbox`): the owner’s synced copies, grouped by conversation, filtered by `sent_at` (presets 7/14/30/90 days or custom from/to). Default is the last 7 days. Segment All / Needs review. Needs review keeps create, attach, dismiss, and handoff. `/email/review` redirects there with Needs review selected. `?focus={copy}` opens that message.
+
+New inbound ingest writes a database notification for the mailbox owner (no mail channel). The existing notification poll surfaces it; the link is the focused inbox message.
 
 Mutations: axios + local/workspace state, not Inertia reload.
+
+Zoho folder spike, bounce hold, and staging cutover (E-39–E-41) wait until this surface exists.
 
 ## Search
 
@@ -144,3 +152,5 @@ Record-scoped: participants, subject, body, attachment filename — only if the 
 - Using Mailtrap plus-addressing as multi-agent routing
 - Writing email files into `LeadFile` / deal files
 - Auto-creating deals/leads except the **explicit** review action “create lead” (then existing duplicate-lead **service call** only — not the comms resolver)
+- A date filter that calls the provider or backfills mail from before sync started
+- A generic omnichannel messages table. Email stays `App\Email`; a later channel gets its own module and renders in the same modal.

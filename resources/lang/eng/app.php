@@ -216,6 +216,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Reminder Preferences',
             'preferences' => 'Preferences',
+            'mailbox' => 'Mailbox',
             'entity_reminder_defaults' => 'Reminder Defaults',
             'reminder_ledger' => 'Reminders',
         ],
