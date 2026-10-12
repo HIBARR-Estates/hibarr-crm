@@ -1560,6 +1560,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
         Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
         Route::post('invite', [App\Http\Controllers\PartnerAdminController::class, 'invite'])->name('invite');
+        Route::post('{id}/resend-invite', [App\Http\Controllers\PartnerAdminController::class, 'resendInvite'])->name('resend_invite');
         Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
     });
 

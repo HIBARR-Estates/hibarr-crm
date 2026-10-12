@@ -39,7 +39,7 @@ class PartnerAdminController extends AccountBaseController
         $query = LeadAgent::where('company_id', $companyId)
             ->where('is_partner', true)
             ->withCount('referredLeads')
-            ->with('user:id,name,email,image,status');
+            ->with(['user:id,name,email,image,status', 'user.roles']);
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -49,6 +49,8 @@ class PartnerAdminController extends AccountBaseController
 
         $agents = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
+
+        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->markResendable($agent));
 
         return Inertia::render('Partners/Index', [
             'pageTitle' => 'Partners',
@@ -92,7 +94,8 @@ class PartnerAdminController extends AccountBaseController
             ->firstOrFail();
 
         $agent->update(['is_partner' => true]);
-        $agent->loadCount('referredLeads')->load('user:id,name,email,image,status');
+        $agent->loadCount('referredLeads')->load(['user:id,name,email,image,status', 'user.roles']);
+        $this->markResendable($agent);
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'agent' => $agent,
@@ -156,13 +159,57 @@ class PartnerAdminController extends AccountBaseController
             ]);
         });
 
-        $agent->loadCount('referredLeads')->load('user:id,name,email,image,status');
+        $agent->loadCount('referredLeads')->load(['user:id,name,email,image,status', 'user.roles']);
+        $this->markResendable($agent);
 
-        $agent->user->notify(new PartnerInvited($agent->user, user()->name));
+        // The account now exists, so an email failure must not look like the
+        // invite failed: retrying would be refused (the address is taken). Say
+        // so, and let it be resent from the row.
+        $sent = $this->sendInvite($agent);
 
-        return Reply::successWithData(__('messages.recordSaved'), [
-            'agent' => $agent,
-        ]);
+        return Reply::successWithData(
+            $sent ? __('messages.recordSaved') : 'The partner was created, but the invitation email could not be sent. Use Resend invite.',
+            ['agent' => $agent, 'invite_sent' => $sent]
+        );
+    }
+
+    /**
+     * Send the invitation again to an account this flow created. Refused for
+     * anyone who is also staff: a partner flag on a colleague is not an invite.
+     */
+    public function resendInvite($id)
+    {
+        $agent = LeadAgent::where('company_id', company()->id)
+            ->where('is_partner', true)
+            ->with(['user', 'user.roles'])
+            ->findOrFail($id);
+
+        if (! PartnerRole::isPartnerOnly($agent->user)) {
+            return Reply::error('Only partner accounts created through Invite Partner can be re-invited.');
+        }
+
+        return $this->sendInvite($agent)
+            ? Reply::success('Invitation sent.')
+            : Reply::error('The invitation email could not be sent. Please try again.');
+    }
+
+    private function sendInvite(LeadAgent $agent): bool
+    {
+        try {
+            $agent->user->notify(new PartnerInvited($agent->user, user()->name));
+
+            return true;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    /** Whether the row can be re-invited: a partner-only account, not a colleague flagged as a partner. */
+    private function markResendable(LeadAgent $agent): void
+    {
+        $agent->setAttribute('can_resend', PartnerRole::isPartnerOnly($agent->user));
     }
 
     /**

@@ -14,10 +14,10 @@ use Illuminate\Http\Request;
  * report. So partner-only accounts are refused at the door for the sections
  * below, whatever the permission rows say.
  *
- * This is a deny-list on the first path segment under /account, because the
- * allow-list it should be would need every endpoint the page chrome calls
- * enumerated. Anything that matters and is not matched here must still be
- * covered by the partner role holding "none" for it.
+ * This is a deny-list on the first path segment under /account (and, for
+ * /mlm, the second), because the allow-list it should be would need every
+ * endpoint the page chrome calls enumerated. Anything that matters and is not
+ * matched here must still be covered by the partner role holding "none" for it.
  */
 class RestrictPartnerAccounts
 {
@@ -31,6 +31,12 @@ class RestrictPartnerAccounts
         |meetings?|meeting-.+
         |leads?|lead-.+|leadboards|deals?|deal-.+
         |offers|payment-requests
+        |clients?|client-.+|employees?|employee-.+|agents
+        |invoices?|invoice-.+|payments?|estimates?|estimate-.+|proposals?|proposal-.+|contracts?|contract-.+
+        |creditnotes|orders?|products?|bankaccounts?
+        |search|messages?|tickets?|ticket-.+
+        |leaves?|leave-.+|attendances?|timelogs?|time-log-.+|expenses?|expense-.+|shifts?|holidays
+        |events?|notices?|awards|knowledgebase.*
     )$/x';
 
     public function handle(Request $request, Closure $next)
@@ -49,7 +55,18 @@ class RestrictPartnerAccounts
 
     private function isBlocked(Request $request): bool
     {
-        return $request->segment(1) === 'account'
-            && preg_match(self::BLOCKED, (string) $request->segment(2)) === 1;
+        if ($request->segment(1) !== 'account') {
+            return false;
+        }
+
+        $section = (string) $request->segment(2);
+
+        // Under /mlm only the agent-facing Affiliate pages are a partner's;
+        // everything else there is the partner-network admin.
+        if ($section === 'mlm') {
+            return $request->segment(3) !== 'agent';
+        }
+
+        return preg_match(self::BLOCKED, $section) === 1;
     }
 }

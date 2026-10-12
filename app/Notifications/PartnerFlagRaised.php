@@ -28,7 +28,16 @@ class PartnerFlagRaised extends BaseNotification
         $this->flag = $flag->load(['partner.user', 'lead']);
         $this->company = $flag->lead->company ?? null;
         $this->routeByAccess = $routeByAccess;
-        $this->managerViewEnabled = $routeByAccess && FeatureFlags::enabled('crm.manager-dashboard');
+        // A flag-service failure must not abort building the notification: the
+        // flag is already saved, and a retry would find it open and not send
+        // anything. Off sends the recipient to the home dashboard, which any
+        // of them can open.
+        try {
+            $this->managerViewEnabled = $routeByAccess && FeatureFlags::enabled('crm.manager-dashboard');
+        } catch (\Throwable $e) {
+            report($e);
+            $this->managerViewEnabled = false;
+        }
     }
 
     /**

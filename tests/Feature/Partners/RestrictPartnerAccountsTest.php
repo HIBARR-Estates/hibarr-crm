@@ -37,6 +37,20 @@ class RestrictPartnerAccountsTest extends TestCase
             'leads' => ['/account/lead-contact'],
             'deals' => ['/account/deals'],
             'offers' => ['/account/offers'],
+            'clients' => ['/account/clients'],
+            'client contacts' => ['/account/client-contacts'],
+            'employees' => ['/account/employees'],
+            'agents' => ['/account/agents'],
+            'invoices' => ['/account/invoices'],
+            'payments' => ['/account/payments'],
+            'estimates' => ['/account/estimates'],
+            'contracts' => ['/account/contracts'],
+            'tickets' => ['/account/tickets'],
+            'search' => ['/account/search'],
+            'messages' => ['/account/messages'],
+            'partner-network admin dashboard' => ['/account/mlm/dashboard'],
+            'partner-network ledger' => ['/account/mlm/commission-ledger'],
+            'partner-network admin api' => ['/account/mlm/api/commissions'],
         ];
     }
 
@@ -64,7 +78,7 @@ class RestrictPartnerAccountsTest extends TestCase
     /** @dataProvider blockedPaths */
     public function test_partner_is_redirected_home_from_internal_pages(string $path): void
     {
-        $response = $this->run(['partner', 'employee'], 'GET', $path);
+        $response = $this->handleRequest(['partner', 'employee'], 'GET', $path);
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertStringContainsString('view=partner', $response->headers->get('Location'));
@@ -75,20 +89,20 @@ class RestrictPartnerAccountsTest extends TestCase
     {
         $this->expectException(HttpException::class);
 
-        $this->run(['partner', 'employee'], 'POST', $path);
+        $this->handleRequest(['partner', 'employee'], 'POST', $path);
     }
 
     public function test_partner_gets_403_on_json_gets(): void
     {
         $this->expectException(HttpException::class);
 
-        $this->run(['partner', 'employee'], 'GET', '/account/properties', ['Accept' => 'application/json']);
+        $this->handleRequest(['partner', 'employee'], 'GET', '/account/properties', ['Accept' => 'application/json']);
     }
 
     /** @dataProvider allowedPaths */
     public function test_partner_can_reach_the_partner_surface(string $path): void
     {
-        $response = $this->run(['partner', 'employee'], 'GET', $path);
+        $response = $this->handleRequest(['partner', 'employee'], 'GET', $path);
 
         $this->assertSame(200, $response->getStatusCode());
     }
@@ -96,13 +110,13 @@ class RestrictPartnerAccountsTest extends TestCase
     /** @dataProvider blockedPaths */
     public function test_employee_without_partner_role_is_untouched(string $path): void
     {
-        $this->assertSame(200, $this->run(['employee'], 'GET', $path)->getStatusCode());
+        $this->assertSame(200, $this->handleRequest(['employee'], 'GET', $path)->getStatusCode());
     }
 
     public function test_staff_who_also_hold_partner_keep_staff_access(): void
     {
         $this->assertFalse(PartnerRole::isPartnerOnly($this->userWith(['partner', 'employee', 'sales-manager'])));
-        $this->assertSame(200, $this->run(['partner', 'admin'], 'GET', '/account/properties')->getStatusCode());
+        $this->assertSame(200, $this->handleRequest(['partner', 'admin'], 'GET', '/account/properties')->getStatusCode());
     }
 
     public function test_partner_only_predicate(): void
@@ -132,7 +146,7 @@ class RestrictPartnerAccountsTest extends TestCase
      * @param  list<string>  $roles
      * @param  array<string, string>  $headers
      */
-    private function run(array $roles, string $method, string $path, array $headers = [])
+    private function handleRequest(array $roles, string $method, string $path, array $headers = [])
     {
         $request = Request::create($path, $method);
 

@@ -354,7 +354,7 @@ class MlmAgentController extends AccountBaseController
 
         $query = MlmCommission::where('agent_id', $agent->id)
             ->where('type', '!=', MlmCommissionType::System->value)
-            ->with([$this->dealRelation(), 'sourceAgent.user:id,name,email,image', 'level:id,name'])
+            ->with([$this->dealRelation(), $this->isPartnerOnly() ? 'sourceAgent.user:id,name' : 'sourceAgent.user:id,name,email,image', 'level:id,name'])
             ->orderByDesc('created_at');
 
         if ($request->filled('status')) {

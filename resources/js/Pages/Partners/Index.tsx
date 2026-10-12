@@ -25,6 +25,8 @@ interface PartnerAgent {
     status: "enabled" | "disabled";
     is_partner: boolean;
     referred_leads_count: number;
+    /** True for an account made through Invite Partner, which can be re-invited. */
+    can_resend?: boolean;
     user: { id: number; name: string; email: string; image?: string | null } | null;
 }
 
@@ -138,7 +140,11 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             setRows((prev) => [newAgent, ...prev]);
             setStats((prev) => ({ ...prev, total_partners: prev.total_partners + 1 }));
             closeInvite();
-            message.success(td("Invitation sent.", { source: "en" }));
+            if (response.data.invite_sent === false) {
+                message.warning(response.data.message);
+            } else {
+                message.success(td("Invitation sent.", { source: "en" }));
+            }
         } catch (error: any) {
             const errors = error?.response?.data?.errors;
             setInviteError(
@@ -147,6 +153,23 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             );
         } finally {
             setInviting(false);
+        }
+    };
+
+    const [resendingId, setResendingId] = useState<number | null>(null);
+
+    const handleResend = async (agent: PartnerAgent) => {
+        setResendingId(agent.id);
+        try {
+            await axios.post(route("partners.resend_invite", agent.id));
+            message.success(td("Invitation sent.", { source: "en" }));
+        } catch (error: any) {
+            message.error(
+                error?.response?.data?.message ||
+                    td("Something went wrong. Please try again.", { source: "en" }),
+            );
+        } finally {
+            setResendingId(null);
         }
     };
 
@@ -262,6 +285,17 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         String(agent.referred_leads_count),
                                     )}
                                 </Badge>
+                                {agent.can_resend && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Icon name="mail" size={12} />}
+                                        loading={resendingId === agent.id}
+                                        onClick={() => handleResend(agent)}
+                                    >
+                                        {td("Resend invite", { source: "en" })}
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     size="sm"
