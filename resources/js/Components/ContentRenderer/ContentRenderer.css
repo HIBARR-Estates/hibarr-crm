@@ -1,3 +1,5 @@
+@import "./quill-readonly.css";
+
 /* ContentRenderer Global Styles */
 
 /* Base content styling */
@@ -41,8 +43,8 @@
 
 .html-content ul,
 .html-content ol {
-    margin-bottom: 0.75rem;
-    padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
 }
 
 .html-content li {

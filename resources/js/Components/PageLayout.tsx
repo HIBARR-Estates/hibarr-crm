@@ -28,6 +28,7 @@ import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
+import EmailUnreadIndicator from "@/Email/EmailUnreadIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -168,9 +169,12 @@ export default function PageLayout({
                         logoutMutation.mutate(
                             {},
                             {
-                                onSuccess: () => {
-                                    // Redirect to login page on successful logout
-                                    window.location.href = route("login");
+                                onSuccess: (res) => {
+                                    // The server returns the Keycloak end-session URL so
+                                    // the SSO session ends too; fall back to the login page.
+                                    window.location.href =
+                                        (res as { url?: string } | undefined)
+                                            ?.url ?? route("login");
                                 },
                             },
                         );
@@ -243,6 +247,7 @@ export default function PageLayout({
                                 <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
+                            <EmailUnreadIndicator />
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

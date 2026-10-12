@@ -395,6 +395,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deal-automations/change-status', [DealAutomationController::class, 'changeStatus'])->name('deal-automations.change-status');
     Route::get('deal-automation-logs/stats', [DealAutomationController::class, 'stats'])->name('deal-automations.stats');
     Route::get('deal-automation-logs/{id}', [DealAutomationController::class, 'logDetail'])->name('deal-automations.log-detail');
+    Route::post('deal-automation-logs/{id}/retry-meta', [DealAutomationController::class, 'retryMetaLog'])->name('deal-automations.log-retry-meta');
     Route::get('deal-automation-logs', [DealAutomationController::class, 'logs'])->name('deal-automations.logs');
     Route::resource('deal-automations', DealAutomationController::class);
 

@@ -78,3 +78,7 @@ Rules for changes here (apply repo-wide as other pages get touched):
 3. **Mutations update local state, not the page.** Patch `DealWorkspaceContext` (or the relevant local state) from the mutation response instead of reloading/re-visiting via Inertia — that's what makes edits feel instant.
 4. **Navigation stays client-side.** Tab/section switches go through `useDealViewNavigation` (URL query sync via `history.replaceState`), never a server round-trip.
 5. **Translate at the boundary**: static UI copy → lang files + `t()`; dynamic English → `td(..., { source: "en" })`. See `AGENTS.md`.
+
+## Git branches
+
+Only create branches with descriptive, human-readable names that say what the work is (e.g. `fix/detail-page-back-button-placement`, `feat/deal-payments-tab`), using a `fix/`, `feat/`, `chore/`, or `docs/` prefix. Never use random or auto-generated names (e.g. `claude/modest-hypatia-56xwzi`). If a session hands you a randomly named branch, rename it to a meaningful name before opening a PR, unless the harness or user requires that exact branch.

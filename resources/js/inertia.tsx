@@ -6,6 +6,10 @@ import React from "react";
 import { initI18n, loadI18n } from "@/lib/i18n";
 import { initAnalytics } from "@/lib/analytics";
 import {
+    replaceHistoryOnSamePageReloads,
+    trackBackTargets,
+} from "@/lib/inertiaHistory";
+import {
     loadPageModule,
     type InertiaPageComponent,
 } from "@inertia-load-page";
@@ -19,6 +23,11 @@ declare global {
 }
 
 window.route = route;
+
+// Same-page reloads replace history instead of pushing; cross-page visits
+// remember their origin URL so detail pages can offer a query-preserving Back.
+replaceHistoryOnSamePageReloads();
+trackBackTargets();
 
 createInertiaApp({
     resolve: async (name) => {

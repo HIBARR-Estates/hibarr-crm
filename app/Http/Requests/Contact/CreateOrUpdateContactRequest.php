@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Contact;
 
 use App\Enums\PreferredContactTime;
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use Illuminate\Validation\Rule;
 
@@ -62,6 +63,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'gender' => 'nullable|string|in:male,female',
+            'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
 
             // Optional contact fields
             'phone' => 'nullable|string|max:50',

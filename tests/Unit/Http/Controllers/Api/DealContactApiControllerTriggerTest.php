@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Http\Controllers\Api;
 
+use App\Enums\Salutation;
 use App\Http\Controllers\Api\DealContactApiController;
 use App\Models\DealAutomation;
 use App\Models\Lead;
@@ -240,6 +241,42 @@ class DealContactApiControllerTriggerTest extends TestCase
         $this->assertSame($agentId, (int) Lead::withoutGlobalScopes()->findOrFail($result['id'])->referred_by_agent_id);
     }
 
+    public function test_optional_fields_set_a_valid_salutation_on_a_new_contact(): void
+    {
+        $lead = $this->newUnsavedLead();
+
+        $changed = $this->invokeApplyLeadOptionalFields($lead, new Request(['salutation' => 'mrs']));
+
+        $this->assertTrue($changed);
+        $this->assertSame(Salutation::Mrs, $lead->salutation);
+    }
+
+    public function test_optional_fields_report_no_change_for_the_salutation_it_already_has(): void
+    {
+        $lead = $this->newUnsavedLead(['salutation' => Salutation::Dr]);
+
+        $this->assertFalse($this->invokeApplyLeadOptionalFields($lead, new Request(['salutation' => 'dr'])));
+        $this->assertSame(Salutation::Dr, $lead->salutation);
+    }
+
+    public function test_optional_fields_never_wipe_a_salutation_with_an_empty_value(): void
+    {
+        $lead = $this->newUnsavedLead(['salutation' => Salutation::Mr]);
+
+        $this->assertFalse($this->invokeApplyLeadOptionalFields($lead, new Request(['salutation' => ''])));
+        $this->assertFalse($this->invokeApplyLeadOptionalFields($lead, new Request(['salutation' => null])));
+        $this->assertFalse($this->invokeApplyLeadOptionalFields($lead, new Request([])));
+        $this->assertSame(Salutation::Mr, $lead->salutation);
+    }
+
+    public function test_optional_fields_ignore_a_salutation_outside_the_enum(): void
+    {
+        $lead = $this->newUnsavedLead(['salutation' => Salutation::Mr]);
+
+        $this->assertFalse($this->invokeApplyLeadOptionalFields($lead, new Request(['salutation' => 'lord'])));
+        $this->assertSame(Salutation::Mr, $lead->salutation);
+    }
+
     private function newUnsavedLead(array $overrides = []): Lead
     {
         $lead = new Lead;
@@ -258,6 +295,15 @@ class DealContactApiControllerTriggerTest extends TestCase
     {
         $controller = new DealContactApiController;
         $method = new ReflectionMethod($controller, 'applyReferralAgentToLead');
+        $method->setAccessible(true);
+
+        return (bool) $method->invoke($controller, $lead, $request);
+    }
+
+    private function invokeApplyLeadOptionalFields(Lead $lead, Request $request): bool
+    {
+        $controller = new DealContactApiController;
+        $method = new ReflectionMethod($controller, 'applyLeadOptionalFields');
         $method->setAccessible(true);
 
         return (bool) $method->invoke($controller, $lead, $request);

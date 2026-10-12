@@ -42,7 +42,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
     return (
         <div className="p-6">
             <div className="grid grid-cols-1 gap-6">
-                {/* UTM & Campaign Tracking */}
+                {/* First-touch UTM & Campaign Tracking */}
                 <Card
                     title={
                         <span>

@@ -12,6 +12,8 @@ import {
     getMeetingOwner,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import { openSourceEmailMessage } from "@/Email/openSourceEmail";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import useLeadMeetingUpdate from "../../hooks/useLeadMeetingUpdate";
@@ -62,6 +64,7 @@ export default function LeadMeetingDetailModal({
     initialPanel = "info",
 }: LeadMeetingDetailModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const { lead, deals, setLeadFollowUps, leadFollowUps } = useLeadWorkspace();
@@ -71,6 +74,7 @@ export default function LeadMeetingDetailModal({
             ? null
             : (leadFollowUps.find((item) => item.id === meetingProp.id) ??
               meetingProp);
+    const sourceEmailId = meeting?.source_email_message_id ?? null;
     const {
         updateMeeting,
         isUpdating,
@@ -232,6 +236,19 @@ export default function LeadMeetingDetailModal({
             includeSummary
             initialPanel={initialPanel}
             userId={userId}
+            onOpenSourceEmail={
+                sourceEmailId
+                    ? () => {
+                          onClose();
+                          openSourceEmailMessage(sourceEmailId);
+                      }
+                    : undefined
+            }
+            openSourceEmailLabel={
+                sourceEmailId
+                    ? t("pages.email.drawer.open_source")
+                    : undefined
+            }
             renderNestedModals={redesignNested}
             fallback={
                 <MeetingDetailModal

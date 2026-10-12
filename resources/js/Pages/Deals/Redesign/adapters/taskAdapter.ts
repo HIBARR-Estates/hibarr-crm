@@ -1,7 +1,9 @@
 import type { Task } from "@/Types/api/tasks";
 import type { IntegrationOrigin } from "@/Types/api/note";
-import { parseTaskDateTime } from "@/lib/taskDateTime";
-import { formatDateWithTime } from "./dateFormat";
+import {
+    formatTaskDateWithCompanyTime,
+    parseTaskDateTime,
+} from "@/lib/taskDateTime";
 import { initialsFromName } from "./initials";
 
 export interface WorkspaceTaskPreview {
@@ -38,13 +40,26 @@ const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
 };
 
 
+/**
+ * The due date for comparison/sorting — a Date in the viewer's own zone.
+ */
 function parseDueDate(value: string | undefined): Date | null {
     return parseTaskDateTime(value);
 }
 
-function formatDueDate(date: Date | null): string {
-    // Empty, not English - the render site supplies the localised label.
-    return date ? formatDateWithTime(date) : "";
+/**
+ * Empty, not English - the render site supplies the localised label.
+ *
+ * Formatted from the raw wall-clock string rather than from `dueDate`: a Date
+ * built in the browser's own zone cannot represent a wall-clock time that does
+ * not exist there (the DST spring-forward hour), and it silently reads an hour
+ * later — the label would disagree with the time the task is actually stored
+ * at. Same reason `dueDate` and `dueDateLabel` are produced independently.
+ */
+function formatDueDate(dueDate: string | null | undefined): string {
+    return dueDate
+        ? formatTaskDateWithCompanyTime(dueDate, { fallback: "" })
+        : "";
 }
 
 function isOpenTask(task: Task): boolean {
@@ -67,7 +82,7 @@ export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
         description: task.description?.trim() || "No description",
         priority,
         dueDate,
-        dueDateLabel: formatDueDate(dueDate),
+        dueDateLabel: formatDueDate(task.due_date),
         isOpen: isOpenTask(task),
         integrationOrigin: task.integration_origin ?? null,
     };

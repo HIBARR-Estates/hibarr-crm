@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { EmptyState, Icon } from "@/Components/Redesign";
+import { EmptyState } from "@/Components/Redesign";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import MarketingSection from "./MarketingSection";
+import MarketingTouchHistory from "./MarketingTouchHistory";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 
 type MarketingField =
@@ -193,11 +195,11 @@ export default function MarketingTab() {
     return (
         <div className="v2-mkt">
             {sections.map((section) => (
-                <section key={section.titleKey} className="v2-mkt-section">
-                    <header className="v2-mkt-section-head">
-                        <Icon name={section.icon} size={14} />
-                        <span>{t(section.titleKey)}</span>
-                    </header>
+                <MarketingSection
+                    key={section.titleKey}
+                    title={t(section.titleKey)}
+                    icon={section.icon}
+                >
                     <div className="v2-mkt-grid">
                         {section.fields.map((field) => {
                             const label = t(field.labelKey);
@@ -257,8 +259,9 @@ export default function MarketingTab() {
                             );
                         })}
                     </div>
-                </section>
+                </MarketingSection>
             ))}
+            <MarketingTouchHistory />
         </div>
     );
 }

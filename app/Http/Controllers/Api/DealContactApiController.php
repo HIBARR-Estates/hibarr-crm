@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\Salutation;
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
@@ -19,6 +20,7 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -833,6 +835,15 @@ class DealContactApiController extends Controller
         }
         if ($request->has('languages')) {
             $corePayload['languages'] = $request->input('languages');
+        } elseif ($request->filled('language') && empty($lead->languages)) {
+            // The website/backend send the visitor's single `language`. It fills an
+            // empty list; it never replaces languages already on the contact. Only a
+            // configured language is stored, an unsupported code is ignored rather
+            // than rejected so contact creation never fails over it.
+            $languageCode = $coreFieldsService->supportedLanguageCode($request->input('language'));
+            if ($languageCode !== null) {
+                $corePayload['languages'] = [$languageCode];
+            }
         }
         if ($request->has('nationality')) {
             $corePayload['nationality'] = $request->input('nationality');
@@ -868,6 +879,17 @@ class DealContactApiController extends Controller
             $current = $lead->temperature?->value ?? $lead->temperature;
             if ((string) $current !== (string) $temperature) {
                 $lead->temperature = $temperature;
+                $updated = true;
+            }
+        }
+
+        // How the visitor asked to be addressed. Only ever set from a non-empty,
+        // valid value: an empty field never wipes one already on the contact.
+        if ($request->filled('salutation')) {
+            $salutation = Salutation::tryFrom((string) $request->input('salutation'));
+            $current = $lead->salutation instanceof Salutation ? $lead->salutation->value : $lead->salutation;
+            if ($salutation && (string) $current !== $salutation->value) {
+                $lead->salutation = $salutation;
                 $updated = true;
             }
         }
@@ -1096,6 +1118,10 @@ class DealContactApiController extends Controller
         $marketingPayload = array_filter($marketingPayload, function ($value) {
             return $value !== null;
         });
+
+        // UTM is first-touch: the first set is kept on lead_marketing, later sets are logged separately.
+        [$utm, $marketingPayload] = app(LeadUtmService::class)->splitPayload($marketingPayload);
+        app(LeadUtmService::class)->record($contact, $utm, 'api');
 
         if (! empty($marketingPayload)) {
             $contact->marketing()->updateOrCreate(

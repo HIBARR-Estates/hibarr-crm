@@ -1171,6 +1171,11 @@ class DealCreationService
                 // Create new DealFollowUp (only if it doesn't exist after all checks)
                 $followUp = new DealFollowUp();
                 $followUp->deal_id = $deal->id;
+                // saveQuietly() skips the model's saving hook, so link the lead here.
+                // Resolved through the linker so a dangling deals.lead_id can't trip the FK.
+                $followUp->lead_id = $deal->lead_id
+                    ? app(DealMeetingLeadLinker::class)->leadIdForDeal((int) $deal->id)
+                    : null;
                 $followUp->meeting_type_id = $meetingTypeId;
                 $followUp->location = $meetingData['meeting_location'] ?? 'office';
                 $followUp->meeting_link = $meetingData['meeting_link'] ?? null;

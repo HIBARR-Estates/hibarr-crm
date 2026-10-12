@@ -43,6 +43,9 @@ interface NoteDetailModalProps {
     ) => void;
     onDelete: (onSuccess?: () => void) => void;
     labels: NoteDetailModalLabels;
+    /** Opens the email message this note was created from (E-32). */
+    onOpenSourceEmail?: () => void;
+    openSourceEmailLabel?: string;
 }
 
 function hasText(html: string): boolean {
@@ -60,6 +63,8 @@ export default function NoteDetailModal({
     onUpdate,
     onDelete,
     labels,
+    onOpenSourceEmail,
+    openSourceEmailLabel,
 }: NoteDetailModalProps) {
     const { td } = useTd();
     const { formatDateTime } = useUserDateTime();
@@ -143,17 +148,29 @@ export default function NoteDetailModal({
                             width: "100%",
                         }}
                     >
-                        {canDelete ? (
-                            <Button
-                                variant="ghost"
-                                style={{ color: T.RED }}
-                                onClick={() => setConfirmDelete(true)}
-                            >
-                                {labels.delete}
-                            </Button>
-                        ) : (
-                            <span />
-                        )}
+                        <div className="flex items-center gap-2">
+                            {canDelete ? (
+                                <Button
+                                    variant="ghost"
+                                    style={{ color: T.RED }}
+                                    onClick={() => setConfirmDelete(true)}
+                                >
+                                    {labels.delete}
+                                </Button>
+                            ) : null}
+                            {onOpenSourceEmail && openSourceEmailLabel ? (
+                                <Button
+                                    variant="ghost"
+                                    onClick={onOpenSourceEmail}
+                                >
+                                    {openSourceEmailLabel}
+                                </Button>
+                            ) : null}
+                            {!canDelete &&
+                            !(onOpenSourceEmail && openSourceEmailLabel) ? (
+                                <span />
+                            ) : null}
+                        </div>
                         {canEdit && (
                             <Button
                                 variant="primary"

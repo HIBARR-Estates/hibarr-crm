@@ -623,4 +623,12 @@ return [
         'off' => 'Aus',
         'read_only' => 'Nur Lesen',
     ],
+    'mr' => 'Herr',
+    'mrs' => 'Frau',
+    'miss' => 'Frau',
+    'dr' => 'Dr.',
+    'sir' => 'Herr',
+    'madam' => 'Frau',
+    'herr' => 'Herr',
+    'frau' => 'Frau',
 ];

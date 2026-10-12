@@ -122,6 +122,20 @@ export interface LeadNextAction {
     meta?: string | null;
 }
 
+export interface LeadUtmTouch {
+    id: number;
+    lead_id: number;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_content?: string | null;
+    utm_term?: string | null;
+    utm_audience?: string | null;
+    origin?: string | null;
+    is_first_touch: boolean;
+    created_at: string;
+}
+
 export interface LeadMarketing {
     id: number;
     lead_id: number;
