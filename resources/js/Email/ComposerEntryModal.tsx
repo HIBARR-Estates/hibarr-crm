@@ -148,7 +148,7 @@ export default function ComposerEntryModal({
         </>
     );
 
-    const form = (
+    const composerFields = (
         <>
             {loadingConnections ? (
                 <p className="m-0 text-sm text-dr-text-muted">
@@ -438,7 +438,7 @@ export default function ComposerEntryModal({
         if (!open) return null;
         return (
             <div className="flex flex-col gap-3 border-t border-dr-border pt-4">
-                {form}
+                {composerFields}
                 <div className="flex justify-end gap-2">{actions}</div>
             </div>
         );
@@ -459,7 +459,7 @@ export default function ComposerEntryModal({
             maxWidth={720}
             footer={actions}
         >
-            {form}
+            {composerFields}
         </Modal>
     );
 }
