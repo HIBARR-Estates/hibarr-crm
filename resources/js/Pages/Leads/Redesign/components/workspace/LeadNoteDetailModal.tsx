@@ -2,6 +2,7 @@ import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import NoteDetailModal from "@/Components/Redesign/modals/NoteDetailModal";
 import { hasNoteScopeAccess } from "@/Components/Redesign/adapters/noteAdapter";
+import { openSourceEmailMessage } from "@/Email/openSourceEmail";
 import type { LeadNote } from "@/Types/api/lead-note";
 import useLeadNoteMutations from "../../hooks/useLeadNoteMutations";
 
@@ -48,6 +49,7 @@ export default function LeadNoteDetailModal({
 
     const canEdit = note ? canEditNote(note, permissions, userId) : false;
     const canDelete = note ? canDeleteNote(note, permissions, userId) : false;
+    const sourceEmailId = note?.source_email_message_id ?? null;
 
     return (
         <NoteDetailModal
@@ -60,6 +62,19 @@ export default function LeadNoteDetailModal({
             initialEditing={initialEditing}
             onUpdate={(payload, onSuccess) => updateNote(payload, onSuccess)}
             onDelete={(onSuccess) => deleteNote(onSuccess)}
+            onOpenSourceEmail={
+                sourceEmailId
+                    ? () => {
+                          onClose();
+                          openSourceEmailMessage(sourceEmailId);
+                      }
+                    : undefined
+            }
+            openSourceEmailLabel={
+                sourceEmailId
+                    ? t("pages.email.drawer.open_source")
+                    : undefined
+            }
             labels={{
                 viewTitle: t("pages.deals.workspace.notes.view_title"),
                 editTitle: t("pages.deals.workspace.notes.edit_note"),

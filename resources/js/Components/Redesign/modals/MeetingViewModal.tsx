@@ -61,6 +61,8 @@ export interface MeetingViewModalProps {
     /** Shown when that fetch failed. */
     error?: string | null;
     userId?: number;
+    onOpenSourceEmail?: () => void;
+    openSourceEmailLabel?: string;
     /**
      * Flag-off fallback — the deprecated MeetingDetailModal or ViewFollowup.
      * Required so surfaces keep working when crm.meetings-page-redesign is off.
@@ -92,6 +94,8 @@ export default function MeetingViewModal({
     loading = false,
     error = null,
     userId,
+    onOpenSourceEmail,
+    openSourceEmailLabel,
     fallback,
 }: MeetingViewModalProps) {
     const redesignEnabled = useMeetingsPageRedesignFlag();
@@ -172,6 +176,8 @@ export default function MeetingViewModal({
                 onMarkHeld={onMarkHeld}
                 isUpdating={isUpdating}
                 summaryPanel={summaryPanel}
+                onOpenSourceEmail={onOpenSourceEmail}
+                openSourceEmailLabel={openSourceEmailLabel}
                 initialPanel={initialPanel}
             />
             {renderNestedModals?.(nestedControls)}

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\Helper\Files;
 use App\Models\Project;
 use App\Models\SubTask;
@@ -24,6 +25,7 @@ use Illuminate\Support\Str;
 
 class TaskService
 {
+    use AttachesSourceEmail;
     use ProjectProgress;
     use RecordsCrmEvents;
 
@@ -149,10 +151,20 @@ class TaskService
                 $task->updateCustomFieldData($data['custom_fields_data']);
             }
 
+            if ($user !== null) {
+                $this->attachSourceEmail($user, $task, $data['source_email_message_id'] ?? null);
+            }
+
             DB::commit();
 
             app(TaskLifecycleNotificationService::class)->notifyCreated($task, $user?->id);
             app(TaskReminderSync::class)->syncFromTask($task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']));
+
+            $task = $task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']) ?? $task;
+            $task->setAttribute(
+                'source_email_message_id',
+                $this->sourceEmailMessageIdFor($task),
+            );
 
             return $task;
 

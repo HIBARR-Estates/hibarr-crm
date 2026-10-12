@@ -73,6 +73,12 @@ export default function useDealTimeline(
         () =>
             (data?.pages ?? [])
                 .flatMap((page) => page.data ?? [])
+                // Email lives in compact conversation groups (E-28) — never
+                // also as a generic CRM catalog row for the same mail.
+                .filter((event) => {
+                    const slug = event.event_type?.slug;
+                    return slug !== "email_sent" && slug !== "email_received";
+                })
                 .map(crmEventToTimelineViewModel),
         [data],
     );
