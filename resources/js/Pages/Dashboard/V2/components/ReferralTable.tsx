@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Pagination, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
@@ -28,9 +28,17 @@ export default function ReferralTable({
 }) {
     const { td } = useTd();
     const [stalledOnly, setStalledOnly] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     const stalled = rows.filter((row) => row.stalled).length;
     const visible = stalledOnly ? rows.filter((row) => row.stalled) : rows;
+    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const pageRows = visible.slice(
+        (safePage - 1) * pageSize,
+        safePage * pageSize,
+    );
 
     if (!rows.length) {
         return (
@@ -77,7 +85,10 @@ export default function ReferralTable({
                         type="button"
                         className="dv2-chip"
                         aria-pressed={!stalledOnly}
-                        onClick={() => setStalledOnly(false)}
+                        onClick={() => {
+                            setStalledOnly(false);
+                            setPage(1);
+                        }}
                     >
                         {td("All", { source: "en" })} {rows.length}
                     </button>
@@ -86,7 +97,10 @@ export default function ReferralTable({
                         className="dv2-chip"
                         aria-pressed={stalledOnly}
                         disabled={stalled === 0}
-                        onClick={() => setStalledOnly(true)}
+                        onClick={() => {
+                            setStalledOnly(true);
+                            setPage(1);
+                        }}
                     >
                         {td("Stalled", { source: "en" })} {stalled}
                     </button>
@@ -114,7 +128,19 @@ export default function ReferralTable({
                         <div />
                     </div>
 
-                    {visible.map((row, index) => (
+                    {pageRows.length === 0 ? (
+                        <p
+                            style={{
+                                margin: 0,
+                                padding: 18,
+                                fontSize: 14,
+                                color: T.TEXT_MUTED,
+                            }}
+                        >
+                            {td("No stalled referrals.", { source: "en" })}
+                        </p>
+                    ) : (
+                        pageRows.map((row, index) => (
                         <div
                             key={row.id}
                             style={{
@@ -124,7 +150,7 @@ export default function ReferralTable({
                                 padding: "12px 18px",
                                 fontSize: 14,
                                 borderBottom:
-                                    index === visible.length - 1
+                                    index === pageRows.length - 1
                                         ? undefined
                                         : `1px solid ${T.BORDER_SOFT}`,
                             }}
@@ -203,9 +229,23 @@ export default function ReferralTable({
                                 )}
                             </div>
                         </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
+
+            <Pagination
+                page={safePage}
+                pageSize={pageSize}
+                totalItems={visible.length}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setPage(1);
+                }}
+                itemLabel="referral"
+                itemLabelPlural="referrals"
+            />
         </div>
     );
 }

@@ -126,19 +126,12 @@ export default function PartnerView({
                 )}
             </Deferred>
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                        "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
-                    gap: 14,
-                    alignItems: "start",
-                }}
-            >
+            <div className="dv2-partner-insights">
                 <DashboardPanel
                     title="Referrals over time"
                     note="Submitted against completed, last 12 months"
                     extra={<Legend />}
+                    style={{ height: "100%" }}
                 >
                     <Deferred
                         data="partnerTrend"
@@ -151,6 +144,7 @@ export default function PartnerView({
                 <DashboardPanel
                     title="Where your referrals stand"
                     note="Stage only — no client detail"
+                    style={{ height: "100%" }}
                 >
                     <Deferred
                         data="partnerFunnel"
@@ -174,39 +168,11 @@ export default function PartnerView({
                         />
                     </Deferred>
                 </DashboardPanel>
-            </div>
-
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                        "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
-                    gap: 14,
-                    alignItems: "start",
-                }}
-            >
-                {/* Full row: the table has five columns and a Flag action, which a half-width panel clips. */}
-                <div style={{ gridColumn: "1 / -1", minWidth: 0 }}>
-                    <DashboardPanel flush>
-                        <Deferred
-                            data="partnerReferrals"
-                            fallback={
-                                <div style={{ padding: 18 }}>
-                                    <PanelSkeleton rows={5} />
-                                </div>
-                            }
-                        >
-                            <ReferralTable
-                                rows={partnerReferrals ?? []}
-                                onFlag={setFlagging}
-                            />
-                        </Deferred>
-                    </DashboardPanel>
-                </div>
 
                 <DashboardPanel
                     title="Commission ledger"
                     note="In the currency each commission was recorded in"
+                    style={{ height: "100%" }}
                     footer={
                         <span style={{ color: T.TEXT_MUTED, fontSize: 13 }}>
                             {td(
@@ -292,6 +258,22 @@ export default function PartnerView({
                     </Deferred>
                 </DashboardPanel>
             </div>
+
+            <DashboardPanel flush>
+                <Deferred
+                    data="partnerReferrals"
+                    fallback={
+                        <div style={{ padding: 18 }}>
+                            <PanelSkeleton rows={5} />
+                        </div>
+                    }
+                >
+                    <ReferralTable
+                        rows={partnerReferrals ?? []}
+                        onFlag={setFlagging}
+                    />
+                </Deferred>
+            </DashboardPanel>
 
             <FlagReferralModal
                 referral={flagging}
