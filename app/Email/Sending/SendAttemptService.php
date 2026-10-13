@@ -43,7 +43,10 @@ class SendAttemptService
     /**
      * @throws EmailUnavailableException before anything is stored or sent.
      */
-    public function send(EmailConnection $connection, Draft $draft, ?User $actor = null): EmailSendAttempt
+    /**
+     * @param  list<string>|null  $allowedRecipients  Lead/deal sends pass the known address set. Null leaves To/Cc unconstrained.
+     */
+    public function send(EmailConnection $connection, Draft $draft, ?User $actor = null, ?array $allowedRecipients = null): EmailSendAttempt
     {
         $this->guard($connection);
 
@@ -65,7 +68,7 @@ class SendAttemptService
         });
 
         // An invalid draft is kept on the attempt and never reaches the provider.
-        if (($invalid = $this->validator->check($connection, $draft)) !== null) {
+        if (($invalid = $this->validator->check($connection, $draft, $allowedRecipients)) !== null) {
             return $this->logSend($this->failValidation($attempt, $invalid), $connection, $actor, microtime(true));
         }
 
@@ -93,6 +96,11 @@ class SendAttemptService
 
         $connection = $attempt->connection;
         $this->guard($connection);
+
+        // A validation failure is not a provider problem. Retry must not send it.
+        if (is_string($attempt->error_code) && str_starts_with($attempt->error_code, 'validation_')) {
+            return $attempt;
+        }
 
         if (($invalid = $this->validator->check($connection, $attempt->draft())) !== null) {
             $failed = $attempt->status === SendAttemptStatus::Failed

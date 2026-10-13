@@ -4,6 +4,7 @@ use App\Email\Http\Controllers\ConnectionController;
 use App\Email\Http\Controllers\CopyActionController;
 use App\Email\Http\Controllers\FileController;
 use App\Email\Http\Controllers\HandoffController;
+use App\Email\Http\Controllers\InboxController;
 use App\Email\Http\Controllers\ReadController;
 use App\Email\Http\Controllers\RecordHistoryController;
 use App\Email\Http\Controllers\ReportController;
@@ -41,6 +42,8 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('connection')->name('connections.reconnect');
         Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
             ->whereUuid('connection')->name('connections.destroy');
+
+        Route::get('inbox', [InboxController::class, 'index'])->name('inbox.index');
 
         Route::get('review', [ReviewController::class, 'index'])->name('review.index');
         Route::get('review/candidates', [ReviewController::class, 'candidates'])->name('review.candidates');

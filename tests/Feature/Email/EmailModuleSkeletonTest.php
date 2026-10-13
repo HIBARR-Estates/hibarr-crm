@@ -53,11 +53,13 @@ class EmailModuleSkeletonTest extends TestCase
         $this->assertNotEmpty($moduleRoutes);
 
         foreach ($moduleRoutes as $route) {
-            $this->assertSame(
-                [EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class],
-                $route->middleware(),
-                $route->uri(),
-            );
+            // The mailbox page lives in the account-settings group, which already
+            // applies web and auth. The email gates still run before the controller.
+            $expected = $route->uri() === 'account/settings/mailbox'
+                ? ['web', 'auth', EnsureEmailEnabled::class, EnsureEmailPilot::class]
+                : [EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class];
+
+            $this->assertSame($expected, $route->middleware(), $route->uri());
         }
     }
 }

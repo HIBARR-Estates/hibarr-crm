@@ -16,7 +16,7 @@ Do **not** start E-01 until explicitly asked. One task per change-set unless the
 
 **Status:** `todo` · `doing` · `done` · `blocked (reason)`
 
-**Default order:** E-01 → E-08, then E-09–E-12 (M1), E-13–E-19 (M2), **E-20 before any UI that shows bodies**, E-25–E-29 (M3), E-30–E-37 (M4), E-38–E-41 (Zoho), E-42–E-45 (policy).
+**Default order:** E-01 → E-08, then E-09–E-12 (M1), E-13–E-19 (M2), **E-20 before any UI that shows bodies**, E-25–E-29 (M3), E-30–E-37 (M4), E-38 (Zoho OAuth, done), **E-46–E-51 (communication surfaces) before E-39–E-41**, E-42–E-45 (policy).
 
 ```mermaid
 flowchart TD
@@ -46,9 +46,16 @@ flowchart TD
   E26 --> E27[E-27 drawer]
   E27 --> E28[E-28 timeline]
   E28 --> E29[E-29 deal UI]
+  E29 --> E46[E-46 brief]
+  E46 --> E47[E-47 settings]
+  E47 --> E48[E-48 modal]
+  E48 --> E49[E-49 recipients]
+  E49 --> E50[E-50 inbox]
+  E50 --> E51[E-51 notify]
+  E51 --> E39[E-39 Zoho spike]
 ```
 
-**Milestones:** M1 = E-12 · M2 = E-19 · M3 = E-29 · M4 = E-37 · M5 = E-41 + policy.
+**Milestones:** M1 = E-12 · M2 = E-19 · M3 = E-29 · M4 = E-37 · M6 = E-51 · M5 = E-41 + policy (E-39–E-41 wait on E-48–E-51).
 
 ---
 
@@ -786,11 +793,15 @@ Same port. Per-user tokens. Do not use `config/zoho.php` refresh token.
 
 ### Task E-39 — Provider spike matrix
 
+**Waits on** E-48–E-51. Do not start until the Communication modal and inbox are the surfaces Zoho mail will land in.
+
 Folders, other-client Sent, signatures, DSN, quotas, reconnect, duplicate delivery, checkpoint reset. Record actual limits. Choose API / IMAP / hybrid **inside** the Zoho adapter.
 
 ---
 
 ### Task E-40 — Bounce hold
+
+**Waits on** E-39 (and therefore E-48–E-51).
 
 Only if E-39 attribution is reliable. Per-recipient hold until ops/manager review. Temporary delay ≠ bounce.
 
@@ -801,8 +812,9 @@ Only if E-39 attribution is reliable. Per-recipient hold until ops/manager revie
 | | |
 |--|--|
 | **Milestone** | **M5** transport |
+| **Waits on** | E-39 and E-48–E-51 |
 
-Default adapter Zoho in staging for allowlisted users. Mailtrap remains for local/CI. Fake remains for PHPUnit.
+Default adapter Zoho in staging for allowlisted users. Mailtrap remains for local/CI. Fake remains for PHPUnit. Mail opens in the Communication modal and the inbox, not the pre-E-48 composer-only entry.
 
 ---
 
@@ -823,6 +835,136 @@ Implement access-matrix TBD cells **after** Founder/PM/ops sign. Until then keep
 ### Task E-45 — Pilot instrumentation
 
 Named mailboxes, support owner, volume, absence cover. Baseline five compose/reply/attachment tasks; record tab switches, missed/dupes, time-to-find.
+
+---
+
+## J. Communication surfaces (M6)
+
+E-46 is the product correction. E-47–E-51 implement it. Do not start E-39 until E-51 is done.
+
+### Task E-46 — Product correction
+
+| | |
+|--|--|
+| **Goal** | Brief, architecture, and this checklist match the review: provider is the source of mail; the inbox filters synced copies; the record surface is a Communication modal. |
+| **Depends on** | E-38 (docs only; no code) |
+
+#### Impl
+
+1. [brief.md](./brief.md): inbox of synced mail, Communication modal, known recipients, account mailbox settings, in-app notification. Remove “general employee inbox” as a blanket out-of-scope line; replace it with the precise inbox definition.
+2. [architecture.md](./architecture.md): provider authority vs mailbox-copy projection; date filters never call `MailTransport`.
+3. This file: E-39–E-41 wait on E-48–E-51; tasks E-47–E-51 listed below.
+
+#### Verify
+
+- [x] Brief no longer lists a general inbox as out of scope without the synced-copy definition
+- [x] Architecture states date filters do not call the provider
+- [x] E-39–E-41 are marked waiting
+
+---
+
+### Task E-47 — Mailbox settings page
+
+| | |
+|--|--|
+| **Depends on** | E-12, E-33, E-46 |
+| **Files** | `routes/web-settings.php`, `Pages/Settings/`, `Sidebar.tsx`, `PageLayout.tsx`, `HandleInertiaRequests.php` |
+
+#### Impl
+
+1. `GET /account/settings/mailbox`, Inertia, beside Preferences. Reuse connect / stop / resume / reconnect. Connection JSON stays on `/email/connections`.
+2. Flag off → 404. Not allowlisted → 403.
+3. User-menu item beside Preferences in the sidebar and the page header, only when the flag is on and the user is allowlisted. Flag-off requests do not query the allowlist.
+4. Lead/deal manage-mailbox and the no-connection state link here.
+
+#### Verify
+
+- [ ] Flag off: no menu item, route 404
+- [ ] Allowlisted user with the flag on: page can stop a connection
+
+---
+
+### Task E-48 — Communication modal
+
+| | |
+|--|--|
+| **Depends on** | E-27, E-29, E-47 |
+| **Files** | `resources/js/Email/`, deal and lead redesign |
+
+#### Impl
+
+1. One shared modal: conversation list, selected thread, composer docked in the same surface. Email is the only channel chip.
+2. Deal and lead open it from a Communication control. On the deal the control sits before the actions menu and uses the primary button.
+3. Timeline group click opens the same modal on that message. The side drawer is no longer the reader.
+4. No connection: the modal links to `/account/settings/mailbox`.
+
+#### Verify
+
+- [ ] Deal click opens history, not a bare composer
+- [ ] Timeline click opens that message in the modal
+- [ ] Flag off: no Communication control
+
+---
+
+### Task E-49 — Known recipients
+
+| | |
+|--|--|
+| **Depends on** | E-11, E-48 |
+
+#### Impl
+
+1. Address set: lead `client_email` plus email `lead_contact_methods`. A deal uses its lead. Expose the set on the record history payload.
+2. To and Cc are chips from that set. An address outside the set cannot be typed.
+3. From and Reply-To render as text. Multiple connections keep a select.
+4. `DraftValidator` rejects To/Cc outside the set when the send has a lead or deal context. Reply prefills the counterpart only when it is in the set.
+
+#### Verify
+
+- [x] Unknown address is rejected and the draft is kept
+- [ ] From is not an editable input when there is one connection
+
+---
+
+### Task E-50 — Inbox of synced mail
+
+| | |
+|--|--|
+| **Depends on** | E-15, E-16, E-46 |
+| **Milestone** | part of **M6** |
+
+#### Impl
+
+1. `GET /email/inbox`: the owner’s copies (`ReviewQueue::owned()`), grouped by conversation, ordered by `sent_at`.
+2. Presets last 7 / 14 / 30 / 90 days plus custom from/to, applied in the CRM. Default last 7 days. No provider call. Segment All / Needs review. Needs review keeps create, attach, dismiss, handoff.
+3. `GET /email/review` redirects to the inbox with Needs review selected. The header mail icon points at the inbox. `?focus={copy}` opens that message.
+
+#### Verify
+
+- [x] A wider preset does not call `MailTransport`
+- [x] Another user’s copy is absent
+- [x] Unlinked copy still accepts create / attach / dismiss
+
+---
+
+### Task E-51 — New-mail notification
+
+| | |
+|--|--|
+| **Depends on** | E-10, E-50 |
+| **Milestone** | **M6** |
+
+#### Impl
+
+1. After commit, the first ingest of an inbound copy notifies that connection’s user. Re-sync and outbound do not. Two copies mean two notifications.
+2. Database channel only. Do not extend `BaseNotification`. Do not add `mail`. Payload: capped sender and subject, `action_url` `/email/inbox?focus={copy}`. No body.
+3. Register the type slug so the existing 30-second notification poll and dropdown open that link. No second poller.
+
+#### Verify
+
+- [x] Second ingest of the same provider id does not notify again
+- [x] Notification row has no body and no mail channel
+- [x] Click target is the focused inbox message
 
 ---
 

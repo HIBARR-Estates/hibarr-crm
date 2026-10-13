@@ -9,10 +9,12 @@ use App\Email\Data\EmailAddress;
 use App\Email\Enums\SendAttemptStatus;
 use App\Email\Exceptions\EmailUnavailableException;
 use App\Email\Files\EmailFiles;
+use App\Email\Matching\RecordResolver;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailFile;
 use App\Email\Models\EmailSendAttempt;
 use App\Email\Models\EmailSignature;
+use App\Email\Sending\KnownAddresses;
 use App\Email\Sending\SendAttemptService;
 use App\Email\Sending\SignatureAppender;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +32,8 @@ class SendController
         private readonly SendAttemptService $sends,
         private readonly EmailFiles $files,
         private readonly SignatureAppender $signatures,
+        private readonly RecordResolver $records,
+        private readonly KnownAddresses $addresses,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -49,6 +53,8 @@ class SendController
             'in_reply_to' => ['nullable', 'string', 'max:998'],
             'references' => ['nullable', 'array'],
             'references.*' => ['string', 'max:998'],
+            'record_type' => ['nullable', 'in:lead,deal'],
+            'record_id' => ['nullable', 'integer', 'required_with:record_type'],
         ]);
 
         $connection = $this->access->ownConnection($request->user(), $input['connection_id']);
@@ -89,8 +95,16 @@ class SendController
             references: $input['references'] ?? null,
         );
 
+        $allowed = null;
+
+        if (! empty($input['record_type'])) {
+            $record = $this->records->find($request->user(), $input['record_type'], (int) $input['record_id']);
+            abort_if($record === null, 404);
+            $allowed = $this->addresses->forRecord($record);
+        }
+
         try {
-            $attempt = $this->sends->send($connection, $draft, $request->user());
+            $attempt = $this->sends->send($connection, $draft, $request->user(), $allowed);
         } catch (EmailUnavailableException $exception) {
             throw ValidationException::withMessages([
                 'connection_id' => $exception->reason,

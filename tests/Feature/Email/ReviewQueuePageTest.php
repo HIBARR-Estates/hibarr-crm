@@ -60,13 +60,7 @@ class ReviewQueuePageTest extends TestCase
         $inertia = ['X-Inertia' => 'true', 'Accept' => 'text/html, application/xhtml+xml'];
 
         $this->get('/email/review', $inertia)
-            ->assertOk()
-            ->assertJsonPath('component', 'Email/ReviewQueue')
-            ->assertJsonPath('props.items.0.id', $copy->uuid)
-            ->assertJsonPath('props.items.0.subject', 'Villa viewing')
-            ->assertJsonPath('props.items.0.preview', 'See you Friday.')
-            ->assertJsonPath('props.canCreateLead', true)
-            ->assertJsonPath('props.focusId', null);
+            ->assertRedirect('/email/inbox?state=needs_review');
 
         // JSON callers keep the E-15 API shape.
         $json = $this->getJson('/email/review')->assertOk();
@@ -92,10 +86,7 @@ class ReviewQueuePageTest extends TestCase
         $this->get("/email/review/{$theirs->uuid}", $inertia)->assertStatus(404);
 
         $this->get("/email/review/{$mine->uuid}", $inertia)
-            ->assertOk()
-            ->assertJsonPath('component', 'Email/ReviewQueue')
-            ->assertJsonPath('props.focusId', $mine->uuid)
-            ->assertJsonPath('props.items.0.id', $mine->uuid);
+            ->assertRedirect('/email/inbox?state=needs_review&focus='.$mine->uuid);
     }
 
     public function test_candidates_only_return_leads_the_owner_may_see(): void

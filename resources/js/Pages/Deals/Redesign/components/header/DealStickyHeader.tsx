@@ -204,6 +204,48 @@ export default function DealStickyHeader({
                                     {t("pages.deals.header.locked")}
                                 </span>
                             )}
+                            {emailQuickAction != null && onEmail && (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    icon={
+                                        <span className="relative inline-flex">
+                                            <Icon name="mail" size={14} />
+                                            {emailUnreadAvailable &&
+                                            emailUnread > 0 ? (
+                                                <span
+                                                    className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-dr-red"
+                                                    aria-hidden="true"
+                                                    data-tour="deal-email-unread-dot"
+                                                />
+                                            ) : null}
+                                        </span>
+                                    }
+                                    onClick={onEmail}
+                                    title={t("pages.email.communication.title")}
+                                    aria-label={
+                                        emailUnreadAvailable && emailUnread > 0
+                                            ? t(
+                                                  "pages.email.indicator.unread_aria",
+                                              ).replace(
+                                                  "{{count}}",
+                                                  String(emailUnread),
+                                              )
+                                            : t(
+                                                  "pages.email.communication.title",
+                                              )
+                                    }
+                                    data-tour="deal-email-action"
+                                    data-action="email"
+                                    data-email-unread={
+                                        emailUnreadAvailable
+                                            ? emailUnread
+                                            : undefined
+                                    }
+                                >
+                                    {t("pages.email.communication.open")}
+                                </Button>
+                            )}
                             <DealActionsMenu
                                 onAddNote={onAddNote}
                                 onAddTask={onAddTask}
@@ -237,58 +279,6 @@ export default function DealStickyHeader({
                                 }
                                 currentOutcome={outcome}
                             />
-                            {emailQuickAction != null && onEmail && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={
-                                        <span className="relative inline-flex">
-                                            <Icon name="mail" size={14} />
-                                            {emailUnreadAvailable &&
-                                            emailUnread > 0 ? (
-                                                <span
-                                                    className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-dr-red"
-                                                    aria-hidden="true"
-                                                    data-tour="deal-email-unread-dot"
-                                                />
-                                            ) : null}
-                                        </span>
-                                    }
-                                    onClick={onEmail}
-                                    title={t(
-                                        emailQuickAction.has_connection
-                                            ? "pages.deals.quick_actions.email_title"
-                                            : "pages.deals.quick_actions.email_connect_title",
-                                    )}
-                                    aria-label={
-                                        emailUnreadAvailable && emailUnread > 0
-                                            ? t(
-                                                  "pages.email.indicator.unread_aria",
-                                              ).replace(
-                                                  "{{count}}",
-                                                  String(emailUnread),
-                                              )
-                                            : t(
-                                                  emailQuickAction.has_connection
-                                                      ? "pages.deals.quick_actions.email_title"
-                                                      : "pages.deals.quick_actions.email_connect_title",
-                                              )
-                                    }
-                                    data-tour="deal-email-action"
-                                    data-action="email"
-                                    data-email-unread={
-                                        emailUnreadAvailable
-                                            ? emailUnread
-                                            : undefined
-                                    }
-                                >
-                                    {t(
-                                        emailQuickAction.has_connection
-                                            ? "pages.deals.quick_actions.email"
-                                            : "pages.deals.quick_actions.email_connect",
-                                    )}
-                                </Button>
-                            )}
                             {onOpenAnalysis && (
                                 <Button
                                     variant="ghost"

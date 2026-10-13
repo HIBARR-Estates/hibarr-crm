@@ -3,6 +3,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
+import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import {
@@ -193,14 +194,7 @@ export default function PaymentRequestRow({
                     </Button>
                 )}
                 {row.show_checkout_url && row.checkout_url && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={<Icon name="external-link" size={12} />}
-                        onClick={() => window.open(row.checkout_url!, "_blank", "noreferrer")}
-                    >
-                        {t("pages.payment_requests.action_checkout")}
-                    </Button>
+                    <CheckoutLinkActions url={row.checkout_url} compact />
                 )}
                 {row.can_confirm && (
                     <Button variant="primary" size="sm" onClick={onConfirm}>

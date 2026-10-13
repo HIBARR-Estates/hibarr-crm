@@ -135,8 +135,13 @@ export type EmailTimelineGroup = {
     messages: EmailTimelineMessage[];
 };
 
+export type EmailKnownAddress = {
+    address: string;
+};
+
 export type EmailTimelineGroupsResponse = {
     groups: EmailTimelineGroup[];
+    addresses?: EmailKnownAddress[];
 };
 
 export type EmailHandoffRef = {
