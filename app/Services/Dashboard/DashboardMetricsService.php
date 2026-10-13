@@ -1736,6 +1736,33 @@ class DashboardMetricsService
             ->all();
     }
 
+    /**
+     * This partner's flags, newest first, including ones already answered.
+     *
+     * The referral table only joins a flag while it is still open, so a reply
+     * would vanish from that row the moment it was sent. This list is where
+     * the partner reads it.
+     */
+    public function partnerFlags(int $leadAgentId): array
+    {
+        return PartnerFlag::query()
+            ->where('lead_agent_id', $leadAgentId)
+            ->with(['lead:id,client_name'])
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (PartnerFlag $flag) => [
+                'id' => $flag->id,
+                'lead_id' => $flag->lead_id,
+                'client' => $this->abbreviateName($flag->lead?->client_name),
+                'reason' => $flag->reason,
+                'message' => $flag->message,
+                'status' => $flag->status,
+                'response' => $flag->response,
+            ])
+            ->all();
+    }
+
     // ── Internals ────────────────────────────────────────────────
 
     private function agentIdsForUser(int $userId): array

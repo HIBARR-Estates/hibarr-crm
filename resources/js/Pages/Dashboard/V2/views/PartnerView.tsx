@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Deferred } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -11,8 +10,9 @@ import MultiStatTile from "../components/MultiStatTile";
 import StageFunnel from "../components/StageFunnel";
 import PartnerTrendChart from "../components/PartnerTrendChart";
 import ReferralTable from "../components/ReferralTable";
-import FlagReferralModal from "../components/FlagReferralModal";
+import ReferralFlagsCard from "../components/ReferralFlagsCard";
 import type {
+    PartnerFlagThreadItem,
     PartnerForecast,
     PartnerReferral,
     PartnerStats,
@@ -24,6 +24,7 @@ export interface PartnerViewProps {
     partnerFunnel?: Array<{ label: string; count: number }> | null;
     partnerTrend?: PartnerTrendPoint[] | null;
     partnerReferrals?: PartnerReferral[] | null;
+    partnerFlags?: PartnerFlagThreadItem[] | null;
     partnerForecast?: PartnerForecast | null;
 }
 
@@ -48,10 +49,10 @@ export default function PartnerView({
     partnerFunnel,
     partnerTrend,
     partnerReferrals,
+    partnerFlags,
     partnerForecast,
 }: PartnerViewProps) {
     const { td } = useTd();
-    const [flagging, setFlagging] = useState<PartnerReferral | null>(null);
 
     const commissions = Object.entries(partnerStats?.commissionsByStatus ?? {});
 
@@ -259,26 +260,33 @@ export default function PartnerView({
                 </DashboardPanel>
             </div>
 
-            <DashboardPanel flush>
-                <Deferred
-                    data="partnerReferrals"
-                    fallback={
+            <Deferred
+                data={["partnerReferrals", "partnerFlags"]}
+                fallback={
+                    <div className="dv2-partner-book">
                         <div style={{ padding: 18 }}>
                             <PanelSkeleton rows={5} />
                         </div>
-                    }
-                >
-                    <ReferralTable
-                        rows={partnerReferrals ?? []}
-                        onFlag={setFlagging}
-                    />
-                </Deferred>
-            </DashboardPanel>
-
-            <FlagReferralModal
-                referral={flagging}
-                onClose={() => setFlagging(null)}
-            />
+                        <PanelSkeleton rows={4} />
+                    </div>
+                }
+            >
+                <div className="dv2-partner-book">
+                    <DashboardPanel flush>
+                        <ReferralTable rows={partnerReferrals ?? []} />
+                    </DashboardPanel>
+                    <DashboardPanel
+                        title="Flags"
+                        note="Raise a flag here, and read the reply on the same card"
+                        style={{ height: "100%" }}
+                    >
+                        <ReferralFlagsCard
+                            referrals={partnerReferrals ?? []}
+                            flags={partnerFlags ?? []}
+                        />
+                    </DashboardPanel>
+                </div>
+            </Deferred>
         </div>
     );
 }

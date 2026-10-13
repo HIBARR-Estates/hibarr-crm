@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\PartnerFlag;
-use App\Models\User;
+use App\Notifications\PartnerFlagAnswered;
 use App\Notifications\PartnerFlagRaised;
 use App\Support\FeatureFlags;
 use App\Support\PartnerFlagRecipients;
@@ -89,18 +89,21 @@ class PartnerFlagController extends AccountBaseController
             'resolved_at' => now(),
         ]);
 
+        $this->notifyPartner($flag);
+
         return back()->with('success', __('messages.updateSuccess'));
     }
 
     /**
-     * Notify admins; behind crm.partner-flag-routing, also everyone who can
-     * answer the flag. The flag is read once here, not in the notification:
-     * queue workers do not call the flag service.
+     * Mail and an in-app notification to admins and to everyone who can answer
+     * the flag. Sent now, not queued: a worker that is not running was dropping
+     * both, and the partner had already been told the flag was saved.
+     *
+     * The routing flag still decides where the button lands. It no longer
+     * decides who is told.
      */
     private function notifyManagers(PartnerFlag $flag): void
     {
-        // Fail closed: a flag-service problem must never cost a partner their
-        // request, and "off" is exactly the earlier behaviour.
         try {
             $routed = FeatureFlags::enabled(PartnerFlag::ROUTING_FLAG);
         } catch (\Throwable $e) {
@@ -108,9 +111,30 @@ class PartnerFlagController extends AccountBaseController
             $routed = false;
         }
 
-        Notification::send(
-            PartnerFlagRecipients::resolve((int) $flag->company_id, $routed),
+        $this->deliver(
+            PartnerFlagRecipients::resolve((int) $flag->company_id, true),
             new PartnerFlagRaised($flag, $routed),
         );
+    }
+
+    /** The partner who raised it hears the reply the same way. */
+    private function notifyPartner(PartnerFlag $flag): void
+    {
+        $partner = $flag->partner()->first()?->user;
+
+        if ($partner === null) {
+            return;
+        }
+
+        $this->deliver($partner, new PartnerFlagAnswered($flag));
+    }
+
+    private function deliver(mixed $notifiable, PartnerFlagRaised $notification): void
+    {
+        try {
+            Notification::sendNow($notifiable, $notification);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

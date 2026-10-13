@@ -161,6 +161,17 @@ export interface PartnerReferral {
     flag_response: string | null;
 }
 
+/** A flag this partner raised, including ones the team has already answered. */
+export interface PartnerFlagThreadItem {
+    id: number;
+    lead_id: number;
+    client: string | null;
+    reason: string;
+    message: string | null;
+    status: string;
+    response: string | null;
+}
+
 export interface PartnerFlagRow {
     id: number;
     partner: string | null;

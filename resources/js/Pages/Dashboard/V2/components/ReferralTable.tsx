@@ -3,7 +3,7 @@ import { Pagination, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
-const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr 96px";
+const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr";
 
 const STAGE_PILL: Record<string, string> = {
     "Deal open": "blue",
@@ -19,13 +19,7 @@ const STAGE_PILL: Record<string, string> = {
  * payload at all — the redaction happens in the query, not by this table
  * choosing not to render a field it was handed.
  */
-export default function ReferralTable({
-    rows,
-    onFlag,
-}: {
-    rows: PartnerReferral[];
-    onFlag: (referral: PartnerReferral) => void;
-}) {
+export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
     const { td } = useTd();
     const [stalledOnly, setStalledOnly] = useState(false);
     const [page, setPage] = useState(1);
@@ -125,7 +119,6 @@ export default function ReferralTable({
                         <div style={{ textAlign: "right" }}>
                             {td("Last update", { source: "en" })}
                         </div>
-                        <div />
                     </div>
 
                     {pageRows.length === 0 ? (
@@ -159,17 +152,6 @@ export default function ReferralTable({
                                 <div style={{ fontWeight: 600 }}>
                                     {row.client ?? td("Unnamed referral", { source: "en" })}
                                 </div>
-                                {row.flag_response && (
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            color: T.GREEN,
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        {td("Reply", { source: "en" })}: {row.flag_response}
-                                    </div>
-                                )}
                             </div>
 
                             <div>
@@ -208,25 +190,6 @@ export default function ReferralTable({
                                 {row.idle_days === 0
                                     ? td("Today", { source: "en" })
                                     : `${row.idle_days}${td("d ago", { source: "en" })}`}
-                            </div>
-
-                            <div style={{ textAlign: "right" }}>
-                                {row.flag_status ? (
-                                    <span
-                                        className="dr-pill dr-pill-amber"
-                                        title={td("Waiting on the partner team", { source: "en" })}
-                                    >
-                                        {td("Flagged", { source: "en" })}
-                                    </span>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="dr-btn dr-btn-ghost dr-btn-sm"
-                                        onClick={() => onFlag(row)}
-                                    >
-                                        {td("Flag", { source: "en" })}
-                                    </button>
-                                )}
                             </div>
                         </div>
                         ))
