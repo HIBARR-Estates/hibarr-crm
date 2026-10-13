@@ -291,6 +291,10 @@ class DashboardV2Controller extends AccountBaseController
                     fn () => $this->forPartner($userId, fn ($id) => $metrics->partnerReferrals($id)),
                     'referrals'
                 ),
+                'partnerFlags' => Inertia::defer(
+                    fn () => $this->forPartner($userId, fn ($id) => $metrics->partnerFlags($id)),
+                    'referrals'
+                ),
                 'partnerForecast' => Inertia::defer(
                     fn () => $this->forPartner(
                         $userId,

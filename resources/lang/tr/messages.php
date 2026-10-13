@@ -142,4 +142,9 @@ return array(
     'leadFollowUpOwnerRequired' => 'Bu müşteri adayına atanmış bir sahip yok. Toplantı oluşturmadan önce lütfen bir sahip atayın.',
     'leadDuplicateEmail' => 'Bu e-posta adresi başka bir müşteri adayı tarafından zaten kullanılıyor.',
     'leadDuplicateContact' => ':attribute başka bir müşteri adayı tarafından zaten kullanılıyor.',
+    'confirmResyncAllUserPermissions' => 'Bu, şirketinizdeki tüm kullanıcıların izinlerini rol şablonundan yeniden oluşturur (özel izinleri olan kullanıcılar atlanır). Roller doğru görünüyor ancak kullanıcılar hâlâ erişim hataları alıyorsa bunu kullanın. Devam edilsin mi?',
+    'resyncUserPermissionsStarted' => 'Kullanıcı izinleri yeniden senkronizasyonu başlatıldı. Tamamlandığında bildirim alacaksınız.',
+    'resyncUserPermissionsAlreadyRunning' => 'Bu şirket için kullanıcı izinleri yeniden senkronizasyonu zaten çalışıyor.',
+    'resyncUserPermissionsSuccess' => ':synced kullanıcı için izinler yeniden senkronize edildi. Rolü olmayan :skipped kullanıcı atlandı.',
+    'resyncUserPermissionsFailed' => 'Kullanıcı izinleri yeniden senkronizasyonu başarısız oldu. Uygulama günlüklerini kontrol edip tekrar deneyin.',
 );

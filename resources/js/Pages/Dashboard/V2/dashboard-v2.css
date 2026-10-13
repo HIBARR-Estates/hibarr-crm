@@ -212,6 +212,36 @@
     background: #dbeafe;
 }
 
+/* Partner insights: trend, funnel, and ledger share one row so the shorter
+   ledger card meets the height of the other two. Stacks once three columns
+   would crush the charts. */
+.dashboard-v2 .dv2-partner-insights {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+    .dashboard-v2 .dv2-partner-insights {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Active referrals on the left, the flag thread on the right. */
+.dashboard-v2 .dv2-partner-book {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 14px;
+    align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+    .dashboard-v2 .dv2-partner-book {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Personal dashboard shell: queue 8 / rail 4 on the 12-column grid, per the
    breakpoint rules in the design handoff. */
 .dashboard-v2 .dv2-grid {

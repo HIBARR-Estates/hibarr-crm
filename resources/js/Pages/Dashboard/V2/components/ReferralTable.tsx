@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Pagination, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
-const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr 96px";
+const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr";
 
 const STAGE_PILL: Record<string, string> = {
     "Deal open": "blue",
@@ -19,18 +19,20 @@ const STAGE_PILL: Record<string, string> = {
  * payload at all — the redaction happens in the query, not by this table
  * choosing not to render a field it was handed.
  */
-export default function ReferralTable({
-    rows,
-    onFlag,
-}: {
-    rows: PartnerReferral[];
-    onFlag: (referral: PartnerReferral) => void;
-}) {
+export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
     const { td } = useTd();
     const [stalledOnly, setStalledOnly] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     const stalled = rows.filter((row) => row.stalled).length;
     const visible = stalledOnly ? rows.filter((row) => row.stalled) : rows;
+    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const pageRows = visible.slice(
+        (safePage - 1) * pageSize,
+        safePage * pageSize,
+    );
 
     if (!rows.length) {
         return (
@@ -48,7 +50,14 @@ export default function ReferralTable({
     }
 
     return (
-        <div>
+        <div
+            style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+            }}
+        >
             <div
                 style={{
                     display: "flex",
@@ -77,7 +86,10 @@ export default function ReferralTable({
                         type="button"
                         className="dv2-chip"
                         aria-pressed={!stalledOnly}
-                        onClick={() => setStalledOnly(false)}
+                        onClick={() => {
+                            setStalledOnly(false);
+                            setPage(1);
+                        }}
                     >
                         {td("All", { source: "en" })} {rows.length}
                     </button>
@@ -86,14 +98,17 @@ export default function ReferralTable({
                         className="dv2-chip"
                         aria-pressed={stalledOnly}
                         disabled={stalled === 0}
-                        onClick={() => setStalledOnly(true)}
+                        onClick={() => {
+                            setStalledOnly(true);
+                            setPage(1);
+                        }}
                     >
                         {td("Stalled", { source: "en" })} {stalled}
                     </button>
                 </div>
             </div>
 
-            <div className="dv2-scroll-x">
+            <div className="dv2-scroll-x" style={{ flex: 1 }}>
                 <div style={{ minWidth: 520 }}>
                     <div
                         className="dv2-eyebrow"
@@ -111,10 +126,21 @@ export default function ReferralTable({
                         <div style={{ textAlign: "right" }}>
                             {td("Last update", { source: "en" })}
                         </div>
-                        <div />
                     </div>
 
-                    {visible.map((row, index) => (
+                    {pageRows.length === 0 ? (
+                        <p
+                            style={{
+                                margin: 0,
+                                padding: 18,
+                                fontSize: 14,
+                                color: T.TEXT_MUTED,
+                            }}
+                        >
+                            {td("No stalled referrals.", { source: "en" })}
+                        </p>
+                    ) : (
+                        pageRows.map((row, index) => (
                         <div
                             key={row.id}
                             style={{
@@ -124,7 +150,7 @@ export default function ReferralTable({
                                 padding: "12px 18px",
                                 fontSize: 14,
                                 borderBottom:
-                                    index === visible.length - 1
+                                    index === pageRows.length - 1
                                         ? undefined
                                         : `1px solid ${T.BORDER_SOFT}`,
                             }}
@@ -133,17 +159,6 @@ export default function ReferralTable({
                                 <div style={{ fontWeight: 600 }}>
                                     {row.client ?? td("Unnamed referral", { source: "en" })}
                                 </div>
-                                {row.flag_response && (
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            color: T.GREEN,
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        {td("Reply", { source: "en" })}: {row.flag_response}
-                                    </div>
-                                )}
                             </div>
 
                             <div>
@@ -183,29 +198,24 @@ export default function ReferralTable({
                                     ? td("Today", { source: "en" })
                                     : `${row.idle_days}${td("d ago", { source: "en" })}`}
                             </div>
-
-                            <div style={{ textAlign: "right" }}>
-                                {row.flag_status ? (
-                                    <span
-                                        className="dr-pill dr-pill-amber"
-                                        title={td("Waiting on the partner team", { source: "en" })}
-                                    >
-                                        {td("Flagged", { source: "en" })}
-                                    </span>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="dr-btn dr-btn-ghost dr-btn-sm"
-                                        onClick={() => onFlag(row)}
-                                    >
-                                        {td("Flag", { source: "en" })}
-                                    </button>
-                                )}
-                            </div>
                         </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
+
+            <Pagination
+                page={safePage}
+                pageSize={pageSize}
+                totalItems={visible.length}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setPage(1);
+                }}
+                itemLabel="referral"
+                itemLabelPlural="referrals"
+            />
         </div>
     );
 }

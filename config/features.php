@@ -45,6 +45,7 @@ return [
         'crm.manager-dashboard',
         'crm.team-dashboard',
         'crm.partner-flag-routing',
+        'crm.partner.lead-stalled',
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
