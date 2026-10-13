@@ -50,7 +50,14 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
     }
 
     return (
-        <div>
+        <div
+            style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+            }}
+        >
             <div
                 style={{
                     display: "flex",
@@ -101,7 +108,7 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
                 </div>
             </div>
 
-            <div className="dv2-scroll-x">
+            <div className="dv2-scroll-x" style={{ flex: 1 }}>
                 <div style={{ minWidth: 520 }}>
                     <div
                         className="dv2-eyebrow"

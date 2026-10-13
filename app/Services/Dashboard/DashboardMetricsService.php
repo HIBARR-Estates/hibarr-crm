@@ -1504,6 +1504,9 @@ class DashboardMetricsService
                 ? null
                 : (int) round($median),
             'commissionsByStatus' => $commissions,
+            // mlm_commissions has no currency of its own. Every leg is stored
+            // in the company currency, the same convention as commissionSummary.
+            'currency' => $this->defaultCurrencyCode(),
         ];
     }
 
@@ -1565,7 +1568,7 @@ class DashboardMetricsService
      * ponytail: N previews for N open referred deals (single digits today).
      * Batch the level and hierarchy lookups if a partner ever carries hundreds.
      *
-     * @return array{deal_count: int, amount: float|null, suppressed: bool}
+     * @return array{deal_count: int, amount: float|null, suppressed: bool, currency: string|null}
      */
     public function partnerForecast(int $leadAgentId, MlmCommissionService $commissions): array
     {
@@ -1591,6 +1594,8 @@ class DashboardMetricsService
             'deal_count' => $deals->count(),
             'amount' => $suppressed ? null : round((float) $amount, 2),
             'suppressed' => $suppressed,
+            // preview() already converts each leg into the company currency.
+            'currency' => $this->defaultCurrencyCode(),
         ];
     }
 
@@ -1670,15 +1675,35 @@ class DashboardMetricsService
     }
 
     /**
+     * When on, a partner referral is stalled only after someone has worked it
+     * and then left it idle. Off keeps the earlier rule: 30 days since the
+     * lead row last changed, whether or not anyone touched it.
+     */
+    public const PARTNER_LEAD_STALLED_FLAG = 'crm.partner.lead-stalled';
+
+    /**
      * A partner's open referrals, one row each.
      *
      * Names are abbreviated server-side ("Sarah Al-Rashid" → "S. Al-Rashid")
      * and no email, phone or deal value is selected at all — the partner sits
      * outside the trust boundary, so the redaction happens in the query rather
      * than by the UI choosing not to render a field it was handed.
+     *
+     * Stalled, behind PARTNER_LEAD_STALLED_FLAG: the lead was touched (first
+     * contact, a held meeting, or any deal) and leads.updated_at is then at
+     * least $stalledAfterDays old. A referral nobody has started is not
+     * stalled, however long it has sat there. With the flag off, age alone
+     * is enough, which is the behaviour this replaces.
      */
     public function partnerReferrals(int $leadAgentId, int $stalledAfterDays = 30): array
     {
+        try {
+            $requireTouch = FeatureFlags::enabled(self::PARTNER_LEAD_STALLED_FLAG);
+        } catch (\Throwable $e) {
+            report($e);
+            $requireTouch = false;
+        }
+
         return Lead::query()
             ->where('referred_by_agent_id', $leadAgentId)
             ->whereNotExists(function ($sub) {
@@ -1710,10 +1735,14 @@ class DashboardMetricsService
                 'partner_flags.response as flag_response',
                 DB::raw($this->firstMeetingSubquery().' as met_at'),
                 DB::raw('(SELECT COUNT(*) FROM deals d WHERE d.lead_id = leads.id AND d.outcome_status IS NULL) as open_deals'),
+                DB::raw('(SELECT COUNT(*) FROM deals dx WHERE dx.lead_id = leads.id) as deal_count'),
             ])
-            ->map(function ($row) use ($stalledAfterDays) {
+            ->map(function ($row) use ($stalledAfterDays, $requireTouch) {
                 $lastUpdate = Carbon::parse($row->updated_at);
                 $idleDays = (int) $lastUpdate->diffInDays(now());
+                $touched = $row->first_contacted_at !== null
+                    || $row->met_at !== null
+                    || (int) $row->deal_count > 0;
 
                 $stage = match (true) {
                     $row->open_deals > 0 => 'Deal open',
@@ -1726,7 +1755,7 @@ class DashboardMetricsService
                     'id' => $row->id,
                     'client' => $this->abbreviateName($row->client_name),
                     'stage' => $stage,
-                    'stalled' => $idleDays >= $stalledAfterDays,
+                    'stalled' => self::referralIsStalled($touched, $idleDays, $stalledAfterDays, $requireTouch),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
                     'idle_days' => $idleDays,
                     'flag_status' => $row->flag_status,
@@ -1734,6 +1763,19 @@ class DashboardMetricsService
                 ];
             })
             ->all();
+    }
+
+    /**
+     * Idle long enough, and — when the flag is on — only if someone has
+     * already worked the lead. An untouched referral is waiting, not stalled.
+     */
+    private static function referralIsStalled(bool $touched, int $idleDays, int $stalledAfterDays, bool $requireTouch): bool
+    {
+        if ($idleDays < $stalledAfterDays) {
+            return false;
+        }
+
+        return $requireTouch ? $touched : true;
     }
 
     /**

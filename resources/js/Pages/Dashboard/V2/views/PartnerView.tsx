@@ -1,5 +1,6 @@
+import { useMemo, useState } from "react";
 import { Deferred } from "@inertiajs/react";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Button, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DashboardPanel, {
     CardSkeleton,
@@ -9,8 +10,10 @@ import StatTile from "../components/StatTile";
 import MultiStatTile from "../components/MultiStatTile";
 import StageFunnel from "../components/StageFunnel";
 import PartnerTrendChart from "../components/PartnerTrendChart";
+import { currencyAmount } from "../format";
 import ReferralTable from "../components/ReferralTable";
 import ReferralFlagsCard from "../components/ReferralFlagsCard";
+import FlagReferralModal from "../components/FlagReferralModal";
 import type {
     PartnerFlagThreadItem,
     PartnerForecast,
@@ -53,6 +56,20 @@ export default function PartnerView({
     partnerForecast,
 }: PartnerViewProps) {
     const { td } = useTd();
+    const [raising, setRaising] = useState(false);
+    const flaggable = useMemo(() => {
+        const openLeadIds = new Set(
+            (partnerFlags ?? [])
+                .filter(
+                    (flag) =>
+                        flag.status === "open" ||
+                        flag.status === "acknowledged",
+                )
+                .map((flag) => flag.lead_id),
+        );
+
+        return (partnerReferrals ?? []).filter((row) => !openLeadIds.has(row.id));
+    }, [partnerFlags, partnerReferrals]);
 
     const commissions = Object.entries(partnerStats?.commissionsByStatus ?? {});
 
@@ -114,9 +131,10 @@ export default function PartnerView({
                             label="Forecast"
                             value={
                                 partnerForecast?.amount
-                                    ? Math.round(
+                                    ? currencyAmount(
                                           partnerForecast.amount,
-                                      ).toLocaleString()
+                                          partnerForecast.currency ?? null,
+                                      )
                                     : null
                             }
                             note={forecastNote(partnerForecast)}
@@ -172,7 +190,7 @@ export default function PartnerView({
 
                 <DashboardPanel
                     title="Commission ledger"
-                    note="In the currency each commission was recorded in"
+                    note="Company currency"
                     style={{ height: "100%" }}
                     footer={
                         <span style={{ color: T.TEXT_MUTED, fontSize: 13 }}>
@@ -187,7 +205,7 @@ export default function PartnerView({
                     >
                         {commissions.length ? (
                             <div>
-                                {commissions.map(([status, amount], index) => (
+                                {commissions.map(([status, total], index) => (
                                     <div
                                         key={status}
                                         style={{
@@ -237,10 +255,10 @@ export default function PartnerView({
                                                 color: T.NAVY,
                                             }}
                                         >
-                                            {amount.toLocaleString(undefined, {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
+                                            {currencyAmount(
+                                                total,
+                                                partnerStats?.currency ?? null,
+                                            )}
                                         </span>
                                     </div>
                                 ))}
@@ -272,17 +290,31 @@ export default function PartnerView({
                 }
             >
                 <div className="dv2-partner-book">
-                    <DashboardPanel flush>
+                    <DashboardPanel flush fill style={{ height: "100%" }}>
                         <ReferralTable rows={partnerReferrals ?? []} />
                     </DashboardPanel>
                     <DashboardPanel
+                        flush
+                        fill
                         title="Flags"
-                        note="Raise a flag here, and read the reply on the same card"
+                        note="Replies from the partner team"
                         style={{ height: "100%" }}
+                        extra={
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={flaggable.length === 0}
+                                onClick={() => setRaising(true)}
+                            >
+                                {td("Raise flag", { source: "en" })}
+                            </Button>
+                        }
                     >
-                        <ReferralFlagsCard
-                            referrals={partnerReferrals ?? []}
-                            flags={partnerFlags ?? []}
+                        <ReferralFlagsCard flags={partnerFlags ?? []} />
+                        <FlagReferralModal
+                            open={raising}
+                            referrals={flaggable}
+                            onClose={() => setRaising(false)}
                         />
                     </DashboardPanel>
                 </div>
@@ -301,8 +333,7 @@ const tileGrid = {
  * Says why the forecast is blank, because there are three different reasons
  * and "—" on its own reads as a fault.
  *
- * No currency symbol: commissions are summed across currencies without being
- * split, the same limitation the ledger carries.
+ * Both figures are in the company currency. currencyAmount prefixes them.
  */
 function forecastNote(forecast?: PartnerForecast | null): string | null {
     if (!forecast || forecast.deal_count === 0) {

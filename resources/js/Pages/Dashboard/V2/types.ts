@@ -132,6 +132,8 @@ export interface PartnerStats {
     conversionRate: number | null;
     medianDaysToClose: number | null;
     commissionsByStatus: Record<string, number>;
+    /** Company currency. Null when the company has none configured. */
+    currency: string | null;
 }
 
 export interface PartnerForecast {
@@ -140,6 +142,8 @@ export interface PartnerForecast {
     amount: number | null;
     /** True when there are too few open deals to aggregate safely. */
     suppressed: boolean;
+    /** Company currency the forecast legs were converted into. */
+    currency: string | null;
 }
 
 export interface PartnerTrendPoint {
