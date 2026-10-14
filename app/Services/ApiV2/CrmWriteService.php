@@ -190,7 +190,13 @@ class CrmWriteService
             $note->save();
             $note->setRelation('deal', $deal);
 
-            app(DealActivityEventService::class)->recordNoteAdded($deal, $note);
+            // DealNoteObserver::created() already records deal_note_added on a
+            // web request with a logged-in user. Calling recordNoteAdded again
+            // duplicated that event. Console and no-user writes skip the
+            // observer, so this remains the only log in those cases.
+            if (isRunningInConsoleOrSeeding() || ! user()) {
+                app(DealActivityEventService::class)->recordNoteAdded($deal, $note);
+            }
             app(NoteReminderSync::class)->syncFromDealNote($note);
 
             return ['note' => $note, 'type' => 'deal'];
