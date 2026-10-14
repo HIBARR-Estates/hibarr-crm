@@ -1931,5 +1931,9 @@ return [
         'on' => 'On',
         'off' => 'Off',
         'read_only' => 'Read only',
+        'this_page' => 'This page',
+        'undeclared' => 'No entry for this page. Showing every flag and permission.',
+        'any_of' => 'Any one of these is enough.',
+        'needs' => 'Needs {{scopes}}',
     ],
 ];
