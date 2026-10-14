@@ -33,6 +33,7 @@ class DeveloperProjectListingPayload
             'description' => $project->description,
             'project_location_id' => $project->project_location_id,
             'starting_price' => $project->starting_price,
+            'currency' => $project->currencyCode(),
             'completion_date' => $project->completion_date?->toDateString(),
             'total_units' => $project->total_units !== null ? (int) $project->total_units : null,
             'total_units_sold' => $project->total_units_sold !== null ? (int) $project->total_units_sold : null,

@@ -8,7 +8,11 @@ import {
     LeftOutlined,
     RightOutlined,
 } from "@ant-design/icons";
-import { generatePropertySubtitle } from "@/lib/utils";
+import {
+    currencySymbolForCode,
+    generatePropertySubtitle,
+    storedPriceCurrency,
+} from "@/lib/utils";
 
 const PROPERTY_STATUS_COLORS: Record<string, string> = {
     available: "green",
@@ -99,7 +103,11 @@ function PropertyCard({ product }: { product: any }) {
                     <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-600">
                         <DollarOutlined className="shrink-0" />
                         <span>
-                            {currencySymbol}
+                            {currencySymbolForCode(
+                                storedPriceCurrency(prop, undefined) ||
+                                    undefined,
+                                currencySymbol,
+                            )}
                             {new Intl.NumberFormat("en-US", {
                                 maximumFractionDigits: 0,
                             }).format(Number(prop.price))}
