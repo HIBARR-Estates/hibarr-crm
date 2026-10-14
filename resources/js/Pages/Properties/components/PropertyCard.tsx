@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { MenuProps } from "antd";
 import type { Property } from "@/Types";
-import { generatePropertySubtitle } from "@/lib/utils";
+import { generatePropertySubtitle, storedPriceCurrency } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import CompletionDot from "@/Components/Redesign/primitives/CompletionDot";
 import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
@@ -111,6 +111,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         showCompleteness &&
         completeness != null &&
         completeness.total > 0;
+    const priceCurrency = storedPriceCurrency(property, currencyCode);
 
     const firstPhoto =
         property.assets?.[0]?.url ??
@@ -306,7 +307,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         <p className="font-bold text-sm text-slate-900">
                             {formatPrice(
                                 property.price,
-                                currencyCode,
+                                priceCurrency,
                                 currencySymbol,
                             )}
                         </p>

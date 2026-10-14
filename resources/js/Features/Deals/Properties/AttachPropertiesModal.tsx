@@ -32,7 +32,11 @@ import { usePage } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiSuccessResponse } from "@/lib/api/types";
-import { generatePropertySubtitle } from "@/lib/utils";
+import {
+    currencySymbolForCode,
+    generatePropertySubtitle,
+    storedPriceCurrency,
+} from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import { isDealValueLocked } from "@/lib/dealOutcome";
 // Bridge: the payment-request guard lives with the deal page's workspace
@@ -354,10 +358,13 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
         }));
     };
 
-    const formatPrice = (price: any) => {
+    const formatPrice = (price: any, currencyCode?: string | null) => {
         const num = typeof price === "object" ? price?.amount : price;
         if (!num || Number(num) === 0) return null;
-        return `${currencySymbol}${new Intl.NumberFormat("en-US", {
+        const symbol = currencyCode
+            ? currencySymbolForCode(currencyCode, currencySymbol)
+            : currencySymbol;
+        return `${symbol}${new Intl.NumberFormat("en-US", {
             maximumFractionDigits: 0,
         }).format(Number(num))}`;
     };
@@ -790,10 +797,16 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     )}
                                                     {formatPrice(
                                                         prop?.price,
+                                                        storedPriceCurrency(
+                                                            prop,
+                                                        ),
                                                     ) && (
                                                         <span className="font-semibold text-blue-600">
                                                             {formatPrice(
                                                                 prop?.price,
+                                                                storedPriceCurrency(
+                                                                    prop,
+                                                                ),
                                                             )}
                                                         </span>
                                                     )}
@@ -914,7 +927,10 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                     {unitType.starting_price != null && (
                         <span className="text-sm font-semibold text-blue-600">
-                            {formatPrice(unitType.starting_price) ??
+                            {formatPrice(
+                                unitType.starting_price,
+                                unitType.currency,
+                            ) ??
                                 `${unitType.currency ?? ""} ${unitType.starting_price}`}
                         </span>
                     )}

@@ -33,7 +33,11 @@ import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
-import { generatePropertySubtitle } from "@/lib/utils";
+import {
+    currencySymbolForCode,
+    generatePropertySubtitle,
+    storedPriceCurrency,
+} from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
 
@@ -119,9 +123,15 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
         }
     }, [open, form]);
 
-    const formatPrice = (price: number | null) => {
+    const formatPrice = (
+        price: number | null,
+        currencyCode?: string | null,
+    ) => {
         if (!price) return "-";
-        return `${currencySymbol}${new Intl.NumberFormat("en-GB", {
+        const symbol = currencyCode
+            ? currencySymbolForCode(currencyCode, currencySymbol)
+            : currencySymbol;
+        return `${symbol}${new Intl.NumberFormat("en-GB", {
             maximumFractionDigits: 0,
         }).format(price)}`;
     };
@@ -517,7 +527,8 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                 title: "Price",
                 dataIndex: "price",
                 key: "price",
-                render: (price: number | null) => formatPrice(price),
+                render: (price: number | null, record) =>
+                    formatPrice(price, storedPriceCurrency(record)),
                 width: 120,
             },
             {
